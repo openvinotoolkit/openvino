@@ -372,7 +372,12 @@ void InterpolateEval<T>::linear_func(const T* input_data, T* out) {
         if (wsum == 0.0f) {
             out[output_transform.index(output_coord)] = T{};
         } else {
-            out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
+            if (std::is_integral<T>()) {
+                // Round value for integral return types
+                out[output_transform.index(output_coord)] = static_cast<T>(std::round(summa / wsum));
+            } else {
+                out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
+            }
         }
     }
     NGRAPH_SUPPRESS_DEPRECATED_END

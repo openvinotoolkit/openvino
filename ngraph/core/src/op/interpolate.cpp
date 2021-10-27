@@ -201,10 +201,10 @@ ov::PartialShape op::v4::Interpolate::get_padded_input_shape(const ov::PartialSh
 void op::v4::Interpolate::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
     element::Type input_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(
-        this,
-        input_et == element::f32 || input_et == element::f16 || input_et == element::i8 || input_et == element::bf16,
-        "Input element type must be f32, f16, bf16 or i8");
+    NODE_VALIDATION_CHECK(this,
+                          input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
+                              input_et == element::bf16 || input_et == element::u8,
+                          "Input element type must be f32, f16, bf16, i8 or u8");
 
     element::Type sizes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(
@@ -454,6 +454,14 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
                                                         outputs[0]->get_data_ptr<int8_t>(),
                                                         out_shape,
                                                         m_attrs);
+    case element::Type_t::u8:
+        ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<uint8_t>(),
+                                                         out_shape,
+                                                         m_attrs);
         break;
     default:;
     }
@@ -469,6 +477,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTe
 bool op::v4::Interpolate::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Interpolate_has_evaluate);
     switch (get_input_element_type(0)) {
+    case ngraph::element::i8:
     case ngraph::element::u8:
     case ngraph::element::f16:
     case ngraph::element::f32:
