@@ -22,9 +22,6 @@
 
 namespace vpu {
 
-void printTo(std::ostream&, const std::list<Stage>::iterator&) {
-}
-
 namespace {
 
 class PassImpl final : public Pass {

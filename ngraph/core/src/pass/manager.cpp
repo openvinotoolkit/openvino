@@ -27,12 +27,12 @@ using namespace std;
 
 namespace ov {
 namespace pass {
-namespace internal {
+namespace {
 PerfCounters& perf_counters() {
     static PerfCounters counters;
     return counters;
 }
-}  // namespace internal
+}  // namespace
 }  // namespace pass
 }  // namespace ov
 
@@ -61,9 +61,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
             continue;
         }
 
-        OV_ITT_SCOPE(FIRST_INFERENCE,
-                     ov::itt::domains::nGraphPass_LT,
-                     pass::internal::perf_counters()[pass->get_type_info()]);
+        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::nGraphPass_LT, pass::perf_counters()[pass->get_type_info()]);
 
         pass_timer.start();
 

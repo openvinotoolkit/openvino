@@ -11,7 +11,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::FakeQuantize>& op) {
+static void CreateFakeQuantizeOp(Program& p, const std::shared_ptr<ngraph::op::v0::FakeQuantize>& op) {
     p.ValidateInputs(op, {5});
     std::string layerName = layer_type_name_ID(op);
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);

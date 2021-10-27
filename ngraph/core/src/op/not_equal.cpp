@@ -13,6 +13,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace not_equalop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -47,6 +48,7 @@ bool evaluate_not_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace not_equalop
 
 // ----------------------------------- v1 --------------------------------------

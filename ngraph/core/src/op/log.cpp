@@ -30,6 +30,7 @@ shared_ptr<Node> op::Log::clone_with_new_inputs(const OutputVector& new_args) co
 }
 
 namespace logop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -55,6 +56,7 @@ bool evaluate_log(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     }
     return rc;
 }
+}  // namespace
 }  // namespace logop
 
 bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

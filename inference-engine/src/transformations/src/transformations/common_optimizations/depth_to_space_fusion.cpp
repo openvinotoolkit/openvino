@@ -11,6 +11,8 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
+namespace {
+
 bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
                        const ngraph::AxisVector& permutation, const ngraph::Shape& shape_reshape_after,
                        size_t& possible_block_size) {
@@ -81,6 +83,8 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
 
     return is_transformation_valid;
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
 

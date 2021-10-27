@@ -37,6 +37,8 @@ void DeconvolutionToConvolutionContent::fillTempBuf(void* tempBuf) const {
 // DepthDeconvolutionCHWWeightsContent
 //
 
+namespace {
+
 void depthDeconvolutionRelayoutCHW(
         const fp16_t* src, int src_size,
         fp16_t* dst, int dst_size,
@@ -54,6 +56,8 @@ void depthDeconvolutionRelayoutCHW(
         dst[oidx] = src[iidx];
     });
 }
+
+} // namespace
 
 DepthDeconvolutionCHWWeightsContent::DepthDeconvolutionCHWWeightsContent(
         const DataContent::Ptr& origContent,
@@ -77,6 +81,8 @@ size_t DepthDeconvolutionCHWWeightsContent::byteSize() const {
 // DepthDeconvolutionHWCWeightsContent
 //
 
+namespace {
+
 void depthDeconvolutionRelayoutHWC(
         const fp16_t* src, int src_size,
         fp16_t* dst, int dst_size,
@@ -94,6 +100,8 @@ void depthDeconvolutionRelayoutHWC(
         dst[oidx] = src[iidx];
     });
 }
+
+} // namespace
 
 DepthDeconvolutionHWCWeightsContent::DepthDeconvolutionHWCWeightsContent(
         const DataContent::Ptr& origContent,
@@ -118,6 +126,8 @@ size_t DepthDeconvolutionHWCWeightsContent::byteSize() const {
 // DeconvolutionWeightsContent
 //
 
+namespace {
+
 void deconvolutionRelayout(
         const fp16_t* src, int src_size,
         fp16_t* dst, int dst_size,
@@ -141,6 +151,8 @@ void deconvolutionRelayout(
         dst[oidx] = src[iidx];
     });
 }
+
+} // namespace
 
 DeconvolutionWeightsContent::DeconvolutionWeightsContent(
         const DataContent::Ptr& origContent,

@@ -28,6 +28,7 @@ using namespace ngraph::frontend;
 namespace ngraph {
 namespace frontend {
 namespace pdpd {
+namespace {
 NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
                           const std::shared_ptr<OpPlacePDPD>& op_place,
                           const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
@@ -131,6 +132,7 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
     FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
     return &ext_stream;
 }
+}  // namespace
 }  // namespace pdpd
 
 std::shared_ptr<Function> FrontEndPDPD::convert_each_node(

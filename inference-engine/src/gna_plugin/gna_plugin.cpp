@@ -77,7 +77,7 @@
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 
-uint32_t ToByteSize(const Gna2DataType type) {
+inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
     case Gna2DataTypeInt8:
     case Gna2DataTypeUint8:

@@ -33,6 +33,8 @@ BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Function>>);
 
 atomic<size_t> ov::Function::m_next_instance_id(0);
 
+namespace {
+
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                     const ov::op::util::VariableVector& variables) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraphPass_LT, "Function::check_all_variables_registered");
@@ -82,6 +84,8 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     }
     return parameter_vector;
 }
+
+}  // namespace
 
 ov::Function::Function(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
@@ -304,7 +308,7 @@ void ov::Function::set_friendly_name(const string& name) {
     m_name = name;
 }
 
-std::ostream& operator<<(std::ostream& out, const ov::Function& f) {
+std::ostream& ov::operator<<(std::ostream& out, const ov::Function& f) {
     out << "Function(" << f.get_name() << ")";
     return out;
 }

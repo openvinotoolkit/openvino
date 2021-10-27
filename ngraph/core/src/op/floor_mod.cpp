@@ -25,6 +25,7 @@ shared_ptr<Node> op::v1::FloorMod::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace floor_mod {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -61,6 +62,7 @@ bool evaluate_floor_mod(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace floor_mod
 
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

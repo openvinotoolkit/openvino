@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "op/crop.hpp"
+
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/builder/autobroadcast.hpp"

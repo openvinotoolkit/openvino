@@ -118,6 +118,7 @@ shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector
 }
 
 namespace variadic_split {
+namespace {
 inline bool evaluate(const HostTensorPtr& in,
                      const HostTensorPtr& out,
                      const Coordinate& lower_bounds,
@@ -133,6 +134,7 @@ inline bool evaluate(const HostTensorPtr& in,
 
     return true;
 }
+}  // namespace
 }  // namespace variadic_split
 
 bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inputs,

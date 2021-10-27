@@ -12,6 +12,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace equal {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -48,6 +49,7 @@ bool evaluate_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace equal
 
 //------------------------------- v1 -------------------------------------------

@@ -38,6 +38,7 @@ shared_ptr<Node> op::v1::ReduceSum::clone_with_new_inputs(const OutputVector& ne
 }
 
 namespace reduce_sum {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -59,7 +60,8 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
         break;
     }
     return rc;
-}
+}  // namespace
+}  // namespace
 }  // namespace reduce_sum
 
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

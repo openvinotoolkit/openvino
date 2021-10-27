@@ -83,6 +83,7 @@ void op::DepthToSpace::validate_and_infer_types() {
     }
 }
 
+namespace {
 bool evaluate_depth_to_space(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,
                              const std::size_t block_size,
@@ -102,6 +103,7 @@ bool evaluate_depth_to_space(const HostTensorVector& outputs,
                                        elem_size);
     return true;
 }
+}  // namespace
 
 bool op::DepthToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate);

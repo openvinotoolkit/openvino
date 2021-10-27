@@ -39,6 +39,7 @@ bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, n
 }
 
 namespace fuse_fq {
+namespace {
 
 std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const PartialShape& targetPShape) {
     assert(targetPShape.is_static());
@@ -111,6 +112,7 @@ bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
     return getDataNode(eltwise) != nullptr;
 }
 
+}  // namespace
 }  // namespace fuse_fq
 
 std::shared_ptr<opset1::FakeQuantize> FuseFakeQuantizeTransformation::handle(

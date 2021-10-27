@@ -77,6 +77,7 @@ shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_
 }
 
 namespace nonzero {
+namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUT_ET>
 bool evaluate_nonzero_execute(const HostTensorPtr& input, const HostTensorPtr& output) {
     using IN_T = typename element_type_traits<INPUT_ET>::value_type;
@@ -145,6 +146,7 @@ bool evaluate_nonzero(const HostTensorPtr& input, const HostTensorPtr& output) {
     }
     return rc;
 }
+}  // namespace
 }  // namespace nonzero
 
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

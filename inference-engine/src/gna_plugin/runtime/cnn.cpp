@@ -48,6 +48,8 @@ void CNNFilter32(intel_dnn_component_t *component) {
     }
 }
 
+namespace {
+
 void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
     const uint32_t num_inputs = component->op.maxpool.inCHW[0] * component->op.maxpool.inCHW[1] * component->op.maxpool.inCHW[2];
     const uint32_t in_c = component->op.maxpool.inCHW[0];
@@ -128,14 +130,12 @@ void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t 
     }
 }
 
-namespace {
 // a1: fastest changing index
 // A - size neede
 template <typename T>
 T getQubeIndex(T a1, T a2, T a3, T A2, T A3) {
     return a1 * A2 * A3 + a2 * A3 + a3;
 }
-} // namespace
 
 float MaxPool2D32SingleHWC(const unsigned poolWinH, const unsigned poolWinW,
     const float* input, const unsigned IH, const unsigned IW, const unsigned IC,
@@ -184,7 +184,11 @@ void CNNMaxPool2DFloat(intel_dnn_component_t* component) {
     }
 }
 
+} // namespace
+
 #if GNA_LIB_VER == 2
+
+namespace {
 
 bool matchesPaddedArea(unsigned filterIndex, unsigned outputIndex, unsigned inputSize, unsigned paddingSize, unsigned stride) {
     const auto paddedIndex = stride * outputIndex + filterIndex;
@@ -230,6 +234,8 @@ float CNN2DFilter32SingleHWC(const float bias, const float* filter, const unsign
     output += bias;
     return output;
 }
+
+} // namespace
 
 void CNN2DFilter32(intel_dnn_component_t* component) {
     float* ptr_filters = reinterpret_cast<float*>(component->op.conv2D.ptr_filters);

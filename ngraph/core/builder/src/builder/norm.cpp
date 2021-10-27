@@ -23,6 +23,7 @@ namespace ngraph {
 namespace builder {
 namespace detail {
 namespace opset1 {
+namespace {
 shared_ptr<Node> lp_norm(const Output<Node>& value,
                          size_t p_norm,
                          const Output<Node>& reduction_axes,
@@ -47,6 +48,7 @@ shared_ptr<Node> lp_norm(const Output<Node>& value,
 
     return {make_shared<ngraph::opset1::Power>(values, inv_p_node)};
 }
+}  // namespace
 }  // namespace opset1
 }  // namespace detail
 

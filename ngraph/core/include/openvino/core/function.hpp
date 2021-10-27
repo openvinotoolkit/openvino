@@ -145,7 +145,6 @@ public:
     std::vector<std::shared_ptr<ov::Node>> get_ordered_ops() const;
     void map_unordered_ops(std::function<void(ov::Node*)> f) const;
 
-    friend std::ostream& operator<<(std::ostream&, const Function&);
     // updates graph and m_results list
     void replace_node(std::shared_ptr<ov::Node> old, std::shared_ptr<ov::Node> repl);
 
@@ -311,6 +310,9 @@ private:
     ov::op::util::VariableVector m_variables;
     RTMap m_rt_info;
 };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream&, const Function&);
 
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Function>>

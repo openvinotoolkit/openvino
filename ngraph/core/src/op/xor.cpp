@@ -28,6 +28,7 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
 }
 
 namespace logxor {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -55,7 +56,8 @@ bool evaluate_logxor(const HostTensorPtr& arg0,
         break;
     }
     return rc;
-}  // namespace logxor
+}
+}  // namespace
 }  // namespace logxor
 
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

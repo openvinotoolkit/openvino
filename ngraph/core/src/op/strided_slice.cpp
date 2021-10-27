@@ -202,6 +202,7 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
 }
 
 namespace strided_slice {
+namespace {
 inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
 {
@@ -239,6 +240,7 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
                                            ellipsis_mask);
     return evaluate(in, slice_plan, out);
 }
+}  // namespace
 }  // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {

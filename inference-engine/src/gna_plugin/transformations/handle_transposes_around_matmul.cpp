@@ -22,6 +22,8 @@ NGRAPH_RTTI_DEFINITION(HandleTransposesAroundMatMul, "HandleTransposesAroundMatM
 NGRAPH_RTTI_DEFINITION(HandleTransposeBeforeMatMul, "HandleTransposeBeforeMatMul", 0);
 NGRAPH_RTTI_DEFINITION(HandleTransposeAfterMatMul, "HandleTransposeAfterMatMul", 0);
 
+namespace {
+
 void ReplaceTransposeWithReshape(std::shared_ptr<ngraph::Node> transpose_node) {
     auto shape = transpose_node->get_output_shape(0);
     auto reshape_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
@@ -61,11 +63,13 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
     }
 }
 
-static bool VerifyReshape(const ngraph::Output<ngraph::Node>& reshape_out) {
+bool VerifyReshape(const ngraph::Output<ngraph::Node>& reshape_out) {
     auto in_shape = reshape_out.get_node_shared_ptr()->get_input_shape(0);
     auto out_shape = reshape_out.get_node_shared_ptr()->get_output_shape(0);
     return in_shape[0] != out_shape[0];
 }
+
+} // namespace
 
 HandleTransposeBeforeMatMul::HandleTransposeBeforeMatMul() {
     auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();

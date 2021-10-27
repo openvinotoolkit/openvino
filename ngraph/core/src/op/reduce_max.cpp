@@ -16,6 +16,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace maxop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -38,6 +39,7 @@ bool evaluate_max(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
     }
     return rc;
 }
+}  // namespace
 }  // namespace maxop
 
 BWDCMP_RTTI_DEFINITION(op::v1::ReduceMax);

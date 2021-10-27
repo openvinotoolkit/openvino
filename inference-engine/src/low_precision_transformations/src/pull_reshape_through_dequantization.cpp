@@ -18,6 +18,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PullReshapeThroughDequantization, "PullReshapeThroughDequantizationFusion", 0);
 
 namespace pull_reshape_through_dequantization {
+namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& elementwise) {
     const auto reshapeValues = reshape->get_input_node_shared_ptr(1);
@@ -87,6 +88,7 @@ void fuseConstant(const std::shared_ptr<Node>& reshape, const std::shared_ptr<No
     copy_runtime_info({ constant, reshape }, newConstant);
 }
 
+}  // namespace
 }  // namespace pull_reshape_through_dequantization
 
 ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroughDequantization(

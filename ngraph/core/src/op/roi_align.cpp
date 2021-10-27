@@ -174,11 +174,12 @@ NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::o
 
 }  // namespace ov
 
-std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
+std::ostream& ov::operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
 
 namespace roi_alinop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& feature_maps,
               const HostTensorPtr& rois,
@@ -264,6 +265,7 @@ bool evaluate_roi_align(const HostTensorVector& args,
 
     return rc;
 }
+}  // namespace
 }  // namespace roi_alinop
 
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

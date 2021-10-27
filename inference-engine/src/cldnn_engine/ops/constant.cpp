@@ -78,7 +78,7 @@ static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
     return constTensor;
 }
 
-void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
+static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
     auto constDims = op->get_shape();
     cldnn::tensor constTensor = getConstTensor(constDims);
 

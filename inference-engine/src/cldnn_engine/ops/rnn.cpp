@@ -16,7 +16,7 @@
 #include "cldnn/primitives/concatenation.hpp"
 
 namespace CLDNNPlugin {
-cldnn::activation_func GetActivationFunc(std::string name) {
+static cldnn::activation_func GetActivationFunc(std::string name) {
     static const std::map<std::string, cldnn::activation_func> name_mapping = {
         {"sigmoid", cldnn::activation_func::logistic},
         {"tanh", cldnn::activation_func::hyperbolic_tan},
@@ -61,7 +61,7 @@ void GetLSTMActivationParams(const std::shared_ptr<T>& op,
     }
 }
 
-void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
+static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell>& op) {
     p.ValidateInputs(op, {6});
     int lstm_batch_size, lstm_input_size, lstm_hidden_size;
     bool hasBias = true;
@@ -199,7 +199,7 @@ void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::LSTMCell
     p.AddPrimitiveToProfiler(layerName, op, outputHiddenID);
 }
 
-void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTMSequence>& op) {
+static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v5::LSTMSequence>& op) {
     p.ValidateInputs(op, {7});
 
     std::string layerName = layer_type_name_ID(op);

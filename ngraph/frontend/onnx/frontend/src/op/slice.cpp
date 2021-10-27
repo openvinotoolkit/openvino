@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "op/slice.hpp"
+
 #include <algorithm>
 #include <memory>
 #include <vector>

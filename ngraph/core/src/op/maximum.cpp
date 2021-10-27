@@ -20,6 +20,7 @@ using namespace ngraph;
 // ------------------------------------ v0 -------------------------------------
 
 namespace maximumop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -53,6 +54,7 @@ bool evaluate_maximum(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace maximumop
 
 // ------------------------------------ v1 -------------------------------------

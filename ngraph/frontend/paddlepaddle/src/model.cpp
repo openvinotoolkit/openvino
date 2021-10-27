@@ -129,7 +129,7 @@ void InputModelPDPD::InputModelPDPDImpl::loadPlaces() {
     }
 }
 
-namespace pdpd {
+namespace {
 bool read_tensor(std::istream& is, char* data, size_t len) {
     std::vector<char> header(16);
     is.read(&header[0], 16);
@@ -192,7 +192,7 @@ std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path
     return model_file;
 }
 #endif
-}  // namespace pdpd
+}  // namespace
 
 std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::InputModelPDPDImpl::get_op_places() const {
     if (m_graph_changed) {
@@ -260,11 +260,11 @@ void InputModelPDPD::InputModelPDPDImpl::loadConsts(const std::basic_string<T>& 
 
         bool read_succeed = false;
         if (weight_stream) {
-            read_succeed = pdpd::read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+            read_succeed = read_tensor(*weight_stream, reinterpret_cast<char*>(&tensor_data[0]), data_length);
         } else if (!folder_with_weights.empty()) {
-            std::ifstream is(pdpd::get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
+            std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
-            read_succeed = pdpd::read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
+            read_succeed = read_tensor(is, reinterpret_cast<char*>(&tensor_data[0]), data_length);
         } else {
             FRONT_END_GENERAL_CHECK(false, "Either folder with weights or stream must be provided.");
         }
@@ -285,7 +285,7 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T
       m_input_model(input_model) {
     std::string empty_str = "";
     std::ifstream weights_stream;
-    std::ifstream pb_stream(pdpd::get_model_path<T>(path, &weights_stream), std::ios::in | std::ifstream::binary);
+    std::ifstream pb_stream(get_model_path<T>(path, &weights_stream), std::ios::in | std::ifstream::binary);
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
@@ -337,7 +337,7 @@ Place::Ptr InputModelPDPD::InputModelPDPDImpl::getPlaceByTensorName(const std::s
     return nullptr;
 }
 
-namespace pdpd {
+namespace {
 std::shared_ptr<TensorPlacePDPD> castToTensorPlace(const Place::Ptr& place) {
     if (auto var_place = std::dynamic_pointer_cast<TensorPlacePDPD>(place)) {
         return var_place;
@@ -349,13 +349,13 @@ std::shared_ptr<TensorPlacePDPD> castToTensorPlace(const Place::Ptr& place) {
     FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlacePDPD.");
 }
 
-}  // namespace pdpd
+}  // namespace
 
 void InputModelPDPD::InputModelPDPDImpl::overrideAllInputs(const std::vector<Place::Ptr>& inputs) {
     m_graph_changed = true;
     m_inputs.clear();
     for (const auto& inp : inputs) {
-        m_inputs.push_back(pdpd::castToTensorPlace(inp));
+        m_inputs.push_back(castToTensorPlace(inp));
     }
 }
 
@@ -363,7 +363,7 @@ void InputModelPDPD::InputModelPDPDImpl::overrideAllOutputs(const std::vector<Pl
     m_graph_changed = true;
     m_outputs.clear();
     for (const auto& outp : outputs) {
-        m_outputs.push_back(pdpd::castToTensorPlace(outp));
+        m_outputs.push_back(castToTensorPlace(outp));
     }
 }
 
@@ -379,20 +379,20 @@ void InputModelPDPD::InputModelPDPDImpl::setDefaultShape(Place::Ptr place, const
 }
 
 void InputModelPDPD::InputModelPDPDImpl::setPartialShape(Place::Ptr place, const ngraph::PartialShape& p_shape) {
-    pdpd::castToTensorPlace(place)->set_partial_shape(p_shape);
+    castToTensorPlace(place)->set_partial_shape(p_shape);
 }
 
 ngraph::PartialShape InputModelPDPD::InputModelPDPDImpl::getPartialShape(Place::Ptr place) const {
-    return pdpd::castToTensorPlace(place)->get_partial_shape();
+    return castToTensorPlace(place)->get_partial_shape();
 }
 
 void InputModelPDPD::InputModelPDPDImpl::setElementType(Place::Ptr place, const ngraph::element::Type& type) {
-    pdpd::castToTensorPlace(place)->set_element_type(type);
+    castToTensorPlace(place)->set_element_type(type);
 }
 
 void InputModelPDPD::InputModelPDPDImpl::setTensorValue(Place::Ptr place, const void* value) {
     m_graph_changed = true;
-    auto tensor_place = pdpd::castToTensorPlace(place);
+    auto tensor_place = castToTensorPlace(place);
     auto p_shape = tensor_place->get_partial_shape();
     auto type = tensor_place->get_element_type();
     auto constant = opset7::Constant::create(type, p_shape.to_shape(), value);

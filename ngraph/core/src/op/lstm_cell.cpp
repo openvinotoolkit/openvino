@@ -350,7 +350,7 @@ BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
 
 }  // namespace ov
 
-std::ostream& operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
+std::ostream& ov::operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
     return s << as_string(type);
 }
 

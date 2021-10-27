@@ -59,6 +59,8 @@ Gna2Tensor HelperGna2TensorInit3D(uint32_t x, uint32_t y, uint32_t z, Gna2DataTy
     return t;
 }
 
+namespace {
+
 Gna2DataType FromOvDataType(OvGnaType t) {
     static const std::map< OvGnaType, Gna2DataType> m = {
         {OvGnaTypeInt8, Gna2DataTypeInt8},
@@ -84,6 +86,8 @@ Gna2Tensor HelperGna2TensorInit(OvGnaTensor tensor, void* data) {
     t.Type = FromOvDataType(tensor.type);
     return t;
 }
+
+} // namespace
 
 Gna2Tensor * createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data) {
     const auto input = reinterpret_cast<Gna2Tensor*>(gnaUserAllocator(sizeof(Gna2Tensor)));

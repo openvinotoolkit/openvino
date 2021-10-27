@@ -22,6 +22,8 @@ namespace low_precision {
 
 NGRAPH_RTTI_DEFINITION(AddTransformation, "AddTransformation", 0);
 
+namespace {
+
 std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>& op) {
     // TODO: separate this part to standalone transformation: AddToSubtractTransformation
     // motivation:
@@ -89,6 +91,8 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
     replace_node(add, newSubtract);
     return newSubtract;
 }
+
+} // namespace
 
 AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {
     auto matcher = ngraph::pattern::wrap_type<opset1::Add>();

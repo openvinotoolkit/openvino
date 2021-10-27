@@ -52,12 +52,12 @@
 
 namespace ov {
 namespace pass {
-namespace internal {
+namespace {
 PerfCounters& perf_counters_graph_rewrite() {
     static PerfCounters counters;
     return counters;
 }
-}  // namespace internal
+}  // namespace
 }  // namespace pass
 }  // namespace ov
 
@@ -372,7 +372,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
 }
 
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::internal::perf_counters_graph_rewrite()[get_type_info()]);
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
         return m_handler(node);

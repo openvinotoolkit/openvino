@@ -19,6 +19,8 @@
 
 namespace vpu {
 
+namespace {
+
 ngraph::AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) {
     ngraph::AxisSet axis_set{};
     for (size_t i = 0; i < mask.size(); ++i)
@@ -120,6 +122,8 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
     const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dimensions, 0);
     return output_shape;
 }
+
+} // namespace
 
 void dynamicToStaticShapeStridedSlice(std::shared_ptr<ngraph::Node> target) {
     const auto dsr = target->input_value(0).get_node_shared_ptr();

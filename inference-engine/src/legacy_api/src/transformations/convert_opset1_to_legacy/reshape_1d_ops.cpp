@@ -16,6 +16,8 @@
 
 using namespace ngraph;
 
+namespace {
+
 template <class T>
 std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<T> node, NodeVector & new_ops);
 
@@ -148,6 +150,8 @@ matcher_pass_callback get_callback() {
         return true;
     };
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DOps, "Reshape1DOps", 0);
 

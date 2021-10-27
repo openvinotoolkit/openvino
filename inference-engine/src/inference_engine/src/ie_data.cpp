@@ -205,15 +205,19 @@ const SizeVector& Data::getDims() const {
 
 namespace InferenceEngine {
 
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data) {
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data);
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data);
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data);
+
+CNNLayerWeakPtr& getCreatorLayer(const DataPtr& data) {
     return data->_impl->creatorLayer;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data) {
+std::map<std::string, CNNLayerPtr>& getInputTo(const DataPtr& data) {
     return data->_impl->inputTo;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data) {
+std::map<std::string, CNNLayerPtr>& getInputTo(Data* data) {
     return data->_impl->inputTo;
 }
 

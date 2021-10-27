@@ -31,6 +31,7 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
 }
 
 namespace reduce_and {
+namespace {
 bool evaluate_reduce_logical_and(const HostTensorPtr& data,
                                  const HostTensorPtr& out,
                                  const AxisSet& reduction_axes,
@@ -47,6 +48,7 @@ bool evaluate_reduce_logical_and(const HostTensorPtr& data,
         return false;
     }
 }
+}  // namespace
 }  // namespace reduce_and
 
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

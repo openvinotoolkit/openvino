@@ -13,6 +13,8 @@
 #include <legacy/ngraph_ops/proposal_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
+namespace {
+
 bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, bool infer_probs = false) {
     ngraph::Output<ngraph::Node> last; // 2D tensor of size [1, 3-4] with im_info will be retrieved from this node
     ngraph::NodeVector ops_to_replace, new_ops;
@@ -45,6 +47,8 @@ bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, 
 
     return true;
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposalToLegacyMatcher, "ConvertProposalToLegacyMatcher", 0);
 

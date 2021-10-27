@@ -29,11 +29,13 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
 }
 
 namespace scatter_update {
+namespace {
 template <element::Type_t ET>
 std::vector<int64_t> get_indices(const HostTensorPtr& in) {
     auto data_ptr = in->get_data_ptr<ET>();
     return std::vector<int64_t>(data_ptr, data_ptr + in->get_element_count());
 }
+}  // namespace
 }  // namespace scatter_update
 
 #define GET_INDICES(a, ...)                                                                   \

@@ -54,6 +54,8 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
     this->register_matcher(m, callback);
 }
 
+namespace {
+
 void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
     // Reshape dequantization operation Constant.
     //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
@@ -141,6 +143,8 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
     }
 }
 
+} // namespace
+
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<opset1::Reshape> reshape = ov::as_type_ptr<opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
@@ -161,7 +165,7 @@ bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const
     return true;
 }
 
-size_t getLastNotBroadcastedDimension(const Shape& shape) {
+inline size_t getLastNotBroadcastedDimension(const Shape& shape) {
     for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
         if (shape[i] != 1ul) {
             return i;
@@ -170,7 +174,7 @@ size_t getLastNotBroadcastedDimension(const Shape& shape) {
     return 0;
 }
 
-size_t getFirstChangedDimension(const PartialShape& shape1, const PartialShape& shape2) {
+inline size_t getFirstChangedDimension(const PartialShape& shape1, const PartialShape& shape2) {
     const size_t minSize = std::min(shape1.rank().get_length(), shape2.rank().get_length());
     size_t i = 0;
     for (; i < minSize; ++i) {

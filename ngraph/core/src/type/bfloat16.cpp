@@ -30,7 +30,7 @@ using namespace ngraph;
 
 static_assert(sizeof(bfloat16) == 2, "class bfloat16 must be exactly 2 bytes");
 
-bool float_isnan(const float& x) {
+inline bool float_isnan(const float& x) {
     return std::isnan(x);
 }
 

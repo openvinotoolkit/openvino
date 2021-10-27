@@ -18,7 +18,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace transform {
-namespace detail {
+namespace {
 ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE::GraphProto& graph) {
     for (auto& input : graph.input()) {
         if (input.name() == name) {
@@ -33,10 +33,10 @@ ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE
     return ONNX_NAMESPACE::TypeProto();
 }
 
-inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeProto& node,
-                                                     const ONNX_NAMESPACE::FunctionProto& func_proto,
-                                                     ONNX_NAMESPACE::GraphProto* graph,
-                                                     int current_node_idx) {
+void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeProto& node,
+                                              const ONNX_NAMESPACE::FunctionProto& func_proto,
+                                              ONNX_NAMESPACE::GraphProto* graph,
+                                              int current_node_idx) {
     const auto before_expand_size = graph->node().size();
     ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph);
     const auto added_nodes = graph->node().size() - before_expand_size;
@@ -50,7 +50,7 @@ inline void function_expand_and_remove_original_node(const ONNX_NAMESPACE::NodeP
                 graph->mutable_node()->end());
 }
 
-}  // namespace detail
+}  // namespace
 }  // namespace transform
 }  // namespace onnx_import
 }  // namespace ngraph
@@ -81,7 +81,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         if (node_op_schema->HasFunction()) {
             const auto* func_proto = node_op_schema->GetFunction();
             // Move index to the previous position because a first node of expanded function can have also function
-            detail::function_expand_and_remove_original_node(node, *func_proto, graph_proto, i--);
+            function_expand_and_remove_original_node(node, *func_proto, graph_proto, i--);
         }
 
         else if (node_op_schema->HasContextDependentFunction()) {
@@ -94,14 +94,14 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
 
             std::vector<ONNX_NAMESPACE::TypeProto> input_types;
             for (const auto& input : node.input()) {
-                input_types.push_back(ngraph::onnx_import::transform::detail::get_input_type(input, *graph_proto));
+                input_types.push_back(get_input_type(input, *graph_proto));
             }
 
             ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node, input_types);
             ONNX_NAMESPACE::FunctionProto func_proto;
             node_op_schema->BuildContextDependentFunction(ctx, func_proto);
             // Move index to the previous position because a first node of expanded function can have also function
-            detail::function_expand_and_remove_original_node(node, func_proto, graph_proto, i--);
+            function_expand_and_remove_original_node(node, func_proto, graph_proto, i--);
         }
     }
 }

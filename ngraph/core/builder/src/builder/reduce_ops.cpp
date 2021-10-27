@@ -19,6 +19,7 @@
 
 namespace ngraph {
 namespace builder {
+namespace {
 size_t get_num_elements(const Shape& shape, const AxisSet& reduction_axes) {
     size_t N = 1;
     for (auto a : reduction_axes) {
@@ -37,6 +38,8 @@ std::shared_ptr<Node> get_num_elements(const Output<Node>& value, const Output<N
     return std::make_shared<ngraph::opset1::ReduceProd>(dim_values,
                                                         ngraph::opset1::Constant::create(element::i64, {}, {0}));
 }
+
+}  // namespace
 
 std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value, const AxisSet& reduction_axes, bool keep_dims) {
     std::shared_ptr<Node> elems_number;

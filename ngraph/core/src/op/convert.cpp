@@ -42,6 +42,7 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
 }
 
 namespace convert {
+namespace {
 template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
 
@@ -156,6 +157,7 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
     } else
         return false;
 }
+}  // namespace
 }  // namespace convert
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
     NGRAPH_OP_SCOPE(v0_Convert_evaluate);

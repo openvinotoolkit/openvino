@@ -10,7 +10,7 @@
 #include <map>
 #include <vector>
 
-namespace detail {
+namespace {
 namespace onnx {
 enum Field {
     IR_VERSION = 1,
@@ -190,7 +190,7 @@ bool contains_onnx_model_keys(const std::string& model, const size_t expected_ke
     return keys_found == expected_keys_num;
 }
 }  // namespace prototxt
-}  // namespace detail
+}  // namespace
 
 namespace ngraph {
 namespace onnx_common {
@@ -201,12 +201,12 @@ bool is_valid_model(std::istream& model) {
     unsigned int valid_fields_found = 0u;
     try {
         while (!model.eof() && valid_fields_found < EXPECTED_FIELDS_FOUND) {
-            const auto field = detail::onnx::decode_next_field(model);
+            const auto field = ::onnx::decode_next_field(model);
 
             ++valid_fields_found;
 
             if (field.second > 0) {
-                detail::onnx::skip_payload(model, field.second);
+                ::onnx::skip_payload(model, field.second);
             }
         }
 

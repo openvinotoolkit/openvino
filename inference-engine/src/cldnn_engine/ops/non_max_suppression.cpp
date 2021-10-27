@@ -25,7 +25,7 @@ static bool GetCenterPointBox(ngraph::op::v5::NonMaxSuppression::BoxEncodingType
     return false;
 }
 
-void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::NonMaxSuppressionIEInternal>& op) {
+static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::NonMaxSuppressionIEInternal>& op) {
     p.ValidateInputs(op, {2, 3, 4, 5, 6});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 

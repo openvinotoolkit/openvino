@@ -66,6 +66,7 @@ shared_ptr<Node> op::v1::MaxPool::get_default_value() const {
 }
 
 namespace maxpool {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg,
                      const HostTensorPtr& out,
@@ -110,6 +111,7 @@ bool evaluate_maxpool(const HostTensorPtr& arg,
     }
     return rc;
 }
+}  // namespace
 }  // namespace maxpool
 
 bool op::v1::MaxPool::evaluate_maxpool(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -161,6 +163,7 @@ bool op::v1::MaxPool::has_evaluate() const {
 // ------------------------------ V8 ------------------------------
 
 namespace maxpool_v8 {
+namespace {
 template <element::Type_t Values, element::Type_t Indices>
 inline bool evaluate(const HostTensorPtr& data,
                      const HostTensorPtr& values,
@@ -248,6 +251,7 @@ bool evaluate_maxpool(const HostTensorPtr& data,
 
     return rc;
 }
+}  // namespace
 }  // namespace maxpool_v8
 
 op::v8::MaxPool::MaxPool(const Output<Node>& arg,

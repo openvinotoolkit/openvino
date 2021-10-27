@@ -19,7 +19,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-namespace einsum_details {
+namespace {
 /// \brief      Compute einsum_path for a given Einsum node meaning that the
 /// (pseudo-)optimal order of operands contraction in terms of performance and
 /// memory consumption
@@ -983,7 +983,7 @@ void einsum_impl(const HostTensorVector& inputs, const HostTensorVector& outputs
     outputs[0]->write(int_inputs[0]->get_data_ptr(), buf_size);
 }
 
-}  // namespace einsum_details
+}  // namespace
 
 void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, const std::string& equation) {
     NGRAPH_CHECK(inputs.size() > 0, "Einsum must accept at least one input.");
@@ -992,9 +992,9 @@ void einsum(const HostTensorVector& outputs, const HostTensorVector& inputs, con
         NGRAPH_CHECK(inputs[input_ind]->get_element_type() == input_type, "Input types must be the same.");
     }
     if (input_type == element::Type_t::f32) {
-        einsum_details::einsum_impl<float>(inputs, outputs, equation);
+        einsum_impl<float>(inputs, outputs, equation);
     } else if (input_type == element::Type_t::i32) {
-        einsum_details::einsum_impl<int>(inputs, outputs, equation);
+        einsum_impl<int>(inputs, outputs, equation);
     } else {
         NGRAPH_CHECK(false, "Unsupported input type for Einsum operation.");
     }

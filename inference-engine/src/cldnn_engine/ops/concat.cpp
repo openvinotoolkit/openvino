@@ -38,7 +38,7 @@ static cldnn::concatenation::concatenation_axis GetConcatAxis(int32_t axis, size
     return cldnn::concatenation::concatenation_axis::along_f;  // shouldn't get here
 }
 
-void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Concat>& op) {
+static void CreateConcatOp(Program& p, const std::shared_ptr<ngraph::op::v0::Concat>& op) {
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto concatPrim = cldnn::concatenation(

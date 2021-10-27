@@ -162,7 +162,6 @@ struct SymmetricAndReflectPad : PadBase {
 
     int axis_correction{};
 };
-}  // namespace
 
 void pad(const char* data,
          const char* pad_value,
@@ -194,6 +193,7 @@ void pad(const char* data,
         break;
     }
 }
+}  // namespace
 }  // namespace impl
 
 namespace reference {

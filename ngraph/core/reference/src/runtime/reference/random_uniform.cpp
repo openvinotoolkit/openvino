@@ -11,6 +11,7 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
+namespace {
 
 // Splits uint64 value into two uint32 values with right and left part of original value.
 std::pair<uint32_t, uint32_t> split_high_low(uint64_t value) {
@@ -175,6 +176,8 @@ void convert_to_output_type(const std::vector<uint32_t>& res,
 
     memcpy(out + k * elem_type.size(), res_out_type.data(), std::min(step, elem_count - k) * elem_type.size());
 }
+
+}  // namespace
 
 // Implementation of RandomUniform that uses Philox algorithm as inner random unsigned integer generator.
 std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,

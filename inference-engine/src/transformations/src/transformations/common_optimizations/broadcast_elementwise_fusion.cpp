@@ -10,6 +10,8 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BroadcastElementwiseFusion, "BroadcastElementwiseFusion", 0);
 
+namespace {
+
 bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
                              const ngraph::PartialShape & input_shape,
                              const ngraph::PartialShape & broadcast_shape) {
@@ -50,6 +52,8 @@ bool can_eliminate_broadcast(const ngraph::Output<ngraph::Node>& eltwise,
     }
     return true;
 }
+
+} // namespace
 
 ngraph::pass::BroadcastElementwiseFusion::BroadcastElementwiseFusion() {
     MATCHER_SCOPE(BroadcastElementwiseFusion);

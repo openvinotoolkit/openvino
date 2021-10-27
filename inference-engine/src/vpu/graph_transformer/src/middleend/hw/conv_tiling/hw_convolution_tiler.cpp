@@ -17,6 +17,7 @@ bool operator<(const TilingOption& lhs, const TilingOption& rhs) {
     return lhs.cost < rhs.cost || (isDoubleEqual(lhs.cost, rhs.cost) && lhs.totalNumTiles < rhs.totalNumTiles);
 }
 
+static
 void correctOutputPlaneSizeF(const ConvolutionOptions& convolutionOptions, bool _useCeil,
                              const DimValues& inputTileDims, DimValues& outputTileDims) {
     auto maxOutputWidth = calcOutputSize(

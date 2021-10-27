@@ -21,7 +21,7 @@ struct MemBandwidthPressure {
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
 };
 
-MemBandwidthPressure MemBandwidthPressureTolerance(
+static MemBandwidthPressure MemBandwidthPressureTolerance(
     const std::shared_ptr<ngraph::Function> nGraphFunc,
     const float L2_cache_size,
     const float L3_cache_size,

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_broadcast.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_split.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 #include "vpu/ngraph/utilities.hpp"

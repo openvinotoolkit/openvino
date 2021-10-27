@@ -30,7 +30,7 @@ class Concat;
 } // namespace pass
 } // namespace ngraph
 
-ngraph::Shape broadcast_shape_to_rank(ngraph::Shape shape_to_broadcast, int64_t dst_rank) {
+static ngraph::Shape broadcast_shape_to_rank(ngraph::Shape shape_to_broadcast, int64_t dst_rank) {
     auto initial_rank = static_cast<int64_t>(shape_to_broadcast.size());
     auto num_of_broadcased_dims = dst_rank - initial_rank;
     std::vector<size_t> dims(num_of_broadcased_dims, 1);

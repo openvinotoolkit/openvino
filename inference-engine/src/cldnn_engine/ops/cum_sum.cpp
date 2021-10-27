@@ -41,7 +41,7 @@ static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t 
     return cldnn::cum_sum::cum_sum_axis::along_f;  // shouldn't get here
 }
 
-void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& op) {
+static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& op) {
     p.ValidateInputs(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

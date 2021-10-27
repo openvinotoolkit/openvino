@@ -106,6 +106,7 @@ bool ov::op::v0::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor) 
 }
 
 namespace prior_box_clustered {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -139,6 +140,7 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace prior_box_clustered
 
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

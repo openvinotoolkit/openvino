@@ -80,7 +80,7 @@ bool op::Eltwise::visit_attributes(AttributeVisitor &visitor) {
   visitor.on_attribute("operation", eltwise_type);
   return true;
 }
-std::ostream &operator<<(std::ostream &s, const ELTWISE_TYPE &type) {
+std::ostream &ngraph::operator<<(std::ostream &s, const ELTWISE_TYPE &type) {
   return s << as_string(type);
 }
 

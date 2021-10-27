@@ -22,6 +22,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFuse, "TransposeFuse", 0);
 
 using namespace ngraph;
 
+namespace {
+
 std::shared_ptr<ngraph::opset6::Constant> get_reduced_order_constant(const std::shared_ptr<ngraph::opset6::Constant>& axes_const,
                                                                      const std::shared_ptr<ngraph::opset6::Constant>& order_const) {
     auto order = order_const->cast_vector<int64_t>();
@@ -55,6 +57,8 @@ std::shared_ptr<ngraph::opset6::Constant> get_reversed_order_constant(const std:
     return std::make_shared<ngraph::opset6::Constant>(
             ngraph::element::i64, ngraph::Shape{reverse_order.size()}, reverse_order);
 }
+
+} // namespace
 
 ngraph::pass::TransposeReduction::TransposeReduction() {
     MATCHER_SCOPE(TransposeReduction);

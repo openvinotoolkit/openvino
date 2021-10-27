@@ -40,7 +40,7 @@ static std::vector<int32_t> GetPermuteOrder(const ngraph::CoordinateDiff& ie_ord
     return cldnn_order;
 }
 
-void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
+static void CreatePadOp(Program& p, const std::shared_ptr<ngraph::op::v1::Pad>& op) {
     p.ValidateInputs(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
