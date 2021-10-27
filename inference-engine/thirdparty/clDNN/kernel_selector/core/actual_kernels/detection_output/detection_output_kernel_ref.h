@@ -70,6 +70,7 @@ public:
 
 protected:
     virtual JitConstants GetJitConstants(const detection_output_params& params) const;
+    bool Validate(const Params& p, const optional_params& o) const override;
     void SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const;
 };
 }  // namespace kernel_selector
