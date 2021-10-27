@@ -14,3 +14,4 @@
 using namespace ov;
 
 ov::Extension::~Extension() = default;
+ov::BaseOpExtension::~BaseOpExtension() = default;
