@@ -175,7 +175,7 @@ public:
         return m_dimensions;
     }
     friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
-    friend PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
+    friend OPENVINO_API PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
     bool operator==(const PartialShape& partial_shape) const;
     bool operator!=(const PartialShape& partial_shape) const;
     /// Get the max bounding shape
