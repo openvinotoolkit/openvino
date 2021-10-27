@@ -202,9 +202,9 @@ void op::v4::Interpolate::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_et.is_real() || input_et.is_integral_number(),
-                          "Input element type must be numeric. Current type is ",
-                          input_et);
+                          input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
+                              input_et == element::bf16 || input_et == element::u8,
+                          "Input element type must be f32, f16, bf16, i8 or u8");
 
     element::Type sizes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(
@@ -392,152 +392,6 @@ static void pad_input_data(const uint8_t* data_ptr,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-namespace interpolateop {
-
-template <element::Type_t ET>
-inline bool evaluate(const uint8_t* input_data,
-                     const Shape& input_data_shape,
-                     const std::vector<float>& scales,
-                     const std::vector<int64_t>& axes,
-                     const HostTensorVector& outputs,
-                     const Shape& out_shape,
-                     const op::v4::Interpolate::InterpolateAttrs& attrs) {
-    using T = typename ov::element_type_traits<ET>::value_type;
-    runtime::reference::interpolate(reinterpret_cast<const T*>(input_data),
-                                    input_data_shape,
-                                    scales,
-                                    axes,
-                                    outputs[0]->get_data_ptr<T>(),
-                                    out_shape,
-                                    attrs);
-    return true;
-}
-
-bool evaluate_interp(element::Type input_et,
-                     const uint8_t* input_data,
-                     const Shape& input_data_shape,
-                     const std::vector<float>& scales,
-                     const std::vector<int64_t>& axes,
-                     const HostTensorVector& outputs,
-                     const Shape& out_shape,
-                     const op::v4::Interpolate::InterpolateAttrs& attrs) {
-    bool rc = false;
-    switch (input_et) {
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         f64,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         f32,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         f16,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         bf16,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         i8,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         u8,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         u16,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         i16,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         u32,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         i32,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         u64,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-        NGRAPH_TYPE_CASE(evaluate_interpolate,
-                         i64,
-                         input_data,
-                         input_data_shape,
-                         scales,
-                         axes,
-                         outputs,
-                         out_shape,
-                         attrs);
-    default:;
-    }
-    return rc;
-}
-
-}  // namespace interpolateop
-
 bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
@@ -573,14 +427,46 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
 
     pad_input_data(data_ptr, padded_data_ptr, type_size, input_shape, padded_input_shape, m_attrs.pads_begin);
 
-    return interpolateop::evaluate_interp(input_et,
-                                          padded_data_ptr,
-                                          padded_input_shape,
-                                          scales,
-                                          axes,
-                                          outputs,
-                                          out_shape,
-                                          m_attrs);
+    switch (input_et) {
+    case element::Type_t::f32:
+        ngraph::runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                                       padded_input_shape,
+                                                       scales,
+                                                       axes,
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       out_shape,
+                                                       m_attrs);
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         out_shape,
+                                                         m_attrs);
+        break;
+    case element::Type_t::i8:
+        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                                        padded_input_shape,
+                                                        scales,
+                                                        axes,
+                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                        out_shape,
+                                                        m_attrs);
+    case element::Type_t::u8:
+        ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<uint8_t>(),
+                                                         out_shape,
+                                                         m_attrs);
+        break;
+    default:;
+    }
+
+    return true;
 }
 
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -591,18 +477,10 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTe
 bool op::v4::Interpolate::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Interpolate_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::u8:
     case ngraph::element::i8:
-    case ngraph::element::u16:
-    case ngraph::element::i16:
-    case ngraph::element::u32:
-    case ngraph::element::i32:
-    case ngraph::element::u64:
-    case ngraph::element::i64:
-    case ngraph::element::bf16:
+    case ngraph::element::u8:
     case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::f64:
         return true;
     default:
         break;
