@@ -288,7 +288,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
             workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
                 while (1) {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(100));
+                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(1000));
                     // as we pop the tasks from the queue only here
                     // it is ok to call unsafe_size (as the _tasks can only grow in parallel)
                     const int sz = workerRequestPtr->_tasks.unsafe_size();
