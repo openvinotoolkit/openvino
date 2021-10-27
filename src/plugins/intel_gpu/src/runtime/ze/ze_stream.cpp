@@ -30,7 +30,7 @@ inline ze_group_count_t to_group_count(const std::vector<size_t>& v) {
         case 3:
             return {uint32_t(v[0]), uint32_t(v[1]), uint32_t(v[2])};
         default:
-            return {uint32_t(0), uint32_t(0), uint32_t(0)};
+            return {uint32_t(1), uint32_t(1), uint32_t(1)};
     }
 }
 
@@ -49,10 +49,12 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                     const auto& input_mem = data.inputs[args[i].index];
                     if (input_mem) {
                         if (memory_capabilities::is_usm_type(input_mem->get_allocation_type())) {
+                            auto pp = std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem);
                             //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer());
                             status = zeKernelSetArgumentValue(kernel, i, sizeof(void*),
-                                std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get());
-                            std::cout << "zeKernelSetArgumentValue input"  << std::endl;
+                                std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get() );
+                            std::cout << "zeKernelSetArgumentValue input " <<
+                                std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get() << std::endl;
                             //ZE_CHECK(status);
                         }
                     }
@@ -149,7 +151,6 @@ void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_
     auto& ze_kernel = downcast<ze::ze_kernel>(kernel);
 
     auto& kern = ze_kernel.get_handle();
-
     set_arguments_impl(kern, args_desc.arguments, args);
 }
 
