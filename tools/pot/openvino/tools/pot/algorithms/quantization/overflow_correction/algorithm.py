@@ -40,39 +40,39 @@ class OverflowCorrection(Algorithm):
          """
         activation_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
 
-        weighted_nodes = mu.get_nodes_by_type(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
+        weighted_nodes = mu.get_nodes_by_type_recursively(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
         weighted_nodes = [n for n in weighted_nodes if nu.node_with_quantized_weights(n)]
         for weighted_node in weighted_nodes:
             bias_node = nu.get_bias_for_node(weighted_node)
             if bias_node is None:
                 continue
             add_node = nu.get_node_output(bias_node, 0)[0]
-            add_node_name = add_node.name
+            add_node_name = add_node.fullname
             if add_node_name not in activation_statistics \
                     or 'max_per_tensor' not in activation_statistics[add_node_name]:
-                logger.debug('Skipping {}'.format(weighted_node.name))
+                logger.debug('Skipping {}'.format(weighted_node.fullname))
                 continue
-            logger.debug('Processing {}'.format(weighted_node.name))
+            logger.debug('Processing {}'.format(weighted_node.fullname))
             weight_fq = nu.get_node_input(weighted_node, 1)
             if weight_fq.levels <= np.iinfo(np.uint8).max:
-                logger.debug('Skipping {} due to INT8 weights quantization'.format(weighted_node.name))
+                logger.debug('Skipping {} due to INT8 weights quantization'.format(weighted_node.fullname))
                 continue
             rescale_value = correct_node_overflow(weighted_node, activation_statistics[add_node_name]['max_per_tensor'])
             if rescale_value:
                 logger.debug('Weights and scales for node {} '
-                             'updated with scale coefficient: {}'.format(weighted_node.name, rescale_value))
+                             'updated with scale coefficient: {}'.format(weighted_node.fullname, rescale_value))
         return model
 
     def register_statistics(self, model, stats_collector):
         self._stats_collector = stats_collector
-        conv_nodes = mu.get_nodes_by_type(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
+        conv_nodes = mu.get_nodes_by_type_recursively(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
         stats_layout = {}
         for conv_node in conv_nodes:
             bias_node = nu.get_bias_for_node(conv_node)
             if bias_node is None:
                 continue
             add_node = nu.get_node_output(bias_node, 0)[0]
-            stats_layout[add_node.name] = {'max_per_tensor': acf.abs_max_per_tensor}
+            stats_layout[add_node.fullname] = {'max_per_tensor': acf.abs_max_per_tensor}
         quantized_model = deepcopy(model)
         fqut.insert_fake_quantize_nodes(self._config, quantized_model)
         layers_mapping = fqut.create_renamed_layers_mapping(quantized_model, stats_layout)

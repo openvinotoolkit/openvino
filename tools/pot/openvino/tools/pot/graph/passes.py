@@ -129,6 +129,8 @@ class InsertFakeQuantize(BackReplacementPattern):
 
         if m_op.type in ['Convolution', 'ConvolutionBackpropData', 'MatMul']:
             insert_fake_quantize(graph, m_op, [0, 1], ['fq_input', 'fq_weights'])
+        elif m_op.type == 'LSTMCell':
+            insert_fake_quantize(graph, m_op, [0, 1, 2, 3, 4])
         elif self.quantize_only_input(m_op):
             insert_fake_quantize(graph, m_op, [0])
         else:

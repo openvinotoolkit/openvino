@@ -1,12 +1,15 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from copy import deepcopy
 from mo.ops.result import Result
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.front.common.partial_infer.utils import int64_array
+from extensions.back.add_outputs_recursive import AddOutputRecursive
 from extensions.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
 from extensions.ops.activation_ops import Abs
 
+from ..graph.editor import get_node_by_name_recursively
 from ..graph.model_utils import get_node_by_name
 from ..graph.node_utils import get_output_shape
 from ..statistics.statistics import Statistic, TensorStatistic, TensorStatisticAxis
@@ -21,19 +24,23 @@ class StatisticGraphBuilder:
         if stat_aliases is None or model is None:
             return model, list(stats_layout.keys())
         nodes_names = []
-        for algo_name, node_stats in stat_aliases.items():
+        output_to_node_names = {}
+        copy_stat_aliases = deepcopy(stat_aliases)
+        for algo_name, node_stats in copy_stat_aliases.items():
             for node_name, stats in node_stats.items():
                 node_name_in_graph = node_name[0] if isinstance(node_name, tuple) else node_name
                 node = get_node_by_name(model, node_name_in_graph)
                 node_name = convert_output_key(node_name)
                 for stat, _ in list(stats.items()):
                     if not isinstance(stat, Statistic) or not stat.kwargs.get('inplace_statistics', False):
-                        nodes_names.append(node_name_in_graph)
+                        if node_name_in_graph not in nodes_names:
+                            nodes_names.append(node_name_in_graph)
                         continue
                     type_stat = stat.kwargs['type']
                     add_output_node = getattr(self, f'insert_{type_stat}')(node, type_stat, node_name, **stat.kwargs)
                     if add_output_node:
-                        nodes_names.append(add_output_node)
+                        if node_name_in_graph not in nodes_names:
+                            nodes_names.append(add_output_node)
                         class_statistic = TensorStatistic if isinstance(stat, TensorStatistic) else TensorStatisticAxis
 
                         del stats_layout[node_name][stat]
@@ -50,7 +57,25 @@ class StatisticGraphBuilder:
                         del stat_aliases[algo_name][node_name][stat]
                         stat_aliases[algo_name][node_name][new_stat] = stat_name
 
-        return model, nodes_names
+                # add output if node in subgraph
+                if node_name_in_graph != node.name:
+                    if node_name_in_graph in nodes_names:
+                        nodes_names.remove(node_name_in_graph)
+                    for model_dict in model.models:
+                        if get_node_by_name_recursively(model_dict['model'], node_name_in_graph):
+                            subgraphs = node_name_in_graph.split('|')[:-1]
+                            model_dict['model'].graph['additional_outputs'] = subgraphs + [node.name]
+                            results = AddOutputRecursive().find_and_replace_pattern(model_dict['model'])
+                            assert len(results) == 1
+                            result_name = results[0].name.split(':')[0]
+                            stats_layout[result_name] = stats_layout[node_name]
+                            del stats_layout[node_name]
+                            stat_aliases[algo_name][result_name] = stat_aliases[algo_name][node_name]
+                            del stat_aliases[algo_name][node_name]
+                            output_to_node_names[result_name] = node_name_in_graph
+                            break
+
+        return model, nodes_names, output_to_node_names
 
     def insert_reduce(self, insert_op, node, granularity, type_stat, node_name, axis=1):
         axis_const = self.find_axis(node, granularity, axis)

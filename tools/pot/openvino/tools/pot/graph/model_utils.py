@@ -53,7 +53,7 @@ def compress_model_weights(model: NXModel):
 
 
 def get_nodes_by_type(model: NXModel, types: list):
-    """ Returns all nodes with type from types collection
+    """ Returns all nodes from main graph with type from types collection
     :param model: NXModel model
     :param types: list of required types
     :return list of nodes filtered by 'types' collection
@@ -62,13 +62,23 @@ def get_nodes_by_type(model: NXModel, types: list):
             for node in ge.get_nodes_by_type(model_dict['model'], types)]
 
 
+def get_nodes_by_type_recursively(model: NXModel, types: list):
+    """ Returns all nodes with type from types collection
+    :param model: NXModel model
+    :param types: list of required types
+    :return list of nodes filtered by 'types' collection
+    """
+    return [node for model_dict in model.models
+            for node in ge.get_nodes_by_type_recursively(model_dict['model'], types)]
+
+
 def get_node_by_name(model: NXModel, name: str) -> Node:
-    """ Returns node by name
+    """ Returns node by name found in the graph and each subgraph
     :param model: NXModel model
     :param name: name of the node
     :return node from model (of type Node or None if there's no such node)
     """
-    names = [ge.get_node_by_name(model_dict['model'], name)
+    names = [ge.get_node_by_name_recursively(model_dict['model'], name)
              for model_dict in model.models]
     names = [name for name in names if name is not None]
     if len(names) > 1:
@@ -84,6 +94,15 @@ def get_all_operation_nodes(model: NXModel):
     """
     return [node for model_dict in model.models
             for node in ge.get_all_operation_nodes(model_dict['model'])]
+
+
+def get_all_operation_nodes_recursively(model: NXModel):
+    """ Returns sequence of all nodes in all graphs and all subgraphs
+    :param model: NXModel model
+    :return list of all nodes
+    """
+    return [node for model_dict in model.models
+            for node in ge.get_all_operation_nodes_recursively(model_dict['model'])]
 
 
 def build_model_for_node(nx_model, input_name, input_shape, node, remove_bias=False,

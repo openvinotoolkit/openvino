@@ -37,15 +37,15 @@ class Ranger(Algorithm):
          """
         activation_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
 
-        act_nodes = mu.get_nodes_by_type(model, self._act_types)
+        act_nodes = mu.get_nodes_by_type_recursively(model, self._act_types)
         for act_node in act_nodes:
-            if act_node.name not in activation_statistics:
-                logger.debug('Stats After {} not found!'.format(act_node.name))
+            if act_node.fullname not in activation_statistics:
+                logger.debug('Stats After {} not found!'.format(act_node.fullname))
                 continue
-            min_after_act = np.min(activation_statistics[act_node.name]['min_per_tensor'])
-            max_after_act = np.max(activation_statistics[act_node.name]['max_per_tensor'])
+            min_after_act = np.min(activation_statistics[act_node.fullname]['min_per_tensor'])
+            max_after_act = np.max(activation_statistics[act_node.fullname]['max_per_tensor'])
             clamp_attrs = {'min': min_after_act, 'max': max_after_act}
-            clamp_name = act_node.name + '/min_max_Clamp'
+            clamp_name = act_node.fullname + '/min_max_Clamp'
             clamp_node = ge.create_node(act_node.graph, clamp_name, 'AttributedClamp', clamp_attrs)
 
             dest_ports = act_node.out_port(0).get_destinations()
@@ -61,7 +61,7 @@ class Ranger(Algorithm):
         act_nodes = mu.get_nodes_by_type(model, self._act_types)
         stats_layout = {}
         for act_node in act_nodes:
-            stats_layout[act_node.name] = {'max_per_tensor': acf.max_per_tensor,
+            stats_layout[act_node.fullname] = {'max_per_tensor': acf.max_per_tensor,
                                            'min_per_tensor': acf.min_per_tensor}
         stats_collector.register(self.name, stats_layout, self._sampler)
 

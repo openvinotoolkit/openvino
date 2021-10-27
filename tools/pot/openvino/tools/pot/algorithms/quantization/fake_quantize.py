@@ -9,7 +9,7 @@ from addict import Dict
 from .fake_quantize_configuration import read_all_fake_quantize_configurations, get_configurations_by_preset, \
     get_configurations_by_qscheme, find_fqs_to_unify, add_range_estimator_configs
 from .utils import load_hardware_config, merge_nested_dicts, get_ignored_operations
-from ...graph.model_utils import get_nodes_by_type, get_node_by_name
+from ...graph.model_utils import get_nodes_by_type, get_nodes_by_type_recursively, get_node_by_name
 from ...graph.node_utils import get_node_input, set_node_value, \
     get_node_value, get_node_output, get_node_inputs, get_input_shape, \
     get_quantized_input_key, get_input_data_value, get_first_convolutions
@@ -124,25 +124,25 @@ def compute_stats_layouts(config, model, qscheme=None):
         fq_configuration = get_configurations_by_qscheme(fq_configuration, qscheme)
 
     # get all fake quantize nodes
-    fq_nodes = get_nodes_by_type(model, ['FakeQuantize'])
+    fq_nodes = get_nodes_by_type_recursively(model, ['FakeQuantize'])
 
     fake_quantize_config = {}
     for fq in fq_nodes:
         node_input = get_node_input(fq, 0)
         is_weights = node_input.type == 'Const'
         if is_weights:
-            fq_config = copy(fq_configuration[fq.name]['weights'])
+            fq_config = copy(fq_configuration[fq.fullname]['weights'])
         else:
-            fq_config = copy(fq_configuration[fq.name]['activations'])
-        fake_quantize_config[fq.name] = fq_config
-        if fq.name in config.layerwise_configs[0]:
-            fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.name]))
+            fq_config = copy(fq_configuration[fq.fullname]['activations'])
+        fake_quantize_config[fq.fullname] = fq_config
+        if fq.fullname in config.layerwise_configs[0]:
+            fq_config = Dict(merge_nested_dicts(fq_config, config.layerwise_configs[0][fq.fullname]))
 
         fq_config['signed'] = False
         if 'level_low' in fq_config and 'level_high' in fq_config and fq_config['level_low'] < 0:
             fq_config['signed'] = True
 
-        fake_quantize_config[fq.name] = fq_config
+        fake_quantize_config[fq.fullname] = fq_config
         fq.levels = compute_levels(fq_config, is_weights)
 
     return fake_quantize_config
@@ -242,19 +242,19 @@ def symmetric_range(node, fq, weights_stats,
     name = get_quantized_input_key(fq)
     if node.type == 'Const' or get_input_data_value(fq, 0) is not None:
         node_output = get_fake_quantize_first_output(fq)
-        max_level = weights_stats[node_output.name]['max']
+        max_level = weights_stats[node_output.fullname]['max']
         max_level = fix_zero_filters_symmetric(max_level)
         min_level = -max_level
     elif name in batch_inputs_stats:
         max_level = batch_inputs_stats[name]['max']
         min_level = batch_inputs_stats[name]['min']
         max_level = fix_zero_filters_symmetric(max_level)
-        signed = fake_quantize_config[fq.name]['signed']
+        signed = fake_quantize_config[fq.fullname]['signed']
         min_level = np.zeros(max_level.shape) if np.all(min_level >= 0) and not signed else \
             -max_level * fq.levels / (fq.levels - 2)
     else:
         raise Exception(
-            'WARNING: Fake quantize node {} is missed'.format(fq.name))
+            'WARNING: Fake quantize node {} is missed'.format(fq.fullname))
     min_level, max_level = broadcast_fq_values(fq, node, min_level, max_level, fake_quantize_config)
     return min_level, max_level
 
@@ -264,14 +264,14 @@ def asymmetric_range(node, fq, weights_stats,
     name = get_quantized_input_key(fq)
     if node.type == 'Const' or get_input_data_value(fq, 0) is not None:
         node_output = get_fake_quantize_first_output(fq)
-        max_level = weights_stats[node_output.name]['max']
-        min_level = weights_stats[node_output.name]['min']
+        max_level = weights_stats[node_output.fullname]['max']
+        min_level = weights_stats[node_output.fullname]['min']
     elif name in batch_inputs_stats:
         max_level = batch_inputs_stats[name]['max']
         min_level = batch_inputs_stats[name]['min']
     else:
         raise Exception(
-            'WARNING: Fake quantize node {} is missed'.format(fq.name))
+            'WARNING: Fake quantize node {} is missed'.format(fq.fullname))
 
     max_level, min_level = fix_zero_filters_asymmetric(max_level, min_level)
     min_level = np.where(min_level < 0.0, min_level, 0.0)
@@ -279,13 +279,13 @@ def asymmetric_range(node, fq, weights_stats,
     if unify_zp:
         if name in batch_inputs_stats:
             raise Exception(
-                'WARING: unify zero point of fake quantize node {} not supported'.format(fq.name)
+                'WARING: unify zero point of fake quantize node {} not supported'.format(fq.fullname)
             )
         min_level, max_level = tune_range_unify_zp(
-            min_level, max_level, fake_quantize_config[fq.name]['bits'])
+            min_level, max_level, fake_quantize_config[fq.fullname]['bits'])
     else:
         min_level, max_level = tune_range(
-            min_level, max_level, fake_quantize_config[fq.name]['bits'])
+            min_level, max_level, fake_quantize_config[fq.fullname]['bits'])
 
     min_level, max_level = broadcast_fq_values(fq, node, min_level, max_level, fake_quantize_config)
     return min_level, max_level
@@ -341,11 +341,11 @@ def compute_weights_stats(model, stats_layout):
         if weights_node.type != 'Const' and weights_value is None:
             raise Exception('Incorrect stats layout for weights:'
                             ' {} is activation'.format(weights_node.name))
-        if node.name not in weights_stats:
-            weights_stats[node.name] = {}
+        if node.fullname not in weights_stats:
+            weights_stats[node.fullname] = {}
         for stat_name, stat_fn in stats.items():
             weights = weights_value.astype(np.float32)
-            weights_stats[node.name][stat_name] = stat_fn(weights)
+            weights_stats[node.fullname][stat_name] = stat_fn(weights)
     return weights_stats
 
 
@@ -375,7 +375,7 @@ def broadcast_fq_values(fq, node, min_level, max_level, fq_config):
         else:
             bounds_shape[0] = input_shape[0]
     else:
-        if fq_config[fq.name]['granularity'] == 'perchannel':
+        if fq_config[fq.fullname]['granularity'] == 'perchannel':
             bounds_shape[1] = input_shape[1]
 
     min_level = min_level.reshape(bounds_shape)

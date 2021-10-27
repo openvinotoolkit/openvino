@@ -42,6 +42,9 @@ class NXModel:
             raise TypeError('Unable to load models. Invalid keyword argument. '
                             'Either model config (config=) or NetworkX graph (graph=) is expected.')
 
+        for model in self._models:
+            ge.add_fulname_for_nodes(model['model'])
+
     def _from_config(self, model_config, target_device='ANY'):
         if not isinstance(model_config, Dict):
             model_config = Dict(model_config)
@@ -57,10 +60,13 @@ class NXModel:
 
         self.name = model_config.model_name
         self._is_cascade = len(self._models) > 1
+        for model in self._models:
+            ge.add_fulname_for_nodes(model['model'])
         if self._is_cascade:
             self._add_models_prefix()
 
     def _from_graph(self, graph):
+        ge.add_fulname_for_nodes(graph)
         self._models.append({'model': graph})
         self._is_cascade = False
 

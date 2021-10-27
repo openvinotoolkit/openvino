@@ -4,6 +4,7 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
 
+from .utils import process_ignored_scope
 from ..api.engine import Engine
 
 
@@ -22,6 +23,7 @@ class Algorithm(ABC):
         self.params = {}
         self.default_steps_size = 0.05
         self.total_exec_steps = 0
+        self._config.ignored.scope = process_ignored_scope(self._config.ignored.scope)
 
     @property
     def config(self):

@@ -9,7 +9,7 @@ from functools import partial
 
 import numpy as np
 
-from .utils import append_stats, process_accumulated_stats
+from .utils import append_stats, process_accumulated_stats, update_stats
 from ..api.engine import Engine
 from ..data_loaders.ac_data_loader import ACDataLoader
 from ..graph.model_utils import save_model, add_outputs
@@ -122,12 +122,24 @@ class ACEngine(Engine):
         callback_layout, stat_names_aliases = {}, {}
         # add outputs for activation statistics collection
         if stats_layout is not None:
-            model_with_stat_op, nodes_name = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_name, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
             add_outputs(self._model, nodes_name)
             self._model_evaluator.load_network(self._model)
+
+            # If in the original model the subgraph had 1 output,
+            # but after adding outputs in the subgraph, the number of output ports increased.
+            # For such nodes, it is necessary to add a '.0' to the original output name
+            model_output_names = list(self._model.outputs.keys())
+            for original_out_name in nodes_name:
+                if original_out_name not in model_output_names:
+                    out_name_with_port = original_out_name + '.0'
+                    assert out_name_with_port in model_output_names
+                    update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
+                    output_to_node_names[out_name_with_port] = original_out_name
+
             # Creating statistics layout with IE-like names
             stat_names_aliases = {convert_output_key(key): key for key in stats_layout}
             callback_layout = {convert_output_key(key): value
@@ -188,6 +200,11 @@ class ACEngine(Engine):
         self._accumulated_layer_stats = {}
         self._per_sample_metrics.clear()
         self.dump_prediction_to_annotation = False
+
+        # restore original names in accumulated_stats, stats_layout and stat_aliases
+        for out_name, original_node_name in output_to_node_names.items():
+            accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
+            update_stats(stats_layout, stat_aliases, out_name, original_node_name)
 
         return metrics, accumulated_stats
 

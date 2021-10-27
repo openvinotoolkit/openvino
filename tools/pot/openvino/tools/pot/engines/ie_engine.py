@@ -9,7 +9,7 @@ import copy
 import numpy as np
 from openvino.inference_engine import IECore, StatusCode   # pylint: disable=E0611
 
-from .utils import append_stats, process_accumulated_stats
+from .utils import append_stats, process_accumulated_stats, update_stats
 from ..api.engine import Engine
 from ..graph.model_utils import save_model
 from ..samplers.batch_sampler import BatchSampler
@@ -90,11 +90,23 @@ class IEEngine(Engine):
 
         stat_names_aliases = None
         if stats_layout:
-            model_with_stat_op, nodes_name = self._statistic_graph_builder.\
+            model_with_stat_op, nodes_name, output_to_node_names = self._statistic_graph_builder.\
                 insert_statistic(copy.deepcopy(self._nx_model),
                                  stats_layout, stat_aliases)
             self.set_model(model_with_stat_op)
             self._add_outputs(nodes_name)
+
+            # If in the original model the subgraph had 1 output,
+            # but after adding outputs in the subgraph, the number of output ports increased.
+            # For such nodes, it is necessary to add a '.0' to the original output name
+            model_output_names = self._model.outputs.keys()
+            for original_out_name in nodes_name:
+                if original_out_name not in model_output_names and (original_out_name, 0) not in stats_layout:
+                    out_name_with_port = original_out_name + '.0'
+                    assert out_name_with_port in model_output_names
+                    update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
+                    output_to_node_names[out_name_with_port] = original_out_name
+
             # Creating statistics layout with IE-like names
             stats_layout, stat_names_aliases = self._convert_stats_names(stats_layout)
 
@@ -108,6 +120,11 @@ class IEEngine(Engine):
         accumulated_stats = \
             process_accumulated_stats(accumulated_stats=self._accumulated_layer_stats,
                                       stat_names_aliases=stat_names_aliases)
+
+        # restore original names in accumulated_stats, stats_layout and stat_aliases
+        for out_name, original_node_name in output_to_node_names.items():
+            accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
+            update_stats(stats_layout, stat_aliases, out_name, original_node_name)
 
         # Calculate metrics of required type. Reset collected statistics
         metrics = None

@@ -100,3 +100,10 @@ def get_sequential_activations(activations, layer, activation_seq, stats_layout,
         activation_seq[layer].append(activations)
     elif old_names_mapping.get(layer, None) in stats_layout and callable(stat_names_by_layer[layer]):
         activation_seq[layer].append(activations)
+
+
+def update_stats(stats_layout: dict, stat_aliases: dict, old_key: str, new_key: str):
+    stats_layout[new_key] = stats_layout.pop(old_key)
+    for algo_name in stat_aliases:
+        if old_key in stat_aliases[algo_name]:
+            stat_aliases[algo_name][new_key] = stat_aliases[algo_name].pop(old_key)

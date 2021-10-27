@@ -4,7 +4,7 @@
 import numpy as np
 
 from openvino.tools.pot.graph import node_utils as nu
-from openvino.tools.pot.graph.model_utils import get_nodes_by_type
+from openvino.tools.pot.graph.model_utils import get_nodes_by_type_recursively
 from openvino.tools.pot.graph.special_operations import OPERATIONS_WITH_WEIGHTS
 from openvino.tools.pot.utils.logger import get_logger
 
@@ -27,7 +27,7 @@ def check_model_sparsity_level(model,
     """
     perlayer_weight_sizes = []
     perlayer_sparsity_rates = []
-    all_nodes_with_weights = get_nodes_by_type(
+    all_nodes_with_weights = get_nodes_by_type_recursively(
         model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS]
     )
     all_nodes_with_weights = [n for n in all_nodes_with_weights if nu.get_node_input(n, 1).type == 'Const']
@@ -35,7 +35,7 @@ def check_model_sparsity_level(model,
         all_nodes_with_weights = [
             node
             for node in all_nodes_with_weights
-            if (node.name not in sparsity_ignored_scope)
+            if (node.fullname not in sparsity_ignored_scope)
         ]
     for node in all_nodes_with_weights:
         weight_node = nu.get_weights_for_node(node)

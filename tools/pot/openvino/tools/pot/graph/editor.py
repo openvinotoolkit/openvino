@@ -1,9 +1,30 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from functools import partial
+
 from mo.graph.graph import Graph, Node
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 
 from .ops import OPERATIONS
+
+
+class FunctionResultsAccumulator:
+    """
+    Run function on graph and store each call result in the list
+    """
+    def __init__(self, func):
+        self._results = []
+        self._func = func
+
+    @property
+    def results(self):
+        return self._results
+
+    def __call__(self, graph):
+        result = self._func(graph)
+        if not result is None:
+            self._results.extend(result)
 
 
 def find_node(graph: Graph, name):
@@ -27,6 +48,23 @@ def get_node_by_name(graph: Graph, name: str) -> Node:
     """
     node = graph.get_op_nodes(name=name)
     return node[0] if node else None
+
+
+def get_node_by_name_recursively(graph: Graph, name: str) -> Node:
+    """ Returns node by name. Find node in main graph and each subgraph.
+    :param graph: NetworkX model to take node
+    :param name: node name contains all subgraph in path to node
+    :return node from NetworkX model (of type Node or None if there's no such node)
+    """
+    def get_node_by_fullname(graph: Graph, name: str) -> Node:
+        nodes = graph.get_nodes_with_attributes(**dict(kind='op', fullname=name))
+        return [Node(graph, nodes[0])] if nodes else None
+
+    partial_get_node_by_fullname = partial(get_node_by_fullname, name=name)
+    get_node_by_fullname_func = FunctionResultsAccumulator(partial_get_node_by_fullname)
+    for_graph_and_each_sub_graph_recursively(graph, get_node_by_fullname_func)
+    nodes = get_node_by_fullname_func.results
+    return nodes[0] if nodes else None
 
 
 def remove_node_by_name(graph: Graph, node_name: str) -> (list, list):
@@ -77,6 +115,16 @@ def get_all_operation_nodes(graph: Graph):
     return graph.get_op_nodes()
 
 
+def get_all_operation_nodes_recursively(graph: Graph):
+    """ Returns sequence of all nodes in graph and each subgraph
+    :param graph: NetworkX model to take nodes
+    :return list of all nodes
+    """
+    get_all_op_nodes_func = FunctionResultsAccumulator(get_all_operation_nodes)
+    for_graph_and_each_sub_graph_recursively(graph, get_all_op_nodes_func)
+    return get_all_op_nodes_func.results
+
+
 def get_nodes_by_type(graph: Graph, types: list):
     """ Returns all nodes with type from types collection
      :param graph: NetworkX model to collect nodes
@@ -88,6 +136,34 @@ def get_nodes_by_type(graph: Graph, types: list):
         for node in graph.get_op_nodes(type=t):
             nodes.append(node)
     return nodes
+
+
+def get_nodes_by_type_recursively(graph: Graph, types: list):
+    """ Returns all nodes in graph and each subgraph with type from types collection
+     :param graph: NetworkX model to collect nodes
+     :param types: list of required types
+     :return list of nodes filtered by 'types' collection and
+     unique node name containing all subgraphs names and original node name
+      """
+    partial_get_nodes_by_type = partial(get_nodes_by_type, types=types)
+    get_nodes_by_type_recursively = FunctionResultsAccumulator(partial_get_nodes_by_type)
+    for_graph_and_each_sub_graph_recursively(graph, get_nodes_by_type_recursively)
+    nodes = [node for node in get_nodes_by_type_recursively.results if node]
+    return nodes
+
+
+def add_fulname_for_nodes(graph: Graph):
+    def set_fullname(graph, subgraphs=[]):
+        for node in graph:
+            node = Node(graph, node)
+            if node.has_valid('sub_graphs'):
+                for sub_graph_name in node.sub_graphs:
+                    subgraphs.append(node.name)
+                    set_fullname(node[sub_graph_name], subgraphs)
+                    subgraphs = subgraphs[:-1]
+            node['fullname'] = '|'.join(subgraphs + [node.name])
+
+    set_fullname(graph)
 
 
 def create_node(graph: Graph, node_name, node_type, node_attrs):

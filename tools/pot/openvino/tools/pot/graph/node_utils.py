@@ -191,10 +191,10 @@ def get_quantized_input_key(quantized_node):
     Otherwise, key is tuple (fq_input name, output port number)
     """
     quantized_input = get_node_input(quantized_node, 0)
-    key = quantized_input.name
+    key = quantized_input.fullname
     if len(quantized_input.out_ports()) > 1:
         port_number = quantized_node.in_port(0).get_source().out
-        key = (quantized_input.name, port_number)
+        key = (quantized_input.fullname, port_number)
     return key
 
 

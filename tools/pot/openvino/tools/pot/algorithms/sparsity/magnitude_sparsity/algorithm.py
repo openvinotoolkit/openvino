@@ -8,7 +8,7 @@ from texttable import Texttable
 
 from ....algorithms.algorithm import Algorithm
 from ....algorithms.algorithm_selector import COMPRESSION_ALGORITHMS
-from ....graph.model_utils import get_nodes_by_type
+from ....graph.model_utils import get_nodes_by_type_recursively
 from ....graph.node_utils import get_node_value, set_node_value, get_node_output
 from ....graph.special_operations import OPERATIONS_WITH_WEIGHTS
 
@@ -40,7 +40,7 @@ class MagnitudeSparsity(Algorithm):
 
         all_weights_nodes = self._get_all_weights_nodes(model)
         all_nodes_with_weights = [self._get_node_weight(node) for node in
-                                  get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS])
+                                  get_nodes_by_type_recursively(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS])
                                   if self._get_node_weight(node) is not None]
         all_weights = self._weights_preparation(
             all_nodes_with_weights, normalize_before_sparse
@@ -58,7 +58,7 @@ class MagnitudeSparsity(Algorithm):
                 self._safety_eps_variance_factor,
             )
             conv_node = get_node_output(node, 0)[0]
-            self.sparsity_levels_per_layer[conv_node.name] = node_sparsity_mask.mean()
+            self.sparsity_levels_per_layer[conv_node.fullname] = node_sparsity_mask.mean()
 
         self.statistics_table = self._sparsity_statistics(model)
         return model
@@ -83,11 +83,11 @@ class MagnitudeSparsity(Algorithm):
         :return: list of Const nodes with weights
         """
         all_weights_nodes = []
-        all_nodes_with_weights = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS])
+        all_nodes_with_weights = get_nodes_by_type_recursively(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS])
 
         if self.ignored_scope is not None:
             all_nodes_with_weights = [node for node in all_nodes_with_weights
-                                      if node.name not in self.ignored_scope]
+                                      if node.fullname not in self.ignored_scope]
 
         for node in all_nodes_with_weights:
             if model.is_node_ignored(self.ignored_params, node, skipped=False):
@@ -166,8 +166,8 @@ class MagnitudeSparsity(Algorithm):
             weight_tensor = self._get_weights_value(node)
             drow['Weight tensor shape'] = list(weight_tensor.shape)
             conv_node = get_node_output(node, 0)[0]
-            drow['Layer name'] = conv_node.name
-            drow['Sparsity rate'] = 100 * self.sparsity_levels_per_layer[conv_node.name]
+            drow['Layer name'] = conv_node.fullname
+            drow['Sparsity rate'] = 100 * self.sparsity_levels_per_layer[conv_node.fullname]
             row = [drow[h] for h in header]
             data.append(row)
 

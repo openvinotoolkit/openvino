@@ -9,6 +9,7 @@ from addict import Dict
 from .algorithm import AccuracyAwareCommon
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ....algorithms.quantization import utils as eu
+from ....graph import editor as ge
 from ....graph import model_utils as mu
 from ....graph import node_utils as nu
 from ....graph import save_model
@@ -43,8 +44,8 @@ class INT4MixedQuantization(AccuracyAwareCommon):
     # pylint: disable=W0221, W0212
     def _quantize_model(self, model, quantize_with_low_bitwidth=True):
         convolution_fq_nodes = [
-            node.name
-            for node in mu.get_nodes_by_type(model, ['FakeQuantize'])
+            node.fullname
+            for node in mu.get_nodes_by_type_recursively(model, ['FakeQuantize'])
             if self._can_set_fq_to_low_bitwidth(node)
         ]
         model = self._get_nonquantized_model(model)
@@ -66,10 +67,10 @@ class INT4MixedQuantization(AccuracyAwareCommon):
     def _get_nonquantized_model(self, model):
         cut_fqs = []
         cut_model = deepcopy(model)
-        for node in mu.get_nodes_by_type(model, ['FakeQuantize']):
-            if node.name not in cut_fqs:
+        for node in mu.get_nodes_by_type_recursively(model, ['FakeQuantize']):
+            if node.fullname not in cut_fqs:
                 cut_model, cut_fq_layers, _ = self._graph_transformer.remove_fq_nodes(
-                    cut_model, [node.name]
+                    cut_model, [node.fullname]
                 )
                 cut_fqs += cut_fq_layers
         return cut_model
@@ -131,14 +132,14 @@ class INT4MixedQuantization(AccuracyAwareCommon):
 
         convolution_fq_nodes = [
             node
-            for node in model.get_nodes_by_type(['FakeQuantize'])
+            for node in model.get_nodes_by_type_recursively(['FakeQuantize'])
             if self._can_set_fq_to_low_bitwidth(node)
         ]
 
         for node in convolution_fq_nodes:
-            if node.name not in cut_fqs:
+            if node.fullname not in cut_fqs:
                 cut_model, cut_fq_layers, _ = self._modify_model_in_scope(
-                    model, [node.name]
+                    model, [node.fullname]
                 )
                 logger.info(
                     'Removed a block of %d FQ layers: %s',
@@ -155,7 +156,7 @@ class INT4MixedQuantization(AccuracyAwareCommon):
                 self._engine.allow_pairwise_subset = False
                 logger.update_progress(self._config.ranking_subset_size)
                 ranking_metric = self._metrics_config[metric_name].ranking
-                node_importance_score[node.name] = ranking_metric.comparator(
+                node_importance_score[node.fullname] = ranking_metric.comparator(
                     metrics[ranking_metric.name]
                 )
 
