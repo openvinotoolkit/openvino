@@ -16,6 +16,8 @@
 
 using namespace ngraph;
 
+namespace {
+
 template <class T>
 std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<T> node, NodeVector & new_ops);
 
@@ -105,8 +107,6 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1:
                                              node->get_rounding_type(),
                                              node->get_auto_pad());
 }
-
-namespace {
 
 matcher_pass_callback get_callback() {
     return [](pattern::Matcher& m) {

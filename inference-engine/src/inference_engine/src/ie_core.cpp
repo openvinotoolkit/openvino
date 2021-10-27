@@ -763,6 +763,7 @@ public:
         auto it_plugin = plugins.find(deviceName);
         if (it_plugin == plugins.end()) {
             PluginDescriptor desc = it->second;
+            std::shared_ptr<void> so;
             try {
                 ov::runtime::InferencePlugin plugin;
 
@@ -771,7 +772,7 @@ public:
                     desc.pluginCreateFunc(plugin_impl);
                     plugin = InferencePlugin{nullptr, plugin_impl};
                 } else {
-                    auto so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+                    so = ov::util::load_shared_object(desc.libraryLocation.c_str());
                     std::shared_ptr<ie::IInferencePlugin> plugin_impl;
                     reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
                         ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
