@@ -13,10 +13,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNLogSoftmaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
         if (!logSoftMax) {
             errorMessage = "Only opset5 LogSoftmax operation is supported";
@@ -41,13 +37,13 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of LogSoftmax from opset5.";
 
-    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
+    if (inputShapes.size() != 1 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    SizeVector dims = op->get_input_shape(0);
-    if (!dims.size())
+    SizeVector dims = getInputShapeAtPort(0).getDims();
+    if (dims.empty())
         dims = SizeVector(1, 1);
-    int axis = logSoftMax->get_axis();
+    axis = logSoftMax->get_axis();
     if (axis < 0)
         axis += dims.size();
 
@@ -56,15 +52,9 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
 
     int j;
     for (j = dims.size() - 1; j >= 0; j--) {
-        if (dims[j] != 1) break;
+        if (dims[j] != Shape::UNDEFINED_DIM && dims[j] != 1) break;
     }
-    if (j == axis) isLastDim = true;
-
-    for (int i = 0; i < axis; i++)
-        axisStep *= dims[i];
-    reducedAxisSize = dims[axis];
-    for (size_t i = (axis + 1); i < dims.size(); i++)
-        reducedAxisStride *= dims[i];
+    if (dims[j] != Shape::UNDEFINED_DIM && j == axis) isLastDim = true;
 }
 
 void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
@@ -79,6 +69,17 @@ void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {
     const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+
+    const auto dims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    size_t reducedAxisSize;
+    size_t reducedAxisStride = 1;
+    size_t axisStep = 1;
+
+    for (int i = 0; i < axis; i++)
+        axisStep *= dims[i];
+    reducedAxisSize = dims[axis];
+    for (size_t i = (axis + 1); i < dims.size(); i++)
+        reducedAxisStride *= dims[i];
 
     if (isLastDim) {
         parallel_for(axisStep, [&](size_t i) {
