@@ -14,12 +14,10 @@ add_subdirectory(shape_inference)
 
 # WA for Tensor implementation via ie::Blob::Ptr
 set(IE_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src")
-set(IE_SHARED_SRCS
-    "${IE_SRC_ROOT}/system_allocator.cpp"
-    "${IE_SRC_ROOT}/blob_factory.cpp"
-    "${IE_SRC_ROOT}/ie_blob_common.cpp"
-    "${IE_SRC_ROOT}/system_allocator.cpp"
-    "${IE_SRC_ROOT}/ie_layouts.cpp")
+set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/system_allocator.cpp")
 set(MIXED_SRC ${IE_SHARED_SRCS}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
@@ -92,6 +90,7 @@ file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cp
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}

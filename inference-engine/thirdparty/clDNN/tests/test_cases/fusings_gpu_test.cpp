@@ -9181,8 +9181,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_onednn,
                                 bc_test_params{CASE_CONV3D_S8S8_5, 3, 4},
                         }));
 
-class conv_fp32_activation_onednn : public ConvFusingTestOneDNN {};
-TEST_P(conv_fp32_activation_onednn, basic) {
+class conv_fp32_activation_abs_onednn : public ConvFusingTestOneDNN {};
+TEST_P(conv_fp32_activation_abs_onednn, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
@@ -9196,7 +9196,99 @@ TEST_P(conv_fp32_activation_onednn, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_onednn,
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_abs_onednn,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_FP16_1, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_2, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_4, 2, 3},
+                          }));
+
+class conv_fp32_activation_mish_onednn : public ConvFusingTestOneDNN {};
+TEST_P(conv_fp32_activation_mish_onednn, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::mish),
+                 reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_mish_onednn,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_FP16_1, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_2, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_4, 2, 3},
+                          }));
+
+class conv_fp32_activation_swish_onednn : public ConvFusingTestOneDNN {};
+TEST_P(conv_fp32_activation_swish_onednn, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::swish),
+                 reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_swish_onednn,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_FP16_1, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_2, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_4, 2, 3},
+                          }));
+
+class conv_fp32_activation_hswish_onednn : public ConvFusingTestOneDNN {};
+TEST_P(conv_fp32_activation_hswish_onednn, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::hswish),
+                 reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_hswish_onednn,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_FP16_1, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_2, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_4, 2, 3},
+                          }));
+
+class conv_fp32_activation_exp_onednn : public ConvFusingTestOneDNN {};
+TEST_P(conv_fp32_activation_exp_onednn, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::exp),
+                 reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_exp_onednn,
                          ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_FP16_1, 2, 3},
                                 bc_test_params{CASE_CONV_FP16_2, 2, 3},
