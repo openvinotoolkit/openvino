@@ -540,7 +540,7 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
     networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
 
     const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
-    std::map<std::string, Parameter> options = {{"CNN_NETWORK", &network}};
+    std::map<std::string, Parameter> options = {{"CNN_NETWORK", &network}, {"GPU_THROUGHPUT_STREAMS", (uint16_t)2}};
     auto max_batch_size = GetCore()->GetMetric(deviceName, METRIC_KEY(MAX_BATCH_SIZE), options).as<unsigned int>();
     int closest = pow(2, floor(log(max_batch_size)/log(2)));
     std::cout << "!!!!!!!!!!!!!! (CLOSEST):" << closest << std::endl;
