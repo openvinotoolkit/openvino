@@ -44,8 +44,8 @@ public:
           hash_value(0) {}
 
     DiscreteTypeInfo(const char* _name,
-                     uint64_t _version,
                      const char* _version_id,
+                     uint64_t _version,
                      const DiscreteTypeInfo* _parent = nullptr);
 
     bool is_castable(const DiscreteTypeInfo& target_type) const {

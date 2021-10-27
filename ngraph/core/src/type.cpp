@@ -15,8 +15,8 @@ size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTyp
 namespace ov {
 
 DiscreteTypeInfo::DiscreteTypeInfo(const char* _name,
-                                   uint64_t _version,
                                    const char* _version_id,
+                                   uint64_t _version,
                                    const DiscreteTypeInfo* _parent)
     : name(_name),
       version(_version),

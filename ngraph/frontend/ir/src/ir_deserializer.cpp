@@ -719,7 +719,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
             if (!getStrAttribute(item, "version", attribute_version)) {
                 IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field";
             }
-            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
+            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str(), 0);
             if (auto attr = attrs_factory.create_by_type_info(type_info)) {
                 RTInfoDeserializer attribute_visitor(item);
                 if (attr->visit_attributes(attribute_visitor)) {
