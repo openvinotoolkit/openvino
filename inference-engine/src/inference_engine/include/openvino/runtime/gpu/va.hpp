@@ -27,7 +27,7 @@ namespace gpu {
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
  * which is shared with VA output surface.
- * The plugin object derived from this class can be obtained with create_tensor() call.
+ * The plugin object derived from this class can be obtained with VAContext::create_tensor() call.
  * @note User can also obtain OpenCL 2D image handle from this class.
  */
 class VASurfaceTensor : public ClImage2DTensor {
@@ -43,7 +43,7 @@ public:
                                   {GPU_PARAM_KEY(SHARED_MEM_TYPE), {GPU_PARAM_VALUE(VA_SURFACE)}}});
     }
     /**
-     * @brief VASurfaceID conversion operator for the VASurfaceBlob object.
+     * @brief VASurfaceID conversion operator for the VASurfaceTensor object.
      * @return `VASurfaceID` handle
      */
     operator VASurfaceID() {
@@ -63,11 +63,12 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with VA display object.
  * The plugin object derived from this class can be obtained either with
- * GetContext() method of Executable network or using CreateContext() Core call.
+ * ExecutableNetwork::get_context() or Core::create_context() calls.
  * @note User can also obtain OpenCL context handle from this class.
  */
 class VAContext : public ClContext {
     using RemoteContext::create_tensor;
+    static constexpr const char* device_name = "GPU";
 
 public:
     /**
@@ -90,14 +91,13 @@ public:
 
     /**
      * @brief Constructs remote context object from VA display handle
-     * @param core Inference Engine Core object
-     * @param deviceName A device name to create a remote context for
+     * @param core OpenVINO Runtime Core object
      * @param device A `VADisplay` to create remote context from
      */
-    VAContext(Core& core, std::string deviceName, VADisplay device) {
+    VAContext(Core& core, VADisplay device) {
         ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
                                    {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}};
-        *this = core.create_context(deviceName, context_params);
+        *this = core.create_context(device_name, context_params);
     }
 
     /**

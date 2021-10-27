@@ -41,6 +41,7 @@ public:
     OPENVINO_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
     void set_name(const std::string& name);
 
+    std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
@@ -106,9 +107,7 @@ protected:
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
 
-    mutable std::atomic_bool m_names_changing{false};
-    mutable std::unordered_set<std::string> m_names;
-    static std::atomic<size_t> m_next_instance_id;
+    std::unordered_set<std::string> m_names;
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };
 

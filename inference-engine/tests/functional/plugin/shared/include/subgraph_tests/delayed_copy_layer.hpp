@@ -12,4 +12,8 @@ TEST_P(DelayedCopyTest, CompareWithRefs) {
     Run();
 };
 
+TEST_P(DelayedCopyAfterReshapeWithMultipleConnTest, CompareWithRefs) {
+    Run();
+};
+
 } // namespace SubgraphTestsDefinitions

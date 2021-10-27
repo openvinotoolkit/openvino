@@ -1330,31 +1330,31 @@ private:
 };
 
 std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNReduceNode&)>> MKLDNNReduceNode::initializers = {
-    {ngraph::opset4::ReduceL1::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceL1;
     }},
-    {ngraph::opset4::ReduceL2::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset4::ReduceL2::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceL2;
     }},
-    {ngraph::opset1::ReduceLogicalAnd::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset1::ReduceLogicalAnd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceAnd;
     }},
-    {ngraph::opset1::ReduceLogicalOr::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset1::ReduceLogicalOr::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceOr;
     }},
-    {ngraph::opset1::ReduceMax::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset1::ReduceMax::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceMax;
     }},
-    {ngraph::opset1::ReduceMean::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset1::ReduceMean::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceMean;
     }},
-    {ngraph::opset1::ReduceMin::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset1::ReduceMin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceMin;
     }},
-    {ngraph::opset1::ReduceProd::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset1::ReduceProd::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceProd;
     }},
-    {ngraph::opset1::ReduceSum::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
+    {ngraph::opset1::ReduceSum::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceSum;
     }}
 };

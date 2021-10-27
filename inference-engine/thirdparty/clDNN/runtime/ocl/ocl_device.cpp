@@ -4,6 +4,7 @@
 
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include <map>
 #include <string>
@@ -199,10 +200,6 @@ device_info init_device_info(const cl::Device& device) {
 
     info.max_work_group_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>());
 
-    // looks like WA. Do we still need it?
-    if (info.max_work_group_size > 256)
-        info.max_work_group_size = 256;
-
     info.max_local_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>());
     info.max_global_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>());
     info.max_alloc_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
@@ -254,6 +251,9 @@ device_info init_device_info(const cl::Device& device) {
 
         info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
         info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->disable_onednn)
+            info.supports_immad = false;
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
