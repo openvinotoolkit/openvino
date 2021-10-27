@@ -24,16 +24,14 @@ if(ENABLE_HETERO)
     add_dependencies(${TARGET_NAME} HeteroPlugin)
 endif()
 
-if(ENABLE_TEMPLATE_OPENCV_TESTS)
-    find_package(OpenCV QUIET COMPONENTS core imgproc)
+find_package(OpenCV QUIET COMPONENTS core imgproc)
 
-    if(OpenCV_FOUND)
-        message("-- Reference preprocessing: OpenCV tests are enabled")
-        target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_TEMPLATE_TESTS)
-        target_link_libraries(${TARGET_NAME} PRIVATE opencv_imgproc opencv_core)
-    else()
-        message("-- Reference preprocessing: OpenCV tests are disabled")
-    endif()
+if(OpenCV_FOUND)
+    message("-- Reference preprocessing: OpenCV tests are enabled")
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_TEMPLATE_TESTS)
+    target_link_libraries(${TARGET_NAME} PRIVATE opencv_imgproc opencv_core)
+else()
+    message("-- Reference preprocessing: OpenCV tests are disabled")
 endif()
 
 # [cmake:functional_tests]
