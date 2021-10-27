@@ -347,7 +347,7 @@ event::ptr gpu_usm::copy_from(stream& /* stream */, const void* /* host_ptr */) 
 shared_mem_params gpu_usm::get_internal_params() const {
     auto casted = downcast<const ze_engine>(_engine);
     return {
-        shared_mem_type::shared_mem_empty,  // shared_mem_type
+        shared_mem_type::shared_mem_usm,  // shared_mem_type
         static_cast<shared_handle>(casted->get_context()),  // context handle
         static_cast<shared_handle>(casted->get_device()),  // user_device handle
         static_cast<shared_handle>(_buffer.get()),  // mem handle
