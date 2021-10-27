@@ -181,9 +181,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         } else {
             _output = allocate_output();
         }
-
-        // Allocate internal buffer
-        allocate_internal_buffers();
     }
 }
 
