@@ -14,10 +14,6 @@
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-
-#include <transformations/serialize.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
