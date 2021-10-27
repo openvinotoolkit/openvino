@@ -99,9 +99,6 @@ typedef struct XLinkGlobalHandler_t
     int profEnable;
     XLinkProf_t profilingData;
 
-    // custom datapump setup
-    void *datapumpConfig;
-
     //Deprecated fields. Begin.
     int loglevel;
     int protocol;
