@@ -28,6 +28,8 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/common/builders.hpp"
 
+#include "../../../ngraph/core/include/ngraph/pass/manager.hpp"
+
 using namespace testing;
 
 using InputShape = ngraph::PartialShape;

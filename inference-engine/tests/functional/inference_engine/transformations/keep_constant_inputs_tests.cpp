@@ -23,6 +23,8 @@
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
+#include "../../../ngraph/core/include/ngraph/pass/manager.hpp"
+
 using namespace testing;
 using namespace InferenceEngine;
 

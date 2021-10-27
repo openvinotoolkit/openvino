@@ -14,6 +14,7 @@
 #include "ngraph/opsets/opset8.hpp"
 #include <ngraph/pass/constant_folding.hpp>
 
+#include "../../../ngraph/core/include/ngraph/pass/manager.hpp"
 using namespace testing;
 using namespace std;
 using namespace ngraph;

@@ -21,6 +21,8 @@
 #include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include "../../../ngraph/core/include/ngraph/pass/manager.hpp"
+
 using namespace testing;
 using namespace ngraph;
 

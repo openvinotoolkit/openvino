@@ -24,6 +24,8 @@
 #include <transformations/init_node_info.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 
+#include "../../../ngraph/core/include/ngraph/pass/manager.hpp"
+
 using namespace testing;
 using namespace InferenceEngine;
 

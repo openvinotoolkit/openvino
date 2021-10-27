@@ -8,6 +8,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 
+#include "../../../ngraph/core/include/ngraph/pass/manager.hpp"
 
 namespace element = ngraph::element;
 using std::make_shared;

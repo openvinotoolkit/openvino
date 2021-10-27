@@ -15,6 +15,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/ops.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "../../../ngraph/core/include/ngraph/pass/manager.hpp"
 
 using namespace testing;
 
