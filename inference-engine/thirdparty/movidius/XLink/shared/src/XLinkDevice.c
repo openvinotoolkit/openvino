@@ -256,10 +256,7 @@ XLinkError_t XLinkResetRemote(linkId_t id)
     XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT),
         X_LINK_TIMEOUT);
 
-    int rc;
-    while(((rc = sem_wait(&link->dispatcherClosedSem)) == -1) && errno == EINTR)
-        continue;
-    if(rc) {
+    if(XLink_sem_wait(&link->dispatcherClosedSem)) {
         mvLog(MVLOG_ERROR,"can't wait dispatcherClosedSem\n");
         return X_LINK_ERROR;
     }
