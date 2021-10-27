@@ -11,35 +11,11 @@
 #include "openvino/core/op_extension.hpp"
 #include "openvino/util/file_util.hpp"
 
-#ifdef _WIN32
-#    ifndef NOMINMAX
-#        define NOMINMAX
-#    endif
-#    include <windows.h>
-#    if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
-#        error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
-#    endif
-#elif defined(__linux) || defined(__APPLE__)
-#    include <dlfcn.h>
-#endif
-
 static std::string find_my_pathname() {
-#ifdef _WIN32
-    HMODULE hModule = GetModuleHandleW(SHARED_LIB_PREFIX L"ngraph" SHARED_LIB_SUFFIX);
-    WCHAR wpath[MAX_PATH];
-    GetModuleFileNameW(hModule, wpath, MAX_PATH);
-    std::wstring ws(wpath);
-    std::string path(ws.begin(), ws.end());
-    replace(path.begin(), path.end(), '\\', '/');
-    path = ov::util::get_directory(path);
-    path += "/";
-    return path;
-#elif defined(__linux) || defined(__APPLE__)
-    Dl_info dl_info;
-    dladdr(reinterpret_cast<void*>(ov::replace_output_update_name), &dl_info);
-    return ov::util::get_directory(dl_info.dli_fname);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    return ov::util::wstring_to_string(ov::util::get_ov_library_path());
 #else
-#    error "Unsupported OS"
+    return ov::util::get_ov_library_path();
 #endif
 }
 std::string get_extension_path() {

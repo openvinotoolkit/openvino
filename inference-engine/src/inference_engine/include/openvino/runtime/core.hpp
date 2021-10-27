@@ -191,6 +191,7 @@ public:
     /**
      * @brief Registers extensions
      * @param extension Extension class which is inherited from ov::Extension class
+     * @param args list of extensions
      */
     template <class T,
               class... Targs,
