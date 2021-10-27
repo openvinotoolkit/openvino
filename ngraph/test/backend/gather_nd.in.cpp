@@ -479,3 +479,57 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_dims2_lead_dims) {
     EXPECT_TRUE(
         test::all_close_f((vector<float>{2, 5, 11, 13, 19, 23}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_8_batch_dims2) {
+Shape params_shape{2, 3, 4, 2};
+Shape indices_shape{2, 3, 3, 2};
+Shape out_shape{2, 3, 3};
+int batch_dims = 2;
+auto P = make_shared<op::Parameter>(element::f32, params_shape);
+auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+auto G = make_shared<op::v8::GatherND>(P, I, batch_dims);
+auto f = make_shared<Function>(G, ParameterVector{P, I});
+
+auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+// Create some tensors for input/output
+auto p = backend->create_tensor(element::f32, params_shape);
+copy_data(p, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+                           17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+                           33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48});
+auto i = backend->create_tensor(element::i32, indices_shape);
+copy_data(i, vector<int32_t>{1, 0, 3, 1, 2, 1, 0, 1, 1, 1, 2, 0, 3, 0, 3, 1, 2, 1,
+                             2, 0, 1, 1, 3, 1, 1, 1, 2, 0, 2, 0, 0, 0, 3, 1, 3, 1});
+auto result = backend->create_tensor(element::f32, out_shape);
+
+auto c = backend->compile(f);
+c->call_with_validate({result}, {p, i});
+EXPECT_TRUE(test::all_close_f((vector<float>{3, 8, 6, 10, 12, 13, 23, 24, 22, 29, 28, 32, 36, 37, 37, 41, 48, 48}),
+                              read_vector<float>(result),
+                              MIN_FLOAT_TOLERANCE_BITS));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, gather_nd_8_batch_dims2_lead_dims) {
+Shape params_shape{2, 3, 4};
+Shape indices_shape{2, 3, 1, 1};
+Shape out_shape{2, 3, 1};
+int batch_dims = 2;
+auto P = make_shared<op::Parameter>(element::f32, params_shape);
+auto I = make_shared<op::Parameter>(element::i32, indices_shape);
+auto G = make_shared<op::v8::GatherND>(P, I, batch_dims);
+auto f = make_shared<Function>(G, ParameterVector{P, I});
+
+auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+// Create some tensors for input/output
+auto p = backend->create_tensor(element::f32, params_shape);
+copy_data(p, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24});
+auto i = backend->create_tensor(element::i32, indices_shape);
+copy_data(i, vector<int32_t>{1, 0, 2, 0, 2, 2});
+auto result = backend->create_tensor(element::f32, out_shape);
+
+auto c = backend->compile(f);
+c->call_with_validate({result}, {p, i});
+EXPECT_TRUE(
+        test::all_close_f((vector<float>{2, 5, 11, 13, 19, 23}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+}
