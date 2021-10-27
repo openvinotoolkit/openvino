@@ -289,17 +289,17 @@ def test_nogil_safe(device):
         thread_func(*thread_args)
 
     def main_thread_target(gil_release_func, args):
-        sys.setswitchinterval(1000)
         call_thread_func.set()
         gil_release_func(*args)
         assert not call_thread_func.is_set()
-        sys.setswitchinterval(switch_interval)
 
     def test_run_parallel(gil_release_func, args, thread_func, thread_args):
         thread = Thread(target=thread_target, args=[thread_func, thread_args])
+        sys.setswitchinterval(1000)
         thread.start()
         main_thread_target(gil_release_func, args)
         thread.join()
+        sys.setswitchinterval(switch_interval)
 
     main_targets = [{
                      core.read_network: [test_net_xml, test_net_bin],
