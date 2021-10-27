@@ -246,7 +246,7 @@ You can use one of the following options to prepare input:
 
 A blob can be filled before and after `SetBlob()`.
 
-> **NOTE:**
+> **NOTE**:
 >
 > * The `SetBlob()` method compares precision and layout of an input blob with the ones defined in step 3 and
 > throws an exception if they do not match. It also compares a size of the input blob with input
