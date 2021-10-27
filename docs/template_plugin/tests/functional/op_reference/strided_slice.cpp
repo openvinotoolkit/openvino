@@ -221,7 +221,8 @@ std::vector<StridedSliceParams> generateSmallParams() {
         // strided_slice_0
         StridedSliceParams(
             {},
-            Tensor({2, 3, 4}, IN_ET, generateInputValues<T>({2, 3, 4}, 0)),
+            Tensor({2, 3, 4}, IN_ET, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 1}),
@@ -235,7 +236,8 @@ std::vector<StridedSliceParams> generateSmallParams() {
         // strided_slice_0_dynamic
         StridedSliceParams(
             PartialShape::dynamic(),
-            Tensor({2, 3, 4}, IN_ET, generateInputValues<T>({2, 3, 4}, 0)),
+            Tensor({2, 3, 4}, IN_ET, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 1}),
@@ -257,7 +259,8 @@ std::vector<StridedSliceParams> generateParams() {
         // strided_slice_0
         StridedSliceParams(
             {},
-            Tensor({2, 3, 4}, IN_ET, generateInputValues<T>({2, 3, 4}, 0)),
+            Tensor({2, 3, 4}, IN_ET, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 1}),
@@ -271,7 +274,8 @@ std::vector<StridedSliceParams> generateParams() {
         // strided_slice_0_dynamic
         StridedSliceParams(
             PartialShape::dynamic(),
-            Tensor({2, 3, 4}, IN_ET, generateInputValues<T>({2, 3, 4}, 0)),
+            Tensor({2, 3, 4}, IN_ET, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{1, 1}),
@@ -339,7 +343,8 @@ std::vector<StridedSliceStrideOptionalParams> generateStrideOptionalParams() {
         // strided_slice_stride_optional
         StridedSliceStrideOptionalParams(
             {},
-            Tensor({2, 3, 4}, IN_ET, generateInputValues<T>({2, 3, 4}, 0)),
+            Tensor({2, 3, 4}, IN_ET, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             Tensor({3}, element::i64, std::vector<int64_t>{-1, -1, 0}),
             Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
             std::vector<int64_t>{0, 0, 0},
@@ -352,7 +357,8 @@ std::vector<StridedSliceStrideOptionalParams> generateStrideOptionalParams() {
         // strided_slice_stride_optional_dynamic
         StridedSliceStrideOptionalParams(
             PartialShape::dynamic(),
-            Tensor({2, 3, 4}, IN_ET, generateInputValues<T>({2, 3, 4}, 0)),
+            Tensor({2, 3, 4}, IN_ET, std::vector<T>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                                    12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}),
             Tensor({3}, element::i64, std::vector<int64_t>{-1, -1, 0}),
             Tensor({3}, element::i64, std::vector<int64_t>{0, 0, 0}),
             std::vector<int64_t>{0, 0, 0},
@@ -376,6 +382,8 @@ std::vector<StridedSliceParams> generateCombinedParams() {
         generateParams<element::Type_t::u16>(),
         generateParams<element::Type_t::u32>(),
         generateParams<element::Type_t::u64>(),
+        generateSmallParams<element::Type_t::bf16>(),
+        generateSmallParams<element::Type_t::f16>(),
         generateParams<element::Type_t::f32>(),
         generateParams<element::Type_t::f64>(),
     };
