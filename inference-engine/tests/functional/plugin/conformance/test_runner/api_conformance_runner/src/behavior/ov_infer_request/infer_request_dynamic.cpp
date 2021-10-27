@@ -12,11 +12,7 @@ using namespace ov::test::conformance;
 
 namespace {
 
-const std::vector<std::map<std::string, std::string>> configs = {
-    {}
-};
-
-std::shared_ptr<ngraph::Function> getFunction1() {
+std::shared_ptr<ngraph::Function> ovGetFunction1() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
 
@@ -35,7 +31,7 @@ std::shared_ptr<ngraph::Function> getFunction1() {
     return std::make_shared<ngraph::Function>(results, params, "AddTwoOutputEdges");
 }
 
-std::shared_ptr<ngraph::Function> getFunction2() {
+std::shared_ptr<ngraph::Function> ovGetFunction2() {
     const std::vector<size_t> inputShape = {1, 4, 20, 20};
     const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
 
@@ -60,27 +56,27 @@ std::shared_ptr<ngraph::Function> getFunction2() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                         ::testing::Combine(
-                                ::testing::Values(getFunction1()),
+                                ::testing::Values(ovGetFunction1()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
                                 ::testing::Values(ConformanceTests::targetDevice),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(emptyConfig)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
                         ::testing::Combine(
-                                ::testing::Values(getFunction2()),
+                                ::testing::Values(ovGetFunction2()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
                                 ::testing::Values(ConformanceTests::targetDevice),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(emptyConfig)),
                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                         ::testing::Combine(
-                                ::testing::Values(getFunction2()),
+                                ::testing::Values(ovGetFunction2()),
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
@@ -88,4 +84,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                         OVInferRequestDynamicTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestDynamicTests,
+                         ::testing::Combine(
+                                 ::testing::Values(ovGetFunction2()),
+                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                         {{1, 4, 20, 20}, {1, 2, 20, 40}},
+                                         {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
+                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
+                         OVInferRequestDynamicTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestDynamicTests,
+                         ::testing::Combine(
+                                 ::testing::Values(ovGetFunction2()),
+                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                         {{1, 4, 20, 20}, {1, 2, 20, 40}},
+                                         {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
+                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

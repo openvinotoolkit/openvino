@@ -77,7 +77,9 @@ inline const std::vector<std::string> returnAllPosibleDeviceCombination() {
     return res;
 }
 
-
+const std::vector<std::map<std::string, std::string>> emptyConfig = {
+        {},
+};
 
 }  // namespace conformance
 }  // namespace test

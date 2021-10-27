@@ -12,14 +12,10 @@ using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
 namespace {
-const std::vector<std::map<std::string, std::string>> configs = {
-        {},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorTest,
                         ::testing::Combine(
                                 ::testing::Values(ConformanceTests::targetDevice),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(emptyConfig)),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorTest,
@@ -34,7 +30,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorTest,
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                         OVInferRequestIOTensorTest::getTestCaseName);
 
-std::vector<ov::element::Type> prcs = {
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestIOTensorTest,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                         OVInferRequestIOTensorTest::getTestCaseName);
+
+std::vector<ov::element::Type> ovIOTensorElemTypes = {
     ov::element::boolean,
     ov::element::bf16,
     ov::element::f16,
@@ -55,23 +57,29 @@ std::vector<ov::element::Type> prcs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
+                                 ::testing::ValuesIn(ovIOTensorElemTypes),
                                  ::testing::Values(ConformanceTests::targetDevice),
-                                 ::testing::ValuesIn(configs)),
+                                 ::testing::ValuesIn(emptyConfig)),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
+                                 ::testing::ValuesIn(ovIOTensorElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(prcs),
+                                 ::testing::ValuesIn(ovIOTensorElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestIOTensorSetPrecisionTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(ovIOTensorElemTypes),
+                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
+                         OVInferRequestIOTensorSetPrecisionTest::getTestCaseName);
 }  // namespace

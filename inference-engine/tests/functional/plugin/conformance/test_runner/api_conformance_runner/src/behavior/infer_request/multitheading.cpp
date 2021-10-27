@@ -14,14 +14,10 @@ using namespace ov::test::conformance;
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
-const std::vector<std::map<std::string, std::string>> configsMultithreading = {
-        {},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestMultithreadingTests,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(configsMultithreading)),
+                                ::testing::ValuesIn(emptyConfig)),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestMultithreadingTests,
@@ -34,6 +30,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestMultithreadingTes
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                         InferRequestMultithreadingTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestMultithreadingTests,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestMultithreadingTests::getTestCaseName);
 
 }  // namespace

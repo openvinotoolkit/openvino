@@ -9,13 +9,9 @@ using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
 namespace {
-const std::vector<std::map<std::string, std::string>> configs = {
-        {},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestCancellationTests,
         ::testing::Combine(
             ::testing::Values(ConformanceTests::targetDevice),
-            ::testing::ValuesIn(configs)),
+            ::testing::ValuesIn(emptyConfig)),
         OVInferRequestCancellationTests::getTestCaseName);
 }  // namespace

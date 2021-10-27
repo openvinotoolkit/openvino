@@ -9,15 +9,10 @@ using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
 namespace {
-
-const std::vector<std::map<std::string, std::string>> configs = {
-        {}
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,
                         ::testing::Combine(
                                 ::testing::Values(ConformanceTests::targetDevice),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(emptyConfig)),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestPerfCountersTest,
@@ -30,5 +25,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestPerfCountersTes
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                         OVInferRequestPerfCountersTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestPerfCountersTest,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 }  // namespace

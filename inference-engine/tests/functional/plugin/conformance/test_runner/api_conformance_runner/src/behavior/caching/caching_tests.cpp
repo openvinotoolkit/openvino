@@ -11,7 +11,7 @@ namespace {
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
 
-    static const std::vector<ngraph::element::Type> precisionsCPU = {
+    static const std::vector<ngraph::element::Type> cachingElemTypes = {
             ngraph::element::f32,
             ngraph::element::f16,
             ngraph::element::i32,
@@ -22,15 +22,15 @@ using namespace ngraph;
             ngraph::element::u16,
     };
 
-    static const std::vector<std::size_t> batchSizesCPU = {
+    static const std::vector<std::size_t> cachingBatchSizes = {
             1, 2
     };
 
-    static const std::vector<ngraph::element::Type> precisionsCPUInternal = {
+    static const std::vector<ngraph::element::Type> cachingElemTypesInternal = {
             ngraph::element::f32
     };
 
-    static const std::vector<std::size_t> batchSizesCPUInternal = {
+    static const std::vector<std::size_t> cachingBatchSizesInternal = {
             1
     };
 
@@ -77,16 +77,16 @@ using namespace ngraph;
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
-                                    ::testing::ValuesIn(precisionsCPU),
-                                    ::testing::ValuesIn(batchSizesCPU),
+                                    ::testing::ValuesIn(cachingElemTypes),
+                                    ::testing::ValuesIn(cachingBatchSizes),
                                     ::testing::Values(ConformanceTests::targetDevice)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Internal, LoadNetworkCacheTestBase,
                             ::testing::Combine(
                                     ::testing::ValuesIn(internal_functions_cpu()),
-                                    ::testing::ValuesIn(precisionsCPUInternal),
-                                    ::testing::ValuesIn(batchSizesCPUInternal),
+                                    ::testing::ValuesIn(cachingElemTypesInternal),
+                                    ::testing::ValuesIn(cachingBatchSizesInternal),
                                     ::testing::Values(ConformanceTests::targetDevice)),
                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

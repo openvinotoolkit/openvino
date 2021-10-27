@@ -11,7 +11,7 @@ using namespace ov::test::conformance;
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
 
-const std::vector<FuncTestUtils::BlobType> BlobTypes = {
+const std::vector<FuncTestUtils::BlobType> setBlobTypes = {
         FuncTestUtils::BlobType::Compound,
         FuncTestUtils::BlobType::Batched,
         FuncTestUtils::BlobType::Memory,
@@ -23,26 +23,26 @@ const std::vector<FuncTestUtils::BlobType> BlobTypes = {
 const std::map<std::string, std::string> ConfigBlobType{}; //nothing special
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior, InferRequestSetBlobByType,
-                         ::testing::Combine(::testing::ValuesIn(BlobTypes),
+                         ::testing::Combine(::testing::ValuesIn(setBlobTypes),
                                             ::testing::Values(targetDevice),
                                             ::testing::Values(ConfigBlobType)),
                          InferRequestSetBlobByType::getTestCaseName);
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Multi, InferRequestSetBlobByType,
-                         ::testing::Combine(::testing::ValuesIn(BlobTypes),
+                         ::testing::Combine(::testing::ValuesIn(setBlobTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                             ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Auto, InferRequestSetBlobByType,
-                         ::testing::Combine(::testing::ValuesIn(BlobTypes),
+                         ::testing::Combine(::testing::ValuesIn(setBlobTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_AUTO + std::string(":") + targetDevice),
                                             ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestSetBlobByType::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Behavior_Hetero, InferRequestSetBlobByType,
-                         ::testing::Combine(::testing::ValuesIn(BlobTypes),
+                         ::testing::Combine(::testing::ValuesIn(setBlobTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                             ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestSetBlobByType::getTestCaseName);

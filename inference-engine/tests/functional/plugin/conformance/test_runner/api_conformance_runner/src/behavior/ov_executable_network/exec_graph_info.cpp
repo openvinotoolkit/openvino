@@ -9,8 +9,9 @@
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
+
 namespace {
-const std::vector<ov::element::Type_t> netPrecisions = {
+const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::i8,
         ov::element::i16,
         ov::element::i32,
@@ -22,29 +23,34 @@ const std::vector<ov::element::Type_t> netPrecisions = {
         ov::element::f16,
         ov::element::f32,
 };
-const std::vector<std::map<std::string, std::string>> configs = {
-        {},
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVExecGraphImportExportTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                 ::testing::ValuesIn(configs)),
+                                 ::testing::ValuesIn(emptyConfig)),
+                         OVExecGraphImportExportTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+                         OVExecGraphImportExportTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(ovExecGraphInfoElemTypes),
+                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
          OVExecGraphImportExportTest,
         ::testing::Combine(
-                ::testing::ValuesIn(netPrecisions),
+                ::testing::ValuesIn(ovExecGraphInfoElemTypes),
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
         OVExecGraphImportExportTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests,
          OVExecGraphImportExportTest,
-        ::testing::Combine(::testing::ValuesIn(netPrecisions),
+        ::testing::Combine(::testing::ValuesIn(ovExecGraphInfoElemTypes),
                            ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
         OVExecGraphImportExportTest::getTestCaseName);

@@ -10,7 +10,7 @@ namespace {
 using namespace BehaviorTestsDefinitions;
 using namespace ov::test::conformance;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> netPrecisionsPreprocess = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
 };
@@ -21,55 +21,55 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisionsPreprocess),
                                 ::testing::Values(ConformanceTests::targetDevice),
                                 ::testing::ValuesIn(configs)),
                          InferRequestPreprocessTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisionsPreprocess),
                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestPreprocessTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisionsPreprocess),
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestPreprocessTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(netPrecisionsPreprocess),
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                          InferRequestPreprocessTest::getTestCaseName);
 
 
-const std::vector<InferenceEngine::Precision> ioPrecisions = {
+const std::vector<InferenceEngine::Precision> ioPrecisionsPreprocess = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::U8
 };
-const std::vector<InferenceEngine::Layout> netLayouts = {
+const std::vector<InferenceEngine::Layout> netLayoutsPreprocess = {
     InferenceEngine::Layout::NCHW,
     // InferenceEngine::Layout::NHWC
 };
 
-const std::vector<InferenceEngine::Layout> ioLayouts = {
+const std::vector<InferenceEngine::Layout> ioLayoutsPreprocess = {
     InferenceEngine::Layout::NCHW,
     InferenceEngine::Layout::NHWC
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessConversionTest,
                     ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(netLayouts),
-                            ::testing::ValuesIn(ioLayouts),
-                            ::testing::ValuesIn(ioLayouts),
+                            ::testing::ValuesIn(netPrecisionsPreprocess),
+                            ::testing::ValuesIn(ioPrecisionsPreprocess),
+                            ::testing::ValuesIn(ioPrecisionsPreprocess),
+                            ::testing::ValuesIn(netLayoutsPreprocess),
+                            ::testing::ValuesIn(ioLayoutsPreprocess),
+                            ::testing::ValuesIn(ioLayoutsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(ConformanceTests::targetDevice),
@@ -78,10 +78,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessConversionTe
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
                     ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::ValuesIn(netPrecisionsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
-                            ::testing::ValuesIn(netLayouts),
+                            ::testing::ValuesIn(netLayoutsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(true), // only SetBlob
@@ -92,12 +92,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessDynamicallyI
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessConversionTest,
                     ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(netLayouts),
-                            ::testing::ValuesIn(ioLayouts),
-                            ::testing::ValuesIn(ioLayouts),
+                            ::testing::ValuesIn(netPrecisionsPreprocess),
+                            ::testing::ValuesIn(ioPrecisionsPreprocess),
+                            ::testing::ValuesIn(ioPrecisionsPreprocess),
+                            ::testing::ValuesIn(netLayoutsPreprocess),
+                            ::testing::ValuesIn(ioLayoutsPreprocess),
+                            ::testing::ValuesIn(ioLayoutsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(CommonTestUtils::DEVICE_HETERO),
@@ -106,10 +106,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessConve
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
                     ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::ValuesIn(netPrecisionsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
-                            ::testing::ValuesIn(netLayouts),
+                            ::testing::ValuesIn(netLayoutsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(true), // only SetBlob
@@ -120,12 +120,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestPreprocessDynam
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessConversionTest,
                     ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(ioPrecisions),
-                            ::testing::ValuesIn(netLayouts),
-                            ::testing::ValuesIn(ioLayouts),
-                            ::testing::ValuesIn(ioLayouts),
+                            ::testing::ValuesIn(netPrecisionsPreprocess),
+                            ::testing::ValuesIn(ioPrecisionsPreprocess),
+                            ::testing::ValuesIn(ioPrecisionsPreprocess),
+                            ::testing::ValuesIn(netLayoutsPreprocess),
+                            ::testing::ValuesIn(ioLayoutsPreprocess),
+                            ::testing::ValuesIn(ioLayoutsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
@@ -134,10 +134,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessConver
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
                     ::testing::Combine(
-                            ::testing::ValuesIn(netPrecisions),
+                            ::testing::ValuesIn(netPrecisionsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
-                            ::testing::ValuesIn(netLayouts),
+                            ::testing::ValuesIn(netLayoutsPreprocess),
                             ::testing::Bool(),
                             ::testing::Bool(),
                             ::testing::Values(true), // only SetBlob
@@ -148,12 +148,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestPreprocessDynami
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessConversionTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(netPrecisions),
-                                 ::testing::ValuesIn(ioPrecisions),
-                                 ::testing::ValuesIn(ioPrecisions),
-                                 ::testing::ValuesIn(netLayouts),
-                                 ::testing::ValuesIn(ioLayouts),
-                                 ::testing::ValuesIn(ioLayouts),
+                                 ::testing::ValuesIn(netPrecisionsPreprocess),
+                                 ::testing::ValuesIn(ioPrecisionsPreprocess),
+                                 ::testing::ValuesIn(ioPrecisionsPreprocess),
+                                 ::testing::ValuesIn(netLayoutsPreprocess),
+                                 ::testing::ValuesIn(ioLayoutsPreprocess),
+                                 ::testing::ValuesIn(ioLayoutsPreprocess),
                                  ::testing::Bool(),
                                  ::testing::Bool(),
                                  ::testing::Values(CommonTestUtils::DEVICE_AUTO),
@@ -162,10 +162,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessConvers
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestPreprocessDynamicallyInSetBlobTest,
                          ::testing::Combine(
-                                 ::testing::ValuesIn(netPrecisions),
+                                 ::testing::ValuesIn(netPrecisionsPreprocess),
                                  ::testing::Bool(),
                                  ::testing::Bool(),
-                                 ::testing::ValuesIn(netLayouts),
+                                 ::testing::ValuesIn(netLayoutsPreprocess),
                                  ::testing::Bool(),
                                  ::testing::Bool(),
                                  ::testing::Values(true), // only SetBlob

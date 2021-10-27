@@ -10,15 +10,10 @@ using namespace ov::test::behavior;
 using namespace ov::test::conformance;
 
 namespace {
-
-const std::vector<std::map<std::string, std::string>> configs = {
-    {}
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferenceChaining,
                         ::testing::Combine(
                                 ::testing::Values(ConformanceTests::targetDevice),
-                                ::testing::ValuesIn(configs)),
+                                ::testing::ValuesIn(emptyConfig)),
                         OVInferenceChaining::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferenceChaining,
@@ -27,4 +22,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferenceChaining,
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                         OVInferenceChaining::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferenceChaining,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
+                         OVInferenceChaining::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferenceChaining,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                         OVInferenceChaining::getTestCaseName);
 }  // namespace

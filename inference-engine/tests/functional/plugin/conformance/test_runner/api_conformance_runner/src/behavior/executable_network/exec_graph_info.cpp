@@ -14,13 +14,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_serialization, ExecGraphSerializationTest,
                                 ::testing::Values(ConformanceTests::targetDevice),
                         ExecGraphSerializationTest::getTestCaseName);
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> execGraphInfoElemTypes = {
         InferenceEngine::Precision::FP32
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ExecGraphUniqueNodeNames,
         ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(execGraphInfoElemTypes),
         ::testing::Values(InferenceEngine::SizeVector({1, 2, 5, 5})),
         ::testing::Values(ConformanceTests::targetDevice)),
         ExecGraphUniqueNodeNames::getTestCaseName);

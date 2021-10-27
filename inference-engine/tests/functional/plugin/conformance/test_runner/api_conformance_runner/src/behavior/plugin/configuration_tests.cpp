@@ -23,17 +23,7 @@ namespace {
     #else
     auto defaultBindThreadParameter = InferenceEngine::Parameter{std::string{CONFIG_VALUE(YES)}};
     #endif
-
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16
-    };
-
-    const std::vector<std::map<std::string, std::string>> conf = {
-            {}
-    };
-
-    const std::vector<std::map<std::string, std::string>> Configs = {
+    const std::vector<std::map<std::string, std::string>> pluginConfigs = {
             {},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
@@ -43,7 +33,7 @@ namespace {
             // check that hints doesn't override customer value (now for streams and later for other config opts)
     };
 
-    const std::vector<std::map<std::string, std::string>> MultiConfigs = {
+    const std::vector<std::map<std::string, std::string>> pluginMultiConfigs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                 {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
@@ -56,22 +46,22 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(ConformanceTests::targetDevice),
-                ::testing::ValuesIn(Configs)),
+                ::testing::ValuesIn(pluginConfigs)),
             CorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, MultiConfigs))),
+                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiConfigs))),
             CorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, CorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, MultiConfigs))),
+                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiConfigs))),
             CorrectConfigTests::getTestCaseName);
 
-    const std::vector<std::map<std::string, std::string>> inconfigs = {
+    const std::vector<std::map<std::string, std::string>> inPluginConfigs = {
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
@@ -80,60 +70,52 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
     };
 
-    const std::vector<std::map<std::string, std::string>> multiinconfigs = {
+    const std::vector<std::map<std::string, std::string>> pluginMultiInConfigs = {
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, "DOESN'T EXIST"}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "-1"}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT},
                     {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "should be int"}},
             {{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
-    };
-
-    const std::vector<std::map<std::string, std::string>> multiconf = {
-            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
-            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
-            {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY},
-             {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "1"}},
-            {{}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
                 ::testing::Values(ConformanceTests::targetDevice),
-                ::testing::ValuesIn(inconfigs)),
+                ::testing::ValuesIn(inPluginConfigs)),
             IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, multiinconfigs))),
+            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
             IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, multiinconfigs))),
+            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
             IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::Values(ConformanceTests::targetDevice),
-            ::testing::ValuesIn(inconfigs)),
+            ::testing::ValuesIn(inPluginConfigs)),
             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, multiinconfigs))),
+            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI, pluginMultiInConfigs))),
             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, IncorrectConfigAPITests,
             ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, multiinconfigs))),
+            ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO, pluginMultiInConfigs))),
             IncorrectConfigAPITests::getTestCaseName);
 
-    const std::vector<std::map<std::string, std::string>> ConfigsCheck = {
+    const std::vector<std::map<std::string, std::string>> pluginConfigsCheck = {
             {},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::THROUGHPUT}},
             {{InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT, InferenceEngine::PluginConfigParams::LATENCY}},
@@ -145,6 +127,6 @@ namespace {
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, CorrectConfigCheck,
                              ::testing::Combine(
                                      ::testing::Values(ConformanceTests::targetDevice),
-                                     ::testing::ValuesIn(ConfigsCheck)),
+                                     ::testing::ValuesIn(pluginConfigsCheck)),
                              CorrectConfigCheck::getTestCaseName);
 } // namespace
