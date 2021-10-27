@@ -63,7 +63,7 @@ If you have installed OpenVINO&trade; in a different directory on your system, y
 
 Below are some possible configuration options. 
 
-> **NOTE:**  After changing a configuration file, the `hddldaemon` must be restarted. 
+> **NOTE**:  After changing a configuration file, the `hddldaemon` must be restarted. 
 
 ### Recommended Settings
 
@@ -121,7 +121,7 @@ This setting reports the amount of memory being used by each VPU.
 `"max_cycle_switchout": 3`                   
 Requires the squeeze scheduler.  This setting might speed up performance significantly, depending on the app.  
 
-> **NOTE:** This setting works in conjunction with: `max_task_number_switch_out`.
+> **NOTE**: This setting works in conjunction with: `max_task_number_switch_out`.
 
 `"client_fps" : "off"`                          
 This setting reports the total FPS for the dispatching hddl_service (which will have one or more clients per app).
