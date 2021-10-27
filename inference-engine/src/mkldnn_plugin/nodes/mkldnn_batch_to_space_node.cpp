@@ -48,7 +48,7 @@ MKLDNNBatchToSpaceNode::MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Nod
     const auto inDims = getInputShapeAtPort(0).getDims();
     const auto outDims = getOutputShapeAtPort(0).getDims();
     if (inDims.size() < 4 || inDims.size() > 5)
-        IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inputShapes[0].getRank();
+        IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inDims.size();
     if (inDims.size() != outDims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
 
@@ -60,6 +60,7 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    const auto inDims = getInputShapeAtPort(0).getDims();
     const auto precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
@@ -77,7 +78,7 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
-    if (inputShapes[0].getDims()[1] != Shape::UNDEFINED_DIM && inputShapes[0].getDims()[1] % 8 == 0) {
+    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 8 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
                               {LayoutType::ncsp},
                               {LayoutType::ncsp},
@@ -85,7 +86,7 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
                              {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
-    if (inputShapes[0].getDims()[1] != Shape::UNDEFINED_DIM && inputShapes[0].getDims()[1] % 16 == 0) {
+    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 16 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
                               {LayoutType::ncsp},
                               {LayoutType::ncsp},
