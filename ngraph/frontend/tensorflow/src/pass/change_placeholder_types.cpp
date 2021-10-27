@@ -36,7 +36,7 @@ bool is_node_casts_to_float_or_shapeof(const ov::Node* node) {
 }  // namespace
 
 bool ov::frontend::tf::pass::ChangePlaceholderTypes::run_on_function(shared_ptr<Function> f) {
-    for (auto param : f->get_parameters()) {
+    for (const auto& param : f->get_parameters()) {
         ov::element::Type legacy_type = ov::element::undefined;
         bool all_castable_or_shapeof = true;
         for (const auto& target_input : param->get_output_target_inputs(0)) {
@@ -66,9 +66,9 @@ bool ov::frontend::tf::pass::ChangePlaceholderTypes::run_on_function(shared_ptr<
                 new_order.resize(rank);
                 std::iota(new_order.begin(), new_order.end(), 0);
             }
-
+            auto param_node = std::dynamic_pointer_cast<ov::Node>(param);
             auto old_api_map = std::make_shared<ov::OldApiMap>(ov::OldApiMapAttr(new_order, legacy_type));
-            set_old_api_map(std::dynamic_pointer_cast<ov::Node>(param), old_api_map->get());
+            set_old_api_map(param_node, old_api_map->get());
         }
     }
 
