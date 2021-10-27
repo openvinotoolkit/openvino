@@ -114,7 +114,7 @@ void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& na
     }
 }
 
-ostream& operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
+ostream& ov::descriptor::operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
     std::string names;
     for (const auto& name : tensor.get_names()) {
         if (!names.empty())
