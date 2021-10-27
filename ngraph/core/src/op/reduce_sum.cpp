@@ -61,7 +61,7 @@ bool evaluate_sum(const HostTensorPtr& arg, const HostTensorPtr& out, const Axis
     }
     return rc;
 }  // namespace
-}
+}  // namespace
 }  // namespace reduce_sum
 
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

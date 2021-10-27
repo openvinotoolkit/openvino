@@ -59,7 +59,7 @@ bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const 
     }
     return rc;
 }  // namespace
-}
+}  // namespace
 }  // namespace reduce_prod
 
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
