@@ -150,8 +150,11 @@ void AutoBatchInferRequest::SetBlobsToAnotherRequest(SoIInferRequestInternal& re
 void AutoBatchInferRequest::CopyInputsIfNeeded() {
     for (const auto &it : _networkInputs) {
         auto &name = it.first;
+        auto src = GetBlob(name);
+        auto dst = _workerInferRequest->_inferRequest->GetBlob(name);
         // this request is already in BUSY state, so using the internal functions safely
-        CopyBlobIfNeeded(GetBlob(name), _workerInferRequest->_inferRequest->GetBlob(name), true);
+        if (src != dst)
+            CopyBlobIfNeeded(src, dst, true);
     }
 }
 
@@ -175,14 +178,17 @@ void AutoBatchInferRequest::CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, In
         else
             memcpy(ptrDst, ptrSrc + offset, dst->byteSize());
     }
-    // std::cout << "!!! COPY !!!" << std::endl;
+    std::cout << "!!! COPY !!!" << std::endl;
 }
 
 void AutoBatchInferRequest::CopyOutputsIfNeeded() {
     for (const auto &it : _networkOutputs) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
-        CopyBlobIfNeeded(_workerInferRequest->_inferRequest->GetBlob(name), GetBlob(name), false);
+        auto dst = GetBlob(name);
+        auto src = _workerInferRequest->_inferRequest->GetBlob(name);
+        if (src != dst)
+            CopyBlobIfNeeded(src, dst, false);
     }
 }
 
@@ -288,7 +294,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
             workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
                 while (1) {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(100));
+                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(1000));
                     // as we pop the tasks from the queue only here
                     // it is ok to call unsafe_size (as the _tasks can only grow in parallel)
                     const int sz = workerRequestPtr->_tasks.unsafe_size();
@@ -326,6 +332,9 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                     (std::chrono::high_resolution_clock::now() - start).count();
                             std::cout << "thread::timeout: " << execTime << " micros, tasks:  " << sz << std::endl;
                             all_completed_future.get();
+                            execTime = std::chrono::duration_cast<std::chrono::milliseconds>
+                                    (std::chrono::high_resolution_clock::now() - start).count();
+                            std::cout << "thread::timeout:WAIT " << execTime << " micros, tasks:  " << sz << std::endl;
                             // now when all the tasks for this batch are completed, start waiting for the timeout again
                         }
                     }
@@ -531,7 +540,12 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
     networkConfig.insert(deviceConfig.begin(), deviceConfig.end());
 
     const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
-    // TODO: remove this experimental code that does loop rather than use the batch1 footprint only
+    std::map<std::string, Parameter> options = {{"CNN_NETWORK", &network}};
+    auto max_batch_size = GetCore()->GetMetric(deviceName, METRIC_KEY(MAX_BATCH_SIZE), options).as<unsigned int>();
+    int closest = pow(2, floor(log(max_batch_size)/log(2)));
+    std::cout << "!!!!!!!!!!!!!! (CLOSEST):" << closest << std::endl;
+
+    metaDevice.batchForDevice = std::min(512, std::max(metaDevice.batchForDevice, closest));
     do {
         CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
         const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
