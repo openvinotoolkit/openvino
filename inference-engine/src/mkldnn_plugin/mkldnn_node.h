@@ -566,22 +566,6 @@ public:
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
 
-    /**
-    * @brief Return aligned buffer by postOpDims[C] dimension.
-    * If buffer has size 1, values broadcast with postOpDims[C] size.
-    * If alignment buffer size > postOpDims[C], other values filled by zero.
-    * @param postOpDims
-    * dims from which get postOpDims[C] dimension
-    * @param buffer
-    * buffer to be aligned
-    * @param align
-    * alignment for postOpDims[C]
-    * @return aligned buffer
-    */
-    static std::vector<float> getAlignedBuffer(const VectorDims &postOpDims,
-                                               const std::vector<float> &buffer,
-                                               int align = -1);
-
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
 

@@ -1132,7 +1132,8 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
                 ops.append_sum(1.0);
             } else {
                 // TODO [DS]: change to shape from memory
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
+                constexpr int align = 16;
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
             }
             continue;
         }

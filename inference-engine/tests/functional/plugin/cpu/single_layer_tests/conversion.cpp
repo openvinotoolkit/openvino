@@ -92,6 +92,16 @@ std::vector<convertLayerShapeDefinition> inShapes_4D = {
                 {2, 17, 5, 4},
                 {1, 2, 3, 4}
             }
+        },
+        {
+            // dynamic
+            {{{1, 5}, {2, 22}, {2, 9}, {1, 4}}},
+            // target
+            {
+                {2, 17, 5, 4},
+                {5, 2, 3, 2},
+                {1, 10, 4, 1},
+            }
         }
 };
 

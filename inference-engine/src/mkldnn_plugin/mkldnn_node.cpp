@@ -1274,27 +1274,6 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
     return {scales, shifts};
 }
 
-std::vector<float> MKLDNNNode::getAlignedBuffer(const VectorDims &postOpDims,
-                                                const std::vector<float> &buffer,
-                                                int align) {
-    if (buffer.empty()) {
-        IE_THROW() << "Can't align buffer, becuase buffer is empty";
-    }
-
-    auto alignmentBuffer = buffer;
-    const size_t bufferSize = static_cast<size_t>(postOpDims[postOpDims.size() > 1 ? 1 : 0]);
-    if (align == -1) {
-        align = bufferSize;
-    }
-    const size_t bufferSizeAligned = rnd_up(bufferSize, align);
-
-    alignmentBuffer.resize(bufferSizeAligned, 0);
-    if (buffer.size() == 1) {
-        std::fill(alignmentBuffer.begin() + 1, alignmentBuffer.begin() + bufferSize, buffer[0]);
-    }
-    return alignmentBuffer;
-}
-
 bool MKLDNNNode::inputShapesDefined() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined())

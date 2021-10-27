@@ -132,10 +132,6 @@ private:
 
     mkldnn::algorithm mkldnnAlgorithm = mkldnn::algorithm::undef;
 
-    int postOpAlign = -1;
-    size_t initScalesSize = 0;
-    size_t initShiftsSize = 0;
-
     static const int optimalTensorRank = 6;
     bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;

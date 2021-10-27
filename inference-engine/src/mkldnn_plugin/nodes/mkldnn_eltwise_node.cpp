@@ -23,6 +23,7 @@
 #include "emitters/jit_bf16_emitters.hpp"
 #include <mkldnn_selective_build.h>
 #include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 
 #include "ngraph/ngraph.hpp"
 #include <ngraph/opsets/opset1.hpp>
@@ -1694,9 +1695,10 @@ void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops, const VectorDims &p
     const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
 
     if (getMKLDNNAlgorithm() == mkldnn::algorithm::undef) {
-        scalesBuffer = MKLDNNNode::getAlignedBuffer(postOpDims, scales, align);
+        const size_t channelPos = postOpDims.size() > 1 ? 1 : 0;
+        scalesBuffer = getAlignedBuffer(postOpDims[channelPos], scales, align);
         if (getAlgorithm() != EltwisePrelu) {
-            shiftsBuffer = MKLDNNNode::getAlignedBuffer(postOpDims, shifts, align);
+            shiftsBuffer = getAlignedBuffer(postOpDims[channelPos], shifts, align);
         }
     }
 

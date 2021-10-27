@@ -98,4 +98,34 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
     return precision;
 }
 
+/**
+* @brief Return aligned buffer by targetSize.
+* If buffer has size 1, values broadcast with targetSize size.
+* If alignment buffer size > targetSize, other values filled by zero.
+* @param targetSize
+* target size buffer
+* @param buffer
+* buffer to be aligned
+* @param align
+* alignment for targetSize
+* @return aligned buffer
+*/
+inline std::vector<float> getAlignedBuffer(size_t targetSize, const std::vector<float> &buffer, int align = -1) {
+    if (buffer.empty()) {
+        IE_THROW() << "Can't align buffer, becuase buffer is empty";
+    }
+
+    auto alignmentBuffer = buffer;
+    if (align == -1) {
+        align = targetSize;
+    }
+    const size_t bufferSizeAligned = rnd_up(targetSize, align);
+
+    alignmentBuffer.resize(bufferSizeAligned, 0);
+    if (buffer.size() == 1) {
+        std::fill(alignmentBuffer.begin() + 1, alignmentBuffer.begin() + targetSize, buffer[0]);
+    }
+    return alignmentBuffer;
+}
+
 }  // namespace MKLDNNPlugin
