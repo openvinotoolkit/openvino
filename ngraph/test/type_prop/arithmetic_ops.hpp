@@ -65,7 +65,7 @@ TYPED_TEST_P(ArithmeticOperator, no_autobroadcast)
     auto A = std::make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto B = std::make_shared<op::Parameter>(element::f32, Shape{2, 2});
 
-    const auto op = std::make_shared<TypeParam>(A, B, op::AutoBroadcastSpec::NONE);
+    const auto op = std::make_shared<TypeParam>(A, B, op::AutoBroadcastType::NONE);
 
     ASSERT_EQ(op->get_element_type(), element::f32);
     ASSERT_EQ(op->get_shape(), (Shape{2, 2}));

@@ -342,17 +342,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (old_api_type == ov::element::undefined)
                     old_api_type = parameter->get_element_type();
 
-                std::stringstream tensorLayout, networkLayout;
-                for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
-                    tensorLayout << i;
-                    networkLayout << old_api_transpose_args[i];
-                }
-
-                prepost.input(
-                    ov::preprocess::InputInfo(i)
-                        .tensor(
-                            InputTensorInfo().set_element_type(old_api_type).set_layout(ov::Layout(tensorLayout.str())))
-                        .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
+                prepost.input(ov::preprocess::InputInfo(i)
+                                  .tensor(InputTensorInfo().set_element_type(old_api_type))
+                                  .preprocess(PreProcessSteps().convert_layout(old_api_transpose_args)));
 
                 // Set version to 10
                 rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
@@ -377,34 +369,15 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (old_api_type == ov::element::undefined)
                     old_api_type = result->get_element_type();
 
-                std::stringstream tensorLayout, networkLayout;
-                for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
-                    networkLayout << i;
-                    tensorLayout << old_api_transpose_args[i];
-                }
-
                 prepost.output(OutputInfo(i)
-                                   .network(OutputNetworkInfo().set_layout(ov::Layout(networkLayout.str())))
-                                   .tensor(OutputTensorInfo()
-                                               .set_element_type(old_api_type)
-                                               .set_layout(ov::Layout(tensorLayout.str()))));
+                                   .postprocess(PostProcessSteps().convert_layout(old_api_transpose_args))
+                                   .tensor(OutputTensorInfo().set_element_type(old_api_type)));
 
                 // remove old api once we applied it
                 rtInfo.erase(it);
             }
 
             function = prepost.build(function);
-
-            // TODO: keep information about layout once we have an ability to
-            // apply permutation to layout
-
-            // restore layout information
-            for (const auto& parameter : function->get_parameters()) {
-                parameter->set_layout({});
-            }
-            for (const auto& result : function->get_results()) {
-                result->set_layout({});
-            }
         }
     }
 
