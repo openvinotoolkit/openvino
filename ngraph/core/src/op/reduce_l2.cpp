@@ -36,6 +36,7 @@ shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace reduce_l2 {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -55,6 +56,7 @@ bool evaluate_reduce_l2(const HostTensorPtr& arg, const HostTensorPtr& out, cons
     }
     return rc;
 }
+}  // namespace
 }  // namespace reduce_l2
 
 bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -62,12 +62,15 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     std::shared_ptr<ngraph::Function> function;
     {
         auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        data->set_layout("NCHW");
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
         init_info(add->output(0).get_rt_info());
-        function = std::make_shared<ngraph::Function>(OutputVector{add}, ParameterVector{data});
+        auto result = std::make_shared<ov::opset8::Result>(add);
+        result->set_layout("????");
+        function = std::make_shared<ngraph::Function>(ResultVector{result}, ParameterVector{data});
     }
 
     pass::Manager m;
@@ -100,6 +103,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NCHW");
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "????");
     check_info(add->get_rt_info());
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());
@@ -117,6 +122,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     std::shared_ptr<ngraph::Function> function;
     {
         auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        data->set_layout("NCHW");
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
@@ -142,6 +148,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());
     check_info(add->output(0).get_rt_info());
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), "");
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v11) {
@@ -155,12 +162,15 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     std::shared_ptr<ngraph::Function> function;
     {
         auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        data->set_layout("NCHW");
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
         init_info(add->output(0).get_rt_info());
-        function = std::make_shared<ngraph::Function>(OutputVector{add}, ParameterVector{data});
+        auto result = std::make_shared<ov::opset8::Result>(add);
+        result->set_layout("????");
+        function = std::make_shared<ngraph::Function>(ResultVector{result}, ParameterVector{data});
     }
 
     pass::Manager m;
@@ -185,6 +195,8 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NCHW");
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "????");
     check_info(add->get_rt_info());
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());

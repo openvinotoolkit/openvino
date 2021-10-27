@@ -108,6 +108,7 @@ op::GeluApproximationMode op::v7::Gelu::get_approximation_mode() const {
 }
 
 namespace gelu {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0,
                      const HostTensorPtr& out,
@@ -132,6 +133,7 @@ bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::Gelu
     }
     return rc;
 }
+}  // namespace
 }  // namespace gelu
 
 bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
