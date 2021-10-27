@@ -40,7 +40,9 @@ void regmodule_graph_util(py::module m) {
         "get_tensor_name",
         [](const std::shared_ptr<ov::op::v0::Result> result) {
             const auto prev_node_output = result->input_value(0);
+            NGRAPH_SUPPRESS_DEPRECATED_START
             return prev_node_output.get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
         },
         py::arg("result"),
         R"(
