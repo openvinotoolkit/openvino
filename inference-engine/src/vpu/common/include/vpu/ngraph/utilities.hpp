@@ -27,10 +27,10 @@ bool fuseTypeToStaticShapeTopK(const std::shared_ptr<ngraph::Node>& node, ngraph
 bool fuseTypeToOutShapeOfReshape(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 
 static typeToFuseMap myriadTypeToFuseMap {
-     {ngraph::vpu::op::StaticShapeNonMaxSuppression::type_info, fuseTypeToStaticShapeNonMaxSuppression},
-     {ngraph::vpu::op::StaticShapeNonZero::type_info, fuseTypeToStaticShapeNonZero},
-     {ngraph::vpu::op::StaticShapeTopK::type_info, fuseTypeToStaticShapeTopK},
-     {ngraph::vpu::op::OutShapeOfReshape::type_info, fuseTypeToOutShapeOfReshape},
+     {ngraph::vpu::op::StaticShapeNonMaxSuppression::get_type_info_static(), fuseTypeToStaticShapeNonMaxSuppression},
+     {ngraph::vpu::op::StaticShapeNonZero::get_type_info_static(), fuseTypeToStaticShapeNonZero},
+     {ngraph::vpu::op::StaticShapeTopK::get_type_info_static(), fuseTypeToStaticShapeTopK},
+     {ngraph::vpu::op::OutShapeOfReshape::get_type_info_static(), fuseTypeToOutShapeOfReshape},
 };
 
 std::shared_ptr<ngraph::Node> shapeToConstant(const ngraph::element::Type& type, const ngraph::Shape& shape);
