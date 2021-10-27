@@ -79,7 +79,6 @@ void LayerTestsCommon::Run() {
                 GenerateInputs();
                 Infer();
                 Validate();
-                s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
             } catch (const std::exception &ex) {
                 std::string errorMessage;
                 if (!targetStaticShapes.empty()) {
@@ -89,8 +88,8 @@ void LayerTestsCommon::Run() {
                 THROW_IE_EXCEPTION << ex.what();
             }
         } while (++i < targetStaticShapes.size());
-    }
-    catch (const std::runtime_error &re) {
+        s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
+    } catch (const std::runtime_error &re) {
         s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
         GTEST_FATAL_FAILURE_(re.what());
     } catch (const std::exception &ex) {
