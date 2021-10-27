@@ -29,7 +29,8 @@ enum class eltwise_mode : int32_t;
 }  // namespace cldnn
 
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
-static void __register ## _ ## op_name ## _ ## op_version() {                                     \
+void __register ## _ ## op_name ## _ ## op_version();                                             \
+void __register ## _ ## op_name ## _ ## op_version() {                                            \
     Program::RegisterFactory<ngraph::op::op_version::op_name>(                                    \
     [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
         auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
