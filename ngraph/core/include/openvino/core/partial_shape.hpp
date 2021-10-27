@@ -375,7 +375,7 @@ private:
 ///     std::invalid_argument.
 /// \li If `s1` and `s2` both have static rank, and their ranks are equal,
 ///     returns a new shape whose `i`th dimension is `s1[i] + s2[i]`.
-PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
+OPENVINO_API PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
 
 /// \brief Inserts a human-readable representation of a PartialShape into an output stream.
 /// \param str The output stream targeted for insertion.
