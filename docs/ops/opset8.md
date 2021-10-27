@@ -114,7 +114,7 @@ declared in `namespace opset8`.
 * [Power](arithmetic/Power_1.md)
 * [PReLU](activation/PReLU_1.md)
 * [PriorBoxClustered](detection/PriorBoxClustered_1.md)
-* [PriorBox](detection/PriorBox_1.md)
+* [PriorBox](detection/PriorBox_8.md)
 * [Proposal](detection/Proposal_4.md)
 * [PSROIPooling](detection/PSROIPooling_1.md)
 * [RandomUniform](generation/RandomUniform_8.md)
