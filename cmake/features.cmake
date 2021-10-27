@@ -84,11 +84,11 @@ else()
     set(ENABLE_IR_V7_READER_DEFAULT OFF)
 endif()
 
-ie_dependent_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
+ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
 
-ie_dependent_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
+ie_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
 
-ie_dependent_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
+ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
