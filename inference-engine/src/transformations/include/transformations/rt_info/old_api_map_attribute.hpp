@@ -116,7 +116,7 @@ inline OldApiMap get_old_api_map(const std::shared_ptr<Node>& node) {
     return ngraph::as_type_ptr<OldApiMap>(var)->get();
 }
 
-inline void set_old_api_map(std::shared_ptr<Node>& node, const OldApiMap& old_api_map) {
+inline void set_old_api_map(const std::shared_ptr<Node>& node, const OldApiMap& old_api_map) {
     auto& rt_map = node->get_rt_info();
     rt_map[OldApiMap::get_type_info_static()] = std::make_shared<OldApiMap>(old_api_map);
 }

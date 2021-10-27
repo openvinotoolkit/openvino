@@ -57,9 +57,7 @@ bool frontend::tf::pass::ChangePlaceholderTypes::run_on_function(shared_ptr<Func
                 new_order.resize(rank);
                 std::iota(new_order.begin(), new_order.end(), 0);
             }
-            auto param_node = std::dynamic_pointer_cast<Node>(param);
-            auto old_api_map = std::make_shared<OldApiMap>(OldApiMapAttr(new_order, legacy_type));
-            set_old_api_map(param_node, old_api_map->get());
+            set_old_api_map(param, OldApiMapAttr(new_order, legacy_type));
         }
     }
 

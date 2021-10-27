@@ -34,9 +34,7 @@ TEST(ChangePlaceholderTypeTest, OldApiMapForI64Param) {
 
 TEST(ChangePlaceholderTypeTest, ExistingOldApiMapForU8Param) {
     auto p1 = make_shared<Parameter>(element::u8, Shape({3, 4, 5}));
-    auto old_api_map = std::make_shared<OldApiMap>(OldApiMapAttr({1, 0, 2}, element::u8));
-    auto p1_node = std::dynamic_pointer_cast<Node>(p1);
-    set_old_api_map(p1_node, old_api_map->get());
+    set_old_api_map(p1, OldApiMapAttr({1, 0, 2}, element::u8));
 
     auto axes = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
     auto sum = make_shared<ReduceSum>(p1, axes, true);
