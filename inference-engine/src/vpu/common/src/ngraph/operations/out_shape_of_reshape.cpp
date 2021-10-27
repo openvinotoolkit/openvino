@@ -65,6 +65,7 @@ bool OutShapeOfReshape::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
+namespace out_shape {
 namespace {
 
 template<element::Type_t ET>
@@ -101,7 +102,7 @@ bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
     return true;
 }
 
-inline bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
+bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
     bool rc = false;
     switch (data->get_element_type()) {
         case element::Type_t::i8:
@@ -249,10 +250,11 @@ bool evaluateOutShapeOfReshape(
 }
 
 }  // namespace
+}  // namespace out_shape
 
 bool OutShapeOfReshape::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const {
-    return evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
+    return out_shape::evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
 }
 
 void OutShapeOfReshape::set_output_type(const ngraph::element::Type& output_type) {
