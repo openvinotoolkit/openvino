@@ -531,5 +531,5 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_nd_8_batch_dims2_lead_dims) {
     auto c = backend->compile(f);
     c->call_with_validate({result}, {p, i});
     EXPECT_TRUE(
-            test::all_close_f((vector<float>{2, 5, 11, 13, 19, 23}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+        test::all_close_f((vector<float>{2, 5, 11, 13, 19, 23}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
