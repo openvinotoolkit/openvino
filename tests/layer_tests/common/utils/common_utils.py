@@ -37,7 +37,8 @@ def generate_ir(coverage=False, **kwargs):
             params.extend(("--{}".format(key), str(value)))
     exit_code, stdout, stderr = shell(params)
     logger.info("Model Optimizer out:\n{}".format(stdout))
-    logger.error(stderr)
+    if stderr:
+        logger.error(stderr)
     return exit_code, stderr
 
 
