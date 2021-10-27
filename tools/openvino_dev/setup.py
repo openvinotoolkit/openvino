@@ -179,6 +179,13 @@ def get_description(desc_file_path):
         description = fstream.read()
     return description
 
+with (SCRIPT_DIR / 'requirements.txt').open() as requirements:
+    install_reqs = [
+        str(requirement)
+        for requirement
+        in pkg_resources.parse_requirements(requirements)
+    ]
+
 
 setup(
     name='openvino-dev',
@@ -204,6 +211,7 @@ setup(
     entry_points = {
         'console_scripts': [],
     },
+    install_requires=install_reqs,
     packages=find_namespace_packages(where=str(SRC_DIR)),
     package_dir={'': str(SRC_DIR)},
 )
