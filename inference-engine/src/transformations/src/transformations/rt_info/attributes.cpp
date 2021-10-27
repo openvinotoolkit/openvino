@@ -11,6 +11,7 @@ ov::pass::Attributes::Attributes() {
     register_factory<NmsSelectedIndices>();
     register_factory<StridesPropagation>();
     register_factory<OldApiMap>();
+    register_factory<LayoutAttribute>();
 }
 
 ov::Variant* ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {
