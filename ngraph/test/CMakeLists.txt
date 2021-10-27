@@ -302,6 +302,8 @@ set(SRC
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
     visitors/op/grn.cpp
+    visitors/op/gru_cell.cpp
+    visitors/op/gru_sequence.cpp
     visitors/op/group_conv.cpp
     visitors/op/hard_sigmoid.cpp
     visitors/op/hsigmoid.cpp
@@ -369,6 +371,7 @@ set(SRC
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
+    visitors/op/shape_of.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sigmoid.cpp
     visitors/op/sign.cpp
@@ -475,7 +478,6 @@ set(MULTI_TEST_SRC
     backend/dynamic.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
-    backend/fake_quantize.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
@@ -499,27 +501,22 @@ set(MULTI_TEST_SRC
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
-    backend/range.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
-    backend/reshape.in.cpp
     backend/result.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
-    backend/squeeze.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
-    backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
     backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
@@ -638,6 +635,10 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     elseif(APPLE)
         target_link_options(unit-test PRIVATE -Wl,-dead_strip)
     endif()
+endif()
+
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    add_dependencies(unit-test ir_ngraph_frontend)
 endif()
 
 install(TARGETS unit-test
