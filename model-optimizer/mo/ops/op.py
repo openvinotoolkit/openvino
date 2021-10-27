@@ -13,6 +13,7 @@ from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.utils import class_registration
 from mo.utils.error import Error
+from mo.utils.runtime_info import RTInfo
 
 
 class Op(object):
@@ -29,7 +30,8 @@ class Op(object):
             self.ir_version = None
 
         self.attrs = {
-            'kind': 'op'
+            'kind': 'op',
+            'rt_info': RTInfo()
         }
         self.default_backend_attrs = []
         if attrs1 is not None:
@@ -61,6 +63,7 @@ class Op(object):
         backend_attrs_mapping = {
             None: self.backend_attrs,
             10: self.backend_attrs,
+            11: self.backend_attrs,
         }
 
         if self.ir_version not in backend_attrs_mapping.keys():
@@ -72,6 +75,7 @@ class Op(object):
                 [('id', lambda node: node.node), 'name', 'type', 'version'],
                 [
                     ('data', backend_attrs_mapping[self.ir_version]() + self.default_backend_attrs, []),
+                    '@runtime_info',
                     '@ports',
                     '@consts'])]
         })

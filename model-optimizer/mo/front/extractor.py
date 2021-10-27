@@ -323,6 +323,7 @@ def update_ie_fields(attrs: dict, ir_version = None):
         # Default behaviour is IR V10 attributes
         None: ir_v10_attrs,
         10: ir_v10_attrs,
+        11: ir_v10_attrs,
     }
 
     if ir_version not in ir_version_mapping.keys():

@@ -20,4 +20,6 @@ cdef extern from "offline_transformations_api_impl.hpp" namespace "InferenceEngi
 
     cdef void GenerateMappingFile(IENetwork network, string path, bool extract_names)
 
+    cdef void Serialize(IENetwork network, string path_to_xml, string path_to_bin)
+
     cdef void CheckAPI()
