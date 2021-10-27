@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "ngraph/compatibility.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/core_visibility.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -24,27 +22,15 @@ public:
 
 template <class T>
 class OpExtension : public BaseOpExtension {
-    template <typename TYPE, typename std::enable_if<!ngraph::HasTypeInfoMember<TYPE>::value, bool>::type = true>
-    ov::DiscreteTypeInfo get_type_info() {
-        return TYPE::get_type_info_static();
-    }
-
-    template <typename TYPE, typename std::enable_if<ngraph::HasTypeInfoMember<TYPE>::value, bool>::type = true>
-    ov::DiscreteTypeInfo get_type_info() {
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        return TYPE::type_info;
-        NGRAPH_SUPPRESS_DEPRECATED_END
-    }
-    const ov::DiscreteTypeInfo ext_type;
-
 public:
-    OpExtension() : ext_type(get_type_info<T>()) {
+    OpExtension() {
+        const auto& ext_type = type();
         OPENVINO_ASSERT(ext_type.name != nullptr && ext_type.version_id != nullptr,
                         "Extension type should have information about operation set and operation type.");
     }
 
     const ov::DiscreteTypeInfo& type() override {
-        return ext_type;
+        return T::get_type_info_static();
     }
     ov::OutputVector create(const ov::OutputVector& inputs, ov::AttributeVisitor& visitor) override {
         std::shared_ptr<ov::Node> node = std::make_shared<T>();
