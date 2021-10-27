@@ -17,7 +17,9 @@
 
 #include "ie_plugin_config.hpp"
 #include "openvino/core/extension.hpp"
+#include "openvino/core/op_extension.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/op/op.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -184,6 +186,41 @@ public:
     void add_extension(const T& extension) {
         std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
         add_extension(ext);
+    }
+
+    /**
+     * @brief Registers extensions
+     * @param extension Extension class which is inherited from ov::Extension class
+     */
+    template <class T,
+              class... Targs,
+              typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
+    void add_extension(const T& extension, Targs... args) {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
+        add_extension(ext);
+        add_extension(args...);
+    }
+
+    /**
+     * @brief Registers custom operation
+     */
+    template <class T, typename std::enable_if<std::is_base_of<ov::op::Op, T>::value, bool>::type = true>
+    void add_extension() {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<ov::OpExtension<T>>();
+        add_extension(ext);
+    }
+
+    /**
+     * @brief Registers custom operations
+     */
+    template <class T,
+              class... Targs,
+              typename std::enable_if<std::is_base_of<ov::op::Op, T>::value && sizeof...(Targs), bool>::type = true>
+    void add_extension() {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<ov::OpExtension<T>>();
+        add_extension(ext);
+        if (sizeof...(Targs) > 0)
+            add_extension<Targs...>();
     }
 
     /**
