@@ -462,7 +462,7 @@ int main(int argc, char* argv[]) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
-            std::map<std::string, Parameter> options = {{"CNN_NETWORK", &cnnNetwork}};
+            std::map<std::string, Parameter> options = {{"CNN_NETWORK", (const CNNNetwork*)&cnnNetwork}};
             // user specified streams and base batch size
             //            options.insert(std::make_pair("GPU_THROGHPUT_STREAMS", 2));
             //            options.insert(std::make_pair("BASE_BATCH_SIZE", 32));
