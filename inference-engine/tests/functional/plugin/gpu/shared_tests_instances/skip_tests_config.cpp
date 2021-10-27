@@ -23,8 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
-            // TODO: Issue: 51764
-            ".*InferRequestPreprocessConversionTest.*",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 43511

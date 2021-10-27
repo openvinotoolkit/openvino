@@ -79,8 +79,7 @@ private:
                        std::vector<cldnn::event::ptr>& dependencies);
     void prepare_output(const cldnn::primitive_id& outputName, InferenceEngine::Blob::Ptr& outputBlob);
 
-    InferenceEngine::Blob::Ptr create_input_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
-    InferenceEngine::Blob::Ptr create_output_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
+    InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout);
 
     void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
