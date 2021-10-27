@@ -1239,7 +1239,8 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
 std::vector<VectorDims> MKLDNNEltwiseNode::shapeInfer() const {
     ov::PartialShape outShape = getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape();
     for (size_t i = 1; i < getParentEdges().size(); i++) {
-        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(), ov::op::AutoBroadcastSpec::NUMPY);
+        ov::PartialShape::broadcast_merge_into(outShape, getParentEdgesAtPort(i)[0]->getMemory().GetShape().toPartialShape(),
+        ov::op::AutoBroadcastType::NUMPY);
     }
     return {outShape.get_shape()};
 }
