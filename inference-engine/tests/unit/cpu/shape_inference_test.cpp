@@ -58,7 +58,7 @@ TEST(StaticShapeInferenceTest, Pad) {
     auto f = std::make_shared<Function>(pad, ParameterVector{data});
 
     std::vector<PartialShape> input_shapes = {PartialShape{3, 6, 5, 5}, ov::Shape{4}, ov::Shape{4}, ov::Shape{}};
-    std::vector<PartialShape> output_shapes;
+    std::vector<PartialShape> output_shapes = {PartialShape::dynamic()};
     shape_infer(pad.get(), input_shapes, output_shapes);
 
     ASSERT_EQ(output_shapes.size(), 1);

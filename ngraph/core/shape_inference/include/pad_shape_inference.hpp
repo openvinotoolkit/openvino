@@ -8,24 +8,13 @@ namespace ov {
 namespace op {
 namespace v1 {
 
-// helper to create a default return shape
-template <typename T>
-T unknown_shape() {
-    return T{};
-}
-
-template <>
-PartialShape unknown_shape() {
-    return PartialShape::dynamic();
-}
-
 template <class T>
 void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    using DimensionType = typename std::decay<decltype(output_shapes[0][0])>::type;
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4));
+    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
 
-    output_shapes.resize(1, unknown_shape<T>());
     auto& output_shape = output_shapes[0];
 
     // Check the shape of pad_value
@@ -78,6 +67,16 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
 
         const auto& pads_begin_coord = op->get_pads_begin();
         const auto& pads_end_coord = op->get_pads_end();
+
+        // special check for static shape inference
+        NODE_VALIDATION_CHECK(op,
+                              is_dynamic_shape || (!pads_begin_coord.empty()),
+                              "Cannot determined static output shape when pads_begin is not determined.");
+
+        NODE_VALIDATION_CHECK(op,
+                              is_dynamic_shape || (!pads_end_coord.empty()),
+                              "Cannot determined static output shape when pads_begin is not determined.");
+
         if (!pads_begin_coord.empty() && !pads_end_coord.empty()) {
             for (size_t i = 0; i < output_shape.size(); i++) {
                 ptrdiff_t begin = i < pads_begin_coord.size() ? pads_begin_coord[i] : 0;
@@ -87,30 +86,63 @@ void shape_infer(Pad* op, const std::vector<T>& input_shapes, std::vector<T>& ou
                     const auto& dim = arg_shape[i].get_length();
 
                     if (op->m_pad_mode == op::PadMode::EDGE) {
-                        NODE_VALIDATION_CHECK(op,
-                                              begin == 0 || dim > 0,
-                                              "EDGE padding mode does not allow non-zero pad-begin for zero dimension");
-                        NODE_VALIDATION_CHECK(op,
-                                              end == 0 || dim > 0,
-                                              "EDGE padding mode does not allow non-zero pad-end for zero dimension");
-                    }
-                    if (op->m_pad_mode == op::PadMode::REFLECT) {
-                        NODE_VALIDATION_CHECK(op,
-                                              begin < dim,
-                                              "REFLECT padding mode requires pad-begin to be less than dimension");
-                        NODE_VALIDATION_CHECK(op,
-                                              end < dim,
-                                              "REFLECT padding mode requires pad-end to be less than dimension");
-                    }
-                    if (op->m_pad_mode == op::PadMode::SYMMETRIC) {
                         NODE_VALIDATION_CHECK(
                             op,
-                            begin <= dim,
-                            "SYMMETRIC padding mode requires pad-begin to be no greater than dimension");
+                            begin == 0 || dim > 0,
+                            "EDGE padding mode does not allow non-zero pad-begin for zero dimension (",
+                            begin,
+                            ")");
+                        NODE_VALIDATION_CHECK(
+                            op,
+                            end == 0 || dim > 0,
+                            "EDGE padding mode does not allow non-zero pad-begin for zero dimension (",
+                            end,
+                            ")");
+                    }
+                    if (op->m_pad_mode == op::PadMode::REFLECT) {
+                        NODE_VALIDATION_CHECK(
+                            op,
+                            begin < dim,
+                            "REFLECT padding mode requires pad-begin to be less than dimension, but dimension #",
+                            i,
+                            " got (pad-begin=",
+                            begin,
+                            ",dimension=",
+                            dim,
+                            ")");
+                        NODE_VALIDATION_CHECK(
+                            op,
+                            end < dim,
+                            "REFLECT padding mode requires pad-end to be less than dimension, but dimension #",
+                            i,
+                            " got (pad-end=",
+                            end,
+                            ", dimension=",
+                            dim,
+                            ")");
+                    }
+
+                    if (op->m_pad_mode == op::PadMode::SYMMETRIC) {
+                        NODE_VALIDATION_CHECK(op,
+                                              begin <= dim,
+                                              "SYMMETRIC padding mode requires pad-begin to be no greater than "
+                                              "dimension, but dimension #",
+                                              i,
+                                              " got (pad-begin=",
+                                              begin,
+                                              ", dimension=",
+                                              dim,
+                                              ")");
                         NODE_VALIDATION_CHECK(
                             op,
                             end <= dim,
-                            "SYMMETRIC padding mode requires pad-end to be no greater than dimension");
+                            "SYMMETRIC padding mode requires pad-end to be no greater than dimension, but dimension #",
+                            i,
+                            " got (pad-end=",
+                            end,
+                            ", dimension=",
+                            dim,
+                            ")");
                     }
 
                     output_shape[i] = static_cast<size_t>(begin + dim + end);
