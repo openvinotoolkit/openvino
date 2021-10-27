@@ -1414,7 +1414,7 @@ static void* debugConsoleThreadReader(void* ctx) {
     fprintfsock(connfd, "=========================================\n");
     while(1){
         // use 0 as the timeout to prevent trigger false reset
-        xerr = XLinkWriteDataWithTimeout(streamId, &packet->data[0], packet->length, 0);
+        xerr = XLinkReadDataWithTimeout(streamId, &packet, 0);
         if(X_LINK_SUCCESS != xerr || packet == NULL)
             break;
         fprintfsock(connfd, NULL, packet->data, packet->length);
