@@ -79,7 +79,7 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
     return true;
 }
 
-bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
+inline bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
     switch (data->get_element_type()) {
         case element::Type_t::i8:
             return getShapeFromHostTensorData<element::Type_t::i8>(data, shape);

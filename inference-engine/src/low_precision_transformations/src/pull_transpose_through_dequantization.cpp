@@ -18,6 +18,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::PullTransposeThroughDequantization, "PullTransposeThroughDequantization", 0);
 
+namespace pull_transpose_through_dequantization {
 namespace {
 
 std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transpose, const std::shared_ptr<Node>& elementwise) {
@@ -86,6 +87,7 @@ void fuseConstant(const std::shared_ptr<Node>& transpose, const std::shared_ptr<
 }
 
 }  // namespace
+}  // namespace pull_transpose_through_dequantization
 
 ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeThroughDequantization(
     const std::vector<ngraph::element::Type>& inputPrecisions) {
@@ -113,11 +115,11 @@ ngraph::pass::low_precision::PullTransposeThroughDequantization::PullTransposeTh
         while (transpose != nullptr) {
             const auto parent = transpose->get_input_node_shared_ptr(0);
             if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
-                transpose = moveThroughElementwise(transpose, parent);
+                transpose = pull_transpose_through_dequantization::moveThroughElementwise(transpose, parent);
             } else if (ov::is_type<opset1::Convert>(parent)) {
-                transpose = moveThroughConvert(transpose, parent);
+                transpose = pull_transpose_through_dequantization::moveThroughConvert(transpose, parent);
             } else if (ov::is_type<opset1::Constant>(parent)) {
-                fuseConstant(transpose, ov::as_type_ptr<opset1::Constant>(parent));
+                pull_transpose_through_dequantization::fuseConstant(transpose, ov::as_type_ptr<opset1::Constant>(parent));
                 transpose = nullptr;
             } else {
                 THROW_IE_LPT_EXCEPTION(*parent) << "unexepcted operation type";

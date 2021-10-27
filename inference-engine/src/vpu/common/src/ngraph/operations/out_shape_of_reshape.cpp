@@ -101,7 +101,7 @@ bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
     return true;
 }
 
-bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
+inline bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
     bool rc = false;
     switch (data->get_element_type()) {
         case element::Type_t::i8:
