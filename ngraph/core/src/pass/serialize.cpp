@@ -125,21 +125,6 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      int64_t version,
                      bool deterministic);
 
-// Some of the operators were added to wrong opsets. This is a mapping
-// that allows such operators to be serialized with proper opsets.
-// If new operators are discovered that have the same problem, the mapping
-// needs to be updated here. The keys contain op name and version in NodeTypeInfo.
-const std::unordered_map<ngraph::Node::type_info_t, std::string> special_operator_to_opset_assignments = {
-    {ngraph::Node::type_info_t("ShuffleChannels", 0), "opset3"}};
-
-std::string get_special_opset_for_op(const ngraph::Node::type_info_t& type_info) {
-    auto found = special_operator_to_opset_assignments.find(type_info);
-    if (found != end(special_operator_to_opset_assignments)) {
-        return found->second;
-    }
-    return "";
-}
-
 namespace rt_info {
 const std::vector<std::string> list_of_names{
     "PrimitivesPriority",
@@ -574,6 +559,10 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ngraph::Nod
 }
 
 std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+    OPENVINO_ASSERT(n != nullptr);
+    if (n->get_type_info().version_id != nullptr) {
+        return n->get_type_info().version_id;
+    }
     // Try to find opset name from RT info
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
@@ -582,26 +571,6 @@ std::string get_opset_name(const ngraph::Node* n, const std::map<std::string, ng
             if (custom_opsets.find(opset_name) != custom_opsets.end()) {
                 return opset_name;
             }
-        }
-    }
-
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 8>{ngraph::get_opset1(),
-                                                                             ngraph::get_opset2(),
-                                                                             ngraph::get_opset3(),
-                                                                             ngraph::get_opset4(),
-                                                                             ngraph::get_opset5(),
-                                                                             ngraph::get_opset6(),
-                                                                             ngraph::get_opset7(),
-                                                                             ngraph::get_opset8()};
-
-    auto special_opset = get_special_opset_for_op(n->get_type_info());
-    if (!special_opset.empty()) {
-        return special_opset;
-    }
-    // return the oldest opset name where node type is present
-    for (size_t idx = 0; idx < opsets.size(); idx++) {
-        if (opsets[idx].get().contains_op_type(n)) {
-            return "opset" + std::to_string(idx + 1);
         }
     }
 
