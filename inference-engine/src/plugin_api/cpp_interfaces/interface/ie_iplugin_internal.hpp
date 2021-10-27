@@ -325,7 +325,7 @@ protected:
 /**
  * @private
  */
-using CreatePluginEngineFunc = void(std::shared_ptr<InferenceEngine::IInferencePlugin>&);
+using CreatePluginEngineFunc = void(std::shared_ptr<IInferencePlugin>&);
 
 /**
  * @def IE_CREATE_PLUGIN
