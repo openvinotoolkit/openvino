@@ -10,10 +10,9 @@ import numpy as np
 from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
 
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node, PartialShape, Type
+from ngraph.impl import Function, Node, PartialShape, Type, util
 from ngraph.opset1.ops import result
 from ngraph.utils.types import NumericData, get_shape, get_dtype
-from ngraph.pyngraph.util import get_tensor_name
 
 import tests_compatibility
 
@@ -112,7 +111,7 @@ class Computation(object):
         if len(self.results) == 1:
             return next(iter(outputs.keys()))
         else:
-            output_tensor_name = get_tensor_name(ng_result)
+            output_tensor_name = util.get_tensor_name(ng_result)
             if (len(output_tensor_name) > 0):
                 return output_tensor_name
             else:
