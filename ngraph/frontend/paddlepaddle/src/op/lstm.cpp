@@ -94,12 +94,16 @@ struct LSTMNgInputMap {
         auto batch_size_node =
             std::make_shared<opset6::Gather>(shape_of_x, opset6::Constant::create(element::i64, Shape{1}, {0}), axes);
 
-        auto seq_length_node =
-            std::make_shared<opset6::Gather>(shape_of_x, opset6::Constant::create(element::i64, Shape{1}, {1}), axes);
-
-        // TODO Specify SEQ_LEN for each batch #55404
-        m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
-            std::make_shared<opset6::Broadcast>(seq_length_node, batch_size_node);
+        if (node.has_ng_input("SequenceLength")) {
+            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] = node.get_ng_input("SequenceLength");
+        } else {
+            auto seq_length_node =
+                std::make_shared<opset6::Gather>(shape_of_x,
+                                                 opset6::Constant::create(element::i64, Shape{1}, {1}),
+                                                 axes);
+            m_input_map[LSTMInput::LSTM_INPUT_SEQ_LENGTHS] =
+                std::make_shared<opset6::Broadcast>(seq_length_node, batch_size_node);
+        }
 
         auto init_states = node.get_ng_inputs("PreState");
         // 0 for init_h, 1 for init_cell, update bidirect_len for init states
