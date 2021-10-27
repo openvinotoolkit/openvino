@@ -210,15 +210,17 @@ dnnl::memory::format_tag get_format_by_desc(dnnl::memory::desc desc) {
 dnnl::algorithm convert_activation_func(cldnn::activation_func func) {
     switch (func) {
         case cldnn::activation_func::relu: return dnnl::algorithm::eltwise_relu;
+        case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
+        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu;
         case cldnn::activation_func::elu: return dnnl::algorithm::eltwise_elu;
+        case cldnn::activation_func::mish: return dnnl::algorithm::eltwise_mish;
+        case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
+        case cldnn::activation_func::hswish: return dnnl::algorithm::eltwise_hardswish;
+        case cldnn::activation_func::abs: return dnnl::algorithm::eltwise_abs;
+        case cldnn::activation_func::exp: return dnnl::algorithm::eltwise_exp;
         case cldnn::activation_func::logistic: return dnnl::algorithm::eltwise_logistic;
         case cldnn::activation_func::clamp: return dnnl::algorithm::eltwise_clip;
-        case cldnn::activation_func::relu_negative_slope: return dnnl::algorithm::eltwise_relu;
         case cldnn::activation_func::hyperbolic_tan: return dnnl::algorithm::eltwise_tanh;
-        case cldnn::activation_func::swish: return dnnl::algorithm::eltwise_swish;
-        case cldnn::activation_func::abs: return dnnl::algorithm::eltwise_abs;
-        case cldnn::activation_func::gelu: return dnnl::algorithm::eltwise_gelu;
-        case cldnn::activation_func::hswish: return dnnl::algorithm::eltwise_hardswish;
         default: throw std::runtime_error("Unsupported activation func for onednn primitive " + std::to_string(static_cast<int>(func)));
     }
 }
