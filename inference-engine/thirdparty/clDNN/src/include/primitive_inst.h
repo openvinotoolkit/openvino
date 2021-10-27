@@ -282,8 +282,6 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-//        std::cout << "have_user_with_type<concatenation>? " << typ_node.template have_user_with_type<concatenation>() << std::endl;
-//        std::cout << "get_users().size() " << typ_node.get_users().size() << std::endl;
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
             return false;

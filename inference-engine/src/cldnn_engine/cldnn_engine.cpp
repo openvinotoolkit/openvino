@@ -11,7 +11,6 @@
 #include <tuple>
 #include <cctype>
 #include <memory>
-#include <iomanip>
 #include "ie_metric_helpers.hpp"
 #include "ie_plugin_config.hpp"
 #include <ie_ngraph_utils.hpp>
@@ -743,8 +742,11 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == METRIC_KEY(MAX_BATCH_SIZE)) {
-        auto n_streams = _impl->m_config.throughput_streams;
-        int64_t available_device_mem = device_info.max_global_mem_size;
+        const auto& config = _impl->m_configs.GetConfig(device_id);
+        auto n_streams = config.throughput_streams;
+        auto available_device_mem = device_info.max_global_mem_size;
+        size_t max_batch_size = 0;
+
         if (options.find("CNN_NETWORK") == options.end()) {
             throw std::runtime_error("No CNN_NETWORK option given!");
         }
@@ -754,40 +756,49 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         if (options.find("OCCUPIED_DEVICE_MEM") != options.end()) {
             auto occupied_device_mem = options.find("OCCUPIED_DEVICE_MEM")->second.as<int64_t>();
             available_device_mem -= occupied_device_mem;
-            if (auvailable_device_mem < 0)
+            if (available_device_mem < 0)
                 throw std::runtime_error("No available device mem");
         }
+
         auto network = options.find("CNN_NETWORK")->second.as<InferenceEngine::CNNNetwork*>();
+
         auto input_shapes = network->getInputShapes();
         std::string input_name;
         SizeVector input_shape;
         std::tie(input_name, input_shape) = *input_shapes.begin();
         size_t batch_size = input_shape[0];
 
-        using Time = std::chrono::high_resolution_clock;
-        using ns = std::chrono::nanoseconds;
-        auto get_total_ms_time = [](Time::time_point& startTime) {
-            return std::chrono::duration_cast<ns>(Time::now() - startTime).count() * 0.000001;
-        };
-        auto double_to_string = [](const double number) {
-            std::stringstream ss;
-            ss << std::fixed << std::setprecision(2) << number;
-            return ss.str();
-        };
-        size_t max_batch_size = 0;
         auto engine = cldnn::engine::create(cldnn::engine_types::ocl, cldnn::runtime_types::ocl, iter->second, {});
-        {
-            std::cout << "=========== batch : " << batch_size << std::endl;
-            auto startTime = Time::now();
-            auto transformedNetwork = CloneAndTransformNetwork(*network, _impl->m_config);
-            auto program = std::make_shared<Program>(transformedNetwork, engine, _impl->m_config, false, true);
-            std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
-            auto duration_ms = double_to_string(get_total_ms_time(startTime));
-            std::cout << "b" << batch_size << " processing took " << duration_ms << " ms (including reshape)" << std::endl;
-            std::cout << "estimated device mem usage for batch " << batch_size << ": " << device_memory_usage.first + device_memory_usage.second << std::endl;
-            max_batch_size = static_cast<size_t>((available_device_mem - device_memory_usage.first)
-                                / (n_streams * (device_memory_usage.second / batch_size)));
+        std::shared_ptr<Program> program;
+
+        if (options.find("BASE_BATCH_SIZE") != options.end()) {
+            batch_size = options.find("BASE_BATCH_SIZE")->second.as<int32_t>();
+            //reshape the network to user-specified batchsize
+            auto cloned_network = InferenceEngine::details::cloneNetwork(*network);
+            auto input_shapes = cloned_network.getInputShapes();
+            std::string input_name;
+            SizeVector input_shape;
+            std::tie(input_name, input_shape) = *input_shapes.begin();
+            input_shape[0] = batch_size;
+            input_shapes[input_name] = input_shape;
+            cloned_network.reshape(input_shapes);
+            auto t_config = Config(config);
+            auto nGraphFunc = cloned_network.getFunction();
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            if (GetDeviceInfo(config.key_config_map).supports_immad)
+                t_config.enable_fp16_for_quantized_models = false;
+#endif
+            TransformationsPipeline transformations(t_config, device_info);
+            transformations.apply(nGraphFunc);
+            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        } else {
+            auto transformedNetwork = CloneAndTransformNetwork(*network, config);
+            program = std::make_shared<Program>(transformedNetwork, engine, config, false, true);
         }
+
+        std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
+        max_batch_size = static_cast<size_t>((available_device_mem - device_memory_usage.first)
+                                / (n_streams * (device_memory_usage.second / batch_size)));
 
         IE_SET_METRIC_RETURN(MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {
