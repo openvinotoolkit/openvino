@@ -10,6 +10,7 @@
 
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "plugin_loader.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::frontend;
