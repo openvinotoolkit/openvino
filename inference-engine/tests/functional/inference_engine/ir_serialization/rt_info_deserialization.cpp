@@ -473,30 +473,33 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
-        // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit pre-processing
-        auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f32);
-
-        auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::i64,
+        // TODO: No guarantee that Transpose will use exactly 'uint64_t' constant
+        auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::u64,
                                                                  ngraph::Shape{4},
-                                                                 std::vector<int64_t>{0, 2, 3, 1});
-        auto transpose_param = std::make_shared<opset8::Transpose>(convert_param, constant_param);
+                                                                 std::vector<uint64_t>{0, 2, 3, 1});
+        auto transpose_param = std::make_shared<opset8::Transpose>(param, constant_param);
 
-        auto round = std::make_shared<opset8::Round>(transpose_param,
+        // TODO: No guarantee that only 'convert' will be added by implicit pre-processing
+        auto convert_param = std::make_shared<opset8::Convert>(transpose_param, ngraph::element::f32);
+
+        auto round = std::make_shared<opset8::Round>(convert_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         // TODO: runtime information should migrate as well?
         round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
             std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
 
         // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
-        auto convert_result = std::make_shared<opset8::Convert>(round, type);
-        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64,
+        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::u64,
                                                                   ngraph::Shape{4},
-                                                                  std::vector<int64_t>{0, 3, 1, 2});
-        auto transpose_result = std::make_shared<opset8::Transpose>(convert_result, constant_result);
-        transpose_result->set_friendly_name("Round");
-        transpose_result->get_output_tensor(0).set_names({"output_tensor"});
+                                                                  std::vector<uint64_t>{0, 3, 1, 2});
+        auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
 
-        auto result = std::make_shared<opset8::Result>(transpose_result);
+        auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
+
+        convert_result->set_friendly_name("Round");
+        convert_result->get_output_tensor(0).set_names({"output_tensor"});
+
+        auto result = std::make_shared<opset8::Result>(convert_result);
         result->set_friendly_name("output");
 
         auto f_10_ref =
