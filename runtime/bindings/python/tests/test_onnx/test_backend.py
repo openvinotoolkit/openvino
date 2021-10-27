@@ -48,7 +48,6 @@ from tests import (
     xfail_issue_49207,
     xfail_issue_49750,
     xfail_issue_49752,
-    xfail_issue_49753,
     xfail_issue_49754,
     xfail_issue_52463,
     xfail_issue_55760,
@@ -288,7 +287,7 @@ tests_expected_to_fail = [
     ),
     (xfail_issue_38706, "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (
-        xfail_issue_38708, # Can not construct DnnlBlockedMemoryDesc from strides: (0.5.1)
+        xfail_issue_38708,  # Can not construct DnnlBlockedMemoryDesc from strides: (0.5.1)
         "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (

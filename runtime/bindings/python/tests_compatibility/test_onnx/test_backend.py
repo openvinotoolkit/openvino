@@ -47,7 +47,6 @@ from tests_compatibility import (
     xfail_issue_49207,
     xfail_issue_49750,
     xfail_issue_49752,
-    xfail_issue_49753,
     xfail_issue_49754,
     xfail_issue_52463,
     xfail_issue_55760,
@@ -158,7 +157,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
         "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
     ),
-    (xfail_issue_49753, "OnnxBackendNodeModelTest.test_slice_default_axes_cpu"),
     (
         xfail_issue_49754,
         "OnnxBackendNodeModelTest.test_top_k_cpu",
@@ -249,12 +247,6 @@ tests_expected_to_fail = [
     (xfail_issue_38706, "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (
         xfail_issue_38708,
-        "OnnxBackendNodeModelTest.test_slice_default_steps_cpu",
-        "OnnxBackendNodeModelTest.test_slice_negative_axes_cpu",
-        "OnnxBackendNodeModelTest.test_slice_neg_steps_cpu",
-        "OnnxBackendNodeModelTest.test_slice_neg_cpu",
-        "OnnxBackendNodeModelTest.test_slice_cpu",
-        "OnnxBackendNodeModelTest.test_slice_end_out_of_bounds_cpu",
         "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
