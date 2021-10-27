@@ -806,45 +806,43 @@ int main(int argc, char* argv[]) {
         ProgressBar progressBar(progressBarTotalCount, FLAGS_stream_output, FLAGS_progress);
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds)) {
-            if (inferRequestsQueue.isIdleRequestAvailable()) {
-                auto inferRequest = inferRequestsQueue.getIdleRequest();
-                auto input = app_inputs_info[iteration % app_inputs_info.size()];
-                inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
+            auto inferRequest = inferRequestsQueue.getIdleRequest();
+            auto input = app_inputs_info[iteration % app_inputs_info.size()];
+            inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
 
-                for (auto& item : input) {
-                    auto input_name = item.first;
-                    const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
-                    batchSize = item.second.batch();
-                    inferRequest->setBlob(input_name, data);
-                }
-                processedFramesN += batchSize;
-                if (FLAGS_api == "sync") {
-                    inferRequest->infer();
-                } else {
-                    // As the inference request is currently idle, the wait() adds no
-                    // additional overhead (and should return immediately). The primary
-                    // reason for calling the method is exception checking/re-throwing.
-                    // Callback, that governs the actual execution can handle errors as
-                    // well, but as it uses just error codes it has no details like ‘what()’
-                    // method of `std::exception` So, rechecking for any exceptions here.
-                    inferRequest->wait();
-                    inferRequest->startAsync();
-                }
-
-                if (niter > 0) {
-                    progressBar.addProgress(1);
-                } else {
-                    // calculate how many progress intervals are covered by current
-                    // iteration. depends on the current iteration time and time of each
-                    // progress interval. Previously covered progress intervals must be
-                    // skipped.
-                    auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
-                    size_t newProgress = execTime / progressIntervalTime - progressCnt;
-                    progressBar.addProgress(newProgress);
-                    progressCnt += newProgress;
-                }
-                ++iteration;
+            for (auto& item : input) {
+                auto input_name = item.first;
+                const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
+                batchSize = item.second.batch();
+                inferRequest->setBlob(input_name, data);
             }
+            if (FLAGS_api == "sync") {
+                inferRequest->infer();
+            } else {
+                // As the inference request is currently idle, the wait() adds no
+                // additional overhead (and should return immediately). The primary
+                // reason for calling the method is exception checking/re-throwing.
+                // Callback, that governs the actual execution can handle errors as
+                // well, but as it uses just error codes it has no details like ‘what()’
+                // method of `std::exception` So, rechecking for any exceptions here.
+                inferRequest->wait();
+                inferRequest->startAsync();
+            }
+
+            if (niter > 0) {
+                progressBar.addProgress(1);
+            } else {
+                // calculate how many progress intervals are covered by current
+                // iteration. depends on the current iteration time and time of each
+                // progress interval. Previously covered progress intervals must be
+                // skipped.
+                auto progressIntervalTime = duration_nanoseconds / progressBarTotalCount;
+                size_t newProgress = execTime / progressIntervalTime - progressCnt;
+                progressBar.addProgress(newProgress);
+                progressCnt += newProgress;
+            }
+            processedFramesN += batchSize;
+            ++iteration;
 
             execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
         }

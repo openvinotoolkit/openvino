@@ -144,11 +144,6 @@ public:
         _cv.notify_one();
     }
 
-    bool isIdleRequestAvailable() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return _idleIds.size() > 0;
-    }
-
     InferReqWrap::Ptr getIdleRequest() {
         std::unique_lock<std::mutex> lock(_mutex);
         _cv.wait(lock, [this] {
