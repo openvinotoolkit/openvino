@@ -3,6 +3,38 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+usage() {
+    echo "Build inference engine samples"
+    echo
+    echo "Options:"
+    echo "  -h                      Print the help message"
+    echo "  -o OUTPUT_DIR           Specify the output directory"
+    echo
+    exit 1
+}
+
+samples_type=$(basename "$PWD")
+build_dir="$HOME/inference_engine_${samples_type}_samples_build"
+
+# parse command line options
+while [[ $# -gt 0 ]]
+do
+case "$1" in
+    -h | -help | --help)
+    usage
+    ;;
+    -o | -output_dir | --output_dir)
+    build_dir="$2"
+    shift
+    ;;
+    *)
+    echo "Unrecognized option specified $1"
+    usage
+    ;;
+esac
+shift
+done
+
 error() {
     local code="${3:-1}"
     if [[ -n "$2" ]];then
@@ -39,9 +71,6 @@ if ! command -v cmake &>/dev/null; then
     exit 1
 fi
 
-samples_type=$(basename "$PWD")
-build_dir="$HOME/inference_engine_${samples_type}_samples_build"
-
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
 
@@ -53,6 +82,7 @@ fi
 if [ -e "$build_dir/CMakeCache.txt" ]; then
   rm -rf "$build_dir/CMakeCache.txt"
 fi
+
 mkdir -p "$build_dir"
 cd "$build_dir"
 cmake -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"

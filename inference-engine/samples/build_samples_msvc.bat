@@ -14,18 +14,26 @@ set MSBUILD_BIN=
 set VS_PATH=
 set VS_VERSION=
 
-if not "%1" == "" (
-   if "%1"=="VS2015" (
-      set "VS_VERSION=2015" 
-   ) else if "%1"=="VS2017" (
-      set "VS_VERSION=2017" 
-   ) else if "%1"=="VS2019" (
-      set "VS_VERSION=2019" 
-   ) else (
-      echo Unrecognized option specified "%1"
-      echo Supported command line options: VS2015, VS2017, VS2019
-      goto errorHandling
-   )
+:: command line arguments parsing
+:input_arguments_loop
+if not "%1"=="" (
+    if "%1"=="VS2015" (
+        set "VS_VERSION=2015" 
+    ) else if "%1"=="VS2017" (
+        set "VS_VERSION=2017" 
+    ) else if "%1"=="VS2019" (
+        set "VS_VERSION=2019" 
+    ) else if "%1"=="-o" (
+        set SOLUTION_DIR64=%2
+        shift
+    ) else if "%1"=="-h" (
+        goto usage
+    ) else (
+        echo Unrecognized option specified "%1"
+        goto usage
+    )
+    shift
+    goto :input_arguments_loop
 )
 
 if "%INTEL_OPENVINO_DIR%"=="" (
@@ -127,6 +135,15 @@ if ERRORLEVEL 1 GOTO errorHandling
 
 echo Done.
 goto :eof
+
+:usage
+echo Build inference engine samples
+echo.
+echo Options:
+echo   VS_VERSION              VS2015, VS2017, VS2019
+echo   -h                      Print the help message
+echo   -o OUTPUT_DIR           Specify the output directory
+exit /b
 
 :errorHandling
 echo Error
