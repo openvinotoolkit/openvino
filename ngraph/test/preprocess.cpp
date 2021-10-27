@@ -881,13 +881,6 @@ TEST(pre_post_process, postprocess_set_layout_network) {
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
 }
 
-TEST(pre_post_process, postprocess_set_layout_tensor) {
-    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-    // no layout is specified for network, no way to implicitly convert it to user's layout
-    EXPECT_THROW(f = PrePostProcessor().output(OutputInfo().tensor(OutputTensorInfo().set_layout("NHWC"))).build(f),
-                 ov::AssertFailure);
-}
-
 TEST(pre_post_process, postprocess_convert_layout_implicit) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
 
@@ -938,17 +931,6 @@ TEST(pre_post_process, postprocess_convert_layout_same) {
     EXPECT_EQ(f->get_results()[0]->get_output_tensor(0).get_partial_shape(), (PartialShape{1, 3, 2, 2}));
     // Verify that redundant ops were not added
     EXPECT_EQ(size_old, f->get_ordered_ops().size());
-}
-
-TEST(pre_post_process, postprocess_convert_layout_default_error) {
-    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-
-    EXPECT_THROW(f = PrePostProcessor()
-                         .output(OutputInfo()
-                                     .network(OutputNetworkInfo().set_layout("NCHW"))
-                                     .postprocess(PostProcessSteps().convert_layout()))
-                         .build(f),
-                 ov::AssertFailure);
 }
 
 TEST(pre_post_process, postprocess_convert_layout_dims) {
