@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/pass.hpp>
-
+#include "openvino/pass/pass.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
@@ -17,7 +16,7 @@ namespace pass {
 class TF_API ChangePlaceholderTypes : public ov::pass::FunctionPass {
 public:
     OPENVINO_RTTI("ov::frontend::tf::pass::ChangePlaceholderTypes");
-    ChangePlaceholderTypes() {}
+    ChangePlaceholderTypes() = default;
     bool run_on_function(std::shared_ptr<ov::Function> function) override;
 };
 
