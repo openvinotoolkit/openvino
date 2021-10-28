@@ -7,6 +7,7 @@
 #include "transformations/substitute_softsign.hpp"
 
 #include "transformations/utils/transformation_helper.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -34,15 +35,17 @@ public:
     IsConstValueAcceptable(double expected_value) :
         m_expected_value(expected_value) {}
 
-    bool operator()(const ngraph::Output<ngraph::Node>& output) {
+    bool operator()(const ngraph::Output<ngraph::Node>& output) const {
         auto node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(output.get_node_shared_ptr());
         if (!node)
             return false;
 
-        const std::vector<double> & values = node->cast_vector<double>();
+        float value;
+        if (!ngraph::op::util::get_single_value(node, value)) {
+            return false;
+        }
 
-        return (std::find_if_not(values.begin(), values.end(),
-                                 [this](double d) { return d == m_expected_value; }) == values.end());
+        return (value == m_expected_value);
     }
 
 private:
