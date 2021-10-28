@@ -11,29 +11,29 @@ using namespace ov;
 TEST(layout, basic) {
     Layout l = "NcDHw";
     EXPECT_TRUE(layout::has_batch(l));
-    EXPECT_EQ(layout::batch(l), 0);
+    EXPECT_EQ(layout::batch_idx(l), 0);
     EXPECT_TRUE(layout::has_channels(l));
-    EXPECT_EQ(layout::channels(l), 1);
+    EXPECT_EQ(layout::channels_idx(l), 1);
     EXPECT_TRUE(layout::has_depth(l));
-    EXPECT_EQ(layout::depth(l), 2);
+    EXPECT_EQ(layout::depth_idx(l), 2);
     EXPECT_TRUE(layout::has_height(l));
-    EXPECT_EQ(layout::height(l), 3);
+    EXPECT_EQ(layout::height_idx(l), 3);
     EXPECT_TRUE(layout::has_width(l));
-    EXPECT_EQ(layout::width(l), 4);
+    EXPECT_EQ(layout::width_idx(l), 4);
 }
 
 TEST(layout, advanced_syntax) {
     Layout l = "[batch, channels, depth, height, width]";
     EXPECT_TRUE(layout::has_batch(l));
-    EXPECT_EQ(layout::batch(l), 0);
+    EXPECT_EQ(layout::batch_idx(l), 0);
     EXPECT_TRUE(layout::has_channels(l));
-    EXPECT_EQ(layout::channels(l), 1);
+    EXPECT_EQ(layout::channels_idx(l), 1);
     EXPECT_TRUE(layout::has_depth(l));
-    EXPECT_EQ(layout::depth(l), 2);
+    EXPECT_EQ(layout::depth_idx(l), 2);
     EXPECT_TRUE(layout::has_height(l));
-    EXPECT_EQ(layout::height(l), 3);
+    EXPECT_EQ(layout::height_idx(l), 3);
     EXPECT_TRUE(layout::has_width(l));
-    EXPECT_EQ(layout::width(l), 4);
+    EXPECT_EQ(layout::width_idx(l), 4);
     EXPECT_EQ(l, Layout("ncdhw"));
 
     l = "[custom1, ?, custom2]";
@@ -50,15 +50,15 @@ TEST(layout, empty) {
     Layout l;
     EXPECT_TRUE(Layout("").empty());
     EXPECT_FALSE(layout::has_batch(l));
-    EXPECT_THROW(layout::batch(l), ov::AssertFailure);
+    EXPECT_THROW(layout::batch_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_channels(l));
-    EXPECT_THROW(layout::channels(l), ov::AssertFailure);
+    EXPECT_THROW(layout::channels_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_depth(l));
-    EXPECT_THROW(layout::depth(l), ov::AssertFailure);
+    EXPECT_THROW(layout::depth_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_height(l));
-    EXPECT_THROW(layout::height(l), ov::AssertFailure);
+    EXPECT_THROW(layout::height_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_width(l));
-    EXPECT_THROW(layout::width(l), ov::AssertFailure);
+    EXPECT_THROW(layout::width_idx(l), ov::AssertFailure);
 }
 
 TEST(layout, to_string) {
@@ -77,23 +77,23 @@ TEST(layout, to_string) {
 TEST(layout, scalar) {
     auto l = Layout::scalar();
     EXPECT_FALSE(layout::has_batch(l));
-    EXPECT_THROW(layout::batch(l), ov::AssertFailure);
+    EXPECT_THROW(layout::batch_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_channels(l));
-    EXPECT_THROW(layout::channels(l), ov::AssertFailure);
+    EXPECT_THROW(layout::channels_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_depth(l));
-    EXPECT_THROW(layout::depth(l), ov::AssertFailure);
+    EXPECT_THROW(layout::depth_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_height(l));
-    EXPECT_THROW(layout::height(l), ov::AssertFailure);
+    EXPECT_THROW(layout::height_idx(l), ov::AssertFailure);
     EXPECT_FALSE(layout::has_width(l));
-    EXPECT_THROW(layout::width(l), ov::AssertFailure);
+    EXPECT_THROW(layout::width_idx(l), ov::AssertFailure);
 }
 
 TEST(layout, custom_dims) {
     Layout l = "0ac";
     EXPECT_FALSE(layout::has_batch(l));
-    EXPECT_THROW(layout::batch(l), ov::AssertFailure);
+    EXPECT_THROW(layout::batch_idx(l), ov::AssertFailure);
     EXPECT_TRUE(layout::has_channels(l));
-    EXPECT_EQ(layout::channels(l), 2);
+    EXPECT_EQ(layout::channels_idx(l), 2);
     EXPECT_TRUE(l.has_name("0"));
     EXPECT_TRUE(l.has_name("A"));
     EXPECT_EQ(l.get_index_by_name("a"), 1);
@@ -102,9 +102,9 @@ TEST(layout, custom_dims) {
 TEST(layout, dims_unknown) {
     Layout l = "n??c";
     EXPECT_TRUE(layout::has_batch(l));
-    EXPECT_EQ(layout::batch(l), 0);
+    EXPECT_EQ(layout::batch_idx(l), 0);
     EXPECT_TRUE(layout::has_channels(l));
-    EXPECT_EQ(layout::channels(l), 3);
+    EXPECT_EQ(layout::channels_idx(l), 3);
     EXPECT_FALSE(l.has_name("?"));
     EXPECT_EQ(l.get_index_by_name("C"), 3);
 }
@@ -112,9 +112,9 @@ TEST(layout, dims_unknown) {
 TEST(layout, dims_undefined) {
     Layout l = "?n?...?c?";
     EXPECT_TRUE(layout::has_batch(l));
-    EXPECT_EQ(layout::batch(l), 1);
+    EXPECT_EQ(layout::batch_idx(l), 1);
     EXPECT_TRUE(layout::has_channels(l));
-    EXPECT_EQ(layout::channels(l), -2);
+    EXPECT_EQ(layout::channels_idx(l), -2);
     EXPECT_FALSE(l.has_name("?"));
 }
 
