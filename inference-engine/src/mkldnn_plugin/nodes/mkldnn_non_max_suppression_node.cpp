@@ -20,19 +20,11 @@ using namespace InferenceEngine;
 
 bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (op->is_dynamic()) {
-            errorMessage = "Doesn't support op with dynamic input shapes";
-            return false;
-        }
-
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will be support DS
         using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
         if (!one_of(op->get_type_info(), NonMaxSuppressionV5::get_type_info_static(),
                     ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
             errorMessage = "Only NonMaxSuppression v5 and NonMaxSuppressionIEInternal are supported";
-            return false;
-        }
-        if (op->get_input_size() > 2 && !dynamic_cast<ngraph::op::v0::Constant *>(op->get_input_node_ptr(2))) {
-            errorMessage = "Doesn't support NonMaxSuppression with undefined max_output_boxes_per_class";
             return false;
         }
 
@@ -67,6 +59,7 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         if (const auto nms5 = std::dynamic_pointer_cast<const ngraph::op::v5::NonMaxSuppression>(op)) {
             boxEncodingType = static_cast<boxEncoding>(nms5->get_box_encoding());
             sort_result_descending = nms5->get_sort_result_descending();
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will be support DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
             sort_result_descending = nmsIe->m_sort_result_descending;
