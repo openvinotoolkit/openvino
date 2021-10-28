@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include <openvino/core/variant.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
 #include "exceptions.hpp"
+#include "openvino/core/variant.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
 #include "types.pb.h"

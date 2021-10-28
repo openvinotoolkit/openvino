@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset8.hpp"
 #include <string>
 #include <tensorflow_frontend/utility.hpp>
 

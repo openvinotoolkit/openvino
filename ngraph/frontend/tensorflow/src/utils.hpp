@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset8.hpp"
 
 #include "graph_iterator_proto.hpp"
 #include "ngraph/ngraph.hpp"

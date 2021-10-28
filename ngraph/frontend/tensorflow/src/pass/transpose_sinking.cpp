@@ -4,7 +4,7 @@
 
 #include "transpose_sinking.hpp"
 
-#include <openvino/opsets/opset8.hpp>
+#include "openvino/opsets/opset8.hpp"
 
 #include "utils.hpp"
 
