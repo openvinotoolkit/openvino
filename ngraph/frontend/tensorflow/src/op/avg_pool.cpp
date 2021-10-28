@@ -30,10 +30,10 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
     Strides ng_strides(2);
     Shape ng_image_shape(2);
     Shape ng_kernel_shape(2);
-    NHWCtoHW(is_nhwc, tf_strides, ng_strides);
-    NHWCtoHW(is_nhwc, ng_input.get_shape(), ng_image_shape);
-    NHWCtoHW(is_nhwc, tf_ksize, ng_kernel_shape);
-    NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
+    convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
+    convert_nhwc_to_hw(is_nhwc, tf_ksize, ng_kernel_shape);
+    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;
@@ -60,7 +60,7 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
                                     ov::op::RoundingType::FLOOR)
                    ->output(0);
 
-    NCHWtoNHWC(node.get_name(), is_nhwc, res);
+    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }

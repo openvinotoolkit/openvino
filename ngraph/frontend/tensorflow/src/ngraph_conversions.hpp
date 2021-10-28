@@ -54,7 +54,7 @@ void Transpose3D(std::shared_ptr<ov::Node>& node) {
 
 namespace detail {
 template <typename T>
-void NHWCtoHW(const std::vector<T>& src, std::vector<size_t>& dst) {
+void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
     if (dst.size() >= 2) {
         dst[0] = src[1];
         dst[1] = src[2];
@@ -65,7 +65,7 @@ void NHWCtoHW(const std::vector<T>& src, std::vector<size_t>& dst) {
 }
 
 template <typename T>
-void NCHWtoHW(const std::vector<T>& src, std::vector<size_t>& dst) {
+void convert_nchw_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {
     if (dst.size() >= 2) {
         dst[0] = src[2];
         dst[1] = src[3];
@@ -76,16 +76,16 @@ void NCHWtoHW(const std::vector<T>& src, std::vector<size_t>& dst) {
 }
 }  // namespace detail
 
-void NHWCtoNCHW(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_input);
+void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_input);
 
-void NCHWtoNHWC(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_node);
+void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& ng_node);
 
 template <typename T>
-void NHWCtoHW(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {
+void convert_nhwc_to_hw(bool is_nhwc, const std::vector<T>& src, std::vector<size_t>& dst) {
     if (is_nhwc) {
-        detail::NHWCtoHW(src, dst);
+        detail::convert_nhwc_to_hw(src, dst);
     } else {
-        detail::NCHWtoHW(src, dst);
+        detail::convert_nchw_to_hw(src, dst);
     }
 }
 

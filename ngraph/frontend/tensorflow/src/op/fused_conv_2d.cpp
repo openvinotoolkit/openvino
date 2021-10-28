@@ -42,10 +42,10 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
         Shape ng_image_shape(2);
         Shape ng_kernel_shape(2);
 
-        NHWCtoHW(is_nhwc, tf_strides, ng_strides);
-        NHWCtoHW(is_nhwc, ng_input.get_shape(), ng_image_shape);
-        NHWCtoHW(is_nhwc, tf_dilations, ng_dilations);
-        NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
+        convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
+        convert_nhwc_to_hw(is_nhwc, ng_input.get_shape(), ng_image_shape);
+        convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
+        convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 
         auto& ng_filter_shape = ng_filter.get_shape();
         ng_kernel_shape[0] = ng_filter_shape[0];
@@ -96,14 +96,14 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
 
         if (vec_str_cmp(fused_ops, {"BiasAdd", "Relu"})) {
             auto ng_relu = make_shared<Relu>(ng_add)->output(0);
-            NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
+            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
         } else if (vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"})) {
             auto ng_relu6 = make_shared<Clamp>(ng_add, 0, 6)->output(0);
-            NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
+            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {
-            NCHWtoNHWC(node.get_name(), is_nhwc, ng_add);
+            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_add);
             return {ng_add};
         }
     } else if (vec_str_cmp(fused_ops, {"FusedBatchNorm"}) || vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu"}) ||
@@ -123,14 +123,14 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
 
         if (vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu"})) {
             auto ng_relu = make_shared<Relu>(ng_batch_norm)->output(0);
-            NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
+            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
         } else if (vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
             auto ng_relu6 = make_shared<Clamp>(ng_batch_norm, 0, 6)->output(0);
-            NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
+            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
         } else {
-            NCHWtoNHWC(node.get_name(), is_nhwc, ng_batch_norm);
+            convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_batch_norm);
             return {ng_batch_norm};
         }
     } else {

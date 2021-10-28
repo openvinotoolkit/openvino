@@ -43,10 +43,10 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     Shape ng_kernel_shape(2);
     Shape ng_batch_shape(4);
 
-    NHWCtoHW(is_nhwc, tf_strides, ng_strides);
-    NHWCtoHW(is_nhwc, tf_dilations, ng_dilations);
-    NHWCtoHW(is_nhwc, tf_input_sizes, ng_image_shape);
-    NHWCtoNCHW(node.get_name(), is_nhwc, ng_out_backprop);
+    convert_nhwc_to_hw(is_nhwc, tf_strides, ng_strides);
+    convert_nhwc_to_hw(is_nhwc, tf_dilations, ng_dilations);
+    convert_nhwc_to_hw(is_nhwc, tf_input_sizes, ng_image_shape);
+    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_out_backprop);
     if (is_nhwc) {
         ng_batch_shape = {static_cast<unsigned long>(tf_input_sizes[0]),
                           static_cast<unsigned long>(tf_input_sizes[3]),
@@ -87,7 +87,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
                                                     ng_dilations)
                    ->output(0);
 
-    NCHWtoNHWC(node.get_name(), is_nhwc, res);
+    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }

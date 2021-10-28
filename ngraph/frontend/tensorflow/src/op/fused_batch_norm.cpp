@@ -35,11 +35,11 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
 
     NGRAPH_DEBUG << "epsilon: " << tf_epsilon;
 
-    NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
 
     auto ng_batch_norm =
         make_shared<BatchNormInference>(ng_input, ng_scale, ng_offset, ng_mean, ng_variance, tf_epsilon)->output(0);
-    NCHWtoNHWC(node.get_name(), is_nhwc, ng_batch_norm);
+    convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_batch_norm);
 
     if (is_Ex) {
         string activation_mode = node.get_attribute<string>("activation_mode");
