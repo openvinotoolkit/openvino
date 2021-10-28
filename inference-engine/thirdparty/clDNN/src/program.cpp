@@ -1400,7 +1400,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
 std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     auto max_alloc_size = get_engine().get_device_info().max_alloc_mem_size;
-    std::shared_ptr<memory_pool> pool(new memory_pool(get_engine()));
+    std::unique_ptr<memory_pool> pool(new memory_pool(get_engine()));
     int64_t const_sum = 0;
 
     // just to prevent the memories from being freed during allocation
@@ -1421,7 +1421,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
             continue;
         } else {
-            allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), *node, pool));
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), pool, *node, false, true));
         }
     }
 

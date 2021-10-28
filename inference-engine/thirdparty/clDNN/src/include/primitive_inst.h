@@ -151,10 +151,10 @@ public:
     }
 
     void allocate_internal_buffers();
+    static memory::ptr allocate_output(engine& engine, std::unique_ptr<memory_pool>& pool,
+                            const program_node& _node, bool is_internal, bool is_dummy = false);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
-
-    static memory::ptr allocate_output(engine& engine, const program_node& node, std::shared_ptr<memory_pool> pool);
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -191,6 +191,7 @@ protected:
     bool _mem_allocated = false;
 
     memory::ptr allocate_output();
+
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
 
