@@ -23,7 +23,7 @@ typedef std::tuple<
 
 class SplitConcatConcatTest:
         public testing::WithParamInterface<SplitConcatConcatParams>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SplitConcatConcatParams> &obj);
 protected:

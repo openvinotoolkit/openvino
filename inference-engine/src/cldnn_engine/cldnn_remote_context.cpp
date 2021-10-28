@@ -199,6 +199,7 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     m_plugin(plugin),
     m_type(ContextType::OCL),
     m_config(config),
+    m_external_queue(nullptr),
     m_va_display(nullptr) {
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
@@ -221,6 +222,9 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         if (tile_id_itr != params.end()) {
             target_tile_id = tile_id_itr->second.as<int>();
         }
+
+        if (params.find(GPU_PARAM_KEY(OCL_QUEUE)) != params.end())
+            m_external_queue = _ObjFromParamSimple<gpu_handle_param>(params, GPU_PARAM_KEY(OCL_QUEUE));
     }
 
     // TODO: Parameterize this based on plugin config and compilation options
@@ -239,10 +243,13 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
         cldnn::queue_types queue_type;
-        if (dev->get_info().supports_immad)
+        if (m_external_queue) {
+            queue_type = cldnn::stream::detect_queue_type(engine_type, m_external_queue);
+        } else if (dev->get_info().supports_immad) {
             queue_type = cldnn::queue_types::in_order;
-        else
+        } else {
             queue_type = cldnn::queue_types::out_of_order;
+        }
 
         bool use_unified_shared_memory = true;
         m_engine = cldnn::engine::create(engine_type, runtime_type, dev, cldnn::engine_configuration(enable_profiling,

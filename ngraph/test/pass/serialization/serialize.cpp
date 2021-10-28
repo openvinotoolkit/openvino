@@ -40,9 +40,9 @@ public:
 };
 
 TEST_P(SerializationTest, CompareFunctions) {
-    auto expected = ov::test::readIR(m_model_path, m_binary_path);
+    auto expected = ov::test::readModel(m_model_path, m_binary_path);
     ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(expected);
-    auto result = ov::test::readIR(m_out_xml_path, m_out_bin_path);
+    auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)

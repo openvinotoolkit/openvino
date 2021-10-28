@@ -37,7 +37,12 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 #include "xml_parse_utils.h"
+
+#ifdef OPENVINO_STATIC_LIBRARY
+#    include "ie_plugins.hpp"
+#endif
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
@@ -47,11 +52,7 @@ namespace runtime {
 
 namespace {
 
-template <typename T>
-struct Parsed {
-    std::string _deviceName;
-    std::map<std::string, T> _config;
-};
+#ifndef OPENVINO_STATIC_LIBRARY
 
 std::string parseXmlConfig(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
@@ -63,6 +64,14 @@ std::string parseXmlConfig(const std::string& xmlFile) {
     }
     return xmlConfigFile_;
 }
+
+#endif
+
+template <typename T>
+struct Parsed {
+    std::string _deviceName;
+    std::map<std::string, T> _config;
+};
 
 template <typename T = ie::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
@@ -178,10 +187,13 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
+        // TODO: make extensions to be optional with conditional compilation
         std::vector<ov::util::FilePath> listOfExtentions;
+        InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc;
     };
 
     mutable std::unordered_set<std::string> opsetNames;
+    // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
@@ -224,7 +236,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     ov::runtime::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(
         const InferenceEngine::CNNNetwork& network,
-        InferencePlugin& plugin,
+        ov::runtime::InferencePlugin& plugin,
         const std::map<std::string, std::string>& parsedConfig,
         const ie::RemoteContext::Ptr& context,
         const std::string& blobID,
@@ -362,13 +374,14 @@ public:
         opsetNames.insert("opset5");
         opsetNames.insert("opset6");
         opsetNames.insert("opset7");
+        opsetNames.insert("opset8");
     }
 
     ~CoreImpl() override = default;
 
     /**
-     * @brief Register plugins for devices which are located in .xml configuration file. The function supports UNICODE
-     * path
+     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
     void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
@@ -426,9 +439,29 @@ public:
 
             // fill value in plugin registry for later lazy initialization
             {
-                PluginDescriptor desc = {pluginPath, config, listOfExtentions};
+                PluginDescriptor desc = {pluginPath, config, listOfExtentions, nullptr};
                 pluginRegistry[deviceName] = desc;
             }
+        }
+    }
+
+    /**
+     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @note The function supports UNICODE path
+     * @param xmlConfigFile An .xml configuraion with device / plugin information
+     */
+    void RegisterPluginsInRegistry(
+        const std::map<std::string, InferenceEngine::CreatePluginEngineFunc*>& static_registry) {
+        std::lock_guard<std::mutex> lock(pluginsMutex);
+
+        for (const auto& plugin : static_registry) {
+            const auto& deviceName = plugin.first;
+            if (deviceName.find('.') != std::string::npos) {
+                IE_THROW() << "Device name must not contain dot '.' symbol";
+            }
+            // TODO: add properties support to enable AUTO device
+            PluginDescriptor desc = {{}, {}, {}, plugin.second};
+            pluginRegistry[deviceName] = desc;
         }
     }
 
@@ -542,6 +575,54 @@ public:
                                                   const std::map<std::string, std::string>& config) override {
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         auto exec = GetCPPPluginByName(parsed._deviceName).import_model(networkModel, parsed._config);
+
+        if (isNewAPI()) {
+            // create getInputs() based on GetInputsInfo()
+            using namespace InferenceEngine::details;
+
+            if (exec->getInputs().empty()) {
+                const auto& inputsInfo = exec->GetInputsInfo();
+                OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
+
+                std::vector<std::shared_ptr<const ov::Node>> params;
+                params.reserve(inputsInfo.size());
+                for (auto&& input : inputsInfo) {
+                    auto param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(input.second->getPrecision()),
+                        ov::PartialShape(input.second->getTensorDesc().getDims()));
+                    param->set_friendly_name(input.first);
+                    param->get_output_tensor(0).add_names({input.first});
+                    params.emplace_back(std::move(param));
+                }
+
+                exec->setInputs(params);
+            }
+
+            if (exec->getOutputs().empty()) {
+                const auto& outputsInfo = exec->GetOutputsInfo();
+                OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
+
+                std::vector<std::shared_ptr<const ov::Node>> results;
+                results.reserve(outputsInfo.size());
+                for (auto&& output : outputsInfo) {
+                    auto fake_param = std::make_shared<ov::op::v0::Parameter>(
+                        convertPrecision(output.second->getPrecision()),
+                        ov::PartialShape(output.second->getTensorDesc().getDims()));
+                    fake_param->set_friendly_name(output.first);
+                    auto result = std::make_shared<ov::op::v0::Result>(fake_param);
+                    result->get_output_tensor(0).add_names({output.first});
+                    results.emplace_back(std::move(result));
+                }
+                exec->setOutputs(results);
+            }
+
+            // but for true support plugins need:
+            // 1. ensure order or parameters and results as in ov::Function
+            // 2. provide tensor names for inputs and outputs
+            // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
+            //    not from ngraph. Plugins should use SetExeNetworkInfo
+        }
+
         return {{exec._so}, exec._ptr};
     }
 
@@ -637,6 +718,8 @@ public:
                 // plugin is not created by e.g. invalid env
             } catch (ov::Exception&) {
                 // plugin is not created by e.g. invalid env
+            } catch (std::runtime_error&) {
+                // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
                            << " device and call GetMetric: " << ex.what();
@@ -676,12 +759,21 @@ public:
         auto it_plugin = plugins.find(deviceName);
         if (it_plugin == plugins.end()) {
             PluginDescriptor desc = it->second;
-            auto so = load_shared_object(desc.libraryLocation.c_str());
+            std::shared_ptr<void> so;
             try {
-                using CreateF = void(std::shared_ptr<ie::IInferencePlugin>&);
-                std::shared_ptr<ie::IInferencePlugin> plugin_impl;
-                reinterpret_cast<CreateF*>(get_symbol(so, OV_PP_TOSTRING(IE_CREATE_PLUGIN)))(plugin_impl);
-                auto plugin = InferencePlugin{so, plugin_impl};
+                ov::runtime::InferencePlugin plugin;
+
+                if (desc.pluginCreateFunc) {  // static OpenVINO case
+                    std::shared_ptr<ie::IInferencePlugin> plugin_impl;
+                    desc.pluginCreateFunc(plugin_impl);
+                    plugin = InferencePlugin{nullptr, plugin_impl};
+                } else {
+                    so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+                    std::shared_ptr<ie::IInferencePlugin> plugin_impl;
+                    reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
+                        ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
+                    plugin = InferencePlugin{so, plugin_impl};
+                }
 
                 {
                     plugin.set_name(deviceName);
@@ -737,6 +829,7 @@ public:
 
                 auto result = plugins.emplace(deviceName, plugin).first->second;
 
+                // TODO CVS-69016: need to enable for CPU plugin cache
                 TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
 
                 return result;
@@ -791,7 +884,7 @@ public:
                 pluginPath = absFilePath;
         }
 
-        PluginDescriptor desc = {pluginPath, {}, {}};
+        PluginDescriptor desc = {pluginPath, {}, {}, nullptr};
         pluginRegistry[deviceName] = desc;
     }
 
@@ -1041,7 +1134,11 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
+#ifdef OPENVINO_STATIC_LIBRARY
+    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+#else
     RegisterPlugins(ov::runtime::parseXmlConfig(xmlConfigFile));
+#endif
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
@@ -1300,7 +1397,11 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    OV_CORE_CALL_STATEMENT(register_plugins(parseXmlConfig(xmlConfigFile)));
+#ifdef OPENVINO_STATIC_LIBRARY
+    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+#else
+    register_plugins(parseXmlConfig(xmlConfigFile));
+#endif
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {
@@ -1381,50 +1482,6 @@ ExecutableNetwork Core::import_model(std::istream& modelStream,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->ImportNetwork(modelStream, deviceName, config);
-
-        // create getInputs() based on GetInputsInfo()
-        using namespace InferenceEngine::details;
-
-        if (exec->getInputs().empty()) {
-            const auto& inputsInfo = exec->GetInputsInfo();
-            OPENVINO_ASSERT(!inputsInfo.empty(), "inputsInfo is empty after network import");
-
-            std::vector<std::shared_ptr<const ov::Node>> params;
-            params.reserve(inputsInfo.size());
-            for (auto&& input : inputsInfo) {
-                auto param =
-                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(input.second->getPrecision()),
-                                                            ov::PartialShape(input.second->getTensorDesc().getDims()));
-                param->get_output_tensor(0).add_names({input.first});
-                params.emplace_back(std::move(param));
-            }
-
-            exec->setInputs(params);
-        }
-
-        if (exec->getOutputs().empty()) {
-            const auto& outputsInfo = exec->GetOutputsInfo();
-            OPENVINO_ASSERT(!outputsInfo.empty(), "outputsInfo is empty after network import");
-
-            std::vector<std::shared_ptr<const ov::Node>> results;
-            results.reserve(outputsInfo.size());
-            for (auto&& output : outputsInfo) {
-                auto fake_param =
-                    std::make_shared<ov::op::v0::Parameter>(convertPrecision(output.second->getPrecision()),
-                                                            ov::PartialShape(output.second->getTensorDesc().getDims()));
-                auto result = std::make_shared<ov::op::v0::Result>(fake_param);
-                result->get_output_tensor(0).add_names({output.first});
-                results.emplace_back(std::move(result));
-            }
-            exec->setOutputs(results);
-        }
-
-        // but for true support plugins need:
-        // 1. ensure order or parameters and results as in ov::Function
-        // 2. provide tensor names for inputs and outputs
-        // 3. precisions for getInputs and getOutputs should be taken from GetInputsInfo / GetOutputsInfo
-        //    not from ngraph. Plugins should use SetExeNetworkInfo
-
         return {exec._so, exec._ptr};
     });
 }
