@@ -112,6 +112,33 @@ public:
         set_injector();
     }
 };
+class jit_gelu_v0_emitter : public jit_mkldnn_emitter {
+public:
+    jit_gelu_v0_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
+            : jit_mkldnn_emitter(host, host_isa, n, exec_prc) {
+        kind = dnnl_eltwise_gelu_erf;
 
+        set_injector();
+    }
+};
+
+class jit_gelu_v7_emitter : public jit_mkldnn_emitter {
+public:
+    jit_gelu_v7_emitter(mkldnn::impl::cpu::x64::jit_generator *host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
+            : jit_mkldnn_emitter(host, host_isa, n, exec_prc) {
+        auto gelu = getNgraphOpAs<ngraph::op::v7::Gelu>(n);
+        ngraph::op::GeluApproximationMode approximationMode = gelu->get_approximation_mode();
+        if (approximationMode == ngraph::op::GeluApproximationMode::ERF)
+            kind = dnnl_eltwise_gelu_erf;
+        else if (approximationMode == ngraph::op::GeluApproximationMode::TANH)
+            kind = dnnl_eltwise_gelu_tanh;
+        else
+            IE_THROW(NotImplemented) << "Subgraph node doesn't support ngraph operation Gelu with approximation mode: " << approximationMode;
+
+        set_injector();
+    }
+};
 
 } // namespace MKLDNNPlugin

@@ -110,6 +110,8 @@ MKLDNNPlugin::CPUTarget::CPUTarget(dnnl::impl::cpu::x64::cpu_isa_t host_isa)
     jitters[ngraph::op::v4::HSwish::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_hswish_emitter);
     // jitters[ngraph::opset1::HardSigmoid::get_type_info_static()] = CREATE_EMITTER(); // not supported
     // jitters[ngraph::opset1::Selu::get_type_info_static()] = CREATE_EMITTER(); // not supported
+    jitters[ngraph::op::v0::Gelu::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_gelu_v0_emitter);
+    jitters[ngraph::op::v7::Gelu::get_type_info_static()] = CREATE_EMITTER(MKLDNNPlugin::jit_gelu_v7_emitter);
 
     jitters[ngraph::snippets::op::Kernel::get_type_info_static()] = CREATE_EMITTER(KernelEmitter);
     jitters[ngraph::snippets::op::Tile::get_type_info_static()] = CREATE_EMITTER(TileEmitter);

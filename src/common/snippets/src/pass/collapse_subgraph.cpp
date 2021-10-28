@@ -104,6 +104,8 @@ auto is_lo(std::shared_ptr<Node> n) -> bool {
             || ov::is_type<opset1::Sigmoid>(n)
             || ov::is_type<opset1::Sqrt>(n)
             || ov::is_type<opset1::Tanh>(n)
+            || ov::is_type<ngraph::op::v0::Gelu>(n)
+            || ov::is_type<ngraph::op::v7::Gelu>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
     return is_lou(n) || is_lob(n);
