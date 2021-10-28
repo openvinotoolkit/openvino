@@ -9,55 +9,20 @@ namespace ov {
 namespace op {
 namespace v1 {
 
-// default generic code is for static shape
-template <typename T>
-void shape_infer(TopK* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 && output_shapes.size() == 2));
-    const auto& input_shape = input_shapes[0];
-    const auto input_rank = input_shape.rank();
-
-    NODE_VALIDATION_CHECK(op, input_rank.get_length() > 0, "Input rank must be greater than 0.");
-
-    const auto& k_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, k_shape.rank().compatible(0), "The 'K' input must be a scalar.");
-
-    auto output_shape = input_shape;
-    ov::PartialShape k_as_shape;
-
-    auto& dim_axis = output_shape[op->m_normalized_axis];
-    NODE_VALIDATION_CHECK(op,
-                          ov::evaluate_as_partial_shape(op->input_value(1), k_as_shape),
-                          "Cannot evaluate k as partial_shape.");
-    NODE_VALIDATION_CHECK(op,
-                          k_as_shape[0].get_min_length() == k_as_shape[0].get_max_length(),
-                          "k is not statically determined.");
-
-    NODE_VALIDATION_CHECK(op,
-                          k_as_shape.size() == 1,
-                          "Only one value (scalar) should be provided as the 'K' input to TopK",
-                          " (got ",
-                          k_as_shape.size(),
-                          " elements).");
-
-    NODE_VALIDATION_CHECK(op,
-                          k_as_shape[0].get_max_length() > 0,
-                          "The value of 'K' must be a positive number.",
-                          " (got ",
-                          k_as_shape[0].get_max_length(),
-                          ").");
-
-    if (dim_axis.get_length() > k_as_shape[0].get_min_length())
-        dim_axis = k_as_shape[0].get_min_length();
-
-    output_shapes[0] = output_shape;
-    output_shapes[1] = output_shape;
+template <typename DimType>
+void set_dim(Op* op, DimType& dim, ov::Dimension d) {
+    NODE_VALIDATION_CHECK(op, false, "Cannot set Dimension to in-compatible type.");
 }
 
-// specilization on dynamic shape
 template <>
-void shape_infer<PartialShape>(TopK* op,
-                               const std::vector<PartialShape>& input_shapes,
-                               std::vector<PartialShape>& output_shapes) {
+void set_dim<ov::Dimension>(Op* op, ov::Dimension& dim, ov::Dimension d) {
+    dim = d;
+}
+
+template <typename T>
+void shape_infer(TopK* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 && output_shapes.size() == 2));
     const auto& input_shape = input_shapes[0];
     const auto input_rank = input_shape.rank();
@@ -90,8 +55,12 @@ void shape_infer<PartialShape>(TopK* op,
                                   k_as_shape[0].get_max_length(),
                                   ").");
             if (k_as_shape.is_static())
-                dim_axis = k_as_shape[0];
-            else {
+                dim_axis = k_as_shape[0].get_length();
+            else if (k_as_shape[0].get_interval().size() == 1) {
+                // k_as_shape[0] is a static dimension in dynamic-form
+                dim_axis = k_as_shape[0].get_min_length();
+            } else {
+                // in this dynamic branch we are sure of dim_axis's type
                 const auto in_min = dim_axis.get_min_length();
                 const auto in_max = dim_axis.get_max_length();
 
@@ -101,10 +70,10 @@ void shape_infer<PartialShape>(TopK* op,
                 const auto lower = std::min<Dimension::value_type>(in_min, k_min);
                 const auto upper =
                     in_max < 0 ? Dimension::dynamic().get_max_length() : std::max<Dimension::value_type>(in_max, k_max);
-                dim_axis = Dimension(lower, upper);
+                set_dim(op, dim_axis, Dimension(lower, upper));
             }
         } else {
-            dim_axis = Dimension(0, dim_axis.get_max_length());
+            set_dim(op, dim_axis, Dimension(0, dim_axis.get_max_length()));
         }
     }
 
