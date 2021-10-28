@@ -94,7 +94,7 @@ std::string asString<float>(const float& value) {
 }  // namespace Builder
 
 namespace InferenceEngine {
-namespace details {
+namespace {
 
 // helper for adding creators with a specific exception
 #define REQUIRED_IE_CONVERSION_CREATOR(type_name, ie_type_name)\
@@ -346,12 +346,12 @@ public:
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
         auto shape = adapter.get();
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
         auto shape = adapter.get();
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<double>& adapter) override {
@@ -380,7 +380,7 @@ public:
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
         auto data = adapter.get();
-        params[name] = joinVec(data);
+        params[name] = details::joinVec(data);
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
@@ -394,7 +394,7 @@ private:
     std::map<std::string, CreatorFor> creators;
 };
 
-void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& name,
+void CNNLayerCreator::on_adapter(const std::string& name,
                                                            ::ngraph::ValueAccessor<void>& adapter) {
     if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::element::Type>>(&adapter)) {
         auto type = static_cast<::ngraph::element::Type&>(*a);
@@ -409,13 +409,13 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         params[name] = dims;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Shape>>(&adapter)) {
         auto shape = static_cast<::ngraph::Shape&>(*a);
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Strides>>(&adapter)) {
         auto shape = static_cast<::ngraph::Strides&>(*a);
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<size_t>>>(& adapter)) {
         auto data = a->get();
-        params[name] = joinVec(data);
+        params[name] = details::joinVec(data);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<::ngraph::Variable>>>(& adapter)) {
         params[name] = a->get()->get_info().variable_id;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<std::shared_ptr<
@@ -433,14 +433,14 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         }
     } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(& adapter)) {
         const auto & attrs = a->get();
-        params[name] = joinVec(attrs);
+        params[name] = details::joinVec(attrs);
     } else {
         IE_THROW() << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
     }
 }
 
-InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): node(node) {
+CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): node(node) {
     addSpecificCreator({"Parameter"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Input",
@@ -633,7 +633,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
 
         const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
-        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+        addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         return res;
     });
@@ -1713,7 +1713,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 }
 
-CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
+CNNLayerPtr CNNLayerCreator::create() {
     LayerParams attrs = {node->get_friendly_name(), node->description(),
                          details::convertPrecision(node->get_output_element_type(0))};
     if (creators.find(node->description()) != creators.end())
@@ -1724,6 +1724,9 @@ CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
     return res;
 }
 
+} // namespace
+
+namespace details {
 void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
                                   const CNNNetwork &network,
                                   CNNNetworkImpl* cnnNetworkImpl,
@@ -2102,7 +2105,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
                                                              const CNNNetwork &network,
                                                              bool keep_constant_inputs) {
-    auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
+    auto cnnNetworkImpl = std::make_shared<CNNNetworkImpl>();
     convertFunctionToICNNNetwork(graph, network, cnnNetworkImpl.get(), keep_constant_inputs);
     return cnnNetworkImpl;
 }

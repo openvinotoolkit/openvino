@@ -86,6 +86,24 @@ public:
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     PostProcessSteps&& convert_layout(const Layout& dst_layout = {}) &&;
 
+    /// \brief Add convert layout operation by direct specification of transposed dimensions.
+    ///
+    /// \example Example: network produces output with shape [1, 3, 480, 640] and user's needs
+    /// interleaved output image [1, 480, 640, 3]. Post-processing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor()
+    ///     .output(OutputInfo()
+    ///            .postprocess(PostProcessSteps()
+    ///                        .convert_layout({0, 2, 3, 1})
+    ///     );
+    /// \param dims Dimensions array specifying places for new axis. If not empty, array size (N) must match to input
+    /// shape rank. Array values shall contain all values from 0 to N-1. If empty, no actual conversion will be added.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PostProcessSteps& convert_layout(const std::vector<uint64_t>& dims) &;
+    PostProcessSteps&& convert_layout(const std::vector<uint64_t>& dims) &&;
+
     /// \brief Signature for custom postprocessing operation. Custom postprocessing operation takes one output node and
     /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
     /// directly
