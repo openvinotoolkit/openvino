@@ -137,6 +137,7 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
 }
 
 namespace squeeze {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out) {
     const auto data_rank = arg0->get_partial_shape().rank().get_length();
@@ -203,6 +204,7 @@ bool evaluate_squeeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, cons
 bool evaluate_squeeze(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     return evaluate(arg0, out);
 }
+}  // namespace
 }  // namespace squeeze
 
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
