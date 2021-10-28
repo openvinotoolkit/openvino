@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "itt.hpp"
+#include "ngraph/evaluator.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ops.hpp"
@@ -31,6 +32,8 @@ using namespace std;
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Function>>);
 
 atomic<size_t> ov::Function::m_next_instance_id(0);
+
+namespace {
 
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                     const ov::op::util::VariableVector& variables) {
@@ -81,6 +84,8 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     }
     return parameter_vector;
 }
+
+}  // namespace
 
 ov::Function::Function(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
@@ -204,8 +209,6 @@ void ov::Function::validate_nodes_and_infer_types() const {
     std::map<ov::op::util::Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
-    // TODO: enable tensor names check after fixes in transformations
-    // std::unordered_set<std::string> tensor_names;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
     for (auto& node : get_ordered_ops()) {
         node->revalidate_and_infer_types();
@@ -215,12 +218,6 @@ void ov::Function::validate_nodes_and_infer_types() const {
             if (tensors.count(&tensor))
                 continue;
             tensors.insert(&tensor);
-            // for (const auto& name : output.get_tensor().get_names()) {
-            //     if (tensor_names.count(name))
-            //         throw ov::Exception("Function is incorrect. All Tensors should have unique names. " + name +
-            //                             " is not unique.");
-            //     tensor_names.insert(name);
-            // }
         }
         if (op::util::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
@@ -311,7 +308,7 @@ void ov::Function::set_friendly_name(const string& name) {
     m_name = name;
 }
 
-std::ostream& operator<<(std::ostream& out, const ov::Function& f) {
+std::ostream& ov::operator<<(std::ostream& out, const ov::Function& f) {
     out << "Function(" << f.get_name() << ")";
     return out;
 }
@@ -429,18 +426,66 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
     return -1;
 }
 
+namespace {
+
+inline ov::runtime::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor) {
+    if (tensor->get_partial_shape().is_static()) {
+        ov::Shape shape = tensor->get_shape();
+        return std::move(ov::runtime::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr()));
+    } else {
+        if (tensor->get_element_type().is_dynamic()) {
+            return std::move(ov::runtime::Tensor());
+        } else {
+            return std::move(ov::runtime::Tensor(tensor->get_element_type(), {0}));
+        }
+    }
+}
+inline ov::runtime::TensorVector create_tmp_tensors(const ngraph::HostTensorVector& tensors) {
+    ov::runtime::TensorVector result;
+    result.reserve(tensors.size());
+    for (const auto& tensor : tensors) {
+        result.emplace_back(create_tmp_tensor(tensor));
+    }
+    return std::move(result);
+}
+
+inline void update_output_tensors(const ngraph::HostTensorVector& output_values,
+                                  const ov::runtime::TensorVector& outputs) {
+    OPENVINO_ASSERT(output_values.size(), outputs.size());
+    for (size_t i = 0; i < outputs.size(); i++) {
+        const auto& tensor = output_values[i];
+        if (tensor->get_partial_shape().is_dynamic()) {
+            tensor->set_element_type(outputs[i].get_element_type());
+            tensor->set_shape(outputs[i].get_shape());
+            void* dst_data = tensor->get_data_ptr();
+            memcpy(dst_data, outputs[i].data(), tensor->get_size_in_bytes());
+        }
+    }
+}
+}  // namespace
+
 bool ov::Function::evaluate(const HostTensorVector& output_tensors,
                             const HostTensorVector& input_tensors,
                             EvaluationContext evaluation_context) const {
+    ov::runtime::TensorVector outputs = create_tmp_tensors(output_tensors);
+    ov::runtime::TensorVector inputs = create_tmp_tensors(input_tensors);
+    bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
+    update_output_tensors(output_tensors, outputs);
+    return sts;
+}
+
+bool ov::Function::evaluate(ov::runtime::TensorVector& output_tensors,
+                            const ov::runtime::TensorVector& input_tensors,
+                            ov::EvaluationContext evaluation_context) const {
     if (evaluation_context.find("VariableContext") == evaluation_context.end())
         evaluation_context["VariableContext"] =
             std::make_shared<VariantWrapper<ov::op::util::VariableContext>>(ov::op::util::VariableContext());
-    std::map<RawNodeOutput, HostTensorPtr> value_map;
+    std::map<RawNodeOutput, ov::runtime::Tensor> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i) {
         value_map[m_parameters.at(i)->output(0)] = input_tensors.at(i);
     }
     OutputVector outputs;
-    std::map<RawNodeOutput, HostTensorPtr> output_tensor_map;
+    std::map<RawNodeOutput, ov::runtime::Tensor> output_tensor_map;
     for (size_t i = 0; i < m_results.size(); ++i) {
         auto result = m_results.at(i)->output(0);
         output_tensor_map[result] = output_tensors.at(i);
@@ -449,7 +494,48 @@ bool ov::Function::evaluate(const HostTensorVector& output_tensors,
     for (const auto& m_sink : m_sinks) {
         outputs.push_back(m_sink);
     }
-    ngraph::evaluate_nodes(value_map, output_tensor_map, outputs, evaluation_context);
+    // evaluate nodes
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ngraph::Evaluator<ov::runtime::Tensor> evaluator({}, value_map);
+    evaluator.set_universal_handler(
+        [&output_tensor_map,
+         &evaluation_context](Node* node, const ov::runtime::TensorVector& input_tensors) -> ov::runtime::TensorVector {
+            ov::runtime::TensorVector output_tensors;
+            for (const auto& v : node->outputs()) {
+                auto it = output_tensor_map.find(v);
+                if (it == output_tensor_map.end()) {
+                    if (v.get_partial_shape().is_dynamic() || v.get_element_type().is_dynamic()) {
+                        ov::runtime::Tensor c = create_tmp_tensor(std::make_shared<HostTensor>(v));
+                        output_tensors.push_back(c);
+                    } else {
+                        ov::runtime::Tensor c(v.get_element_type(), v.get_shape());
+                        output_tensors.push_back(c);
+                    }
+                } else {
+                    output_tensors.push_back(it->second);
+                }
+            }
+            if (node->evaluate(output_tensors, input_tensors, evaluation_context)) {
+                for (size_t i = 0; i < node->outputs().size(); i++) {
+                    const auto& v = node->output(i);
+                    auto it = output_tensor_map.find(v);
+                    if (it != output_tensor_map.end()) {
+                        it->second = output_tensors[i];
+                    }
+                }
+                return output_tensors;
+            } else {
+                OPENVINO_ASSERT(false, "Evaluation failed on ", node);
+            }
+        });
+    for (const auto& value : outputs) {
+        evaluator.evaluate(value);
+    }
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    for (size_t i = 0; i < m_results.size(); ++i) {
+        auto result = m_results.at(i)->output(0);
+        output_tensors.at(i) = output_tensor_map[result];
+    }
     return true;
 }
 
@@ -649,11 +735,35 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
 }
 
 void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
+    std::unordered_map<ov::Node*, std::string> port_tensor_map;
+    for (const auto& it : partial_shapes) {
+        const auto port = input(it.first);
+        if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
+            OPENVINO_ASSERT(it.second == const_pshape.at(port),
+                            "Tensor with names {'",
+                            it.first,
+                            "', '",
+                            port_tensor_map[port.get_node()],
+                            "'} has "
+                            "conflicting shapes ",
+                            it.second,
+                            " and ",
+                            const_pshape.at(port),
+                            ", but they define the same tensor");
+        }
+        port_tensor_map[port.get_node()] = it.first;
+        const_pshape[port] = it.second;
+    }
+    reshape(const_pshape);
+}
+
+void ov::Function::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
     if (partial_shapes.empty())
         return;
 
     const auto& params = get_parameters();
-    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Parameter>> tensor_param_map;
+    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> new_param_shapes;
 
     // Check that we need to do reshape only if input shapes will be changed
     bool need_reshape = false;
@@ -661,22 +771,22 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         bool shape_is_used = false;
 
         for (const auto& param : params) {
-            const auto& tensor_names = param->get_output_tensor(0).get_names();
-
-            if (tensor_names.count(partial_shape.first)) {
+            const auto port = param->output(0);
+            if (port == partial_shape.first) {
                 shape_is_used = true;
-                tensor_param_map[partial_shape.first] = param;
+
                 if (param->get_output_partial_shape(0).is_dynamic() ||
                     param->get_output_partial_shape(0) != partial_shape.second) {
                     need_reshape = true;
+                    new_param_shapes[param.get()] = partial_shape.second;
                 }
                 break;
             }
         }
 
         OPENVINO_ASSERT(shape_is_used,
-                        "PartialShape for tensor with name '",
-                        partial_shape.first,
+                        "PartialShape for port '",
+                        *partial_shape.first.get_node(),
                         "' is not used in ov::Function::reshape");
     }
 
@@ -684,15 +794,14 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         return;
 
     // save original parameters shape
-    std::map<std::string, ov::PartialShape> original_input_shapes;
+    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> original_input_shapes;
     for (const auto& param : params) {
-        std::string any_tensor_name = *param->get_output_tensor(0).get_names().begin();
-        original_input_shapes[any_tensor_name] = param->get_output_partial_shape(0);
+        original_input_shapes[param.get()] = param->get_output_partial_shape(0);
     }
 
-    auto reshape_only = [&](const std::map<std::string, ov::PartialShape>& pshapes) {
+    auto reshape_only = [&](const std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape>& pshapes) {
         for (const auto& pshape : pshapes) {
-            tensor_param_map[pshape.first]->set_partial_shape(pshape.second);
+            pshape.first->set_partial_shape(pshape.second);
         }
 
         validate_nodes_and_infer_types();
@@ -703,10 +812,57 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
-        reshape_only(partial_shapes);
+        reshape_only(new_param_shapes);
     } catch (std::exception& ex) {
         // restore shapes to original ones
         reshape_only(original_input_shapes);
         throw ex;
     }
+}
+
+void ov::Function::add_output(const std::string& tensor_name) {
+    for (const auto& op : get_ops()) {
+        if (ov::op::util::is_output(op))
+            continue;
+        for (const auto& output : op->outputs()) {
+            const auto& names = output.get_tensor().get_names();
+            if (names.find(tensor_name) != names.end()) {
+                add_output(output);
+                return;
+            }
+        }
+    }
+    throw ov::Exception("Tensor name " + tensor_name + " was not found.");
+}
+
+void ov::Function::add_output(const std::string& op_name, size_t output_idx) {
+    for (const auto& op : get_ops()) {
+        if (op->get_friendly_name() == op_name) {
+            OPENVINO_ASSERT(output_idx < op->get_output_size(),
+                            "Cannot add output to port ",
+                            std::to_string(output_idx),
+                            " operation ",
+                            op->get_friendly_name(),
+                            " has only ",
+                            std::to_string(op->get_output_size()),
+                            " outputs.");
+            add_output(op->output(output_idx));
+            return;
+        }
+    }
+    throw ov::Exception("Port " + std::to_string(output_idx) + " for operation with name " + op_name +
+                        " was not found.");
+}
+
+void ov::Function::add_output(const ov::Output<ov::Node>& port) {
+    if (ov::op::util::is_output(port.get_node()))
+        return;
+    for (const auto& input : port.get_target_inputs()) {
+        // Do not add result if port is already connected with result
+        if (ov::op::util::is_output(input.get_node())) {
+            return;
+        }
+    }
+    auto result = std::make_shared<ov::op::v0::Result>(port);
+    add_results({result});
 }

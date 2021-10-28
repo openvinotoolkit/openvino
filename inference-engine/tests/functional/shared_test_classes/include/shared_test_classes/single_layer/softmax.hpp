@@ -17,15 +17,15 @@
 namespace LayerTestsDefinitions {
 
 using softMaxLayerTestParams = std::tuple<
-        InferenceEngine::Precision,         // netPrecision
-        InferenceEngine::Precision,         // Input precision
-        InferenceEngine::Precision,         // Output precision
-        InferenceEngine::Layout,            // Input layout
-        InferenceEngine::Layout,            // Output layout
-        InferenceEngine::SizeVector,        // inputShape
-        size_t,                             // axis
-        std::string,                        // targetDevice
-        std::map<std::string, std::string>  // config
+        InferenceEngine::Precision,                                    // netPrecision
+        InferenceEngine::Precision,                                    // Input precision
+        InferenceEngine::Precision,                                    // Output precision
+        InferenceEngine::Layout,                                       // Input layout
+        InferenceEngine::Layout,                                       // Output layout
+        std::pair<ngraph::PartialShape, std::vector<ngraph::Shape>>,   // Dynamic shape + Target static shapes
+        size_t,                                                        // axis
+        std::string,                                                   // targetDevice
+        std::map<std::string, std::string>                             // config
 >;
 
 class SoftMaxLayerTest : public testing::WithParamInterface<softMaxLayerTestParams>,
@@ -36,5 +36,4 @@ public:
 protected:
     void SetUp() override;
 };
-
 }  // namespace LayerTestsDefinitions

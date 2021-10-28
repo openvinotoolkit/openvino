@@ -1190,7 +1190,18 @@ def isbool(value):
         return False
 
 
+def isdict(value):
+    try:
+        evaluated = ast.literal_eval(value)
+        return isinstance(evaluated, dict)
+    except ValueError:
+        return False
+
+
 def convert_string_to_real_type(value: str):
+    if isdict(value):
+        return ast.literal_eval(value)
+
     values = value.split(',')
     for i in range(len(values)):
         value = values[i]

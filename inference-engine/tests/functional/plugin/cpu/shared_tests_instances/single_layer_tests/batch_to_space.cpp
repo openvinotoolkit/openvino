@@ -43,7 +43,7 @@ const auto batch_to_space_2d_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_2D,
         BatchToSpaceLayerTest,
         batch_to_space_2d_tests,
@@ -96,13 +96,13 @@ const auto batch_to_space_4d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_4D_spatial_dims,
         BatchToSpaceLayerTest,
         batch_to_space_4d_spatial_dims_tests,
         BatchToSpaceLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_4D_channel_dim,
         BatchToSpaceLayerTest,
         batch_to_space_4d_channel_dim_tests,
@@ -153,13 +153,13 @@ const auto batch_to_space_5d_channel_dim_tests = ::testing::Combine(
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_5D_spatial_dims,
         BatchToSpaceLayerTest,
         batch_to_space_5d_spatial_dims_tests,
         BatchToSpaceLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_BatchToSpace_5D_channel_dim,
         BatchToSpaceLayerTest,
         batch_to_space_5d_channel_dim_tests,

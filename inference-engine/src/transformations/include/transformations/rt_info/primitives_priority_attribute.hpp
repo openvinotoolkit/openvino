@@ -19,34 +19,6 @@
 #include <ngraph/variant.hpp>
 
 namespace ov {
-
-/**
- * @ingroup ie_runtime_attr_api
- * @brief PrimitivesPriority class represents runtime info attribute that
- * can be used for plugins specific primitive choice.
- */
-class NGRAPH_API PrimitivesPriority {
-private:
-    std::string primitives_priority;
-
-public:
-    friend class VariantWrapper<PrimitivesPriority>;
-    /**
-     * A default constructor
-     */
-    PrimitivesPriority() = default;
-
-    /**
-     * @brief      Constructs a new object consisting of a single name     *
-     * @param[in]  name  The primitives priority value
-     */
-    explicit PrimitivesPriority(const std::string &primitives_priority) : primitives_priority(primitives_priority) {}
-
-    /**
-     * @brief return string with primitives priority value
-     */
-    std::string getPrimitivesPriority() const;
-};
 /**
  * @ingroup ie_runtime_attr_api
  * @brief getPrimitivesPriority return string with primitive priorities value
@@ -54,16 +26,13 @@ public:
  */
 NGRAPH_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
-extern template class NGRAPH_API VariantImpl<PrimitivesPriority>;
-
-template<>
-class NGRAPH_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
+class NGRAPH_API PrimitivesPriority : public VariantImpl<std::string> {
 public:
     OPENVINO_RTTI("primitives_priority", "0");
 
-    VariantWrapper() = default;
+    PrimitivesPriority() = default;
 
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+    PrimitivesPriority(const value_type &value) : VariantImpl<value_type>(value) {}
 
     std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
 
@@ -71,5 +40,4 @@ public:
 
     bool visit_attributes(AttributeVisitor & visitor) override;
 };
-
 }  // namespace ov

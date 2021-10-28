@@ -1,12 +1,12 @@
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "ngraph/op/variadic_split.hpp"
 
 #include <numeric>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
@@ -16,6 +16,7 @@
 
 using namespace std;
 using namespace ngraph;
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(op_eval, variadic_split_same_lengths) {
     const auto data_shape = Shape{3, 8, 3};

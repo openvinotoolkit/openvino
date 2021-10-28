@@ -6,9 +6,10 @@ set(VPU_DEPENDENCIES
     vpu_copy_firmware)
 
 if (ENABLE_CLDNN)
-    list(APPEND VPU_DEPENDENCIES
-            clDNNPlugin
-            HeteroPlugin)
+    list(APPEND VPU_DEPENDENCIES clDNNPlugin)
+    if(ENABLE_HETERO)
+        list(APPEND VPU_DEPENDENCIES HeteroPlugin)
+    endif()
 endif()
 
 addIeTarget(

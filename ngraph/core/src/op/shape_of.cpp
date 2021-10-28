@@ -50,6 +50,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 }
 
 namespace shape_of {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) {
     runtime::reference::shape_of(shape, output_value->get_data_ptr<ET>());
@@ -104,7 +105,9 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
     const auto input_et = shape_of_node->get_input_element_type(0);
     const auto output_et = shape_of_node->get_output_element_type(0);
     if (pshape_low.to_shape() == pshape_up.to_shape()) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         shape_of_node->evaluate(output_values, {std::make_shared<HostTensor>(input_et, pshape_low)});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
         shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
     } else {
@@ -112,14 +115,18 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
             is_upper ? output_values
                      : HostTensorVector{
                            std::make_shared<HostTensor>(output_et, ov::PartialShape{pshape_up.rank().get_length()})};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         shape_of_node->evaluate(upper, {std::make_shared<HostTensor>(input_et, pshape_up)});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
 
         HostTensorVector lower =
             !is_upper ? output_values
                       : HostTensorVector{
                             std::make_shared<HostTensor>(output_et, ov::PartialShape{pshape_low.rank().get_length()})};
+        OPENVINO_SUPPRESS_DEPRECATED_START
         shape_of_node->evaluate(lower, {std::make_shared<HostTensor>(input_et, pshape_low)});
+        OPENVINO_SUPPRESS_DEPRECATED_END
         shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
 
         vector<bool> dynamic_mask;  // true if dimension is dynamic
@@ -141,6 +148,7 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
     }
     return true;
 }
+}  // namespace
 }  // namespace shape_of
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {

@@ -8,8 +8,8 @@
 // Output matrix dimensions: M x N
 // --------------------------------------------------------------------------------------------------------------------------------
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/data_types.cl"
 
 
 #define DOT8i_0( _result, _A, _B, i)					\

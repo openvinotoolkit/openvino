@@ -65,6 +65,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Reshape", Reshape },
         { "Squeeze", Reshape },
         { "Unsqueeze", Reshape },
+        { "ShapeOf", ShapeOf },
         { "Softmax", Softmax },
         { "Reorder", Reorder },
         { "BatchToSpace", BatchToSpace },
@@ -144,6 +145,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Cosh", Math},
         { "Floor", Math},
         { "HardSigmoid", Math},
+        { "If", If},
         { "Log", Math},
         { "Neg", Math},
         { "Reciprocal", Math},
@@ -177,7 +179,8 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "NonMaxSuppression", NonMaxSuppression},
         { "NonMaxSuppressionIEInternal", NonMaxSuppression},
         { "MatrixNms", MatrixNms},
-        { "MulticlassNms", MulticlassNms}
+        { "MulticlassNms", MulticlassNms},
+        { "Reference", Reference},
 };
 
 Type TypeFromName(const std::string& type) {
@@ -223,6 +226,8 @@ std::string NameFromType(const Type type) {
             return "StridedSlice";
         case Reshape:
             return "Reshape";
+        case ShapeOf:
+            return "ShapeOf";
         case Tile:
             return "Tile";
         case ROIAlign:
@@ -319,6 +324,8 @@ std::string NameFromType(const Type type) {
             return "DetectionOutput";
         case ExperimentalDetectronDetectionOutput:
             return "ExperimentalDetectronDetectionOutput";
+        case If:
+            return "If";
         case LogSoftmax:
             return "LogSoftmax";
         case TopK:
@@ -351,6 +358,8 @@ std::string NameFromType(const Type type) {
             return "MatrixNms";
         case MulticlassNms:
             return "MulticlassNms";
+        case Reference:
+            return "Reference";
         default:
             return "Unknown";
     }

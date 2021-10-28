@@ -46,6 +46,9 @@
 #   `openvino::frontend::paddlepaddle`
 #   PaddlePaddle FrontEnd target (optional)
 #
+#   `openvino::frontend::tensorflow`
+#   TensorFlow FrontEnd target (optional)
+#
 # Result variables:
 # ------
 #
@@ -62,6 +65,9 @@
 #
 #   `OpenVINO_Frontend_PaddlePaddle_FOUND`
 #   OpenVINO PaddlePaddle frontend is available
+#
+#   `OpenVINO_Frontend_TensorFlow_FOUND`
+#   OpenVINO TensorFlow frontend is available
 #
 #   `OpenVINO_Frontend_IR_FOUND`
 #   OpenVINO IR frontend is available
@@ -169,9 +175,12 @@ set(${CMAKE_FIND_PACKAGE_NAME}_Runtime_FOUND ON)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND @NGRAPH_ONNX_FRONTEND_ENABLE@)
 set(${CMAKE_FIND_PACKAGE_NAME}_PaddlePaddle_FOUND @NGRAPH_PDPD_FRONTEND_ENABLE@)
+set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND @NGRAPH_TF_FRONTEND_ENABLE@)
+set(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND @NGRAPH_IR_FRONTEND_ENABLE@)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_ONNX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_PaddlePaddle_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_PaddlePaddle_FOUND})
+set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlow_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_IR_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND})
 
 # if no components specified, only Runtime is provided
@@ -185,7 +194,7 @@ endif()
 
 foreach(target openvino::runtime openvino::runtime::c openvino::core
                openvino::frontend::manager openvino::frontend::onnx
-               openvino::frontend::paddlepaddle)
+               openvino::frontend::paddlepaddle openvino::frontend::tensorflow)
     if(TARGET ${target} AND _ov_as_external_package)
         _ov_target_no_deprecation_error(${target})
     endif()
@@ -205,3 +214,4 @@ endif()
 
 unset(${CMAKE_FIND_PACKAGE_NAME}_PaddlePaddle_FOUND)
 unset(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND)
+unset(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND)

@@ -25,7 +25,7 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
     using VariantCreator = std::function<std::shared_ptr<Variant>(const std::string&)>;
     std::map<std::string, VariantCreator> update_attributes{
         {"PrimitivesPriority", [](const std::string& value) -> std::shared_ptr<Variant> {
-             return std::make_shared<VariantWrapper<ov::PrimitivesPriority>>(ov::PrimitivesPriority(value));
+             return std::make_shared<ov::PrimitivesPriority>(value);
          }}};
 
     for (auto& node : f->get_ops()) {
