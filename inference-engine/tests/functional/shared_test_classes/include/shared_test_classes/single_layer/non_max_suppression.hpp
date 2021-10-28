@@ -22,20 +22,26 @@ PrintTo(const ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType& value,
 
 namespace LayerTestsDefinitions {
 
-using InputShapeParams = std::tuple<size_t,  // Number of batches
-                                    size_t,  // Number of boxes
-                                    size_t>; // Number of classes
+using TargetShapeParams = std::tuple<size_t,   // Number of batches
+                                     size_t,   // Number of boxes
+                                     size_t>;  // Number of classes
+
+using InputShapeParams = std::tuple<std::vector<ov::Dimension>,       // bounds for input dynamic shape
+                                    std::vector<TargetShapeParams>>;  // target input dimensions
 
 using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and scores precisions
                                    InferenceEngine::Precision,  // max_output_boxes_per_class precision
                                    InferenceEngine::Precision>; // iou_threshold, score_threshold, soft_nms_sigma precisions
 
+using ThresholdValues = std::tuple<float,  // IOU threshold
+                                   float,  // Score threshold
+                                   float>; // Soft NMS sigma
+
 using NmsParams = std::tuple<InputShapeParams,                                   // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
                              int32_t,                                            // Max output boxes per class
-                             float,                                              // IOU threshold
-                             float,                                              // Score threshold
-                             float,                                              // Soft NMS sigma
+                             ThresholdValues,                                    // IOU, Score, Soft NMS sigma
+                             ngraph::helpers::InputLayerType,                    // max_output_boxes_per_class input type
                              ngraph::op::v5::NonMaxSuppression::BoxEncodingType, // Box encoding
                              bool,                                               // Sort result descending
                              ngraph::element::Type,                              // Output type
@@ -53,12 +59,11 @@ protected:
     void SetUp() override;
 
 private:
-    void CompareBuffer(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
     void CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                        const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
-    size_t numOfSelectedBoxes;
-    InputShapeParams inShapeParams;
+    std::vector<TargetShapeParams> targetInDims;
+    size_t inferRequestNum = 0;
+    int32_t maxOutBoxesPerClass;
 };
 
 }  // namespace LayerTestsDefinitions

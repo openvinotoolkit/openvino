@@ -11,28 +11,48 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
+enum {
+    BATCHES,
+    BOXES,
+    CLASSES
+};
+
 std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     int32_t maxOutBoxesPerClass;
+    ngraph::helpers::InputLayerType maxOutBoxesType;
+    ThresholdValues thrValues;
     float iouThr, scoreThr, softNmsSigma;
     op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
     element::Type outType;
     std::string targetDevice;
-    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType, targetDevice) = obj.param;
+    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType, targetDevice) = obj.param;
 
-    size_t numBatches, numBoxes, numClasses;
-    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+    std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
 
     Precision paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
+    std::vector<ov::Dimension> bounds;
+    std::vector<TargetShapeParams> targetShapes;
+    std::tie(bounds, targetShapes) = inShapeParams;
+
     std::ostringstream result;
-    result << "numBatches=" << numBatches << "_numBoxes=" << numBoxes << "_numClasses=" << numClasses << "_";
+    if (!bounds.empty()) {
+        IE_ASSERT(bounds.size() == 3);
+        result << "BatchesBounds=" << bounds[BATCHES] << "_BoxesBounds=" << bounds[BOXES] << "_ClassesBounds=" << bounds[CLASSES] << "_";
+    }
+    for (const auto &ts : targetShapes) {
+        size_t numBatches, numBoxes, numClasses;
+        std::tie(numBatches, numBoxes, numClasses) = ts;
+        result << "(nB=" << numBatches << "_nBox=" << numBoxes << "_nC=" << numClasses << ")_";
+    }
     result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
     result << "maxOutBoxesPerClass=" << maxOutBoxesPerClass << "_";
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_softNmsSigma=" << softNmsSigma << "_";
+    result << "maxOutBoxesType=" << maxOutBoxesType << "_";
     result << "boxEncoding=" << boxEncoding << "_sortResDescend=" << sortResDescend << "_outType=" << outType << "_";
     result << "TargetDevice=" << targetDevice;
     return result.str();
@@ -40,17 +60,23 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
 
 void NmsLayerTest::GenerateInputs() {
     size_t it = 0;
+    inputs.clear();
     for (const auto &input : cnnNetwork.getInputsInfo()) {
         const auto &info = input.second;
         Blob::Ptr blob;
 
         if (it == 1) {
-            blob = make_blob_with_precision(info->getTensorDesc());
+            blob = make_blob_with_precision(TensorDesc(info->getTensorDesc().getPrecision(), targetStaticShapes[index][it],
+                                                       info->getTensorDesc().getLayout()));
             blob->allocate();
             CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 1000);
+        } else if (it == 2) {
+            blob = make_blob_with_precision(info->getTensorDesc(), &maxOutBoxesPerClass);
         } else {
-            blob = GenerateInput(*info);
+            blob = FuncTestUtils::createAndFillBlob(TensorDesc(info->getTensorDesc().getPrecision(), targetStaticShapes[index][it],
+                                                               info->getTensorDesc().getLayout()));
         }
+
         inputs.push_back(blob);
         it++;
     }
@@ -59,80 +85,7 @@ void NmsLayerTest::GenerateInputs() {
 void NmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                            const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     CompareBBoxes(expectedOutputs, actualOutputs);
-}
-
-void NmsLayerTest::CompareBuffer(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
-    for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
-        const auto& expected = expectedOutputs[outputIndex];
-        const auto& actual = actualOutputs[outputIndex];
-
-        const auto &expectedBuffer = expected.second.data();
-        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-        IE_ASSERT(memory);
-        const auto lockedMemory = memory->wmap();
-        const auto actualBuffer = lockedMemory.as<const uint8_t *>();
-
-        auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
-        // W/A for int4, uint4
-        if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
-            k /= 2;
-        }
-        if (outputIndex == 2) {
-            if (expected.second.size() != k * actual->byteSize())
-                throw std::runtime_error("Expected and actual size 3rd output have different size");
-        }
-
-        const auto &precision = actual->getTensorDesc().getPrecision();
-        size_t size = expected.second.size() / (k * actual->getTensorDesc().getPrecision().size());
-        switch (precision) {
-            case InferenceEngine::Precision::FP32: {
-                switch (expected.first) {
-                    case ngraph::element::Type_t::f32:
-                        LayerTestsUtils::LayerTestsCommon::Compare(
-                                reinterpret_cast<const float *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
-                        break;
-                    case ngraph::element::Type_t::f64:
-                        LayerTestsUtils::LayerTestsCommon::Compare(
-                                reinterpret_cast<const double *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
-                        break;
-                    default:
-                        break;
-                }
-
-                const auto fBuffer = lockedMemory.as<const float *>();
-                for (int i = size; i < actual->size(); i++) {
-                    ASSERT_TRUE(fBuffer[i] == -1.f) << "Invalid default value: " << fBuffer[i] << " at index: " << i;
-                }
-                break;
-            }
-            case InferenceEngine::Precision::I32: {
-                switch (expected.first) {
-                    case ngraph::element::Type_t::i32:
-                        LayerTestsUtils::LayerTestsCommon::Compare(
-                                reinterpret_cast<const int32_t *>(expectedBuffer),
-                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
-                        break;
-                    case ngraph::element::Type_t::i64:
-                        LayerTestsUtils::LayerTestsCommon::Compare(
-                                reinterpret_cast<const int64_t *>(expectedBuffer),
-                                reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
-                        break;
-                    default:
-                        break;
-                }
-                const auto iBuffer = lockedMemory.as<const int *>();
-                for (int i = size; i < actual->size(); i++) {
-                    ASSERT_TRUE(iBuffer[i] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
-                }
-                break;
-            }
-            default:
-                FAIL() << "Comparator for " << precision << " precision isn't supported";
-        }
-    }
+    inferRequestNum++;
 }
 
 typedef struct Rect {
@@ -171,7 +124,7 @@ public:
 void NmsLayerTest::CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
                                  const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
     size_t numBatches, numBoxes, numClasses;
-    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+    std::tie(numBatches, numBoxes, numClasses) = targetInDims[inferRequestNum];
 
     auto iouFunc = [](const Box& boxI, const Box& boxJ) {
         const Rect& rectI = boxI.rect;
@@ -344,29 +297,52 @@ void NmsLayerTest::CompareBBoxes(const std::vector<std::pair<ngraph::element::Ty
 }
 
 void NmsLayerTest::SetUp() {
+    InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
-    size_t maxOutBoxesPerClass;
+    ThresholdValues thrValues;
+    ngraph::helpers::InputLayerType maxOutBoxesType;
     float iouThr, scoreThr, softNmsSigma;
     op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
     element::Type outType;
-    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, iouThr, scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType,
-             targetDevice) = this->GetParam();
-
-    size_t numBatches, numBoxes, numClasses;
-    std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
+    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType, targetDevice) = this->GetParam();
 
     Precision paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
-    numOfSelectedBoxes = std::min(numBoxes, maxOutBoxesPerClass) * numBatches * numClasses;
+    std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
 
-    const std::vector<size_t> boxesShape{numBatches, numBoxes, 4}, scoresShape{numBatches, numClasses, numBoxes};
+    std::vector<ov::Dimension> bounds;
+    std::tie(bounds, targetInDims) = inShapeParams;
+
+    if (!bounds.empty()) {
+        inputDynamicShapes = std::vector<ngraph::PartialShape>{{bounds[BATCHES], bounds[BOXES], 4}, {bounds[BATCHES], bounds[CLASSES], bounds[BOXES]}};
+        if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
+            inputDynamicShapes.push_back(ngraph::PartialShape{1});
+        }
+    }
+    
+    for (const auto &ts : targetInDims) {
+        size_t numBatches, numBoxes, numClasses;
+        std::tie(numBatches, numBoxes, numClasses) = ts;
+        targetStaticShapes.push_back(std::vector<ngraph::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
+        if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
+            targetStaticShapes.back().push_back(ngraph::Shape{1});
+        }
+    }
+
+    std::shared_ptr<ngraph::Node> maxOutBoxesPerClassNode;
     auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    auto params = builder::makeParams(ngPrc, {boxesShape, scoresShape});
+    auto params = builder::makeParams(ngPrc, {targetStaticShapes.front()[0], targetStaticShapes.front()[1]});
+    if (maxOutBoxesType == ngraph::helpers::InputLayerType::PARAMETER) {
+        params.push_back(std::make_shared<ngraph::opset1::Parameter>(element::Type_t::i32, ngraph::Shape(targetStaticShapes.front()[2])));
+        maxOutBoxesPerClassNode = params.back();
+    } else {
+        maxOutBoxesPerClassNode = builder::makeConstant(convertIE2nGraphPrc(maxBoxPrec), ngraph::Shape{}, std::vector<int32_t>{maxOutBoxesPerClass});
+    }
     auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
 
-    auto nms = builder::makeNms(paramOuts[0], paramOuts[1], convertIE2nGraphPrc(maxBoxPrec), convertIE2nGraphPrc(thrPrec), maxOutBoxesPerClass, iouThr,
+    auto nms = builder::makeNms(paramOuts[0], paramOuts[1], maxOutBoxesPerClassNode, convertIE2nGraphPrc(thrPrec), iouThr,
                                 scoreThr, softNmsSigma, boxEncoding, sortResDescend, outType);
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         function = std::make_shared<Function>(nms, params, "NMS");
