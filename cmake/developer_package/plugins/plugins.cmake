@@ -55,8 +55,20 @@ function(ie_add_plugin)
             add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
         endforeach()
 
-        add_library(${IE_PLUGIN_NAME} MODULE ${input_files})
+        if(BUILD_SHARED_LIBS)
+            set(library_type MODULE)
+        else()
+            set(library_type STATIC)
+        endif()
+
+        add_library(${IE_PLUGIN_NAME} ${library_type} ${input_files})
+
         target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+        if(NOT BUILD_SHARED_LIBS)
+            # to distinguish functions creating plugin objects
+            target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
+                IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
+        endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
             FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
@@ -87,23 +99,25 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET inference_engine_preproc)
+        if(TARGET inference_engine_preproc AND BUILD_SHARED_LIBS)
             add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
         endif()
 
         # fake dependencies to build in the following order:
         # IE -> IE readers -> IE inference plugins -> IE-based apps
-        if(TARGET ir_ngraph_frontend)
-            add_dependencies(${IE_PLUGIN_NAME} ir_ngraph_frontend)
-        endif()
-        if(TARGET inference_engine_ir_v7_reader)
-            add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
-        endif()
-        if(TARGET onnx_ngraph_frontend)
-            add_dependencies(${IE_PLUGIN_NAME} onnx_ngraph_frontend)
-        endif()
-        if(TARGET paddlepaddle_ngraph_frontend)
-            add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ngraph_frontend)
+        if(BUILD_SHARED_LIBS)
+            if(TARGET ir_ngraph_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} ir_ngraph_frontend)
+            endif()
+            if(TARGET inference_engine_ir_v7_reader)
+                add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_v7_reader)
+            endif()
+            if(TARGET onnx_ngraph_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} onnx_ngraph_frontend)
+            endif()
+            if(TARGET paddlepaddle_ngraph_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ngraph_frontend)
+            endif()
         endif()
 
         # install rules
@@ -137,10 +151,10 @@ function(ie_add_plugin)
 endfunction()
 
 #
-# ie_register_plugins(MAIN_TARGET <main target name>
-#                     POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
+# ie_register_plugins_dynamic(MAIN_TARGET <main target name>
+#                             POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
 #
-macro(ie_register_plugins)
+macro(ie_register_plugins_dynamic)
     set(options)
     set(oneValueArgs MAIN_TARGET)
     set(multiValueArgs POSSIBLE_PLUGINS)
@@ -204,4 +218,74 @@ macro(ie_register_plugins)
                       COMMENT
                         "Registering plugins to plugins.xml config file"
                       VERBATIM)
+endmacro()
+
+#
+# ie_register_plugins_static(MAIN_TARGET <main target name>
+#                            POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
+#
+macro(ie_register_plugins_static)
+    set(options)
+    set(oneValueArgs MAIN_TARGET)
+    set(multiValueArgs POSSIBLE_PLUGINS)
+    cmake_parse_arguments(IE_REGISTER "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    set(device_names)
+    foreach(name IN LISTS PLUGIN_FILES)
+        string(REPLACE ":" ";" name "${name}")
+        list(LENGTH name length)
+        if(NOT ${length} EQUAL 2)
+            message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
+        endif()
+
+        list(GET name 0 device_name)
+        list(APPEND device_names ${device_name})
+
+        list(GET name 1 plugin_name)
+        target_link_libraries(${IE_REGISTER_MAIN_TARGET} PRIVATE ${plugin_name})
+    endforeach()
+
+    set(ie_plugins_hpp "${CMAKE_CURRENT_BINARY_DIR}/ie_plugins.hpp")
+    set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
+
+    add_custom_command(OUTPUT "${ie_plugins_hpp}"
+                       COMMAND
+                        "${CMAKE_COMMAND}"
+                        -D "IE_DEVICE_NAMES=${device_names}"
+                        -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
+                        -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
+                        -P "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                       DEPENDS
+                         "${plugins_hpp_in}"
+                         "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
+                       COMMENT
+                         "Generate ie_plugins.hpp for static build"
+                       VERBATIM)
+
+    # add dependency for object files
+    get_target_property(sources ${IE_REGISTER_MAIN_TARGET} SOURCES)
+    foreach(source IN LISTS sources)
+        if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
+            # object library
+            set(obj_library ${CMAKE_MATCH_1})
+            get_target_property(obj_sources ${obj_library} SOURCES)
+            list(APPEND patched_sources ${obj_sources})
+        else()
+            # usual source
+            list(APPEND patched_sources ${source})
+        endif()
+    endforeach()
+    set_source_files_properties(${patched_sources} PROPERTIES OBJECT_DEPENDS ${ie_plugins_hpp})
+endmacro()
+
+#
+# ie_register_plugins(MAIN_TARGET <main target name>
+#                     POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
+#
+macro(ie_register_plugins)
+    if(BUILD_SHARED_LIBS)
+        ie_register_plugins_dynamic(${ARGN})
+    else()
+        ie_register_plugins_static(${ARGN})
+    endif()
 endmacro()
