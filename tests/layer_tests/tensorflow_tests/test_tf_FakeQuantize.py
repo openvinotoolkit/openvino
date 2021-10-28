@@ -50,7 +50,7 @@ class TestFakeQuantize(CommonTFLayerTest):
 
         # reference graph to compare with IR
         ref_net = None
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             levels = 2 ** num_bits - int(narrow_range)
 
             # data (shape, value) -> const (shape, vale) -> data (shape, no value)

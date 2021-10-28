@@ -42,10 +42,6 @@ class TestSqueeze(CommonTFLayerTest):
         #   Moreover, do not forget to validate ALL layer attributes!!!
         #
 
-        unsigned_axis = [ax if ax > -1 else len(tf_x_shape) + ax for ax in axis]
-        if not unsigned_axis:
-            unsigned_axis = [i for i, dim in enumerate(shape) if dim == 1]
-
         ref_net = None
 
         return tf_net, ref_net

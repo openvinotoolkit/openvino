@@ -28,7 +28,7 @@ class TestBatchToSpace(CommonTFLayerTest):
             x = tf.compat.v1.placeholder(tf.float32, in_shape, 'Input')
             crops = tf.constant(crops_value)
             block_shape = tf.constant(block_shape_value)
-            tf.batch_to_space(x, block_shape, crops, name='Operation')
+            tf.batch_to_space_nd(x, block_shape, crops, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def

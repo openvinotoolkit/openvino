@@ -42,7 +42,6 @@ class TestMul(CommonTFLayerTest):
             y = tf.constant(constant_value)
 
             mul = tf.multiply(x, y, name="Operation")
-            mul_shape = mul.shape.as_list()
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -210,7 +209,7 @@ class TestMul(CommonTFLayerTest):
         # ScaleShift
         dict(x_shape=[1, 3, 1, 1], y_shape=[3]),
         # ScaleShift
-        dict(x_shape=[1, 3, 100, 3], y_shape=[3]),
+        dict(x_shape=[1, 3, 100, 224], y_shape=[3]),
         # Eltwise
         dict(x_shape=[1, 1, 1, 3], y_shape=[3]),
         # Eltwise

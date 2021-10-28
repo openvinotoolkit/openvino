@@ -14,7 +14,7 @@ class TestResamplePattern(CommonTFLayerTest):
             inputs_dict[input] = np.random.randint(1, 256, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def create_resample_net(self, shape, factor):
+    def create_resample_net(self, shape, factor, use_new_frontend):
         """
             The sub-graph in TF that could be expressed as a single Resample operation.
         """
@@ -50,22 +50,24 @@ class TestResamplePattern(CommonTFLayerTest):
         #   Moreover, do not forget to validate ALL layer attributes!!!
         #
 
-        new_shape = shape.copy()
-        new_shape[2] *= factor
-        new_shape[3] *= factor
-        nodes_attributes = {
-            'input': {'kind': 'op', 'type': 'Input'},
-            'input_data': {'shape': shape, 'kind': 'data'},
-            'resample': {'kind': 'op', 'type': 'caffe.ResampleParameter.NEAREST', "factor": factor,
-                         "height": 0, "width": 0, "antialias": 0},
-            'resample_data': {'shape': new_shape, 'kind': 'data'},
-        }
+        ref_net = None
+        if not use_new_frontend:
+            new_shape = shape.copy()
+            new_shape[2] *= factor
+            new_shape[3] *= factor
+            nodes_attributes = {
+                'input': {'kind': 'op', 'type': 'Input'},
+                'input_data': {'shape': shape, 'kind': 'data'},
+                'resample': {'kind': 'op', 'type': 'caffe.ResampleParameter.NEAREST', "factor": factor,
+                             "height": 0, "width": 0, "antialias": 0},
+                'resample_data': {'shape': new_shape, 'kind': 'data'},
+            }
 
-        ref_net = build_graph(nodes_attributes,
-                              [('input', 'input_data'),
-                               ('input_data', 'resample'),
-                               ('resample', 'resample_data')
-                               ])
+            ref_net = build_graph(nodes_attributes,
+                                  [('input', 'input_data'),
+                                   ('input_data', 'resample'),
+                                   ('resample', 'resample_data')
+                                   ])
 
         return tf_net, ref_net
 
@@ -77,5 +79,5 @@ class TestResamplePattern(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(reason="*-22273")
     def test_resample(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
-        self._test(*self.create_resample_net(params['shape'], params['factor']),
+        self._test(*self.create_resample_net(params['shape'], params['factor'], use_new_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

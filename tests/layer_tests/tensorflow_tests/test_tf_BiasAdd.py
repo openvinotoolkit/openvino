@@ -92,13 +92,10 @@ class TestBiasAdd(CommonTFLayerTest):
             y = tf.constant(constant_value_y)
 
             add = tf.nn.bias_add(x, y, name="Operation")
-            add_shape = add.shape.as_list()
-            add_value = add.eval()
 
             placeholder = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')  # Input_1 in graph_def
 
             concat = tf.concat([placeholder, add], axis=tf_concat_axis, name='Operation')
-            concat_shape = concat.shape.as_list()
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -108,15 +105,6 @@ class TestBiasAdd(CommonTFLayerTest):
         #   Please, specify 'type': 'Input' for input node
         #   Moreover, do not forget to validate ALL layer attributes!!!
         #
-
-        # Format axis to positive value
-        concat_ax = tf_concat_axis if tf_concat_axis >= 0 else tf_concat_axis + len(shape)
-        if len(shape) >= 3:
-            # Permute shapes to (N,C,...) format
-            order = [0, len(concat_shape) - 1] + list(range(1, len(concat_shape) - 1))
-            concat_shape = [concat_shape[i] for i in order]
-            concat_ax = order.index(concat_ax)
-            add_value = np.transpose(add_value, order)
 
         ref_net = None
 

@@ -33,7 +33,7 @@ class TestTFRandomUniform(CommonTFLayerTest):
             tf_net = sess.graph_def
 
         ref_net = None
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
 
             const_for_layer_tests = lambda name, value, shape, shape1: {
                 **{name + '_dd': {'kind': 'data', 'value': value, 'shape': shape1}},

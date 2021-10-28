@@ -8,16 +8,45 @@ from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
+def generate_input(op_type, size):
+    narrow_borders = ["Pow"]
+
+    logical_type = ['LogicalAnd', 'LogicalOr', 'LogicalXor']
+
+    # usual function domain
+    lower = -256
+    upper = 256
+
+    # specific domains
+    if op_type in narrow_borders:
+        lower = 0
+        upper = 16
+
+    if op_type in logical_type:
+        return np.random.randint(0, 1, size).astype(np.bool)
+    elif op_type in narrow_borders:
+        return np.random.uniform(lower, upper, size).astype(np.float32)
+    else:
+        return np.random.uniform(lower, upper, size).astype(np.float32)
+
+
 class TestAdd(CommonTFLayerTest):
+    def _prepare_input(self, inputs_dict):
+        for input in inputs_dict.keys():
+            inputs_dict[input] = generate_input(self.current_op_type, inputs_dict[input])
+        return inputs_dict
+
     def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type, use_new_frontend):
         """
             Tensorflow net                  IR net
 
-            Placeholder->Add       =>       Placeholder->Eltwise or Power or ScaleShift
-                         /                               /
-            Const-------/                   Const-------/
+            Placeholder->BinaryOp       =>       Placeholder->Eltwise or Power or ScaleShift
+                         /                                     /
+            Const-------/                         Const-------/
 
         """
+
+        self.current_op_type = op_type
 
         #
         #   Create Tensorflow model
@@ -47,8 +76,10 @@ class TestAdd(CommonTFLayerTest):
             'FloorMod': tf.floormod,
         }
 
+        type = np.float32
+        if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
+            type = np.bool
         tf.compat.v1.reset_default_graph()
-
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = x_shape.copy()
@@ -57,12 +88,12 @@ class TestAdd(CommonTFLayerTest):
             tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
             tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_new_frontend)
 
-            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
-            constant_value = np.random.randint(-256, 256, tf_y_shape).astype(np.float32)
+            x = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
+            constant_value = generate_input(op_type, tf_y_shape)
             if (constant_value == 0).all():
                 # Avoid elimination of the layer from IR
                 constant_value = constant_value + 1
-            y = tf.constant(constant_value)
+            y = tf.constant(constant_value, dtype=type)
 
             op = op_type_to_tf[op_type](x, y, name="Operation")
 
@@ -79,43 +110,17 @@ class TestAdd(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    # TODO: implement tests for 2 Consts + Add
+    test_data_precommits = [dict(x_shape=[2, 3, 4], y_shape=[2, 3, 4]),
+                            dict(x_shape=[2, 3, 4, 5], y_shape=[2, 3, 4, 5])]
 
-    test_data_1D = [
-        # Power
-        dict(x_shape=[1], y_shape=[1]),
-        # Eltwise
-        pytest.param(dict(x_shape=[3], y_shape=[3]))
-    ]
-
-    @pytest.mark.parametrize("params", test_data_1D)
-    @pytest.mark.parametrize("op_type", [
-        'Add',
-      'Sub',
-    'Mul',
-    'Div',
-    'RealDiv',
-    'SquaredDifference',
-    'Pow',
-    'Maximum',
-    'Minimum',
-    'Equal',
-    'NotEqual',
-    'Mod',
-    'Greater',
-    'GreaterEqual',
-    'Less',
-    'LessEqual',
-    'LogicalAnd',
-    'LogicalOr',
-    'LogicalXor',
-    'FloorMod',
-    ])
+    @pytest.mark.parametrize("params", test_data_precommits)
+    @pytest.mark.parametrize("op_type",
+                             ['Add', 'Sub', 'Mul', 'Div', 'RealDiv', 'SquaredDifference', 'Pow', 'Maximum', 'Minimum',
+                                 'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less', 'LessEqual',
+                                 'LogicalAnd', 'LogicalOr', 'LogicalXor', 'FloorMod'])
     @pytest.mark.nightly
-    def test_add_placeholder_const_1D(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                      use_new_frontend):
+    @pytest.mark.precommit
+    def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type, use_new_frontend):
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
-                                                          use_new_frontend=use_new_frontend),
-                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
-
-
+                                                          use_new_frontend=use_new_frontend), ie_device, precision,
+                   ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

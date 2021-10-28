@@ -57,7 +57,7 @@ class TestLogSoftmax(CommonTFLayerTest):
         reduce_sum_shape[reduction_axis] = 1
 
         converted_shape = shape if rank != 1 else shape[0]
-        if check_ir_version(10, None, ir_version):
+        if check_ir_version(10, None, ir_version) and not use_new_frontend:
             ref_nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter', 'shape': converted_shape},
                 'input_data': {'shape': shape, 'kind': 'data', 'value': None},

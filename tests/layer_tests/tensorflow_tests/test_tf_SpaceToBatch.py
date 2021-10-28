@@ -28,7 +28,7 @@ class TestSpaceToBatch(CommonTFLayerTest):
             x = tf.compat.v1.placeholder(tf.float32, in_shape, 'Input')
             pads = tf.constant(pads_value)
             block_shape = tf.constant(block_shape_value)
-            tf.space_to_batch(x, block_shape, pads, name='Operation')
+            tf.space_to_batch_nd(x, block_shape, pads, name='Operation')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def

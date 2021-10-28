@@ -49,14 +49,6 @@ class TestConcat(CommonTFLayerTest):
         #   Moreover, do not forget to validate ALL layer attributes!!!
         #
 
-        # Format axis to positive value
-        concat_ax = axis if axis >= 0 else axis + len(shape)
-        if len(shape) >= 3:
-            # Permute shape to (N,C,...) format and compute correct axis value
-            order = [0, len(concat_shape) - 1] + list(range(1, len(concat_shape) - 1))
-            concat_shape = [concat_shape[i] for i in order]
-            concat_ax = order.index(concat_ax)
-
         ref_net = None
 
         return tf_net, ref_net
