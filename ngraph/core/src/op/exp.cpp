@@ -31,6 +31,7 @@ shared_ptr<Node> op::Exp::clone_with_new_inputs(const OutputVector& new_args) co
 }
 
 namespace expop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -56,6 +57,7 @@ bool evaluate_exp(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
+}  // namespace
 }  // namespace expop
 
 bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -31,6 +31,7 @@ shared_ptr<Node> op::v1::ReduceLogicalOr::clone_with_new_inputs(const OutputVect
 }
 
 namespace reduce_or {
+namespace {
 bool evaluate_reduce_logical_or(const HostTensorPtr& data,
                                 const HostTensorPtr& out,
                                 const AxisSet& reduction_axes,
@@ -47,6 +48,7 @@ bool evaluate_reduce_logical_or(const HostTensorPtr& data,
         return false;
     }
 }
+}  // namespace
 }  // namespace reduce_or
 
 bool op::v1::ReduceLogicalOr::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
