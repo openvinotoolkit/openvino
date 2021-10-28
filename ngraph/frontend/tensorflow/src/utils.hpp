@@ -95,17 +95,6 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
     auto dt1 = decoder->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::get_type_info_static());
     FRONT_END_GENERAL_CHECK(dt1 != nullptr);
     auto dt = std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::DataType>>(dt1)->get();
-    /*
-    if (dt != DataTypeToEnum<T>::value) {
-      std::stringstream ss;
-      ss << "Invalid data type defined for Const. Defined: "
-         << node.attr().at("dtype").type();
-      return errors::InvalidArgument(ss.str());
-    }
-    */
-
-    // ov::frontend::tf::detail::TensorWrapper represents the content of the tensor in either
-    // <type>_val or tensor_content.
 
     auto tensor_proto_var =
         decoder->get_attribute("value", ::ov::VariantWrapper<::tensorflow::TensorProto>::get_type_info_static());
@@ -113,8 +102,6 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
     auto tensor_proto =
         std::dynamic_pointer_cast<::ov::VariantWrapper<::tensorflow::TensorProto>>(tensor_proto_var)->get();
 
-    // typename checkpoint::SaveTypeTraits<T>::RepeatedField* tensor_values =
-    //    checkpoint::MutableTensorProtoData<T>(const_cast<ov::frontend::tf::detail::TensorWrapper*>(&tensor));
     const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
     TFTensorShapeToNGraphShape(shape, &pshape);
@@ -156,7 +143,7 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
             int64_t val_size = 0;
             auto val_i = (T)0;  // cast
             switch (dt) {
-            // TODO(amprocte/NGRAPH-2502): there are more element types to support
+            // TODO: there are more element types to support
             // here
             case tensorflow::DT_INT32:
                 val_size = tensor_proto.int_val_size();
@@ -199,13 +186,9 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
         }
     } else {
         return;
-        // values->resize(tensor_content_size / sizeof(VecT));
-        // port::CopyToArray(tensor.tensor_content(),
-        //                  reinterpret_cast<char*>(values->data()));
     }
 }
 
-// Helper for Builder::TranslateGraph ("Const" op)
 template <typename T, typename VecT = T>
 void MakeConstOp(const NodeContext& node, element::Type et, ov::Output<ov::Node>& ng_node) {
     std::vector<VecT> const_values;
