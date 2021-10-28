@@ -8,8 +8,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo DynamicShapeResolver::type_info;
-
 DynamicShapeResolver::DynamicShapeResolver(
         const Output<Node>& tensorWithData,
         const Output<Node>& tensorWithDims,
