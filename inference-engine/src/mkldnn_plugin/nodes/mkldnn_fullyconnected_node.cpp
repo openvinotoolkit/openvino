@@ -14,6 +14,7 @@
 #include "utils/general_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -189,7 +190,8 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
+            // no need to fill post ops dims for fq, make sense only for bin fq
+            fakeQuantizeNode->appendPostOps(ops, VectorDims{}, -1, initAsBinary, initBinaryMemory);
             if (initBinaryMemory) {
                 if (fakeQuantizeNode->cropHighMemory)
                     binaryPostOpsArgs.push_back(fakeQuantizeNode->cropHighMemory->GetPrimitive());
@@ -209,7 +211,9 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, initAsBinary, initBinaryMemory);
+            // TODO [DS]: change to shape from memory
+            constexpr int align = -1;
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align, initAsBinary, initBinaryMemory);
             if (initBinaryMemory) {
                 if (eltwiseNode->scalesMemory)
                     binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());

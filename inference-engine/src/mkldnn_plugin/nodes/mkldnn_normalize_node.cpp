@@ -22,6 +22,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -811,7 +812,9 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+            // TODO [DS]: change to shape from memory
+            constexpr int align = 16;
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
             continue;
         }
 

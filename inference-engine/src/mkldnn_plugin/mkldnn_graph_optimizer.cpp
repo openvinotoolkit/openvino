@@ -1609,7 +1609,30 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
 
         std::vector<float> scalesBuffer;
         std::vector<float> shiftsBuffer;
-        parent->fillScalesAndShifts(parent->getParentEdgesAtPort(1 - getConstPort(parent))[0]->getParent().get(), scalesBuffer, shiftsBuffer, 1);
+        auto parentEltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(parent);
+        if (!parentEltwise) {
+            IE_THROW() << "Cannot cast " << parent->getName() << " to Eltwise node";
+        }
+
+        std::tie(scalesBuffer, shiftsBuffer) = parentEltwise->getScalesAndShifts(parent->getParentEdgesAtPort(1 - getConstPort(parent))[0]->getParent().get());
+
+        const auto &outputShape = child->getOutputShapeAtPort(0);
+        VectorDims outputDims = outputShape.getDims();
+        const size_t channelPos = outputDims.size() > 1 ? 1 : 0;
+        if (outputShape.isDynamic()) {
+            if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
+                if (scalesBuffer.size() > 1) {
+                    outputDims[channelPos] = scalesBuffer.size();
+                } else if (shiftsBuffer.size() > 1) {
+                    outputDims[channelPos] = shiftsBuffer.size();
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
+        shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
         for (int i = 0; i < scalesBuffer.size(); i++)
             if (scalesBuffer[i] == 0.f)

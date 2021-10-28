@@ -73,10 +73,14 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
     size_t getAxis() const { return axis; }
 
     bool isBinarization() const { return getAlgorithm() == Algorithm::FQBinarization; }
+
+    bool needPrepareParams() const override;
+    void prepareParams() override;
 
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
@@ -117,7 +121,8 @@ public:
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims = {}, int align = -1, bool initAsBinary = false,
+                       bool initBinaryMemory = false) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -129,11 +134,24 @@ public:
     MKLDNNMemoryPtr outputShiftMemory;
 
 private:
+    struct FakeQuantizeExecutor {
+        virtual void exec(const MKLDNNFakeQuantizeNode& node) = 0;
+        virtual ~FakeQuantizeExecutor() = default;
+    };
+    using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
+    executorPtr execPtr = nullptr;
+
+    struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
+        FakeQuantizeJitExecutor(const jit_quantize_params &_jqp);
+        void exec(const MKLDNNFakeQuantizeNode& node) override;
+        std::unique_ptr<jit_uni_quantize_kernel> pKernel;
+    };
+
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
     void executeReference();
-    void executeBinarization();
-    void executeQuantization();
+    void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
+    void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel> &pKernel) const;
 
     size_t levels = 0;
 
@@ -170,14 +188,11 @@ private:
     bool isOutputLowBroadcasted = false;
     bool isOutputHighBroadcasted = false;
 
+    size_t currentAxisSize = 0;
     size_t axis = 0;
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
-
-    jit_quantize_params jqp = {};
-
-    std::shared_ptr<jit_uni_quantize_kernel> quantize_kernel = nullptr;
 
     std::string errorPrefix;
 };

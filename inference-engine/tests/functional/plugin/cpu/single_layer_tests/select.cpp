@@ -23,7 +23,9 @@ public:
         std::tie(shapes, broadcast) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+        if (!shapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+        }
         result << "TS=";
         for (const auto& shape : shapes.second) {
             result << "(";

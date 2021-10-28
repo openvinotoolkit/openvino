@@ -80,12 +80,13 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool canBeInPlace() const override {
         return false;
     }
 
     inline bool getAcrossChannels() const {
-        return acrossChannels_;
+        return initAcrossChannels_;
     }
 
     inline bool getNormalizeVariance() const {
@@ -94,12 +95,14 @@ public:
 
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
+    void prepareParams() override;
+
 private:
-    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data);
 
-    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data);
 
-    void mvn_ref(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    void mvn_ref(const uint8_t *src_data, uint8_t *dst_data);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
@@ -107,7 +110,8 @@ private:
 
     std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
 
-    bool acrossChannels_ = false;
+    bool initAcrossChannels_ = false;
+    bool execAcrossChannels_ = false;
     bool normalizeVariance_ = true;
     float epsValue_ = 1e-9f;
     // Defines way to add epsilon: inside sqrt or outside.
@@ -121,8 +125,6 @@ private:
     size_t src_data_size, dst_data_size;
 
     mkldnn::primitive_attr attr;
-
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;

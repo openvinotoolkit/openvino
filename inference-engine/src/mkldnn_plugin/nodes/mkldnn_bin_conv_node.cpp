@@ -19,6 +19,7 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 #include <ngraph/opsets/opset1.hpp>
+#include "utils/cpu_utils.hpp"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -1127,16 +1128,19 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            if (eltwiseNode->isSpecialConvolutionAddFusing())
+            if (eltwiseNode->isSpecialConvolutionAddFusing()) {
                 ops.append_sum(1.0);
-            else
-                eltwiseNode->appendPostOps(ops);
+            } else {
+                // TODO [DS]: change to shape from memory
+                constexpr int align = 16;
+                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+            }
             continue;
         }
 
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops);
+            fakeQuantizeNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
             continue;
         }
 

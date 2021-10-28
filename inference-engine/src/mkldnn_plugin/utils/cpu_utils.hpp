@@ -32,9 +32,13 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 * shape on which should be broadcastable
 * @param secondInputDims
 * shape which should be broadcastable
+* @param weakComparison
+* flag which specify how we compare C dims if value is undefined (weak or strong)
 * @return true if broadcastable, false otherwise.
 */
-inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims) {
+inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims,
+                                                 bool weakComparison = false) {
+    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) : dimsEqualStrong;
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
@@ -42,7 +46,7 @@ inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVect
 
     std::vector<size_t> normalizedSecondInputDims = getNormalizedDimsBySize(secondInputDims, firstInputDims.size());
     for (size_t i = 0; i < normalizedSecondInputDims.size(); i++) {
-        if ((i == 1 && normalizedSecondInputDims[i] != firstInputDims[1]) || (i != 1 && normalizedSecondInputDims[i] != 1))
+        if ((i == 1 && !dimsEqual(normalizedSecondInputDims[i], firstInputDims[1])) || (i != 1 && normalizedSecondInputDims[i] != 1))
             return false;
     }
     return true;
@@ -88,6 +92,36 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
         }
     }
     return precision;
+}
+
+/**
+* @brief Return aligned buffer by targetSize.
+* If buffer has size 1, values are broadcasted with targetSize size.
+* If aligned buffer size > targetSize, other values filled by zero.
+* @param targetSize
+* target size buffer
+* @param buffer
+* buffer to be aligned
+* @param align
+* alignment for targetSize
+* @return aligned buffer
+*/
+inline std::vector<float> makeAlignedBuffer(size_t targetSize, const std::vector<float> &buffer, int align = -1) {
+    if (buffer.empty()) {
+        IE_THROW() << "Can't align buffer, becuase buffer is empty";
+    }
+
+    auto alignedBuffer = buffer;
+    if (align == -1) {
+        align = targetSize;
+    }
+    const size_t bufferSizeAligned = rnd_up(targetSize, align);
+
+    alignedBuffer.resize(bufferSizeAligned, 0);
+    if (buffer.size() == 1) {
+        std::fill(alignedBuffer.begin() + 1, alignedBuffer.begin() + targetSize, buffer[0]);
+    }
+    return alignedBuffer;
 }
 
 }  // namespace MKLDNNPlugin
