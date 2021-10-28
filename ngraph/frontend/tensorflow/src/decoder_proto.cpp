@@ -12,6 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
+namespace {
 const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
     static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
         {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
@@ -26,6 +27,7 @@ const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
         {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
     return type_map;
 }
+}  // namespace
 
 template <class T>
 bool is_type(const VariantTypeInfo& type_info) {
