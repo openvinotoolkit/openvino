@@ -50,7 +50,7 @@ public:
     void nmsWithoutSoftSigma(const float *boxes, const float *scores, const SizeVector &boxesStrides,
                              const SizeVector &scoresStrides, std::vector<filteredBoxes> &filtBoxes);
 
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
     bool needShapeInfer() const override { return false; }
     bool needPrepareParams() const override { return false; }
@@ -95,6 +95,8 @@ private:
 
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";
+
+    void initRuntimeAttr();
 
     void checkPrecision(const Precision& prec, const std::vector<Precision>& precList, const std::string& name, const std::string& type);
     void check1DInput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
