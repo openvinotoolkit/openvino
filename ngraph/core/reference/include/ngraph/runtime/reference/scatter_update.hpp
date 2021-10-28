@@ -30,15 +30,15 @@ static const CoordinateTransformBasic get_target_shape(const Shape& data_shape,
     return target_shape;
 }
 
-void scatter_update(const char* input_data,
-                    const int64_t* indices,
-                    const char* updates,
-                    const int64_t axis,
-                    char* out_buf,
-                    const size_t elem_size,
-                    const Shape& data_shape,
-                    const Shape& indices_shape,
-                    const Shape& updates_shape) {
+static void scatter_update(const char* input_data,
+                           const int64_t* indices,
+                           const char* updates,
+                           const int64_t axis,
+                           char* out_buf,
+                           const size_t elem_size,
+                           const Shape& data_shape,
+                           const Shape& indices_shape,
+                           const Shape& updates_shape) {
     // Copy inputs to out
     std::memcpy(out_buf, input_data, elem_size * shape_size(data_shape));
 

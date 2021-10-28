@@ -31,6 +31,7 @@ op::Erf::Erf(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
 }
 
 namespace erfop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -55,6 +56,7 @@ bool evaluate_erf(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     }
     return rc;
 }
+}  // namespace
 }  // namespace erfop
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -55,7 +55,9 @@ public:
     /// \brief Returns current layout, or empty Layout if it is not set
     Layout get_layout() const;
 
-    /// \brief Sets layout runtime information to tensor
+    /// \brief Sets layout runtime information to tensor.
+    ///
+    /// \param layout Layout to set. If empty (default constructed), layout runtime information is erased.
     void set_layout(const Layout& layout);
 
 protected:

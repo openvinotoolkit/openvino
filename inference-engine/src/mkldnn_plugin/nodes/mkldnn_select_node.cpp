@@ -23,7 +23,7 @@ bool MKLDNNSelectNode::isSupportedOperation(const std::shared_ptr<const ngraph::
             return false;
         }
         const auto broadcast = select->get_auto_broadcast();
-        if (!MKLDNNPlugin::one_of(broadcast, ngraph::op::AutoBroadcastSpec::NONE, ngraph::op::AutoBroadcastSpec::NUMPY)) {
+        if (!MKLDNNPlugin::one_of(broadcast.m_type, ngraph::op::AutoBroadcastType::NONE, ngraph::op::AutoBroadcastType::NUMPY)) {
             errorMessage = "Does not support broadcast type: " + ngraph::as_string(broadcast.m_type);
             return false;
         }
@@ -47,9 +47,9 @@ MKLDNNSelectNode::MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
     const auto broadcast = select->get_auto_broadcast();
-    if (broadcast == ngraph::op::AutoBroadcastSpec::NONE) {
+    if (broadcast.m_type == ngraph::op::AutoBroadcastType::NONE) {
         broadcastType = SelectBroadcastType::NONE;
-    } else if (broadcast == ngraph::op::AutoBroadcastSpec::NUMPY) {
+    } else if (broadcast.m_type == ngraph::op::AutoBroadcastType::NUMPY) {
         broadcastType = SelectBroadcastType::NUMPY;
     } else {
         IE_THROW() << errorPrefix << " has unsupported broadcast type: " + ngraph::as_string(broadcast.m_type);
@@ -124,10 +124,6 @@ void MKLDNNSelectNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNSelectNode::prepareParams() {
-    if (!inputShapesDefined()) {
-        IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
-    }
-
     const auto &_conditionDims = getParentEdgesAtPort(CONDITION)[0]->getMemory().getStaticDims();
     const auto &_thenDims = getParentEdgesAtPort(THEN)[0]->getMemory().getStaticDims();
     const auto &_elseDims = getParentEdgesAtPort(ELSE)[0]->getMemory().getStaticDims();
