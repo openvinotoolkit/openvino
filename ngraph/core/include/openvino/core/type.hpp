@@ -67,7 +67,7 @@ public:
 
     operator std::string() const;
 
-    uint64_t hash() const;
+    size_t hash() const;
 
 private:
     mutable size_t hash_value;
