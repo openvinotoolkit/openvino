@@ -116,8 +116,8 @@ bool op::v8::Softmax::visit_attributes(AttributeVisitor &visitor) {
 void op::v8::Softmax::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_Softmax_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
-    int64_t rank = static_cast<int64_t>(input_shape.rank().get_length());
-    if (input_shape.rank().is_static())
+    if (input_shape.rank().is_static()) {
+        int64_t rank = static_cast<int64_t>(input_shape.rank().get_length());
         NODE_VALIDATION_CHECK(this,
                               -rank <= m_axis < rank,
                               "Reduction axis (",
@@ -125,6 +125,7 @@ void op::v8::Softmax::validate_and_infer_types() {
                               ") is out of bounds (argument shape: ",
                               input_shape,
                               ").");
+    }
 
     set_output_type(0, get_input_element_type(0), input_shape);
 }

@@ -21,7 +21,7 @@ pass::ConvertSoftmax8ToSoftmax1::ConvertSoftmax8ToSoftmax1() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto softmax_v8_node = dynamic_pointer_cast<opset8::Softmax>(m.get_match_root());
-        if (!softmax_v8_node)
+        if (!softmax_v8_node || !softmax_v8_node->get_input_partial_shape(0).rank().is_static())
             return false;
 
         auto v8_axis = softmax_v8_node->get_axis();
