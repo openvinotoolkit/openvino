@@ -14,18 +14,6 @@ size_t std::hash<ngraph::DiscreteTypeInfo>::operator()(const ngraph::DiscreteTyp
 
 namespace ov {
 
-DiscreteTypeInfo::DiscreteTypeInfo(const char* _name,
-                                   const char* _version_id,
-                                   uint64_t _version,
-                                   const DiscreteTypeInfo* _parent)
-    : name(_name),
-      version(_version),
-      version_id(_version_id),
-      parent(_parent),
-      hash_value(0) {
-    hash_value = std::hash<ov::DiscreteTypeInfo>{}(*this);
-}
-
 size_t DiscreteTypeInfo::hash() const {
     if (hash_value != 0)
         return hash_value;
@@ -35,6 +23,21 @@ size_t DiscreteTypeInfo::hash() const {
     // don't use parent for hash calculation, it is not a part of type (yet)
     hash_value = ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
     return hash_value;
+}
+
+bool DiscreteTypeInfo::is_castable(const DiscreteTypeInfo& target_type) const {
+    return *this == target_type || (parent && parent->is_castable(target_type));
+}
+
+std::string DiscreteTypeInfo::get_version() const {
+    if (version_id) {
+        return std::string(version_id);
+    }
+    return std::to_string(version);
+}
+
+DiscreteTypeInfo::operator std::string() const {
+    return std::string(name) + "_" + get_version();
 }
 
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
@@ -69,9 +72,7 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
     return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
-    if (hash_value == 0 || b.hash_value == 0)
-        return version == b.version && strcmp(name, b.name) == 0;  // && parent == b.parent;
-    return hash_value == b.hash_value;
+    return hash() == b.hash();
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;
