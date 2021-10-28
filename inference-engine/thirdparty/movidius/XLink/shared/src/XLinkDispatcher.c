@@ -398,7 +398,7 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int 
             event.deviceHandle = *deviceHandle;
             mvLog(MVLOG_ERROR,"waiting is timeout, sending reset remote event");
             DispatcherAddEvent(EVENT_LOCAL, &event);
-            id = getAndRefSem(pthread_self(), curr, 0);
+            id = getSem(pthread_self(), curr);
             int rc;
             while(((rc = sem_wait(id)) == -1) && errno == EINTR)
                 continue;
