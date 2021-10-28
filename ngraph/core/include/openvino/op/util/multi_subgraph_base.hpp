@@ -280,6 +280,20 @@ public:
     virtual size_t get_num_internal_subgraphs() const {
         return m_bodies.size();
     }
+    ///
+    /// \brief     Get number of input descriptions
+    ///
+    /// \return    Number of input descriptions
+    virtual size_t get_num_input_descriptions() const {
+        return m_input_descriptions.size();
+    }
+    ///
+    /// \brief     Get number of output descriptions
+    ///
+    /// \return    Number of output descriptions
+    virtual size_t get_num_output_descriptions() const {
+        return m_output_descriptions.size();
+    }
 
     MultiSubGraphOp(const MultiSubGraphOp&) = delete;
     MultiSubGraphOp(MultiSubGraphOp&&) = default;

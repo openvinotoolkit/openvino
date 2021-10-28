@@ -44,6 +44,7 @@
 #include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
+#include <ngraph/runtime/reference/if.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
@@ -362,36 +363,6 @@ bool evaluate(const shared_ptr<op::v8::DeformableConvolution>& op,
     return true;
 }
 
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v1::DeformableConvolution>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
-    const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& offset_shape = inputs[1]->get_shape();
-    const auto& filter_shape = inputs[2]->get_shape();
-    runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
-        in_data_ptr,
-        offset_data_ptr,
-        filter_data_ptr,
-        out_data_ptr,
-        in_shape,
-        offset_shape,
-        filter_shape,
-        out_shape,
-        op->get_strides(),
-        op->get_dilations(),
-        op->get_pads_begin(),
-        op->get_pads_end(),
-        op->get_group(),
-        op->get_deformable_group());
-    return true;
-}
-
 namespace cum_sum_v0 {
 template <element::Type_t t1, element::Type_t t2>
 inline void evaluate(const shared_ptr<op::v0::CumSum>& op,
@@ -418,6 +389,24 @@ bool evaluate(const shared_ptr<op::v0::CumSum>& op, const HostTensorVector& outp
         cum_sum_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
         break;
     }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v8::If>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    std::vector<std::shared_ptr<Function>> bodies;
+    for (size_t i = 0; i < op->get_num_internal_subgraphs(); i++) {
+        bodies.emplace_back(op->get_function(i));
+    }
+    std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector> in_descs;
+    for (size_t i = 0; i < op->get_num_input_descriptions(); i++) {
+        in_descs.emplace_back(op->get_input_descriptions(i));
+    }
+    std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector> out_descs;
+    for (size_t i = 0; i < op->get_num_output_descriptions(); i++) {
+        out_descs.emplace_back(op->get_output_descriptions(i));
+    }
+    runtime::reference::if_reference(bodies, out_descs, in_descs, outputs, inputs);
     return true;
 }
 
