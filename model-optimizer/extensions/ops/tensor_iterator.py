@@ -349,17 +349,17 @@ class TensorIterator(Op):
 
     @staticmethod
     def find_iterations_count_for_output(ti_node, output_rec):
-        def check_axis_end(record):
-            return 'axis' in record and record['axis'] is not None and \
-                'end' in record and record['end'] is not None
+        def check_field(record, field):
+            return field in record and record[field] is not None
         iterations_count = 1
         # 1. check if we need concatenate iteration results for given output
-        if not check_axis_end(output_rec):
+        if not check_field(output_rec, 'axis'):
             # in this case we dont concat outputs, so iterations count is not needed really
             return iterations_count
 
         # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
-        if output_rec['end'] != -1 and output_rec['start'] != -1:
+        if check_field(output_rec, 'end') and output_rec['end'] != -1 and \
+                check_field(output_rec, 'start') and output_rec['start'] != -1:
             # get iterations count from output record
             iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
             return iterations_count
@@ -368,19 +368,21 @@ class TensorIterator(Op):
         # If no input contains 'axis' attribute then no slicing is in TI and it has only one iteration
         # If several inputs have axis attribute with different iterations count then we use maximum value.
         for in_rec in ti_node.input_port_map:
-            if not check_axis_end(in_rec):
+            if not check_field(in_rec, 'axis'):
                 continue
-            if in_rec['end'] != -1 and in_rec['start'] != -1:
+            if check_field(in_rec, 'end') and in_rec['end'] != -1 and \
+                    check_field(in_rec, 'start') and in_rec['start'] != -1:
                 in_rec_end = in_rec['end']
                 in_rec_start = in_rec['start']
-            elif in_rec['end'] != -1:
+            elif check_field(in_rec, 'end') and in_rec['end'] != -1:
                 in_rec_end = in_rec['end']
                 in_rec_start = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
-            elif in_rec['start'] != -1:
+            elif check_field(in_rec, 'start') and in_rec['start'] != -1:
                 in_rec_end = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
                 in_rec_start = in_rec['start']
             else:
-                raise Error("Tensor Iterator have both start and end attributes equal to -1")
+                in_rec_end = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
+                in_rec_start = 0
             # in case of dynamic itreations count don't continue any calculations on this iteration
             if not is_fully_defined(in_rec_end) or not is_fully_defined(in_rec_start):
                 iterations_count = dynamic_dimension_value
