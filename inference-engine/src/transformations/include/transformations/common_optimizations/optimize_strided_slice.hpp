@@ -17,6 +17,7 @@
 namespace ngraph {
 namespace pass {
 
+class TRANSFORMATIONS_API SliceToStridedSlice;
 class TRANSFORMATIONS_API StridedSliceOptimization;
 class TRANSFORMATIONS_API UselessStridedSliceEraser;
 class TRANSFORMATIONS_API SharedStridedSliceEraser;
@@ -24,6 +25,17 @@ class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
 
 }  // namespace pass
 }  // namespace ngraph
+
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief SliceToStridedSlice transformation convert Slice to StridedSlice
+ */
+class ngraph::pass::SliceToStridedSlice: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SliceToStridedSlice();
+};
 
 
 /**
