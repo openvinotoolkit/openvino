@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <unordered_map>
 
+#include <nodes/mkldnn_broadcast_node.h>
 #include <nodes/mkldnn_concat_node.h>
 #include <nodes/mkldnn_conv_node.h>
 #include <nodes/mkldnn_deconv_node.h>

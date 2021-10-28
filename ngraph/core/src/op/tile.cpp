@@ -58,7 +58,15 @@ void op::v0::Tile::validate_and_infer_types() {
             output_shape[i] = data_shape[i] * repeats_value[i];
         set_output_type(0, arg_et, output_shape);
     } else {
-        set_output_type(0, arg_et, ov::PartialShape::dynamic());
+        Rank outRank = Rank::dynamic();
+        if (arg_shape.rank().is_static() && repeats_shape.is_static()) {
+            std::vector<Dimension> data_shape(arg_shape);
+            auto data_rank = data_shape.size();
+            auto repeats_rank = repeats_value.size();
+            auto output_rank = std::max(data_rank, repeats_rank);
+            outRank = Rank(output_rank);
+        }
+        set_output_type(0, arg_et, ov::PartialShape::dynamic(outRank));
     }
 
     set_input_is_relevant_to_shape(0);

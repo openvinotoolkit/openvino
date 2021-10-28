@@ -456,24 +456,6 @@ void ScaleShiftValidator::checkShapes(const CNNLayer* layer, const std::vector<S
     checkNumOfInput(inShapes, {1});
 }
 
-void TileValidator::checkParams(const CNNLayer* layer) {
-    auto casted = dynamic_cast<const TileLayer*>(layer);
-    if (!casted) {
-        IE_THROW() << "Layer is not instance of TileLayer class";
-    }
-    int axis = casted->GetParamAsInt("axis", -1);
-    int tiles = casted->GetParamAsInt("tiles", -1);
-    if (axis < 0 && tiles < 0) {
-        IE_THROW() << "The value of Tile layer parameters is invalid";
-    }
-}
-
-TileValidator::TileValidator(const std::string& _type): LayerValidator(_type) {}
-
-void TileValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    checkNumOfInput(inShapes, {1});
-}
-
 ReshapeValidator::ReshapeValidator(const std::string& _type): LayerValidator(_type) {}
 
 void ReshapeValidator::checkParams(const CNNLayer* layer) {
@@ -1267,25 +1249,6 @@ void FillValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
 
     if (inShapes[1].size() != 1)
         IE_THROW() << layer->name << " Incorrect number of 'fill_value' input dimensions!";
-}
-
-BroadcastValidator::BroadcastValidator(const std::string& _type): LayerValidator(_type) {}
-
-void BroadcastValidator::checkParams(const CNNLayer* layer) {
-    LayerValidator::checkParams(layer);
-}
-
-void BroadcastValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
-    auto casted = dynamic_cast<const BroadcastLayer*>(layer);
-    if (!casted) {
-        IE_THROW() << layer->name << " Layer is not instance of Broadcast class";
-    }
-
-    size_t numInputs = inShapes.size();
-    if (numInputs != 2)
-        IE_THROW() << layer->name << " Broadcast can take 2 inputs, but actually it has: " << numInputs;
-
-    if (inShapes[1].size() != 1) IE_THROW() << layer->name << " Incorrect number of 'shape' input dimensions!";
 }
 
 /****************************************/
@@ -2305,9 +2268,7 @@ LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(UnsqueezeValidator, Unsqueeze);
     REG_LAYER_VALIDATOR_FOR_TYPE(RangeValidator, Range);
     REG_LAYER_VALIDATOR_FOR_TYPE(FillValidator, Fill);
-    REG_LAYER_VALIDATOR_FOR_TYPE(BroadcastValidator, Broadcast);
     REG_LAYER_VALIDATOR_FOR_TYPE(TanHValidator, TanH);
-    REG_LAYER_VALIDATOR_FOR_TYPE(TileValidator, Tile);
     REG_LAYER_VALIDATOR_FOR_TYPE(UnpoolingValidator, Unpooling);
     REG_LAYER_VALIDATOR_FOR_TYPE(UpsamplingValidator, Upsampling);
     REG_LAYER_VALIDATOR_FOR_TYPE(OneHotValidator, OneHot);
