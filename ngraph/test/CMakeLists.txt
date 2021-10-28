@@ -266,6 +266,7 @@ set(SRC
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
+    visitors/op/avg_pool.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/binary_convolution.cpp
@@ -456,12 +457,9 @@ endif()
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/adaptive_avg_pool.in.cpp
-    backend/adaptive_max_pool.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
@@ -490,7 +488,6 @@ set(MULTI_TEST_SRC
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
-    backend/max_pool.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -510,7 +507,6 @@ set(MULTI_TEST_SRC
     backend/result.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
-    backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
