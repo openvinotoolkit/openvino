@@ -45,6 +45,9 @@ public:
 
 protected:
     size_t m_num_splits;
+
+    template <typename T>
+    friend void shape_infer(Split* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v1
 }  // namespace op
