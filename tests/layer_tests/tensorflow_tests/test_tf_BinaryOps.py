@@ -30,7 +30,7 @@ def generate_input(op_type, size):
         return np.random.uniform(lower, upper, size).astype(np.float32)
 
 
-class TestAdd(CommonTFLayerTest):
+class TestBinaryOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_dict):
         for input in inputs_dict.keys():
             inputs_dict[input] = generate_input(self.current_op_type, inputs_dict[input])

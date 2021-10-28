@@ -215,9 +215,9 @@ class TestMul(CommonTFLayerTest):
         # Eltwise
         dict(x_shape=[1, 3, 1, 1], y_shape=[3, 1]),
         # Eltwise
-        dict(x_shape=[1, 3, 1, 2], y_shape=[3, 1, 2]),
+        dict(x_shape=[1, 2, 1, 3], y_shape=[3, 1, 2]),
         # Eltwise
-        dict(x_shape=[1, 3, 1, 2], y_shape=[1, 3, 2]),
+        dict(x_shape=[1, 2, 1, 3], y_shape=[1, 3, 2]),
         # Eltwise
         dict(x_shape=[1, 3, 100, 224], y_shape=[1, 1, 1, 224]),
         # Eltwise
