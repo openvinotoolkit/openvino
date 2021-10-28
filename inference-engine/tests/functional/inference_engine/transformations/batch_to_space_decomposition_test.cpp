@@ -23,9 +23,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, BatchToSpaceDecompositionByElements) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-
+TEST_F(TransformationTestsF, BatchToSpaceDecompositionByElements) {
     {
         auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{100, 7, 13, 3});
         auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
@@ -33,14 +31,9 @@ TEST(TransformationTests, BatchToSpaceDecompositionByElements) {
         auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<ngraph::opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
+        function =  std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertBatchToSpace>();
-        m.run_passes(f);
-
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<ngraph::pass::ConvertBatchToSpace>();
     }
 
     {
@@ -76,15 +69,11 @@ TEST(TransformationTests, BatchToSpaceDecompositionByElements) {
         std::vector<int64_t> end_mask(4, 0);
         auto ss = std::make_shared<opset3::StridedSlice>(reshape_after_3, begin, end, begin_mask, end_mask);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        function_ref =  std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
     }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SpaceToBatchDecompositionByElements) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-
+TEST_F(TransformationTestsF, SpaceToBatchDecompositionByElements) {
     {
         auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{2, 64, 64, 3});
         auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
@@ -92,14 +81,9 @@ TEST(TransformationTests, SpaceToBatchDecompositionByElements) {
         auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<ngraph::opset3::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
+        function =  std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertSpaceToBatch>();
-        m.run_passes(f);
-
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();
     }
 
     {
@@ -140,15 +124,11 @@ TEST(TransformationTests, SpaceToBatchDecompositionByElements) {
         auto permute_4 = std::make_shared<ngraph::opset3::Transpose> (reshape_before_4, axis_order_4);
         auto reshape_after_4 = std::make_shared<ngraph::opset3::Reshape> (permute_4, squeezed_order_4, false);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after_4}, ngraph::ParameterVector{data});
+        function_ref =  std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after_4}, ngraph::ParameterVector{data});
     }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SpaceToBatchDecomposition) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-
+TEST_F(TransformationTestsF, SpaceToBatchDecomposition) {
     {
         auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{2, 64, 64, 3});
         auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{1, 10, 5, 1});
@@ -156,14 +136,9 @@ TEST(TransformationTests, SpaceToBatchDecomposition) {
         auto pads_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<ngraph::opset3::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
+        function =  std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertSpaceToBatch>(false);
-        m.run_passes(f);
-
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<ngraph::pass::ConvertSpaceToBatch>(false);
     }
 
     {
@@ -182,15 +157,11 @@ TEST(TransformationTests, SpaceToBatchDecomposition) {
         auto permute = std::make_shared<ngraph::opset3::Transpose>(reshape_before, axis_order);
         auto reshape_after = std::make_shared<ngraph::opset3::Reshape>(permute, squeezed_order, false);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{data});
+        function_ref =  std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{data});
     }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, BatchToSpaceDecomposition) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-
+TEST_F(TransformationTestsF, BatchToSpaceDecomposition) {
     {
         auto data = std::make_shared<opset3::Parameter>(element::f32, Shape{100, 7, 13, 3});
         auto block_shape = std::make_shared<opset3::Constant>(element::i64, Shape{4},
@@ -199,14 +170,9 @@ TEST(TransformationTests, BatchToSpaceDecomposition) {
         auto crops_end = std::make_shared<opset3::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 3, 0, 0});
         auto batch_to_space = std::make_shared<ngraph::opset3::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
+        function =  std::make_shared<ngraph::Function>(ngraph::NodeVector{batch_to_space}, ngraph::ParameterVector{data});
 
-        ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertBatchToSpace>(false);
-        m.run_passes(f);
-
-        ASSERT_NO_THROW(check_rt_info(f));
+        manager.register_pass<ngraph::pass::ConvertBatchToSpace>(false);
     }
 
     {
@@ -227,8 +193,6 @@ TEST(TransformationTests, BatchToSpaceDecomposition) {
         std::vector<int64_t> begin_mask(4, 0);
         std::vector<int64_t> end_mask(4, 0);
         auto ss = std::make_shared<opset3::StridedSlice>(reshape_after, begin, end, begin_mask, end_mask);
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
+        function_ref =  std::make_shared<ngraph::Function>(ngraph::NodeVector{ss}, ngraph::ParameterVector{data});
     }
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

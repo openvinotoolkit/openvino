@@ -47,8 +47,8 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRU
 # Disable all warnings for generated code
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w)
 
-# Create shared library
-add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+# Create library
+add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(openvino::frontend::tensorflow ALIAS ${TARGET_NAME})
 
 add_dependencies(${TARGET_NAME} tensorflow_ngraph_frontend_proto)
@@ -84,7 +84,12 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::tensorflow)
 
-# TODO: add install commands once TensorFlow frontend is complete
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+
+# TODO: add install commands once TensorFlow frontend is complete, and delete the install above
 #install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
 #        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
 #        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph

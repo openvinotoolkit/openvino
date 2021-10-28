@@ -10,6 +10,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
+namespace {
 const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
     static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
         {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
@@ -24,6 +25,7 @@ const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
         {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
     return type_map;
 }
+}  // namespace
 
 std::shared_ptr<ov::Variant> DecoderTFProto::get_attribute(const std::string& name,
                                                            const VariantTypeInfo& type_info) const {
