@@ -37,6 +37,8 @@
 
 namespace InferenceEngine {
 
+#ifndef OPENVINO_STATIC_LIBRARY
+
 namespace details {
 
 /**
@@ -115,11 +117,6 @@ namespace {
 // Extension to plugins creator
 std::multimap<std::string, Reader::Ptr> readers;
 
-static ngraph::frontend::FrontEndManager& get_frontend_manager() {
-    static ngraph::frontend::FrontEndManager manager;
-    return manager;
-}
-
 void registerReaders() {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "registerReaders");
     static bool initialized = false;
@@ -168,28 +165,15 @@ void assertIfIRv7LikeModel(std::istream& modelStream) {
                   "version of the OpenVINO to generate supported IR version.";
 }
 
-ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
-    ov::Extensions extensions;
-    for (const auto& ext : exts) {
-        for (const auto& item : ext->getOpSets()) {
-            if (extensions.count(item.first)) {
-                IE_THROW() << "Extension with " << item.first << " name already exists";
-            }
-            extensions[item.first] = item.second;
-        }
-    }
-    return extensions;
-}
-
 CNNNetwork load_ir_v7_network(const std::string& modelPath,
                               const std::string& binPath,
                               const std::vector<IExtensionPtr>& exts) {
     // Fix unicode name
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring model_path = ov::util::string_to_wstring(modelPath.c_str());
-#else
+#    else
     std::string model_path = modelPath;
-#endif
+#    endif
 
     // Try to open model file
     std::ifstream modelStream(model_path, std::ios::binary);
@@ -221,11 +205,11 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
             }
             if (!bPath.empty()) {
                 // Open weights file
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#    if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
                 std::wstring weights_path = ov::util::string_to_wstring(bPath.c_str());
-#else
+#    else
                 std::string weights_path = bPath;
-#endif
+#    endif
                 std::ifstream binStream;
                 binStream.open(weights_path, std::ios::binary);
                 if (!binStream.is_open())
@@ -256,6 +240,12 @@ CNNNetwork load_ir_v7_network(const std::string& modelPath,
 
     return {};
 }
+
+}  // namespace
+
+#endif  // OPENVINO_STATIC_LIBRARY
+
+namespace {
 
 CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                  const std::vector<IExtensionPtr>& exts,
@@ -338,17 +328,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (old_api_type == ov::element::undefined)
                     old_api_type = parameter->get_element_type();
 
-                std::stringstream tensorLayout, networkLayout;
-                for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
-                    tensorLayout << i;
-                    networkLayout << old_api_transpose_args[i];
-                }
-
-                prepost.input(
-                    ov::preprocess::InputInfo(i)
-                        .tensor(
-                            InputTensorInfo().set_element_type(old_api_type).set_layout(ov::Layout(tensorLayout.str())))
-                        .network(InputNetworkInfo().set_layout(ov::Layout(networkLayout.str()))));
+                prepost.input(ov::preprocess::InputInfo(i)
+                                  .tensor(InputTensorInfo().set_element_type(old_api_type))
+                                  .preprocess(PreProcessSteps().convert_layout(old_api_transpose_args)));
 
                 // Set version to 10
                 rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
@@ -373,34 +355,15 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (old_api_type == ov::element::undefined)
                     old_api_type = result->get_element_type();
 
-                std::stringstream tensorLayout, networkLayout;
-                for (size_t i = 0; i < old_api_transpose_args.size(); ++i) {
-                    networkLayout << i;
-                    tensorLayout << old_api_transpose_args[i];
-                }
-
                 prepost.output(OutputInfo(i)
-                                   .network(OutputNetworkInfo().set_layout(ov::Layout(networkLayout.str())))
-                                   .tensor(OutputTensorInfo()
-                                               .set_element_type(old_api_type)
-                                               .set_layout(ov::Layout(tensorLayout.str()))));
+                                   .postprocess(PostProcessSteps().convert_layout(old_api_transpose_args))
+                                   .tensor(OutputTensorInfo().set_element_type(old_api_type)));
 
                 // remove old api once we applied it
                 rtInfo.erase(it);
             }
 
             function = prepost.build(function);
-
-            // TODO: keep information about layout once we have an ability to
-            // apply permutation to layout
-
-            // restore layout information
-            for (const auto& parameter : function->get_parameters()) {
-                parameter->set_layout({});
-            }
-            for (const auto& result : function->get_results()) {
-                result->set_layout({});
-            }
         }
     }
 
@@ -409,12 +372,31 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+ngraph::frontend::FrontEndManager& get_frontend_manager() {
+    static ngraph::frontend::FrontEndManager manager;
+    return manager;
+}
+
+ov::Extensions get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    ov::Extensions extensions;
+    for (const auto& ext : exts) {
+        for (const auto& item : ext->getOpSets()) {
+            if (extensions.count(item.first)) {
+                IE_THROW() << "Extension with " << item.first << " name already exists";
+            }
+            extensions[item.first] = item.second;
+        }
+    }
+    return extensions;
+}
+
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath,
                                 const std::string& binPath,
                                 const std::vector<IExtensionPtr>& exts,
                                 bool newAPI) {
+#ifndef OPENVINO_STATIC_LIBRARY
     // IR v7 obsolete code
     {
         // Register readers if it is needed
@@ -428,6 +410,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
         }
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
+#endif  // OPENVINO_STATIC_LIBRARY
 
     // Fix unicode name
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -477,6 +460,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
     std::istringstream modelStringStream(model);
     std::istream& modelStream = modelStringStream;
 
+#ifndef OPENVINO_STATIC_LIBRARY
     // IR v7 obsolete code
     {
         // Register readers if it is needed
@@ -494,6 +478,7 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             }
         }
     }
+#endif  // OPENVINO_STATIC_LIBRARY
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();

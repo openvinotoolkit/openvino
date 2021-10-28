@@ -380,6 +380,8 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                 });
                 new_param_shape = PartialShape(dims);
             }
+        } else if (input->m_preprocess) {
+            new_param_shape = input->m_preprocess->calculate_param_shape(new_param_shape);
         }
         if (input->m_tensor_data->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->m_tensor_data->get_layout(), new_param_shape);
@@ -754,6 +756,16 @@ PreProcessSteps&& PreProcessSteps::convert_layout(const Layout& dst_layout) && {
     return std::move(*this);
 }
 
+PreProcessSteps& PreProcessSteps::convert_layout(const std::vector<uint64_t>& dims) & {
+    m_impl->add_convert_layout_impl(dims);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::convert_layout(const std::vector<uint64_t>& dims) && {
+    m_impl->add_convert_layout_impl(dims);
+    return std::move(*this);
+}
+
 PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) & {
     m_impl->add_convert_color_impl(dst_format);
     return *this;
@@ -787,6 +799,16 @@ PreProcessSteps&& PreProcessSteps::custom(const CustomPreprocessOp& preprocess_c
                         "current image to RGB/BGR color format using 'convert_color'");
         return std::make_tuple(std::vector<Output<Node>>{preprocess_cb(nodes[0])}, true);
     });
+    return std::move(*this);
+}
+
+PreProcessSteps& PreProcessSteps::reverse_channels() & {
+    m_impl->add_reverse_channels();
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::reverse_channels() && {
+    m_impl->add_reverse_channels();
     return std::move(*this);
 }
 
@@ -856,6 +878,16 @@ PostProcessSteps& PostProcessSteps::convert_layout(const Layout& dst_layout) & {
 
 PostProcessSteps&& PostProcessSteps::convert_layout(const Layout& dst_layout) && {
     m_impl->add_convert_layout_impl(dst_layout);
+    return std::move(*this);
+}
+
+PostProcessSteps& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) & {
+    m_impl->add_convert_layout_impl(dims);
+    return *this;
+}
+
+PostProcessSteps&& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) && {
+    m_impl->add_convert_layout_impl(dims);
     return std::move(*this);
 }
 

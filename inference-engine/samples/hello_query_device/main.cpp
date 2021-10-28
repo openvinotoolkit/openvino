@@ -3,8 +3,6 @@
 //
 
 #include <cstdlib>
-#include <ie_plugin_config.hpp>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <memory>
 #include <samples/common.hpp>
@@ -13,7 +11,8 @@
 #include <tuple>
 #include <vector>
 
-using namespace InferenceEngine;
+#include "ie_plugin_config.hpp"
+#include "openvino/openvino.hpp"
 
 namespace {
 /**
@@ -33,7 +32,7 @@ std::ostream& operator<<(std::ostream& stream, const std::vector<T>& v) {
  * @param reference on IE Parameter
  * @return void
  */
-void printParameterValue(const Parameter& value) {
+void printParameterValue(const ov::runtime::Parameter& value) {
     if (value.empty()) {
         std::cout << "EMPTY VALUE" << std::endl;
     } else if (value.is<bool>()) {
@@ -65,8 +64,8 @@ void printParameterValue(const Parameter& value) {
         std::cout << std::get<2>(values);
         std::cout << " }";
         std::cout << std::endl;
-    } else if (value.is<Metrics::DeviceType>()) {
-        auto v = value.as<Metrics::DeviceType>();
+    } else if (value.is<InferenceEngine::Metrics::DeviceType>()) {
+        auto v = value.as<InferenceEngine::Metrics::DeviceType>();
         std::cout << v << std::endl;
     } else if (value.is<std::map<InferenceEngine::Precision, float>>()) {
         auto values = value.as<std::map<InferenceEngine::Precision, float>>();
@@ -92,46 +91,45 @@ void printParameterValue(const Parameter& value) {
 
 int main(int argc, char* argv[]) {
     try {
-        // ------------------------------ Parsing and validation of input arguments
-        // ---------------------------------
+        // -------- Parsing and validation of input arguments --------
         if (argc != 1) {
             std::cout << "Usage : " << argv[0] << std::endl;
             return EXIT_FAILURE;
         }
 
-        // --------------------------- Step 1. Initialize inference engine core
-        // -------------------------------------
-        std::cout << "Loading Inference Engine" << std::endl;
-        Core ie;
+        // -------- Step 1. Initialize OpenVINO Runtime Core --------
+        std::cout << "Loading OpenVINO Runtime" << std::endl;
+        ov::runtime::Core core;
 
-        // --------------------------- Get list of available devices
-        // -------------------------------------
+        // -------- Step 2. Get list of available devices --------
 
-        std::vector<std::string> availableDevices = ie.GetAvailableDevices();
+        std::vector<std::string> availableDevices = core.get_available_devices();
 
-        // --------------------------- Query and print supported metrics and config
-        // keys--------------------
+        // -------- Step 3. Query and print supported metrics and config keys --------
 
         std::cout << "Available devices: " << std::endl;
         for (auto&& device : availableDevices) {
             std::cout << device << std::endl;
 
+            // Query supported metrics and print all of them
             std::cout << "\tSUPPORTED_METRICS: " << std::endl;
-            std::vector<std::string> supportedMetrics = ie.GetMetric(device, METRIC_KEY(SUPPORTED_METRICS));
+            std::vector<std::string> supportedMetrics = core.get_metric(device, METRIC_KEY(SUPPORTED_METRICS));
             for (auto&& metricName : supportedMetrics) {
                 if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
                     std::cout << "\t\t" << metricName << " : " << std::flush;
-                    printParameterValue(ie.GetMetric(device, metricName));
+                    printParameterValue(core.get_metric(device, metricName));
                 }
             }
 
+            // Query supported config keys and print all of them
             if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(SUPPORTED_CONFIG_KEYS)) !=
                 supportedMetrics.end()) {
                 std::cout << "\tSUPPORTED_CONFIG_KEYS (default values): " << std::endl;
-                std::vector<std::string> supportedConfigKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                std::vector<std::string> supportedConfigKeys =
+                    core.get_metric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                 for (auto&& configKey : supportedConfigKeys) {
                     std::cout << "\t\t" << configKey << " : " << std::flush;
-                    printParameterValue(ie.GetConfig(device, configKey));
+                    printParameterValue(core.get_config(device, configKey));
                 }
             }
 
@@ -141,5 +139,6 @@ int main(int argc, char* argv[]) {
         std::cerr << std::endl << "Exception occurred: " << ex.what() << std::endl << std::flush;
         return EXIT_FAILURE;
     }
+
     return EXIT_SUCCESS;
 }

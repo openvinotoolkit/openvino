@@ -8,6 +8,8 @@
 #include <string>
 #include <memory>
 
+#include "openvino/runtime/common.hpp"
+
 #include <ie_blob.h>
 #include <file_utils.h>
 #include <ie_preprocess.hpp>
@@ -15,18 +17,6 @@
 #include <details/ie_so_pointer.hpp>
 
 namespace InferenceEngine {
-
-#if defined(_WIN32)
-    #ifdef IMPLEMENT_PREPROC_PLUGIN
-        #define INFERENCE_PRERPOC_PLUGIN_API(type) extern "C"   __declspec(dllexport) type
-    #else
-        #define INFERENCE_PRERPOC_PLUGIN_API(type) extern "C" type
-    #endif
-#elif(__GNUC__ >= 4)
-    #define INFERENCE_PRERPOC_PLUGIN_API(type) extern "C"   __attribute__((visibility("default"))) type
-#else
-    #define INFERENCE_PRERPOC_PLUGIN_API(TYPE) extern "C" TYPE
-#endif
 
 /**
  * @brief This class stores pre-process information for exact input
@@ -63,7 +53,7 @@ protected:
     ~IPreProcessData() = default;
 };
 
-INFERENCE_PRERPOC_PLUGIN_API(void) CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
+OPENVINO_PLUGIN_API void CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
 namespace details {
 

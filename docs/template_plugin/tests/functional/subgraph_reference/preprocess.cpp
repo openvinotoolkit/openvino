@@ -514,6 +514,72 @@ static RefPreprocessParams convert_layout_nhwc_to_net_no_tensor_shape() {
     return res;
 }
 
+static RefPreprocessParams convert_layout_by_dims() {
+    RefPreprocessParams res("convert_layout_by_dims");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .preprocess(PreProcessSteps().convert_layout({0, 3, 1, 2})))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams convert_layout_by_dims_multi() {
+    RefPreprocessParams res("convert_layout_by_dims_multi");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, {1, 3, 2, 2});
+        auto p = PreProcessSteps();
+        p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
+        p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
+        f = PrePostProcessor()
+                .input(InputInfo().preprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
+                                                                                4,  5,  6,       // [H=0, W=1]
+                                                                                7,  8,  9,       // [H=1, W=0]
+                                                                                10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
+                                                                                  2, 5, 8, 11,    // G
+                                                                                  3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams convert_layout_by_dims_multi_layout() {
+    RefPreprocessParams res("convert_layout_by_dims_multi_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, {1, 3, 2, 2});
+        auto p = PreProcessSteps();
+        p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
+        p.mean({1, 2, 2});              // Apply means to 'C' channel
+        p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
+        f = PrePostProcessor()
+                .input(InputInfo().tensor(InputTensorInfo().set_layout("N??C"))
+                               .preprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                4,  5,  6,       // [H=0, W=1]
+                                                                                7,  8,  9,       // [H=1, W=0]
+                                                                                10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1-1, 4-1, 7-1, 10-1,     // R
+                                                                                  2-2, 5-2, 8-2, 11-2,    // G
+                                                                                  3-2, 6-2, 9-2, 12-2});  // B
+    return res;
+}
+
 static RefPreprocessParams resize_and_convert_layout() {
     RefPreprocessParams res("resize_and_convert_layout");
     res.function = []() {
@@ -719,6 +785,48 @@ static RefPreprocessParams postprocess_2_inputs_basic() {
     return res;
 }
 
+static RefPreprocessParams post_convert_layout_by_dims() {
+    RefPreprocessParams res("post_convert_layout_by_dims");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 2, 2, 3});
+        f = PrePostProcessor()
+                .output(OutputInfo()
+                               .postprocess(PostProcessSteps().convert_layout({0, 3, 1, 2})))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams post_convert_layout_by_dims_multi() {
+    RefPreprocessParams res("post_convert_layout_by_dims_multi");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, {1, 2, 2, 3});
+        auto p = PostProcessSteps();
+        p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
+        p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
+        f = PrePostProcessor()
+                .output(OutputInfo().postprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
+                                                                                4,  5,  6,       // [H=0, W=1]
+                                                                                7,  8,  9,       // [H=1, W=0]
+                                                                                10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
+                                                                                  2, 5, 8, 11,    // G
+                                                                                  3, 6, 9, 12});  // B
+    return res;
+}
+
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
@@ -746,6 +854,101 @@ static RefPreprocessParams pre_and_post_processing() {
     return res;
 }
 
+static RefPreprocessParams rgb_to_bgr() {
+    RefPreprocessParams res("rgb_to_bgr");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_color_format(ColorFormat::RGB))
+                                             .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    return res;
+}
+
+static RefPreprocessParams bgr_to_rgb() {
+    RefPreprocessParams res("bgr_to_rgb");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
+        f = PrePostProcessor().input(InputInfo()
+                .tensor(InputTensorInfo().set_color_format(ColorFormat::BGR))
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    return res;
+}
+
+static RefPreprocessParams reverse_channels_nchw() {
+    RefPreprocessParams res("reverse_channels_nchw");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 2});
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_layout("NCHW"))
+                                             .preprocess(PreProcessSteps().reverse_channels())).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{1, 2, 2, 2}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+    res.expected.emplace_back(Shape{1, 2, 2, 2}, element::f32, std::vector<float>{5, 6, 7, 8, 1, 2, 3, 4});
+    return res;
+}
+
+static RefPreprocessParams reverse_channels_dyn_layout() {
+    RefPreprocessParams res("reverse_channels_dyn_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 1, 3, 2});
+        f = PrePostProcessor().input(InputInfo()
+                .tensor(InputTensorInfo().set_color_format(ColorFormat::BGR).set_layout("...CN"))
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{1, 1, 3, 2}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{1, 1, 3, 2}, element::f32, std::vector<float>{5, 6, 3, 4, 1, 2});
+    return res;
+}
+
+static RefPreprocessParams reverse_dyn_shape() {
+    RefPreprocessParams res("reverse_dyn_shape");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape{Dimension::dynamic(),
+                                                                   Dimension::dynamic(),
+                                                                   Dimension::dynamic(),
+                                                                   Dimension::dynamic()});
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_layout("NCHW"))
+                                             .preprocess(PreProcessSteps().reverse_channels())).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    return res;
+}
+
+static RefPreprocessParams reverse_fully_dyn_shape() {
+    RefPreprocessParams res("reverse_fully_dyn_shape");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape::dynamic());
+        auto p = PreProcessSteps();
+        p.reverse_channels();
+        f = PrePostProcessor().input(InputInfo()
+                                             .tensor(InputTensorInfo().set_layout("...C??"))
+                                             .preprocess(std::move(p))).build(f);
+        return f;
+    };
+
+    res.inputs.emplace_back(element::u8, Shape{2, 2, 1, 3}, std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    res.expected.emplace_back(Shape{2, 2, 1, 3}, element::u8, std::vector<uint8_t>{4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9});
+    return res;
+}
+
 std::vector<RefPreprocessParams> allPreprocessTests() {
     return std::vector<RefPreprocessParams> {
         simple_mean_scale(),
@@ -767,13 +970,24 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         resize_lvalues(),
         convert_layout_nhwc_to_nchw_lvalue(),
         convert_layout_nhwc_to_net_no_tensor_shape(),
+        convert_layout_by_dims(),
+        convert_layout_by_dims_multi(),
+        convert_layout_by_dims_multi_layout(),
         resize_and_convert_layout(),
         convert_color_nv12_to_bgr_two_planes(),
         convert_color_nv12_single_plane(),
         convert_color_nv12_layout_resize(),
         element_type_before_convert_color_nv12(),
         postprocess_2_inputs_basic(),
-        pre_and_post_processing()
+        post_convert_layout_by_dims(),
+        post_convert_layout_by_dims_multi(),
+        pre_and_post_processing(),
+        rgb_to_bgr(),
+        bgr_to_rgb(),
+        reverse_channels_nchw(),
+        reverse_channels_dyn_layout(),
+        reverse_dyn_shape(),
+        reverse_fully_dyn_shape()
              };
 }
 
