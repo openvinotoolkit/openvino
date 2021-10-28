@@ -12,8 +12,16 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
+using basicCpuMvnParams = std::tuple<
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>, // Input shapes
+        InferenceEngine::Precision,                                               // Input precision
+        ngraph::AxisSet,                                                          // Reduction axes
+        bool,                                                                     // Across channels
+        bool,                                                                     // Normalize variance
+        double>;                                                                  // Epsilon
+
 typedef std::tuple<
-        LayerTestsDefinitions::mvn1Params,
+        basicCpuMvnParams,
         CPUSpecificParams,
         fusingSpecificParams,
         Precision, // CNNNetwork input precision
@@ -24,16 +32,35 @@ class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamS
                         virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj) {
-        LayerTestsDefinitions::mvn1Params basicParamsSet;
+        basicCpuMvnParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         Precision inputPrecision, outputPrecision;
         std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
 
-        std::ostringstream result;
-        result << LayerTestsDefinitions::Mvn1LayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::mvn1Params>(
-                basicParamsSet, 0));
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>> inputShapes;
+        InferenceEngine::Precision netPrecision;
+        ngraph::AxisSet axes;
+        bool acrossChanels, normalizeVariance;
+        double eps;
+        std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
 
+        std::ostringstream result;
+        if (!inputShapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        }
+        result << "TS=";
+        for (const auto& shape : inputShapes.second) {
+            result << "(" << CommonTestUtils::vec2str(shape) << ")_";
+        }
+        result << "Precision=" << netPrecision.name() << "_";
+        if (!axes.empty()) {
+            result << "ReductionAccess=" << CommonTestUtils::vec2str(axes.to_vector()) << "_";
+        } else {
+            result << "AcrossChannels=" << (acrossChanels ? "TRUE" : "FALSE") << "_";
+        }
+        result << "NormalizeVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
+        result << "Epsilon=" << eps;
         result << "_" << "CNNInpPrc=" << inputPrecision.name();
         result << "_" << "CNNOutPrc=" << outputPrecision.name();
 
@@ -45,7 +72,9 @@ public:
     }
 protected:
     void SetUp() override {
-        LayerTestsDefinitions::mvn1Params basicParamsSet;
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+
+        basicCpuMvnParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc) = this->GetParam();
@@ -53,14 +82,20 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
-        InferenceEngine::SizeVector inputShapes;
+        std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>> inputShapes;
         InferenceEngine::Precision netPrecision;
         ngraph::AxisSet axes;
         bool acrossChanels, normalizeVariance;
         double eps;
-        std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = basicParamsSet;
+        std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
+
+        for (size_t i = 0; i < inputShapes.second.size(); i++) {
+            targetStaticShapes.push_back({inputShapes.second[i]});
+        }
+        inputDynamicShapes = inputShapes.first;
+
         auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto param = ngraph::builder::makeParams(netPrc, {inputShapes});
+        auto param = ngraph::builder::makeParams(netPrc, {targetStaticShapes[0].front()});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
         auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
         if (!axes.empty()) {
@@ -82,40 +117,141 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<std::vector<size_t>> inputShapes_1D = {
-        {5},
-        {16},
+
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_1D = {
+        { {}, {{5}}},
+        { {}, {{16}}},
+        {
+            // dynamic
+            {{-1}},
+            // target
+            {
+                {2},
+                {16},
+                {1}
+            }
+        },
+        {
+            // dynamic
+            {{{1, 20}}},
+            // target
+            {
+                {1},
+                {16},
+                {4}
+            }
+        }
 };
 
-const std::vector<std::vector<size_t>> inputShapes_2D = {
-        {1, 32},
-        {16, 64},
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_2D = {
+        { {}, {{1, 32}}},
+        { {}, {{16, 64}}},
+        {
+            // dynamic
+            {{-1, -1}},
+            // target
+            {
+                {2, 16},
+                {4, 16},
+                {1, 16}
+            }
+        },
+        {
+            // dynamic
+            {{{1, 5}, {1, 20}}},
+            // target
+            {
+                {1, 1},
+                {2, 16},
+                {4, 16}
+            }
+        }
 };
 
-const std::vector<std::vector<size_t>> inputShapes_3D = {
-        {1, 32, 17},
-        {1, 37, 9},
-        {1, 16, 4},
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_3D = {
+        { {}, {{1, 32, 17}}},
+        { {}, {{1, 37, 9}}},
+        { {}, {{1, 16, 4}}},
+        {
+            // dynamic
+            {{-1, -1, -1}},
+            // target
+            {
+                {2, 16, 6},
+                {4, 16, 2},
+                {1, 16, 4}
+            }
+        },
+        {
+            // dynamic
+            {{{1, 5}, {1, 20}, {1, 7}}},
+            // target
+            {
+                {1, 1, 1},
+                {2, 16, 6},
+                {4, 16, 2}
+            }
+        }
 };
 
-const std::vector<std::vector<size_t>> inputShapes_4D = {
-        {1, 16, 5, 8},
-        {2, 19, 5, 10},
-        {7, 32, 2, 8},
-        {5, 8, 3, 5},
-        {1, 2, 7, 5},
-        {1, 4, 5, 5},
-        {1, 7, 3, 5},
-        {1, 15, 9, 5},
-        {4, 41, 6, 9}
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_4D = {
+        { {}, {{1, 16, 5, 8}}},
+        { {}, {{2, 19, 5, 10}}},
+        { {}, {{7, 32, 2, 8}}},
+        { {}, {{5, 8, 3, 5}}},
+        { {}, {{1, 2, 7, 5}}},
+        { {}, {{1, 4, 5, 5}}},
+        { {}, {{1, 7, 3, 5}}},
+        { {}, {{1, 15, 9, 5}}},
+        { {}, {{4, 41, 6, 9}}},
+        {
+            // dynamic
+            {{-1, -1, -1, -1}},
+            // target
+            {
+                {2, 16, 10, 6},
+                {4, 16, 2, 2},
+                {1, 16, 8, 4}
+            }
+        },
+        {
+            // dynamic
+            {{{1, 5}, {1, 20}, {1, 10}, {1, 7}}},
+            // target
+            {
+                {1, 1, 1, 1},
+                {2, 16, 10, 6},
+                {4, 16, 2, 2}
+            }
+        }
 };
 
-const std::vector<std::vector<size_t>> inputShapes_5D = {
-        {1, 32, 8, 1, 6},
-        {1, 9, 1, 15, 9},
-        {6, 64, 6, 1, 18},
-        {2, 31, 2, 9, 1},
-        {10, 16, 5, 10, 6}
+const std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<ngraph::Shape>>> inputShapes_5D = {
+        { {}, {{1, 32, 8, 1, 6}}},
+        { {}, {{1, 9, 1, 15, 9}}},
+        { {}, {{6, 64, 6, 1, 18}}},
+        { {}, {{2, 31, 2, 9, 1}}},
+        { {}, {{10, 16, 5, 10, 6}}},
+        {
+            // dynamic
+            {{-1, -1, -1, -1, -1}},
+            // target
+            {
+                {2, 16, 5, 10, 6},
+                {4, 16, 7, 2, 2},
+                {1, 16, 11, 8, 4}
+            }
+        },
+        {
+            // dynamic
+            {{{1, 5}, {1, 20}, {1, 7}, {1, 10}, {1, 7}}},
+            // target
+            {
+                {1, 1, 1, 1, 1},
+                {2, 16, 5, 10, 6},
+                {4, 16, 7, 2, 2}
+            }
+        }
 };
 
 const std::vector<bool> acrossChannels = {
@@ -162,6 +298,7 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingFakeQuantizePerTensorRelu,
         /* another patterns */
         fusingScaleShift,
+        fusingAddPerTensor
 };
 
 const auto Mvn3D = ::testing::Combine(
@@ -171,8 +308,7 @@ const auto Mvn3D = ::testing::Combine(
             ::testing::ValuesIn(emptyReductionAxes),
             ::testing::ValuesIn(acrossChannels),
             ::testing::ValuesIn(normalizeVariance),
-            ::testing::ValuesIn(epsilon),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::ValuesIn(epsilon)),
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(inpPrc),
@@ -187,8 +323,7 @@ const auto Mvn4D = ::testing::Combine(
                 ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::ValuesIn(acrossChannels),
                 ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::ValuesIn(epsilon)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(inpPrc),
@@ -203,8 +338,7 @@ const auto Mvn5D = ::testing::Combine(
                 ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::ValuesIn(acrossChannels),
                 ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::ValuesIn(epsilon)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(inpPrc),
@@ -228,8 +362,7 @@ const auto Mvn1D = ::testing::Combine(
                 ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::ValuesIn(acrossChannels),
                 ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::ValuesIn(epsilon)),
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingUnaryEltwiseParamsSet),
         ::testing::ValuesIn(inpPrc),
@@ -245,8 +378,7 @@ const auto Mvn2D = ::testing::Combine(
                 ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::Values(false),
                 ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::ValuesIn(epsilon)),
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(inpPrc),
@@ -262,8 +394,7 @@ const auto Mvn2DTrans = ::testing::Combine(
                 ::testing::ValuesIn(emptyReductionAxes),
                 ::testing::Values(true),
                 ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::ValuesIn(epsilon)),
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingUnaryEltwiseParamsSet),
         ::testing::ValuesIn(inpPrc),

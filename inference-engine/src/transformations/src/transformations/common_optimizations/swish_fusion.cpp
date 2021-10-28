@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
 bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant) {
     // check that the constant for beta contains only one distinct element
     if (!constant) {
@@ -27,6 +29,8 @@ bool check_beta_value(const std::shared_ptr<ngraph::opset4::Constant>& constant)
     }
     return true;
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SwishFusion, "SwishFusion", 0);
 

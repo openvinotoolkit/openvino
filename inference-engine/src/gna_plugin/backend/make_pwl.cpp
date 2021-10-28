@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "runtime/pwl.h"
+#include "make_pwl.hpp"
 #include "gna_slope_scale.h"
 #include "dnn_types.h"
 #include "backend/gna_types.h"

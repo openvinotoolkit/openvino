@@ -16,6 +16,8 @@
 
 namespace vpu {
 
+namespace {
+
 void get_normalized_shape(ngraph::Output<ngraph::Node>& shape, size_t actual_rank_value, size_t max_rank_value, bool transpose,
                           const ngraph::element::Type& elementType) {
     if (const size_t rank_diff = max_rank_value - actual_rank_value) {
@@ -32,6 +34,8 @@ void get_normalized_shape(ngraph::Output<ngraph::Node>& shape, size_t actual_ran
         shape = std::make_shared<ngraph::opset3::Gather>(shape, indices, axis);
     }
 }
+
+} // namespace
 
 void dynamicToStaticShapeMatMul(std::shared_ptr<ngraph::Node> target) {
     const auto matmul = ngraph::as_type_ptr<ngraph::opset3::MatMul>(target);

@@ -29,24 +29,17 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=
 # 'paddlepaddle' installed to check code style
 if (paddlepaddle_FOUND)
     set(TEST_PADDLE_MODELS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TEST_PADDLE_MODELS_DIRNAME}/)
-    set(GEN_WRAPPER ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py)
-    file(GLOB_RECURSE PADDLE_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
 
-    foreach(GEN_SCRIPT ${PADDLE_GEN_SCRIPTS})
-        get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
-        set(OUT_DONE_FILE ${TEST_PADDLE_MODELS}/${FILE_WE}_done.txt)
-        list(APPEND OUT_FILES ${OUT_DONE_FILE})
-        add_custom_command(OUTPUT ${OUT_DONE_FILE}
-                COMMAND ${PYTHON_EXECUTABLE}
-                    ${GEN_WRAPPER}
-                    ${GEN_SCRIPT}
-                    ${TEST_PADDLE_MODELS}
-                    ${OUT_DONE_FILE}
-                DEPENDS ${GEN_WRAPPER} ${GEN_SCRIPT}
-                JOB_POOL four_jobs
-                COMMENT "Running ${FILE_WE}.py to generate PDPD model")
-    endforeach()
-    add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILES})
+    file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
+    set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done.txt)
+    add_custom_command(OUTPUT ${OUT_FILE}
+            COMMAND ${PYTHON_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_wrapper.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts
+            ${TEST_PADDLE_MODELS}
+            DEPENDS ${PADDLE_ALL_SCRIPTS}
+            )
+    add_custom_target(paddlepaddle_test_models DEPENDS ${OUT_FILE})
 
     install(DIRECTORY ${TEST_PADDLE_MODELS}
             DESTINATION tests/${TEST_PADDLE_MODELS_DIRNAME}
