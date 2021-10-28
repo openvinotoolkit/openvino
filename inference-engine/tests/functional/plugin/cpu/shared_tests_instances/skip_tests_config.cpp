@@ -151,6 +151,9 @@ std::vector<std::string> disabledTestPatterns() {
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // Issue: 71121
         R"(.*smoke_Proposal*.*TS=\(2.*)",
+        // TODO [DS]: make dedicated ticket
+        R"(.*ConvolutionLayerCPUTest.*IS=\{.*\}.*_Fused=.*Add\(Parameters\).*)",
+        R"(.*GroupConvolutionLayerCPUTest.*IS=\{.*\}.*_Fused=.*Add\(Parameters\).*)"
     };
 
 #define FIX_62820 0

@@ -170,10 +170,6 @@ protected:
                                                                 padEnd, dilation, padType, convOutChannels);
 
         function = makeNgraphFunction(ngPrc, inputParams, convolutionNode, "Convolution");
-        if (!inputDynamicShapes.empty() && inputDynamicShapes.size() != inputParams.size()) {
-            inputDynamicShapes.push_back(inputDynamicShapes.back());
-            targetStaticShapes.push_back(targetStaticShapes.back());
-        }
     }
 };
 
@@ -202,20 +198,20 @@ namespace {
 
 /* COMMON PARAMS */
 const std::vector<fusingSpecificParams> fusingParamsSet{
-//        emptyFusingSpec,
+        emptyFusingSpec,
         // eltwise
-//        fusingRelu,
-//        fusingPRelu1D, //TODO [DS]:
+        fusingRelu,
+        fusingPRelu1D,
         // depthwise
-//        fusingReluScaleShift, //TODO [DS]:
+        fusingReluScaleShift,
         // fake quantize
-//        fusingFakeQuantizePerTensorRelu, // TODO [DS]:
-//        fusingFakeQuantizePerChannelRelu, // TODO [DS]:
+        fusingFakeQuantizePerTensorRelu,
+        fusingFakeQuantizePerChannelRelu,
         // sum
-//        fusingSumEluFQ, // TODO [DS]:
+        fusingSumEluFQ,
         fusingSum,
         // bias
-//        fusingAddPerChannel
+        fusingAddPerChannel
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSetBF16{
@@ -223,9 +219,9 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         // eltwise
         fusingRelu,
         // depthwise
-//        fusingReluScaleShift, // TODO [DS]:
+        fusingReluScaleShift,
         // sum
-//        fusingSum, // TODO [DS]:
+        fusingSum,
         // bias
         fusingAddPerChannel
 };
@@ -418,7 +414,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_I8, ConvolutionLayerCPUTest,
                                          ::testing::ValuesIn(inShapesGemm2D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
-                                 ::testing::Values(emptyFusingSpec), // TODO [DS]: fusingSum
+                                 ::testing::Values(fusingSum),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
@@ -495,7 +491,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_I8, ConvolutionLayerCPUTest,
                                          ::testing::ValuesIn(inShapesGemm3D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
-                                 ::testing::Values(emptyFusingSpec), // TODO [DS] : fusingSum
+                                 ::testing::Values(fusingSum),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
@@ -563,7 +559,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_I8, ConvolutionLayerCPUTest,
                                          ::testing::ValuesIn(inputShapes2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
-                                 ::testing::Values(emptyFusingSpec), // TODO [DS] fusingSum
+                                 ::testing::Values(fusingSum),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
@@ -668,7 +664,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_I8, ConvolutionLayerCPUTest,
                                          ::testing::ValuesIn(inputShapes3d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_3D)),
-                                 ::testing::Values(emptyFusingSpec), // TODO [DS] fusingSum
+                                 ::testing::Values(fusingSum),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
@@ -774,7 +770,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_I8, ConvolutionLayerCPUTest,
                                          ::testing::ValuesIn(inputShapes2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1x1_2D)),
-                                 ::testing::Values(emptyFusingSpec), // TODO [DS] : fusingSum
+                                 ::testing::Values(fusingSum),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
