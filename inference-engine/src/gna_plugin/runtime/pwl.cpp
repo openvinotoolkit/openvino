@@ -30,12 +30,12 @@
 #include "round_float_define.hpp"
 
 double first_deriv_tanh(const double x) { return(1.0 - tanh(x) * tanh(x)); }
-double first_deriv_exp(const double x) { return(exp(x)); }
-double first_deriv_log(const double x) { return(1.0 / x); }
-double neglog(const double x) { return(-1.0*log(x)); }
-double neghalflog(const double x) { return(-0.5*log(x)); }
-double first_deriv_neglog(const double x) { return(-1.0 / x); }
-double first_deriv_neghalflog(const double x) { return(-0.5 / x); }
+inline double first_deriv_exp(const double x) { return(exp(x)); }
+inline double first_deriv_log(const double x) { return(1.0 / x); }
+inline double neglog(const double x) { return(-1.0*log(x)); }
+inline double neghalflog(const double x) { return(-0.5*log(x)); }
+inline double first_deriv_neglog(const double x) { return(-1.0 / x); }
+inline double first_deriv_neghalflog(const double x) { return(-0.5 / x); }
 double sigmoid(const double x) { return(0.5 * (1.0 + tanh(x / 2))); }
 double first_deriv_sigmoid(const double x) { return(sigmoid(x) * (1.0 - sigmoid(x))); }
 double softsign(const double x) { return(x / (1.0 + fabs(x))); }
@@ -44,12 +44,12 @@ double relu(const double x) { if (x < 0) { return(0.0); } else { return(x); } }
 double leaky_relu(const double x) { if (x < 0.0) { return(LEAKYRELU_SLOPE*x); } else { return(x); } }
 double clipping(const double x, const double lbound, const double ubound) { return((x < lbound)?lbound:((x > ubound)?ubound:x)); }
 
-double first_deriv_power(const double x, const std::tuple<double, double, double>& args) {
+inline double first_deriv_power(const double x, const std::tuple<double, double, double>& args) {
     //scale * exponent * (offset + scale * x)^(exponent - 1)
     return (std::get<1>(args) * std::get<0>(args) * pow(std::get<2>(args) + std::get<1>(args) * x, std::get<0>(args) - 1));
 }
 
-double power(const double x, const std::tuple<double, double, double>& args) {
+inline double power(const double x, const std::tuple<double, double, double>& args) {
     return (pow(std::get<2>(args) + std::get<1>(args) * x, std::get<0>(args)));
 }
 
@@ -272,7 +272,7 @@ double calculate_error_pct(const DnnActivation& activation_type,
     return(100.0 * fabs(offset) / (max_val - min_val));
 }
 
-double get_break_bound(const DnnActivation& activation_type) {
+inline double get_break_bound(const DnnActivation& activation_type) {
     double break_bound = 0.0;
     switch (activation_type) {
     case kActExp:
@@ -287,7 +287,7 @@ double get_break_bound(const DnnActivation& activation_type) {
     return break_bound;
 }
 
-bool split_search(const DnnActivation& activation_type,
+inline bool split_search(const DnnActivation& activation_type,
                     const double l_bound,
                     const double u_bound) {
     bool is_split = false;

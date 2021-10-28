@@ -82,21 +82,17 @@ void ov::op::util::GatherNDBase::validate_inputs_and_infer_shape() {
         int64_t output_indices_length = indices_pshape.rank().get_length() - m_batch_dims - 1;
         auto output_rank = output_indices_length + slice_length;
         size_t delta_output_rank = 0;
-        if (m_batch_dims > 0) {
-            delta_output_rank = m_batch_dims;
-        }
+        delta_output_rank = m_batch_dims;
         std::vector<Dimension> output_shape(output_rank + delta_output_rank);
-        if (m_batch_dims > 0) {
-            for (size_t dim = 0; dim < m_batch_dims; dim++) {
-                output_shape[dim] = 1;
-                if (data_pshape[dim].is_static()) {
-                    output_shape[dim] = data_pshape[dim].get_length();
-                } else if (indices_pshape[dim].is_static()) {
-                    output_shape[dim] = indices_pshape[dim].get_length();
-                } else {
-                    output_shape[dim] = Dimension::dynamic();
-                    break;
-                }
+        for (size_t dim = 0; dim < m_batch_dims; dim++) {
+            output_shape[dim] = 1;
+            if (data_pshape[dim].is_static()) {
+                output_shape[dim] = data_pshape[dim].get_length();
+            } else if (indices_pshape[dim].is_static()) {
+                output_shape[dim] = indices_pshape[dim].get_length();
+            } else {
+                output_shape[dim] = Dimension::dynamic();
+                break;
             }
         }
         for (int64_t dim = 0; dim < output_indices_length; dim++) {

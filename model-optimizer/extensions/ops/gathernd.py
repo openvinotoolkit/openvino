@@ -76,7 +76,6 @@ class GatherND(Op):
                 elif is_fully_defined(data_shape[:batch_dims]):
                     batch = data_shape[:batch_dims].tolist()
                 else:
-                    batch = []
                     for ind in range(batch_dims):
                         if indices_shape[ind] != dynamic_dimension_value:
                             batch.append(indices_shape[ind])
@@ -87,16 +86,16 @@ class GatherND(Op):
 
         slice_shape = list(data_shape[(batch_dims + indices_shape[-1]):])
 
-        batch_dims_size = 1
-
-        for i in range(batch_dims):
-            batch_dims_size *= indices_shape[i]
-
         output_shape = batch + list(indices_shape)[batch_dims:-1] + slice_shape
         node.out_port(0).data.set_shape(output_shape)
 
-        # compute output value if all input values are defined
-        if is_fully_defined(indices_value) and is_fully_defined(data_value):
+        # compute output value if all input indices are defined
+        if is_fully_defined(indices_value) and data_value is not None:
+            batch_dims_size = 1
+
+            for i in range(batch_dims):
+                batch_dims_size *= indices_shape[i]
+
             output_data = []
 
             reshaped_indices = indices_value.reshape(batch_dims_size, -1, indices_shape[-1])

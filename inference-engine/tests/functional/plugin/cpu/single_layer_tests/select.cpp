@@ -23,7 +23,9 @@ public:
         std::tie(shapes, broadcast) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+        if (!shapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+        }
         result << "TS=";
         for (const auto& shape : shapes.second) {
             result << "(";
@@ -141,7 +143,7 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
 
 const auto numpyCases = ::testing::Combine(
     ::testing::ValuesIn(inShapesDynamicNumpy),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NUMPY)
+    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNumpy_dynamic, SelectLayerCPUTest, numpyCases, SelectLayerCPUTest::getTestCaseName);
@@ -166,7 +168,7 @@ std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector
 
 const auto noneCases = ::testing::Combine(
     ::testing::ValuesIn(inShapesDynamicNone),
-    ::testing::Values(ngraph::op::AutoBroadcastSpec::NONE)
+    ::testing::Values(ngraph::op::AutoBroadcastType::NONE)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_dynamic, SelectLayerCPUTest, noneCases, SelectLayerCPUTest::getTestCaseName);

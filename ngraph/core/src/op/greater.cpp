@@ -12,6 +12,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace greaterop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -46,6 +47,7 @@ bool evaluate_greater(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace greaterop
 
 //-------------------------------------- v1 ------------------------------------
