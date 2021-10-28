@@ -3,12 +3,8 @@
 //
 
 #include "ngraph/op/divide.hpp"
-#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/op/and.hpp"
-#include "ngraph/op/equal.hpp"
-#include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
 
@@ -52,56 +48,6 @@ bool evaluate_divide(const HostTensorPtr& arg0,
         break;
     }
     return rc;
-}
-
-bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper) {
-    NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
-    const auto& input1 = node->input_value(0);
-    const auto& input2 = node->input_value(1);
-    const auto& value1 = is_upper ? input1.get_tensor().get_upper_value() : input1.get_tensor().get_lower_value();
-    auto& value2 = is_upper ? input2.get_tensor().get_lower_value() : input2.get_tensor().get_upper_value();
-    if (is_upper) {
-        // constants for dynamic values translation
-        auto input_maximum_value1 = get_constant_max_of_type(input1.get_element_type());
-        auto input_minimum_value2 = get_constant_min_of_type(input2.get_element_type());
-        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
-        if (input_maximum_value1 == nullptr || input_minimum_value2 == nullptr || output_maximum_value == nullptr)
-            return false;
-        auto input2_zeros_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
-        bool status =
-            op::v1::Equal().evaluate({input2_zeros_mask}, {value2, std::make_shared<HostTensor>(0)});
-
-        status = op::v1::Select().evaluate(output_values, {input2_zeros_mask, std::make_shared<HostTensor>(1), value2});
-
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        bool status = node->evaluate(output_values, {value1, output_values[0]});
-        OPENVINO_SUPPRESS_DEPRECATED_END
-        if (!status)
-            return status;
-        
-        // dynamic values translation
-        auto input2_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
-        auto input1_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input1.get_shape());
-        auto input_dynamic_mask = std::make_shared<HostTensor>(element::boolean, input1.get_shape());
-        status =
-            op::v1::Equal().evaluate({input1_dynamic_mask}, {value1, std::make_shared<HostTensor>(input_maximum_value1)});
-        if (!status)
-            return status;
-        status = op::v1::Equal().evaluate({input2_dynamic_mask},
-                                          {value2, std::make_shared<HostTensor>(input_minimum_value2)});
-
-        if (!status)
-            return status;
-        status = op::v1::LogicalAnd().evaluate({input_dynamic_mask}, {input1_dynamic_mask, input2_dynamic_mask});
-        if (!status) 
-            return status;
-        
-        status = op::v1::Select().evaluate(
-            output_values,
-            {input_dynamic_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
-        return status;
-    } else
-        return node->evaluate(output_values, {value1, value2});
 }
 }  // namespace divide
 
@@ -155,14 +101,5 @@ bool op::v1::Divide::has_evaluate() const {
     default:
         break;
     }
-    return false;
-}
-
-bool ov::op::v1::Divide::evaluate_lower(const HostTensorVector& outputs) const {
-
-    return false;
-}
-
-bool ov::op::v1::Divide::evaluate_upper(const HostTensorVector& outputs) const {
     return false;
 }
