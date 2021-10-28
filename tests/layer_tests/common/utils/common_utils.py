@@ -2,24 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import numpy as np
 import os
 import subprocess
 import sys
-
-import numpy as np
-
+from utils.openvino_resources import OpenVINOResources
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
-    # Get default mo args
-    mo = os.path.join(os.environ.get("MO_ROOT"), "mo.py")
+    mo_runner = OpenVINOResources().mo_runner
     if coverage:
-        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(os.environ.get("MO_ROOT")),
-                  '--omit=*_test.py', mo]
+        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(mo_runner.parent),
+                  '--omit=*_test.py', mo_runner]
     else:
-        params = [sys.executable, mo]
+        params = [sys.executable, mo_runner]
     for key, value in kwargs.items():
         if key == "batch":
             params.extend(("-b", str(value)))
