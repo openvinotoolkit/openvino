@@ -28,7 +28,7 @@ For example, to add the description of the `CustomReshape` layer, which is an ar
     
 2.  Generate a new parser:
 ```shell
-cd mo/front/caffe/proto
+cd <SITE_PACKAGES_WITH_INSTALLED_OPENVINO>/openvino/tools/mo/front/caffe/proto
 python3 generate_caffe_pb2.py --input_proto <PATH_TO_CUSTOM_CAFFE>/src/caffe/proto/caffe.proto
 ```
 where `PATH_TO_CUSTOM_CAFFE` is the path to the root directory of custom Caffe\*.
