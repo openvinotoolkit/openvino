@@ -14,15 +14,9 @@
 namespace ngraph {
 namespace op {
 
-#ifdef BUILD_AS_IE_SOURCES
-class NonMaxSuppressionIE;
-class NonMaxSuppressionIE2;
-class NonMaxSuppressionIE3;
-#else
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE);
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2);
 class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3);
-#endif
 
 }  // namespace op
 }  // namespace ngraph

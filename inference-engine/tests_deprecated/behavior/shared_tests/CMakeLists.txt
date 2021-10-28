@@ -8,7 +8,11 @@ file(GLOB_RECURSE SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
-add_dependencies(${TARGET_NAME} MultiDevicePlugin inference_engine_preproc)
+add_dependencies(${TARGET_NAME} inference_engine_preproc)
+
+if(ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests")
 

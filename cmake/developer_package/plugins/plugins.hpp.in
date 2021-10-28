@@ -1,0 +1,14 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+
+namespace {
+@IE_PLUGINS_DECLARATIONS@
+
+@IE_PLUGINS_MAP_DEFINITION@
+
+} // namespace

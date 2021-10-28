@@ -16,11 +16,7 @@
 namespace ngraph {
 namespace op {
 
-#ifdef BUILD_AS_IE_SOURCES
-class OneHotIE;
-#else
 class INFERENCE_ENGINE_API_CLASS(OneHotIE);
-#endif
 
 }  // namespace op
 }  // namespace ngraph

@@ -37,11 +37,10 @@ namespace InferenceEngine {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class InferencePlugin : protected details::SOPointer<IInferencePlugin> {
-    using details::SOPointer<IInferencePlugin>::SOPointer;
-    friend class ICore;
+struct InferencePlugin {
+    std::shared_ptr<void> _so;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> _ptr;
 
-public:
     void SetName(const std::string & deviceName) {
         PLUGIN_CALL_STATEMENT(_ptr->SetName(deviceName));
     }
@@ -139,9 +138,12 @@ namespace runtime {
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-struct InferencePlugin {
+class InferencePlugin {
     std::shared_ptr<void> _so;
     std::shared_ptr<ie::IInferencePlugin> _ptr;
+
+public:
+    InferencePlugin() = default;
 
     InferencePlugin(const std::shared_ptr<void>& so, const std::shared_ptr<ie::IInferencePlugin>& impl) :
         _so{so},

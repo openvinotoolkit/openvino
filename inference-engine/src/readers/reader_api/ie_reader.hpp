@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/runtime/common.hpp"
 #include <cpp/ie_cnn_network.h>
 #include <ie_iextension.h>
 #include <istream>
@@ -58,6 +57,6 @@ protected:
  * @brief Creates the default instance of the reader
  * @return Reader interface
  */
-OPENVINO_PLUGIN_API void CreateReader(std::shared_ptr<IReader>& reader);
+INFERENCE_PLUGIN_API(void) CreateReader(std::shared_ptr<IReader>& reader);
 
 }  // namespace InferenceEngine

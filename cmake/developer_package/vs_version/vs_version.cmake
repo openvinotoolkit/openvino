@@ -26,7 +26,7 @@ set(IE_VS_VER_COMMENTS_STR "https://docs.openvinotoolkit.org/")
 #                        [PRODUCTVERSION_QUAD <name>])
 #
 function(ie_add_vs_version_file)
-    if(NOT WIN32)
+    if(NOT WIN32 OR NOT BUILD_SHARED_LIBS)
         return()
     endif()
 

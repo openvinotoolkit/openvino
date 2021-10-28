@@ -15,11 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-#ifdef BUILD_AS_IE_SOURCES
-class ConvertOneHotToOneHotIEMatcher;
-#else
 class INFERENCE_ENGINE_API_CLASS(ConvertOneHotToOneHotIEMatcher);
-#endif
 
 }  // namespace pass
 }  // namespace ngraph
