@@ -54,12 +54,23 @@ void remove_redundant_reorders::run(program& p) {
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
+            std::function<bool(program_node&)> has_quantize_user;
+            has_quantize_user = [&has_quantize_user](program_node& node) -> bool {
+                auto& users = node.get_users();
+                if (users.size() != 1)
+                    return false;
+                if (users.front()->is_type<quantize>())
+                    return true;
+                if (users.front()->is_type<reorder>())
+                    return has_quantize_user(*users.front());
+                return false;
+            };
+
             // Avoid different data types between input and output
             auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
             auto i8_u8_input = input.get_output_layout().data_type == data_types::i8 ||
                                input.get_output_layout().data_type == data_types::u8;
-            auto quantize_user = node.get_users().front()->is_type<quantize>() &&
-                                 node.get_users().size() == 1;
+            auto quantize_user = has_quantize_user(node);
 
             if (!same_data_type && !(i8_u8_input && quantize_user))
                 continue;
