@@ -314,6 +314,9 @@ def test_set_config(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
+    exec_net.set_config({"DEVICE_MODE" : "GNA_HW"})
+    parameter = exec_net.get_config("DEVICE_MODE")
+    assert parameter == "GNA_HW"
     exec_net.set_config({"DEVICE_MODE" : "GNA_SW_EXACT"})
     parameter = exec_net.get_config("DEVICE_MODE")
     assert parameter == "GNA_SW_EXACT"
