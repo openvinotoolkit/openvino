@@ -476,7 +476,6 @@ int DispatcherServeEvent(eventId_t id, xLinkEventType_t type, streamId_t stream,
     ASSERT_XLINK(curr != NULL);
 
     xLinkEventPriv_t* event;
-    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
     for (event = curr->lQueue.q;
          event < curr->lQueue.q + MAX_EVENTS;
          event++)
@@ -489,11 +488,9 @@ int DispatcherServeEvent(eventId_t id, xLinkEventType_t type, streamId_t stream,
                   (int)event->packet.header.id,
                   TypeToStr((int)event->packet.header.type));
             event->isServed = EVENT_SERVED;
-            XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
             return 1;
         }
     }
-    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
     return 0;
 }
 
