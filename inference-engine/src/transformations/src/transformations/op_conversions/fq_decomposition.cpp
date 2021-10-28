@@ -15,6 +15,8 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeDecomposition, "FakeQuantizeDecomposition", 0);
 
+namespace {
+
 bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize> &fq) {
     auto il = fq->input_value(1);
     auto ih = fq->input_value(2);
@@ -30,6 +32,8 @@ bool isValidRangesInputs(const std::shared_ptr<ngraph::opset1::FakeQuantize> &fq
 
     return !std::any_of(comp_result.begin(), comp_result.end(), [](const bool value) { return value; });
 }
+
+} // namespace
 
 ngraph::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
     MATCHER_SCOPE(FakeQuantizeDecomposition);
