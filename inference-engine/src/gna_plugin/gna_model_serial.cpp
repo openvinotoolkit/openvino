@@ -69,7 +69,7 @@ union {
     uint8_t  c[2];
 } constexpr static  LECheck {1};
 
-bool is_little_endian() {
+inline bool is_little_endian() {
     return LECheck.c[0] == 1;
 }
 
@@ -195,7 +195,7 @@ getOffsetFromBase(field, #field)
 
 #if GNA_LIB_VER == 2
 
-bool IsEmptyTensor(const Gna2Tensor& t) {
+inline bool IsEmptyTensor(const Gna2Tensor& t) {
     return t.Type == Gna2DataTypeNone &&
         t.Data == nullptr &&
         t.Layout[0] == '\0' &&
@@ -203,7 +203,7 @@ bool IsEmptyTensor(const Gna2Tensor& t) {
         t.Shape.NumberOfDimensions == 0;
 }
 
-const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
+static const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
     {Gna2OperationTypeFullyConnectedAffine, {sizeof(Gna2BiasMode), sizeof(uint32_t)}},
     {Gna2OperationTypeConvolution, {
         sizeof(Gna2Shape),

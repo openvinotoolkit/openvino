@@ -19,6 +19,7 @@ using namespace ngraph;
 
 namespace ngraph {
 namespace frontend {
+namespace {
 
 inline size_t GetIRVersion(pugi::xml_node& root) {
     return XMLParseUtils::GetUIntAttr(root, "version", 0);
@@ -54,6 +55,8 @@ size_t GetIRVersion(std::istream& model) {
 
     return 0;
 }
+
+}  // namespace
 
 bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
     std::ifstream local_model_stream;
