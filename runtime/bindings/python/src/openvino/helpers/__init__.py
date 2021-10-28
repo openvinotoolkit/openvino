@@ -3,4 +3,4 @@
 
 # flake8: noqa
 
-from openvino.helpers.packing import pack_data
+from openvino.helpers.packing import pack_data, unpack_data

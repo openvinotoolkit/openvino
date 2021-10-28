@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from openvino.impl import Type
+from typing import Union
+from openvino.impl import Type, Shape
 
 def pack_data(array: np.ndarray, ov_type: Type) -> np.ndarray:
     assert ov_type in [Type.u1, Type.u4, Type.i4]
@@ -23,8 +24,33 @@ def pack_data(array: np.ndarray, ov_type: Type) -> np.ndarray:
     padded = np.concatenate((flattened, np.zeros([pad], dtype=minimum_regular_dtype)))
     assert padded.size % num_values_fitting_into_uint8 == 0
 
-    bit_order_little = (padded[:, None] & (1 << np.arange(num_bits)) > 0).astype(np.uint8)
+    bit_order_little = (padded[:, None] & (1 << np.arange(num_bits)) > 0).astype(minimum_regular_dtype)
     bit_order_big = np.flip(bit_order_little, axis=1)
     bit_order_big_flattened = bit_order_big.flatten()
 
     return np.packbits(bit_order_big_flattened)
+
+
+def unpack_data(array: np.ndarray, ov_type: Type, shape: Union[list, Shape]) -> np.ndarray:
+    unpacked = np.unpackbits(array.view(np.uint8))
+    shape = list(shape)
+    if ov_type.bitwidth == 1:
+        return np.resize(unpacked, shape)
+    else:
+        unpacked = unpacked.reshape(-1, ov_type.bitwidth)
+        padding_shape = (unpacked.shape[0], 8 - ov_type.bitwidth)
+        padding = np.ndarray(padding_shape, np.uint8)
+        if ov_type == Type.i4:
+            for axis, bits in enumerate(unpacked):
+                if bits[0] == 1:
+                    padding[axis] = np.ones((padding_shape[1],), np.uint8)
+                else:
+                    padding[axis] = np.zeros((padding_shape[1],), np.uint8)
+        else:
+            padding = np.zeros(padding_shape, np.uint8)
+        padded = np.concatenate((padding, unpacked), 1)
+        packed = np.packbits(padded, 1)
+        if ov_type == Type.i4:
+            return np.resize(packed, shape).astype(dtype=np.int8)
+        else:
+            return np.resize(packed, shape)

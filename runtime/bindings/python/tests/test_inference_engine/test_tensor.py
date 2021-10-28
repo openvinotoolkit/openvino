@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import math
 from openvino import Tensor
+from openvino.helpers import pack_data, unpack_data
 import openvino as ov
 
 
@@ -170,3 +171,21 @@ def test_cannot_set_shape_incorrect_dims():
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = [3, 28, 28]
     assert "Dims and format are inconsistent" in str(e.value)
+
+
+@pytest.mark.parametrize("shape", [
+    ([1, 3, 28, 28]),
+    ([1, 3, 27, 27]),
+])
+@pytest.mark.parametrize("low, high, ov_type, dtype", [
+    (0, 2, ov.impl.Type.u1, np.uint8),
+    (0, 16, ov.impl.Type.u4, np.uint8),
+    (-8, 7, ov.impl.Type.i4, np.int8),
+])
+def test_packing(shape, low, high, ov_type, dtype):
+    ov_tensor = Tensor(ov_type, shape)
+    data = np.random.uniform(low, high, shape).astype(dtype)
+    packed_data = pack_data(data, ov_tensor.element_type)
+    ov_tensor.data[:] = packed_data
+    unpacked = unpack_data(ov_tensor.data, ov_tensor.element_type, ov_tensor.shape)
+    assert np.array_equal(unpacked, data)
