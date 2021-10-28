@@ -90,7 +90,7 @@ class GatherND(Op):
         node.out_port(0).data.set_shape(output_shape)
 
         # compute output value if all input indices are defined
-        if is_fully_defined(indices_value):
+        if is_fully_defined(indices_value) and data_value is not None:
             batch_dims_size = 1
 
             for i in range(batch_dims):
