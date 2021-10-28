@@ -21,7 +21,7 @@ namespace preprocess {
 inline size_t get_and_check_width_idx(const Layout& layout, const PartialShape& shape) {
     OPENVINO_ASSERT(ov::layout::has_width(layout), "Layout ", layout.to_string(), " doesn't have `width` dimension");
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape width index for shape with dynamic rank");
-    auto idx = ov::layout::width(layout);
+    auto idx = ov::layout::width_idx(layout);
     if (idx < 0) {
         idx = shape.rank().get_length() + idx;
     }
@@ -34,7 +34,7 @@ inline size_t get_and_check_width_idx(const Layout& layout, const PartialShape& 
 inline size_t get_and_check_height_idx(const Layout& layout, const PartialShape& shape) {
     OPENVINO_ASSERT(ov::layout::has_height(layout), "Layout ", layout.to_string(), " doesn't have `height` dimension");
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape height index for shape with dynamic rank");
-    auto idx = ov::layout::height(layout);
+    auto idx = ov::layout::height_idx(layout);
     if (idx < 0) {
         idx = shape.rank().get_length() + idx;
     }
@@ -50,7 +50,7 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
                     layout.to_string(),
                     " doesn't have `channels` dimension");
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape channels index for shape with dynamic rank");
-    auto idx = ov::layout::channels(layout);
+    auto idx = ov::layout::channels_idx(layout);
     if (idx < 0) {
         idx = shape.rank().get_length() + idx;
     }
@@ -58,47 +58,6 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
                     "Channels dimension is out of bounds ",
                     std::to_string(idx));
     return idx;
-}
-
-inline void inherit_friendly_names(const std::shared_ptr<ov::Function>& function,
-                                   const Output<ov::Node>& src_node,
-                                   const Output<ov::Node>& dst_node,
-                                   const std::string& suffix,
-                                   bool search_for_available_name = true) {
-    dst_node.get_node_shared_ptr()->set_friendly_name(src_node.get_node_shared_ptr()->get_friendly_name() + suffix);
-    std::unordered_set<std::string> new_names;
-    for (const auto& tensor_name : src_node.get_tensor().get_names()) {
-        auto new_tensor_name = tensor_name + suffix;
-        if (!suffix.empty()) {
-            // Verify that new names are unique for a function
-            if (!is_tensor_name_available(new_tensor_name, function) && search_for_available_name) {
-                // Search for available name
-                size_t idx = 0;
-                do {
-                    new_tensor_name = tensor_name + suffix + std::to_string(idx++);
-                } while (!is_tensor_name_available(new_tensor_name, function));
-            }
-        }
-        new_names.emplace(new_tensor_name);
-    }
-    dst_node.get_tensor().set_names(new_names);
-}
-
-// TODO: add uniqueness check like for preprocessing (or remove from pre-processing)
-inline void inherit_friendly_names_postprocess(const Output<ov::Node>& inserted_output,
-                                               const Output<ov::Node>& previous_output) {
-    inserted_output.get_node_shared_ptr()->set_friendly_name(
-        previous_output.get_node_shared_ptr()->get_friendly_name());
-    std::unordered_set<std::string> new_names;  // New name for previous node
-    for (const auto& tensor_name : previous_output.get_tensor().get_names()) {
-        auto new_tensor_name = tensor_name;
-        new_names.emplace(new_tensor_name);
-    }
-    previous_output.get_tensor().set_names(new_names);
-
-    // reset names for original node
-    previous_output.get_node_shared_ptr()->set_friendly_name({});
-    previous_output.get_tensor().set_names({});
 }
 
 /// \brief Context passed to each pre/post-processing operation.
@@ -195,7 +154,9 @@ public:
     void add_convert_impl(const element::Type& type);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
     void add_convert_layout_impl(const Layout& layout);
+    void add_convert_layout_impl(const std::vector<uint64_t>& dims);
     void add_convert_color_impl(const ColorFormat& dst_format);
+    void add_reverse_channels();
 
     const std::list<InternalPreprocessOp>& actions() const {
         return m_actions;
@@ -204,8 +165,35 @@ public:
         return m_actions;
     }
 
+    PartialShape calculate_param_shape(const PartialShape& network_shape) const {
+        if (network_shape.rank().is_dynamic()) {
+            return network_shape;
+        }
+
+        std::vector<Dimension> old_dims(network_shape.rank().get_length());
+        std::vector<Dimension> dims(network_shape.rank().get_length());
+        for (size_t i = 0; i < network_shape.rank().get_length(); i++) {
+            dims[i] = network_shape[i];
+        }
+        for (const auto& convert : m_layout_converts) {
+            old_dims = dims;
+            dims = std::vector<Dimension>(network_shape.rank().get_length());
+            for (size_t i = 0; i < convert.size(); i++) {
+                OPENVINO_ASSERT(convert[i] < dims.size(), "Convert dimension ", convert[i], " is out of bounds.");
+                dims[convert[i]] = old_dims[i];
+            }
+        }
+        return {dims};
+    }
+
+private:
+    static std::tuple<std::vector<Output<Node>>, bool> reverse_channels(const std::vector<Output<Node>>& nodes,
+                                                                        const std::shared_ptr<Function>& function,
+                                                                        PreprocessingContext& context);
+
 private:
     std::list<InternalPreprocessOp> m_actions;
+    std::list<std::vector<uint64_t>> m_layout_converts;
 };
 
 class PreProcessSteps::PreProcessStepsImpl : public PreStepsList {};
@@ -224,6 +212,7 @@ class PostStepsList {
 public:
     void add_convert_impl(const element::Type& type);
     void add_convert_layout_impl(const Layout& layout);
+    void add_convert_layout_impl(const std::vector<uint64_t>& dims);
 
     const std::list<InternalPostprocessOp>& actions() const {
         return m_actions;

@@ -31,7 +31,7 @@ using gpu_handle_param = void*;
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
  * which can be shared with user-supplied OpenCL buffer.
- * The plugin object derived from this class can be obtained with create_tensor() call.
+ * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
  * @note User can obtain OpenCL buffer handle from this class.
  */
 class ClBufferTensor : public RemoteTensor {
@@ -75,7 +75,7 @@ public:
 /**
  * @brief This class represents an abstraction for GPU plugin remote tensor
  * which can be shared with user-supplied OpenCL 2D Image.
- * The plugin object derived from this class can be obtained with create_tensor() call.
+ * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
  * @note User can obtain OpenCL image handle from this class.
  */
 class ClImage2DTensor : public RemoteTensor {
@@ -120,10 +120,11 @@ public:
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with OpenCL context object.
  * The plugin object derived from this class can be obtained either with
- * GetContext() method of Executable network or using CreateContext() Core call.
+ * ExecutableNetwork::get_context() or Core::create_context() calls.
  */
 class ClContext : public RemoteContext {
     using RemoteContext::create_tensor;
+    static constexpr const char* device_name = "GPU";
 
 public:
     /**
@@ -138,14 +139,30 @@ public:
 
     /**
      * @brief Constructs context object from user-supplied OpenCL context handle
-     * @param core A reference to Inference Engine Core object
-     * @param deviceName A name of device to create a remote context for
+     * @param core A reference to OpenVINO Runtime Core object
      * @param ctx A OpenCL context to be used to create shared remote context
      */
-    ClContext(Core& core, std::string deviceName, cl_context ctx) {
+    ClContext(Core& core, cl_context ctx) {
         ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
                                    {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)}};
-        *this = core.create_context(deviceName, context_params);
+        *this = core.create_context(device_name, context_params);
+    }
+
+    /**
+     * @brief Constructs context object from user-supplied OpenCL context handle
+     * @param core A reference to OpenVINO Runtime Core object
+     * @param queue An OpenCL queue to be used to create shared remote context. Queue will be reused inside the plugin.
+     * @note Only latency mode is supported for such context sharing case.
+     */
+    ClContext(Core& core, cl_command_queue queue) {
+        cl_context ctx;
+        auto res = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(cl_context), &ctx, nullptr);
+        if (res != CL_SUCCESS)
+            IE_THROW() << "Can't get context from given opencl queue";
+        ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
+                                   {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
+                                   {GPU_PARAM_KEY(OCL_QUEUE), static_cast<gpu_handle_param>(queue)}};
+        *this = core.create_context(device_name, context_params);
     }
 
     /**

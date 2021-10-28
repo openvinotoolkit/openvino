@@ -1,4 +1,3 @@
-
 // Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,6 +31,12 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    PartialShape calculate_output_shape(const std::vector<int64_t>& starts,
+                                        const std::vector<int64_t>& stops,
+                                        const std::vector<int64_t>& steps,
+                                        const std::vector<int64_t>& axes,
+                                        const PartialShape& data_shape) const;
 };
 }  // namespace v8
 }  // namespace op

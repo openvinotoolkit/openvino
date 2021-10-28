@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
+
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"

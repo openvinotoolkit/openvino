@@ -86,7 +86,14 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault
     dispatchData.gws = { input.X().v * input.Y().v,
                          input.Z().v * input.W().v,
                          input.Feature().v * input.Batch().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::Z, Tensor::DataChannelName::W },
+                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }

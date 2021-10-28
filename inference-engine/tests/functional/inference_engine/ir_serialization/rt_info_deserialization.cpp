@@ -160,6 +160,7 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
+        // TODO: No guarantee that exactly 'Convert' will be added
         auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f16);
 
         auto round = std::make_shared<opset8::Round>(convert_param,
@@ -204,6 +205,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
                 <port id="0" precision="I64" names="input_tensor">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test1,test2"/>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -250,6 +252,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
                 <port id="0" precision="I64">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test5,test6"/>
+                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -284,9 +287,11 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
     check_version(f, 10);
 
     auto param = f->get_parameters()[0];
+    EXPECT_EQ(param->get_layout(), "");
     check_rt_info(param->output(0).get_rt_info());
 
     auto result = f->get_results()[0];
+    EXPECT_EQ(result->get_layout(), "");
     check_rt_info(result->input(0).get_rt_info());
 
     auto add = result->get_input_node_ptr(0);
@@ -316,8 +321,8 @@ TEST_F(RTInfoDeserialization, InputAndOutputV10) {
         param->get_output_tensor(0).set_names({"input_tensor", param->get_friendly_name()});
 
         auto sum = std::make_shared<opset8::Add>(param, param);
-        sum->set_friendly_name("sum");
 
+        // TODO: No guarantee that exactly 'convert' will be added by post-processing
         auto convert_result = std::make_shared<opset8::Convert>(sum, ngraph::element::i32);
         convert_result->set_friendly_name("sum");
         convert_result->get_output_tensor(0).set_names({"output_tensor", convert_result->get_friendly_name()});
@@ -472,25 +477,29 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         param->set_friendly_name("in1");
         param->get_output_tensor(0).set_names({"input_tensor"});
 
-        auto convert_param = std::make_shared<opset8::Convert>(param, ngraph::element::f32);
-
-        auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::i64,
+        // TODO: No guarantee that Transpose will use exactly 'uint64_t' constant
+        auto constant_param = std::make_shared<opset8::Constant>(ngraph::element::u64,
                                                                  ngraph::Shape{4},
-                                                                 std::vector<int64_t>{0, 2, 3, 1});
-        auto transpose_param = std::make_shared<opset8::Transpose>(convert_param, constant_param);
+                                                                 std::vector<uint64_t>{0, 2, 3, 1});
+        auto transpose_param = std::make_shared<opset8::Transpose>(param, constant_param);
 
-        auto round = std::make_shared<opset8::Round>(transpose_param,
+        // TODO: No guarantee that only 'convert' will be added by implicit pre-processing
+        auto convert_param = std::make_shared<opset8::Convert>(transpose_param, ngraph::element::f32);
+
+        auto round = std::make_shared<opset8::Round>(convert_param,
             ngraph::opset8::Round::RoundMode::HALF_TO_EVEN);
         // TODO: runtime information should migrate as well?
         round->get_rt_info()[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
             std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("Round1,Round2"));
 
-        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::i64,
+        // TODO: No guarantee that exactly 'convert, then transpose' will be added by implicit post-processing
+        auto constant_result = std::make_shared<opset8::Constant>(ngraph::element::u64,
                                                                   ngraph::Shape{4},
-                                                                  std::vector<int64_t>{0, 3, 1, 2});
+                                                                  std::vector<uint64_t>{0, 3, 1, 2});
         auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
 
         auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
+
         convert_result->set_friendly_name("Round");
         convert_result->get_output_tensor(0).set_names({"output_tensor"});
 
@@ -508,7 +517,9 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
         check_version(f_10_core, 10);
 
+        ASSERT_GT(cnn_core.getInputsInfo().count("in1"), 0);
         EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getInputsInfo()["in1"]->getPrecision());
+        ASSERT_GT(cnn_core.getOutputsInfo().count("Round"), 0);
         EXPECT_EQ(InferenceEngine::Precision::FP32, cnn_core.getOutputsInfo()["Round"]->getPrecision());
 
         const auto fc = FunctionsComparator::with_default()
@@ -555,6 +566,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="0" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test1,test2"/>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -604,6 +616,7 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
                 <port id="0" precision="FP32">
                     <rt_info>
                         <attribute name="fused_names" version="0" value="test5,test6"/>
+                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
                     </rt_info>
                     <dim>1</dim>
                     <dim>3</dim>
@@ -653,10 +666,12 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
     check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
+    EXPECT_EQ(param->get_layout(), "NCHW");
 
     auto result = f->get_result();
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");
     check_old_api_map(result->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "?CHW");
 
     auto add = result->get_input_node_ptr(0);
     check_fused_names(add->input(0).get_rt_info(), "test2,test3");
