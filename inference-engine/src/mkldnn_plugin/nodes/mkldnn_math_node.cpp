@@ -16,10 +16,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (initializers.find(op->get_type_info()) == initializers.end()) {
             errorMessage = "Unsupported Math layer type.";
             return false;

@@ -11,24 +11,44 @@ using namespace ngraph::helpers;
 
 namespace CPULayerTestsDefinitions  {
 
-typedef std::tuple<
-        LayerTestsDefinitions::activationParams,
-        CPUSpecificParams>
-        ActivationLayerCPUTestParamSet;
+using inputShapesPair = std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>;
+
+using ActivationLayerCPUTestParamSet = std::tuple<
+        inputShapesPair,                                                 // Input shapes
+        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
+        InferenceEngine::Precision,                                      // Net precision
+        InferenceEngine::Precision,                                      // Input precision
+        InferenceEngine::Precision,                                      // Output precision
+        CPUSpecificParams>;
 
 class ActivationLayerCPUTest : public testing::WithParamInterface<ActivationLayerCPUTestParamSet>,
                             virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
     ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
-        LayerTestsDefinitions::activationParams basicParamsSet;
+        inputShapesPair inputShapes;
+        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
+        Precision netPrecision, inPrecision, outPrecision;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        std::tie(inputShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::ActivationLayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::activationParams>(
-                basicParamsSet, 0));
-
+        result << LayerTestsDefinitions::activationNames[activationTypeAndConstValue.first] << "_";
+        if (!inputShapes.first.empty()) {
+            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        }
+        result << "TS=";
+        for (const auto& shape : inputShapes.second) {
+            result << "(";
+            for (const auto & item : shape) {
+                result << CommonTestUtils::vec2str(item) << "_";
+            }
+            result << ")_";
+        }
+        result << "ConstantsValue=" << CommonTestUtils::vec2str(activationTypeAndConstValue.second) << "_";
+        result << "netPRC=" << netPrecision.name() << "_";
+        result << "inPRC=" << inPrecision.name() << "_";
+        result << "outPRC=" << outPrecision.name() << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
         return result.str();
@@ -53,22 +73,28 @@ public:
 
 protected:
     void SetUp() override {
-        LayerTestsDefinitions::activationParams basicParamsSet;
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+
+        inputShapesPair inputShapes;
+        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
+        Precision inPrecision, outPrecision;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
+        std::tie(inputShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        activationType = activationTypeAndConstValue.first;
+        auto constantsValue = activationTypeAndConstValue.second;
 
-        std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
-        std::pair<ActivationTypes, std::vector<float>> activationDecl;
-        std::tie(activationDecl, netPrecision, inPrc, outPrc, inLayout, outLayout, shapes, targetDevice) = basicParamsSet;
         selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
-        activationType = activationDecl.first;
-        auto constantsValue = activationDecl.second;
+        targetStaticShapes.reserve(inputShapes.second.size());
+        for (size_t i = 0; i < inputShapes.second.size(); i++) {
+            targetStaticShapes.push_back(inputShapes.second[i]);
+        }
+        inputDynamicShapes = inputShapes.first;
+
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
-        auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
+        auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front()[0], targetStaticShapes.front()[1]});
+        auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, targetStaticShapes.front()[1], constantsValue);
         activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
     }
@@ -108,24 +134,26 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic4D = {
-        {{2, 4, 4, 1}, {{}}},
-        {{2, 17, 5, 4}, {{}}},
+const std::vector<inputShapesPair> basic4D = {
+        {
+                {},
+                // Static shape
+                {
+                        {{2, 4, 4, 1}, {}},
+                        {{2, 17, 5, 4}, {}}
+                }
+        }
 };
 
 std::vector<Precision> netPrc = {Precision::BF16, Precision::FP32};
 
 const auto basicCases4D = ::testing::Combine(
-        ::testing::Combine(
+            ::testing::ValuesIn(basic4D),
             ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
             ::testing::ValuesIn(netPrc),
             ::testing::Values(Precision::FP32),
             ::testing::Values(Precision::FP32),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::ValuesIn(CommonTestUtils::combineParams(basic4D)),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))
+            ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
@@ -136,24 +164,106 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
 };
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic5D = {
-        {{2, 4, 3, 4, 1}, {{}}},
-        {{2, 17, 7, 5, 4}, {{}}},
+const std::vector<inputShapesPair> basic5D = {
+        {
+                {},
+                // Static shape
+                {
+                        {{2, 4, 3, 4, 1}, {}},
+                        {{2, 17, 7, 5, 4}, {}}
+                }
+        }
 };
 
 const auto basicCases5D = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
-                ::testing::ValuesIn(netPrc),
-                ::testing::Values(Precision::FP32),
-                ::testing::Values(Precision::FP32),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::ValuesIn(CommonTestUtils::combineParams(basic5D)),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(basic5D),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
+        ::testing::ValuesIn(netPrc),
+        ::testing::Values(Precision::FP32),
+        ::testing::Values(Precision::FP32),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D))
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);
+
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypesDynamicMath = {
+        {Log,         {{}}},
+        {Sign,        {{}}},
+        {Acos,        {{}}},
+        {Acosh,       {{}}},
+        {Asin,        {{}}},
+        {Asinh,       {{}}},
+        {Atan,        {{}}},
+        {Atanh,       {{}}},
+        {Cos,         {{}}},
+        {Cosh,        {{}}},
+        {Tan,         {{}}},
+        {HardSigmoid, {{0.2f, 0.5f}}},
+        {Selu,        {{1.6732f, 1.0507f}}},
+        {Ceiling,     {{}}}
+};
+
+const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16
+};
+
+std::vector<CPUSpecificParams> cpuParamsDynamicMath = {
+        CPUSpecificParams({}, {}, {}, {})
+};
+
+const std::vector<inputShapesPair> dynamicMathBasic = {
+        {
+                // dynamic
+                {
+                        {-1, -1},
+                        {}
+                },
+                // target
+                {
+                        {{1, 50}, {}},
+                        {{5, 128}, {}},
+                        {{3, 64}, {}}
+                }
+        },
+        {
+                // dynamic
+                {
+                        {-1, -1, -1, -1, -1, -1, -1, -1},
+                        {}
+                },
+                // target
+                {
+                        {{2, 2, 2, 2, 2, 2, 2, 2}, {}},
+                        {{2, 3, 2, 3, 2, 3, 2, 3}, {}},
+                        {{3, 3, 3, 3, 3, 3, 3, 3}, {}}
+                }
+        },
+        {
+                // dynamic
+                {
+                        {{1, 5}, 128},
+                        {}
+                },
+                // target
+                {
+                        {{1, 128}, {}},
+                        {{3, 128}, {}},
+                        {{5, 128}, {}}
+                }
+        }
+};
+
+const auto dynamicMathBasicCases = ::testing::Combine(
+        ::testing::ValuesIn(dynamicMathBasic),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesDynamicMath)),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(Precision::FP32),
+        ::testing::Values(Precision::FP32),
+        ::testing::ValuesIn(cpuParamsDynamicMath)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_dynamicMath_CPU, ActivationLayerCPUTest, dynamicMathBasicCases, ActivationLayerCPUTest::getTestCaseName);
+
 } // namespace
 } // namespace CPULayerTestsDefinitions
