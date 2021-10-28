@@ -18,7 +18,7 @@ def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
              as [01111000], which is bit representation of [120].
 
     @param array: numpy array with values to pack.
-    @param type: openvino.element.Type to interpret the array values. Type must be be u1, u4 or i4.
+    @param type: openvino.element.Type to interpret the array values. Type must be u1, u4 or i4.
     """
     assert type in [Type.u1, Type.u4, Type.i4], "Packing algorithm for the" \
                                                 "data types stored in 1, 2 or 4 bits"
@@ -58,7 +58,7 @@ def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.
              which is bit representation of [7, 8].
 
     @param array: numpy array to unpack.
-    @param type: openvino.element.Type to extract from array values. Type must be be u1, u4 or i4.
+    @param type: openvino.element.Type to extract from array values. Type must be u1, u4 or i4.
     @param shape: the new shape for the unpacked array.
     """
     assert type in [Type.u1, Type.u4, Type.i4], "Unpacking algorithm for the" \
