@@ -167,8 +167,7 @@ TEST(type_prop, pad_v1_deduce_too_small_for_edge) {
         FAIL() << "Incorrect input shape exception for EDGE mode not thrown";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("EDGE padding mode requires an input of dimension of at "
-                                         "least 1 at each spatial axis"));
+                             std::string("EDGE padding mode does not allow non-zero pad-begin for zero dimension"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -187,8 +186,7 @@ TEST(type_prop, pad_v1_deduce_too_small_for_reflect) {
         FAIL() << "Incorrect input shape exception for REFLECT mode not thrown";
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("REFLECT padding mode requires an input of dimension of "
-                                         "at least 2 at each spatial axis"));
+                             std::string("REFLECT padding mode requires pad-begin to be less than dimension"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
