@@ -3,11 +3,11 @@
 //
 
 #include "openvino/core/node_output.hpp"
-#include "openvino/core/node.hpp"
 
 #include <pybind11/stl.h>
 
 #include "dict_attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
 #include "pyopenvino/graph/node_output.hpp"
 
 namespace py = pybind11;

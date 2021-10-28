@@ -9,7 +9,6 @@
 
 #include "pyopenvino/graph/preprocess/pre_post_process.hpp"
 
-
 namespace py = pybind11;
 
 static void regclass_graph_PreProcessSteps(py::module m) {
@@ -116,8 +115,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "custom",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me,
-           py::function op) {
+        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, py::function op) {
             me->custom(op.cast<const ov::preprocess::PreProcessSteps::CustomPreprocessOp>());
             return me;
         },
