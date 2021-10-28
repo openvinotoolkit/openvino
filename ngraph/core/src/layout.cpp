@@ -280,6 +280,9 @@ std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank
     if (src_layout == dst) {
         return {};  // No permutation is needed
     }
+    if (src_layout.empty() || dst.empty()) {
+        return {};
+    }
     OPENVINO_ASSERT(!src_layout.m_dynamic && !dst.m_dynamic, "Conversion is not supported for dynamic layouts");
     OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_left_size,
                     "Conversion is not supported for layouts with different sizes");
@@ -332,6 +335,11 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }
 
-constexpr VariantTypeInfo VariantWrapper<ov::Layout>::type_info;
+bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
+    std::string layout_str = m_value.to_string();
+    visitor.on_attribute("layout", layout_str);
+    m_value = Layout(layout_str);
+    return true;
+}
 
 }  // namespace ov

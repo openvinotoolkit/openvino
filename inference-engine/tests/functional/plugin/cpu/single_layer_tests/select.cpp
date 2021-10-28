@@ -12,8 +12,8 @@
 //namespace CPULayerTestsDefinitions {
 //
 //using selectParams = std::tuple<
-//    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>, // input shapes
-//    ngraph::op::AutoBroadcastSpec>;                                                        // broadcast
+//        std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>, // input shapes
+//        ngraph::op::AutoBroadcastSpec>;                                                        // broadcast
 //
 //class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>, public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 //public:
@@ -23,7 +23,9 @@
 //        std::tie(shapes, broadcast) = obj.param;
 //
 //        std::ostringstream result;
-//        result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+//        if (!shapes.first.empty()) {
+//            result << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
+//        }
 //        result << "TS=";
 //        for (const auto& shape : shapes.second) {
 //            result << "(";
@@ -78,95 +80,95 @@
 //
 //std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamicNumpy = {
 //        {
-//            // dynamic
-//            {
-//                {-1, -1, -1, -1},
-//                {-1, -1, -1, -1, -1},
-//                {-1, -1, -1, -1}
-//            },
+//                // dynamic
+//                {
+//                        {-1, -1, -1, -1},
+//                        {-1, -1, -1, -1, -1},
+//                        {-1, -1, -1, -1}
+//                },
 //
-//            // target
-//            {
-//                {{5, 1, 2, 1}, {8, 1, 9, 1, 1}, {5, 1, 2, 1}},
-//                {{1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1}},
-//                {{5, 9, 8, 7}, {21, 5, 9, 8, 7}, {1, 1, 1, 1}},
-//            }
+//                // target
+//                {
+//                        {{5, 1, 2, 1}, {8, 1, 9, 1, 1}, {5, 1, 2, 1}},
+//                        {{1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1}},
+//                        {{5, 9, 8, 7}, {21, 5, 9, 8, 7}, {1, 1, 1, 1}},
+//                }
 //        },
 //        {
-//            // dynamic
-//            {
-//                {-1, -1},
-//                {-1, -1, -1, -1, -1},
-//                {-1, -1, -1}
-//            },
+//                // dynamic
+//                {
+//                        {-1, -1},
+//                        {-1, -1, -1, -1, -1},
+//                        {-1, -1, -1}
+//                },
 //
-//            // target
-//            {
-//                {{8, 1}, {2, 1, 1, 8, 1}, {9, 1, 1}},
-//                {{10, 5}, {7, 8, 3, 10, 5}, {3, 10, 5}},
-//                {{8, 7}, {1, 1, 1, 8, 1}, {1, 1, 7}},
-//            }
+//                // target
+//                {
+//                        {{8, 1}, {2, 1, 1, 8, 1}, {9, 1, 1}},
+//                        {{10, 5}, {7, 8, 3, 10, 5}, {3, 10, 5}},
+//                        {{8, 7}, {1, 1, 1, 8, 1}, {1, 1, 7}},
+//                }
 //        },
 //        {
-//            // dynamic
-//            {
-//                {{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}},
-//                {-1, -1, -1, -1, -1},
-//                {{1, 5}, {1, 11}, {5, 5}, {1, 8}}
-//            },
+//                // dynamic
+//                {
+//                        {{2, 8}, {3, 7}, {1, 10}, {1, 6}, {1, 10}},
+//                        {-1, -1, -1, -1, -1},
+//                        {{1, 5}, {1, 11}, {5, 5}, {1, 8}}
+//                },
 //
-//            // target
-//            {
-//                {{5, 4, 1, 1, 1}, {5, 1, 8, 1, 1}, {1, 1, 5, 1}},
-//                {{8, 5, 5, 5, 1}, {8, 1, 1, 1, 8}, {5, 5, 5, 8}},
-//                {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {3, 4, 5, 6}},
-//            }
+//                // target
+//                {
+//                        {{5, 4, 1, 1, 1}, {5, 1, 8, 1, 1}, {1, 1, 5, 1}},
+//                        {{8, 5, 5, 5, 1}, {8, 1, 1, 1, 8}, {5, 5, 5, 8}},
+//                        {{2, 3, 4, 5, 6}, {2, 3, 4, 5, 6}, {3, 4, 5, 6}},
+//                }
 //        },
 //        {
-//            // dynamic
-//            {
-//                {{1, 10}},
-//                {{1, 15}, {2, 7}, {1, 6}, {5, 12}, {1, 20}},
-//                {{2, 10}, {1, 16}}
-//            },
+//                // dynamic
+//                {
+//                        {{1, 10}},
+//                        {{1, 15}, {2, 7}, {1, 6}, {5, 12}, {1, 20}},
+//                        {{2, 10}, {1, 16}}
+//                },
 //
-//            // target
-//            {
-//                {{4}, {8, 5, 6, 6, 1}, {6, 4}},
-//                {{10}, {15, 7, 6, 10, 10}, {10, 10}},
-//                {{1}, {2, 5, 4, 5, 3}, {5, 1}},
-//            }
+//                // target
+//                {
+//                        {{4}, {8, 5, 6, 6, 1}, {6, 4}},
+//                        {{10}, {15, 7, 6, 10, 10}, {10, 10}},
+//                        {{1}, {2, 5, 4, 5, 3}, {5, 1}},
+//                }
 //        }
 //};
 //
 //const auto numpyCases = ::testing::Combine(
-//    ::testing::ValuesIn(inShapesDynamicNumpy),
-//    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
+//        ::testing::ValuesIn(inShapesDynamicNumpy),
+//        ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
 //);
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNumpy_dynamic, SelectLayerCPUTest, numpyCases, SelectLayerCPUTest::getTestCaseName);
 //
 //std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>> inShapesDynamicNone = {
 //        {
-//            // dynamic
-//            {
-//                {{1, 10}, -1, {10, 20}, {1, 5}},
-//                {-1, {16, 16}, -1, -1},
-//                {-1, -1, -1, -1}
-//            },
+//                // dynamic
+//                {
+//                        {{1, 10}, -1, {10, 20}, {1, 5}},
+//                        {-1, {16, 16}, -1, -1},
+//                        {-1, -1, -1, -1}
+//                },
 //
-//            // target
-//            {
-//                {{3, 16, 15, 5}, {3, 16, 15, 5}, {3, 16, 15, 5}},
-//                {{1, 16, 10, 1}, {1, 16, 10, 1}, {1, 16, 10, 1}},
-//                {{10, 16, 20, 5}, {10, 16, 20, 5}, {10, 16, 20, 5}}
-//            }
+//                // target
+//                {
+//                        {{3, 16, 15, 5}, {3, 16, 15, 5}, {3, 16, 15, 5}},
+//                        {{1, 16, 10, 1}, {1, 16, 10, 1}, {1, 16, 10, 1}},
+//                        {{10, 16, 20, 5}, {10, 16, 20, 5}, {10, 16, 20, 5}}
+//                }
 //        }
 //};
 //
 //const auto noneCases = ::testing::Combine(
-//    ::testing::ValuesIn(inShapesDynamicNone),
-//    ::testing::Values(ngraph::op::AutoBroadcastType::NONE)
+//        ::testing::ValuesIn(inShapesDynamicNone),
+//        ::testing::Values(ngraph::op::AutoBroadcastType::NONE)
 //);
 //
 //INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefsNone_dynamic, SelectLayerCPUTest, noneCases, SelectLayerCPUTest::getTestCaseName);
