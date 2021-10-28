@@ -7,5 +7,5 @@
 #include "log.hpp"
 
 namespace MultiDevicePlugin {
-uint32_t Log::defaultLogLevel = 0;
+uint32_t Log::defaultLogLevel = static_cast<uint32_t>(LogLevel::LOG_NONE);
 } // namespace MultiDevicePlugin

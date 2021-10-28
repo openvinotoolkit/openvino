@@ -27,7 +27,7 @@
 #define TraceCallStack() TraceCallStacks(" ")
 
 namespace MultiDevicePlugin {
-inline void setLogLevel(uint32_t logLevel) {
+inline void setLogLevel(LogLevel logLevel) {
     HLogger->setLogLevel(logLevel);
 }
 
