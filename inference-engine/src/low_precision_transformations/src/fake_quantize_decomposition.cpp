@@ -37,6 +37,7 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
 }
 
 namespace fq_decomposition {
+namespace {
 
 // get precision details, depends on:
 // 1. FakeQuantize operation parameters (QuantizationDetails::getDetails & LayerTransformation::getPrecisionDetails)
@@ -266,6 +267,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
     return std::make_tuple(dequantize, newFQ);
 }
 
+} // namespace
 } // namespace fq_decomposition
 
 bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {

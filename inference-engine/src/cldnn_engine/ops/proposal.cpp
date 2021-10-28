@@ -13,7 +13,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
+static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::Proposal>& op) {
     p.ValidateInputs(op, {3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
 
