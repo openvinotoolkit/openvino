@@ -12,6 +12,8 @@
 
 #include "itt.hpp"
 
+namespace {
+
 bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to_output,
                               std::shared_ptr<ngraph::Node> parameter_label,
                               std::shared_ptr<ngraph::Node> proposal_label) {
@@ -31,6 +33,8 @@ bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap& pattern_to
     proposal->input(2).replace_source_output(cropped_scales->output(0));
     return true;
 }
+
+}  // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Proposal1Scales, "Proposal1Scales", 0);
 
