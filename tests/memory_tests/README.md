@@ -6,7 +6,7 @@ usage exceeds a pre-defined level.
 
 ## Prerequisites
 
-To build the time tests, you need to have OpenVINO™ installed or build from source.
+To build memory tests, you need to have OpenVINO™ installed or build from source.
 
 ## Measure Time
 
@@ -21,7 +21,7 @@ cmake .. && make memory_tests
 
 2. Install tests:
 ``` bash
-make install tests --prefix <install_path>
+сmake install <build_dir> --prefix <install_path>
 ```
 
 3. Run test:
