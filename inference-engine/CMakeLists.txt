@@ -25,13 +25,11 @@ foreach(sample benchmark_app classification_sample_async hello_classification
     endif()
 endforeach()
 
-foreach(samples_library opencv_c_wrapper format_reader)
-    if(TARGET ${samples_library})
-        install(TARGETS ${samples_library}
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
-    endif()
-endforeach()
+if(TARGET format_reader)
+    install(TARGETS format_reader
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)
 

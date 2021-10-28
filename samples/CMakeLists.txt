@@ -13,6 +13,12 @@ foreach(sample hello_classification_c
     endif()
 endforeach()
 
+if(TARGET opencv_c_wrapper)
+    install(TARGETS opencv_c_wrapper
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
+
 # install C samples
 
 ie_cpack_add_component(c_samples DEPENDS core_c)
