@@ -67,15 +67,6 @@ class InstallCmd(install):
             copyfile(os.path.join(version_txt),
                      os.path.join(self.install_purelib, prefix, version_txt))
 
-        path = os.path.join(self.install_purelib, prefix, '__init__.py')
-        with open(path, 'wt') as init_file:
-            init_file.write('import os, sys\n')
-            init_file.write('from openvino.tools.mo import mo \n')
-            # This is required to fix internal imports
-            init_file.write('sys.path.append(os.path.dirname(__file__))\n')
-            # Redirect import to model-optimizer/mo/__init__.py
-            init_file.write('sys.modules["mo"] = mo')
-
 
 class BuildCmd(build_py):
     def find_package_modules(self, package, package_dir):
