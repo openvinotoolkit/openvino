@@ -441,6 +441,11 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
     size_t inputIdx = 0;
     for (auto&& input : inputs) {
         auto data = input.second->getInputData();
+        if (!config.inputScaleFactors.empty() && config.inputScaleFactors[inputIdx] != GNAPluginNS::kScaleFactorDefault) {
+            gnalog() << "[UpdateInputScaleFromNetwork] Using input scale factor defined in configuration: "
+                        << config.inputScaleFactors[inputIdx++] << std::endl;
+            continue;
+        }
         for (auto && nextToInputLayer : getInputTo(data)) {
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
                 continue;
@@ -464,14 +469,10 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network
             IE_ASSERT(config.inputScaleFactors.size() > inputIdx);
             IE_ASSERT(inputsDesc->inputScaleFactors.size() > inputIdx);
 
-            if (!config.inputScaleFactors.empty()) {
-                gnalog() << "Scale factor calculated during model quantization (" << scaleInput
-                    << ") will be used instead of user input (" << inputsDesc->inputScaleFactors[inputIdx] << ").\n";
-                if (inputsDesc->inputScaleFactors[inputIdx] < scaleInput) {
-                    gnawarn() << "WARNING: Scale factor calculated based on input values (" << inputsDesc->inputScaleFactors[inputIdx]
-                        << ") is smaller than scale factor used to quantize model (" << scaleInput << "). "
-                        << "Input values will be clamped.\n";
-                }
+            if (inputsDesc->inputScaleFactors[inputIdx] < scaleInput) {
+                gnawarn() << "WARNING: Scale factor calculated based on input values (" << inputsDesc->inputScaleFactors[inputIdx]
+                          << ") is smaller than scale factor used to quantize model (" << scaleInput << "). "
+                          << "Input values will be clamped.\n";
             }
 
             config.inputScaleFactors[inputIdx] = scaleInput;

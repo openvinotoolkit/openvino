@@ -59,6 +59,7 @@ void ImportNetworkTestBase::TestRun(bool isModelChanged) {
     auto referenceOutputs = CalculateRefs();
     Compare(referenceOutputs, actualOutputs);
 
+    configuration.clear();
     for (auto const& configItem : importConfiguration) {
         configuration[configItem.first] = configItem.second;
     }
