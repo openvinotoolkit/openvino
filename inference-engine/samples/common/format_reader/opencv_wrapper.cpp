@@ -27,22 +27,24 @@ OCVReader::OCVReader(const string& filename) {
 }
 
 std::shared_ptr<unsigned char> OCVReader::getData(size_t width = 0, size_t height = 0) {
-    cv::Mat resized(img);
-    if (width != 0 && height != 0) {
-        size_t iw = img.size().width;
-        size_t ih = img.size().height;
-        if (width != iw || height != ih) {
-            slog::warn << "Image is resized from (" << iw << ", " << ih << ") to (" << width << ", " << height << ")"
-                       << slog::endl;
-        }
-        cv::resize(img, resized, cv::Size(width, height));
-    }
+    if (width == 0)
+        width = img.cols;
 
-    size_t size = resized.size().width * resized.size().height * resized.channels();
+    if (height == 0)
+        height = img.rows;
+
+    size_t size = width * height * img.channels();
     _data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
-    for (size_t id = 0; id < size; ++id) {
-        _data.get()[id] = resized.data[id];
+
+    cv::Mat resized(width, height, img.type(), _data.get());
+
+    if (width != img.cols || height != img.rows) {
+        slog::warn << "Image is resized from (" << img.cols << ", " << img.rows << ") to (" << width << ", " << height
+                   << ")" << slog::endl;
     }
+    // cv::resize() just copy data to output image if sizes are the same
+    cv::resize(img, resized, cv::Size(width, height));
+
     return _data;
 }
 #endif
