@@ -313,7 +313,7 @@ def manifest_metadata(request):
         {
             "type": "object",
             "properties": {
-                "product_type": {"enum": ["private_linux_ubuntu_18_04", "private_windows_vs2019"]},
+                "product_type": {"type": "string"},
                 "repo_url": {"type": "string"},
                 "commit_sha": {"type": "string"},
                 "commit_date": {"type": "string"},

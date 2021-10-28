@@ -31,7 +31,7 @@ public:
     OPENVINO_OP("Equal", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an equal operation.
-    Equal() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
+    Equal() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs an equal operation.
     ///
     /// \param arg0 Node that produces the first input tensor.
