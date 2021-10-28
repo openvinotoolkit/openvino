@@ -32,7 +32,6 @@
         "runtime/lib/intel64/libfrontend_manager.so",
         "runtime/lib/intel64/libir_ngraph_frontend.so",
         "runtime/lib/intel64/libonnx_ngraph_frontend.so",
-        "runtime/lib/intel64/libpaddlepaddle_ngraph_frontend.so",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -78,7 +77,7 @@
       "files": [
         "runtime/lib/intel64/libgna.so",
         "runtime/lib/intel64/libgna.so.2",
-        "runtime/lib/intel64/libgna.so.2.0.0.1226",
+        "runtime/lib/intel64/libgna.so.3.0.0.1377",
         "runtime/lib/intel64/libinference_engine_legacy.so",
         "runtime/lib/intel64/libGNAPlugin.so"
       ]
@@ -98,10 +97,10 @@
       "group": ["opencv"],
       "dependencies" : [],
       "files": [
-        "opencv/version.txt",
-        "opencv/setupvars.sh",
-        "opencv/lib",
-        "opencv/bin"
+        "extras/opencv/version.txt",
+        "extras/opencv/setupvars.sh",
+        "extras/opencv/lib",
+        "extras/opencv/bin"
       ]
     },
     "python_common": {
