@@ -245,3 +245,5 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
     list(REMOVE_ITEM samples_dirs common thirdparty)
 endif()
 add_samples_to_build(${samples_dirs})
+
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/intel64/Release/ DESTINATION samples_bin/)

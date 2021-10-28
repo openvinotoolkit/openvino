@@ -9,6 +9,7 @@ set "ROOT_DIR=%~dp0"
 FOR /F "delims=\" %%i IN ("%ROOT_DIR%") DO set SAMPLES_TYPE=%%~nxi
 
 set "SOLUTION_DIR64=%USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_%SAMPLES_TYPE%_samples_build"
+set SAMPLE_INSTALL_DIR=
 
 set MSBUILD_BIN=
 set VS_PATH=
@@ -23,8 +24,11 @@ if not "%1"=="" (
         set "VS_VERSION=2017" 
     ) else if "%1"=="VS2019" (
         set "VS_VERSION=2019" 
-    ) else if "%1"=="-o" (
+    ) else if "%1"=="-b" (
         set SOLUTION_DIR64=%2
+        shift
+    ) else if "%1"=="-i" (
+        set SAMPLE_INSTALL_DIR=%2
         shift
     ) else if "%1"=="-h" (
         goto usage
@@ -133,6 +137,8 @@ echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release
 "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release
 if ERRORLEVEL 1 GOTO errorHandling
 
+if NOT "%SAMPLE_INSTALL_DIR%"=="" cmake -DCMAKE_INSTALL_PREFIX="%SAMPLE_INSTALL_DIR%" -P cmake_install.cmake
+
 echo Done.
 goto :eof
 
@@ -140,9 +146,10 @@ goto :eof
 echo Build inference engine samples
 echo.
 echo Options:
-echo   VS_VERSION              VS2015, VS2017, VS2019
-echo   -h                      Print the help message
-echo   -o OUTPUT_DIR           Specify the output directory
+echo   VS_VERSION               VS2015, VS2017, VS2019
+echo   -h                       Print the help message
+echo   -b SAMPLE_BUILD_DIR      Specify the sample build directory
+echo   -i SAMPLE_INSTALL_DIR    Specify the sample install directory
 exit /b
 
 :errorHandling
