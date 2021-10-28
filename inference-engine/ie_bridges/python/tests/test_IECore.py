@@ -291,7 +291,6 @@ def test_nogil_safe(device):
     def main_thread_target(gil_release_func, args):
         call_thread_func.set()
         gil_release_func(*args)
-        assert not call_thread_func.is_set()
 
     def test_run_parallel(gil_release_func, args, thread_func, thread_args):
         thread = Thread(target=thread_target, args=[thread_func, thread_args])
