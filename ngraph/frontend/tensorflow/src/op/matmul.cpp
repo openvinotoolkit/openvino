@@ -20,7 +20,7 @@ OutputVector TranslateMatMulOp(const NodeContext& node) {
     auto transpose_b = node.get_attribute<bool>("transpose_b", false);
 
     auto res = make_shared<MatMul>(a, b, transpose_a, transpose_b);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

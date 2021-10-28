@@ -20,7 +20,7 @@ ov::OutputVector TranslateRandomUniformOp(const NodeContext& node) {
     auto maxval_const = make_shared<Constant>(element::f32, Shape{}, 1);
     auto ng_et = node.get_attribute<ov::element::Type>("dtype");
     auto res = std::make_shared<RandomUniform>(shape, minval_const, maxval_const, ng_et, seed, seed2);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 
@@ -32,7 +32,7 @@ ov::OutputVector TranslateRandomUniformIntOp(const NodeContext& node) {
     auto seed2 = node.get_attribute<int64_t>("seed2", 0);
     auto ng_et = minval.get_element_type();
     auto res = std::make_shared<RandomUniform>(shape, minval, maxval, ng_et, seed, seed2);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

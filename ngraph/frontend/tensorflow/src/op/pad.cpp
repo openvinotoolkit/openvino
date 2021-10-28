@@ -46,7 +46,7 @@ OutputVector TranslatePadOp(const NodeContext& node) {
 
     // Set pads_begin & pads_end (from the pad_val_op)
     std::vector<int64_t> paddings;
-    GetStaticInputVector(node, 1, &paddings);
+    get_static_input_vec(node, 1, &paddings);
     if (paddings.size() % 2 != 0) {
         TF_OP_VALIDATION_CHECK(node,
                                false,
@@ -64,7 +64,7 @@ OutputVector TranslatePadOp(const NodeContext& node) {
 
     // Create final Op
     auto res = make_shared<Pad>(ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

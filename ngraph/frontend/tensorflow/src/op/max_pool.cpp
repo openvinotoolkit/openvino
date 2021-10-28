@@ -40,7 +40,7 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
 
     CoordinateDiff padding_below;
     CoordinateDiff padding_above;
-    MakePadding(tf_padding_type,
+    make_padding(tf_padding_type,
                 ng_image_shape,
                 ng_kernel_shape,
                 ng_strides,
@@ -62,7 +62,7 @@ OutputVector TranslateMaxPoolOp(const NodeContext& node) {
                    ->output(0);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, res);
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 

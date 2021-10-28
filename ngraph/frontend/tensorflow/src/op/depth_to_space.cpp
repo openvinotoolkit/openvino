@@ -31,7 +31,7 @@ OutputVector TranslateDepthToSpaceOp(const NodeContext& node) {
     auto ng_mode = DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
     Output<Node> res = make_shared<DepthToSpace>(ng_input, ng_mode, block_size)->output(0);
     NCHWtoNHWC(node.get_name(), is_nhwc, res);
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 }  // namespace op

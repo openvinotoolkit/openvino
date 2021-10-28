@@ -37,7 +37,7 @@ OutputVector TranslateL2LossOp(const NodeContext& node) {
 
     auto sum = make_shared<ReduceSum>(pow, reduction_axes);
     auto res = make_shared<Divide>(sum, const_2);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

@@ -20,7 +20,7 @@ OutputVector TranslateEluOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto alpha = node.get_attribute<float>("alpha", 1.0);
     auto res = make_shared<Elu>(input, alpha);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

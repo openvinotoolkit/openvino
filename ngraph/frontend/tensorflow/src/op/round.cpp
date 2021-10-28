@@ -19,7 +19,7 @@ OutputVector TranslateRoundOp(const NodeContext& node) {
     // as TF has only that mode
     auto round_mode = Round::RoundMode::HALF_TO_EVEN;
     auto res = make_shared<Round>(input, round_mode);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

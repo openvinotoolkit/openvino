@@ -42,7 +42,7 @@ OutputVector TranslateReverseOp(const NodeContext& node) {
     }
 
     auto res = make_shared<ReverseSequence>(input, seq_lengths, batch_axis, seq_axis);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

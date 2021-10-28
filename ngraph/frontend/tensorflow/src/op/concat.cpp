@@ -31,7 +31,7 @@ OutputVector TranslateConcatOp(const NodeContext& node) {
     }
 
     std::vector<int64_t> tf_concat_axis_vec;
-    GetStaticInputVector(node, axis_idx, &tf_concat_axis_vec);
+    get_static_input_vec(node, axis_idx, &tf_concat_axis_vec);
     int64_t concat_axis = tf_concat_axis_vec[0];
 
     OutputVector ng_args;
@@ -41,7 +41,7 @@ OutputVector TranslateConcatOp(const NodeContext& node) {
     }
 
     auto res = make_shared<Concat>(ng_args, size_t(concat_axis));
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

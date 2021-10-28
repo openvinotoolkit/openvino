@@ -17,7 +17,7 @@ OutputVector TranslateReshapeOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shape = node.get_ng_input(1);
     auto res = make_shared<Reshape>(data, shape, false);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

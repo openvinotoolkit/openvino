@@ -18,7 +18,7 @@ OutputVector TranslateWhereOp(const NodeContext& node) {
     auto non_zero = make_shared<NonZero>(x);
     auto transpose_order = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{1, 0});
     auto res = make_shared<opset8::Transpose>(non_zero, transpose_order);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

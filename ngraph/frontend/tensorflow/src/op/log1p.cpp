@@ -18,7 +18,7 @@ OutputVector TranslateLog1pOp(const NodeContext& node) {
     auto const_1 = make_shared<Constant>(n.get_element_type(), Shape{}, 1);
     auto add = make_shared<Add>(n, const_1);
     auto res = make_shared<Log>(add);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

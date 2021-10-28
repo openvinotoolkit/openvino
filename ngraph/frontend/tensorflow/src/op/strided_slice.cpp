@@ -48,7 +48,7 @@ OutputVector TranslateStridedSliceOp(const NodeContext& node) {
                                          mask_to_vec(new_axis_mask),
                                          mask_to_vec(shrink_axis_mask),
                                          mask_to_vec(ellipsis_mask));
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

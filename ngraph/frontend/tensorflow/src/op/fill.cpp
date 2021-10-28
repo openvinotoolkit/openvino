@@ -17,7 +17,7 @@ OutputVector TranslateFillOp(const NodeContext& node) {
     auto ng_dims = node.get_ng_input(0);
     auto ng_value = node.get_ng_input(1);
     auto res = make_shared<Broadcast>(ng_value, ng_dims);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

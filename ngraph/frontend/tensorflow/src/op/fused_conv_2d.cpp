@@ -54,7 +54,7 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
 
         CoordinateDiff ng_padding_below;
         CoordinateDiff ng_padding_above;
-        MakePadding(tf_padding_type,
+        make_padding(tf_padding_type,
                     ng_image_shape,
                     ng_kernel_shape,
                     ng_strides,
@@ -71,8 +71,8 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
             ->output(0);
     };
 
-    if (VecStrCmp(fused_ops, {"BiasAdd"}) || VecStrCmp(fused_ops, {"BiasAdd", "Relu"}) ||
-        VecStrCmp(fused_ops, {"BiasAdd", "Relu6"})) {
+    if (vec_str_cmp(fused_ops, {"BiasAdd"}) || vec_str_cmp(fused_ops, {"BiasAdd", "Relu"}) ||
+        vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"})) {
         if (num_args != 1) {
             TF_OP_VALIDATION_CHECK(node, false, "FusedConv2DBiasAdd has incompatible num_args");
         }
@@ -94,11 +94,11 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
 
         auto ng_add = make_shared<Add>(ng_conv, ng_bias_reshaped)->output(0);
 
-        if (VecStrCmp(fused_ops, {"BiasAdd", "Relu"})) {
+        if (vec_str_cmp(fused_ops, {"BiasAdd", "Relu"})) {
             auto ng_relu = make_shared<Relu>(ng_add)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
-        } else if (VecStrCmp(fused_ops, {"BiasAdd", "Relu6"})) {
+        } else if (vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"})) {
             auto ng_relu6 = make_shared<Clamp>(ng_add, 0, 6)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};
@@ -106,8 +106,8 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_add);
             return {ng_add};
         }
-    } else if (VecStrCmp(fused_ops, {"FusedBatchNorm"}) || VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu"}) ||
-               VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
+    } else if (vec_str_cmp(fused_ops, {"FusedBatchNorm"}) || vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu"}) ||
+               vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
         if (num_args != 4) {
             TF_OP_VALIDATION_CHECK(node, false, "FusedConv2D with FusedBatchNorm has incompatible num_args");
         }
@@ -121,11 +121,11 @@ OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
         auto ng_batch_norm =
             make_shared<BatchNormInference>(ng_conv, ng_scale, ng_offset, ng_mean, ng_variance, tf_epsilon)->output(0);
 
-        if (VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu"})) {
+        if (vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu"})) {
             auto ng_relu = make_shared<Relu>(ng_batch_norm)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu);
             return {ng_relu};
-        } else if (VecStrCmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
+        } else if (vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
             auto ng_relu6 = make_shared<Clamp>(ng_batch_norm, 0, 6)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
             return {ng_relu6};

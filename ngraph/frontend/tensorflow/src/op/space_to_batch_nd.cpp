@@ -65,11 +65,11 @@ OutputVector TranslateBatchNDAndSpaceNDOp(const NodeContext& node) {
 
     if (node.get_op_type() == "BatchToSpaceND") {
         auto res = make_shared<BatchToSpace>(input, padded_block_shape, crops_begin, crops_end);
-        SetNodeNames(node.get_name(), res);
+        set_node_name(node.get_name(), res);
         return res->outputs();
     } else if (node.get_op_type() == "SpaceToBatchND") {
         auto res = make_shared<SpaceToBatch>(input, padded_block_shape, crops_begin, crops_end);
-        SetNodeNames(node.get_name(), res);
+        set_node_name(node.get_name(), res);
         return res->outputs();
     }
     TF_OP_VALIDATION_CHECK(node, false, "No translator found.");

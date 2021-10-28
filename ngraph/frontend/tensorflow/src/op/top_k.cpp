@@ -29,7 +29,7 @@ OutputVector TranslateTopKV2Op(const NodeContext& node) {
                                       k_axis,
                                       TopK::Mode::MAX,
                                       sorted ? TopK::SortType::SORT_VALUES : TopK::SortType::SORT_INDICES);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

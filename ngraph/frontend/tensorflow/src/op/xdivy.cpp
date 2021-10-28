@@ -22,7 +22,7 @@ OutputVector TranslateXdivyOp(const NodeContext& node) {
     auto one = make_shared<Constant>(x.get_element_type(), Shape{}, 1);
     auto select = make_shared<Select>(x_is_zero, one, y);
     auto res = make_shared<Divide>(x, select);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

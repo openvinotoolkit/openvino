@@ -27,7 +27,7 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
                            "Conv2DBackpropInput data format is neither NHWC nor NCHW");
 
     std::vector<int64_t> tf_input_sizes;
-    GetStaticInputVector(node, 0, &tf_input_sizes);
+    get_static_input_vec(node, 0, &tf_input_sizes);
 
     if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
             return size <= 0;
@@ -66,7 +66,7 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
-    MakePadding(tf_padding_type,
+    make_padding(tf_padding_type,
                 ng_image_shape,
                 ng_kernel_shape,
                 ng_strides,
@@ -88,7 +88,7 @@ OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
                    ->output(0);
 
     NCHWtoNHWC(node.get_name(), is_nhwc, res);
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 }  // namespace op

@@ -25,7 +25,7 @@ OutputVector TranslateSliceOp(const NodeContext& node) {
     auto step = make_shared<Broadcast>(one, shape);
 
     auto res = make_shared<Slice>(input, start, stop, step);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

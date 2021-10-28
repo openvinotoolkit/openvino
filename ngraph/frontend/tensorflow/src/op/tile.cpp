@@ -18,7 +18,7 @@ OutputVector TranslateTileOp(const NodeContext& node) {
     auto repeats = node.get_ng_input(1);
 
     auto res = make_shared<Tile>(data, repeats);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

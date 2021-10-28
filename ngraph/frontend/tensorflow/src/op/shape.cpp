@@ -17,7 +17,7 @@ ov::OutputVector TranslateShapeOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto out_type = node.get_attribute<ov::element::Type>("out_type");
     auto res = make_shared<ShapeOf>(data, out_type);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

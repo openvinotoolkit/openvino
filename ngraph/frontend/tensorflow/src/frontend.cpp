@@ -96,7 +96,7 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
         auto input_type = input_tensor_place->get_element_type();
 
         auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
-        SetNodeNames(input_name, param);
+        set_node_name(input_name, param);
         params.push_back(param);
         ng_op_map[input_name] = {param};
     }
@@ -176,7 +176,7 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                 auto ng_node = std::make_shared<TFFrameworkNode>(operation_decoder,
                                                                  ng_inputs,
                                                                  operation_place->get_output_ports().size());
-                SetNodeNames(operation_name, ng_node);
+                set_node_name(operation_name, ng_node);
                 ng_outputs = ng_node->outputs();
             }
         }

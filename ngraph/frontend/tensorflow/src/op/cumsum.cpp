@@ -20,7 +20,7 @@ OutputVector TranslateCumsumOp(const NodeContext& node) {
     auto reverse = node.get_attribute<bool>("reverse");
 
     auto res = make_shared<CumSum>(ng_x, ng_axis, exclusive, reverse);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

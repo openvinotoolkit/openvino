@@ -20,7 +20,7 @@ OutputVector TranslateUnpackOp(const NodeContext& node) {
 
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
     auto res = make_shared<Split>(input, axis_const, num);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

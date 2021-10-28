@@ -18,7 +18,7 @@ OutputVector TranslateBinaryOp(const NodeContext& node,
     auto ng_lhs = node.get_ng_input(0);
     auto ng_rhs = node.get_ng_input(1);
     auto ng_node = create_binary_op(ng_lhs, ng_rhs);
-    SetNodeNames(node.get_name(), ng_node.get_node_shared_ptr());
+    set_node_name(node.get_name(), ng_node.get_node_shared_ptr());
     return {ng_node};
 }
 

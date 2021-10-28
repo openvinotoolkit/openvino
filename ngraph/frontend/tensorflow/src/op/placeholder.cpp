@@ -18,7 +18,7 @@ OutputVector PlaceholderOp(const NodeContext& node) {
     auto ng_shape = node.get_attribute<ov::PartialShape>("shape", ov::PartialShape());
 
     auto res = std::make_shared<Parameter>(ng_et, ng_shape);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

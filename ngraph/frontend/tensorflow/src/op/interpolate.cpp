@@ -39,7 +39,7 @@ ov::OutputVector TranslateInterpolateOp(const NodeContext& node) {
     Transpose<0, 3, 1, 2>(input);
     auto res = make_shared<Interpolate>(input, input_sizes, ng_scales, ng_axes, interpolate_attrs)->output(0);
     Transpose<0, 2, 3, 1>(res);
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 }  // namespace op

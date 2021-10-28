@@ -29,7 +29,7 @@ OutputVector TranslateLRNOp(const NodeContext& node) {
     alpha = alpha * size;
     // todo: input is in NHWC, need to apply NHWC to NCHW?
     auto res = make_shared<LRN>(input, alpha, beta, bias, static_cast<size_t>(size));
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

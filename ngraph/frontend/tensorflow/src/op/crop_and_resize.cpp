@@ -131,7 +131,7 @@ OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
         }
 
         auto res = make_shared<Concat>(ng_crop_outputs, 0);
-        SetNodeNames(node.get_name(), res);
+        set_node_name(node.get_name(), res);
         return res->outputs();
     }
 }

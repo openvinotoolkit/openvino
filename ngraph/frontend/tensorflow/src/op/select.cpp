@@ -25,12 +25,12 @@ OutputVector TranslateSelectOp(const NodeContext& node) {
             auto unsqueeze_axes = make_shared<Constant>(ov::element::i64, Shape{in_2.get_shape().size() - 1}, axes);
             auto unsqueeze = make_shared<Unsqueeze>(in_1, unsqueeze_axes);
             auto res = make_shared<Select>(unsqueeze, in_2, in_3);
-            SetNodeNames(node.get_name(), res);
+            set_node_name(node.get_name(), res);
             return res->outputs();
         }
     }
     auto res = make_shared<Select>(in_1, in_2, in_3);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

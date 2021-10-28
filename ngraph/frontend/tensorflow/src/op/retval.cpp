@@ -25,7 +25,7 @@ OutputVector RetvalOp(const NodeContext& node) {
     // TODO: Put ret_val_index to RT info that should be later utilized to order outpus by indices
 
     auto res = make_shared<Result>(node.get_ng_input(0));
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

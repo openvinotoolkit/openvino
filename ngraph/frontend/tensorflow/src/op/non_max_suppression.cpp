@@ -39,7 +39,7 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        SetNodeNames(node.get_name(), res);
+        set_node_name(node.get_name(), res);
         return res->outputs();
     } else if (op_type == "NonMaxSuppressionV4") {
         auto score_threshold = node.get_ng_input(4);
@@ -52,7 +52,7 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        SetNodeNames(node.get_name(), res);
+        set_node_name(node.get_name(), res);
         return res->outputs();
     } else if (op_type == "NonMaxSuppressionV3") {
         auto score_threshold = node.get_ng_input(4);
@@ -64,7 +64,7 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        SetNodeNames(node.get_name(), res);
+        set_node_name(node.get_name(), res);
         return {res->output(0)};
     } else if (op_type == "NonMaxSuppressionV2" || op_type == "NonMaxSuppression") {
         auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
@@ -74,7 +74,7 @@ OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
                                                   NonMaxSuppression::BoxEncodingType::CORNER,
                                                   false,
                                                   element::Type_t::i32);
-        SetNodeNames(node.get_name(), res);
+        set_node_name(node.get_name(), res);
         return {res->output(0)};
     }
     TF_OP_VALIDATION_CHECK(node, false, "No translator found.");

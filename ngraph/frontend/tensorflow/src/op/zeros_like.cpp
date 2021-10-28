@@ -18,7 +18,7 @@ OutputVector TranslateZerosLikeOp(const NodeContext& node) {
     auto shape_of = make_shared<ShapeOf>(x);
     auto zero = make_shared<Constant>(x.get_element_type(), Shape{1}, 0);
     auto res = make_shared<Broadcast>(zero, shape_of);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

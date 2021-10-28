@@ -15,7 +15,7 @@ namespace op {
 ov::OutputVector TranslateRelu6Op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto res = std::make_shared<Clamp>(data, 0.0, 6.0f);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

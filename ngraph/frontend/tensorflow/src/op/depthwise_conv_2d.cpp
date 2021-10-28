@@ -44,7 +44,7 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
-    MakePadding(tf_padding_type,
+    make_padding(tf_padding_type,
                 ng_image_shape,
                 ng_kernel_shape,
                 ng_strides,
@@ -74,13 +74,13 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
     auto op_type = node.get_op_type();
     if (op_type == "DepthwiseConv2dNative") {
         NCHWtoNHWC(node.get_name(), is_nhwc, ng_conv);
-        SetNodeNames(node.get_name(), ng_conv.get_node_shared_ptr());
+        set_node_name(node.get_name(), ng_conv.get_node_shared_ptr());
         return {ng_conv};
     } else if (op_type == "_FusedDepthwiseConv2dNative") {
         int num_args = node.get_attribute<int>("num_args");
         auto fused_ops = node.get_attribute<vector<string>>("fused_ops");
         TF_OP_VALIDATION_CHECK(node,
-                               VecStrCmp(fused_ops, {"BiasAdd"}) || VecStrCmp(fused_ops, {"BiasAdd", "Relu6"}),
+                               vec_str_cmp(fused_ops, {"BiasAdd"}) || vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"}),
                                "Unsupported fused operations.");
         TF_OP_VALIDATION_CHECK(node, num_args == 1, "FusedDepthwiseConv2dNativeBiasAdd has incompatible num_args");
         auto ng_bias = node.get_ng_input(2);
@@ -100,11 +100,11 @@ OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
         if (fused_ops == vector<string>{"BiasAdd", "Relu6"}) {
             auto ng_relu6 = make_shared<Clamp>(ng_add, 0, 6)->output(0);
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_relu6);
-            SetNodeNames(node.get_name(), ng_relu6.get_node_shared_ptr());
+            set_node_name(node.get_name(), ng_relu6.get_node_shared_ptr());
             return {ng_relu6};
         } else {
             NCHWtoNHWC(node.get_name(), is_nhwc, ng_add);
-            SetNodeNames(node.get_name(), ng_add.get_node_shared_ptr());
+            set_node_name(node.get_name(), ng_add.get_node_shared_ptr());
             return {ng_add};
         }
     }

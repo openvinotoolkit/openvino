@@ -57,7 +57,7 @@ OutputVector TranslateFakeQuantWithMinMaxVarsOp(const NodeContext& node) {
     if (ng_input_shape.size() == 4)
         Transpose<0, 2, 3, 1>(res);
 
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 }  // namespace op

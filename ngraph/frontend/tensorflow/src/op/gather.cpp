@@ -18,7 +18,7 @@ OutputVector TranslateGatherOp(const NodeContext& node) {
     auto ng_input_indices = node.get_ng_input(1);
     auto ng_axis = make_shared<Constant>(element::i64, Shape{}, 0);
     auto res = make_shared<Gather>(ng_input, ng_input_indices, ng_axis);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 
@@ -28,7 +28,7 @@ OutputVector TranslateGatherV2Op(const NodeContext& node) {
     auto ng_axis = node.get_ng_input(2);
     auto batch_dims = node.get_attribute<int64_t>("batch_dims", 0);
     auto res = make_shared<Gather>(ng_input, ng_input_coords, ng_axis, batch_dims);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 
@@ -37,7 +37,7 @@ OutputVector TranslateGatherNdOp(const NodeContext& node) {
     auto input_indices = node.get_ng_input(1);
     auto batch_dims = node.get_attribute<int64_t>("batch_dims", 0);
     auto res = make_shared<GatherND>(input, input_indices, batch_dims);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

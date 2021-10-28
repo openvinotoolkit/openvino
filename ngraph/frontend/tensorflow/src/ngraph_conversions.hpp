@@ -17,8 +17,6 @@ namespace tf {
 
 using ::tensorflow::DataType;
 
-void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
-
 template <size_t a, size_t b, size_t c, size_t d>
 void Transpose(ov::Output<ov::Node>& node) {
     static_assert(a < 4 && b < 4 && c < 4 && d < 4, "Number of dimensions cannot exceed 4");

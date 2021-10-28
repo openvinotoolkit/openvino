@@ -20,7 +20,7 @@ OutputVector TranslateRangeOp(const NodeContext& node) {
     auto out_type = node.get_attribute<ov::element::Type>("Tidx");
 
     auto res = make_shared<Range>(start, stop, step, out_type);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

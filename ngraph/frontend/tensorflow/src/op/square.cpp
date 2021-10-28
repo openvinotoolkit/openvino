@@ -16,7 +16,7 @@ namespace op {
 OutputVector TranslateSquareOp(const NodeContext& node) {
     auto n = node.get_ng_input(0);
     auto res = make_shared<Multiply>(n, n);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

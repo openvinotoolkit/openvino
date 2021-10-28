@@ -19,7 +19,7 @@ ov::OutputVector TranslateRollOp(const NodeContext& node) {
     auto shift = node.get_ng_input(1);
     auto axis = node.get_ng_input(2);
     auto res = std::make_shared<Roll>(data, shift, axis);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

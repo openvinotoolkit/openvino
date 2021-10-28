@@ -15,8 +15,8 @@ namespace op {
 
 OutputVector TranslateIdentityOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
-    SetOutputName(node.get_name(), input);
-    SetOutputName(node.get_name() + ":" + "0", input);
+    set_out_name(node.get_name(), input);
+    set_out_name(node.get_name() + ":" + "0", input);
     return {input};
 }
 

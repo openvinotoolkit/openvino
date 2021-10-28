@@ -17,7 +17,7 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
     Output<Node> ng_input = node.get_ng_input(0);
 
     std::vector<int64_t> tf_dim;
-    GetStaticInputVector(node, 1, &tf_dim);
+    get_static_input_vec(node, 1, &tf_dim);
 
     Shape input_shape = ng_input.get_shape();
     size_t input_rank = input_shape.size();
@@ -42,7 +42,7 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
     int axis = ng_topk->get_axis();
     auto axis_to_remove = make_shared<Constant>(element::i64, Shape{1}, std::vector<int64_t>({axis}));
     auto res = make_shared<Squeeze>(ng_indices, axis_to_remove);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return {res};
 }
 

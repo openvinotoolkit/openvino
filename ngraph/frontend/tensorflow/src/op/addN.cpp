@@ -22,7 +22,7 @@ OutputVector TranslateAddNOp(const NodeContext& node) {
                                [](const Output<Node>& a, const Output<Node>& b) -> shared_ptr<Node> {
                                    return make_shared<Add>(a, b);
                                });
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 }  // namespace op

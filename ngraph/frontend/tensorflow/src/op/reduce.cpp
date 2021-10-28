@@ -19,7 +19,7 @@ OutputVector TranslateReduceOp(const NodeContext& node,
     auto reduction_axes = node.get_ng_input(1);
     auto tf_keep_dims = node.get_attribute<bool>("keep_dims", false);
     auto res = create_ng_node(input, reduction_axes, tf_keep_dims);
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 

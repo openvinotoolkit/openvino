@@ -55,7 +55,7 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
-    MakePadding(tf_padding_type,
+    make_padding(tf_padding_type,
                 ng_image_shape,
                 ng_kernel_shape,
                 ng_strides,
@@ -68,7 +68,7 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
             ->output(0);
 
     NCHWtoNHWC(node.get_name(), is_ndhwc, res);
-    SetNodeNames(node.get_name(), res.get_node_shared_ptr());
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }
 }  // namespace op

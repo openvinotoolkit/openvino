@@ -17,7 +17,7 @@ OutputVector TranslateSqrtOp(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto ng_exponent = make_shared<Constant>(input.get_element_type(), Shape{1}, 0.5f);
     auto res = make_shared<Power>(input, ng_exponent);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

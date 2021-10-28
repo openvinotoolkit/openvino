@@ -16,7 +16,7 @@ namespace op {
 OutputVector TranslateLogSoftmaxOp(const NodeContext& node) {
     auto ng_inp = node.get_ng_input(0);
     auto res = make_shared<LogSoftmax>(ng_inp, -1);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

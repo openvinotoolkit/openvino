@@ -31,7 +31,7 @@ OutputVector TranslateIsFiniteOp(const NodeContext& node) {
 
     auto neq_inf_and_neq_neg_inf = make_shared<LogicalAnd>(neq_inf, neq_neg_inf);
     auto res = make_shared<LogicalAnd>(neq_inf_and_neq_neg_inf, eq_nan);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

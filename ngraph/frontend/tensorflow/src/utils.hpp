@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * We modified "ValuesFromConstNode" function from
+ * We modified "values_from_const_node" function from
  * tensorflow/core/grappler/optimizers/arithmetic_optimizer.cc file
  * to integrate it with our infrastructure. The purpose and basic
  * functionality remains the same.
@@ -37,16 +37,16 @@ void extract_operation_name_and_port(const std::string& port_name,
                                      size_t& port_index,
                                      std::string& port_type);
 
-void SetOutputName(const std::string& out_name, const Output<Node>& output);
+void set_out_name(const std::string& out_name, const Output<Node>& output);
 
-void SetNodeNames(const std::string& node_name, const std::shared_ptr<Node>& node);
+void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node);
 
-static bool VecStrCmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
+static bool vec_str_cmp(const std::vector<std::string>& a, const std::vector<std::string>& b) {
     return a == b;
 }
 
 template <typename T>
-void MakePadding(const std::string& tf_padding_type,
+void make_padding(const std::string& tf_padding_type,
                  const ov::Shape& ng_image_shape,
                  const ov::Shape& ng_kernel_shape,
                  const ov::Strides& ng_strides,
@@ -69,10 +69,10 @@ void MakePadding(const std::string& tf_padding_type,
     }
 }
 
-void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
+void tf_shape_to_ngraph_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
 
 template <typename T>
-void GetStaticInputVector(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
+void get_static_input_vec(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
     auto ng_input = node.get_ng_input(input_index);
     if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
         *vector = constant->cast_vector<T>();
@@ -89,7 +89,7 @@ void GetStaticInputVector(const NodeContext& node, int64_t input_index, std::vec
 // should be (e.g. when T is `bool`, we actually need a std::vector of `char` for
 // compatibility with nGraph).
 template <typename T, typename VecT = T>
-void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
+void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
     TF_OP_VALIDATION_CHECK(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
     const auto* decoder = node.get_decoder();
     auto dt1 = decoder->get_attribute("dtype", ::ov::VariantWrapper<::tensorflow::DataType>::get_type_info_static());
@@ -104,7 +104,7 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
 
     const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
-    TFTensorShapeToNGraphShape(shape, &pshape);
+    tf_shape_to_ngraph_shape(shape, &pshape);
     *const_tensor_shape = pshape.get_shape();
     TF_OP_VALIDATION_CHECK(node, pshape.is_static(), "Dynamic shapes are not supported in Constant conversion.");
     auto tensor_content = tensor_proto.tensor_content();
@@ -190,11 +190,11 @@ void ValuesFromConstNode(const NodeContext& node, ov::Shape* const_tensor_shape,
 }
 
 template <typename T, typename VecT = T>
-void MakeConstOp(const NodeContext& node, element::Type et, ov::Output<ov::Node>& ng_node) {
+void make_const_op(const NodeContext& node, element::Type et, ov::Output<ov::Node>& ng_node) {
     std::vector<VecT> const_values;
     ov::Shape ng_shape;
 
-    ValuesFromConstNode<T, VecT>(node, &ng_shape, &const_values);
+    values_from_const_node<T, VecT>(node, &ng_shape, &const_values);
     ng_node = std::make_shared<ov::opset8::Constant>(et, ng_shape, const_values);
 };
 }  // namespace tf

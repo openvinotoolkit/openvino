@@ -18,7 +18,7 @@ OutputVector TranslateSqueezeOp(const NodeContext& node) {
     auto axes = node.get_attribute<std::vector<int32_t>>("squeeze_dims");
     auto axes_const = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);
     auto res = make_shared<Squeeze>(input, axes_const);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

@@ -17,7 +17,7 @@ OutputVector TranslateUnaryOp(const NodeContext& op,
                               const std::function<shared_ptr<Node>(Output<Node>)>& create_unary_op) {
     auto ng_input = op.get_ng_input(0);
     auto res = create_unary_op(ng_input);
-    SetNodeNames(op.get_name(), res);
+    set_node_name(op.get_name(), res);
     return {res};
 }
 

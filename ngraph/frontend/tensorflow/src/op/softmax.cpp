@@ -18,7 +18,7 @@ OutputVector TranslateSoftmaxOp(const NodeContext& node) {
     TF_OP_VALIDATION_CHECK(node, ng_inp.get_partial_shape().rank().is_static(), "Dynamic rank is not supported.");
     size_t axis = ng_inp.get_partial_shape().rank().get_length() - 1;
     auto res = make_shared<opset7::Softmax>(ng_inp, axis);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

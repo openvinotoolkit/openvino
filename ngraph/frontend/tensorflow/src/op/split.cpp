@@ -19,7 +19,7 @@ OutputVector TranslateSplitOp(const NodeContext& node) {
     auto num_split = node.get_attribute<int64_t>("num_split");
 
     auto res = make_shared<Split>(input, axes, num_split);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 
@@ -30,7 +30,7 @@ OutputVector TranslateSplitVOp(const NodeContext& node) {
 
     // todo(itikhono): double check split_lengths and split_dims are in supported form here
     auto res = make_shared<VariadicSplit>(input, split_dims, split_lengths);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 }  // namespace op

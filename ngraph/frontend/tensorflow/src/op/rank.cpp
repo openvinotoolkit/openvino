@@ -17,7 +17,7 @@ ov::OutputVector TranslateRankOp(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shape_of_1 = make_shared<ShapeOf>(data, ov::element::i64);
     auto res = make_shared<ShapeOf>(shape_of_1, ov::element::i64);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 

@@ -45,7 +45,7 @@ OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
         string activation_mode = node.get_attribute<string>("activation_mode");
         TF_OP_VALIDATION_CHECK(node, activation_mode == "Relu", "Unsupported _FusedBatchNormEx activation mode");
         auto relu_op = make_shared<Relu>(ng_batch_norm);
-        SetNodeNames(node.get_name(), relu_op);
+        set_node_name(node.get_name(), relu_op);
         return {relu_op};
     } else {
         // TODO: Why are there so many? Is it correct?
@@ -54,7 +54,7 @@ OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
             // FusedBatchNormV3 has 6 outputs
             result.push_back(ng_mean);  // reserve_space_3
         }
-        SetNodeNames(node.get_name(), ng_batch_norm.get_node_shared_ptr());
+        set_node_name(node.get_name(), ng_batch_norm.get_node_shared_ptr());
         return result;
     }
 }

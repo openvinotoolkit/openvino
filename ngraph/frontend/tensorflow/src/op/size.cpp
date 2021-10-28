@@ -19,7 +19,7 @@ ov::OutputVector TranslateSizeOp(const NodeContext& node) {
     auto shape_of = make_shared<ShapeOf>(data, out_type);
     auto axis = make_shared<Constant>(ov::element::i64, Shape{}, 0);
     auto res = make_shared<ReduceProd>(shape_of, axis);
-    SetNodeNames(node.get_name(), res);
+    set_node_name(node.get_name(), res);
     return res->outputs();
 }
 
