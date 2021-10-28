@@ -38,6 +38,8 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+namespace {
+
 std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
     std::map<CNNLayer*, bool> result;
 
@@ -85,6 +87,8 @@ std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
 
     return result;
 }
+
+} // namespace
 
 CNNNetworkImpl::CNNNetworkImpl() {}
 
