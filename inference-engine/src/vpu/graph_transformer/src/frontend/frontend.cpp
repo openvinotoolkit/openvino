@@ -36,7 +36,6 @@
 #include <transformations/op_conversions/convert_gather_downgrade.hpp>
 #include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
@@ -177,8 +176,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
-    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
+
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
