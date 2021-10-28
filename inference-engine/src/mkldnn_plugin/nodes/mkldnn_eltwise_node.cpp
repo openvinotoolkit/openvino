@@ -787,7 +787,7 @@ private:
     }
 };
 
-std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> MKLDNNEltwiseNode::initializers = {
+const std::map<const ngraph::DiscreteTypeInfo, MKLDNNEltwiseNode::Initializer> MKLDNNEltwiseNode::initializers = {
     {ngraph::op::v1::Add::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNEltwiseNode& node) {
         node.algorithm = EltwiseAdd;
     }},
@@ -985,7 +985,7 @@ MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, co
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    initializers[op->get_type_info()](op, *this);
+    initializers.at(op->get_type_info())(op, *this);
 }
 
 size_t MKLDNNEltwiseNode::getOpInputsNum() const {
