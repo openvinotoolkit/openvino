@@ -17,7 +17,7 @@ namespace InferenceEngine {
 /**
  * @brief This class stores pre-process information for exact input
  */
-class PreProcessDataImpl : public IPreProcessData {
+class PreProcessData : public IPreProcessData {
     /**
      * @brief ROI blob.
      */
@@ -40,18 +40,18 @@ public:
 };
 
 void CreatePreProcessData(std::shared_ptr<IPreProcessData>& data) {
-    data = std::make_shared<PreProcessDataImpl>();
+    data = std::make_shared<PreProcessData>();
 }
 
-void PreProcessDataImpl::setRoiBlob(const Blob::Ptr &blob) {
+void PreProcessData::setRoiBlob(const Blob::Ptr &blob) {
     _userBlob = blob;
 }
 
-Blob::Ptr PreProcessDataImpl::getRoiBlob() const {
+Blob::Ptr PreProcessData::getRoiBlob() const {
     return _userBlob;
 }
 
-void PreProcessDataImpl::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial,
+void PreProcessData::execute(Blob::Ptr &preprocessedBlob, const PreProcessInfo &info, bool serial,
         int batchSize) {
     OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, "Preprocessing");
 
@@ -71,7 +71,7 @@ void PreProcessDataImpl::execute(Blob::Ptr &preprocessedBlob, const PreProcessIn
     _preproc->preprocessWithGAPI(_userBlob, preprocessedBlob, algorithm, fmt, serial, batchSize);
 }
 
-void PreProcessDataImpl::isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
+void PreProcessData::isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
     PreprocEngine::checkApplicabilityGAPI(src, dst);
 }
 

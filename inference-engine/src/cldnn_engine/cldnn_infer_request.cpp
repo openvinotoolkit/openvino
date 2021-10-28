@@ -182,7 +182,7 @@ Blob::Ptr CLDNNInferRequest::GetBlob(const std::string& name) {
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
-            data = it->second.getRoiBlob();
+            data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
             checkInputBlob(data, name, foundInput);
@@ -289,8 +289,9 @@ void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) 
                     inputHostBlob->allocate();
                     _inputs[name] = inputHostBlob;
                 }
-                _preProcData[name].isApplicable(data, _inputs[name]);
-                _preProcData[name].setRoiBlob(data);
+                _preProcData[name] = CreatePreprocDataHelper();
+                _preProcData[name]->isApplicable(data, _inputs[name]);
+                _preProcData[name]->setRoiBlob(data);
             } else {
                 if (compoundBlobPassed) {
                     IE_THROW(NotImplemented) << cannot_set_compound;

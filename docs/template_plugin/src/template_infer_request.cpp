@@ -358,7 +358,7 @@ InferenceEngine::Blob::Ptr TemplateInferRequest::GetBlob(const std::string& name
         // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
-            data = it->second.getRoiBlob();
+            data = it->second->getRoiBlob();
         } else {
             data = _inputs[name];
             SizeVector dims;

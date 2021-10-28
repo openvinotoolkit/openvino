@@ -43,9 +43,9 @@ endif()
 
 add_subdirectory(inference_engine)
 
-add_subdirectory(preprocessing)
-
 add_subdirectory(readers)
+
+add_subdirectory(preprocessing)
 
 # add a custom target to build all Inference Engine Core libraries
 

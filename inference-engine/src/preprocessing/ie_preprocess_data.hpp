@@ -54,22 +54,6 @@ protected:
 
 OPENVINO_PLUGIN_API void CreatePreProcessData(std::shared_ptr<IPreProcessData>& data);
 
-namespace details {
-
-/**
- * @brief This class defines the name of the fabric for creating an IHeteroInferencePlugin object in DLL
- */
-template<>
-class SOCreatorTrait<IPreProcessData> {
-public:
-    /**
-     * @brief A name of the fabric for creating IInferencePlugin object in DLL
-     */
-    static constexpr auto name = "CreatePreProcessData";
-};
-
-}  // namespace details
-
 #define OV_PREPROC_PLUGIN_CALL_STATEMENT(...)                                                      \
     if (!_ptr)                                                                                     \
         IE_THROW() << "Wrapper used in the OV_PREPROC_PLUGIN_CALL_STATEMENT was not initialized."; \
@@ -79,12 +63,12 @@ public:
         ::InferenceEngine::details::Rethrow();                                                     \
     }
 
-class PreProcessData {
+class PreProcessDataPlugin {
     std::shared_ptr<void> _so = nullptr;
     std::shared_ptr<IPreProcessData> _ptr = nullptr;
 
 public:
-    PreProcessData() {
+    PreProcessDataPlugin() {
 #ifdef OPENVINO_STATIC_LIBRARY
         CreatePreProcessData(_ptr);
         if (!_ptr)
@@ -101,12 +85,7 @@ public:
 
         using CreateF = void(std::shared_ptr<IPreProcessData>& data);
         _so = ov::util::load_shared_object(preprocLibraryPath.c_str());
-        if (!_so)
-            IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
-        reinterpret_cast<CreateF *>(ov::util::get_symbol(_so,
-            details::SOCreatorTrait<IPreProcessData>::name))(_ptr);
-        if (!_ptr)
-            IE_THROW() << "Failed to get address of CreatePreProcessData function";
+        reinterpret_cast<CreateF *>(ov::util::get_symbol(_so, "CreatePreProcessData"))(_ptr);
 #endif
     }
 
@@ -128,5 +107,11 @@ public:
 };
 
 #undef OV_PREPROC_PLUGIN_CALL_STATEMENT
+
+using PreProcessDataPtr = std::shared_ptr<PreProcessDataPlugin>;
+
+inline PreProcessDataPtr CreatePreprocDataHelper() {
+    return std::make_shared<PreProcessDataPlugin>();
+}
 
 }  // namespace InferenceEngine
