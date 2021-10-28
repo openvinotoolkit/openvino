@@ -38,7 +38,7 @@ void __TBB_internal_restore_affinity(binding_handler* handler_ptr, int slot_num)
 int __TBB_internal_get_default_concurrency(int numa_id, int core_type_id, int max_threads_per_core);
 }
 
-int get_processors_group_num() {
+static int get_processors_group_num() {
 #        if defined(_WIN32) || defined(_WIN64)
     SYSTEM_INFO si;
     GetNativeSystemInfo(&si);
@@ -57,7 +57,7 @@ int get_processors_group_num() {
     return 1;
 }
 
-bool is_binding_environment_valid() {
+static bool is_binding_environment_valid() {
 #        if defined(_WIN32) && !defined(_WIN64)
     static bool result = [] {
         // For 32-bit Windows applications, process affinity masks can only support up to 32 logical CPUs.
@@ -79,7 +79,7 @@ static int* numa_nodes_indexes = nullptr;
 static int core_types_count = 0;
 static int* core_types_indexes = nullptr;
 
-void initialize_system_topology() {
+static void initialize_system_topology() {
     static std::once_flag is_topology_initialized;
 
     std::call_once(is_topology_initialized, [&] {
@@ -120,7 +120,7 @@ void binding_observer::on_scheduler_exit(bool) {
     detail::__TBB_internal_restore_affinity(my_binding_handler, tbb::this_task_arena::current_thread_index());
 }
 
-binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c) {
+static binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slots, const constraints& c) {
     binding_oberver_ptr observer{};
     if (detail::is_binding_environment_valid() &&
         ((c.core_type >= 0 && info::core_types().size() > 1) || (c.numa_id >= 0 && info::numa_nodes().size() > 1) ||
@@ -131,10 +131,8 @@ binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, int num_slot
     return observer;
 }
 
-#    endif /*USE_TBBBIND_2_4*/
-
-#    if TBB_NUMA_SUPPORT_PRESENT
-tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
+#    elif TBB_NUMA_SUPPORT_PRESENT
+static tbb::task_arena::constraints convert_constraints(const custom::task_arena::constraints& c) {
     tbb::task_arena::constraints result{};
 #        if TBB_HYBRID_CPUS_SUPPORT_PRESENT
     result.core_type = c.core_type;

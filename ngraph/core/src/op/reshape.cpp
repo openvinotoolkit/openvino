@@ -16,6 +16,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace reshapeop {
+namespace {
 bool evaluate_reshape(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order) {
     runtime::opt_kernel::reshape(arg0->get_data_ptr<char>(),
                                  out->get_data_ptr<char>(),
@@ -35,6 +36,7 @@ void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_
         output_shape.push_back(shape_pattern_ptr[i]);
     }
 }
+}  // namespace
 }  // namespace reshapeop
 
 BWDCMP_RTTI_DEFINITION(op::v1::Reshape);
