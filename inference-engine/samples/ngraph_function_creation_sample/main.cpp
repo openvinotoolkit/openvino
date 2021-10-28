@@ -300,8 +300,8 @@ int main(int argc, char* argv[]) {
         const auto input = model->input();
 
         auto input_shape = input.get_shape();
-        const size_t width = input_shape[layout::width(tensor_layout)];
-        const size_t height = input_shape[layout::height(tensor_layout)];
+        const size_t width = input_shape[layout::width_idx(tensor_layout)];
+        const size_t height = input_shape[layout::height_idx(tensor_layout)];
 
         std::vector<std::shared_ptr<unsigned char>> imagesData;
         for (auto& i : images) {
@@ -327,7 +327,7 @@ int main(int argc, char* argv[]) {
         // -------- Step 4. Reshape a model --------
         // Setting batch size using image count
         const size_t batch_size = imagesData.size();
-        input_shape[layout::batch(tensor_layout)] = batch_size;
+        input_shape[layout::batch_idx(tensor_layout)] = batch_size;
         model->reshape({{input.get_any_name(), input_shape}});
         slog::info << "Batch size is " << std::to_string(batch_size) << slog::endl;
 

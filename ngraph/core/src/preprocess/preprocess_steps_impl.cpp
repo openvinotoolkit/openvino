@@ -271,7 +271,7 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
                     "Layout ",
                     context.layout().to_string(),
                     " doesn't have `channels` dimension");
-    auto channels_idx = ov::layout::channels(context.layout());
+    auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
     auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
 

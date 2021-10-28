@@ -101,7 +101,7 @@ OPENVINO_API bool has_batch(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t batch(const Layout& layout);
+OPENVINO_API std::int64_t batch_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'channels' dimension
 ///
@@ -113,7 +113,7 @@ OPENVINO_API bool has_channels(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t channels(const Layout& layout);
+OPENVINO_API std::int64_t channels_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'depth' dimension
 OPENVINO_API bool has_depth(const Layout& layout);
@@ -122,7 +122,7 @@ OPENVINO_API bool has_depth(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t depth(const Layout& layout);
+OPENVINO_API std::int64_t depth_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'height' dimension
 OPENVINO_API bool has_height(const Layout& layout);
@@ -131,7 +131,7 @@ OPENVINO_API bool has_height(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t height(const Layout& layout);
+OPENVINO_API std::int64_t height_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'width' dimension
 OPENVINO_API bool has_width(const Layout& layout);
@@ -140,7 +140,7 @@ OPENVINO_API bool has_width(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t width(const Layout& layout);
+OPENVINO_API std::int64_t width_idx(const Layout& layout);
 
 }  // namespace layout
 

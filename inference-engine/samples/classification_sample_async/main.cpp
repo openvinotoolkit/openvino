@@ -131,8 +131,8 @@ int main(int argc, char* argv[]) {
         slog::info << "Read input images" << slog::endl;
 
         ov::Shape input_shape = model->input().get_shape();
-        const size_t width = input_shape[ov::layout::width(tensor_layout)];
-        const size_t height = input_shape[ov::layout::height(tensor_layout)];
+        const size_t width = input_shape[ov::layout::width_idx(tensor_layout)];
+        const size_t height = input_shape[ov::layout::height_idx(tensor_layout)];
 
         std::vector<std::shared_ptr<unsigned char>> images_data;
         std::vector<std::string> valid_image_names;
@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
         // -------- Step 5. Loading model to the device --------
         // Setting batch size using image count
         const size_t batchSize = images_data.size();
-        input_shape[ov::layout::batch(tensor_layout)] = batchSize;
+        input_shape[ov::layout::batch_idx(tensor_layout)] = batchSize;
         model->reshape({{model->input().get_any_name(), input_shape}});
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 

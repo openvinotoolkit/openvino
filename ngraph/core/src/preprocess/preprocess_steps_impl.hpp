@@ -21,7 +21,7 @@ namespace preprocess {
 inline size_t get_and_check_width_idx(const Layout& layout, const PartialShape& shape) {
     OPENVINO_ASSERT(ov::layout::has_width(layout), "Layout ", layout.to_string(), " doesn't have `width` dimension");
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape width index for shape with dynamic rank");
-    auto idx = ov::layout::width(layout);
+    auto idx = ov::layout::width_idx(layout);
     if (idx < 0) {
         idx = shape.rank().get_length() + idx;
     }
@@ -34,7 +34,7 @@ inline size_t get_and_check_width_idx(const Layout& layout, const PartialShape& 
 inline size_t get_and_check_height_idx(const Layout& layout, const PartialShape& shape) {
     OPENVINO_ASSERT(ov::layout::has_height(layout), "Layout ", layout.to_string(), " doesn't have `height` dimension");
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape height index for shape with dynamic rank");
-    auto idx = ov::layout::height(layout);
+    auto idx = ov::layout::height_idx(layout);
     if (idx < 0) {
         idx = shape.rank().get_length() + idx;
     }
@@ -50,7 +50,7 @@ inline size_t get_and_check_channels_idx(const Layout& layout, const PartialShap
                     layout.to_string(),
                     " doesn't have `channels` dimension");
     OPENVINO_ASSERT(shape.rank().is_static(), "Can't get shape channels index for shape with dynamic rank");
-    auto idx = ov::layout::channels(layout);
+    auto idx = ov::layout::channels_idx(layout);
     if (idx < 0) {
         idx = shape.rank().get_length() + idx;
     }

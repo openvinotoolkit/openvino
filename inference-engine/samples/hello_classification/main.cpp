@@ -129,8 +129,8 @@ int main(int argc, char* argv[]) {
                 tensor(InputTensorInfo().
                     set_element_type(ov::element::u8).
                     set_spatial_static_shape(
-                        tensor_shape[ov::layout::height(tensor_layout)],
-                        tensor_shape[ov::layout::width(tensor_layout)]).
+                        tensor_shape[ov::layout::height_idx(tensor_layout)],
+                        tensor_shape[ov::layout::width_idx(tensor_layout)]).
                     set_layout(tensor_layout)).
                 // 3) Adding explicit preprocessing steps:
                 // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
