@@ -102,10 +102,6 @@ void MKLDNNReorderNode::createPrimitive() {
 
 void MKLDNNReorderNode::prepareParams() {
     if (!isOptimized) {
-        if (!inputShapesDefined()) {
-            IE_THROW() << "Can't prepare params for eltwise node with name: " << getName();
-        }
-
         auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
         auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())

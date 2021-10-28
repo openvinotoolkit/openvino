@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 inline OutputVector sum(const Node& node) {
-    return variadic::make_ng_variadic_op<default_opset::Add>(node, ngraph::op::AutoBroadcastSpec::NONE);
+    return variadic::make_ng_variadic_op<default_opset::Add>(node, ngraph::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1

@@ -117,7 +117,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     return reqId;
 }
 
-void enforceLegacyCnn(Gna2Operation& operation) {
+inline void enforceLegacyCnn(Gna2Operation& operation) {
     snprintf(
         const_cast<char*>(operation.Operands[1]->Layout),
         sizeof(operation.Operands[1]->Layout) / sizeof(char),
