@@ -20,14 +20,6 @@
 #    define OPENVINO_EXTENSION_API   OPENVINO_API
 #endif
 
-namespace ngraph {
-namespace frontend {
-
-class FrontEnd;
-
-}  // namespace frontend
-}  // namespace ngraph
-
 namespace ov {
 
 class Extension;

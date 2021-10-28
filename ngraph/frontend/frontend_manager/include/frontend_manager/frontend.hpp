@@ -92,10 +92,10 @@ public:
 
     /// \brief Register base extension in the FrontEnd
     /// \param extension base extension
-    void add_extension(const std::shared_ptr<ov::Extension>& extension);
+    virtual void add_extension(const std::shared_ptr<ov::Extension>& extension);
     /// \brief Register base extensions in the FrontEnd
     /// \param extensions vector of extensions
-    virtual void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+    void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
     /// \brief Registers extension
     /// \param library_path path to library with ov::Extension
     void add_extension(const std::string& library_path);
@@ -122,24 +122,6 @@ public:
         std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
         add_extension(ext);
         add_extension(args...);
-    }
-
-    /// @brief Registers custom operation
-    template <class T, typename std::enable_if<std::is_base_of<ov::op::Op, T>::value, bool>::type = true>
-    void add_extension() {
-        std::shared_ptr<ov::Extension> ext = std::make_shared<ov::OpExtension<T>>();
-        add_extension(ext);
-    }
-
-    /// @brief Registers custom operations
-    template <class T,
-              class... Targs,
-              typename std::enable_if<std::is_base_of<ov::op::Op, T>::value && sizeof...(Targs), bool>::type = true>
-    void add_extension() {
-        std::shared_ptr<ov::Extension> ext = std::make_shared<ov::OpExtension<T>>();
-        add_extension(ext);
-        if (sizeof...(Targs) > 0)
-            add_extension<Targs...>();
     }
 
 protected:

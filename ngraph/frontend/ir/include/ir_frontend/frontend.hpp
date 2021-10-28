@@ -27,9 +27,9 @@ public:
     /// \return IR frontend name.
     std::string get_name() const override;
 
-    /// \brief Register extensions in the FrontEnd
-    /// \param extensions vector of extensions
-    void add_extension(const std::vector<ov::Extension::Ptr>& extensions) override;
+    /// \brief Register extension in the FrontEnd
+    /// \param extension base extension
+    void add_extension(const ov::Extension::Ptr& extension) override;
 
 protected:
     /// \brief Check if FrontEndIR can recognize model from given parts
