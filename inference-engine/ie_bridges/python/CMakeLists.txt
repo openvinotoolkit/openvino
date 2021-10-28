@@ -80,10 +80,6 @@ if(TARGET _pyngraph)
     add_dependencies(ie_api _pyngraph)
 endif()
 
-if(TARGET pyopenvino)
-    add_dependencies(ie_api pyopenvino)
-endif()
-
 # install
 
 ie_cpack_add_component(${PYTHON_COMPONENT})
