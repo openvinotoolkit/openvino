@@ -56,42 +56,9 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<ngraph::Node>& node) ->
     return std::find_if_not(std::begin(outputs), std::end(outputs), check_shapes_broadcastable) != std::end(outputs);
 };
 
-auto has_cycles_of_dependencies(const std::vector<std::set<ngraph::Input<ngraph::Node>>>& results,
-                                const std::vector<ngraph::Input<ngraph::Node>>& inputs) -> bool {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::has_cycles_of_dependencies")
-
-    auto GetTopologicalOrder = [](std::shared_ptr<Node> node) -> int64_t {
-        auto &rt = node->get_rt_info();
-        const auto rinfo = rt.find("TopologicalOrder");
-//        assert(rinfo != rt.end());
-        if (rinfo == rt.end())
-            throw ngraph_error("TopologicalOrder is not found in rt_info");
-        return ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
-    };
-    int64_t minResultOrder{LONG_MAX};
-    for (const auto& result : results) {
-        for (const auto &user : result) {
-            const auto node = user.get_node()->shared_from_this();
-            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
-                continue;
-            minResultOrder = std::min(minResultOrder, GetTopologicalOrder(node));
-        }
-    }
-    int64_t maxInputOrder{-1};
-    for (const auto& input : inputs) {
-            const auto node = input.get_source_output().get_node_shared_ptr();
-            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node))
-                continue;
-            maxInputOrder = std::max(maxInputOrder, GetTopologicalOrder(node));
-    }
-    return maxInputOrder >= minResultOrder;
-}
-
 auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::has_subgraph_as_input")
-    auto inputs = node->inputs();
-    for (auto input : inputs) {
-        auto parent = input.get_source_output().get_node_shared_ptr();
+    for (const auto& parent : ngraph::as_node_vector(node->input_values())) {
         if (ov::is_type<snippets::op::Subgraph>(parent)) {
             return true;
         }
@@ -102,7 +69,6 @@ auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
 auto is_lo(std::shared_ptr<Node> n) -> bool {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::is_lo")
     auto is_lob = [](std::shared_ptr<Node> n) -> bool {
-        using ngraph::as_type_ptr;
         return ov::is_type<opset1::Add>(n)
             || ov::is_type<opset1::Divide>(n)
             || ov::is_type<opset1::Equal>(n)
@@ -127,46 +93,20 @@ auto is_lo(std::shared_ptr<Node> n) -> bool {
     };
 
     auto is_lou = [](std::shared_ptr<Node> n) -> bool {
-        using ngraph::as_type_ptr;
         return ov::is_type<opset1::Abs>(n)
-            // || ov::is_type<opset1::Acos>(n)
-            // || ov::is_type<opset1::Asin>(n)
-            // || ov::is_type<opset1::Atan>(n)
-            // || ov::is_type<opset1::Ceiling>(n) ?
             || ov::is_type<opset1::Clamp>(n)
-            // || ov::is_type<opset1::Cos>(n)
-            // || ov::is_type<opset1::Cosh>(n)
             || ov::is_type<opset1::Elu>(n)
             || ov::is_type<opset1::Erf>(n)
             || ov::is_type<opset1::Exp>(n)
-            // || ov::is_type<opset1::Floor>(n) ?
-            // || ov::is_type<opset1::Log>(n) ?
             || ov::is_type<opset1::LogicalNot>(n)
             || ov::is_type<opset1::Negative>(n)
             || ov::is_type<opset1::Relu>(n)
-            // || ov::is_type<opset1::Sign>(n) ?
             || ov::is_type<opset1::Sigmoid>(n)
-            // || ov::is_type<opset1::Sin>(n)
-            // || ov::is_type<opset1::Sinh>(n)
             || ov::is_type<opset1::Sqrt>(n)
-            // || ov::is_type<opset1::Tan>(n)
             || ov::is_type<opset1::Tanh>(n)
             || ov::is_type<ngraph::op::v4::HSwish>(n);
     };
-
-    auto is_lot = [](std::shared_ptr<Node> n) -> bool {
-        using ngraph::as_type_ptr;
-        return false;
-        // return ov::is_type<opset1::HardSigmoid>(n) // ternary with 2 constants
-            // || ov::is_type<opset1::Selu>(n); // ternary with 2 constants / or DW
-    };
-
-    auto is_fq = [](std::shared_ptr<Node> n) -> bool {
-        using ngraph::as_type_ptr;
-        return false;//ov::is_type<opset1::FakeQuantize>(n); // 4->1
-    };
-
-    return is_lou(n) || is_lob(n) ||is_lot(n) || is_fq(n);
+    return is_lou(n) || is_lob(n);
 }
 
 auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
@@ -215,7 +155,7 @@ auto has_result_child(std::shared_ptr<Node> node) -> bool {
     }
     return false;
 }
-// todo: do we really need this function? Can a node have >1 Results output?
+
 auto get_num_result_children(std::shared_ptr<Node> node) -> size_t {
     size_t result = 0;
     for (const auto &child : node->get_users()) {
@@ -252,13 +192,11 @@ bool ngraph::snippets::pass::AppropriateForSubgraph(std::shared_ptr<Node> n) {
 
 ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
     MATCHER_SCOPE(StartSubgraph);
-
-    register_matcher(std::make_shared<pattern::Matcher>(
-        std::make_shared<pattern::op::Label>(pattern::any_input(),
+    auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
         [](std::shared_ptr<Node> n) {
             return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphStart;
-        })),
-        [](ngraph::pattern::Matcher &m) -> bool {
+        });
+    auto callback = [](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::StartSubgraph_callback")
         auto node = m.get_match_root();
         remark(1) << "Match root (Start): "
@@ -277,7 +215,9 @@ ngraph::snippets::pass::StartSubgraph::StartSubgraph() : MatcherPass() {
                   << " inputs and " << subgraph->outputs().size()
                   << " outputs and " << subgraph->get_body()->get_ops().size() << " ops total\n";
         return true;
-    });
+    };
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
+    register_matcher(matcher, callback);
 }
 
 ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
@@ -288,8 +228,11 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
     };
 
     continuation_strategy strategy = continuation_strategy::reset;
-
-    ngraph::graph_rewrite_callback continuation_callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
+    auto label = std::make_shared<pattern::op::Label>(pattern::any_input(),
+        [](std::shared_ptr<Node> n) {
+            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphBody && has_subgraph_as_input(n);
+        });
+    ngraph::graph_rewrite_callback callback = [strategy](ngraph::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AttachToSubgraph_callback")
         auto node = m.get_match_root();
 
@@ -307,7 +250,6 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 if (!message_abort.empty()) {
                     remark(priority) << message_abort << std::endl;
                 }
-                return false;
             }
             return false;
         };
@@ -322,7 +264,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         // inputs to the node before merge to subgraph
         OutputVector internal_inputs;
 
-        auto inputs = node->inputs();
+        auto input_values = node->input_values();
         /* 
         * Called with subgraph->input_value(i) arg and used to 
         * Check that the attached node input subgraph has the same input as the node itself.
@@ -331,12 +273,10 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         *        /   \
         *  sungraph--node
         */
-        auto is_recurrent = [inputs](const ngraph::Output<ngraph::Node>& to_find) -> bool {
-            for (auto in : inputs) {
-                if (in.get_source_output().get_node_shared_ptr() == to_find.get_node_shared_ptr() &&
-                    in.get_source_output().get_index() == to_find.get_index()) {
+        auto is_recurrent = [&input_values](const ngraph::Output<ngraph::Node>& to_find) -> bool {
+            for (const auto& in : input_values) {
+                if (in == to_find)
                     return true;
-                }
             }
             return false;
         };
@@ -360,9 +300,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             auto getTopologicalOrder = [](const std::shared_ptr<Node>& n) -> int64_t {
                 auto &rt = n->get_rt_info();
                 const auto rinfo = rt.find("TopologicalOrder");
-                //assert(rinfo != rt.end());
-                if (rinfo == rt.end())
-                    throw ngraph_error("TopologicalOrder is not found in rt_info of " + n->get_friendly_name());
+                assert(rinfo != rt.end() && "TopologicalOrder is not found in rt_info");
                 return ov::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo->second)->get();
             };
             assert(currentBounds.first < currentBounds.second && "Invalid currentBounds passed");
@@ -388,9 +326,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             return true;
         };
 
-        for (auto input : inputs) {
-            auto input_node = input.get_source_output().get_node_shared_ptr();
-
+        for (const auto &input_node : ngraph::as_node_vector(input_values)) {
             if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
                     auto f = ngraph::clone_function(*subgraph->get_body().get());
@@ -404,9 +340,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
 
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
         cyclicDependencyIsIntoduced(node, currentTopoBounds);
-        //assert(!cyclicDependencyIsIntoduced(node, currentTopoBounds));
-        for (auto input : inputs) {
-            auto input_node = input.get_source_output().get_node_shared_ptr();
+        assert(!cyclicDependencyIsIntoduced(node, currentTopoBounds) && "Cyclic dependency is introduced by the node itself");
+        for (const auto& input_value : input_values) {
+            auto input_node = input_value.get_node_shared_ptr();
             if (ov::is_type<op::Subgraph>(input_node) &&
                 !cyclicDependencyIsIntoduced(input_node, currentTopoBounds)) {
                 auto subgraph = std::static_pointer_cast<op::Subgraph>(input_node);
@@ -415,33 +351,23 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
 
                     auto f = clones[input_node];
                     const auto& input_body_parameters = f->get_parameters();
-                    // for (size_t i = 0; i < subgraph->get_input_size(); ++i) {
-                    // can subgraph have more input values than body parameters?
+                    // Todo:
+                    // Some of the imput subgraphs might have common parents, so some of the input_parameters might already be
+                    // in external_inputs and hence in body_parameters. Here we handle this case and remove repeated body_parameters.
+                    // Would it be better to incorporate all inputs first and then remove repeated params.
                     for (size_t i = 0; i < input_body_parameters.size(); ++i) {
                         auto found = std::find(external_inputs.begin(), external_inputs.end(), subgraph->input_value(i));
                         if (found != external_inputs.end()) {
-                            // If a subgraph input is already in external_inputs then there must be a corresponding parameter in body_parameters
-                            // If so, then we should replace the input with the parameter
-                            // todo: It seems that that there is a 1:1 match between external_inputs and body_parameters.
-                            //  Should we use a vector/map of paris then? Or at least state this explicitly?
+                            // Todo: here we rely on friendly_name uniqueness. Propose a different algorithm.
                             size_t current_input_index = body_parameters.size();
-                            size_t estimated_index = found - external_inputs.begin();
-                            for (size_t p_ind=0; p_ind <  body_parameters.size(); p_ind++) {
+                            for (size_t p_ind = 0; p_ind <  body_parameters.size(); p_ind++) {
                                 const auto & p = body_parameters[p_ind];
                                 if (p->get_friendly_name() == found->get_node_shared_ptr()->get_friendly_name()) {
                                     current_input_index = p_ind;
                                     break;
                                 }
                             }
-                            // Todo: remove this check after a benchmark run
-                            if ((estimated_index - current_input_index) != 0)
-                                std::cerr << "ATTACH_WARNING: The proposed index algorithm is not working" << std::endl;
 
-                            if (current_input_index == body_parameters.size())
-                                std::cerr << "ATTACH_WARNING: An input parameter in external_inputs, but not in body parameters!" << std::endl;
-
-                            // Handling the case if multiple inputs referencing the same parameter comes from one subgraph => it's not introduced by SS.
-                            // It might be better to keep track if body parameter relationship rather than that
                             if (current_input_index < body_parameters.size()) {
                                 remark(13) << "replacing " << *found << " " << current_input_index << " with "
                                           << body_parameters[current_input_index] << std::endl;
@@ -456,10 +382,10 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                             auto internal = input_body_parameters[i];
                             auto internal_consumers = internal->outputs();
 
-                            if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
+                            if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->get_input_node_shared_ptr(i))) {
                                  for (auto output : internal_consumers) {
                                      for (auto consumer : output.get_target_inputs()) {
-                                         auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
+                                         auto other_body = clones[subgraph->get_input_node_shared_ptr(i)];
                                          auto other_body_result = other_body->get_results()[consumer.get_source_output().get_index()];
                                          auto result_producer = other_body_result->input(0).get_source_output();
 
@@ -480,7 +406,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 // this is there stitching happens, get result of a copy of a body of currently processed input and put it to the new inputs
                 // internal output index == external output index
                 auto& input_body = clones[input_node];
-                size_t source_output_index = input.get_source_output().get_index();
+                size_t source_output_index = input_value.get_index();
                 auto source_result = input_body->get_results()[source_output_index];
                 // Result op has a single input
                 internal_inputs.push_back(source_result->input_value(0));
@@ -488,9 +414,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 if (op::is_scalar_constant(input_node)) {
                     internal_inputs.push_back(input_node->output(0));
                 } else {
-                    external_inputs.push_back(input.get_source_output());
-                    auto new_parameter = std::make_shared<opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
-                    new_parameter->set_friendly_name(input.get_source_output().get_node()->get_friendly_name());
+                    external_inputs.push_back(input_value);
+                    auto new_parameter = std::make_shared<opset1::Parameter>(input_value.get_element_type(), input_value.get_partial_shape());
+                    new_parameter->set_friendly_name(input_node->get_friendly_name());
                     body_parameters.push_back(new_parameter);
                     internal_inputs.push_back(new_parameter->output(0));
                 }
@@ -499,7 +425,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         size_t num_result_children = get_num_result_children(node);
         std::string newSubgraphName;
         if (num_result_children == 0) {
-            for (const auto& n : as_node_vector(node->input_values()))
+            for (const auto& n : as_node_vector(input_values))
                 if (ov::is_type<op::Subgraph>(n)) {
                     newSubgraphName = n->get_friendly_name();
                     break;
@@ -593,12 +519,6 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
         if (outputs_are_not_broadcastable(subgraph))
             return abort_with_strategy("New subgraph is created due to outputs of a subgraph not broadcastable.");
 
-        // Todo: remove the check below after the benchmark run
-        if (has_cycles_of_dependencies(subgraph_result_inputs, subgraph->inputs())) {
-            throw ngraph_error("There must be no cyclic_dependencies at this point");
-            //return abort_with_strategy("New subgraph is created due to loop dependency introduced by one of input subgraphs.");
-        }
-
         for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
             for (auto target_input : subgraph_result_inputs[i]) {
                 target_input.replace_source_output(subgraph->output(i));
@@ -623,11 +543,6 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
 
         return true;
     };
-
-    register_matcher(std::make_shared<pattern::Matcher>(
-        std::make_shared<pattern::op::Label>(pattern::any_input(),
-        [](std::shared_ptr<Node> n) {
-            return GetSnippetsNodeType(n) == SnippetsNodeType::SubgraphBody && has_subgraph_as_input(n);
-        })),
-        continuation_callback);
+    auto matcher = std::make_shared<ngraph::pattern::Matcher>(label);
+    register_matcher(matcher, callback);
 }
