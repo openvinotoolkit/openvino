@@ -45,12 +45,12 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;
     make_padding(tf_padding_type,
-                ng_image_shape,
-                ng_kernel_shape,
-                ng_strides,
-                ng_dilations,
-                ng_padding_below,
-                ng_padding_above);
+                 ng_image_shape,
+                 ng_kernel_shape,
+                 ng_strides,
+                 ng_dilations,
+                 ng_padding_below,
+                 ng_padding_above);
 
     // H W I M -> H W I 1 M
     auto filter_shape = make_shared<Constant>(
@@ -63,13 +63,13 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     auto order = make_shared<Constant>(element::i64, Shape{5}, vector<int64_t>{2, 4, 3, 0, 1});
     auto transposed_filter = make_shared<opset8::Transpose>(reshaped_filter, order);
 
-    auto ng_conv = make_shared<GroupConvolution>(ng_input,
-                                                 transposed_filter,
-                                                 ng_strides,
-                                                 ng_padding_below,
-                                                 ng_padding_above,
-                                                 ng_dilations)
-                       ->output(0);
+    auto ng_conv_node = make_shared<GroupConvolution>(ng_input,
+                                                      transposed_filter,
+                                                      ng_strides,
+                                                      ng_padding_below,
+                                                      ng_padding_above,
+                                                      ng_dilations);
+    auto ng_conv = ng_conv_node->output(0);
 
     auto op_type = node.get_op_type();
     if (op_type == "DepthwiseConv2dNative") {

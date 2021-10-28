@@ -55,20 +55,16 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
         CoordinateDiff ng_padding_below;
         CoordinateDiff ng_padding_above;
         make_padding(tf_padding_type,
-                    ng_image_shape,
-                    ng_kernel_shape,
-                    ng_strides,
-                    ng_dilations,
-                    ng_padding_below,
-                    ng_padding_above);
+                     ng_image_shape,
+                     ng_kernel_shape,
+                     ng_strides,
+                     ng_dilations,
+                     ng_padding_below,
+                     ng_padding_above);
 
-        return make_shared<Convolution>(ng_input,
-                                        ng_filter,
-                                        ng_strides,
-                                        ng_padding_below,
-                                        ng_padding_above,
-                                        ng_dilations)
-            ->output(0);
+        auto res_node =
+            make_shared<Convolution>(ng_input, ng_filter, ng_strides, ng_padding_below, ng_padding_above, ng_dilations);
+        return res_node->output(0);
     };
 
     if (vec_str_cmp(fused_ops, {"BiasAdd"}) || vec_str_cmp(fused_ops, {"BiasAdd", "Relu"}) ||

@@ -26,6 +26,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph_conversions.hpp"
 #include "node_context.hpp"
+#include "ngraph/log.hpp"
 
 namespace ov {
 namespace frontend {
@@ -47,12 +48,12 @@ static bool vec_str_cmp(const std::vector<std::string>& a, const std::vector<std
 
 template <typename T>
 void make_padding(const std::string& tf_padding_type,
-                 const ov::Shape& ng_image_shape,
-                 const ov::Shape& ng_kernel_shape,
-                 const ov::Strides& ng_strides,
-                 const ov::Shape& ng_dilations,
-                 T& ng_padding_below,
-                 T& ng_padding_above) {
+                  const ov::Shape& ng_image_shape,
+                  const ov::Shape& ng_kernel_shape,
+                  const ov::Strides& ng_strides,
+                  const ov::Shape& ng_dilations,
+                  T& ng_padding_below,
+                  T& ng_padding_above) {
     if (tf_padding_type == "SAME") {
         ov::Shape img_shape = {0, 0};
         img_shape.insert(img_shape.end(), ng_image_shape.begin(), ng_image_shape.end());

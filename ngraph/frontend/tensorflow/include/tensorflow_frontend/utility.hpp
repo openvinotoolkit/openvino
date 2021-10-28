@@ -11,5 +11,3 @@
 #else
 #    define TF_API OPENVINO_CORE_IMPORTS
 #endif  // tensorflow_ngraph_frontend_EXPORTS
-
-#include <ngraph/log.hpp>

@@ -39,26 +39,26 @@ OutputVector translate_avg_pool_op(const NodeContext& node) {
     CoordinateDiff padding_above;
     Shape ng_dilations{1, 1};
     make_padding(tf_padding_type,
-                ng_image_shape,
-                ng_kernel_shape,
-                ng_strides,
-                ng_dilations,
-                padding_below,
-                padding_above);
+                 ng_image_shape,
+                 ng_kernel_shape,
+                 ng_strides,
+                 ng_dilations,
+                 padding_below,
+                 padding_above);
 
     // TODO: remove this once nGraph supports negative padding
     // (CoordinateDiff) for AvgPool
     Shape ng_padding_below(padding_below.begin(), padding_below.end());
     Shape ng_padding_above(padding_above.begin(), padding_above.end());
 
-    auto res = make_shared<AvgPool>(ng_input,
-                                    ng_strides,
-                                    ng_padding_below,
-                                    ng_padding_above,
-                                    ng_kernel_shape,
-                                    true,
-                                    ov::op::RoundingType::FLOOR)
-                   ->output(0);
+    auto res_node = make_shared<AvgPool>(ng_input,
+                                         ng_strides,
+                                         ng_padding_below,
+                                         ng_padding_above,
+                                         ng_kernel_shape,
+                                         true,
+                                         ov::op::RoundingType::FLOOR);
+    auto res = res_node->output(0);
 
     convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());

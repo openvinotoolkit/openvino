@@ -100,9 +100,9 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
                 make_shared<Constant>(element::i64, Shape{4}, vector<int64_t>({1, stride_height, stride_width, 1}));
 
             // crop
-            auto ng_crop =
-                make_shared<StridedSlice>(ng_input, begin, end, strides, vector<int64_t>{}, vector<int64_t>{})
-                    ->output(0);
+            auto ng_crop_node =
+                make_shared<StridedSlice>(ng_input, begin, end, strides, vector<int64_t>{}, vector<int64_t>{});
+            auto ng_crop = ng_crop_node->output(0);
 
             Interpolate::InterpolateAttrs interpolate_attrs;
             // always corner aligned
