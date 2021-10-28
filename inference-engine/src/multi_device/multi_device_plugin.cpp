@@ -259,7 +259,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              for (auto& config : configs) {
                  if (std::find(validConfigKey.begin(), validConfigKey.end(), config.first) != validConfigKey.end()) {
                      deviceConfig.insert({config.first, config.second});
-                     HInfo("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName,config.first ,config.second);
+                     HInfo("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName.c_str(),
+                             config.first.c_str(), config.second.c_str());
                  }
              }
              iter->config = deviceConfig;
@@ -549,7 +550,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                            << " for key: " << kvp.first;
             }
         } else if (kvp.first == PluginConfigParams::KEY_LOG_LEVEL) {
-               auto it = logValueMap.find('b');
+               auto it = logValueMap.find(kvp.first);
                if (it != logValueMap.end()) {
                    MultiDevicePlugin::setLogLevel(it->second);
                } else {
