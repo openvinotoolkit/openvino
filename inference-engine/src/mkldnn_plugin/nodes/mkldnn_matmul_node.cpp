@@ -24,6 +24,7 @@
 #include "utils/general_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "mkldnn_extension_utils.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -89,7 +90,8 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
 
     for (auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
-            eltwiseNode->appendPostOps(ops);
+            // TODO [DS]: change to shape from memory
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
             continue;
         }
 
@@ -189,15 +191,14 @@ void MKLDNNMatMulNode::getSupportedDescriptors() {
         return strides;
     };
 
-    initialInShapes[0] = inputShapes[0];
-    initialInShapes[1] = inputShapes[1];
+    std::array<Shape, 2> newShapes{getInputShapeAtPort(0), getInputShapeAtPort(1)};
 
-    const VectorDims inStrides0 = getStridesAndDims(inputShapes[0], transposeIn[0]);
-    const VectorDims inStrides1 = getStridesAndDims(inputShapes[1], transposeIn[1]);
+    const VectorDims inStrides0 = getStridesAndDims(newShapes[0], transposeIn[0]);
+    const VectorDims inStrides1 = getStridesAndDims(newShapes[1], transposeIn[1]);
     const VectorDims outStrides = getStridesAndDims(outputShapes[0], false);
 
-    inDataDesc[0] = std::make_shared<DnnlBlockedMemoryDesc>(firstInPortPrec, inputShapes[0], inStrides0);
-    inDataDesc[1] = std::make_shared<DnnlBlockedMemoryDesc>(secondInPortPrec, inputShapes[1], inStrides1);
+    inDataDesc[0] = std::make_shared<DnnlBlockedMemoryDesc>(firstInPortPrec, newShapes[0], inStrides0);
+    inDataDesc[1] = std::make_shared<DnnlBlockedMemoryDesc>(secondInPortPrec, newShapes[1], inStrides1);
     outDataDesc   = std::make_shared<DnnlBlockedMemoryDesc>(outPortPrec, getOutputShapeAtPort(0), outStrides);
 
     createDescriptor({inDataDesc[0], inDataDesc[1]}, {outDataDesc});
@@ -229,13 +230,7 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace = -1;
                 portConfig.constant = false;
-
-                auto src_desc = getSrcMemDesc(itpd, i);
-                if (src_desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.desc = src_desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
-                } else {
-                    portConfig.desc = std::move(src_desc);
-                }
+                portConfig.desc = getSrcMemDesc(itpd, i);
 
                 config.inConfs.push_back(portConfig);
             }
@@ -244,13 +239,7 @@ void MKLDNNMatMulNode::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace = canBeInPlace() ? 0 : -1;
                 portConfig.constant = false;
-
-                auto dst_desc = getDstMemDesc(itpd, i);
-                if (dst_desc->getType() & MemoryDescType::Blocked) {
-                    portConfig.desc = dst_desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
-                } else {
-                    portConfig.desc = std::move(dst_desc);
-                }
+                portConfig.desc = getDstMemDesc(itpd, i);
 
                 config.outConfs.push_back(portConfig);
             }
@@ -294,10 +283,9 @@ void MKLDNNMatMulNode::createPrimitive() {
 
 MemoryDescPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
-
     return std::make_shared<CpuBlockedMemoryDesc>(
         MKLDNNExtensionUtils::DataTypeToIEPrecision(static_cast<mkldnn::memory::data_type>(desc.data.data_type)),
-        initialInShapes[idx]); /* provide initial shapes, so hide transpose effect */
+        getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
 }
 
 bool MKLDNNMatMulNode::created() const {
