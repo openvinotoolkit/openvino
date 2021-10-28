@@ -89,6 +89,8 @@ ngraph::pass::LowLatency::LowLatency() {
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
+namespace {
+
 void UnrollSingleIteration(const shared_ptr<ngraph::op::util::SubGraphOp>& sub_graph_op,
                            const shared_ptr<ov::Function>& outer_f) {
     using namespace ngraph::opset7;
@@ -143,6 +145,8 @@ ngraph::Output<ngraph::Node> create_init_subgraph(const shared_ptr<ngraph::op::u
     copy_runtime_info(sub_graph_op, {const_zero, shape_of, broadcast});
     return broadcast->output(0);
 }
+
+}  // namespace
 
 bool ov::pass::LowLatency2::run_on_function(shared_ptr<Function> f) {
     using namespace ngraph::opset7;
