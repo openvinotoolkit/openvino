@@ -2457,16 +2457,16 @@ bool evaluate(const shared_ptr<op::v5::GatherND>& op, const HostTensorVector& ou
         runtime::reference::gather_nd<T, int64_t>(inputs[0]->get_data_ptr<T>(),
                                                   inputs[1]->get_data_ptr<int64_t>(),
                                                   outputs[0]->get_data_ptr<T>(),
-                                                  op->get_input_shape(0),
-                                                  op->get_input_shape(1),
+                                                  op->get_shape(0),
+                                                  op->get_shape(1),
                                                   op->get_output_shape(0),
                                                   op->get_batch_dims());
     } else if (op->get_input_element_type(1) == element::i32) {
         runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
                                                   inputs[1]->get_data_ptr<int32_t>(),
                                                   outputs[0]->get_data_ptr<T>(),
-                                                  op->get_input_shape(0),
-                                                  op->get_input_shape(1),
+                                                  op->get_shape(0),
+                                                  op->get_shape(1),
                                                   op->get_output_shape(0),
                                                   op->get_batch_dims());
     } else {
@@ -2482,16 +2482,16 @@ bool evaluate(const shared_ptr<op::v8::GatherND>& op, const HostTensorVector& ou
         runtime::reference::gather_nd_8<T, int64_t>(inputs[0]->get_data_ptr<T>(),
                                                     inputs[1]->get_data_ptr<int64_t>(),
                                                     outputs[0]->get_data_ptr<T>(),
-                                                    op->get_input_shape(0),
-                                                    op->get_input_shape(1),
+                                                    op->get_shape(0),
+                                                    op->get_shape(1),
                                                     op->get_output_shape(0),
                                                     op->get_batch_dims());
     } else if (op->get_input_element_type(1) == element::i32) {
         runtime::reference::gather_nd_8<T, int32_t>(inputs[0]->get_data_ptr<T>(),
                                                     inputs[1]->get_data_ptr<int32_t>(),
                                                     outputs[0]->get_data_ptr<T>(),
-                                                    op->get_input_shape(0),
-                                                    op->get_input_shape(1),
+                                                    op->get_shape(0),
+                                                    op->get_shape(1),
                                                     op->get_output_shape(0),
                                                     op->get_batch_dims());
     } else {
