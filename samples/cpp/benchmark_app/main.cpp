@@ -176,7 +176,7 @@ static void next_step(const std::string additional_info = "") {
         {6, "Configuring input of the model"},
         {7, "Loading the model to the device"},
         {8, "Setting optimal runtime parameters"},
-        {9, "Creating infer requests and filling input blobs with data for the first inference"},
+        {9, "Creating infer requests and preparing input blobs with data"},
         {10, "Measuring performance"},
         {11, "Dumping statistics report"}};
 
@@ -618,7 +618,7 @@ int main(int argc, char* argv[]) {
         bool isDynamic = app_inputs_info.begin()->begin()->second.partialShape.is_dynamic();
         // Check if network has dynamic shapes
         if (isDynamic && FLAGS_api == "sync") {
-            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for asyn API only."
+            throw std::logic_error("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior");
         }
         // ----------------- 8. Querying optimal runtime parameters
@@ -666,13 +666,19 @@ int main(int argc, char* argv[]) {
 
         // Iteration limit
         uint32_t niter = FLAGS_niter;
-        size_t shape_options_num = app_inputs_info.size();
+        size_t shape_groups_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
-            niter = ((niter + shape_options_num - 1) / shape_options_num) * shape_options_num;
-            if (FLAGS_niter != niter) {
-                slog::warn << "Number of iterations was aligned by tensor shape options number from " << FLAGS_niter
-                           << " to " << niter << " using number of possible input shapes " << shape_options_num
-                           << slog::endl;
+            if (shape_groups_num > nireq) {
+                niter = ((niter + shape_groups_num - 1) / shape_groups_num) * shape_groups_num;
+                if (FLAGS_niter != niter) {
+                    slog::warn << "Number of iterations was aligned by tensor shape groups number from " << FLAGS_niter
+                               << " to " << niter << " using number of possible input shapes " << shape_groups_num
+                               << slog::endl;
+                } else {
+                    niter = ((niter + nireq - 1) / nireq) * nireq;
+                    slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
+                               << niter << " using number of requests " << nireq << slog::endl;
+                }
             }
         }
 
@@ -715,7 +721,7 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
-        // TODO: added cached remote blobs
+        // TODO: add cached remote blobs
         // if (isFlagSetInCommandLine("use_device_mem")) {
         //    if (device_name.find("GPU") == 0)
         //        ::gpu::fillRemoteBlobs(inputFiles,
@@ -799,7 +805,7 @@ int main(int argc, char* argv[]) {
         size_t processedFramesN = 0;
         auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
-        // const auto* const contol_ptr = inputsData.begin()->second[0].get<uint8_t>();
+
         /** Start inference & calculate performance **/
         /** to align number if iterations to guarantee that last infer requests are
          * executed in the same conditions **/
@@ -807,6 +813,9 @@ int main(int argc, char* argv[]) {
         while ((niter != 0LL && iteration < niter) ||
                (duration_nanoseconds != 0LL && (uint64_t)execTime < duration_nanoseconds)) {
             auto inferRequest = inferRequestsQueue.getIdleRequest();
+            if (!inferRequest) {
+                IE_THROW() << "No idle Infer Requests!";
+            }
             auto input = app_inputs_info[iteration % app_inputs_info.size()];
             inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
 
@@ -816,6 +825,7 @@ int main(int argc, char* argv[]) {
                 batchSize = item.second.batch();
                 inferRequest->setBlob(input_name, data);
             }
+
             if (FLAGS_api == "sync") {
                 inferRequest->infer();
             } else {
@@ -863,10 +873,6 @@ int main(int argc, char* argv[]) {
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
         double fps =
             (FLAGS_api == "sync") ? batchSize * 1000.0 / medianLatency : 1000.0 * processedFramesN / totalDuration;
-
-        std::vector<double> meanLatencies(app_inputs_info.size());
-        std::vector<double> maxLatencies(app_inputs_info.size());
-        std::vector<double> minLatencies(app_inputs_info.size());
 
         if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,

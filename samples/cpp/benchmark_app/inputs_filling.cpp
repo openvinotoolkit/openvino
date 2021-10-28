@@ -57,7 +57,7 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
         std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
     T* data = new T[blob_size];
 
-    const size_t batchSize = inputInfo.batch();
+    const size_t batchSize = inputInfo.batch();  // not safe
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
     vreader.reserve(batchSize);
@@ -105,7 +105,9 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
+                                      inputInfo.tensorShape,
+                                      getLayoutFromString(inputInfo.layout));
     return InferenceEngine::make_shared_blob<T>(tDesc, data);
 }
 
@@ -130,7 +132,9 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
+                                      inputInfo.tensorShape,
+                                      getLayoutFromString(inputInfo.layout));
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
@@ -170,7 +174,9 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
         binaryFile.read(&data[b * inputSize], inputSize);
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
+                                      inputInfo.tensorShape,
+                                      getLayoutFromString(inputInfo.layout));
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>((T*)data, blob_size * sizeof(T)));
@@ -184,7 +190,7 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
                                             T rand_max = std::numeric_limits<uint8_t>::max()) {
     size_t blob_size =
         std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
-    auto data = new T[blob_size];
+    T* data = new T[blob_size];
 
     std::mt19937 gen(0);
     uniformDistribution<T2> distribution(rand_min, rand_max);
@@ -192,7 +198,9 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo._layout);
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
+                                      inputInfo.tensorShape,
+                                      getLayoutFromString(inputInfo.layout));
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));

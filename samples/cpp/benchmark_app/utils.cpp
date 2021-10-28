@@ -163,6 +163,40 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
     return batch_size;
 }
 
+InferenceEngine::Layout getLayoutFromString(const std::string& string_layout) {
+    static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
+        {"ANY", InferenceEngine::Layout::ANY},
+        {"NCHW", InferenceEngine::Layout::NCHW},
+        {"NHWC", InferenceEngine::Layout::NHWC},
+        {"NCDHW", InferenceEngine::Layout::NCDHW},
+        {"NDHWC", InferenceEngine::Layout::NDHWC},
+        {"OIHW", InferenceEngine::Layout::OIHW},
+        {"C", InferenceEngine::Layout::C},
+        {"CHW", InferenceEngine::Layout::CHW},
+        {"HWC", InferenceEngine::Layout::HWC},
+        {"HW", InferenceEngine::Layout::HW},
+        {"NC", InferenceEngine::Layout::NC},
+        {"CN", InferenceEngine::Layout::CN},
+        {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
+    auto it = layouts.find(string_layout);
+    if (it != layouts.end()) {
+        return it->second;
+    }
+    IE_THROW(NetworkNotRead) << "Unknown layout with name '" << string_layout << "'.";
+}
+
+std::string getShapeString(const InferenceEngine::SizeVector& shape) {
+    std::stringstream ss;
+    ss << "[";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (i > 0)
+            ss << ", ";
+        ss << shape.at(i);
+    }
+    ss << "]";
+    return ss.str();
+}
+
 std::string getShapesString(const benchmark_app::PartialShapes& shapes) {
     std::stringstream ss;
     for (auto& shape : shapes) {
@@ -186,18 +220,6 @@ std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& sha
         }
         ss << "]";
     }
-    return ss.str();
-}
-
-std::string getShapeString(const InferenceEngine::SizeVector& shape) {
-    std::stringstream ss;
-    ss << "[";
-    for (size_t i = 0; i < shape.size(); ++i) {
-        if (i > 0)
-            ss << ", ";
-        ss << shape.at(i);
-    }
-    ss << "]";
     return ss.str();
 }
 

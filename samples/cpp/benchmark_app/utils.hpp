@@ -16,7 +16,6 @@ struct InputInfo {
     ngraph::PartialShape partialShape;
     InferenceEngine::SizeVector tensorShape;
     std::string layout;
-    InferenceEngine::Layout _layout;
     std::vector<float> scale;
     std::vector<float> mean;
     bool isImage() const;
@@ -36,6 +35,7 @@ std::vector<std::string> parseDevices(const std::string& device_string);
 uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device);
 std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
                                                                const std::string& values_string);
+InferenceEngine::Layout getLayoutFromString(const std::string& string_layout);
 std::string getShapeString(const InferenceEngine::SizeVector& shape);
 std::string getShapesString(const benchmark_app::PartialShapes& shapes);
 std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes);
@@ -154,7 +154,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             } else if (info.partialShape.is_static()) {
                 info.tensorShape = info.partialShape.get_shape();
             } else if (!tensors_shape_map.empty()) {
-                throw std::logic_error("Wrong input names in tensor_shape command line parameter.");
+                throw std::logic_error("Wrong input name in tensor_shape command line parameter.");
             } else {
                 throw std::logic_error(
                     "tensor_shape command line parameter should be set in case of network dynamic shape.");
@@ -166,16 +166,14 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                     throw std::logic_error(
                         "layout command line parameter doesn't support multiple layouts for one input.");
                 }
-                info._layout = descriptor.getLayout();  // TODO: change the way we get layout in this case
                 info.layout = layout_map.at(name)[0];
                 std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);
             } else {
                 std::stringstream ss;
                 ss << descriptor.getLayout();
-                info._layout = descriptor.getLayout();
                 info.layout = ss.str();
             }
-            // Update shape with batch if needed (only in static case)
+            // Update shape with batch if needed (only in static shape case)
             // Update blob shape only not affecting network shape to trigger dynamic batch size case
             if (batch_size != 0) {
                 std::size_t batch_index = info.layout.find("N");
