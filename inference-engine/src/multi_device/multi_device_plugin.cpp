@@ -259,6 +259,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              for (auto& config : configs) {
                  if (std::find(validConfigKey.begin(), validConfigKey.end(), config.first) != validConfigKey.end()) {
                      deviceConfig.insert({config.first, config.second});
+                     HInfo("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName,config.first ,config.second);
                  }
              }
              iter->config = deviceConfig;

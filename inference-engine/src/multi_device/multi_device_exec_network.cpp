@@ -168,7 +168,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
     _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
-    HInfo("AUTO:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
+    HInfo("[AUTOPLUGIN]:select device:%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
     // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
@@ -333,7 +333,16 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                    _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
                    _loadContext[ACTUALDEVICE].isAlready = true;
                }
-            });
+               std::vector<std::string> supported_config_keys =
+                    _core->GetMetric(_loadContext[ACTUALDEVICE].deviceInfo.deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+               for (const auto& cfg : supported_config_keys) {
+                    try {
+                        HDebug("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str(),
+                                cfg.c_str(), _loadContext[ACTUALDEVICE].executableNetwork.GetConfig(cfg).as<std::string>().cstr());
+                    } catch (...) {
+                    };
+               }
+               });
 }
 
 void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipelineTask, DeviceName preferred_device) {
