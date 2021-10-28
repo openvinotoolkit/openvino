@@ -127,7 +127,7 @@ std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::stri
     return {input_name, file_paths};
 }
 
-std::map<std::string, std::vector<std::string>> parseInputArguments(const std::string& input_parameter_string) {
+std::map<std::string, std::vector<std::string>> parseInputArguments() {
     std::vector<std::string> args = gflags::GetArgvs();
     const auto is_image_arg = [](const std::string& s) {
         return s == "-i" || s == "--images";
@@ -257,8 +257,8 @@ int main(int argc, char* argv[]) {
             load_config(FLAGS_load_config, config);
         }
 #endif
-        /** This vector stores paths to the processed images **/
-        auto inputFiles = parseInputArguments(FLAGS_i);
+        /** This vector stores paths to the processed images with input names**/
+        auto inputFiles = parseInputArguments();
 
         // ----------------- 2. Loading the Inference Engine
         // -----------------------------------------------------------
