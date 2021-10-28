@@ -82,6 +82,18 @@ def test_init_with_roi_tensor():
     assert np.array_equal(ov_tensor1.data[0:1, :, 24:, 24:], ov_tensor2.data)
 
 
+@pytest.mark.parametrize("ov_type", [
+    (ov.impl.Type.u1),
+    (ov.impl.Type.u4),
+    (ov.impl.Type.i4),
+])
+def test_cannot_create_roi_from_packed_tensor(ov_type):
+    ov_tensor = Tensor(ov_type, [1, 3, 48, 48])
+    with pytest.raises(RuntimeError) as e:
+        roi = Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
+    assert "ROI Tensor for types with bitwidths less then 8 bit is not implemented" in str(e.value)
+
+
 @pytest.mark.parametrize("dtype, ov_type, shape", [
     (np.uint8, ov.impl.Type.u1, [1, 3, 28, 28]),
     (np.uint8, ov.impl.Type.u4, [1, 3, 27, 27]),
