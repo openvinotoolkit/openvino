@@ -8,17 +8,17 @@ namespace ov {
 namespace op {
 namespace ShapeInferLSTM {
 template <class T1, class T2>
-void inline default_work(T1* op, T2& shape) {
+void inline default_work(const T1* op, T2& shape) {
     NODE_VALIDATION_CHECK(op, false, "[LSTM]Can not infer shape based on input static shape");
 }
 
 template <class T1>
-void inline default_work(T1* op, PartialShape& shape) {
+void inline default_work(const T1* op, PartialShape& shape) {
     shape = PartialShape::dynamic();
 }
 
 template <class T1, class T2>
-void lstm_shape_infer(T1* op,
+void lstm_shape_infer(const T1* op,
                       const std::vector<T2>& input_shapes,
                       std::vector<T2>& output_shapes,
                       std::size_t gates_count) {
@@ -46,7 +46,7 @@ void lstm_shape_infer(T1* op,
     cell_shape.resize(2);
 
     // Check rnn common input
-    util::validate_input_rank(dynamic_cast<util::RNNCellBase*>(op),
+    util::validate_input_rank(dynamic_cast<const util::RNNCellBase*>(op),
                               std::vector<T2>{x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // Check cell
@@ -128,7 +128,7 @@ void lstm_shape_infer(T1* op,
 namespace v0 {
 using ShapeInferLSTM::lstm_shape_infer;
 template <class T>
-void shape_infer(LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 7 && output_shapes.size() == 2);
     const auto& p_pshape = input_shapes[6];
 
@@ -149,7 +149,7 @@ void shape_infer(LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T
 namespace v4 {
 using ShapeInferLSTM::lstm_shape_infer;
 template <class T>
-void shape_infer(LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const LSTMCell* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 6 && output_shapes.size() == 2);
     lstm_shape_infer(op, input_shapes, output_shapes, op->s_gates_count);
 }
