@@ -338,13 +338,14 @@ def compute_weights_stats(model, stats_layout):
         node = get_fake_quantize_first_output(fq_node)
         weights_node = get_node_input(fq_node, 0)
         weights_value = get_input_data_value(fq_node, 0)
+        weights = np.atleast_1d(weights_value).astype(np.float32)
+
         if weights_node.type != 'Const' and weights_value is None:
             raise Exception('Incorrect stats layout for weights:'
                             ' {} is activation'.format(weights_node.name))
         if node.name not in weights_stats:
             weights_stats[node.name] = {}
         for stat_name, stat_fn in stats.items():
-            weights = weights_value.astype(np.float32)
             weights_stats[node.name][stat_name] = stat_fn(weights)
     return weights_stats
 
@@ -367,6 +368,9 @@ def broadcast_fq_values(fq, node, min_level, max_level, fq_config):
     # get input shape from data node
     input_shape = get_input_shape(fq, 0)
     bounds_shape = np.ones(len(input_shape), dtype=np.int32)
+
+    if len(input_shape) == 0:
+        return min_level, max_level
 
     if node.type == 'Const':
         output_node = get_fake_quantize_first_output(fq)
