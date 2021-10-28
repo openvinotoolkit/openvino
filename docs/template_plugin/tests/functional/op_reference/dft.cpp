@@ -1162,7 +1162,6 @@ static std::vector<T> convert(const std::vector<bfloat16>& v) {
 
 template <element::Type_t ET>
 std::vector<DFTParams> generateParamsForDFT() {
-
     std::vector<DFTParams> params{
         // dft1d_eval
         DFTParams(Shape{2, 10, 10, 2},
