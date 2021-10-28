@@ -142,6 +142,7 @@ void ov::op::util::ConvertColorNV12Base::validate_and_infer_types() {
 }
 
 namespace color_convert_nv12_op {
+namespace {
 
 template <ov::element::Type_t ET>
 inline bool evaluate(const ov::HostTensorVector& input_values,
@@ -202,6 +203,7 @@ bool evaluate_nv12_convert(const ov::HostTensorVector& input_values,
     return rc;
 }
 
+}  // namespace
 }  // namespace color_convert_nv12_op
 
 bool ov::op::util::ConvertColorNV12Base::visit_attributes(AttributeVisitor& visitor) {
