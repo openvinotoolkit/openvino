@@ -519,6 +519,12 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
         bool& needPerfCounters, std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
+    static std::map<std::string, unsigned int> logValueMap = {{CONFIG_VALUE(LOG_NONE), 0},
+                                                             {CONFIG_VALUE(LOG_ERROR), 2},
+                                                             {CONFIG_VALUE(LOG_WARNING), 3},
+                                                             {CONFIG_VALUE(LOG_INFO), 4},
+                                                             {CONFIG_VALUE(LOG_DEBUG), 5},
+                                                             {CONFIG_VALUE(LOG_TRACE), 6}};
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
         if (kvp.first.find("AUTO_") == 0) {
@@ -541,6 +547,14 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                 IE_THROW() << "Unsupported config value: " << kvp.second
                            << " for key: " << kvp.first;
             }
+        } else if (kvp.first == PluginConfigParams::KEY_LOG_LEVEL) {
+               auto it = logValueMap.find('b');
+               if (it != logValueMap.end()) {
+                   MultiDevicePlugin::setLogLevel(it->second);
+               } else {
+                   IE_THROW() << "Unsupported config value: " << kvp.second
+                              << " for key: " << kvp.first;
+               }
         } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
             PerfHintsConfig::CheckConfigAndValue(kvp);
         } else if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), kvp.first)) {
