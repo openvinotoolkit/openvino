@@ -21,7 +21,7 @@ Shape get_kernel_shape(const Node& node) {
     return node.get_attribute_value<std::vector<size_t>>("kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
 }
 
-namespace detail {
+namespace {
 /// \brief      Gets the attribute default value.
 ///
 /// \param[in]  node       The node we get attribute value from.
@@ -59,14 +59,14 @@ std::vector<std::size_t> get_attribute_value(const Node& node,
         return get_attr_default_value(node, attr_name);
     }
 }
-}  // namespace detail
+}  // namespace
 
 Strides get_strides(const Node& node, const std::size_t kernel_rank) {
-    return detail::get_attribute_value(node, "strides", kernel_rank);
+    return get_attribute_value(node, "strides", kernel_rank);
 }
 
 Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
-    return detail::get_attribute_value(node, "dilations", kernel_rank);
+    return get_attribute_value(node, "dilations", kernel_rank);
 }
 
 ngraph::op::RoundingType get_rounding_type(const Node& node) {
