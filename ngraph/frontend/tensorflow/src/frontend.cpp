@@ -34,7 +34,6 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 
     NodeContext node_ctx(*node->get_decoder(), named_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
-    SetTracingInfo(node_ctx.get_name(), new_node_outputs.front());
 
     auto new_output = new_node_outputs.begin();
     auto old_outputs = node->outputs();

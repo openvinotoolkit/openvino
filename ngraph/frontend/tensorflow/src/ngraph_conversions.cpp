@@ -18,7 +18,6 @@ void NHWCtoNCHW(const std::string& op_name, bool need_convert, ov::Output<ov::No
         } else if (rank == 5) {
             Transpose3D<0, 4, 1, 2, 3>(node);
         }
-        SetTracingInfo(op_name, node);
     }
 }
 
@@ -30,7 +29,6 @@ void NCHWtoNHWC(const std::string& op_name, bool need_convert, ov::Output<ov::No
         } else if (rank == 5) {
             Transpose3D<0, 2, 3, 4, 1>(node);
         }
-        SetTracingInfo(op_name, node);
     }
 }
 

@@ -52,7 +52,6 @@ OutputVector TranslateConv3DOp(const NodeContext& node) {
     ng_kernel_shape[1] = ng_filter_shape[1];
     ng_kernel_shape[2] = ng_filter_shape[2];
     Transpose3D<4, 3, 0, 1, 2>(ng_filter);
-    SetTracingInfo(node.get_name(), ng_filter);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;

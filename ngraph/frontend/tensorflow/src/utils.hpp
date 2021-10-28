@@ -37,8 +37,6 @@ void extract_operation_name_and_port(const std::string& port_name,
                                      size_t& port_index,
                                      std::string& port_type);
 
-void SetTracingInfo(const std::string& op_name, const ov::Output<ov::Node> ng_node);
-
 void SetOutputName(const std::string& out_name, const Output<Node>& output);
 
 void SetNodeNames(const std::string& node_name, const std::shared_ptr<Node>& node);
@@ -71,18 +69,11 @@ void MakePadding(const std::string& tf_padding_type,
     }
 }
 
-template <class TOpType, class... TArg>
-ov::Output<ov::Node> make_shared(const std::string& op_name, TArg&&... Args) {
-    auto ng_node = std::make_shared<TOpType>(std::forward<TArg>(Args)...);
-    SetTracingInfo(op_name, ng_node);
-    return ng_node;
-}
-
 void TFTensorShapeToNGraphShape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
 
 template <typename T>
 void GetStaticInputVector(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
-    ov::Output<ov::Node> ng_input = node.get_ng_input(input_index);
+    auto ng_input = node.get_ng_input(input_index);
     if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
         *vector = constant->cast_vector<T>();
         return;
