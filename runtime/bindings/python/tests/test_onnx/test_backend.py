@@ -31,7 +31,6 @@ from tests import (
     xfail_issue_39658,
     xfail_issue_39659,
     xfail_issue_39662,
-    xfail_issue_44848,
     xfail_issue_44851,
     xfail_issue_44854,
     xfail_issue_44858,
@@ -389,11 +388,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_negative_axes_keepdims_example_cpu",
-    ),
-    (
-        xfail_issue_44848,
-        "OnnxBackendNodeModelTest.test_range_float_type_positive_delta_cpu",
-        "OnnxBackendNodeModelTest.test_range_int32_type_negative_delta_cpu",
     ),
     (
         xfail_issue_44851,
