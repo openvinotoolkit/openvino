@@ -11,7 +11,7 @@ namespace TemplateExtension {
 
 class Operation : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Template", "custom_opset");
 
     Operation() = default;
     Operation(const ngraph::Output<ngraph::Node>& arg, int64_t add);
@@ -21,7 +21,9 @@ public:
     int64_t getAddAttr() const {
         return add;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

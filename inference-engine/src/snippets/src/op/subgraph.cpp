@@ -12,7 +12,7 @@
 #include "snippets/pass/assign_registers.hpp"
 
 #include <ngraph/pass/manager.hpp>
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -20,8 +20,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(snippets::op::Subgraph, "Subgraph", 0);
 
 void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Generator> generator) {
     m_generator = generator;
@@ -88,7 +86,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
         }
     }
 
-    auto body_node = node->copy_with_new_inputs(body_inputs);
+    auto body_node = node->clone_with_new_inputs(body_inputs);
     body_node->set_friendly_name(node->get_friendly_name());
 
     if (node->get_output_size() != body_node->get_output_size()) {
@@ -186,7 +184,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
     for (size_t i = 0; i < m_body->get_results().size(); i++) {
         auto result = m_body->get_results()[i];
         PartialShape partial(result->get_shape());
-        bool isCompatible = ngraph::PartialShape::broadcast_merge_into(partial, std::get<0>(output_shapes[i]), ::ngraph::op::AutoBroadcastSpec::NUMPY);
+        bool isCompatible = ngraph::PartialShape::broadcast_merge_into(partial, std::get<0>(output_shapes[i]), ::ngraph::op::AutoBroadcastType::NUMPY);
         // equality check won't pass since we reshape without changes on external snippet edges
         NODE_VALIDATION_CHECK(this, isCompatible, "Inferend and passed results shapes are difference for snippet : ",
                                                   result->get_shape(), " vs ", std::get<0>(output_shapes[i]), ".");
@@ -256,7 +254,9 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
 bool snippets::op::Subgraph::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_body->evaluate(outputs, inputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void snippets::op::Subgraph::print() const {
@@ -348,7 +348,7 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
 
 void snippets::op::Subgraph::serialize() const {
     std::stringstream xmlFile, binFile;
-    ngraph::pass::Serialize serializer(xmlFile, xmlFile, ngraph::pass::Serialize::Version::IR_V10);
+    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
     serializer.run_on_function(get_body());
     auto m_constants = binFile.str();
     auto m_model = xmlFile.str();

@@ -10,6 +10,8 @@
 
 #include "kernel_selector_common.h"
 
+#include "utils.hpp"
+
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include <algorithm>
@@ -79,13 +81,15 @@ protected:
 
             memory::ptr s32_mem;
             if (a_zp.get_output_layout().data_type == data_types::i8) {
+                onednn::make_per_tensor_if_possible<data_type_to_type<data_types::i8>::type>(a_zp.as<data>());
                 s32_mem = onednn::convert_zp_data_to_s32<data_type_to_type<data_types::i8>::type>(a_zp.as<data>().get_attached_memory_ptr());
             } else if (a_zp.get_output_layout().data_type == data_types::u8) {
+                onednn::make_per_tensor_if_possible<data_type_to_type<data_types::u8>::type>(a_zp.as<data>());
                 s32_mem = onednn::convert_zp_data_to_s32<data_type_to_type<data_types::u8>::type>(a_zp.as<data>().get_attached_memory_ptr());
             } else {
                 throw std::runtime_error("Unsupported data type for activations zero points for oneDNN convolution");
             }
-            a_zp.as<data>().attach_memory(s32_mem);
+            a_zp.as<data>().attach_memory(s32_mem, false);
 
             int mask = a_zp.get_output_layout().count() > 1 ? 2 : 0;
 
@@ -211,6 +215,51 @@ attach_convolution_onednn::attach_convolution_onednn() {
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
+
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::u8, format::bfzyx),
+        std::make_tuple(data_types::i8, format::bfzyx),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f16, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::u8, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::i8, format::b_fs_zyx_fsv16),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv16),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv32_fsv32),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv4),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv4),
+
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::f16, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv4_fsv2),
+        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv4_fsv2),
     });
 }
 
