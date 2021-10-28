@@ -20,13 +20,12 @@
 
 #pragma once
 
-#include "openvino/opsets/opset8.hpp"
-
 #include "graph_iterator_proto.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph_conversions.hpp"
 #include "node_context.hpp"
-#include "ngraph/log.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace frontend {

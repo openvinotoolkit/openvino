@@ -3,6 +3,7 @@
 //
 
 #include <numeric>
+
 #include "op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
 

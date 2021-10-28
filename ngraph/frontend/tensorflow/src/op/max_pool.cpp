@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
 #include <openvino/opsets/opset7.hpp>
+
+#include "op_table.hpp"
 
 using namespace std;
 using namespace ov;
