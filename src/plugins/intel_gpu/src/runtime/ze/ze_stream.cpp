@@ -44,15 +44,15 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
         ze_result_t status = ZE_RESULT_NOT_READY;
         switch (args[i].t) {
             case args_t::INPUT:
-                //if (args[i].index < data.inputs.size() && data.inputs[args[i].index])
-                if (args[i].index < data.inputs.size()) {
+                if (args[i].index < data.inputs.size() && data.inputs[args[i].index]) {
+                //if (args[i].index < data.inputs.size()) {
                     const auto& input_mem = data.inputs[args[i].index];
                     if (input_mem) {
                         if (memory_capabilities::is_usm_type(input_mem->get_allocation_type())) {
                             //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer());
-                            status = zeKernelSetArgumentValue(kernel, i, sizeof(void*),
-                                std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get() );
-                            //ZE_CHECK(status);
+                            auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get();
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                            ZE_CHECK(status);
                         }
                     }
                 }
@@ -61,9 +61,12 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 if (args[i].index < data.fused_op_inputs.size() && data.fused_op_inputs[args[i].index]) {
                     const auto& input_mem = data.fused_op_inputs[args[i].index];
                     if (input_mem) {
-                        if (memory_capabilities::is_usm_type(input_mem->get_allocation_type()))
+                        if (memory_capabilities::is_usm_type(input_mem->get_allocation_type())) {
                             //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer());
-                            status = zeKernelSetArgumentValue(kernel, i, args.size(), input_mem.get());
+                            auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get();
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                            ZE_CHECK(status);
+                        }
                     }
                 }
                 break;
@@ -71,36 +74,42 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
                 if (args[i].index < data.intermediates.size() && data.intermediates[args[i].index]) {
                     const auto& input_mem = data.intermediates[args[i].index];
                     if (input_mem) {
-                        if (memory_capabilities::is_usm_type(input_mem->get_allocation_type()))
-                            //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer());
-                            status = zeKernelSetArgumentValue(kernel, i, args.size(), input_mem.get());
+                        if (memory_capabilities::is_usm_type(input_mem->get_allocation_type())) {
+                            auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(input_mem)->get_buffer().get();
+                            status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                            ZE_CHECK(status);
+                        }
                     }
                 }
                 break;
             case args_t::OUTPUT:
                 if (data.output) {
-                    status = zeKernelSetArgumentValue(kernel, i, sizeof(void*),
-                                                    std::dynamic_pointer_cast<const ze::gpu_usm>(data.output)->get_buffer().get());
-                    //ZE_CHECK(status);
+                    auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.output)->get_buffer().get();
+                    status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    ZE_CHECK(status);
                 }
                 break;
             case args_t::WEIGHTS:
                 if (data.weights) {
                     //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(data.weights)->get_buffer());
-                    status = zeKernelSetArgumentValue(kernel, i, sizeof(void*),
-                                                        std::dynamic_pointer_cast<const ze::gpu_usm>(data.weights)->get_buffer().get());
-                    //ZE_CHECK(status);
+                    auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.weights)->get_buffer().get();
+                    status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    ZE_CHECK(status);
                 }
                 break;
             case args_t::BIAS:
                 if (data.bias) {
                     //status = kernel.setArgUsm(i, std::dynamic_pointer_cast<const ze::gpu_usm>(data.bias)->get_buffer());
-                    status = zeKernelSetArgumentValue(kernel, i, args.size(), data.bias.get());
+                    auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.bias)->get_buffer().get();
+                    status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    ZE_CHECK(status);
                 }
                 break;
             case args_t::WEIGHTS_ZERO_POINTS:
                 if (data.weights_zero_points) {
-                    status = zeKernelSetArgumentValue(kernel, i, args.size(), data.weights_zero_points.get());
+                    auto ptr = std::dynamic_pointer_cast<const ze::gpu_usm>(data.weights_zero_points)->get_buffer().get();
+                    status = zeKernelSetArgumentValue(kernel, i, sizeof(void*), &ptr);
+                    ZE_CHECK(status);
                 }
                 break;
             default:
@@ -213,7 +222,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     zeEventCreate(_event_pool, &eventDesc, &ret_ev);
     auto global = to_group_count(args_desc.workGroups.global);
     auto local = to_group_count(args_desc.workGroups.local);
-    zeKernelSetGroupSize(kern, global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountX, global.groupCountZ/local.groupCountX);
+    ZE_CHECK(zeKernelSetGroupSize(kern, global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ));
 
     ZE_CHECK(zeCommandListAppendLaunchKernel(_command_list,
                                     kern,
@@ -242,8 +251,8 @@ void ze_stream::enqueue_barrier() {
 
 ze_event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, bool is_output) {
     //if (deps.empty())
-    //    return std::make_shared<0ze_event>(_engine.get_context(), true);
-   ze_event_handle_t ret_ev;
+    //    return std::make_shared<ze_event>(_engine.get_context(), true);
+    ze_event_handle_t ret_ev;
     ze_event_desc_t eventDesc = {
         ZE_STRUCTURE_TYPE_EVENT_DESC,
         nullptr,
@@ -327,7 +336,6 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    //zeCommandListClose(get_queue());
     ZE_CHECK(zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr));
 }
 
@@ -338,7 +346,6 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     std::vector<ze::ze_base_event> clevents;
     for (auto& ev : events) {
         if (auto ze_base_ev = dynamic_cast<ze_base_event*>(ev.get())) {
-            //clevents.push_back(*ze_base_ev);
             ZE_CHECK(zeEventHostSynchronize(ze_base_ev->get(), 0));
         }
     }

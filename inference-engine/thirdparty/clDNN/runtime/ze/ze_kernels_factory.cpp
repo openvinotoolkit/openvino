@@ -134,7 +134,8 @@ std::shared_ptr<kernel> create_ze_kernel(engine& engine, cl_context context, cl_
     ze_module_handle_t ze_module = ze_create_module_with_level_zero(dynamic_cast<ze::ze_engine&>(engine), binary);
     ze_kernel_handle_t ze_kernel;
     //ze_kernel_desc_t desc;
-    //zeKernelCreate(ze_module, &desc, &ze_kernel);
+    ze_kernel_desc_t desc = {ZE_STRUCTURE_TYPE_KERNEL_DESC , nullptr, 0, entry_point.c_str()};
+    zeKernelCreate(ze_module, &desc, &ze_kernel);
     return std::make_shared<cldnn::ze::ze_kernel>(ze_kernel, ze_module, entry_point);
     //}
 }
