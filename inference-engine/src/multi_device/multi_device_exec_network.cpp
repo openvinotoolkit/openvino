@@ -185,7 +185,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     profilingTask += _loadContext[1].deviceInfo.deviceName;
     // if the devices of the two context are all CPU, diabled _loadContext[0], only use _loadContext[1]
     bool isAcceleratorCPU =
-         _loadContext[1].deviceInfo.deviceName.find("CPU") == std::string::npos;
+         _loadContext[1].deviceInfo.deviceName.find("CPU") != std::string::npos;
     if (isAcceleratorCPU) {
          _loadContext[0].isEnabled = false;
     }
