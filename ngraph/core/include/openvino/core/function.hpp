@@ -112,6 +112,7 @@ public:
     void add_output(const ov::Output<ov::Node>& port);
 
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
+    void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
 
     /// Return the element type of output i
     const ov::element::Type& get_output_element_type(size_t i) const;
@@ -144,7 +145,6 @@ public:
     std::vector<std::shared_ptr<ov::Node>> get_ordered_ops() const;
     void map_unordered_ops(std::function<void(ov::Node*)> f) const;
 
-    friend std::ostream& operator<<(std::ostream&, const Function&);
     // updates graph and m_results list
     void replace_node(std::shared_ptr<ov::Node> old, std::shared_ptr<ov::Node> repl);
 
@@ -310,6 +310,9 @@ private:
     ov::op::util::VariableVector m_variables;
     RTMap m_rt_info;
 };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream&, const Function&);
 
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Function>>
