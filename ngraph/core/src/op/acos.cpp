@@ -31,6 +31,7 @@ std::shared_ptr<ov::Node> ov::op::v0::Acos::clone_with_new_inputs(const OutputVe
 }
 
 namespace acosop {
+namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const size_t count) {
     using T = typename ov::element_type_traits<ET>::value_type;
@@ -55,6 +56,7 @@ bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, 
     }
     return rc;
 }
+}  // namespace
 }  // namespace acosop
 
 bool ov::op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
