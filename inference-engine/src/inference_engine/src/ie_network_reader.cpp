@@ -48,7 +48,7 @@ public:
           m_type(name),
           m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()) {}
 
-    const ov::DiscreteTypeInfo& type() const override {
+    const ov::DiscreteTypeInfo& get_type_info() const override {
         return m_ext_type;
     }
 

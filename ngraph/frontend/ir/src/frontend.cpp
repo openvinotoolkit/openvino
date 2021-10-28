@@ -112,7 +112,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
         for (const auto& ext : extensions) {
             if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-                exts.insert({base_ext->type(), base_ext});
+                exts.insert({base_ext->get_type_info(), base_ext});
         }
         return exts;
     };
