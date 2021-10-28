@@ -910,20 +910,5 @@ TEST_F(RTInfoDeserialization, V11toV10WithoutRTInfo) {
     auto f_10 = cnn.getFunction();
     ASSERT_NE(nullptr, f_10);
 
-    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getInputsInfo()["in1"]->getPrecision());
-    EXPECT_EQ(InferenceEngine::Precision::FP32, cnn.getOutputsInfo()["sum"]->getPrecision());
-
-    // check that old api map is removed once applied
-    auto check_old_api_rt_info = [](const RTMap& info) {
-        const std::string& key = ov::OldApiMap::get_type_info_static();
-        EXPECT_FALSE(info.count(key));
-    };
-
-    check_old_api_rt_info(f_10->get_parameters()[0]->get_rt_info());
-    check_old_api_rt_info(f_10->get_result()->get_rt_info());
-
-    auto res = compare_functions(f, f_10);
-    EXPECT_TRUE(res.first) << res.second;
-
     check_version(f_10, 10);
 }
