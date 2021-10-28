@@ -6,6 +6,8 @@
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/single_layer/eltwise.hpp"
 
+#include "functional_test_utils/plugin_cache.hpp"
+
 namespace ov {
 namespace test {
 namespace subgraph {
@@ -95,7 +97,7 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 
 void EltwiseLayerTest::SetUp() {
     // w/a for myriad (cann't store 2 caches simultaneously)
-    ov::test::utils::PluginCache::get().reset();
+    PluginCache::get().reset();
 
     std::vector<InputShape> shapes;
     ElementType netType;
