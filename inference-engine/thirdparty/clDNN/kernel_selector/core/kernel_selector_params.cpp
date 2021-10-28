@@ -325,8 +325,6 @@ void ParamsKey::EnableReampleType(ResampleType a) {
     }
 }
 
-void ParamsKey::EnableFusedConvEltwEltwiseStride() { key.restrict.val.dedicated.fused_conv_eltw.stride = 1; }
-
 void ParamsKey::EnableEltwiseStride() { key.restrict.val.dedicated.eltwise.stride = 1; }
 
 void ParamsKey::EnableArgMaxMinAxis(ArgMaxMinAxis a) {
@@ -379,10 +377,6 @@ void ParamsKey::EnableLookUpTableIndicesFormat(Datatype a) {
     else
         key.restrict.val.dedicated.lookt.indicesOther = 1;
 }
-
-void ParamsKey::EnableFusedConvEltwiseRWOutOpt() { key.restrict.val.dedicated.fused_conv_eltw.rw_out_opt = 1; }
-void ParamsKey::EnableFusedConvEltwDepthToSpaceFusing() { key.restrict.val.dedicated.fused_conv_eltw.depth_to_space_fused = 1; }
-
 
 void ParamsKey::EnableQuantization(QuantizationType q) {
     switch (q) {
@@ -558,9 +552,6 @@ std::string base_params::to_string() const {
     // WA to reuse old tuning cache. Code below must be replace with the following line once new cache file is merged.
     // s << Params::to_string() << "_";
     auto type_string = toString(kType);
-    if (kType == KernelType::FUSED_CONV_ELTWISE) {
-        type_string = "";
-    }
     s << type_string << "_";
 
     // TODO: Remove activation from the string and recollect cache file

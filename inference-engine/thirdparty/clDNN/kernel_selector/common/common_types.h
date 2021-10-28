@@ -26,7 +26,6 @@ enum class KernelType {
     SOFT_MAX,
     ELTWISE,
     SCALE,
-    FUSED_CONV_ELTWISE,
     REORDER,
     RESHAPE,
     PERMUTE,

@@ -11,8 +11,7 @@ namespace kernel_selector {
 
 class ConvolutionKernel_Ref : public ConvolutionKernelBase {
 public:
-    // The kernel is shared with fused_conv_eltwise_gpu_ref primitive.
-    ConvolutionKernel_Ref() : ConvolutionKernelBase("fused_conv_eltwise_gpu_ref") {}
+    ConvolutionKernel_Ref() : ConvolutionKernelBase("convolution_gpu_ref") {}
     virtual ~ConvolutionKernel_Ref() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
