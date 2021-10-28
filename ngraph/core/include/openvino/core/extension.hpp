@@ -13,10 +13,10 @@
 
 // Use extern "C" in order to avoid issues with mangling
 #if defined(_WIN32) && defined(IMPLEMENT_OPENVINO_EXTENSION_API)
-#    define OPENVINO_EXTENSION_C_API extern "C" __declspec(dllexport)
-#    define OPENVINO_EXTENSION_API   __declspec(dllexport)
+#    define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
+#    define OPENVINO_EXTENSION_API   OPENVINO_CORE_EXPORTS
 #else
-#    define OPENVINO_EXTENSION_C_API extern "C" OPENVINO_API
+#    define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_API
 #    define OPENVINO_EXTENSION_API   OPENVINO_API
 #endif
 

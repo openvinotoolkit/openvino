@@ -106,20 +106,12 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights;
-    std::map<std::string, ngraph::OpSet> old_extensions;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
         for (const auto& ext : extensions) {
             if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
                 exts.insert({base_ext->type(), base_ext});
-        }
-        for (const auto& it : old_extensions) {
-            for (const auto& type_info : it.second.get_types_info()) {
-                OPENVINO_ASSERT(type_info.name != nullptr, "Custom operation type info doesn't contain the name.");
-                auto base_ext = std::make_shared<ov::ExtensionWrapper>(it.first, type_info.name, it.second);
-                exts.insert({base_ext->type(), base_ext});
-            }
         }
         return exts;
     };
@@ -178,8 +170,6 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
 #endif
         } else if (ov::is_type<VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(variant)) {
             weights = ov::as_type_ptr<VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(variant)->get();
-        } else if (ov::is_type<VariantWrapper<std::map<std::string, ngraph::OpSet>>>(variant)) {
-            old_extensions = ov::as_type_ptr<VariantWrapper<std::map<std::string, ngraph::OpSet>>>(variant)->get();
         }
     }
 

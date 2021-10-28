@@ -35,6 +35,42 @@
 #include "transformations/rt_info/old_api_map_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace ov {
+
+/*
+ * @brief Wrapper for old IE extensions to new API
+ */
+class ExtensionWrapper : public ov::BaseOpExtension {
+public:
+    ExtensionWrapper(const InferenceEngine::IExtensionPtr& ext, const std::string& opset, const std::string& name)
+        : m_ext(ext),
+          m_opset_name(opset),
+          m_type(name),
+          m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()) {}
+
+    const ov::DiscreteTypeInfo& type() const override {
+        return m_ext_type;
+    }
+
+    ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) const override {
+        std::shared_ptr<ngraph::Node> node(m_ext->getOpSets().at(m_opset_name).create_insensitive(m_ext_type.name));
+
+        node->set_arguments(inputs);
+        if (node->visit_attributes(visitor)) {
+            node->constructor_validate_and_infer_types();
+        }
+        return node->outputs();
+    }
+
+private:
+    InferenceEngine::IExtensionPtr m_ext;
+    std::string m_opset_name;
+    std::string m_type;
+    ov::DiscreteTypeInfo m_ext_type;
+};
+
+}  // namespace ov
+
 namespace InferenceEngine {
 
 #ifndef OPENVINO_STATIC_LIBRARY
@@ -377,14 +413,13 @@ ngraph::frontend::FrontEndManager& get_frontend_manager() {
     return manager;
 }
 
-std::map<std::string, ngraph::OpSet> get_extensions_map(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
-    std::map<std::string, ngraph::OpSet> extensions;
+std::vector<ov::Extension::Ptr> wrap_old_extensions(const std::vector<InferenceEngine::IExtensionPtr>& exts) {
+    std::vector<ov::Extension::Ptr> extensions;
     for (const auto& ext : exts) {
         for (const auto& item : ext->getOpSets()) {
-            if (extensions.count(item.first)) {
-                IE_THROW() << "Extension with " << item.first << " name already exists";
+            for (const auto& type_info : item.second.get_types_info()) {
+                extensions.emplace_back(std::make_shared<ov::ExtensionWrapper>(ext, item.first, type_info.name));
             }
-            extensions[item.first] = item.second;
         }
     }
     return extensions;
@@ -426,9 +461,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     ngraph::frontend::InputModel::Ptr inputModel;
 
     ov::VariantVector params{ov::make_variant(model_path)};
-    if (!exts.empty()) {
-        params.emplace_back(ov::make_variant(get_extensions_map(exts)));
-    }
 
     if (!binPath.empty()) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -442,6 +474,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
+        if (!exts.empty())
+            FE->add_extension(wrap_old_extensions(exts));
         inputModel = FE->load(params);
     }
 
@@ -496,13 +530,12 @@ CNNNetwork details::ReadNetwork(const std::string& model,
             std::make_shared<ngraph::runtime::SharedBuffer<Blob::CPtr>>(data, weights->byteSize(), weights);
         params.emplace_back(ov::make_variant(weights_buffer));
     }
-    if (!exts.empty()) {
-        params.emplace_back(ov::make_variant(get_extensions_map(exts)));
-    }
 
     FE = manager.load_by_model(params);
     if (FE) {
         FE->add_extension(ov_exts);
+        if (!exts.empty())
+            FE->add_extension(wrap_old_extensions(exts));
         inputModel = FE->load(params);
     }
     if (inputModel) {
