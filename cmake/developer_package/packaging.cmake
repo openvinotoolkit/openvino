@@ -11,7 +11,7 @@ include(CPackComponent)
 # Set library directory for cpack
 #
 function(ie_cpack_set_library_dir)
-    if(WIN32)
+    if(WIN32 OR APPLE)
         set(IE_CPACK_LIBRARY_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
         set(IE_CPACK_RUNTIME_PATH runtime/bin/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
         set(IE_CPACK_ARCHIVE_PATH runtime/lib/${ARCH_FOLDER}/$<CONFIG> PARENT_SCOPE)
