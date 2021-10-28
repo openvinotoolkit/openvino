@@ -353,6 +353,10 @@ class TI_AddOutputRecursiveTest(unittest.TestCase):
         loop_node.input_port_map[2]['start'] = 0
         loop_node.input_port_map[2]['end'] = -1
         loop_node.input_port_map[2]['stride'] = 1
+        loop_node.output_port_map[0]['axis'] = 1
+        loop_node.output_port_map[0]['start'] = 0
+        loop_node.output_port_map[0]['end'] = 10
+        loop_node.output_port_map[0]['stride'] = 2
 
         main_graph.graph['additional_outputs'] = ['Loop', 'Loop_2']
 
@@ -362,6 +366,7 @@ class TI_AddOutputRecursiveTest(unittest.TestCase):
         self.assertEqual(len(loop_node.out_ports()), loop_node_out_ports_len + 1)
         self.assertEqual(loop_node.out_port(1).get_destination().node.op, 'Result')
         self.assertTrue(np.all(loop_node.out_port(1).data.get_shape() == shape_array([4, 1, 4, 64, 54])))
+        self.assertTrue(np.all(loop_node.out_port(0).data.get_shape() == shape_array([1, 5, 64, 54])))
         last_node = Node(sub_graph_1, 'Loop_2')
         self.assertEqual(len(last_node.out_ports()), loop_2_node_out_ports_len)
         unsq_node = last_node.out_port(0).get_destinations()[1].node

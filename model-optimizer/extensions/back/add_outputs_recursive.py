@@ -13,16 +13,15 @@ from mo.ops.result import Result
 from mo.ops.unsqueeze import Unsqueeze
 
 
-def set_shape_to_port_for_internal_node(cycle_node, internal_id, port_num, iterations_count, need_adjust_port=True):
+def set_shape_to_port_for_internal_node(cycle_node, internal_id, port_num, iterations_count, axis, need_adjust_port=True):
     int_node_name = TensorIterator.find_internal_layer_id(cycle_node.body, internal_id)
     int_node = Node(cycle_node.body, int_node_name)
     assert int_node.op == 'Result'
     out_shape = int_node.in_port(0).data.get_shape().copy()
     # inside cycle node Unsqueeze was added to have the first dimension for concatenating results along it
     assert len(out_shape) >= 1
-    out_shape[0] = iterations_count
-    if is_fully_defined(iterations_count):
-        out_shape = shape_array(out_shape)
+    if axis is not None:
+        out_shape[axis] = iterations_count
 
     if need_adjust_port:
         port_num = port_num - len(cycle_node.in_ports())
@@ -47,11 +46,12 @@ def ti_infer(step_node, port_num):
     # find out iterations count for TensorIterator to set output shape correctly
     iterations_count = TensorIterator.find_iterations_count_for_output(step_node, found_rec)
 
-    set_shape_to_port_for_internal_node(step_node, found_rec['internal_layer_id'], port_num, iterations_count)
+    set_shape_to_port_for_internal_node(step_node, found_rec['internal_layer_id'], port_num, iterations_count, found_rec['axis'])
 
 
 # shape inference for Loop
 # copy shapes from internal nodes + insert correct iterations count where needed
+# iterations count always in the first dimension
 def loop_infer(step_node, port_num):
     out_port_map = step_node.output_port_map
     int_layer_id = None
@@ -60,7 +60,7 @@ def loop_infer(step_node, port_num):
         if om['external_port_id'] == port_num:
             int_layer_id = om['internal_layer_id']
 
-    set_shape_to_port_for_internal_node(step_node, int_layer_id, port_num, iterations_count, False)
+    set_shape_to_port_for_internal_node(step_node, int_layer_id, port_num, iterations_count, 0, False)
 
 
 def max_internal_layer_id(graph):
