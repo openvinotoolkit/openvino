@@ -15,6 +15,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace roundop {
+namespace {
 // function used by TYPE_CASE
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0,
@@ -59,6 +60,7 @@ bool evaluate_round(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace roundop
 
 BWDCMP_RTTI_DEFINITION(op::v5::Round);
