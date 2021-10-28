@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateRangeOp(const NodeContext& node) {
+OutputVector translate_range_op(const NodeContext& node) {
     auto start = node.get_ng_input(0);
     auto stop = node.get_ng_input(1);
     auto step = node.get_ng_input(2);

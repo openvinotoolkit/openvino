@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateBiasAddOp(const NodeContext& node) {
+OutputVector translate_bias_add_op(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0), ng_bias = node.get_ng_input(1);
 
     std::string tf_data_format = node.get_attribute<std::string>("data_format", "NHWC");

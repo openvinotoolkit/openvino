@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-ov::OutputVector TranslateRelu6Op(const NodeContext& node) {
+ov::OutputVector translate_relu_6_op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto res = std::make_shared<Clamp>(data, 0.0, 6.0f);
     set_node_name(node.get_name(), res);

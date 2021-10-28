@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-OutputVector TranslateBatchNDAndSpaceNDOp(const NodeContext& node) {
+OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto block_shape = node.get_ng_input(1);
     auto crops = node.get_ng_input(2);

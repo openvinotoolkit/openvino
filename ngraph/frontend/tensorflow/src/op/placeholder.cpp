@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector PlaceholderOp(const NodeContext& node) {
+OutputVector translate_placeholder_op(const NodeContext& node) {
     auto ng_et = node.get_attribute<ov::element::Type>("dtype");
     auto ng_shape = node.get_attribute<ov::PartialShape>("shape", ov::PartialShape());
 

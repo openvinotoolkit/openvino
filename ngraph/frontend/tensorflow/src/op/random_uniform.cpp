@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-ov::OutputVector TranslateRandomUniformOp(const NodeContext& node) {
+ov::OutputVector translate_random_uniform_op(const NodeContext& node) {
     auto shape = node.get_ng_input(0);
     auto seed = node.get_attribute<int64_t>("seed", 0);
     auto seed2 = node.get_attribute<int64_t>("seed2", 0);
@@ -24,7 +24,7 @@ ov::OutputVector TranslateRandomUniformOp(const NodeContext& node) {
     return res->outputs();
 }
 
-ov::OutputVector TranslateRandomUniformIntOp(const NodeContext& node) {
+ov::OutputVector translate_random_uniform_int_op(const NodeContext& node) {
     auto shape = node.get_ng_input(0);
     auto minval = node.get_ng_input(1);
     auto maxval = node.get_ng_input(2);

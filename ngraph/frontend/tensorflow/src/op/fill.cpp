@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateFillOp(const NodeContext& node) {
+OutputVector translate_fill_op(const NodeContext& node) {
     auto ng_dims = node.get_ng_input(0);
     auto ng_value = node.get_ng_input(1);
     auto res = make_shared<Broadcast>(ng_value, ng_dims);

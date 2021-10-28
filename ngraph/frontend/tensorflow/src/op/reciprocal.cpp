@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateReciprocalOp(const NodeContext& node) {
+OutputVector translate_reciprocal_op(const NodeContext& node) {
     auto x = node.get_ng_input(0);
     auto ng_exponent = make_shared<Constant>(x.get_element_type(), Shape{}, -1);
     auto res = make_shared<Power>(x, ng_exponent);

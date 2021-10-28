@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateSqueezeOp(const NodeContext& node) {
+OutputVector translate_squeeze_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto axes = node.get_attribute<std::vector<int32_t>>("squeeze_dims");
     auto axes_const = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);

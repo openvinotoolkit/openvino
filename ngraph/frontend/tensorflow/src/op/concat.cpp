@@ -16,7 +16,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateConcatOp(const NodeContext& node) {
+OutputVector translate_concat_op(const NodeContext& node) {
     size_t axis_idx, concat_idx_start, concat_idx_stop;
     if (node.get_op_type() == "ConcatV2") {
         axis_idx = node.get_ng_input_size() - 1;

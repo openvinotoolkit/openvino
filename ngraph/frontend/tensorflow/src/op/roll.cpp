@@ -14,7 +14,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-ov::OutputVector TranslateRollOp(const NodeContext& node) {
+ov::OutputVector translate_roll_op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shift = node.get_ng_input(1);
     auto axis = node.get_ng_input(2);

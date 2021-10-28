@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateWhereOp(const NodeContext& node) {
+OutputVector translate_where_op(const NodeContext& node) {
     auto x = node.get_ng_input(0);
     auto non_zero = make_shared<NonZero>(x);
     auto transpose_order = make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{1, 0});

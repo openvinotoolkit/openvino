@@ -24,7 +24,7 @@ OutputVector TranslateReduceOp(const NodeContext& node,
 }
 
 template <typename T>
-OutputVector TranslateDirectReduceOp(const NodeContext& node) {
+OutputVector translate_direct_reduce_op(const NodeContext& node) {
     // ensure its either an arithmetic or a logical reduction
     if (!(std::is_base_of<ov::op::util::ArithmeticReduction, T>::value ||
           std::is_base_of<ov::op::util::LogicalReduction, T>::value)) {
@@ -38,13 +38,13 @@ OutputVector TranslateDirectReduceOp(const NodeContext& node) {
     });
 }
 
-template OutputVector TranslateDirectReduceOp<ReduceLogicalOr>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<ReduceLogicalAnd>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<ReduceMax>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<ReduceMean>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<ReduceMin>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<ReduceProd>(const NodeContext& node);
-template OutputVector TranslateDirectReduceOp<ReduceSum>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceLogicalOr>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceLogicalAnd>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceMax>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceMean>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceMin>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceProd>(const NodeContext& node);
+template OutputVector translate_direct_reduce_op<ReduceSum>(const NodeContext& node);
 }  // namespace op
 }  // namespace tf
 }  // namespace frontend

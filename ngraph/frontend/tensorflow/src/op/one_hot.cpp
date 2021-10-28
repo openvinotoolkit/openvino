@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateOneHotOp(const NodeContext& node) {
+OutputVector translate_one_hot_op(const NodeContext& node) {
     auto ng_features = node.get_ng_input(0);
     auto ng_depth = node.get_ng_input(1);
     auto ng_on = node.get_ng_input(2);

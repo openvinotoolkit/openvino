@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateFakeQuantWithMinMaxVarsOp(const NodeContext& node) {
+OutputVector translate_fake_quant_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
     auto ng_min = node.get_ng_input(1);
     auto ng_max = node.get_ng_input(2);

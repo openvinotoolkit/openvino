@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateCumsumOp(const NodeContext& node) {
+OutputVector translate_cumsum_op(const NodeContext& node) {
     auto ng_x = node.get_ng_input(0);
     auto ng_axis = node.get_ng_input(1);
     auto exclusive = node.get_attribute<bool>("exclusive");

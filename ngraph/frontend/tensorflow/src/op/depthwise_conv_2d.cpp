@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateDepthwiseConv2dNativeOp(const NodeContext& node) {
+OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
     auto ng_filter = node.get_ng_input(1);
 

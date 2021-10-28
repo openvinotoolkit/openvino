@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateNonMaxSuppressionOp(const NodeContext& node) {
+OutputVector translate_non_max_suppression_op(const NodeContext& node) {
     auto boxes = node.get_ng_input(0);
     auto scores = node.get_ng_input(1);
     auto max_output_size = node.get_ng_input(2);

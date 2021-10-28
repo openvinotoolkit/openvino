@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateFusedMatMulOp(const NodeContext& node) {
+OutputVector translate_fused_mat_mul_op(const NodeContext& node) {
     // auto num_args = node.get_attribute<int>("num_args"); // TODO: it is unused but why?
     auto fused_ops = node.get_attribute<std::vector<string>>("fused_ops");
 

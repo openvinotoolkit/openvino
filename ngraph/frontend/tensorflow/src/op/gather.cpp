@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateGatherOp(const NodeContext& node) {
+OutputVector translate_gather_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
     auto ng_input_indices = node.get_ng_input(1);
     auto ng_axis = make_shared<Constant>(element::i64, Shape{}, 0);
@@ -22,7 +22,7 @@ OutputVector TranslateGatherOp(const NodeContext& node) {
     return res->outputs();
 }
 
-OutputVector TranslateGatherV2Op(const NodeContext& node) {
+OutputVector translate_gather_v2_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
     auto ng_input_coords = node.get_ng_input(1);
     auto ng_axis = node.get_ng_input(2);
@@ -32,7 +32,7 @@ OutputVector TranslateGatherV2Op(const NodeContext& node) {
     return res->outputs();
 }
 
-OutputVector TranslateGatherNdOp(const NodeContext& node) {
+OutputVector translate_gather_nd_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto input_indices = node.get_ng_input(1);
     auto batch_dims = node.get_attribute<int64_t>("batch_dims", 0);

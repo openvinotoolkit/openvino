@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateL2LossOp(const NodeContext& node) {
+OutputVector translate_l2_loss_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
 
     vector<float> val;

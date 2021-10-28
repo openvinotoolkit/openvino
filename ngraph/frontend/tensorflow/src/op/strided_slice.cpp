@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateStridedSliceOp(const NodeContext& node) {
+OutputVector translate_strided_slice_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto begin = node.get_ng_input(1);
     auto end = node.get_ng_input(2);

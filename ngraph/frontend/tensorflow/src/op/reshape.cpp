@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateReshapeOp(const NodeContext& node) {
+OutputVector translate_reshape_op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shape = node.get_ng_input(1);
     auto res = make_shared<Reshape>(data, shape, false);

@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslatePackOp(const NodeContext& node) {
+OutputVector translate_pack_op(const NodeContext& node) {
     auto axis = node.get_attribute<int32_t>("axis");
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
 

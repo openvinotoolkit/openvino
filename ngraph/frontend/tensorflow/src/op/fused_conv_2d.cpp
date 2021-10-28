@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateFusedConv2DOp(const NodeContext& node) {
+OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
     auto num_args = node.get_attribute<int>("num_args");
     auto fused_ops = node.get_attribute<std::vector<string>>("fused_ops");
 

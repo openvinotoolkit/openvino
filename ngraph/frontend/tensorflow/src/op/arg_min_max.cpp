@@ -46,11 +46,11 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
     return {res};
 }
 
-OutputVector TranslateArgMaxOp(const NodeContext& node) {
+OutputVector translate_arg_max_op(const NodeContext& node) {
     return (TranslateArgMinMax(node, "max"));
 }
 
-OutputVector TranslateArgMinOp(const NodeContext& node) {
+OutputVector translate_arg_min_op(const NodeContext& node) {
     return (TranslateArgMinMax(node, "min"));
 }
 }  // namespace op

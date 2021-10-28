@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateTileOp(const NodeContext& node) {
+OutputVector translate_tile_op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto repeats = node.get_ng_input(1);
 

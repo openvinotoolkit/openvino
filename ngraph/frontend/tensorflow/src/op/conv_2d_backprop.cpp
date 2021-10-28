@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateConv2DBackpropInputOp(const NodeContext& node) {
+OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     auto ng_filter = node.get_ng_input(1), ng_out_backprop = node.get_ng_input(2);
 
     // TODO: refactor me to be less redundant with other convolution ops

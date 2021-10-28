@@ -39,7 +39,7 @@ const ConstMap& TF_NGRAPH_CONST_MAP() {
 }
 }  // namespace
 
-OutputVector TranslateConstOp(const NodeContext& node) {
+OutputVector translate_const_op(const NodeContext& node) {
     auto dt = node.get_attribute<ov::element::Type>("dtype");
     Output<Node> res;
 

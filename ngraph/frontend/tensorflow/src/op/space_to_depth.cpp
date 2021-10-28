@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateSpaceToDepthOp(const NodeContext& node) {
+OutputVector translate_space_to_depth_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
 
     auto block_size = node.get_attribute<int64_t>("block_size");

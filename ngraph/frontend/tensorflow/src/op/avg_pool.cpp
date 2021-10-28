@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateAvgPoolOp(const NodeContext& node) {
+OutputVector translate_avg_pool_op(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0);
 
     auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");

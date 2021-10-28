@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateLRNOp(const NodeContext& node) {
+OutputVector translate_lrn_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     auto alpha = node.get_attribute<float>("alpha");
     auto beta = node.get_attribute<float>("beta");

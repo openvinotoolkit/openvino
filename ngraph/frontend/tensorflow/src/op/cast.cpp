@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateCastOp(const NodeContext& node) {
+OutputVector translate_cast_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
 
     auto ng_et = node.get_attribute<element::Type>("DstT");

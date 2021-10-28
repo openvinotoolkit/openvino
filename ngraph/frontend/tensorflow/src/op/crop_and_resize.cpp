@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateCropAndResizeOp(const NodeContext& node) {
+OutputVector translate_crop_and_resize_op(const NodeContext& node) {
     /// ng_input: [batch, image_height, image_width, depth]
     /// ng_boxes: [num_boxes, 4]; each box is a normalized [0.to 1.] co-ordinate
     /// [y1,

@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateLogSoftmaxOp(const NodeContext& node) {
+OutputVector translate_log_softmax_op(const NodeContext& node) {
     auto ng_inp = node.get_ng_input(0);
     auto res = make_shared<LogSoftmax>(ng_inp, -1);
     set_node_name(node.get_name(), res);

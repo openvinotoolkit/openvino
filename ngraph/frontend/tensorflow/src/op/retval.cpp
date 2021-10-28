@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector RetvalOp(const NodeContext& node) {
+OutputVector translate_retval_op(const NodeContext& node) {
     // Make sure that this _Retval only has one input node.
     if (node.get_ng_input_size() != 1) {
         TF_OP_VALIDATION_CHECK(node,

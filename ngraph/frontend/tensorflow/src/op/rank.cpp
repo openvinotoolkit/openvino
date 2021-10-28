@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-ov::OutputVector TranslateRankOp(const NodeContext& node) {
+ov::OutputVector translate_rank_op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto shape_of_1 = make_shared<ShapeOf>(data, ov::element::i64);
     auto res = make_shared<ShapeOf>(shape_of_1, ov::element::i64);

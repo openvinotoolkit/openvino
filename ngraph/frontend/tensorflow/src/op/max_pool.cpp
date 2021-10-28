@@ -14,7 +14,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateMaxPoolOp(const NodeContext& node) {
+OutputVector translate_max_pool_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
 
     auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");

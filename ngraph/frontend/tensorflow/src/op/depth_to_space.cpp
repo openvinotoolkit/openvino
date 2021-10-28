@@ -14,7 +14,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateDepthToSpaceOp(const NodeContext& node) {
+OutputVector translate_depth_to_space_op(const NodeContext& node) {
     Output<Node> ng_input = node.get_ng_input(0);
 
     // Get the attributes

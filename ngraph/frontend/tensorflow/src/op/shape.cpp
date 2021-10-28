@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-ov::OutputVector TranslateShapeOp(const NodeContext& node) {
+ov::OutputVector translate_shape_op(const NodeContext& node) {
     auto data = node.get_ng_input(0);
     auto out_type = node.get_attribute<ov::element::Type>("out_type");
     auto res = make_shared<ShapeOf>(data, out_type);

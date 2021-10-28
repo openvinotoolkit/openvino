@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateLog1pOp(const NodeContext& node) {
+OutputVector translate_log_1p_op(const NodeContext& node) {
     auto n = node.get_ng_input(0);
     auto const_1 = make_shared<Constant>(n.get_element_type(), Shape{}, 1);
     auto add = make_shared<Add>(n, const_1);

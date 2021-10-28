@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateIsFiniteOp(const NodeContext& node) {
+OutputVector translate_is_finite_op(const NodeContext& node) {
     // TODO: Refactor this code. Not sure about in == in.
     // Implemented tf.is_finite by checking:
     // (in != inf) && (in != -inf) && (in == in)

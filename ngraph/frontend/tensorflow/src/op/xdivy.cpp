@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateXdivyOp(const NodeContext& node) {
+OutputVector translate_x_div_y_op(const NodeContext& node) {
     auto x = node.get_ng_input(0);
     auto y = node.get_ng_input(1);
 

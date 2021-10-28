@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateMatMulOp(const NodeContext& node) {
+OutputVector translate_mat_mul_op(const NodeContext& node) {
     auto a = node.get_ng_input(0);
     auto b = node.get_ng_input(1);
     auto transpose_a = node.get_attribute<bool>("transpose_a", false);

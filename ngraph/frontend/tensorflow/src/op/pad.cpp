@@ -17,7 +17,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslatePadOp(const NodeContext& node) {
+OutputVector translate_pad_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0), ng_paddings_op = node.get_ng_input(1);
     Output<Node> pad_val_op;
 

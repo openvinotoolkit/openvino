@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateFusedBatchNormOp(const NodeContext& node) {
+OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     auto ng_input = node.get_ng_input(0);
     auto ng_scale = node.get_ng_input(1);
     auto ng_offset = node.get_ng_input(2);

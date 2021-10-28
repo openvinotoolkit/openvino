@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector NoOp(const NodeContext& node) {
+OutputVector translate_no_op(const NodeContext& node) {
     if (node.get_ng_input_size() == 0) {
         return OutputVector{};
     }

@@ -14,7 +14,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateAddNOp(const NodeContext& node) {
+OutputVector translate_add_n_op(const NodeContext& node) {
     OutputVector ng_arg_vec = node.get_all_ng_inputs();
     auto res = std::accumulate(std::next(ng_arg_vec.begin()),
                                ng_arg_vec.end(),

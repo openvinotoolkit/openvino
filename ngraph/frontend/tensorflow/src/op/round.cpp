@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateRoundOp(const NodeContext& node) {
+OutputVector translate_round_op(const NodeContext& node) {
     auto input = node.get_ng_input(0);
     // using default round mode "half_to_even" in openvino,
     // as TF has only that mode
