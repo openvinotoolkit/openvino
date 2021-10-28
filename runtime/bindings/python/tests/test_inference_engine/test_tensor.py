@@ -3,7 +3,6 @@
 
 import numpy as np
 import pytest
-import math
 from openvino import Tensor
 from openvino.helpers import pack_data, unpack_data
 import openvino as ov
@@ -94,18 +93,24 @@ def test_cannot_create_roi_from_packed_tensor(ov_type):
     assert "ROI Tensor for types with bitwidths less then 8 bit is not implemented" in str(e.value)
 
 
-@pytest.mark.parametrize("dtype, ov_type, shape", [
-    (np.uint8, ov.impl.Type.u1, [1, 3, 28, 28]),
-    (np.uint8, ov.impl.Type.u4, [1, 3, 27, 27]),
-    (np.int8, ov.impl.Type.i4, [1, 3, 224, 224]),
-    (np.int16, ov.impl.Type.u1, [1, 3, 248, 248]),
-    (np.int32, ov.impl.Type.u4, [1, 3, 256, 256]),
-    (np.int64, ov.impl.Type.i4, [1, 3, 300, 300]),
+@pytest.mark.parametrize("dtype", [
+    (np.uint8),
+    (np.int8),
+    (np.uint16),
+    (np.uint32),
+    (np.uint64),
 ])
-def test_init_with_packed_buffer(dtype, ov_type, shape):
+@pytest.mark.parametrize("ov_type", [
+    (ov.impl.Type.u1),
+    (ov.impl.Type.u4),
+    (ov.impl.Type.i4),
+])
+def test_init_with_packed_buffer(dtype, ov_type):
+    shape = [1, 3, 32, 32]
     fit = np.dtype(dtype).itemsize * 8 / ov_type.bitwidth
-    size = math.ceil(np.prod(shape) / fit)
-    buffer = np.random.normal(size=(size,)).astype(dtype)
+    assert np.prod(shape) % fit == 0
+    size = int(np.prod(shape) // fit)
+    buffer = np.random.normal(size=size).astype(dtype)
     ov_tensor = Tensor(buffer, ov_type, shape)
     assert ov_tensor.data.nbytes == ov_tensor.byte_size
     assert np.array_equal(ov_tensor.data.view(dtype), buffer)
