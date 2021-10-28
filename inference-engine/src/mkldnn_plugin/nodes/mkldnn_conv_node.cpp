@@ -325,7 +325,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     }
 }
 
-void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false, bool initAsBinary = false) {
+void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false, bool initAsBinary = false) {
     bool initBinaryMemory = initWeights;
     mkldnn::post_ops ops;
 
@@ -339,7 +339,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                 ops.append_sum(1.0, MKLDNNExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 constexpr int align = 16;
-                eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align, initAsBinary, initBinaryMemory);
+                eltwiseNode->appendPostOps(ops, dims, align, initAsBinary, initBinaryMemory);
                 if (initBinaryMemory) {
                     if (eltwiseNode->scalesMemory)
                         binaryPostOpsArgs.push_back(eltwiseNode->scalesMemory->GetPrimitive());
@@ -353,8 +353,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
         if (fakeQuantizeNode) {
             constexpr int align = -1;
-            // no need to fill post ops dims for fq, make sense only for bin fq
-            fakeQuantizeNode->appendPostOps(ops, VectorDims{}, align, initAsBinary, initBinaryMemory);
+            fakeQuantizeNode->appendPostOps(ops, dims, align, initAsBinary, initBinaryMemory);
             if (initBinaryMemory) {
                 if (fakeQuantizeNode->cropHighMemory)
                     binaryPostOpsArgs.push_back(fakeQuantizeNode->cropHighMemory->GetPrimitive());
@@ -411,7 +410,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     mkldnn::primitive_attr attrs[1];
-    setPostOps(attrs[0]);
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0)).getStaticDims());
 //    setPostOps(attrs[1], false, true);
 
     bool containJitImpl = false;
@@ -623,7 +622,7 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     mkldnn::primitive_attr attrs[1];
-    setPostOps(attrs[0]);
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0)).getStaticDims());
 //    setPostOps(attrs[1], false, true);
 
     auto rightConfig = selectedPD->getConfig();
@@ -772,8 +771,8 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) c
 
 std::shared_ptr<MemoryDesc> MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
-    if (isDynamicNode()) {
-        return MKLDNNExtensionUtils::makeUndefinedDesc(desc, inputShapes[idx]);
+    if (getInputShapeAtPort(idx).isDynamic()) {
+        return MKLDNNExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(desc);
 }
@@ -909,15 +908,6 @@ InferenceEngine::Blob::Ptr MKLDNNConvolutionNode::createInternalBlob(InferenceEn
 }
 
 void MKLDNNConvolutionNode::prepareParams() {
-    mkldnn::primitive_attr attr;
-    addZeroPoints(attr);
-    // todo: [AV] delete "false" to use binary mechanism
-    if (false && getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
-        setPostOps(attr, true, true);
-    } else {
-        setPostOps(attr, true);
-    }
-
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
@@ -925,6 +915,30 @@ void MKLDNNConvolutionNode::prepareParams() {
     auto inMemoryDesc = getParentEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
     auto weightMemoryDesc = getParentEdgesAtPort(1).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
     auto outMemoryDesc = getChildEdgesAtPort(0).front()->getMemory().GetDescWithType<DnnlMemoryDesc>();
+
+    auto initPrimitiveAttr = [&]() {
+        mkldnn::primitive_attr attr;
+        addZeroPoints(attr);
+
+        // todo: [AV] delete "false" to use binary mechanism
+        if (false && getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
+            setPostOps(attr, inMemoryDesc->getShape().getStaticDims(), true, true);
+        } else {
+            setPostOps(attr, inMemoryDesc->getShape().getStaticDims(), true);
+        }
+        return std::make_shared<mkldnn::primitive_attr>(std::move(attr));
+    };
+
+    AttrPtr pAttrLocal;
+
+    if (isDynamicNode()) {
+        if (!pAttr) {
+            pAttr = initPrimitiveAttr();
+        }
+        pAttrLocal = pAttr;
+    } else {
+        pAttrLocal = initPrimitiveAttr();
+    }
 
     std::shared_ptr<mkldnn::convolution_forward::desc> dnnlConvDesc;
     auto alg = isWinograd() ? mkldnn::algorithm::convolution_winograd : mkldnn::algorithm::convolution_direct;
@@ -947,7 +961,7 @@ void MKLDNNConvolutionNode::prepareParams() {
 
     MKLDNNDescriptor desc(dnnlConvDesc);
 
-    auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+    auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *pAttrLocal);
 
     convolution_forward::primitive_desc prim_desc;
     while (static_cast<bool>(itpd))  {
@@ -963,12 +977,13 @@ void MKLDNNConvolutionNode::prepareParams() {
 
     prim.reset(new convolution_forward(prim_desc));
 
-    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
-    if (withBiases)
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_BIAS, getBias()}, {DNNL_ARG_DST, dst}};
-    else
-        primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_WEIGHTS, getWeights()}, {DNNL_ARG_DST, dst}};
+    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs[DNNL_ARG_WEIGHTS] = getWeights();
+    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+    if (withBiases) {
+        primArgs[DNNL_ARG_BIAS] = getBias();
+    }
 // todo: [AV] uncomment to use binary mechanism
 //    auto post_ops = attr.get_post_ops();
 //    int idx = 0;
