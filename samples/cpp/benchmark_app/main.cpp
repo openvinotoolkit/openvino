@@ -96,73 +96,79 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     return true;
 }
 
-std::vector<std::string> parseInputFilePaths(const std::string& file_paths_string) {
-    auto files = file_paths_string;
-    size_t coma_pos = 0;
+std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::string& file_paths_string) {
+    auto search_string = file_paths_string;
+    std::string input_name = "";
     std::vector<std::string> file_paths;
-    while (!files.empty() && coma_pos != std::string::npos) {
-        coma_pos = files.find_first_of(',');
-        auto file_name = files.substr(0, coma_pos);
-        files = files.substr(coma_pos == std::string::npos ? files.size() : coma_pos);
-        if (!files.empty() && files.front() == ',')
-            files = files.substr(1);
-        file_paths.push_back(file_name);
+
+    // parse strings like <input1>:file1,file2,file3 and get name from them
+    size_t semicolon_pos = search_string.find_first_of(":");
+    if (semicolon_pos != std::string::npos) {
+        input_name = search_string.substr(0, semicolon_pos);
+        search_string = search_string.substr(semicolon_pos + 1);
     }
 
-    if (!files.empty())
-        throw std::logic_error("Can't parse file names in input parameter string: " + file_paths_string);
+    // parse file1,file2,file3 and get vector of paths
+    size_t coma_pos = 0;
+    do {
+        coma_pos = search_string.find_first_of(',');
+        file_paths.push_back(search_string.substr(0, coma_pos));
+        if (coma_pos == std::string::npos) {
+            search_string = "";
+            break;
+        }
+        search_string = search_string.substr(coma_pos + 1);
+    } while (coma_pos != std::string::npos);
 
-    return file_paths;
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse file paths for input " + input_name +
+                               " in input parameter string: " + file_paths_string);
+
+    return {input_name, file_paths};
 }
 
 std::map<std::string, std::vector<std::string>> parseInputArguments(const std::string& input_parameter_string) {
-    std::string search_string = input_parameter_string;
-    std::map<std::string, std::vector<std::string>> files_per_input;
-    size_t semicolon_pos = search_string.find_first_of("::");
-    if (!search_string.empty() && semicolon_pos == std::string::npos) {
-        auto files = parseInputFilePaths(search_string);
-        for (const auto& f : files) {
-            readInputFilesArguments(files_per_input[""], f);
-        }
-
-        if (files.size() != files_per_input.at("").size() && files.size() != 1) {
-            throw std::logic_error("Incorrect type of input in parameter string: " + input_parameter_string +
-                                   ". You can specify only one folder to use.");
-        }
-        search_string = "";
+    std::vector<std::string> args = gflags::GetArgvs();
+    const auto is_image_arg = [](const std::string& s) {
+        return s == "-i" || s == "--images";
+    };
+    const auto is_arg = [](const std::string& s) {
+        return s.front() == '-';
+    };
+    const auto files_start = std::find_if(begin(args), end(args), is_image_arg);
+    if (files_start == end(args)) {
+        return {};
     }
+    const auto files_begin = std::next(files_start);
+    const auto files_end = std::find_if(files_begin, end(args), is_arg);
 
-    while (semicolon_pos != std::string::npos) {
-        size_t next_semicolon_pos = search_string.find("::", semicolon_pos + 1);
-        // find coma pos before next input name
-        // in strings like <input1>:file1,file2,<input2>:file3
-        size_t coma_pos = next_semicolon_pos == std::string::npos ? search_string.size()
-                                                                  : search_string.find_last_of(',', next_semicolon_pos);
-        auto input_name = search_string.substr(0, semicolon_pos);
-        auto input_files = search_string.substr(semicolon_pos + 2, coma_pos - semicolon_pos - 2);
-
-        search_string = search_string.substr(coma_pos);
-        if (!search_string.empty() && search_string.front() == ',')
-            search_string = search_string.substr(1);
-
-        semicolon_pos = search_string.find_first_of("::");
-
-        auto files = parseInputFilePaths(input_files);
-        if (files.size() == 0) {
-            throw std::logic_error("Can't parse files for input " + input_name + ".");
+    std::map<std::string, std::vector<std::string>> mapped_files;
+    for (auto f = files_begin; f != files_end; ++f) {
+        auto files = parseInputFiles(*f);
+        if (mapped_files.find(files.first) == mapped_files.end()) {
+            mapped_files[files.first] = {};
+        } else {
+            throw std::logic_error("Input " + files.first + " was specified twice!");
         }
-        for (const auto& f : files) {
-            readInputFilesArguments(files_per_input[input_name], f);
-        }
-        if (files.size() != files_per_input.at(input_name).size() && files.size() != 1) {
-            throw std::logic_error("Incorrect type of input in parameter string: " + input_parameter_string + ".");
+
+        mapped_files[files.first] = {};
+        for (auto& file : files.second) {
+            readInputFilesArguments(mapped_files[files.first], file);
         }
     }
 
-    if (!search_string.empty())
-        throw std::logic_error("Can't parse input parameter string: " + input_parameter_string);
-
-    return files_per_input;
+    size_t max_files = 20;
+    for (auto& files : mapped_files) {
+        if (files.second.size() <= max_files) {
+            slog::info << "For input " << files.first << " " << files.second.size() << " files were added. "
+                       << slog::endl;
+        } else {
+            slog::info << "For input " << files.first << " " << files.second.size() << " files were added. "
+                       << " The number of files will be limited to " << max_files << "." << slog::endl;
+            files.second.resize(20);
+        }
+    }
+    return mapped_files;
 }
 
 static void next_step(const std::string additional_info = "") {
