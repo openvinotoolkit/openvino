@@ -5,9 +5,9 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.replacement import FrontReplacementPattern
-from mo.graph.graph import Graph, Node
-from mo.utils.runtime_info import OldAPIMap
+from openvino.tools.mo.front.common.replacement import FrontReplacementPattern
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.utils.runtime_info import OldAPIMap
 
 
 class ChangePlaceholderTypes(FrontReplacementPattern):

@@ -108,10 +108,10 @@ setup(
         ],
     },
     package_data={
-      'mo.mo.front.caffe.proto': ['*.proto'],
-      'mo.extensions.front.mxnet': ['*.json'],
-      'mo.extensions.front.onnx': ['*.json'],
-      'mo.extensions.front.tf': ['*.json'],
+      'openvino.tools.mo.front.caffe.proto': ['*.proto'],
+      'openvino.tools.mo.front.mxnet': ['*.json'],
+      'openvino.tools.mo.front.onnx': ['*.json'],
+      'openvino.tools.mo.front.tf': ['*.json'],
     },
     extras_require={
       'caffe': read_text('requirements_caffe.txt'),

@@ -7,8 +7,8 @@ from typing import Dict
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 
 
 class RTInfo:

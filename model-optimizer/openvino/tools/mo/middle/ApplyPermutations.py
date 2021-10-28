@@ -5,16 +5,16 @@ import logging as log
 
 import numpy as np
 
-from extensions.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
+from openvino.tools.mo.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
     is_output_data_in_correct_layout
-from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
-from extensions.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
-from mo.front.common.partial_infer.utils import shape_array
-from mo.graph.graph import Graph
-from mo.graph.perm_inputs import get_node_with_permutation
-from mo.graph.port import Port
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.error import Error
+from openvino.tools.mo.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
+from openvino.tools.mo.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array
+from openvino.tools.mo.graph.graph import Graph
+from openvino.tools.mo.graph.perm_inputs import get_node_with_permutation
+from openvino.tools.mo.graph.port import Port
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.error import Error
 
 
 class ApplyPermutation(MiddleReplacementPattern):

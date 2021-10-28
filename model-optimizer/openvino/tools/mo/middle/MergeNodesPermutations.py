@@ -3,11 +3,11 @@
 
 import numpy as np
 
-from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.error import Error
+from openvino.tools.mo.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
+from openvino.tools.mo.utils.error import Error
 
 
 class MergeNodesPermutations(MiddleReplacementPattern):

@@ -14,11 +14,11 @@ from pathlib import Path
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
-from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.runtime_info import RTInfo, OldAPIMap
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.utils.runtime_info import RTInfo, OldAPIMap
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
