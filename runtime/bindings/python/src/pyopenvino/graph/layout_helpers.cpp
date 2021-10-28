@@ -1,0 +1,25 @@
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/core/layout.hpp"
+#include <pybind11/pybind11.h>
+
+#include "pyopenvino/graph/layout_helpers.hpp"
+
+namespace py = pybind11;
+
+void regmodule_graph_layout_helpers(py::module m) {
+    py::module mod = m.def_submodule("layout_helpers", "openvino.impl.layout_helpers");
+
+    mod.def("has_batch", &ov::layout::has_batch, py::arg("layout"));
+    mod.def("batch_idx", &ov::layout::batch_idx, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::has_channels, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::channels_idx, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::has_depth, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::depth_idx, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::has_height, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::height_idx, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::has_width, py::arg("layout"));
+    mod.def("has_batch", &ov::layout::width_idx, py::arg("layout"));
+}
