@@ -1153,8 +1153,6 @@ static std::vector<T> convert(const std::vector<bfloat16>& v) {
 
 template <element::Type_t ET>
 std::vector<IDFTParams> generateParamsForIDFT() {
-    using T = typename element_type_traits<ET>::value_type;
-
     std::vector<IDFTParams> params{
         // idft1d_eval_1
         IDFTParams(Shape{4, 6, 8, 2},
