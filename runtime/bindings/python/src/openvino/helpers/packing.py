@@ -6,6 +6,12 @@ from typing import Union
 from openvino.impl import Type, Shape
 
 def pack_data(array: np.ndarray, ov_type: Type) -> np.ndarray:
+    """
+    Represents array values as u1,u4 or i4 openvino element type and packs them into uint8 numpy array.
+    If the number of elements in array is odd we pad them with zero value to be able to fit the bit sequence into the uint8 array.
+    Example: two uint8 values - [7, 8] can be represented as uint4 values and be packed into one int8 value - [120],
+             because [7, 8] bit representation is [0111, 1000] will be viewed as [01111000], which is bit representation of [120]
+    """
     assert ov_type in [Type.u1, Type.u4, Type.i4]
 
     minimum_regular_dtype = np.int8 if ov_type == Type.i4 else np.uint8
@@ -32,6 +38,12 @@ def pack_data(array: np.ndarray, ov_type: Type) -> np.ndarray:
 
 
 def unpack_data(array: np.ndarray, ov_type: Type, shape: Union[list, Shape]) -> np.ndarray:
+    """
+    Extracts openvino element type values from array bit representation
+    and saves them into uint8/int8 numpy array given shape.
+    Example: uint8 value [120] can be represented as two u4 values and be unpacked into [7, 8] because [120] bit
+             representation is [01111000] will be viewed as [0111, 1000], which is bit representation of [7, 8]
+    """
     unpacked = np.unpackbits(array.view(np.uint8))
     shape = list(shape)
     if ov_type.bitwidth == 1:
