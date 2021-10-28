@@ -50,6 +50,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 }
 
 namespace shape_of {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const ov::Shape& shape, const HostTensorPtr& output_value) {
     runtime::reference::shape_of(shape, output_value->get_data_ptr<ET>());
@@ -147,6 +148,7 @@ bool evaluate_bound_shape(const Node* shape_of_node, const HostTensorVector& out
     }
     return true;
 }
+}  // namespace
 }  // namespace shape_of
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {
