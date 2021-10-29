@@ -102,16 +102,13 @@ ov::op::util::MultiSubGraphOp::BodyOutputDescription::copy() const {
     return std::make_shared<BodyOutputDescription>(m_body_value_index, m_output_index, m_iteration);
 }
 
-ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args) : Op(args) {}
-
 ov::op::util::MultiSubGraphOp::MultiSubGraphOp(size_t number_of_bodies) {
     m_bodies.resize(number_of_bodies);
     m_input_descriptions.resize(number_of_bodies);
     m_output_descriptions.resize(number_of_bodies);
 }
 
-ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies)
-    : MultiSubGraphOp(args) {
+ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies) : Op(args) {
     m_bodies.resize(number_of_bodies);
     m_input_descriptions.resize(number_of_bodies);
     m_output_descriptions.resize(number_of_bodies);
