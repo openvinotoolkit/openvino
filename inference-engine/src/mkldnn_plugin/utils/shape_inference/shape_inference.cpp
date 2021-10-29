@@ -10,6 +10,7 @@
 #include "static_shape.hpp"
 #include "shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
+#include "reduce_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 
 
@@ -22,6 +23,10 @@ void shape_inference(ov::Node* op,
         bool status = resolve_auto_pad_for_shape(node, pads_begin, pads_end, input_shapes, 2, 2);
         OPENVINO_ASSERT(status, "Convolution shape inference doesn't have enough information to calculate static shapes");
         shape_infer(node, pads_begin, pads_end, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::op::util::ArithmeticReductionKeepDims>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::op::util::LogicalReductionKeepDims>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else {
