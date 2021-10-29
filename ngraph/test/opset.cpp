@@ -194,11 +194,17 @@ public:
 
 TEST(opset, custom_opset) {
     ov::OpSet opset;
+#ifndef OPENVINO_STATIC_LIBRARY
     opset.insert<MyOpOld>();
     opset.insert<MyOpNewFromOld>();
     opset.insert<MyOpIncorrect>();
+#endif
     opset.insert<MyOpNew>();
+#ifdef OPENVINO_STATIC_LIBRARY
+    ASSERT_EQ(opset.get_types_info().size(), 1);
+#else
     ASSERT_EQ(opset.get_types_info().size(), 3);
+#endif
     ASSERT_TRUE(opset.contains_type("MyOpNew"));
     ASSERT_TRUE(opset.contains_type("MyOpOld"));
     ASSERT_TRUE(opset.contains_type("MyOpNewFromOld"));

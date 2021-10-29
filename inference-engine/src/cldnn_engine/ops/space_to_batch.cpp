@@ -12,7 +12,7 @@
 
 namespace CLDNNPlugin {
 
-void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v1::SpaceToBatch>& op) {
+static void CreateSpaceToBatchOp(Program& p, const std::shared_ptr<ngraph::op::v1::SpaceToBatch>& op) {
     p.ValidateInputs(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

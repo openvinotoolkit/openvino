@@ -24,8 +24,6 @@
 #include "legacy/ngraph_ops/pad_ie.hpp"
 #include "legacy/ngraph_ops/onehot_ie.hpp"
 #include "legacy/ngraph_ops/power.hpp"
-#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
-#include "legacy/ngraph_ops/prior_box_ie.hpp"
 #include "legacy/ngraph_ops/proposal_ie.hpp"
 #include "legacy/ngraph_ops/relu_ie.hpp"
 #include "legacy/ngraph_ops/scaleshift.hpp"
@@ -96,7 +94,7 @@ std::string asString<float>(const float& value) {
 }  // namespace Builder
 
 namespace InferenceEngine {
-namespace details {
+namespace {
 
 // helper for adding creators with a specific exception
 #define REQUIRED_IE_CONVERSION_CREATOR(type_name, ie_type_name)\
@@ -348,12 +346,12 @@ public:
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
         auto shape = adapter.get();
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
         auto shape = adapter.get();
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<double>& adapter) override {
@@ -382,7 +380,7 @@ public:
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
         auto data = adapter.get();
-        params[name] = joinVec(data);
+        params[name] = details::joinVec(data);
     }
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
@@ -396,7 +394,7 @@ private:
     std::map<std::string, CreatorFor> creators;
 };
 
-void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& name,
+void CNNLayerCreator::on_adapter(const std::string& name,
                                                            ::ngraph::ValueAccessor<void>& adapter) {
     if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::element::Type>>(&adapter)) {
         auto type = static_cast<::ngraph::element::Type&>(*a);
@@ -411,13 +409,13 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         params[name] = dims;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Shape>>(&adapter)) {
         auto shape = static_cast<::ngraph::Shape&>(*a);
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Strides>>(&adapter)) {
         auto shape = static_cast<::ngraph::Strides&>(*a);
-        params[name] = joinVec(shape);
+        params[name] = details::joinVec(shape);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<size_t>>>(& adapter)) {
         auto data = a->get();
-        params[name] = joinVec(data);
+        params[name] = details::joinVec(data);
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<::ngraph::Variable>>>(& adapter)) {
         params[name] = a->get()->get_info().variable_id;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<std::shared_ptr<
@@ -435,14 +433,14 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         }
     } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::TypeVector>>(& adapter)) {
         const auto & attrs = a->get();
-        params[name] = joinVec(attrs);
+        params[name] = details::joinVec(attrs);
     } else {
         IE_THROW() << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
     }
 }
 
-InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): node(node) {
+CNNLayerCreator::CNNLayerCreator(const std::shared_ptr<::ngraph::Node>& node): node(node) {
     addSpecificCreator({"Parameter"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Input",
@@ -635,7 +633,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
 
         const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
-        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+        addBlob(weightsNode, res, InferenceEngine::details::weights);
 
         return res;
     });
@@ -828,67 +826,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<TileLayer>(attrs);
         res->params = params;
-        return res;
-    });
-
-    addSpecificCreator({"PriorBoxIE"},
-                       [](const std::shared_ptr<::ngraph::Node>& node,
-                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "PriorBox",
-            details::convertPrecision(node->get_output_element_type(0))};
-
-        auto res = std::make_shared<CNNLayer>(attrs);
-        res->params = params;
-        res->params["clip"] = res->getBoolStrParamAsIntStr("clip");
-        res->params["flip"] = res->getBoolStrParamAsIntStr("flip");
-        res->params["scale_all_sizes"] = res->getBoolStrParamAsIntStr("scale_all_sizes");
-
-        auto scale_all_sizes = std::stoi(res->params["scale_all_sizes"]);
-        if (!scale_all_sizes) {
-            auto data_pshape = node->get_input_partial_shape(0);
-            if (data_pshape.is_dynamic()) IE_THROW() << "Dynamic 0-port input of PriorBox is not supported";
-            auto data_shape = data_pshape.to_shape();
-            if (data_shape.size() != 4) IE_THROW() << "PriorBox has " << data_shape.size() << " items in 0-port input, 4 expected";
-            auto img_pshape = node->get_input_partial_shape(1);
-            if (img_pshape.is_dynamic()) IE_THROW() << "Dynamic 1-port input of PriorBox is not supported";
-            auto img_shape = img_pshape.to_shape();
-            if (img_shape.size() != 4) IE_THROW() << "PriorBox has " << data_shape.size() << " items in 1-port input, 4 expected";
-
-            // mxnet-like PriorBox
-            auto img_H = img_shape[2];
-            auto data_H = data_shape[2];
-
-            auto step = std::stof(res->params["step"]);
-            if (step == -1)
-                step = img_H / static_cast<float>(data_H);
-            else
-                step *= img_H;
-            res->params["step"] = Builder::asString(step);
-
-            auto min_size = details::split(res->params["min_size"], ",");
-            for (auto &size : min_size) {
-                size = Builder::asString(std::stof(size) * img_H);
-            }
-            res->params["min_size"] = details::joinVec(min_size);
-        }
-        return res;
-    });
-
-    addSpecificCreator({"PriorBoxClusteredIE"},
-                       [](const std::shared_ptr<::ngraph::Node>& node,
-                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "PriorBoxClustered",
-            details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<CNNLayer>(attrs);
-        res->params = params;
-        res->params["clip"] =
-            res->getBoolStrParamAsIntStr("clip");
-
-        auto step_h = std::stof(res->params["step_h"]);
-        auto step_w = std::stof(res->params["step_w"]);
-        if (std::abs(step_h - step_w) < 1e-5) {
-            res->params["step"] = res->params["step_w"];
-        }
         return res;
     });
 
@@ -1776,7 +1713,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 }
 
-CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
+CNNLayerPtr CNNLayerCreator::create() {
     LayerParams attrs = {node->get_friendly_name(), node->description(),
                          details::convertPrecision(node->get_output_element_type(0))};
     if (creators.find(node->description()) != creators.end())
@@ -1787,6 +1724,9 @@ CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
     return res;
 }
 
+} // namespace
+
+namespace details {
 void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
                                   const CNNNetwork &network,
                                   CNNNetworkImpl* cnnNetworkImpl,
@@ -2165,7 +2105,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
                                                              const CNNNetwork &network,
                                                              bool keep_constant_inputs) {
-    auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
+    auto cnnNetworkImpl = std::make_shared<CNNNetworkImpl>();
     convertFunctionToICNNNetwork(graph, network, cnnNetworkImpl.get(), keep_constant_inputs);
     return cnnNetworkImpl;
 }
