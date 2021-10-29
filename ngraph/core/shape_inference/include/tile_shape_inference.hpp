@@ -18,7 +18,7 @@ void inline default_work(Tile* op, PartialShape& shape){
 }
 
 template <class T>
-void shape_infer(Tile* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const Tile* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
     const auto& arg_shape = input_shapes[0];
     const auto& repeats_shape = input_shapes[1];
