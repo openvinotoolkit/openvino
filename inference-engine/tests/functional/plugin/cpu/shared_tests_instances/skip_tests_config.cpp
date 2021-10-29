@@ -108,6 +108,7 @@ std::vector<std::string> disabledTestPatterns() {
         // CPU plugin does not support some precisions
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
+        R"(.*EltwiseLayerTest.*NetType=f16.*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
         // as WA we used GetInputsInfo() precisions instead of ngraph ones

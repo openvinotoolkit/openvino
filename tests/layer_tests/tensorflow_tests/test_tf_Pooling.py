@@ -73,7 +73,8 @@ class TestPooling(CommonTFLayerTest):
                 'pooling': {'kernel': kernel_size, 'pads_begin': pads_begin, 'pads_end': pads_end,
                             'strides': strides, 'kind': 'op', 'type': None},
                 'pooling_data': {'shape': out_shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'}
+                'result': {'kind': 'op', 'type': 'Result'},
+                'pooling_indicies_data': {'kind': 'data', 'shape': out_shape}
             }
 
             if method == 'avg':
@@ -81,12 +82,17 @@ class TestPooling(CommonTFLayerTest):
             elif method == 'max':
                 nodes_attributes['pooling']['type'] = 'MaxPool'
 
+            edges = [('input', 'input_data'),
+                     ('input_data', 'pooling'),
+                     ('pooling', 'pooling_data', {'out': 0}),
+                     ('pooling_data', 'result')]
+
+            if method == 'max':
+                edges.append(('pooling', 'pooling_indicies_data', {'out': 1}))
+
             ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'pooling'),
-                                   ('pooling', 'pooling_data'),
-                                   ('pooling_data', 'result')
-                                   ])
+                                  edges=edges,
+                                  nodes_with_edges_only=True)
 
         return tf_net, ref_net
 
