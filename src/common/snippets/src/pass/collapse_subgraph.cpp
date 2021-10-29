@@ -171,17 +171,17 @@ auto get_num_result_children(std::shared_ptr<Node> node) -> size_t {
 // If subgraph->get_output_size() == 1, then the name will be restored correctly from the node name
 // todo: remove this function when MKLDNNGraph::Replicate() will rely only on node->get_friendly_name()
 auto update_out_tensor_name(std::shared_ptr<ngraph::snippets::op::Subgraph> subgraph) -> void {
-    if (subgraph->get_output_size() != 1) {
-        bool not_set = true;
-        for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
-            for (auto &in : subgraph->get_output_target_inputs(i)) {
-                if (ov::is_type<opset1::Result>(in.get_node())) {
-                    NGRAPH_SUPPRESS_DEPRECATED_START
-                    subgraph->output(i).get_tensor_ptr()->set_name(subgraph->get_friendly_name());
-                    NGRAPH_SUPPRESS_DEPRECATED_END
-                    not_set = false;
-                    break;
-                }
+    bool not_set = true;
+    for (unsigned int i = 0; i < subgraph->get_output_size() && not_set; i++) {
+        for (auto &in : subgraph->get_output_target_inputs(i)) {
+            if (ov::is_type<opset1::Result>(in.get_node())) {
+                const auto& body_result = subgraph->get_body()->get_output_op(i);
+                const std::string newTensorName = body_result->get_input_node_shared_ptr(0)->get_friendly_name();
+                NGRAPH_SUPPRESS_DEPRECATED_START
+                subgraph->output(i).get_tensor_ptr()->set_name(newTensorName);
+                NGRAPH_SUPPRESS_DEPRECATED_END
+                not_set = false;
+                break;
             }
         }
     }
@@ -245,6 +245,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             if (strategy == continuation_strategy::reset) {
                 remark(priority) << message_reset << std::endl;
                 auto single_node_subgraph = op::Subgraph::wrap_node_as_subgraph(node);
+                single_node_subgraph->get_rt_info()["originalLayersNames"] = ov::make_variant(node->get_friendly_name());
                 single_node_subgraph->validate_and_infer_types();
                 ngraph::replace_node(node, single_node_subgraph);
                 return true;
@@ -334,11 +335,9 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                     auto f = ngraph::clone_function(*subgraph->get_body().get());
                     f->set_friendly_name(subgraph->get_body()->get_friendly_name());
                     clones[input_node] = f;
-                    fusedNames += getFusedNames(subgraph);
                 }
             }
         }
-        fusedNames += node->get_friendly_name();
 
         std::pair<int64_t, int64_t> currentTopoBounds {-1, LONG_MAX};
         cyclicDependencyIsIntoduced(node, currentTopoBounds);
@@ -425,22 +424,16 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
             }
         }
         size_t num_result_children = get_num_result_children(node);
-        std::string newSubgraphName;
-        if (num_result_children == 0) {
-            for (const auto& n : as_node_vector(input_values))
-                if (ov::is_type<op::Subgraph>(n)) {
-                    newSubgraphName = n->get_friendly_name();
-                    break;
-                }
-        } else {
-            newSubgraphName = node->get_friendly_name();
-        }
+        std::string newSubgraphName{};
         for (const auto& subgraph : input_subgraphs) {
-            if (has_result_child(subgraph)) {
-                num_result_children++;
+            num_result_children += has_result_child(subgraph);
+            fusedNames += getFusedNames(subgraph);
+            if (newSubgraphName.empty())
                 newSubgraphName = subgraph->get_friendly_name();
-            }
         }
+        fusedNames += node->get_friendly_name();
+        if (newSubgraphName.empty())
+            newSubgraphName = node->get_friendly_name();
         if (num_result_children > 1)
             return abort_with_strategy("New subgraph is created since too many Result children are detected");
 
@@ -526,8 +519,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph() : MatcherPass() {
                 target_input.replace_source_output(subgraph->output(i));
             }
         }
-        if (num_result_children == 1)
-            update_out_tensor_name(subgraph);
+        update_out_tensor_name(subgraph);
 
         subgraph->validate_and_infer_types();
 
