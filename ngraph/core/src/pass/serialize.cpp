@@ -19,6 +19,7 @@
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "pugixml.hpp"
+#include "transformations/hash.hpp"
 
 using namespace ngraph;
 
@@ -121,7 +122,8 @@ void ngfunction_2_ir(pugi::xml_node& node,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_write_handler,
-                     int64_t version);
+                     int64_t version,
+                     bool deterministic);
 
 // Some of the operators were added to wrong opsets. This is a mapping
 // that allows such operators to be serialized with proper opsets.
@@ -253,6 +255,7 @@ class XmlSerializer : public ngraph::AttributeVisitor {
     const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
     ConstantWriter& m_constant_write_handler;
     int64_t m_version;
+    bool m_deterministic;
 
     template <typename T>
     std::string create_atribute_list(ngraph::ValueAccessor<std::vector<T>>& adapter) {
@@ -374,12 +377,14 @@ public:
                   const std::string& node_type_name,
                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
                   ConstantWriter& constant_write_handler,
-                  int64_t version)
+                  int64_t version,
+                  bool deterministic = false)
         : m_xml_node(data),
           m_node_type_name(node_type_name),
           m_custom_opsets(custom_opsets),
           m_constant_write_handler(constant_write_handler),
-          m_version(version) {}
+          m_version(version),
+          m_deterministic(deterministic) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
         using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
@@ -508,11 +513,21 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version);
+            ngfunction_2_ir(xml_body,
+                            *adapter.get(),
+                            m_custom_opsets,
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
-            ngfunction_2_ir(m_xml_node, *adapter.get(), m_custom_opsets, m_constant_write_handler, m_version);
+            ngfunction_2_ir(m_xml_node,
+                            *adapter.get(),
+                            m_custom_opsets,
+                            m_constant_write_handler,
+                            m_version,
+                            m_deterministic);
         } else {
             NGRAPH_CHECK(false, "Unsupported Function name.");
         }
@@ -666,6 +681,11 @@ std::string generate_unique_name(const std::unordered_set<std::string>& unique_n
         suffix++;
         return generate_unique_name(unique_names, base_name, suffix);
     }
+}
+
+template <typename T>
+bool is_name_auto_generated(const T& n) {
+    return n.get_friendly_name() == n.get_name();
 }
 
 // TODO: remove when CNNNetwork will be supporting not-unique names
@@ -837,8 +857,12 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ngraph::Function& f,
                      const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_node_write_handler,
-                     int64_t version) {
-    netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
+                     int64_t version,
+                     bool deterministic) {
+    // If determinism is not required, include auto-generated names into xml
+    if (!deterministic || !is_name_auto_generated(f)) {
+        netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
+    }
     netXml.append_attribute("version").set_value(version);
     pugi::xml_node layers = netXml.append_child("layers");
 
@@ -878,7 +902,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
-        layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
+        // If determinism is not required, include auto-generated names into xml
+        if (!deterministic || !is_name_auto_generated(*node)) {
+            layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
+        }
         layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
             layer.append_attribute("version").set_value(get_opset_name(node, custom_opsets).c_str());
@@ -984,7 +1011,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
 
         // fill <data> general attributes
         auto_pad_resolving(node);  // Backward compatibility: clear padding values for nodes with auto_pad
-        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler, version);
+        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler, version, deterministic);
         NGRAPH_CHECK(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
 
@@ -1042,43 +1069,48 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
     return bestPath;
 }
 
+void serializeFunc(std::ostream& xml_file,
+                   std::ostream& bin_file,
+                   std::shared_ptr<ov::Function> f,
+                   ov::pass::Serialize::Version ver,
+                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
+                   bool deterministic = false) {
+    auto version = static_cast<int64_t>(ver);
+
+    auto& rt_info = f->get_rt_info();
+    if (rt_info.count("version")) {
+        auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        version = version_var->get();
+    }
+
+    if (version != static_cast<int64_t>(ver) && ver != ov::pass::Serialize::Version::UNSPECIFIED)
+        throw ngraph_error("Cannot serialize function to incompatible IR version");
+
+    if (version == static_cast<int64_t>(ov::pass::Serialize::Version::UNSPECIFIED))
+        version = static_cast<int64_t>(ov::pass::Serialize::Version::IR_V11);
+
+    if (version != static_cast<int64_t>(ov::pass::Serialize::Version::IR_V10) &&
+        version != static_cast<int64_t>(ov::pass::Serialize::Version::IR_V11)) {
+        throw ngraph_error("Unsupported version");
+    }
+    std::string name = "net";
+    pugi::xml_document xml_doc;
+    pugi::xml_node net_node = xml_doc.append_child(name.c_str());
+    ConstantWriter constant_write_handler(bin_file);
+    XmlSerializer visitor(net_node, name, custom_opsets, constant_write_handler, version, deterministic);
+    visitor.on_attribute(name, f);
+
+    xml_doc.save(xml_file);
+    xml_file.flush();
+    bin_file.flush();
+};
+
 }  // namespace
 
 namespace ov {
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    auto serializeFunc = [&](std::ostream& xml_file, std::ostream& bin_file) {
-        auto version = static_cast<int64_t>(m_version);
-
-        auto& rt_info = f->get_rt_info();
-        if (rt_info.count("version")) {
-            auto version_var = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
-            version = version_var->get();
-        }
-
-        if (version != static_cast<int64_t>(m_version) && m_version != Serialize::Version::UNSPECIFIED)
-            throw ngraph_error("Cannot serialize function to incompatible IR version");
-
-        if (version == static_cast<int64_t>(Serialize::Version::UNSPECIFIED))
-            version = static_cast<int64_t>(Serialize::Version::IR_V11);
-
-        if (version != static_cast<int64_t>(Serialize::Version::IR_V10) &&
-            version != static_cast<int64_t>(Serialize::Version::IR_V11)) {
-            throw ngraph_error("Unsupported version");
-        }
-        std::string name = "net";
-        pugi::xml_document xml_doc;
-        pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-        ConstantWriter constant_write_handler(bin_file);
-        XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler, version);
-        visitor.on_attribute(name, f);
-
-        xml_doc.save(xml_file);
-        xml_file.flush();
-        bin_file.flush();
-    };
-
     if (m_xmlFile && m_binFile) {
-        serializeFunc(*m_xmlFile, *m_binFile);
+        serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {
         std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
         NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
@@ -1088,9 +1120,9 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
         NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
         try {
-            serializeFunc(xml_file, bin_file);
+            serializeFunc(xml_file, bin_file, f, m_version, m_custom_opsets);
         } catch (const ngraph::CheckFailure&) {
-            // optimization decission was made to create .bin file upfront and
+            // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
             // hence we need to delete it here in case of failure
             xml_file.close();
@@ -1123,7 +1155,6 @@ pass::Serialize::Serialize(const std::string& xmlPath,
                            std::map<std::string, ngraph::OpSet> custom_opsets,
                            pass::Serialize::Version version)
     : m_xmlFile{nullptr},
-      m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
       m_version{version},
@@ -1211,4 +1242,60 @@ bool pass::StreamSerialize::run_on_function(std::shared_ptr<ngraph::Function> f)
     // Return false because we didn't change nGraph Function
     return false;
 }
+
+/// -------- Hash calculation pass -------------
+
+namespace {
+template <typename T>
+static uint64_t hash_combine(uint64_t seed, const T& a) {
+    // Hash combine formula from boost
+    return seed ^ (std::hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+}
+
+class OstreamHashWrapper final : public std::streambuf {
+    uint64_t m_res = 0;
+
+public:
+    uint64_t getResult() const {
+        return m_res;
+    }
+
+    std::streamsize xsputn(const char* s, std::streamsize n) override {
+        auto* intS = (const std::streamsize*)s;
+        std::streamsize n64 = n / static_cast<std::streamsize>(sizeof(std::streamsize));
+        std::streamsize i = 0;
+        // Using 64-bit values executes much faster than char
+        while (i++ < n64) {
+            m_res += *(intS++);
+        }
+
+        std::streamsize rest = n % static_cast<std::streamsize>(sizeof(std::streamsize));
+        for (i = 0; i < rest; i++) {
+            m_res += s[n - rest + i];
+        }
+        return n;
+    }
+};
+}  // namespace
+
+bool pass::Hash::run_on_function(std::shared_ptr<ov::Function> f) {
+    OstreamHashWrapper xmlHash;
+    OstreamHashWrapper binHash;
+    std::ostream xml(&xmlHash);
+    std::ostream bin(&binHash);
+
+    // Determinism is important for hash calculation
+    serializeFunc(xml, bin, f, Serialize::Version::UNSPECIFIED, {}, true);
+
+    uint64_t seed = 0;
+    seed = hash_combine(seed, xmlHash.getResult());
+    seed = hash_combine(seed, binHash.getResult());
+
+    m_hash = seed;
+    // Return false because we didn't change nGraph Function
+    return false;
+}
+
+pass::Hash::Hash(uint64_t& output_hash_value) : m_hash(output_hash_value) {}
+
 }  // namespace ov
