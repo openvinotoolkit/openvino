@@ -7,11 +7,18 @@
 #include <ie_core.hpp>
 #include "ngraph/node.hpp"
 
-namespace LayerTestsDefinitions {
-using InputsMap = std::map<ngraph::NodeTypeInfo, std::function<InferenceEngine::Blob::Ptr(
+namespace ov {
+namespace test {
+namespace utils {
+
+using InputsMap = std::map<ngraph::NodeTypeInfo, std::function<ov::runtime::Tensor(
         const std::shared_ptr<ngraph::Node> node,
-        const InferenceEngine::InputInfo& info,
-        size_t port)>>;
+        size_t port,
+        const ov::element::Type_t& elemType,
+        const ov::Shape& targetShape)>>;
 
 InputsMap getInputMap();
-} // namespace LayerTestsDefinitions
+
+} // namespace utils
+} // namespace test
+} // namespace ov

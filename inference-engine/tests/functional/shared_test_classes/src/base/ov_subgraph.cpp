@@ -5,6 +5,7 @@
 #include <fstream>
 #include <signal.h>
 #include <transformations/utils/utils.hpp>
+#include <shared_test_classes/read_ir/generate_inputs.hpp>
 
 #ifdef _WIN32
 #include <process.h>
@@ -155,11 +156,19 @@ void SubgraphBaseTest::compile_model() {
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
-    const auto& funcInputs = function->inputs();
-    for (int i = 0; i < funcInputs.size(); ++i) {
-        const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+    auto inputMap = utils::getInputMap();
+    for (const auto &param : function->get_parameters()) {
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                const auto nodePtr = node.get_node()->shared_from_this();
+                auto it = inputMap.find(nodePtr->get_type_info());
+                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -6,6 +6,6 @@
 
 namespace LayerTestsDefinitions {
 TEST_P(ReadIRTest, ReadIR) {
-    Run();
+    run();
 }
 } // namespace LayerTestsDefinitions
