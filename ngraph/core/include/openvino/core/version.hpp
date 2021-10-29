@@ -3,8 +3,6 @@
 //
 #pragma once
 
-#pragma once
-
 #include "openvino/core/core_visibility.hpp"
 
 /**
