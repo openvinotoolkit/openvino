@@ -3,8 +3,11 @@
 //
 
 #include "ngraph/op/divide.hpp"
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
+#include "ngraph/op/equal.hpp"
+#include "ngraph/op/select.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/divide.hpp"
 
@@ -49,6 +52,51 @@ bool evaluate_divide(const HostTensorPtr& arg0,
         break;
     }
     return rc;
+}
+
+bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper) {
+    NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
+    const auto& input1 = node->input_value(0);
+    const auto& input2 = node->input_value(1);
+    const auto& value1 = is_upper ? input1.get_tensor().get_upper_value() : input1.get_tensor().get_lower_value();
+    const auto& value2 = is_upper ? input2.get_tensor().get_lower_value() : input2.get_tensor().get_upper_value();
+    if (value1 == nullptr || value2 == nullptr)
+        return false;
+    if (is_upper) {
+        // constants for dynamic values translation
+        auto output_maximum_value = get_constant_max_of_type(output_values[0]->get_element_type());
+        if (output_maximum_value == nullptr)
+            return false;
+
+        auto zeros_const = op::Constant::create(input2.get_element_type(), {}, {0});
+        auto ones_const = op::Constant::create(input2.get_element_type(), {}, {1});
+
+        // create mask where zeros in the second argument are placed
+        auto input2_zeros_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
+        bool status = op::v1::Equal().evaluate({input2_zeros_mask}, {value2, std::make_shared<HostTensor>(zeros_const)});
+        if (!status) 
+            return status;
+
+        // replace zeros by ones to get result of divide for other values of arguments
+        status = op::v1::Select().evaluate(output_values, {input2_zeros_mask, std::make_shared<HostTensor>(ones_const), value2});
+        if (!status) 
+            return status;
+
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        status = node->evaluate(output_values, {value1, output_values[0]});
+        OPENVINO_SUPPRESS_DEPRECATED_END
+        if (!status) 
+            return status;
+
+        // replace values where zeros were found in the second argument to maximum values
+        status = op::v1::Select().evaluate(output_values, 
+            {input2_zeros_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
+        return status;
+    } else {
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        return node->evaluate(output_values, {value1, value2});
+        OPENVINO_SUPPRESS_DEPRECATED_END
+    }
 }
 }  // namespace
 }  // namespace divide
@@ -104,4 +152,12 @@ bool op::v1::Divide::has_evaluate() const {
         break;
     }
     return false;
+}
+
+bool ov::op::v1::Divide::evaluate_lower(const HostTensorVector& outputs) const {
+    return divide::evaluate_bound(this, outputs, false);
+}
+
+bool ov::op::v1::Divide::evaluate_upper(const HostTensorVector& outputs) const {
+    return divide::evaluate_bound(this, outputs, true);
 }
