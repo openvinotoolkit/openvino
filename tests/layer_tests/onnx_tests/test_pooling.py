@@ -132,6 +132,7 @@ class TestPooling(OnnxRuntimeLayerTest):
                          'rounding_type': 'ceil' if auto_pad != 'NOTSET' or ceil else 'floor',
                          'auto_pad': None},
                 'node_data': {'shape': out_shape, 'kind': 'data'},
+                'node_indicies_data': {'shape': out_shape, 'kind': 'data'},
                 'input_const_data': {'kind': 'data', 'value': constant.flatten()},
                 'const': {'kind': 'op', 'type': 'Const'},
                 'const_data': {'shape': out_shape, 'kind': 'data'},
@@ -141,21 +142,24 @@ class TestPooling(OnnxRuntimeLayerTest):
             }
             if op == 'AveragePool':
                 nodes_attributes['node']['type'] = 'AvgPool'
-                nodes_attributes['node']['exclude-pad'] = 'true' if count_include_pad == 0 else 'false'
+                nodes_attributes['node']['exclude-pad'] = True if count_include_pad == 0 else False
             else:
                 nodes_attributes['node']['type'] = 'MaxPool'
 
+            edges = [('input', 'input_data'),
+                     ('input_data', 'node'),
+                     ('node', 'node_data', {'out': 0}),
+                     ('input_const_data', 'const'),
+                     ('const', 'const_data'),
+                     ('node_data', 'concat'),
+                     ('const_data', 'concat'),
+                     ('concat', 'concat_data'),
+                     ('concat_data', 'result')]
+            if op == "MaxPool":
+                edges.append(('node', 'node_indicies_data', {'out': 1}))
             ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'node'),
-                                   ('node', 'node_data'),
-                                   ('input_const_data', 'const'),
-                                   ('const', 'const_data'),
-                                   ('node_data', 'concat'),
-                                   ('const_data', 'concat'),
-                                   ('concat', 'concat_data'),
-                                   ('concat_data', 'result')
-                                   ])
+                                  edges,
+                                  nodes_with_edges_only=True)
 
         return onnx_net, ref_net
 
