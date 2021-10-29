@@ -220,14 +220,46 @@ public:
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps& convert_layout(const Layout& dst_layout = {}) &;
-
-    /// \brief Add resize operation to network dimensions - Rvalue version.
-    ///
-    /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
-    /// appropriate network input properties.
-    ///
-    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     PreProcessSteps&& convert_layout(const Layout& dst_layout = {}) &&;
+
+    /// \brief Add convert layout operation by direct specification of transposed dimensions.
+    ///
+    /// \example Example: when user data has input RGB image {1x480x640x3} but network expects
+    /// planar input image ('NCHW', [1, 3, 480, 640]). Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor()
+    ///     .input(InputInfo()
+    ///            .preprocess(PreProcessSteps()
+    ///                        .convert_layout({0, 3, 1, 2})
+    ///     );
+    /// \param dims Dimensions array specifying places for new axis. If not empty, array size (N) must match to input
+    /// shape rank. Array values shall contain all values from 0 to N-1. If empty, no actual conversion will be added.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& convert_layout(const std::vector<uint64_t>& dims) &;
+    PreProcessSteps&& convert_layout(const std::vector<uint64_t>& dims) &&;
+
+    /// \brief Reverse channels operation - Lvalue version.
+    ///
+    /// \details Adds appropriate operation which reverses channels layout. Operation requires layout having 'C'
+    /// dimension Operation convert_color (RGB<->BGR) does reversing of channels also, but only for NHWC layout
+    ///
+    /// \example Example: when user data has 'NCHW' layout (example is [1, 3, 224, 224] RGB order) but network expects
+    /// BGR planes order. Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor()
+    ///     .input(InputInfo()
+    ///            .tensor(InputTensorInfo().set_layout("NCHW")) // User data is NCHW
+    ///            .preprocess(PreProcessSteps()
+    ///                        .reverse_channels()
+    ///     );
+    /// \endcode
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& reverse_channels() &;
+    PreProcessSteps&& reverse_channels() &&;
 };
 
 }  // namespace preprocess

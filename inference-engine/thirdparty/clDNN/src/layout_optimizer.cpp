@@ -178,6 +178,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto prev_output_layout = prev.get_output_layout();
     auto next_output_layout = next.get_output_layout();
     auto prev_dt = prev.get_output_layout().data_type;
+    auto next_dt = next.get_output_layout().data_type;
+    auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     auto is_input_idx = [&](size_t idx) -> bool {
         if (&next.get_dependency(idx) == &prev)
@@ -191,7 +193,7 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<pooling>() &&
-        ((prev_simple && next_simple) ||
+        (((prev_simple && next_simple) && (prev_dt == next_dt)) ||
         ((fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::bfyx) && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))
         return true;
 
@@ -223,9 +225,12 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
     // Additional check: fmt_prev == fmt_next is added only when onednn is enabled.
     if (next.is_type<convolution>() &&
-        fmt_prev == format::bfyx && (!get_optimization_attributes().use_onednn_impls || fmt_prev == fmt_next) &&
+        (!use_onednn_impls || fmt_prev == fmt_next) &&
+        (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
         ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
         (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
+        (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
+        (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] % 16 == 0 && prev_output_layout.size.feature[0] == 3) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3 &&
         (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8))))
@@ -239,8 +244,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() &&
-        fmt_prev == format::b_fs_yx_fsv4 &&
+        (fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::bs_fs_yx_bsv4_fsv4) &&
         ((fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
+        (fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
+        (fmt_next == format::bs_fs_yx_bsv4_fsv4 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
         (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
         return true;
@@ -263,12 +270,57 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
             next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3))
         return true;
 
+    if (use_onednn_impls) {
+        if (next.is_type<eltwise>() && (fmt_prev == format::bfyx) && (fmt_next == format::bs_fs_yx_bsv4_fsv2) &&
+            prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
+            return true;
+
+        if (next.is_type<convolution>() && (prev.is_type<eltwise>() || prev.is_type<quantize>()) &&
+            (fmt_prev == format::bfyx || fmt_prev == format::bs_fs_yx_bsv4_fsv2) &&
+            ((fmt_next == format::bs_fs_yx_bsv32_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
+            (fmt_next == format::bs_fs_yx_bsv32_fsv16 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4))))
+            return true;
+
+        // Remove Reorder for Convolution: b_fs_yx_fsv32 (i8/u8) -> b_fs_yx_fsv16 (fp32/fp16)
+        if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16 &&
+            !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt)) {
+            return true;
+        }
+
+        if (next.is_type<quantize>())
+            return true;
+
+        if (next.is_type<permute>()) {
+            auto is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
+                // Target transform: Rotate feature dim to back to be taken as inner-most axis
+                // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+                // ex) 0(b), 3(f), 1(y), 2(x)
+                if ((int32_t) order[1] != order.size() - 1) return false;
+                if ((int32_t) order[0] != 0) return false;
+                for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
+                    if ((int32_t)order[i] !=  (i - 1)) return false;
+                }
+                return true;
+            };
+
+            auto& permute_order = next.as<permute>().get_primitive()->permute_order;
+            if ((fmt_prev == format::b_fs_yx_fsv4 || fmt_prev == format::b_fs_yx_fsv32 || fmt_prev == format::b_fs_zyx_fsv32 ||
+                fmt_prev == format::b_fs_yx_fsv16 || fmt_prev == format::b_fs_zyx_fsv16 || fmt_prev == format::bs_fs_yx_bsv16_fsv16)
+                && permute_order[1] == 2
+                && (!is_rotating_except_batch(permute_order))) {
+                    return false;
+            }
+            return true;
+        }
+    }
+
     return false;
 }
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next) {
     auto dt_prev = prev.get_output_layout().data_type;
     auto dt_next = next.get_output_layout().data_type;
+    auto use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
     if (prev.is_type<reorder>())
         return true;
@@ -283,7 +335,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<quantize>() &&
-        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv32 ||
+        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_zyx_fsv32 || (fmt_next == format::b_fs_yx_fsv32 && !use_onednn_impls) ||
          fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
@@ -308,6 +360,11 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
             return false;
         }
         return true;
+    }
+
+    if (use_onednn_impls) {
+        if (prev.is_type<convolution>() && fmt_next == format::bs_fs_yx_bsv32_fsv16 && fmt_prev == format::bs_fs_yx_bsv4_fsv2)
+            return true;
     }
 
     return false;
@@ -775,10 +832,14 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         /* ***************************** OneDNN impls format selection part ****************************** */
         if (i8_u8_input) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
-                if (input_layout.size.batch[0] % 16 == 0)
+                if (input_layout.size.batch[0] % 16 == 0) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
-                else
-                    expected_format = cldnn::format::b_fs_yx_fsv32;
+                } else {
+                    if (data_type_traits::is_floating_point(output_layout.data_type))
+                        expected_format = cldnn::format::b_fs_yx_fsv16;
+                    else
+                        expected_format = cldnn::format::b_fs_yx_fsv32;
+                }
             } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                        convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) && is_2d) {
                 if (is_dw)
@@ -819,10 +880,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     } else {
         /* *************************** Native impls format selection part ************************** */
         if (i8_u8_input) {
-            if ((_optimization_attributes.bs_fs_yx_bsv16_fsv16_network && expected_tensor.batch[0] % 16 == 0 &&
-                convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
-                expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
-            } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
+            if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
                 expected_format = cldnn::format::b_fs_yx_fsv16;
             } else if ((_optimization_attributes.b_fs_zyx_fsv16_network &&
@@ -982,7 +1040,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     auto in_dt = node.get_dependency(0).get_output_layout().data_type;
     auto out_dt = node.get_output_layout().data_type;
 
-    if (in_dt == data_types::f32)
+    if (in_dt == data_types::f32 && !node.is_type<fully_connected>())
         return false;
 
     if (node.is_type<pooling>()) {
@@ -1008,6 +1066,18 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
             (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::i8 || out_dt == data_types::u8))
             return true;
+    } else if (node.is_type<fully_connected>()) {
+        auto& fc_node = node.as<fully_connected>();
+        auto wei_dt = fc_node.weights().get_output_layout().data_type;
+
+        if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
+            (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
+            return true;
+        if (in_dt == data_types::f32 && wei_dt == data_types::f32)
+            return true;
+        if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
+            (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f32))
+            return true;
     }
 
     return false;
@@ -1018,11 +1088,14 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         preferred_impl = _forcing_map.at(node.id()).second;
     } else if (node.is_type<detection_output>()) {
+        const auto& program = node.get_program();
+        const auto& device_info = program.get_engine().get_device_info();
+        const size_t lws_max = device_info.max_work_group_size;
         auto& detection_output_node = node.as<detection_output>();
         auto confidence_layout = detection_output_node.confidence().get_output_layout();
         auto prim = detection_output_node.get_primitive();
-        if (confidence_layout.size.batch[0] >= 4 && prim->confidence_threshold >= 0.1 && prim->top_k <= 400 &&
-            prim->num_classes >= 16 && confidence_layout.size.feature[0] > 10000)
+        if (confidence_layout.size.batch[0] <= lws_max && confidence_layout.size.batch[0] >= 4 && prim->confidence_threshold >= 0.1 &&
+            prim->top_k <= 400 && prim->num_classes >= 16 && confidence_layout.size.feature[0] > 10000)
             preferred_impl = impl_types::ocl;
         else
             preferred_impl = impl_types::cpu;
@@ -1187,6 +1260,43 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 break;
             }
         }
+    } else if (node.is_type<fully_connected>()) {
+        if (!_optimization_attributes.use_onednn_impls)
+            return impl_types::ocl;
+
+        impl_types impl_candidate = impl_types::onednn;
+
+        if (!are_data_types_suitable_for_onednn(node)) {
+            impl_candidate = impl_types::ocl;
+        }
+
+        for (auto& fo : node.get_fused_primitives()) {
+            if (fo.node->is_type<eltwise>()) {
+                auto in_layout = node.get_dependency(fo.dep_start_idx).get_output_layout();
+                auto out_layout = node.get_output_layout();
+                auto in_dt = in_layout.data_type;
+                auto out_dt = out_layout.data_type;
+                if ((out_layout.count() == in_layout.count()) &&
+                    (data_type_traits::is_floating_point(in_dt) || data_type_traits::is_floating_point(out_dt)) && in_dt != out_dt) {
+                    impl_candidate = impl_types::ocl;
+                    break;
+                }
+            }
+        }
+
+        // OneDnn doesn't support spatial dimensions for output
+        auto fc_prim = node.as<fully_connected>().get_primitive();
+        auto out_layout = node.get_output_layout();
+        size_t rank = cldnn::format::dimension(out_layout.format);
+        auto size = out_layout.size;
+        for (int i = 0; i < rank - 2 - (fc_prim->input_size == 3 ? 1 : 0); i++) {
+            if (size.spatial[i] != 1) {
+                impl_candidate = impl_types::ocl;
+                break;
+            }
+        }
+
+        preferred_impl = impl_candidate;
     }
 
     return preferred_impl;
@@ -1221,17 +1331,60 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             node.as<detection_output>(),
             layout{ data_types::f32, format::bfyx, tensor{} }).format;
     } else if (node.is_type<quantize>()) {
+        bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
         auto layout = node.get_output_layout();
         if (layout.format.spatial_num() == 2 &&
             (layout.data_type == data_types::i8 || layout.data_type == data_types::u8) &&
             layout.size.batch[0] % 16 == 0) {
-            if (layout.size.feature[0] > 8) {
+            if (use_onednn_impls && layout.size.batch[0] % 32 == 0) {
+                if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>()) {
+                    auto& conv = node.get_users().front()->as<convolution>();
+                    auto ws = conv.get_dependency(1).get_output_layout().size;
+                    if (data_type_traits::is_floating_point(conv.get_output_layout().data_type) || ws.spatial[0] != 7 || conv.get_primitive()->groups > 1)
+                        expected = format::bfyx;
+                    else
+                        expected = format::bs_fs_yx_bsv4_fsv4;
+
+                    auto conv_output_layout = conv.get_output_layout();
+                    auto weights_layout = conv.weights(0).get_output_layout();
+                    format expected_conv_fmt = get_expected_layout(conv_output_layout, conv, weights_layout).format;
+                    if (expected == format::bfyx && expected_conv_fmt == format::bs_fs_yx_bsv32_fsv32 &&
+                        layout.size.feature[0] % 32 == 0) {
+                        expected = expected_conv_fmt;
+                    }
+                } else {
+                    expected = format::bfyx;
+                }
+            } else if (layout.size.feature[0] > 8) {
                 expected = format::b_fs_yx_fsv16;
             } else {
-                expected = format::b_fs_yx_fsv4;
+                if (use_onednn_impls && layout.size.batch[0] % 16 == 0 && node.get_users().front()->is_type<convolution>()) {
+                    auto& conv = node.get_users().front()->as<convolution>();
+                    auto ws = conv.get_dependency(1).get_output_layout().size;
+                    if (data_type_traits::is_floating_point(conv.get_output_layout().data_type) || ws.spatial[0] != 7 || conv.get_primitive()->groups > 1)
+                        expected = format::bfyx;
+                    else
+                        expected = format::bs_fs_yx_bsv4_fsv4;
+                } else {
+                    expected = format::b_fs_yx_fsv4;
+                }
             }
         } else if (layout.format.spatial_num() == 3 && (layout.data_type == data_types::i8 || layout.data_type == data_types::u8)) {
             expected = format::b_fs_zyx_fsv16;
+        } else if (use_onednn_impls) {
+            if (node.get_users().size() == 1 && node.get_users().front()->is_type<convolution>() &&
+                (layout.data_type == data_types::i8 || layout.data_type == data_types::u8)) {
+                auto& conv = node.get_users().front()->as<convolution>();
+                auto conv_output_layout = conv.get_output_layout();
+                auto weights_layout = conv.weights(0).get_output_layout();
+                format expected_conv_fmt = get_expected_layout(conv_output_layout, conv, weights_layout).format;
+                if (layout.format.spatial_num() == 2 && layout.size.feature[0] % 32 == 0 && expected_conv_fmt == format::b_fs_yx_fsv32)
+                    expected = expected_conv_fmt;
+                else
+                    expected = format::bfyx;
+            } else {
+                expected = format::bfyx;
+            }
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
         expected = node.get_output_layout().format;

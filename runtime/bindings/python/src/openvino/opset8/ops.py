@@ -367,3 +367,27 @@ def random_uniform(
         "op_seed": op_seed,
     }
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
+
+
+@nameable_op
+def slice(
+        data: NodeInput,
+        start: NodeInput,
+        stop: NodeInput,
+        step: NodeInput,
+        axes: NodeInput = None
+) -> Node:
+    """Return a node which generates Slice operation.
+
+    @param  data: The node providing input data.
+    @param  start: The node providing start indices (inclusively).
+    @param  stop: The node providing stop indices (exclusively).
+    @param  step: The node providing step values.
+    @param  axes: The optional node providing axes to slice, default [0, 1, ..., len(start)-1].
+    """
+    if axes is None:
+        inputs = as_nodes(data, start, stop, step)
+    else:
+        inputs = as_nodes(data, start, stop, step, axes)
+
+    return _get_node_factory_opset8().create("Slice", inputs)
