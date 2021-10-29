@@ -14,6 +14,8 @@
 #include "op/fully_connected.hpp"
 #include "utils/general_utils.h"
 
+namespace {
+
 int getConstPort(const std::shared_ptr<ngraph::Node> &node) {
     const auto const1 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(0));
     const auto const2 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
@@ -92,6 +94,8 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
         throw ngraph::ngraph_error("ConvertToPowerStatic: op type is not supported");
     }
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertToPowerStatic, "ConvertToPowerStatic", 0);
 

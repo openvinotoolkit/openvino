@@ -266,6 +266,7 @@ set(SRC
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
+    visitors/op/avg_pool.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/binary_convolution.cpp
@@ -371,6 +372,7 @@ set(SRC
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
+    visitors/op/shape_of.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sigmoid.cpp
     visitors/op/sign.cpp
@@ -452,12 +454,9 @@ endif()
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/adaptive_avg_pool.in.cpp
-    backend/adaptive_max_pool.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
@@ -477,7 +476,6 @@ set(MULTI_TEST_SRC
     backend/dynamic.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
-    backend/fake_quantize.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
@@ -487,7 +485,6 @@ set(MULTI_TEST_SRC
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
-    backend/max_pool.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -504,23 +501,18 @@ set(MULTI_TEST_SRC
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
-    backend/reshape.in.cpp
     backend/result.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
-    backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
-    backend/squeeze.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
-    backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
     backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp

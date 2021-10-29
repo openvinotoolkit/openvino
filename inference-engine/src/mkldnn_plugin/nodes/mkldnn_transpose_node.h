@@ -86,7 +86,7 @@ private:
         }
     };
 
-    bool constMap[3] = { false };
+    bool isInputOrderConst = false;
 
     static constexpr size_t INPUT_DATA_IDX = 0lu;
     static constexpr size_t INPUT_ORDER_IDX = 1lu;
