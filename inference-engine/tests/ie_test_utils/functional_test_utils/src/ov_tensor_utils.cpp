@@ -25,12 +25,13 @@ ov::runtime::Tensor create_and_fill_tensor(
     tensor.data<element_type_traits<X>::value_type>(),  \
     shape_size(shape), \
     range, start_from, resolution, seed); break;
+#define CASE_FLOAT(X) case X: ::CommonTestUtils::fill_data_random_float(       \
+    tensor.data<element_type_traits<X>::value_type>(),                         \
+    shape_size(shape),                                                         \
+    tensor.get_element_type(),                                                 \
+    range, start_from, resolution, seed); break;
     switch (element_type) {
         CASE(ov::element::Type_t::boolean)
-        CASE(ov::element::Type_t::bf16)
-        CASE(ov::element::Type_t::f16)
-        CASE(ov::element::Type_t::f32)
-        CASE(ov::element::Type_t::f64)
         CASE(ov::element::Type_t::i8)
         CASE(ov::element::Type_t::i16)
         CASE(ov::element::Type_t::i32)
@@ -39,6 +40,10 @@ ov::runtime::Tensor create_and_fill_tensor(
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
+        CASE_FLOAT(ov::element::Type_t::bf16)
+        CASE_FLOAT(ov::element::Type_t::f16)
+        CASE_FLOAT(ov::element::Type_t::f32)
+        CASE(ov::element::Type_t::f64)
         case ov::element::Type_t::u1:
         case ov::element::Type_t::i4:
         case ov::element::Type_t::u4:
