@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/util/reduction_base.hpp"
+
 #include "reduce_shape_inference.hpp"
 
 using namespace std;
