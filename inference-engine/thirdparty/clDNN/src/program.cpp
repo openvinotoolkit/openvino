@@ -1403,9 +1403,20 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     std::unique_ptr<memory_pool> pool(new memory_pool(get_engine()));
     int64_t const_sum = 0;
 
+    std::vector<program_node*> nodes_to_allocate{};
+    for (auto node : processing_order) {
+        nodes_to_allocate.push_back(node);
+    }
+
+    std::sort(nodes_to_allocate.begin(),
+              nodes_to_allocate.end(),
+              [](program_node* const& lhs, program_node* const& rhs) {
+                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              });
+
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
-    for (const auto& node : processing_order) {
+    for (const auto& node : nodes_to_allocate) {
         auto out_size = node->get_output_layout().bytes_count();
         if (out_size > max_alloc_size) {
             // to consider: if the base batch size is > 1, should we allow this single output allocation to host?

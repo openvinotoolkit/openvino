@@ -763,7 +763,10 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::tie(input_name, input_shape) = *input_shapes.begin();
         size_t base_batch_size = input_shape[0];
 
-        auto engine = cldnn::engine::create(cldnn::engine_types::ocl, cldnn::runtime_types::ocl, iter->second, {});
+        // currently onednn impl is only availalbe for in order queue
+        cldnn::queue_types queue_type = device_info.supports_immad ? cldnn::queue_types::in_order : cldnn::queue_types::out_of_order;
+        auto engine = cldnn::engine::create(cldnn::engine_types::ocl, cldnn::runtime_types::ocl, iter->second, {false, queue_type});
+
         std::shared_ptr<Program> program;
 
         if (options.find("BASE_BATCH_SIZE") != options.end()) {
