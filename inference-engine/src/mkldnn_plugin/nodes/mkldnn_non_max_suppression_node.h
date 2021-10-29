@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "common/nms_kernel.h"
+
 #include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
@@ -20,7 +22,7 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override;
+    void createPrimitive() override {};
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -99,6 +101,8 @@ private:
     void checkPrecision(const Precision& prec, const std::vector<Precision>& precList, const std::string& name, const std::string& type);
     void check1DInput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
     void checkOutput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
+
+    std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
 };
 
 }  // namespace MKLDNNPlugin
