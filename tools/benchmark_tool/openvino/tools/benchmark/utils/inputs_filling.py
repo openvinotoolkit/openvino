@@ -44,7 +44,11 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
         image_files = get_files_by_extensions(paths_to_input, IMAGE_EXTENSIONS)
         binary_files = get_files_by_extensions(paths_to_input, BINARY_EXTENSIONS)
 
-    if (len(image_files) == 0) and (len(binary_files) == 0):
+    if input_file_mapping and len(input_file_mapping) < len(app_input_info):
+        not_provided_inputs = set(app_input_info) - set(input_file_mapping)
+        logger.warning("No input files were given for the inputs: "
+                       f"{', '.join(not_provided_inputs)}. This inputs will be filled with random values!")
+    elif (len(image_files) == 0) and (len(binary_files) == 0):
         logger.warning("No input files were given: all inputs will be filled with random values!")
     else:
         binary_to_be_used = binaries_count * batch_size * len(requests)
