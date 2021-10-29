@@ -210,6 +210,14 @@ static void regclass_graph_InputInfo(py::module m) {
                 preprocess : InputInfo
                     Reference to itself to allow chaining of calls in client's code in a builder-like manner.
               )");
+    inp.def(
+        "network",
+        [](const std::shared_ptr<ov::preprocess::InputInfo>& me,
+           const std::shared_ptr<ov::preprocess::InputNetworkInfo>& inputNetworkInfo) {
+               me->network(std::move(*inputNetworkInfo));
+               return me;
+        },
+        py::arg("input_netwok_info"));
 }
 
 void regclass_graph_PrePostProcessor(py::module m) {
