@@ -325,13 +325,13 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // MULTI can enable the perf counters only if all  devices support/enable that
     bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
     auto impl = std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
-                                                            metaDevices,
-                                                            multiNetworkConfig,
-                                                            enablePerfCounters);
+                                                               metaDevices,
+                                                               multiNetworkConfig,
+                                                               enablePerfCounters);
     if (!modelPath.empty()) {
         SetExeNetworkInfo(impl,
-                        executableNetworkPerDevice.begin()->second->GetInputsInfo(),
-                        executableNetworkPerDevice.begin()->second->GetOutputsInfo());
+                          executableNetworkPerDevice.begin()->second->GetInputsInfo(),
+                          executableNetworkPerDevice.begin()->second->GetOutputsInfo());
         impl->setInputs(executableNetworkPerDevice.begin()->second->getInputs());
         impl->setOutputs(executableNetworkPerDevice.begin()->second->getOutputs());
     }
