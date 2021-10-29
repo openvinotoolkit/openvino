@@ -42,9 +42,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
 
     if paths_to_input and not input_file_mapping:
         image_files = get_files_by_extensions(paths_to_input, IMAGE_EXTENSIONS)
-        image_files.sort()
         binary_files = get_files_by_extensions(paths_to_input, BINARY_EXTENSIONS)
-        binary_files.sort()
 
     if (len(image_files) == 0) and (len(binary_files) == 0):
         logger.warning("No input files were given: all inputs will be filled with random values!")
@@ -125,9 +123,19 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
 
 
 def get_files_by_extensions(paths_to_input, extensions):
-    get_extension = lambda file_path: file_path.split(".")[-1].upper()
+    if len(paths_to_input) == 1:
+        files = [file for file in paths_to_input[0].split(",") if file]
 
+        if all(get_extension(file) in extensions for file in files):
+            check_files_exist(files)
+            return files
+
+    return get_files_by_extensions_for_not_list_of_files(paths_to_input, extensions)
+
+
+def get_files_by_extensions_for_not_list_of_files(paths_to_input, extensions):
     input_files = list()
+
     for path_to_input in paths_to_input:
         if os.path.isfile(path_to_input):
             files = [os.path.normpath(path_to_input)]
@@ -138,8 +146,13 @@ def get_files_by_extensions(paths_to_input, extensions):
             file_extension = get_extension(file)
             if file_extension in extensions:
                 input_files.append(file)
+        input_files.sort()
+        return input_files
 
-    return input_files
+
+def get_extension(file_path):
+    return file_path.split(".")[-1].upper()
+
 
 def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, info, from_map=False):
     shape = info.shape
@@ -261,8 +274,8 @@ def parse_path(path):
     """
     Parse "input_1:file1,file2,input_2:file3" into a dict
     """
-    inputs = re.findall(r"([^,]\w+)::", path)
-    input_files = [file for file in re.split(r"[^,]\w+::", path) if file]
+    inputs = re.findall(r"([^,]\w+):", path)
+    input_files = [file for file in re.split(r"[^,]\w+:", path) if file]
     return {
         input_: files.strip(",").split(",") for input_, files in zip(inputs, input_files)
     }
@@ -270,7 +283,7 @@ def parse_path(path):
 
 def check_input_file_mapping(input_file_mapping, app_input_info):
     check_inputs(app_input_info, input_file_mapping)
-    check_files_exist(input_file_mapping)
+    check_input_file_mapping_files_exists(input_file_mapping)
     check_files_extensions(app_input_info, input_file_mapping)
 
 
@@ -286,9 +299,13 @@ def check_inputs(app_input_info, input_file_mapping):
         )
 
 
-def check_files_exist(input_file_mapping):
+def check_input_file_mapping_files_exists(input_file_mapping):
+    check_files_exist(chain.from_iterable(input_file_mapping.values()))
+
+
+def check_files_exist(input_files_list):
     not_files = [
-        file for file in chain.from_iterable(input_file_mapping.values()) if not Path(file).is_file()
+        file for file in input_files_list if not Path(file).is_file()
     ]
     if not_files:
         not_files = ",\n".join(not_files)

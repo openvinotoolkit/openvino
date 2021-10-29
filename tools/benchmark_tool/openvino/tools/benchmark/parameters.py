@@ -35,7 +35,7 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.'
                            'It is also allowed to map files to network inputs: '
-                           '\'input_1::file_1,file_2,input_4::file_4\' \'input_2::file_3\'')
+                           'input_1:file_1,file_2,input_4:file_4 input_2:file_3')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
                       help='Required. Path to an .xml/.onnx file with a trained model or '
                            'to a .blob file with a trained compiled model.')

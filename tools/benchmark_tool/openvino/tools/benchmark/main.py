@@ -334,7 +334,7 @@ def run(args):
         paths_to_input = list()
         if args.paths_to_input:
             for path in args.paths_to_input:
-                if "::" in next(iter(path), ""):
+                if ":" in next(iter(path), ""):
                     paths_to_input.extend(path)
                 else:
                     paths_to_input.append(os.path.abspath(*path))
