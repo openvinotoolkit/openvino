@@ -26,6 +26,9 @@
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
 
+#include <ngraph/opsets/opset1.hpp>
+#include <ie_ngraph_utils.hpp>
+
 // WA for xbyak.h
 #ifdef _WIN32
 # ifndef _WINSOCKAPI_
@@ -1606,7 +1609,30 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
 
         std::vector<float> scalesBuffer;
         std::vector<float> shiftsBuffer;
-        parent->fillScalesAndShifts(parent->getParentEdgesAtPort(1 - getConstPort(parent))[0]->getParent().get(), scalesBuffer, shiftsBuffer, 1);
+        auto parentEltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(parent);
+        if (!parentEltwise) {
+            IE_THROW() << "Cannot cast " << parent->getName() << " to Eltwise node";
+        }
+
+        std::tie(scalesBuffer, shiftsBuffer) = parentEltwise->getScalesAndShifts(parent->getParentEdgesAtPort(1 - getConstPort(parent))[0]->getParent().get());
+
+        const auto &outputShape = child->getOutputShapeAtPort(0);
+        VectorDims outputDims = outputShape.getDims();
+        const size_t channelPos = outputDims.size() > 1 ? 1 : 0;
+        if (outputShape.isDynamic()) {
+            if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
+                if (scalesBuffer.size() > 1) {
+                    outputDims[channelPos] = scalesBuffer.size();
+                } else if (shiftsBuffer.size() > 1) {
+                    outputDims[channelPos] = shiftsBuffer.size();
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
+        shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
         for (int i = 0; i < scalesBuffer.size(); i++)
             if (scalesBuffer[i] == 0.f)
@@ -1877,22 +1903,30 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         }
 
         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
-        auto newRnnOutDims = parentNode->outputShapes[0].getDims();
-        newRnnOutDims.erase(newRnnOutDims.begin() + 1);
-        parentNode->outputShapes[0] = Shape{newRnnOutDims};
+        std::vector<ov::Dimension> origShape = static_cast<std::vector<ov::Dimension>>(parentNode->getOutputShapeAtPort(0).toPartialShape());
+        origShape.erase(origShape.begin() + 1);
+        const auto newShape = Shape(origShape);
+        parentNode->outputShapes[0] = newShape;
 
         for (size_t i = 0; i < childrenEdges.size(); i++) {
             auto edge = childrenEdges[i];
             auto childNode = edge->getChild();
 
-            const MKLDNNNodePtr newReshape = std::make_shared<MKLDNNReshapeNode>(
-                    parentNode->getName() + "_abc_a1bc_" + std::to_string(i),
-                    parentNode->outputShapes[0],
-                    childNode->inputShapes[edge->getOutputNum()],
-                    parentNode->getOriginalOutputPrecisionAtPort(0),
-                    graph.getEngine(), graph.weightsCache);
+            const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
+            const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
+                std::make_shared<ngraph::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
+                                                            parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
+            unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(i));
 
-            graph.InsertNode(parentNode, childNode, newReshape, edge->getInputNum(), edge->getOutputNum(), false);
+            const auto cpuUnsqueeze = std::make_shared<MKLDNNReshapeNode>(unsqueeze, graph.getEngine(), graph.weightsCache);
+            graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);
+
+            const auto cpuConstant = std::make_shared<MKLDNNInputNode>(secondInput, graph.getEngine(), graph.weightsCache);
+            MKLDNNEdgePtr newEdge(new MKLDNNEdge(cpuConstant, cpuUnsqueeze, 0, 1));
+            cpuUnsqueeze->addEdge(newEdge);
+            auto &graphEdges = graph.GetEdges();
+            graphEdges.push_back(newEdge);
+            graphNodes.push_back(cpuConstant);
 
             edge->drop();
             graph.RemoveEdge(edge);

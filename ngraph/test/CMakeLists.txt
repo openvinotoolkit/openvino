@@ -89,7 +89,6 @@ set(SRC
     pass/serialization/serialize.cpp
     pattern.cpp
     preprocess.cpp
-    provenance.cpp
     replace_node.cpp
     reshape_opt_kernel.cpp
     shape.cpp
@@ -102,6 +101,7 @@ set(SRC
     type_prop/acos.cpp
     type_prop/adaptive_avg_pool.cpp
     type_prop/adaptive_max_pool.cpp
+    type_prop/add.cpp
     type_prop/asin.cpp
     type_prop/asinh.cpp
     type_prop/assign.cpp
@@ -266,6 +266,7 @@ set(SRC
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
+    visitors/op/avg_pool.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/binary_convolution.cpp
@@ -286,6 +287,7 @@ set(SRC
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
+    visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
     visitors/op/equal.cpp
@@ -301,6 +303,8 @@ set(SRC
     visitors/op/greater_equal.cpp
     visitors/op/greater.cpp
     visitors/op/grn.cpp
+    visitors/op/gru_cell.cpp
+    visitors/op/gru_sequence.cpp
     visitors/op/group_conv.cpp
     visitors/op/hard_sigmoid.cpp
     visitors/op/hsigmoid.cpp
@@ -368,6 +372,7 @@ set(SRC
     visitors/op/select.cpp
     visitors/op/space_to_depth.cpp
     visitors/op/selu.cpp
+    visitors/op/shape_of.cpp
     visitors/op/shuffle_channels.cpp
     visitors/op/sigmoid.cpp
     visitors/op/sign.cpp
@@ -449,19 +454,13 @@ endif()
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/abs.in.cpp
-    backend/adaptive_avg_pool.in.cpp
-    backend/adaptive_max_pool.in.cpp
-    backend/add.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
-    backend/ceiling.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
@@ -469,9 +468,6 @@ set(MULTI_TEST_SRC
     backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/dft.in.cpp
-    backend/divide.in.cpp
-    backend/deformable_convolution.in.cpp
-    backend/deformable_convolution_opset8.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_generate_proposals.in.cpp
@@ -480,64 +476,43 @@ set(MULTI_TEST_SRC
     backend/dynamic.in.cpp
     backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
-    backend/fake_quantize.in.cpp
-    backend/floor.in.cpp
-    backend/floor_mod.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/group_convolution.in.cpp
-    backend/group_convolution_backprop_data.in.cpp
     backend/idft.in.cpp
     backend/interpolate.in.cpp
-    backend/log.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
-    backend/maximum.in.cpp
-    backend/max_pool.in.cpp
-    backend/mod.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
-    backend/multiply.in.cpp
-    backend/negative.in.cpp
     backend/node_name.in.cpp
     backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
-    backend/power.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
     backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
-    backend/range.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
-    backend/reshape.in.cpp
     backend/result.in.cpp
     backend/reverse.in.cpp
     backend/roll.in.cpp
-    backend/round.in.cpp
-    backend/scatter_nd_update.in.cpp
     backend/space_to_depth.in.cpp
-    backend/shape_of.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
     backend/split.in.cpp
     backend/sqrt.in.cpp
-    backend/squared_difference.in.cpp
-    backend/squeeze.in.cpp
-    backend/subtract.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
     backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
-    backend/unsqueeze.in.cpp
     backend/validate_call.in.cpp
     backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
@@ -554,7 +529,6 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
             onnx/onnx_import_org_openvino.in.cpp
-            onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)
@@ -657,6 +631,10 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
     elseif(APPLE)
         target_link_options(unit-test PRIVATE -Wl,-dead_strip)
     endif()
+endif()
+
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    add_dependencies(unit-test ir_ngraph_frontend)
 endif()
 
 install(TARGETS unit-test
