@@ -13,18 +13,18 @@
 #include <utility>
 #include <vector>
 
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
 
 namespace {
-bool transformation_is_applicable(const std::shared_ptr<ngraph::opset8::Interpolate>& interpolate) {
+bool transformation_is_applicable(const std::shared_ptr<ov::opset8::Interpolate>& interpolate) {
     if (interpolate->get_input_partial_shape(0).rank().is_dynamic() || interpolate->inputs().size() != 4) return false;
 
     int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
     if (input_rank < 4) return false;
 
-    auto axes_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
+    auto axes_node = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
     if (!axes_node) return false;
 
     const auto axes = axes_node->cast_vector<int64_t>();
@@ -80,12 +80,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::WrapInterpolateIntoTransposes, "WrapInterpo
 
 ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     MATCHER_SCOPE(WrapInterpolateIntoTransposes);
-    auto interpolate_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Interpolate>();
+    auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::opset8::Interpolate>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
+        auto interpolate = std::dynamic_pointer_cast<ov::opset8::Interpolate>(m.get_match_root());
         if (!interpolate || !transformation_is_applicable(interpolate)) return false;
 
-        auto axes_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
+        auto axes_node = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
         if (!axes_node) return false;
 
         const auto axes = axes_node->cast_vector<int64_t>();
@@ -94,13 +94,13 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         const auto first_perm = build_transposition_for_axes(axes, input_rank);
         const auto last_perm = reverse_permutation(first_perm);
 
-        auto first_transpose_perm = opset8::Constant::create(element::i64, {first_perm.size()}, first_perm);
-        auto first_transpose = std::make_shared<opset8::Transpose>(interpolate->input_value(0), first_transpose_perm);
+        auto first_transpose_perm = ov::opset8::Constant::create(element::i64, {first_perm.size()}, first_perm);
+        auto first_transpose = std::make_shared<ov::opset8::Transpose>(interpolate->input_value(0), first_transpose_perm);
         auto new_axes = build_new_axes(static_cast<int64_t>(axes.size()), input_rank);
-        auto new_axes_node = opset8::Constant::create(element::i64, {new_axes.size()}, new_axes);
+        auto new_axes_node = ov::opset8::Constant::create(element::i64, {new_axes.size()}, new_axes);
         auto new_interpolate = interpolate->clone_with_new_inputs({first_transpose, interpolate->input_value(1), interpolate->input_value(2), new_axes_node});
-        auto last_transpose_perm = opset8::Constant::create(element::i64, {last_perm.size()}, last_perm);
-        auto last_transpose = std::make_shared<opset8::Transpose>(new_interpolate, last_transpose_perm);
+        auto last_transpose_perm = ov::opset8::Constant::create(element::i64, {last_perm.size()}, last_perm);
+        auto last_transpose = std::make_shared<ov::opset8::Transpose>(new_interpolate, last_transpose_perm);
 
         last_transpose->set_friendly_name(interpolate->get_friendly_name());
         copy_runtime_info(interpolate, {first_transpose_perm, first_transpose, new_axes_node, new_interpolate, last_transpose_perm, last_transpose});
