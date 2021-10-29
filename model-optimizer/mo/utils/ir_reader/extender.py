@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils import class_registration
@@ -35,8 +36,29 @@ class Extender(object):
             node[attribute] = [node[attribute]]
 
     @staticmethod
-    def const_shape_infer(node: Node):
-        i = len(node.in_nodes())
-        for num in node.out_nodes():
-            node.out_node(num).shape = int64_array(node.ports[i][0])
+    def use_shapes_from_ir(node: Node):
+        # This function used instead of operation shape inference function to set all output shapes the same as
+        # restored from IR. Firstly, check equality of old (restored from IR) and
+        # new (calculated while shape inference) input shapes
+        node['new_input_shapes'] = list()
+        for n in node.in_ports():
+            if not node.in_port(n).disconnected():  # We use such condition to handle optional inputs
+                node.new_input_shapes.append(node.in_port(n).data.get_shape())
+        assert len(node.new_input_shapes) == len(node.old_input_shapes), \
+            'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
+        for new_input_shape, old_input_shape in zip(node.new_input_shapes, node.old_input_shapes):
+            assert np.array_equal(new_input_shape, old_input_shape), \
+                'Something wrong happened while {} node with type {} copy shape inference!'.format(node.name, node.type)
+
+        # We need to use number of connected input ports to avoid errors with numbering
+        # in node.ports dictionary, where used numbers of input nodes
+        connected_input_ports = []
+        for n in node.in_ports():
+            if not node.in_port(n).disconnected():
+                connected_input_ports.append(node.in_port(n))
+        i = len(connected_input_ports)
+
+        # Set all output shapes the same as restored from IR
+        for num in node.out_ports():
+            node.out_port(num).data.set_shape(int64_array(node.ports[i][0]))
             i += 1

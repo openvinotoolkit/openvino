@@ -9,24 +9,18 @@ upload memory measurment results to database and generate reports.
 """
 
 import argparse
-from glob import glob
 import json
 import logging
 import os
 import subprocess
 import sys
-from pathlib import Path
+from glob import glob
 
-from memcheck_upload import create_memcheck_records, \
-    upload_memcheck_records, \
-    create_memcheck_report, \
-    metadata_from_manifest, \
-    info_from_test_config
-from compare_memcheck_2_runs import compare_memcheck_2_runs, \
-    get_memcheck_records, get_db_memcheck_records
-
+from compare_memcheck_2_runs import compare_memcheck_2_runs, get_memcheck_records, get_db_memcheck_records
 # Database arguments
 from memcheck_upload import DATABASE, DB_COLLECTIONS
+from memcheck_upload import create_memcheck_records, upload_memcheck_records, create_memcheck_report, \
+    metadata_from_manifest, info_from_test_config
 
 
 def run(args, log=None, verbose=True):
@@ -76,7 +70,7 @@ def main():
     binary_args = []
     for idx, arg in enumerate(sys.argv):
         if arg == '--':
-            binary_args = sys.argv[idx+1:]
+            binary_args = sys.argv[idx + 1:]
             sys.argv = sys.argv[:idx]
             break
 
@@ -96,15 +90,21 @@ def main():
         description='Run memcheck tests',
         usage='%(prog)s [options] binary -- [additional args]',
         parents=[init_parser])
-    parser.add_argument('binary', help='test binary to execute')
-    parser.add_argument('--gtest_parallel', help='path to gtest-parallel to use',
+    parser.add_argument('binary',
+                        help='test binary to execute')
+    parser.add_argument('--gtest_parallel',
+                        help='path to gtest-parallel to use',
                         default='gtest_parallel')
-    parser.add_argument('--timeout', help='timeout for tests run within gtest-parallel')
+    parser.add_argument('--timeout',
+                        help='timeout for tests run within gtest-parallel',
+                        default='')
     parser.add_argument('-d', '--output_dir',
                         required=args.timeline_report or args.upload or args.compare,
-                        help='output directory for test logs')
-    parser.add_argument('-w', '--workers', help='number of gtest-parallel workers to spawn')
-
+                        help='output directory for test logs',
+                        default='')
+    parser.add_argument('-w', '--workers',
+                        help='number of gtest-parallel workers to spawn',
+                        default='')
     parser.add_argument('--db_url',
                         required=args.timeline_report or args.upload or
                                  (args.compare and not os.path.isdir(args.compare)),
@@ -124,8 +124,7 @@ def main():
 
     parser.add_argument('--ref_db_collection',
                         required=args.compare and not os.path.isdir(args.compare),
-                        help=f'use collection name in {DATABASE} database to query'
-                             f' reference data',
+                        help=f'use collection name in {DATABASE} database to query reference data',
                         choices=DB_COLLECTIONS)
     parser.add_argument('--comparison_report',
                         required=args.compare,
@@ -142,17 +141,16 @@ def main():
         else:
             if list(glob(os.path.join(args.output_dir, '**', '*.log'), recursive=True)):
                 logging.error(
-                    'Output directory %s already has test logs.' \
+                    'Output directory %s already has test logs. '
                     'Please specify an empty directory for output logs',
                     args.output_dir)
                 sys.exit(1)
 
-    returncode, _ = run([sys.executable, args.gtest_parallel] +
-                        (['--output_dir', f'{args.output_dir}'] if args.output_dir else []) +
-                        (['--workers', f'{args.workers}'] if args.workers else []) +
-                        (['--timeout', f'{args.timeout}'] if args.timeout else []) +
-                        [args.binary] +
-                        ['--'] + binary_args)
+    return_code, _ = run([sys.executable, args.gtest_parallel,
+                          '--output_dir', f'{args.output_dir}',
+                          '--workers', f'{args.workers}',
+                          '--timeout', f'{args.timeout}',
+                          args.binary, '--'] + binary_args)
 
     if args.upload or args.timeline_report or args.compare:
         # prepare commit information
@@ -177,7 +175,7 @@ def main():
         if test_conf:
             info = info_from_test_config(test_conf)
             for record in records:
-                record.update(info.get(Path(record["model"]), {}))
+                record.update(info.get(record["model_name"], {}))
 
         # upload
         if args.upload:
@@ -189,8 +187,11 @@ def main():
 
         # create timeline report
         if args.timeline_report:
-            create_memcheck_report(records, args.db_url, args.db_collection, args.timeline_report)
-            logging.info('Created memcheck timeline report %s', args.timeline_report)
+            try:
+                create_memcheck_report(records, args.db_url, args.db_collection, args.timeline_report)
+                logging.info('Created memcheck timeline report %s', args.timeline_report)
+            except Exception as ex:
+                logging.warning(f'Failed to create timeline report: {ex}')
 
         # compare runs and prepare report
         if args.compare:
@@ -203,9 +204,9 @@ def main():
                                                      db_name=DATABASE, db_url=args.db_url)
             compare_retcode = compare_memcheck_2_runs(cur_values=records, references=references,
                                                       output_file=args.comparison_report)
-            returncode = returncode if returncode else compare_retcode
+            return_code = return_code if return_code else compare_retcode
 
-    sys.exit(returncode)
+    sys.exit(return_code)
 
 
 if __name__ == "__main__":

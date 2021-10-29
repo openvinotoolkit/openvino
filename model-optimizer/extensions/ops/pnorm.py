@@ -15,15 +15,15 @@ class PNormOp(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }
         super().__init__(graph, mandatory_props, attrs)
 
     @staticmethod
     def infer(node: Node):
         shape = node.in_port(0).data.get_shape().copy()
-        shape[1] = shape[1] / node.group
+        shape[1] = shape[1] // node.group
         node.out_port(0).data.set_shape(shape)

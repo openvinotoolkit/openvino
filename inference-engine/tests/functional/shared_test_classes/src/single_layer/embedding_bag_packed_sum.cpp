@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string EmbeddingBagPackedSumLayerTest::getTestCaseName(testing::TestParamInfo<embeddingBagPackedSumLayerTestParamsSet> obj) {
+std::string EmbeddingBagPackedSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingBagPackedSumLayerTestParamsSet>& obj) {
     embeddingBagPackedSumParams params;
     InferenceEngine::Precision netPrecision, indPrecision;
     std::string targetDevice;

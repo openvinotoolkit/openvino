@@ -7,7 +7,7 @@
 
 #include "ngraph/op/extractimagepatches.hpp"
 
-#include "api/extract_image_patches.hpp"
+#include "cldnn/primitives/extract_image_patches.hpp"
 
 namespace CLDNNPlugin {
 
@@ -22,7 +22,7 @@ static inline std::string PadToString(ngraph::op::PadType pad) {
     return "";
 }
 
-void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v3::ExtractImagePatches>& op) {
+static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v3::ExtractImagePatches>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -38,7 +38,8 @@ void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph::op::v
                                                                 strides,
                                                                 rates,
                                                                 auto_pad,
-                                                                CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                                                op->get_friendly_name());
 
     p.AddPrimitive(extractImagePatchesPrim);
     p.AddPrimitiveToProfiler(op);

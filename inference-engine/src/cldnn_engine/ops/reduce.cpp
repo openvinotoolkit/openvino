@@ -16,12 +16,13 @@
 #include "ngraph/op/max.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/reduce.hpp"
-#include "api/reorder.hpp"
+#include "cldnn/primitives/reduce.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
-void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
+static void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -74,9 +75,32 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
                                     inputPrimitives[0],
                                     mode,
                                     axes,
-                                    static_cast<int32_t>(keep_dims));
+                                    static_cast<int32_t>(keep_dims),
+                                    op->get_friendly_name());
 
     p.AddPrimitive(reducePrim);
+
+    auto resultLayerName = layerName;
+    auto out_dims = op->get_output_shape(0).size();
+    if (out_dims == 3 && !keep_dims && rank >= 4) {
+        resultLayerName = layerName + "_reshape";
+        auto out_shape = op->get_output_shape(0);
+        cldnn::tensor outTensor;
+        switch (rank) {
+            case 6:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1, 1);
+            case 5:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]), 1);
+            case 4:
+                outTensor = cldnn::tensor(TensorValue(out_shape[0]), TensorValue(out_shape[1]),
+                                          1, TensorValue(out_shape[2]));
+        }
+        auto reshape_prim = cldnn::reshape(resultLayerName, layerName, outTensor, op->get_friendly_name());
+        p.AddPrimitive(reshape_prim);
+        p.AddPrimitiveToProfiler(op, resultLayerName);
+    }
 
     auto reorderLayerName = layerName + "_reorder";
     cldnn::format out_format = cldnn::format::any;
@@ -89,7 +113,13 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
         else if (rank - rawAxes.size() <= 4)
             out_format = cldnn::format::bfyx;
 
-        auto reorder_prim = cldnn::reorder(reorderLayerName, layerName, out_format, out_dt);
+        auto reorder_prim = cldnn::reorder(reorderLayerName,
+                                           resultLayerName,
+                                           out_format,
+                                           out_dt,
+                                           std::vector<float>(),
+                                           cldnn::reorder_mean_mode::subtract,
+                                           op->get_friendly_name());
         p.AddPrimitive(reorder_prim);
         p.AddPrimitiveToProfiler(op, reorderLayerName);
     } else {
@@ -97,39 +127,39 @@ void CreateReduceOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cldnn::
     }
 }
 
-void CreateReduceMaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMax>& op) {
+static void CreateReduceMaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMax>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::max, op->get_keep_dims());
 }
 
-void CreateReduceLogicalAndOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceLogicalAnd>& op) {
+static void CreateReduceLogicalAndOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceLogicalAnd>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::logical_and, op->get_keep_dims());
 }
 
-void CreateReduceLogicalOrOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceLogicalOr>& op) {
+static void CreateReduceLogicalOrOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceLogicalOr>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::logical_or, op->get_keep_dims());
 }
 
-void CreateReduceMeanOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMean>& op) {
+static void CreateReduceMeanOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMean>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::mean, op->get_keep_dims());
 }
 
-void CreateReduceMinOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMin>& op) {
+static void CreateReduceMinOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceMin>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::min, op->get_keep_dims());
 }
 
-void CreateReduceProdOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceProd>& op) {
+static void CreateReduceProdOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceProd>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::prod, op->get_keep_dims());
 }
 
-void CreateReduceSumOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceSum>& op) {
+static void CreateReduceSumOp(Program& p, const std::shared_ptr<ngraph::op::v1::ReduceSum>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::sum, op->get_keep_dims());
 }
 
-void CreateReduceL1Op(Program& p, const std::shared_ptr<ngraph::op::v4::ReduceL1>& op) {
+static void CreateReduceL1Op(Program& p, const std::shared_ptr<ngraph::op::v4::ReduceL1>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::l1, op->get_keep_dims());
 }
 
-void CreateReduceL2Op(Program& p, const std::shared_ptr<ngraph::op::v4::ReduceL2>& op) {
+static void CreateReduceL2Op(Program& p, const std::shared_ptr<ngraph::op::v4::ReduceL2>& op) {
     CreateReduceOp(p, op, cldnn::reduce_mode::l2, op->get_keep_dims());
 }
 

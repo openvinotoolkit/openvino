@@ -4,7 +4,7 @@ version: 2
 updates:
   # Enable version updates for nGraph Python API
   - package-ecosystem: pip
-    directory: "/ngraph/python"
+    directory: "/runtime/bindings/python"
     schedule:
       interval: weekly
       day: monday

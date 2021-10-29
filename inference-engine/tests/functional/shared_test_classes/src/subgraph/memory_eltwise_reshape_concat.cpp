@@ -33,7 +33,7 @@ void MemoryEltwiseReshapeConcatTest::SetUp() {
     ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
+    std::mt19937 gen(seed);
 
     auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
         std::vector<float> res;

@@ -7,11 +7,11 @@
 
 #include "ngraph/op/reorg_yolo.hpp"
 
-#include "api/reorg_yolo.hpp"
+#include "cldnn/primitives/reorg_yolo.hpp"
 
 namespace CLDNNPlugin {
 
-void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReorgYolo>& op) {
+static void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReorgYolo>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -20,7 +20,8 @@ void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::ReorgYo
 
     auto reorgPrim = cldnn::reorg_yolo(layerName,
                                        inputPrimitives[0],
-                                       stride);
+                                       stride,
+                                       op->get_friendly_name());
 
     p.AddPrimitive(reorgPrim);
     p.AddPrimitiveToProfiler(op);

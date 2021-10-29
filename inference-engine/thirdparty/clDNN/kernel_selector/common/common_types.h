@@ -26,7 +26,6 @@ enum class KernelType {
     SOFT_MAX,
     ELTWISE,
     SCALE,
-    FUSED_CONV_ELTWISE,
     REORDER,
     RESHAPE,
     PERMUTE,
@@ -48,6 +47,7 @@ enum class KernelType {
     ONE_HOT,
     GATHER,
     GATHER_ND,
+    GATHER_ELEMENTS,
     SCATTER_UPDATE,
     SCATTER_ND_UPDATE,
     SCATTER_ELEMENTS_UPDATE,
@@ -68,7 +68,10 @@ enum class KernelType {
     CTC_GREEDY_DECODER,
     CUM_SUM,
     EMBEDDING_BAG,
-    EXTRACT_IMAGE_PATCHES
+    EXTRACT_IMAGE_PATCHES,
+    LOOP,
+    NON_MAX_SUPPRESSION,
+    DETECTION_OUTPUT
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -579,5 +582,13 @@ enum class EmbeddingBagType {
     PACKED_SUM,
     OFFSETS_SUM,
     SEGMENTS_SUM
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BoxEncodingType
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class BoxEncodingType {
+    BOX_ENCODING_CORNER,
+    BOX_ENCODING_CENTER,
 };
 }  // namespace kernel_selector

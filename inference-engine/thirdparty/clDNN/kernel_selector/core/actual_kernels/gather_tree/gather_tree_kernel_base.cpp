@@ -34,7 +34,7 @@ KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,
     auto dispatchData = SetDefault(gt_params);
     auto kernel_data = KernelData::Default<gather_tree_params>(params);
     auto cldnn_jit = GetJitConstants(gt_params);
-    auto entry_point = GetEntryPoint(kernelName, gt_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, gt_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     FillCLKernelData(kernel_data.kernels[0],
                      dispatchData,

@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple <
     element::Type,
-    Shape,
+    PartialShape,
     std::string,
     ngraph::builder::subgraph::DequantizationOperations,
     bool> FuseConvertTransformationParams;
@@ -26,13 +26,10 @@ class FuseConvertTransformation :
         public testing::WithParamInterface<FuseConvertTransformationParams>,
         public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseConvertTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

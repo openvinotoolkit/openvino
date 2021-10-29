@@ -31,3 +31,8 @@ inference-engine/include/ie_remote_context.hpp
 inference-engine/include/gpu/gpu_context_api_dx.hpp
 build/docs/openvino_docs.xml
 openvino/docs/install_guides/installing-openvino-linux-ivad-vpu.md
+inference-engine/src/inference_engine/include/ie/ie_parallel.hpp
+inference-engine/src/inference_engine/include/ie/ie_plugin_config.hpp
+inference-engine/src/inference_engine/include/ie/vpu/myriad_config.hpp
+inference-engine/src/inference_engine/include/ie/vpu/vpu_config.hpp
+inference-engine/src/inference_engine/include/ie/vpu/vpu_plugin_config.hpp

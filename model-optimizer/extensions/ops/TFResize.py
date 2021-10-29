@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.layout import get_height_dim, get_width_dim
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -45,10 +43,9 @@ class TFResize(Op):
         len_msg = "Op {} with name {} supports only resize with respect to height and width dimension simultaneously"
         assert len(new_sizes_value) == 2, len_msg.format(node_name, node.op)
 
-        output_shape = int64_array(input_shape.copy())
+        output_shape = input_shape.copy()
 
-        layout = node.graph.graph['layout']
-        output_shape[get_height_dim(layout, input_rank)] = new_sizes_value[0]
-        output_shape[get_width_dim(layout, input_rank)] = new_sizes_value[1]
+        output_shape[1] = new_sizes_value[0]
+        output_shape[2] = new_sizes_value[1]
 
         node.out_port(0).data.set_shape(output_shape)

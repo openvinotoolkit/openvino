@@ -23,11 +23,11 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto m_add = ngraph::pattern::wrap_type<opset1::Add>({m_fc, m_bias});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
-        auto & pattern_to_output = m.get_pattern_value_map();
+        const auto & pattern_to_output = m.get_pattern_value_map();
 
-        auto add = pattern_to_output[m_add].get_node_shared_ptr();
-        auto bias = pattern_to_output[m_bias].get_node_shared_ptr();
-        auto fc = std::dynamic_pointer_cast<op::FullyConnected>(pattern_to_output[m_fc].get_node_shared_ptr());
+        auto add = pattern_to_output.at(m_add).get_node_shared_ptr();
+        auto bias = pattern_to_output.at(m_bias).get_node_shared_ptr();
+        auto fc = std::dynamic_pointer_cast<op::FullyConnected>(pattern_to_output.at(m_fc).get_node_shared_ptr());
         if (!fc) {
             return false;
         }
@@ -43,7 +43,9 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         Shape bias_shape(bias->get_shape());
         Shape output_shape(fc->get_shape());
         size_t bias_size = std::accumulate(bias_shape.begin(), bias_shape.end(), size_t{1}, std::multiplies<int64_t>());
-        if (bias_shape.empty() || bias_shape.back() != output_shape.back() || bias_shape.back() != bias_size) {
+        if (bias_shape.empty() ||
+            (bias_shape.back() != output_shape.back() && bias_shape.back() != 1) ||
+            bias_shape.back() != bias_size) {
             return false;
         }
 

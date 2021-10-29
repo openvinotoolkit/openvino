@@ -18,8 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, MVNFusionTestOutside) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestOutside) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -30,7 +29,7 @@ TEST(TransformationTests, MVNFusionTestOutside) {
         auto sub2 = std::make_shared<ngraph::opset6::Subtract>(input, mean2);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub2, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -40,13 +39,9 @@ TEST(TransformationTests, MVNFusionTestOutside) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(add_eps, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -54,15 +49,11 @@ TEST(TransformationTests, MVNFusionTestOutside) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestReuseSub) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestReuseSub) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -70,7 +61,7 @@ TEST(TransformationTests, MVNFusionTestReuseSub) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -80,13 +71,9 @@ TEST(TransformationTests, MVNFusionTestReuseSub) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(add_eps, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -94,15 +81,11 @@ TEST(TransformationTests, MVNFusionTestReuseSub) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestWithConvert) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestWithConvert) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -111,7 +94,7 @@ TEST(TransformationTests, MVNFusionTestWithConvert) {
         auto cast = std::make_shared<ngraph::opset6::Convert>(sub1, ngraph::element::f32);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(cast, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -121,13 +104,9 @@ TEST(TransformationTests, MVNFusionTestWithConvert) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(add_eps, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -135,15 +114,11 @@ TEST(TransformationTests, MVNFusionTestWithConvert) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestSqrt) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestSqrt) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -151,7 +126,7 @@ TEST(TransformationTests, MVNFusionTestSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto power_sqrt = std::make_shared<ngraph::opset6::Sqrt>(mean3);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
@@ -160,13 +135,9 @@ TEST(TransformationTests, MVNFusionTestSqrt) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(add_eps, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -174,15 +145,11 @@ TEST(TransformationTests, MVNFusionTestSqrt) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestAltDiv) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestAltDiv) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -190,7 +157,7 @@ TEST(TransformationTests, MVNFusionTestAltDiv) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 0.5 });
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
@@ -198,13 +165,9 @@ TEST(TransformationTests, MVNFusionTestAltDiv) {
         auto add_eps = std::make_shared<ngraph::opset6::Add>(power_sqrt, eps);
         auto div = std::make_shared<ngraph::opset6::Divide>(sub1, add_eps);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -212,15 +175,11 @@ TEST(TransformationTests, MVNFusionTestAltDiv) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::OUTSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestInsideSqrt) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestInsideSqrt) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -231,7 +190,7 @@ TEST(TransformationTests, MVNFusionTestInsideSqrt) {
         auto sub2 = std::make_shared<ngraph::opset6::Subtract>(input, mean2);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub2, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -241,13 +200,9 @@ TEST(TransformationTests, MVNFusionTestInsideSqrt) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(power_sqrt, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -255,15 +210,11 @@ TEST(TransformationTests, MVNFusionTestInsideSqrt) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestReuseSubInsideSqrt) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestReuseSubInsideSqrt) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -271,7 +222,7 @@ TEST(TransformationTests, MVNFusionTestReuseSubInsideSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -281,13 +232,9 @@ TEST(TransformationTests, MVNFusionTestReuseSubInsideSqrt) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(power_sqrt, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -295,15 +242,11 @@ TEST(TransformationTests, MVNFusionTestReuseSubInsideSqrt) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestWithConvertInsideSqrt) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestWithConvertInsideSqrt) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -312,7 +255,7 @@ TEST(TransformationTests, MVNFusionTestWithConvertInsideSqrt) {
         auto cast = std::make_shared<ngraph::opset6::Convert>(sub1, ngraph::element::f32);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(cast, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -322,13 +265,9 @@ TEST(TransformationTests, MVNFusionTestWithConvertInsideSqrt) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(power_sqrt, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -336,15 +275,11 @@ TEST(TransformationTests, MVNFusionTestWithConvertInsideSqrt) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestSqrtInsideSqrt) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestSqrtInsideSqrt) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -352,7 +287,7 @@ TEST(TransformationTests, MVNFusionTestSqrtInsideSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -361,13 +296,9 @@ TEST(TransformationTests, MVNFusionTestSqrtInsideSqrt) {
         auto power_div = std::make_shared<ngraph::opset6::Power>(power_sqrt, const_neg_1);
         auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -375,15 +306,11 @@ TEST(TransformationTests, MVNFusionTestSqrtInsideSqrt) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MVNFusionTestAltDivInsideSqrt) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, MVNFusionTestAltDivInsideSqrt) {
     {
         auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224, 224 });
         auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
@@ -391,7 +318,7 @@ TEST(TransformationTests, MVNFusionTestAltDivInsideSqrt) {
         auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
         auto const_2 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 2 });
         auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub1, const_2);
-        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 3 }, { 1, 2, 3 });
+        auto mean3_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
         auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
         auto add_eps = std::make_shared<ngraph::opset6::Add>(mean3, eps);
@@ -399,13 +326,9 @@ TEST(TransformationTests, MVNFusionTestAltDivInsideSqrt) {
         auto power_sqrt = std::make_shared<ngraph::opset6::Power>(add_eps, const_0_5);
         auto div = std::make_shared<ngraph::opset6::Divide>(sub1, power_sqrt);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input });
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::MVNFusion>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -413,9 +336,44 @@ TEST(TransformationTests, MVNFusionTestAltDivInsideSqrt) {
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 3 }, { 1, 2, 3 });
         auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ mvn }, ngraph::ParameterVector{ input });
+    }
+}
+
+TEST_F(TransformationTestsF, MVNFusionTestWithParametersInside) {
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224 });
+        auto mean1_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 1 }, { 2 });
+        auto mean1 = std::make_shared<ngraph::opset6::ReduceMean>(input, mean1_axes, true);
+        auto squared_difference = std::make_shared<ngraph::opset6::SquaredDifference>(input, mean1);
+        auto mean2_axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 1 }, { 2 });
+        auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(squared_difference, mean2_axes, true);
+        auto eps = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1e-9 });
+        auto add_eps = std::make_shared<ngraph::opset6::Add>(mean2, eps);
+        auto const_0_5 = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { -0.5 });
+        auto power_sqrt = std::make_shared<ngraph::opset6::Power>(add_eps, const_0_5);
+        auto gamma = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1 });
+        auto mul_gamma = std::make_shared<ngraph::opset6::Multiply>(power_sqrt, gamma);
+        auto mul1 = std::make_shared<ngraph::opset6::Multiply>(input, mul_gamma);
+        auto mul2 = std::make_shared<ngraph::opset6::Multiply>(mul_gamma, mean1);
+        auto beta = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { -1 });
+        auto sub = std::make_shared<ngraph::opset6::Subtract>(beta, mul2);
+        auto add = std::make_shared<ngraph::opset6::Add>(mul1, sub);
+
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+
+        manager.register_pass<ngraph::pass::MVNFusion>();
     }
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    {
+        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 224 });
+        auto axes = ngraph::opset6::Constant::create(ngraph::element::i32, ngraph::Shape{ 1 }, { 2 });
+        auto mvn = std::make_shared<ngraph::opset6::MVN>(input, axes, true, 1e-9, ngraph::op::MVNEpsMode::INSIDE_SQRT);
+        auto gamma = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { 1 });
+        auto mul_gamma = std::make_shared<ngraph::opset6::Multiply>(mvn, gamma);
+        auto beta = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{}, { -1 });
+        auto add = std::make_shared<ngraph::opset6::Add>(mul_gamma, beta);
+
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ add }, ngraph::ParameterVector{ input });
+    }
 }

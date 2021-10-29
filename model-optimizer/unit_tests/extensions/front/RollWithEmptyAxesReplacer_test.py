@@ -50,3 +50,8 @@ class RollWithEmptyAxesReplacerTest(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+        shape_of_nodes = graph.get_op_nodes(type='ShapeOf')
+        self.assertTrue(len(shape_of_nodes) == 1)
+        shape_of = shape_of_nodes[0]
+        self.assertTrue(shape_of.in_node().soft_get('name') == 'placeholder')

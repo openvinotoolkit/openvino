@@ -39,7 +39,7 @@ const std::vector<std::vector<std::vector<size_t>>> input_shapes {
 };
 
 
-INSTANTIATE_TEST_CASE_P(PowerBroadcast, BroadcastPowerTest,
+INSTANTIATE_TEST_SUITE_P(PowerBroadcast, BroadcastPowerTest,
         ::testing::Combine(
         ::testing::ValuesIn(input_shapes),
         ::testing::ValuesIn(netPrecisions),

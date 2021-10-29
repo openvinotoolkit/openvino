@@ -10,6 +10,10 @@
 #include <utility>
 #include <iomanip>
 
+#include <vpu/configuration/options/dump_internal_graph_file_name.hpp>
+#include <vpu/configuration/options/dump_all_passes_directory.hpp>
+#include <vpu/configuration/options/dump_all_passes.hpp>
+
 #include <vpu/compile_env.hpp>
 #include <vpu/utils/file_system.hpp>
 #include <vpu/utils/io.hpp>
@@ -85,12 +89,12 @@ void BackEnd::dumpModel(
 
     std::string fileName;
 
-    if (!env.config.dumpInternalGraphFileName.empty()) {
-        fileName = fileNameNoExt(env.config.dumpInternalGraphFileName);
-    } else if (!env.config.dumpInternalGraphDirectory.empty()) {
+    if (!env.config.get<DumpInternalGraphFileNameOption>().empty()) {
+        fileName = fileNameNoExt(env.config.get<DumpInternalGraphFileNameOption>());
+    } else if (!env.config.get<DumpAllPassesDirectoryOption>().empty()) {
         fileName = formatString(
             "%s/vpu_graph_%f%f%i_%s",
-            env.config.dumpInternalGraphDirectory,
+            env.config.get<DumpAllPassesDirectoryOption>(),
             std::setw(2), std::setfill('0'),
             model->attrs().get<int>("index"),
             replaceBadCharacters(model->name()));
@@ -99,7 +103,7 @@ void BackEnd::dumpModel(
     }
 
     if (!postfix.empty()) {
-        if (!env.config.dumpAllPasses) {
+        if (!env.config.get<DumpAllPassesOption>()) {
             return;
         }
 

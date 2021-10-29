@@ -1,11 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.extractor import bool_to_str
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -44,7 +42,7 @@ class MVN(Op):
             raise Error('Unsupported MVN opset version "{}"'.format(version))
 
     @staticmethod
-    def infer(node: None):
+    def infer(node: Node):
         name = node.soft_get('name', node.id)
 
         assert node.eps is not None, 'MVN required attribute `eps` unspecified for node {}'.format(name)

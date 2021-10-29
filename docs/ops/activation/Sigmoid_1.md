@@ -20,11 +20,11 @@ sigmoid( x ) = \frac{1}{1+e^{-x}}
 
 **Inputs**:
 
-*   **1**: Input tensor *x* of any floating point type. Required.
+*   **1**: Input tensor *x* of any floating-point type. **Required.**
 
 **Outputs**:
 
-*   **1**: Result of Sigmoid function applied to the input tensor *x*. Floating point tensor with shape and type matching the input tensor.
+*   **1**: Result of Sigmoid function applied to the input tensor *x*. Floating-point tensor with shape and type matching the input tensor.
 
 **Example**
 

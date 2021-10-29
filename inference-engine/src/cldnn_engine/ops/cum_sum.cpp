@@ -8,7 +8,7 @@
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/cum_sum.hpp"
+#include "cldnn/primitives/cum_sum.hpp"
 
 namespace CLDNNPlugin {
 
@@ -41,7 +41,7 @@ static inline cldnn::cum_sum::cum_sum_axis GetCumSumAxis(int32_t axis, uint32_t 
     return cldnn::cum_sum::cum_sum_axis::along_f;  // shouldn't get here
 }
 
-void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& op) {
+static void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& op) {
     p.ValidateInputs(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -63,7 +63,8 @@ void CreateCumSumOp(Program& p, const std::shared_ptr<ngraph::op::v0::CumSum>& o
                                     inputPrimitives[0],
                                     GetCumSumAxis(axis, rank),
                                     exclusive,
-                                    reverse);
+                                    reverse,
+                                    op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

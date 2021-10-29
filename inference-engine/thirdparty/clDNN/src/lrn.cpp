@@ -4,7 +4,7 @@
 
 #include "lrn_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -58,7 +58,7 @@ std::string lrn_inst::to_string(lrn_node const& node) {
     return primitive_description.str();
 }
 
-lrn_inst::typed_primitive_inst(network_impl& network, lrn_node const& desc) : parent(network, desc) {
+lrn_inst::typed_primitive_inst(network& network, lrn_node const& desc) : parent(network, desc) {
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc.id(),
                                    "LRN argument size",
                                    argument.size,

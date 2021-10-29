@@ -4,9 +4,12 @@
 import unittest
 
 import numpy as np
+from generator import generate, generator
 
+from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, strict_compare_tensors
 from mo.graph.graph import Node
 from mo.ops.squeeze import Squeeze
+from mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {
@@ -38,33 +41,36 @@ nodes_attributes = {
 }
 
 
+@generator
 class TestSqueezeInfer(unittest.TestCase):
-    def test_squeeze_squeeze_dims(self):
+    @generate(*[
+        (None, shape_array([1, 2, 1, 4]), shape_array([2]), None, [1, 2, 4]),
+                # allow squeezing dynamic dimensions
+                (None, shape_array([1, 2, dynamic_dimension_value, 4]), shape_array([2]), None, [1, 2, 4]),
+                (None, shape_array([1, 2, 1, 4]), shape_array([]), None, [2, 4]),
+                (None, shape_array([1, dynamic_dimension_value, 1, 4]), shape_array([]), None,
+                 shape_array([dynamic_dimension_value, 4])),
+                # do not allow squeeze dimensions not equal to 1
+                (None, shape_array([1, 2, 1, 4]), shape_array([1]), None, None),
+                # do not allow squeeze input shape to be None
+                (None, None, shape_array([1]), None, None),
+                ])
+    def test_squeeze_squeeze_dims(self, input_value, input_shape, squeeze_dims, ref_value, ref_shape):
         graph = build_graph(nodes_attributes,
                             [('data', 'squeeze'),
                              ('squeeze_dims', 'squeeze_dims_data'),
                              ('squeeze_dims_data', 'squeeze'),
                              ('squeeze', 'data_out')],
-                            {'data': {'shape': np.array([1, 2, 1, 4])},
-                             'squeeze_dims': {'value': np.array([2]), 'shape': np.array([1])},
-                             'squeeze_dims_data': {'value': np.array([2]), 'shape': np.array([1])},
+                            {'data': {'shape': input_shape, 'value': input_value},
+                             'squeeze_dims': {'value': squeeze_dims, 'shape': squeeze_dims.shape},
+                             'squeeze_dims_data': {'value': squeeze_dims, 'shape': squeeze_dims.shape},
                              })
         node = Node(graph, 'squeeze')
-        Squeeze.infer(node)
-
-        self.assertTrue(np.all(node.out_port(0).data.get_shape() == [1, 2, 4]))
-
-    def test_squeeze_empty_squeeze_dims(self):
-        graph = build_graph(nodes_attributes,
-                            [('data', 'squeeze'),
-                             ('squeeze_dims', 'squeeze_dims_data'),
-                             ('squeeze_dims_data', 'squeeze'),
-                             ('squeeze', 'data_out')],
-                            {'data': {'shape': np.array([1, 2, 1, 4])},
-                             'squeeze_dims': {'value': np.array([]), 'shape': np.array([1])},
-                             'squeeze_dims_data': {'value': np.array([]), 'shape': np.array([1])},
-                             })
-        node = Node(graph, 'squeeze')
-        Squeeze.infer(node)
-
-        self.assertTrue(np.all(node.out_port(0).data.get_shape() == [2, 4]))
+        if ref_shape is None:  # the test should fail
+            with self.assertRaises(Error):
+                Squeeze.infer(node)
+        else:
+            Squeeze.infer(node)
+            if ref_value is not None:
+                self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_value(), ref_value))
+            self.assertTrue(strict_compare_tensors(node.out_port(0).data.get_shape(), ref_shape))

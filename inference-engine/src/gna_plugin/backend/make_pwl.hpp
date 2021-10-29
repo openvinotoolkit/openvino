@@ -5,11 +5,9 @@
 #pragma once
 
 #include <vector>
-#include <runtime/pwl.h>
-#include "backend/gna_types.h"
+#include "runtime/pwl.h"
 
-
-void make_gna_pwl(const DnnActivation  fun,
+void make_gna_pwl(const DnnActivation&  fun,
                   const std::vector<pwl_t>& pwl,
                   const double l_bound,
                   const double u_bound,

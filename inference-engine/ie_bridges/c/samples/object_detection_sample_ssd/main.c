@@ -3,7 +3,7 @@
 //
 
 #include <c_api/ie_c_api.h>
-#include <opencv_c_wraper.h>
+#include <opencv_c_wrapper.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,9 +12,9 @@
 #include "object_detection_sample_ssd.h"
 
 #ifdef _WIN32
-    #include "c_w_dirent.h"
+#    include "c_w_dirent.h"
 #else
-    #include <dirent.h>
+#    include <dirent.h>
 #endif
 
 #define MAX_IMAGES 20
@@ -346,7 +346,10 @@ int main(int argc, char** argv) {
         goto err;
     for (i = 0; i < ver.num_vers; ++i) {
         printf("         %s\n", ver.versions[i].device_name);
-        printf("         %s version ......... %zu.%zu\n", ver.versions[i].description, ver.versions[i].major, ver.versions[i].minor);
+        printf("         %s version ......... %zu.%zu\n",
+               ver.versions[i].description,
+               ver.versions[i].major,
+               ver.versions[i].minor);
         printf("         Build ......... %s\n", ver.versions[i].build_number);
     }
     ie_core_versions_free(&ver);
@@ -360,7 +363,8 @@ int main(int argc, char** argv) {
         printf("%sCustom extension loaded: %s\n", info, custom_ex_library_msg);
     }
 
-    if (custom_plugin_cfg_msg && (strcmp(device_name, "GPU") == 0 || strcmp(device_name, "MYRIAD") == 0 || strcmp(device_name, "HDDL") == 0)) {
+    if (custom_plugin_cfg_msg &&
+        (strcmp(device_name, "GPU") == 0 || strcmp(device_name, "MYRIAD") == 0 || strcmp(device_name, "HDDL") == 0)) {
         // Config for device plugin custom extension is loaded from an .xml
         // description
         ie_config_t cfg = {"CONFIG_FILE", custom_plugin_cfg_msg, NULL};
@@ -480,7 +484,12 @@ int main(int argc, char** argv) {
             for (j = 0; j < resized_img.mat_data_size; ++j)
                 resized_img.mat_data[j] = img.mat_data[j];
         } else {
-            printf("%sImage is resized from (%d, %d) to (%zu, %zu)\n", warn, img.mat_width, img.mat_height, input_width, input_height);
+            printf("%sImage is resized from (%d, %d) to (%zu, %zu)\n",
+                   warn,
+                   img.mat_width,
+                   img.mat_height,
+                   input_width,
+                   input_height);
 
             if (image_resize(&img, &resized_img, (int)input_width, (int)input_height) == -1) {
                 printf("%sImage %s cannot be resized!\n", warn, file_paths[i]);
@@ -623,7 +632,8 @@ int main(int argc, char** argv) {
             for (ch = 0; ch < num_channels; ++ch) {
                 /**          [images stride + channels stride + pixel id ] all in bytes
                  * **/
-                data[image_id * image_size * num_channels + ch * image_size + pid] = images[image_id].mat_data[pid * num_channels + ch];
+                data[image_id * image_size * num_channels + ch * image_size + pid] =
+                    images[image_id].mat_data[pid * num_channels + ch];
             }
         }
         image_free(&images[image_id]);
@@ -704,7 +714,15 @@ int main(int argc, char** argv) {
         int xmax = (int)(detection[curProposal * objectSize + 5] * originalImages[image_id].mat_width);
         int ymax = (int)(detection[curProposal * objectSize + 6] * originalImages[image_id].mat_height);
 
-        printf("[%d, %d] element, prob = %f    (%d, %d)-(%d, %d) batch id : %d", curProposal, label, confidence, xmin, ymin, xmax, ymax, image_id);
+        printf("[%d, %d] element, prob = %f    (%d, %d)-(%d, %d) batch id : %d",
+               curProposal,
+               label,
+               confidence,
+               xmin,
+               ymin,
+               xmax,
+               ymax,
+               image_id);
 
         if (confidence > 0.5) {
             /** Drawing only objects with >50% probability **/
@@ -722,7 +740,11 @@ int main(int argc, char** argv) {
     int batch_id;
     for (batch_id = 0; batch_id < batchSize; ++batch_id) {
         if (object_num[batch_id] > 0) {
-            image_add_rectangles(&originalImages[batch_id], boxes[batch_id], classes[batch_id], object_num[batch_id], 2);
+            image_add_rectangles(&originalImages[batch_id],
+                                 boxes[batch_id],
+                                 classes[batch_id],
+                                 object_num[batch_id],
+                                 2);
         }
         const char* out = "out_";
         char str_num[16] = {0};

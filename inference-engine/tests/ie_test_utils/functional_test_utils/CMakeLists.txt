@@ -4,10 +4,6 @@
 
 set(TARGET_NAME funcTestUtils)
 
-list(APPEND EXPORT_DEPENDENCIES
-        commonTestUtils
-        )
-
 addIeTarget(
     NAME ${TARGET_NAME}
     TYPE STATIC
@@ -22,19 +18,18 @@ addIeTarget(
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     LINK_LIBRARIES
         PUBLIC
-            ${EXPORT_DEPENDENCIES}
+            commonTestUtils
             inference_engine_transformations
             inference_engine_lp_transformations
             inference_engine
-            inference_engine_legacy
+        PRIVATE
+            ngraphFunctions
+            pugixml::static
     INCLUDES
         PUBLIC
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    EXPORT_DEPENDENCIES
-        ${EXPORT_DEPENDENCIES}
 )
 
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
-

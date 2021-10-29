@@ -190,20 +190,6 @@ public:
                     struct lstm_elt_t {
                         uint32_t cell : 1;
                     } lstm_elt;
-                    struct fused_conv_eltw_t {
-                        // conv
-                        uint32_t split : 1;
-                        uint32_t dilation : 1;
-                        uint32_t depthwise_separable_opt : 1;
-                        uint32_t transposed : 1;
-                        uint32_t local : 1;
-                        uint32_t grouped : 1;
-                        // eltw
-                        uint32_t stride : 1;
-                        // fused conv eltw
-                        uint32_t rw_out_opt : 1;
-                        uint32_t depth_to_space_fused : 1;
-                    } fused_conv_eltw;
                     struct quantize_t {
                         uint32_t packed_binary_output : 1;
                         uint32_t scale_shift_opt : 1;
@@ -303,17 +289,6 @@ public:
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
 
-    void EnableFusedConvEltwSplitSupport() { key.restrict.val.dedicated.fused_conv_eltw.split = 1; }
-    void EnableFusedConvEltwDilation() { key.restrict.val.dedicated.fused_conv_eltw.dilation = 1; }
-    void EnableFusedConvEltwDepthwiseSeparableOpt() {
-        key.restrict.val.dedicated.fused_conv_eltw.depthwise_separable_opt = 1;
-    }
-    void EnableFusedConvEltwLocalConvolution() { key.restrict.val.dedicated.fused_conv_eltw.local = 1; }
-    void EnableFusedConvEltwGroupedConvolution() { key.restrict.val.dedicated.fused_conv_eltw.grouped = 1; }
-    void EnableFusedConvEltwTranspose() { key.restrict.val.dedicated.fused_conv_eltw.transposed = 1; }
-    void EnableFusedConvEltwEltwiseStride();
-    void EnableFusedConvEltwDepthToSpaceFusing();
-
     void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
 
@@ -384,6 +359,7 @@ struct EngineInfo {
     uint64_t maxImage2dHeight = 0;
     std::string deviceId = "";
     std::string driverVersion = "";
+    std::vector<size_t> supportedSimdSizes = {};
     std::shared_ptr<TuningCache> deviceCache;
 };
 
@@ -404,6 +380,7 @@ public:
     std::string layerID;
     std::string forceImplementation;
     EngineInfo engineInfo;
+    std::string uniqueID;
 
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;
@@ -468,6 +445,8 @@ struct FusedOpsConfiguration {
     bool allow_for_partial_preload;
     // Load index for shuffle fused op
     std::string shuffle_var_name;
+    // Record original output layout before reorder is fused
+    DataLayout orig_output_layout;
 
     FusedOpsConfiguration(std::string suffix,
                           std::vector<std::string> bfzyx_idx_order,
@@ -480,7 +459,8 @@ struct FusedOpsConfiguration {
                           Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT,
                           std::vector<Tensor::DataChannelName> loop_axes = {},
                           bool allow_for_partial_preload = false,
-                          std::string shuffle_var_name = "")
+                          std::string shuffle_var_name = "",
+                          DataLayout orig_output_layout = DataLayout::DataLayoutCount)
       : suffix(suffix)
       , bfzyx_idx_order(bfzyx_idx_order)
       , input_var_name(input_var_name)
@@ -492,7 +472,8 @@ struct FusedOpsConfiguration {
       , index_type(index_type)
       , loop_axes(loop_axes)
       , allow_for_partial_preload(allow_for_partial_preload)
-      , shuffle_var_name(shuffle_var_name) { }
+      , shuffle_var_name(shuffle_var_name)
+      , orig_output_layout(orig_output_layout) { }
 
     FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
     FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
@@ -504,9 +485,10 @@ struct FusedOpsConfiguration {
         allow_for_partial_preload = partial_preload;
         return *this; }
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
+    bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
 };
 
-// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program_impl::fuse_nodes
+// Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program::fuse_nodes
 // method. In order to process fused ops following modifications should be done in a kernel:
 // option 1 - using common generator:
 //     - create FusedOpsConfiguration object that contains configuration for common code generator.
@@ -558,6 +540,7 @@ struct fused_operation_desc {
     MultiDataTensor tensors;
     DataTensor output_tensor;
     size_t op_id;
+    std::vector<std::pair<size_t, Datatype>> fused_op_ids;
 
     // Helper functions for operation generation
     KernelType GetType() const { return op_params->GetType(); }

@@ -4,7 +4,7 @@
 
 #include "myriad_layers_reverse_sequence_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReverseSequence_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayerReverseSequence_smoke,
     ::testing::Combine(
         ::testing::Values<ReverseSequence>(
                 MAKE_STRUCT(reverse_sequence_test_params, {5, 6, 18}, 0, 0)

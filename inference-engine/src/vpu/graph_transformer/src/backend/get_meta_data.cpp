@@ -30,7 +30,6 @@
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
-#include <vpu/parsed_config.hpp>
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
@@ -137,7 +136,7 @@ void BackEnd::getMetaData(
 
                 if (it != stageToMetaIndex.end()) {
                     StageMetaInfo& meta = stagesMeta[it->second];
-                    stagesMeta[prIndex].childsNum++;
+                    stagesMeta[prIndex].childrenNum++;
                     meta.parentIndices.push_back(prIndex);
                     meta.inputDims.push_back(dataMeta.desc.getDims());
                     meta.inputPrecisions.push_back(dataMeta.desc.getPrecision());

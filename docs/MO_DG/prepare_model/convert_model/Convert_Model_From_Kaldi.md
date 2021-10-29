@@ -33,10 +33,10 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 To convert a Kaldi\* model:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` or `.mdl` file:
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
+2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` or `.mdl` file and to an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model <INPUT_MODEL>.nnet
+python3 mo.py --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
@@ -50,7 +50,7 @@ The following list provides the Kaldi\*-specific parameters.
 
 ```sh
 Kaldi-specific parameters:
-  --counts COUNTS       A file name with full path to the counts file
+  --counts COUNTS       A file name with full path to the counts file or empty string to utilize count values from the model file
   --remove_output_softmax
                         Removes the Softmax that is the output layer
   --remove_memory       Remove the Memory layer and add new inputs and outputs instead
@@ -58,14 +58,14 @@ Kaldi-specific parameters:
 
 ### Examples of CLI Commands
 
-* To launch the Model Optimizer for the wsj_dnn5b_smbr model with the specified `.nnet` file:
+* To launch the Model Optimizer for the wsj_dnn5b_smbr model with the specified `.nnet` file and an output directory where you have write permissions:
 ```sh
-python3 mo.py --input_model wsj_dnn5b_smbr.nnet
+python3 mo.py --input_model wsj_dnn5b_smbr.nnet --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-* To launch the Model Optimizer for the wsj_dnn5b_smbr model with existing file that contains counts for the last layer with biases:
+* To launch the Model Optimizer for the wsj_dnn5b_smbr model with existing file that contains counts for the last layer with biases and a writable output directory:
 ```sh
-python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
+python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --output_dir <OUTPUT_MODEL_DIR>_
 ```
   * The Model Optimizer normalizes сounts in the following way:
 	\f[
@@ -78,10 +78,12 @@ python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts
 	\f$|C|\f$ - number of elements in the counts array;
   * The normalized counts are subtracted from biases of the last or next to last layer (if last layer is SoftMax).
 
+  > **NOTE:** Model Optimizer will show warning if model contains counts values inside model and `--counts` option is not used.
+
 * If you want to remove the last SoftMax layer in the topology, launch the Model Optimizer with the
 `--remove_output_softmax` flag.
 ```sh
-python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax
+python3 mo.py --input_model wsj_dnn5b_smbr.nnet --counts wsj_dnn5b_smbr.counts --remove_output_softmax --output_dir <OUTPUT_MODEL_DIR>_
 ```
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 

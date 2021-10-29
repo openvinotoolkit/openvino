@@ -50,6 +50,9 @@ graph {
           dim {
             dim_value: 3
           }
+          dim {
+            dim_value: 1
+          }
         }
       }
     }

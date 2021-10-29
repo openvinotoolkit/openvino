@@ -30,6 +30,7 @@ function(add_lfs_repo name prefix url tag)
         return()
     endif()
 
+    include(ExternalProject)
     ExternalProject_Add(${name}
         PREFIX ${prefix}
         GIT_REPOSITORY ${url}

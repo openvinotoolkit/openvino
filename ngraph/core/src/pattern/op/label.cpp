@@ -3,45 +3,36 @@
 //
 
 #include "ngraph/pattern/op/label.hpp"
+
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/pattern/op/or.hpp"
 #include "ngraph/pattern/op/true.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo pattern::op::Label::type_info;
+BWDCMP_RTTI_DEFINITION(ov::pass::pattern::op::Label);
 
-const NodeTypeInfo& pattern::op::Label::get_type_info() const
-{
-    return type_info;
-}
-
-Output<Node> pattern::op::Label::wrap_values(const OutputVector& wrapped_values)
-{
-    switch (wrapped_values.size())
-    {
-    case 0: return make_shared<pattern::op::True>()->output(0);
-    case 1: return wrapped_values[0];
-    default: return make_shared<pattern::op::Or>(wrapped_values)->output(0);
+ov::Output<ov::Node> ov::pass::pattern::op::Label::wrap_values(const ov::OutputVector& wrapped_values) {
+    switch (wrapped_values.size()) {
+    case 0:
+        return make_shared<pattern::op::True>()->output(0);
+    case 1:
+        return wrapped_values[0];
+    default:
+        return make_shared<pattern::op::Or>(wrapped_values)->output(0);
     }
 }
 
-bool pattern::op::Label::match_value(Matcher* matcher,
-                                     const Output<Node>& pattern_value,
-                                     const Output<Node>& graph_value)
-{
-    if (m_predicate(graph_value))
-    {
+bool ov::pass::pattern::op::Label::match_value(ov::pass::pattern::Matcher* matcher,
+                                               const ov::Output<ov::Node>& pattern_value,
+                                               const ov::Output<ov::Node>& graph_value) {
+    if (m_predicate(graph_value)) {
         auto& pattern_map = matcher->get_pattern_value_map();
         auto saved = matcher->start_match();
         matcher->add_node(graph_value);
-        if (pattern_map.count(shared_from_this()))
-        {
+        if (pattern_map.count(shared_from_this())) {
             return saved.finish(pattern_map[shared_from_this()] == graph_value);
-        }
-        else
-        {
+        } else {
             pattern_map[shared_from_this()] = graph_value;
             return saved.finish(matcher->match_value(input_value(0), graph_value));
         }
@@ -49,12 +40,10 @@ bool pattern::op::Label::match_value(Matcher* matcher,
     return false;
 }
 
-std::shared_ptr<Node> pattern::any_input()
-{
+std::shared_ptr<ov::Node> ov::pass::pattern::any_input() {
     return std::make_shared<pattern::op::Label>();
 }
 
-std::shared_ptr<Node> pattern::any_input(const pattern::op::ValuePredicate& pred)
-{
+std::shared_ptr<ov::Node> ov::pass::pattern::any_input(const ov::pass::pattern::op::ValuePredicate& pred) {
     return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
 }

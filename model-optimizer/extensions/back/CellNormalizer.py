@@ -5,10 +5,9 @@ import numpy as np
 
 from extensions.ops.split import VariadicSplit
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph
-from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 
 
@@ -41,6 +40,7 @@ class CellNormalizer(BackReplacementPattern):
 
         WR_shape = node.in_port(WR_input_id).data.get_shape()
         assert WR_shape is not None, "Undefined 'WR' input shape for Cell node '{}'".format(cell_name)
+        assert is_fully_defined(WR_shape), 'Not fully defined shape for WR for Cell node "{}"'.format(cell_name)
 
         num_elements_in_WR = np.prod(WR_shape)
         input_size = (num_elements_in_WR / (hidden_size_coef * hidden_size)) - hidden_size

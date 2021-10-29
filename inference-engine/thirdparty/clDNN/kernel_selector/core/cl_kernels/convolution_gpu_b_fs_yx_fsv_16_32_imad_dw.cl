@@ -3,9 +3,9 @@
 //
 
 #include "include/imad.cl"
-#include "include/data_types.cl"
-#include "include/fetch.cl"
-#include "include/mmad.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/fetch_weights.cl"
 
 // ======================================================================================
 // Host side jit-constants:
@@ -820,7 +820,7 @@ KERNEL(convolution)(
 #undef INPUT_X_PITCH
 #undef INPUT_Y_PITCH
 
-#undef WEIGHTS_YXS_PITCH 
+#undef WEIGHTS_YXS_PITCH
 
 #undef FILTER_SPATIAL_SIZE
 

@@ -22,5 +22,5 @@ class ngraph::pass::DisableConvertConstantFoldingOnConstPath : public ngraph::pa
 public:
     NGRAPH_RTTI_DECLARATION;
     DisableConvertConstantFoldingOnConstPath(
-        const std::vector<ngraph::element::Type>& inputPrecisions = {});
+        const element::TypeVector & inputPrecisions = {});
 };

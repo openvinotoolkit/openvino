@@ -99,8 +99,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     // Just set the correct value for a particular implementation here,
     // until the whole hierarchy is re-written.
     const auto& out = params.output;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::X},
+                                                                     {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                                                                     {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+
     dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
     return dispatchData;
 }
 

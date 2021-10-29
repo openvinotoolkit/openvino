@@ -17,7 +17,6 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
   * **Description**: number of classes to be predicted
   * **Range of values**: positive integer number
   * **Type**: int
-  * **Default value**: None
   * **Required**: *yes*
 
 * *background_label_id*
@@ -49,7 +48,6 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
   * **Description**: maximum number of bounding boxes per batch to be kept after NMS step. -1 means keeping all bounding boxes after NMS step.
   * **Range of values**: integer values
   * **Type**: int[]
-  * **Default value**: None
   * **Required**: *yes*
 
 * *code_type*
@@ -71,15 +69,14 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * *nms_threshold*
 
   * **Description**: threshold to be used in the NMS stage
-  * **Range of values**: floating point values
+  * **Range of values**: floating-point values
   * **Type**: float
-  * **Default value**: None
   * **Required**: *yes*
 
 * *confidence_threshold*
 
   * **Description**: only consider detections whose confidences are larger than a threshold. If not provided, consider all boxes.
-  * **Range of values**: floating point values
+  * **Range of values**: floating-point values
   * **Type**: float
   * **Default value**: 0
   * **Required**: *no*
@@ -136,12 +133,11 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 **Inputs**
 
-* **1**: 2D input tensor with box logits with shape `[N, num_prior_boxes * num_loc_classes * 4]` and type *T*. `num_loc_classes` is equal to `num_classes` when `share_location` is 0 or it's equal to 1 otherwise. Required.
-* **2**: 2D input tensor with class predictions with shape `[N, num_prior_boxes * num_classes]` and type *T*. Required.
-* **3**: 3D input tensor with proposals with shape `[priors_batch_size, 1, num_prior_boxes * prior_box_size]` or `[priors_batch_size, 2, num_prior_boxes * prior_box_size]`. `priors_batch_size` is either 1 or `N`. Size of the second dimension depends on `variance_encoded_in_target`. If `variance_encoded_in_target` is equal to 0, the second dimension equals to 2 and variance values are provided for each boxes coordinates. If `variance_encoded_in_target` is equal to 1, the second dimension equals to 1 and this tensor contains proposals boxes only. `prior_box_size` is equal to 4 when `normalized` is set to 1 or it's equal to 5 otherwise. Required.
- Required.
-* **4**: 2D input tensor with additional class predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to `[N, num_prior_boxes * 2]`. Optional.
-* **5**: 2D input tensor with additional box predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to first input tensor shape. Optional.
+* **1**: 2D input tensor with box logits with shape `[N, num_prior_boxes * num_loc_classes * 4]` and type *T*. `num_loc_classes` is equal to `num_classes` when `share_location` is 0 or it's equal to 1 otherwise. **Required.**
+* **2**: 2D input tensor with class predictions with shape `[N, num_prior_boxes * num_classes]` and type *T*. **Required.**
+* **3**: 3D input tensor with proposals with shape `[priors_batch_size, 1, num_prior_boxes * prior_box_size]` or `[priors_batch_size, 2, num_prior_boxes * prior_box_size]`. `priors_batch_size` is either 1 or `N`. Size of the second dimension depends on `variance_encoded_in_target`. If `variance_encoded_in_target` is equal to 0, the second dimension equals to 2 and variance values are provided for each boxes coordinates. If `variance_encoded_in_target` is equal to 1, the second dimension equals to 1 and this tensor contains proposals boxes only. `prior_box_size` is equal to 4 when `normalized` is set to 1 or it's equal to 5 otherwise. **Required.**
+* **4**: 2D input tensor with additional class predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to `[N, num_prior_boxes * 2]`. **Optional.**
+* **5**: 2D input tensor with additional box predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to first input tensor shape. **Optional.**
 
 **Outputs**
 
@@ -149,7 +145,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 
 **Example**

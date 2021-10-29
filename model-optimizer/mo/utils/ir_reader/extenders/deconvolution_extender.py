@@ -25,6 +25,9 @@ class GroupConvolutionBackpropData_extender(Extender):
 
 
 def common_backpropdata_extender(op: Node):
+    for attr in ['strides', 'output_padding', 'pads_begin', 'pads_end', 'dilations']:
+        Extender.attr_to_list(op, attr)
+
     if op.has_valid('output_padding'):
         op.output_padding = int64_array([0, 0] + op.output_padding)
 
@@ -50,13 +53,4 @@ def common_backpropdata_extender(op: Node):
 
 
 def backpropdata_infer(op: Node):
-    op['new_input_shapes'] = list()
-    for n in op.in_nodes():
-        op.new_input_shapes.append(op.in_node(n).shape)
-    assert len(op.new_input_shapes) == len(op.old_input_shapes)
-
-    for i in range(len(op.new_input_shapes)):
-        assert np.array_equal(op.new_input_shapes[i], op.old_input_shapes[i]), 'Something wrong happened while ' \
-                                                    '{} shape infer with type {}!'.format(op.name, op.type)
-
-    Extender.const_shape_infer(op)
+    Extender.use_shapes_from_ir(op)

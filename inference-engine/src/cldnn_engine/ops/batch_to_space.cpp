@@ -8,11 +8,11 @@
 #include "ngraph/op/batch_to_space.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/batch_to_space.hpp"
+#include "cldnn/primitives/batch_to_space.hpp"
 
 namespace CLDNNPlugin {
 
-void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::BatchToSpace>& op) {
+static void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::BatchToSpace>& op) {
     p.ValidateInputs(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -42,7 +42,8 @@ void CreateBatchToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Batc
                                                   inputs[0], // block_shape
                                                   inputs[1], // crops_begin
                                                   inputs[2], // crops_end
-                                                  out_size);
+                                                  out_size,
+                                                  op->get_friendly_name());
 
     p.AddPrimitive(batchToSpacePrim);
     p.AddPrimitiveToProfiler(op);

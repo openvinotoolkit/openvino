@@ -7,8 +7,7 @@
 #include <utility>
 #include <cctype>
 #include <ie_core.hpp>
-
-#include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
+#include "xml_net_builder.hpp"
 
 struct layer_params {
     layer_params(std::string type, std::vector<size_t> in, std::vector<size_t> out,

@@ -22,7 +22,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeAndTwoOutputBranchesWithConvolution
@@ -32,13 +32,10 @@ class FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation :
     public testing::WithParamInterface<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

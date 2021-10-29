@@ -8,28 +8,28 @@
 #include <vpu/model/model.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <mvnc.h>
 
 namespace vpu {
 
 struct DeviceResources {
-    static int numShaves(const Platform& platform);
-    static int numSlices(const Platform& platform);
+    static int numShaves();
+    static int numSlices();
     static int numStreams();
 };
 
 struct DefaultAllocation {
-    static int numStreams(const Platform& platform, const CompilationConfig& configuration);
-    static int numSlices(const Platform& platform, int numStreams);
-    static int numShaves(const Platform& platform, int numStreams, int numSlices);
+    static int numStreams(const PluginConfiguration& configuration);
+    static int numSlices(int numStreams);
+    static int numShaves(int numStreams, int numSlices);
     static int tilingCMXLimit(int numSlices);
 };
 
 struct CompileEnv final {
 public:
-    Platform platform;
     Resources resources;
 
-    CompilationConfig config;
+    PluginConfiguration config;
 
     Logger::Ptr log;
 
@@ -49,14 +49,13 @@ public:
     static const CompileEnv* getOrNull();
 
     static void init(
-            Platform platform,
-            const CompilationConfig& config,
-            const Logger::Ptr& log);
-    static void updateConfig(const CompilationConfig& config);
+        const PluginConfiguration& config,
+        const Logger::Ptr& log);
+    static void updateConfig(const PluginConfiguration& config);
     static void free();
 
 private:
-    explicit CompileEnv(Platform platform);
+    CompileEnv();
 };
 
 }  // namespace vpu

@@ -30,15 +30,15 @@ nodes = {
     'mul_val_d': {'kind': 'data', 'shape': np.array([1]), 'value': np.array([5])},
 
     'mul': {'kind': 'op', 'op': 'Mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a * b)},
-    'mul_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224])},
+    'mul_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
     'mul_1': {'kind': 'op', 'op': 'Mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a * b)},
-    'mul_1_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224])},
+    'mul_1_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
     'mul_2': {'kind': 'op', 'op': 'Mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a * b)},
-    'mul_2_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224])},
+    'mul_2_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
     'mul_3': {'kind': 'op', 'op': 'Mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a * b)},
-    'mul_3_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224])},
+    'mul_3_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
     'mul_4': {'kind': 'op', 'op': 'Mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a * b)},
-    'mul_4_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224])},
+    'mul_4_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
 
     'output': {'kind': 'op', 'op': 'Result'},
 }

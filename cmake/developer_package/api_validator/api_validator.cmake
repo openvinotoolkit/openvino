@@ -51,6 +51,12 @@ endfunction()
 set(VALIDATED_LIBRARIES "" CACHE INTERNAL "")
 
 function(_ie_add_api_validator_post_build_step)
+    if(NOT BUILD_SHARED_LIBS)
+        # since _ie_add_api_validator_post_build_step
+        # is currently run only on shared libraries, we have nothing to test
+        return()
+    endif()
+
     set(UWP_API_VALIDATOR_APIS "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64/UniversalDDIs.xml")
     set(UWP_API_VALIDATOR_EXCLUSION "${UWP_SDK_PATH}/BinaryExclusionlist.xml")
 
@@ -88,9 +94,12 @@ function(_ie_add_api_validator_post_build_step)
 
     macro(api_validator_get_target_name)
         get_target_property(IS_IMPORTED ${target} IMPORTED)
+        get_target_property(orig_target ${target} ALIASED_TARGET)
         if(IS_IMPORTED)
             get_target_property(target_location ${target} LOCATION)  
             get_filename_component(target_name "${target_location}" NAME_WE)
+        elseif(TARGET "${orig_target}")
+            set(target_name ${orig_target})
         else()
             set(target_name ${target})
         endif()

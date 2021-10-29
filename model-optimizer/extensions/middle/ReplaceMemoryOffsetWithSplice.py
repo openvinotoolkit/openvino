@@ -26,6 +26,10 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
         from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
         return [RemoveMemoryDuplicationPattern]
 
+    def run_after(self):
+        from extensions.middle.split_tdnn_memoryoffset import SplitTdnnMemoryOffset
+        return [SplitTdnnMemoryOffset]
+
     @staticmethod
     def pattern():
         return dict(
@@ -73,7 +77,7 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
         outs = input_node_out_port.get_destinations()
         for in_port in outs:
             out_ = in_port.node
-            if out_['op'] != 'MemoryOffset' and out_['op'] != 'Splice':
+            if out_.op == 'Concat' and out_ == out_node_in_ports[0].node:
                 crop_input = Crop(graph, {'name': 'Splice_Crop',
                                           'axis': int64_array([1]),
                                           'offset': int64_array([-min(0, in_shape[1] * node_t)]),

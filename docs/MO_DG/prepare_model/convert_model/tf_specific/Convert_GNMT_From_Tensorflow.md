@@ -137,7 +137,7 @@ index f5823d8..a733748 100644
 ```
 3. Save and close the file.
 
-## Convert GNMT Model to the IR
+## Convert GNMT Model to IR
 
 > **NOTE**: Please, use TensorFlow version 1.13 or lower.
 
@@ -155,7 +155,7 @@ git checkout b278487980832417ad8ac701c672b5c3dc7fa553
 **Step 2**. Get a trained model. You have two options:
 
 * Train the model with the GNMT `wmt16_gnmt_4_layer.json` or `wmt16_gnmt_8_layer.json` configuration file using the NMT framework.
-* Use the pretrained checkpoints provided in the NMT repository. Refer to the [Benchmarks](https://github.com/tensorflow/nmt#benchmarks) section for more information (*checkpoints in this section are outdated and can be incompatible with the current repository version. To avoid confusion, train a model by yourself*).
+* *Do not use the pre-trained checkpoints provided in the NMT repository, as they are outdated and can be incompatible with the current repository version.*
 
 This tutorial assumes the use of the trained GNMT model from `wmt16_gnmt_4_layer.json` config, German to English translation.
 
@@ -274,4 +274,4 @@ exec_net = ie.load_network(network=net, device_name="CPU")
 result_ie = exec_net.infer(input_data)
 ```
 
-For more information about Python API, refer to [Inference Engine Python API Overview](../../../../../inference-engine/ie_bridges/python/docs/api_overview.md).
+For more information about Python API, refer to [Inference Engine Python API Overview](../../../../../runtime/bindings/python/docs/api_overview.md).

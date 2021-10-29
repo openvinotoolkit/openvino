@@ -8,11 +8,11 @@
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/gather_nd.hpp"
+#include "cldnn/primitives/gather_nd.hpp"
 
 namespace CLDNNPlugin {
 
-void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND>& op) {
+static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -22,10 +22,11 @@ void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND
     auto batch_dims = op->get_batch_dims();
 
     auto primitive = cldnn::gather_nd(layerName,
-                                           inputPrimitives[0],
-                                           inputPrimitives[1],
-                                           indices_rank,
-                                           batch_dims);
+                                      inputPrimitives[0],
+                                      inputPrimitives[1],
+                                      indices_rank,
+                                      batch_dims,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

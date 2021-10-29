@@ -6,8 +6,6 @@
 
 #include "pass_manager.h"
 #include "program_helpers.h"
-#include "api_extension/fused_conv_eltwise.hpp"
-#include "include/fused_conv_eltwise_inst.h"
 #include "include/binary_convolution_inst.h"
 #include "include/deformable_convolution_inst.h"
 #include "lstm_dynamic_input_inst.h"
@@ -23,20 +21,15 @@ template<typename T> post_optimize_weights::weights_bias_offset post_optimize_we
 }
 
 template <>
-post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset<fused_conv_eltwise_node>(const fused_conv_eltwise_node& node) {
-    return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->conv.weights).size());
-}
-
-template <>
 post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset<lstm_dynamic_input_node>(const lstm_dynamic_input_node& node) {
     return weights_bias_offset(node.get_primitive()->input.size() + 1, program_helpers::wrap_if_single(node.get_primitive()->weights).size());
 }
 
 // function which prepares given primitive for weights optimization
 template<typename T>
-void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
+void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto offsets = get_weights_bias_offset(node);
-    auto* impl = node.get_selected_impl().get();
+    auto impl = node.get_selected_impl();
     auto output_layout = node.get_output_layout();
     auto& weights_reorder_params = impl->_weights_reorder_params;
 
@@ -56,7 +49,7 @@ void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
             // Don't run impl selection to avoid double compilation of reorder kernels
             // in main program and internal program for constant propagation
             if (!g_node.is_constant())
-                g_node.selected_impl = g_node.type()->choose_impl(p.get_engine(), g_node);
+                g_node.selected_impl = g_node.type()->choose_impl(g_node);
         }
     }
 
@@ -69,7 +62,7 @@ void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
     node.set_output_layout(output_layout, false);
 }
 
-void post_optimize_weights::run(program_impl& p) {
+void post_optimize_weights::run(program& p) {
     for (auto& node : p.get_processing_order()) {
         if (node->type() == convolution::type_id()) {
             optimize_weights(node->as<convolution>(), p);
@@ -82,8 +75,6 @@ void post_optimize_weights::run(program_impl& p) {
             optimize_weights(node->as<deformable_conv>(), p);
         } else if (node->type() == fully_connected::type_id()) {
             optimize_weights(node->as<fully_connected>(), p);
-        } else if (node->type() == fused_conv_eltwise::type_id()) {
-            optimize_weights(node->as<fused_conv_eltwise>(), p);
         } else if (node->type() == lstm_dynamic_input::type_id()) {
             optimize_weights(node->as<lstm_dynamic_input>(), p);
         }

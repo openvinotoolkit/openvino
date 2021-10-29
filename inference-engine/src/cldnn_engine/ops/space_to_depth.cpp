@@ -7,7 +7,7 @@
 
 #include "ngraph/op/space_to_depth.hpp"
 
-#include "api/space_to_depth.hpp"
+#include "cldnn/primitives/space_to_depth.hpp"
 
 namespace CLDNNPlugin {
 
@@ -20,14 +20,15 @@ static cldnn::space_to_depth::depth_mode GetDepthMode(ngraph::op::v0::SpaceToDep
     return cldnn::space_to_depth::blocks_first;
 }
 
-void CreateSpaceToDepthOp(Program& p, const std::shared_ptr<ngraph::op::v0::SpaceToDepth>& op) {
+static void CreateSpaceToDepthOp(Program& p, const std::shared_ptr<ngraph::op::v0::SpaceToDepth>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto spaceToDepthPrim = cldnn::space_to_depth(layerName,
                                                   inputPrimitives[0],
                                                   GetDepthMode(op->get_mode()),
-                                                  op->get_block_size());
+                                                  op->get_block_size(),
+                                                  op->get_friendly_name());
 
     p.AddPrimitive(spaceToDepthPrim);
     p.AddPrimitiveToProfiler(op);

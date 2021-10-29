@@ -83,7 +83,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     kd.kernels.resize(1);
 
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
 
     const DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);

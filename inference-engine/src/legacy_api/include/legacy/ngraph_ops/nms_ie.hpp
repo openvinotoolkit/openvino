@@ -14,10 +14,17 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE) : public Op {
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE);
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2);
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3);
+
+}  // namespace op
+}  // namespace ngraph
+
+class ngraph::op::NonMaxSuppressionIE : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("NonMaxSuppressionIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIE(const Output<Node>& boxes,
                         const Output<Node>& scores,
@@ -39,10 +46,10 @@ public:
     element::Type m_output_type;
 };
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2) : public NonMaxSuppressionIE {
+class ngraph::op::NonMaxSuppressionIE2 : public NonMaxSuppressionIE {
 public:
-    static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 2};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("NonMaxSuppressionIE2", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIE2(const Output<Node>& boxes,
                         const Output<Node>& scores,
@@ -58,9 +65,10 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3) : public Op {
+class ngraph::op::NonMaxSuppressionIE3 : public Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("NonMaxSuppressionIE3", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NonMaxSuppressionIE3(const Output<Node>& boxes,
                          const Output<Node>& scores,
@@ -94,6 +102,3 @@ public:
 private:
     int64_t max_boxes_output_from_input() const;
 };
-
-}  // namespace op
-}  // namespace ngraph

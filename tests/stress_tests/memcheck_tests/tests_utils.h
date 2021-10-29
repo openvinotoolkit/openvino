@@ -6,6 +6,7 @@
 
 #include "../common/tests_utils.h"
 
+#include <array>
 #include <pugixml.hpp>
 
 // Measure values

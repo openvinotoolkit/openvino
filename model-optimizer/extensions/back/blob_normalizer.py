@@ -46,7 +46,7 @@ class BlobNormalizer(BackReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes():
             if node.soft_get('type').lower() not in OpVersioning.opset_1_types and \
-                    not node.soft_get('version') in ["opset2", "opset3", "opset4"]:
+                    not node.soft_get('version') in ["opset2", "opset3", "opset4", "opset8"]:
                 continue
 
             for _, d in node.in_edges().items():

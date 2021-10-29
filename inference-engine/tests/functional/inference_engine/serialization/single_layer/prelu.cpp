@@ -38,6 +38,6 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ActivationPreluSerialization,
+INSTANTIATE_TEST_SUITE_P(smoke_ActivationPreluSerialization,
                         ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 }  // namespace

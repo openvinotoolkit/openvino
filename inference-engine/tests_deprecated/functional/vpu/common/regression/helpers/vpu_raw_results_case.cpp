@@ -4,6 +4,9 @@
 
 #include "vpu_raw_results_case.hpp"
 
+#include <format_reader_ptr.h>
+#include <fstream>
+
 std::vector <float> operator + (std::vector <float> && l, const std::vector <float> & r) {
     l.insert(l.end(), r.begin(), r.end());
 

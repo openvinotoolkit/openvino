@@ -8,6 +8,7 @@
 #include <string>
 
 static const size_t sub_group_size = 32;
+static const size_t feature_size = 32;
 
 namespace kernel_selector {
 ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
@@ -20,29 +21,8 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::yxfb);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfwzyx);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfwzyx);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -64,6 +44,15 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = sub_group_size;
         dispatchData.lws[2] = 1;
+    } else if (output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 || output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
+               output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) {
+        dispatchData.gws[0] = output.Y().v * output.X().v;
+        dispatchData.gws[1] = Align(output.Feature().v, feature_size);
+        dispatchData.gws[2] = Align(output.Batch().v, feature_size);
+
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = feature_size;
+        dispatchData.lws[2] = params.engineInfo.maxWorkGroupSize / feature_size;
     } else {
         dispatchData.gws = GetTensorFriendlyWorkGroups(output);
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -75,7 +64,9 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
 JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16) {
+    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 || params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
+        params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16) {
+        jit.AddConstant(MakeJitConstant("FEATURE_BLOCKED_FORMAT", true));
         jit.AddConstant(MakeJitConstant("GWS_BATCH", 2));
         jit.AddConstant(MakeJitConstant("GWS_FEATURE", 1));
         jit.AddConstant(MakeJitConstant("GWS_YX", 0));
@@ -85,21 +76,31 @@ JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& pa
         jit.Merge(tensor_jits);
     }
 
+    auto can_use_output_range = params.per_tensor_output_range && params.out_lo < params.out_hi;
+    auto has_output_range_round = !(params.output.GetDType() == Datatype::INT8 || params.output.GetDType() == Datatype::UINT8);
+
     jit.AddConstant(MakeJitConstant("HAS_POST_SCALE", params.has_post_scale));
     jit.AddConstant(MakeJitConstant("HAS_POST_SHIFT", params.has_post_shift));
     jit.AddConstant(MakeJitConstant("HAS_PRE_SHIFT", params.has_pre_shift));
     jit.AddConstant(MakeJitConstant("HAS_CLAMP", params.has_clamp));
+    jit.AddConstant(MakeJitConstant("HAS_MIN_CLAMP", params.has_min_clamp));
+    jit.AddConstant(MakeJitConstant("HAS_MAX_CLAMP", params.has_max_clamp));
     jit.AddConstant(MakeJitConstant("PER_TENSOR_INPUT_RANGE", params.per_tensor_input_range));
+    jit.AddConstant(MakeJitConstant("PER_TENSOR_OUTPUT_RANGE", params.per_tensor_output_range));
     jit.AddConstant(MakeJitConstant("PER_TENSOR_INPUT_SCALE", params.per_tensor_input_scale));
     jit.AddConstant(MakeJitConstant("PER_TENSOR_INPUT_SHIFT", params.per_tensor_input_shift));
     jit.AddConstant(MakeJitConstant("PER_TENSOR_OUTPUT_SCALE", params.per_tensor_output_scale));
     jit.AddConstant(MakeJitConstant("PER_TENSOR_OUTPUT_SHIFT", params.per_tensor_output_shift));
     jit.AddConstant(MakeJitConstant("IN_LO_VAL", params.in_lo));
     jit.AddConstant(MakeJitConstant("IN_HI_VAL", params.in_hi));
+    jit.AddConstant(MakeJitConstant("OUT_LO_VAL", params.out_lo));
+    jit.AddConstant(MakeJitConstant("OUT_HI_VAL", params.out_hi));
     jit.AddConstant(MakeJitConstant("IN_SCALE_VAL", params.in_scale));
     jit.AddConstant(MakeJitConstant("IN_SHIFT_VAL", params.in_shift));
     jit.AddConstant(MakeJitConstant("OUT_SCALE_VAL", params.out_scale));
     jit.AddConstant(MakeJitConstant("OUT_SHIFT_VAL", params.out_shift));
+    jit.AddConstant(MakeJitConstant("CAN_USE_OUTPUT_RANGE", can_use_output_range));
+    jit.AddConstant(MakeJitConstant("HAS_OUTPUT_RANGE_ROUND", has_output_range_round));
 
     return jit;
 }

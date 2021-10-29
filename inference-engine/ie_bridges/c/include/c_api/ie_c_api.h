@@ -26,7 +26,7 @@
     #define INFERENCE_ENGINE_C_API_EXTERN
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ < 4)
+#if defined(OPENVINO_STATIC_LIBRARY) || defined(__GNUC__) && (__GNUC__ < 4)
     #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
     #define IE_NODISCARD
 #else
@@ -501,7 +501,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_get_config(const ie_co
  * @brief Gets available devices for neural network inference.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param avai_devices The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+ * @param avai_devices The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
  * If there more than one device of specific type, they are enumerated with .# suffix
  * @return Status code of the operation: OK(0) for success.
  */

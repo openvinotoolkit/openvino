@@ -7,7 +7,7 @@
 namespace SubgraphTestsDefinitions {
 using ngraph::helpers::QuantizationGranularity;
 
-std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<quantGroupConvBackpropDataLayerTestParamsSet> obj) {
+std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<quantGroupConvBackpropDataLayerTestParamsSet>& obj) {
     quantGroupConvBackpropDataSpecificParams groupConvBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;

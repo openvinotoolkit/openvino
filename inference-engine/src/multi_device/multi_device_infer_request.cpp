@@ -6,27 +6,39 @@
 
 #include "multi_device_infer_request.hpp"
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <blob_factory.hpp>
 
 namespace MultiDevicePlugin {
-    using namespace InferenceEngine;
+
+using namespace InferenceEngine;
+
 // ------------------------------MultiDeviceInferRequest----------------------------
+MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                 const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                                 const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with)
+        : IInferRequestInternal(inputs, outputs) {
+    CreateInferRequest(request_to_share_blobs_with);
+}
+
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
-                                                 InferRequest request_to_share_blobs_with)
+                                                 const SoIInferRequestInternal & request_to_share_blobs_with)
         : IInferRequestInternal(networkInputs, networkOutputs) {
+    CreateInferRequest(request_to_share_blobs_with);
+}
+
+void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with) {
     if (request_to_share_blobs_with) {
         // borrow device-friendly blobs from the request
         for (const auto &it : _networkInputs)
-            _inputs[it.first] = request_to_share_blobs_with.GetBlob(it.first);
+            _inputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
         for (const auto &it : _networkOutputs)
-            _outputs[it.first] = request_to_share_blobs_with.GetBlob(it.first);
+            _outputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
         return;
     }
     // Allocate all input blobs
-    for (const auto &it : networkInputs) {
+    for (const auto &it : _networkInputs) {
         Layout l = it.second->getLayout();
         Precision p = it.second->getPrecision();
         SizeVector dims = it.second->getTensorDesc().getDims();
@@ -36,7 +48,7 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
         _inputs[it.first]->allocate();
     }
     // Allocate all output blobs
-    for (const auto &it : networkOutputs) {
+    for (const auto &it : _networkOutputs) {
         Layout l = it.second->getLayout();
         Precision p = it.second->getPrecision();
         SizeVector dims = it.second->getTensorDesc().getDims();
@@ -46,21 +58,20 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
         _outputs[it.first]->allocate();
     }
 }
-
-void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
+void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
     for (const auto &it : _networkInputs) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        if (req.GetBlob(name) != blob)
-            req.SetBlob(name, blob);
+        if (req->GetBlob(name) != blob)
+            req->SetBlob(name, blob);
     }
     for (const auto &it : _networkOutputs) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        if (req.GetBlob(name) != blob)
-            req.SetBlob(name, blob);
+        if (req->GetBlob(name) != blob)
+            req->SetBlob(name, blob);
     }
 }
 

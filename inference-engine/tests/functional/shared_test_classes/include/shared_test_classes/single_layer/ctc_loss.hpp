@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         std::vector<size_t>,               // Logits shapes
-        std::vector<int>,                  // logits lenght
+        std::vector<int>,                  // logits length
         std::vector<std::vector<int>>,     // labels
         std::vector<int>,                  // labels length
         int,                               // blank index
@@ -31,7 +31,7 @@ typedef std::tuple<
 > CTCLossParams;
 
 class CTCLossLayerTest : public testing::WithParamInterface<CTCLossParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CTCLossParams> &obj);
 

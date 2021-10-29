@@ -42,7 +42,7 @@ const auto ScatterNDUpdateCases = ::testing::Combine(
     ::testing::ValuesIn(idxPrecisions),
     ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_ScatterNDUpdateLayerTestSerialization,
     ScatterNDUpdateLayerTest,
     ScatterNDUpdateCases,

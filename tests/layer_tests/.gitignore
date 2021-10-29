@@ -1,0 +1,9 @@
+#IDE FILES
+.pytest_cache
+
+#TESTS TEMP DIRECTORY
+ir/
+out/
+tf_models/
+onnx_models/
+

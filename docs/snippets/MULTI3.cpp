@@ -1,6 +1,4 @@
-#include <inference_engine.hpp>
-#include <multi-device/multi_device_config.hpp>
-
+#include <ie_core.hpp>
 
 int main() {
 //! [part3]

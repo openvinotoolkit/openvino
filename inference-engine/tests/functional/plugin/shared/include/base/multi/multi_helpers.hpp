@@ -5,13 +5,11 @@
 #include <string>
 #include <vector>
 
-#include "multi-device/multi_device_config.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
 using namespace ::testing;
-using namespace InferenceEngine;
 
 static std::string getDeviceStringWithMulti(std::vector<std::string> names) {
     std::string allDevices = "MULTI:";

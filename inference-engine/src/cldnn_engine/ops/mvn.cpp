@@ -8,7 +8,8 @@
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/mvn.hpp"
+#include "cldnn/primitives/mvn.hpp"
+
 #include <algorithm>
 
 namespace CLDNNPlugin {
@@ -23,13 +24,14 @@ static void CreateCommonMVNOp(Program& p, const std::shared_ptr<ngraph::Node>& o
                               normalize_variance,
                               eps,
                               eps_inside_sqrt,
-                              across_channels);
+                              across_channels,
+                              op->get_friendly_name());
 
     p.AddPrimitive(mvnPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& op) {
+static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& op) {
     p.ValidateInputs(op, {1});
 
     bool across_channels = op->get_across_channels();
@@ -39,7 +41,7 @@ void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v0::MVN>& op) {
     CreateCommonMVNOp(p, op, across_channels, normalize_variance, eps);
 }
 
-void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& op) {
+static void CreateMVNOp(Program& p, const std::shared_ptr<ngraph::op::v6::MVN>& op) {
     p.ValidateInputs(op, {2});
 
     auto inConst = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));

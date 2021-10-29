@@ -8,9 +8,9 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/broadcast.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/broadcast.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -31,8 +31,13 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
         if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
             auto reorderName = layerName + "_cldnn_in_reorder";
             auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(0));
-            auto reorderPrim = cldnn::reorder(reorderName, inputPrimitive, targetFormat, targetDatatype);
-
+            auto reorderPrim = cldnn::reorder(reorderName,
+                                              inputPrimitive,
+                                              targetFormat,
+                                              targetDatatype,
+                                              std::vector<float>(),
+                                              cldnn::reorder_mean_mode::subtract,
+                                              op->get_friendly_name());
             p.AddPrimitive(reorderPrim);
             p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
 
@@ -66,7 +71,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
         auto targetShape = CldnnTensorFromIEDims(inputShape);
 
-        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape);
+        auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitive, targetShape, op->get_friendly_name());
         p.AddPrimitive(reshapePrim);
         p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
 
@@ -75,13 +80,15 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
 
     auto broadcastPrim = cldnn::broadcast(layerName,
                                           inputPrimitive,
-                                          CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                          CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                          {},
+                                          op->get_friendly_name());
 
     p.AddPrimitive(broadcastPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadcast>& op) {
+static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadcast>& op) {
     p.ValidateInputs(op, {2, 3});
     if (op->get_broadcast_spec().m_type == ngraph::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
@@ -96,7 +103,7 @@ void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadca
     }
 }
 
-void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadcast>& op) {
+static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadcast>& op) {
     p.ValidateInputs(op, {2, 3});
     ngraph::AxisSet axis_mapping;
     if (op->get_input_size() == 3) {

@@ -127,7 +127,6 @@ class AOTBehaviorTests : public BehaviorPluginTest {
 #endif //  _WIN32
         ncDeviceDescr_t deviceDesc = {};
         deviceDesc.protocol = NC_ANY_PROTOCOL;
-        deviceDesc.platform = NC_ANY_PLATFORM;
 
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;
@@ -202,6 +201,6 @@ const BehTestParams vpuValues[] = {
     BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, AOTBehaviorTests, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest, AOTBehaviorTests, ValuesIn(vpuValues), getTestCaseName);
 
 #endif

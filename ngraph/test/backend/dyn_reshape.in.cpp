@@ -2,21 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, reshape_v1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, reshape_v1) {
     auto arg = std::make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
     auto pattern = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
     auto reshape_v1 = std::make_shared<op::v1::Reshape>(arg, pattern, false);
@@ -38,6 +37,5 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_v1)
     ex->call_with_validate({output}, {arg_tensor, pattern_tensor});
 
     ASSERT_EQ(output->get_element_type(), element::i64);
-    EXPECT_EQ(read_vector<int64_t>(output),
-              vector<int64_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
+    EXPECT_EQ(read_vector<int64_t>(output), vector<int64_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
 }

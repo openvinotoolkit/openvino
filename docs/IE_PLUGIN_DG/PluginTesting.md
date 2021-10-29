@@ -21,7 +21,7 @@ Engine concepts: plugin creation, multiple executable networks support, multiple
 
     @snippet single_layer_tests/convolution.cpp test_convolution:declare_parameters
 
-    - Instantiate the test itself using standard GoogleTest macro `INSTANTIATE_TEST_CASE_P`:
+    - Instantiate the test itself using standard GoogleTest macro `INSTANTIATE_TEST_SUITE_P`:
 
     @snippet single_layer_tests/convolution.cpp test_convolution:instantiate
 

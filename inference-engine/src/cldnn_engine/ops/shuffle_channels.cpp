@@ -7,11 +7,11 @@
 
 #include "ngraph/op/shuffle_channels.hpp"
 
-#include "api/shuffle_channels.hpp"
+#include "cldnn/primitives/shuffle_channels.hpp"
 
 namespace CLDNNPlugin {
 
-void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::ShuffleChannels>& op) {
+static void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::ShuffleChannels>& op) {
     p.ValidateInputs(op, {1, 2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -36,7 +36,8 @@ void CreateShuffleChannelsOp(Program& p, const std::shared_ptr<ngraph::op::v0::S
     auto shuffleChannelsPrim = cldnn::shuffle_channels(layerName,
                                                        inputPrimitives[0],
                                                        group,
-                                                       axis);
+                                                       axis,
+                                                       op->get_friendly_name());
 
     p.AddPrimitive(shuffleChannelsPrim);
     p.AddPrimitiveToProfiler(op);

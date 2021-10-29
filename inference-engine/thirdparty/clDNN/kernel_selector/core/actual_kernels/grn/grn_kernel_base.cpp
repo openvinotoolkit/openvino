@@ -16,10 +16,15 @@ JitConstants GRNKernelBase::GetJitConstants(const grn_params& params, GRNKernelB
 
 GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) const {
     const auto& output = params.output;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::X }};
 
     DispatchData dispatchData;
     dispatchData.gws = { output.Batch().v, output.Y().v, output.X().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
 }
@@ -38,7 +43,7 @@ KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
     KernelData kd = KernelData::Default<grn_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
