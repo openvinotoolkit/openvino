@@ -6,15 +6,16 @@ import numpy as np
 import os
 import subprocess
 import sys
-from utils.openvino_resources import OpenVINOResources
+
+from tools.pot.tests.utils.path import MO_PATH
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
-    mo_runner = OpenVINOResources().mo_runner
+    mo_runner = MO_PATH.joinpath('mo.py').as_posix()
     if coverage:
-        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(mo_runner.parent),
+        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(MO_PATH),
                   '--omit=*_test.py', mo_runner]
     else:
         params = [sys.executable, mo_runner]
