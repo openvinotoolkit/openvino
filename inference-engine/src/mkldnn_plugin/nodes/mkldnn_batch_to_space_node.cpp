@@ -45,8 +45,8 @@ MKLDNNBatchToSpaceNode::MKLDNNBatchToSpaceNode(const std::shared_ptr<ngraph::Nod
     if (inputShapes.size() != 4 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input or output edges!";
 
-    const auto inDims = getInputShapeAtPort(0).getDims();
-    const auto outDims = getOutputShapeAtPort(0).getDims();
+    const auto &inDims = getInputShapeAtPort(0).getDims();
+    const auto &outDims = getOutputShapeAtPort(0).getDims();
     if (inDims.size() < 4 || inDims.size() > 5)
         IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inDims.size();
     if (inDims.size() != outDims.size())
@@ -60,7 +60,7 @@ void MKLDNNBatchToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const auto inDims = getInputShapeAtPort(0).getDims();
+    const auto &inDims = getInputShapeAtPort(0).getDims();
     const auto precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
@@ -111,8 +111,8 @@ void MKLDNNBatchToSpaceNode::batchToSpaceKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const auto inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    const auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto &inDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto &outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
 
