@@ -307,6 +307,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_default_axes) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{strided_slice}, ngraph::ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_axes_const_sorted_full) {
@@ -338,6 +339,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_axes_const_sorted_full) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{strided_slice}, ngraph::ParameterVector{data});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_sorted_less) {
@@ -470,6 +472,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_negative_
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{strided_slice}, ngraph::ParameterVector{data, begin, end, stride});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_negative_unsorted) {
@@ -552,6 +555,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_shape_axes_const_negative) 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{strided_slice}, ngraph::ParameterVector{data, begin, end, stride});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 
@@ -584,6 +588,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_positive) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{strided_slice}, ngraph::ParameterVector{data, begin, end, stride});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_negative) {
