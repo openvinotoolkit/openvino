@@ -31,7 +31,7 @@ protected:
 
 public:
     static const ::ov::Node::type_info_t& get_type_info_static() {
-        static const ::ov::Node::type_info_t info{"Op", "util", 0};
+        static const ::ov::Node::type_info_t info{"Op", 0, "util"};
         return info;
     }
     const ::ov::Node::type_info_t& get_type_info() const override {

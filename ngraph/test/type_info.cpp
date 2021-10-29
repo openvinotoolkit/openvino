@@ -27,11 +27,11 @@ TEST(type_info, compare_old_type) {
 }
 
 TEST(type_info, compare_new_type) {
-    ov::DiscreteTypeInfo type1("type1", "version1", 0);
-    ov::DiscreteTypeInfo type2("type2", "version1", 0);
-    ov::DiscreteTypeInfo type3("type1", "version2", 1);
-    ov::DiscreteTypeInfo type4("type3", "version3", 0, &type1);
-    ov::DiscreteTypeInfo type5("type3", "version3", 0, &type2);
+    ov::DiscreteTypeInfo type1("type1", 0, "version1");
+    ov::DiscreteTypeInfo type2("type2", 0, "version1");
+    ov::DiscreteTypeInfo type3("type1", 1, "version2");
+    ov::DiscreteTypeInfo type4("type3", 0, "version3", &type1);
+    ov::DiscreteTypeInfo type5("type3", 0, "version3", &type2);
     ASSERT_TRUE(type1 != type2);
     ASSERT_TRUE(type1 == type1);
     ASSERT_TRUE(type1 < type2);
@@ -45,7 +45,7 @@ TEST(type_info, compare_new_type) {
 }
 
 TEST(type_info, compare_new_with_old_type) {
-    ov::DiscreteTypeInfo type1("type1", "version1", 0);
+    ov::DiscreteTypeInfo type1("type1", 0, "version1");
     ov::DiscreteTypeInfo type1_o("type1", 0);
     ASSERT_TRUE(type1 != type1_o);
 }
@@ -58,11 +58,11 @@ TEST(type_info, check_hash_value) {
         // don't use parent for hash calculation, it is not a part of type (yet)
         return ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
     };
-    ov::DiscreteTypeInfo type("type1", "version1", 0);
+    ov::DiscreteTypeInfo type("type1", 0, "version1");
     ov::DiscreteTypeInfo type_old("type1", 1);
-    ov::DiscreteTypeInfo type_with_version("type1", "version1", 1);
+    ov::DiscreteTypeInfo type_with_version("type1", 1, "version1");
     ov::DiscreteTypeInfo type_empty_name("", 0);
-    ov::DiscreteTypeInfo type_empty_ver("type", "", 0);
+    ov::DiscreteTypeInfo type_empty_ver("type", 0, "");
     EXPECT_EQ(hash_val(type.name, type.version_id, type.version), type.hash());
     EXPECT_EQ(hash_val(type_old.name, type_old.version_id, type_old.version), type_old.hash());
     EXPECT_EQ(hash_val(type_with_version.name, type_with_version.version_id, type_with_version.version),
@@ -74,10 +74,10 @@ TEST(type_info, check_hash_value) {
 
 TEST(type_info, find_in_map) {
     std::vector<std::string> vector_names;
-    ov::DiscreteTypeInfo a("Mod", "opset1", 1);
-    ov::DiscreteTypeInfo b("Prelu", "opset1", 0);
+    ov::DiscreteTypeInfo a("Mod", 1, "opset1");
+    ov::DiscreteTypeInfo b("Prelu", 0, "opset1");
     ov::DiscreteTypeInfo c("Vector", 0);
-    ov::DiscreteTypeInfo d("Mod", "opset3", 1);
+    ov::DiscreteTypeInfo d("Mod", 1, "opset3");
     ov::DiscreteTypeInfo f("Mod", 2);
 
     std::map<ov::DiscreteTypeInfo, int> test_map;

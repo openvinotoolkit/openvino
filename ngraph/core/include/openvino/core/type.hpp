@@ -44,8 +44,8 @@ public:
           hash_value(0) {}
 
     constexpr DiscreteTypeInfo(const char* _name,
-                               const char* _version_id,
                                uint64_t _version,
+                               const char* _version_id,
                                const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version(_version),
