@@ -119,7 +119,7 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
             if (need_normalization)
                 return false;
         }
-        const size_t slice_indices_length = *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
+        const uint64_t slice_indices_length = *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
         const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
         NodeVector new_ops;

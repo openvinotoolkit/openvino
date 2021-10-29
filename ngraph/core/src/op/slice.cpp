@@ -358,7 +358,7 @@ bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVe
     }
 
     // Static HostTensor data shape is needed to clamp and normalize `start` values
-    const auto data_shape = inputs[0]->get_partial_shape();
+    const auto& data_shape = inputs[0]->get_partial_shape();
     OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
     // We need calculate static output shape based on HostTensor inputs
     PartialShape output_shape = calculate_output_shape(starts, stops, steps, axes, data_shape);
