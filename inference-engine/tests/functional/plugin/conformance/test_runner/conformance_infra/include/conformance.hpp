@@ -25,7 +25,7 @@ inline std::map<std::string, std::string> readPluginConfig(const std::string& co
         std::string buffer;
         while (getline(file, buffer)) {
             if (buffer.find("#") == std::string::npos && !buffer.empty()) {
-                auto configElements = CommonTestUtils::splitStringByDelimiter(buffer, "=");
+                auto configElements = CommonTestUtils::splitStringByDelimiter(buffer, " ");
                 if (configElements.size() != 2) {
                     throw std::runtime_error("Incorrect line to get config item: " + buffer + "\n. Example: \"PLUGIN_CONFIG_KEY=PLUGIN_CONFIG_VALUE\"");
                 }
