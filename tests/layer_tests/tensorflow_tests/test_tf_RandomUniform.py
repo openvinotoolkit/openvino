@@ -25,7 +25,7 @@ class TestTFRandomUniform(CommonTFLayerTest):
 
             x = tf.compat.v1.placeholder(input_type, tf_x_shape, 'Input')
             if global_seed is not None:
-                tf.random.set_random_seed(global_seed)
+                tf.compat.v1.random.set_random_seed(global_seed)
             random_uniform = tf.random.uniform(x_shape, seed=op_seed, dtype=input_type, minval=min_val,
                                                maxval=max_val) + x
 
