@@ -191,7 +191,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
             IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
             static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-            1 /*single thread per stream*/,
+            0 /*default threads per stream, workaround for ticket 62376*/,
             IStreamsExecutor::ThreadBindingType::NONE});
 
     for (auto& p : needLoadDevices) {
