@@ -295,10 +295,10 @@ InferenceEngine::Blob::Ptr getRandomBlob(const std::pair<std::string, benchmark_
     }
 }
 
-std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlobs(
+std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
     std::map<std::string, std::vector<std::string>>& inputFiles,
     std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
-    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> cachedBlobs;
+    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> blobs;
     if (app_inputs_info.empty()) {
         throw std::logic_error("Inputs Info for network is empty!");
     }
@@ -386,16 +386,16 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
             size_t inputId = m_file % files.second.size();
             if (app_info.isImage()) {
                 // Fill with Images
-                cachedBlobs[input_name].push_back(getImageBlob(files.second, inputId, {input_name, app_info}));
+                blobs[input_name].push_back(getImageBlob(files.second, inputId, {input_name, app_info}));
             } else if (app_info.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
                 slog::info << "Fill input '" << input_name << "' with image size " << image_size.first << "x"
                            << image_size.second << slog::endl;
-                cachedBlobs[input_name].push_back(getImInfoBlob(image_size, {input_name, app_info}));
+                blobs[input_name].push_back(getImInfoBlob(image_size, {input_name, app_info}));
             } else {
                 // Fill with binary files
-                cachedBlobs[input_name].push_back(getBinaryBlob(files.second, inputId, {input_name, app_info}));
+                blobs[input_name].push_back(getBinaryBlob(files.second, inputId, {input_name, app_info}));
             }
             ++n_shape;
             m_file += app_info.batch();
@@ -414,18 +414,18 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
                     auto image_size = net_input_im_sizes.at(i);
                     slog::info << "Fill input '" << input.first << "' with image size " << image_size.first << "x"
                                << image_size.second << slog::endl;
-                    cachedBlobs[input.first].push_back(getImInfoBlob(image_size, input));
+                    blobs[input.first].push_back(getImInfoBlob(image_size, input));
                     ++i;
                 } else {
                     // Fill random
                     slog::info << "Prepare blob for input '" << input.first << "' with random values ("
                                << std::string((input.second.isImage() ? "image" : "some binary data"))
                                << " is expected)" << slog::endl;
-                    cachedBlobs[input.first].push_back(getRandomBlob(input));
+                    blobs[input.first].push_back(getRandomBlob(input));
                 }
             }
         }
     }
 
-    return cachedBlobs;
+    return blobs;
 }

@@ -742,7 +742,17 @@ int main(int argc, char* argv[]) {
         //} else {
         //    fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
         //}
-        auto inputsData = prepareCachedBlobs(inputFiles, app_inputs_info);
+        std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputsData;
+        if (isFlagSetInCommandLine("use_device_mem")) {
+            if (device_name.find("GPU") == 0)
+                inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork);
+            else if (device_name.find("CPU") == 0)
+                inputsData = getBlobs(inputFiles, app_inputs_info);
+            else
+                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+        } else {
+            inputsData = getBlobs(inputFiles, app_inputs_info);
+        }
 
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
@@ -790,11 +800,16 @@ int main(int argc, char* argv[]) {
             IE_THROW() << "No idle Infer Requests!";
         }
         auto input = app_inputs_info[0];
+
         for (auto& item : input) {
             auto input_name = item.first;
             const auto& data = inputsData.at(input_name)[0];
             inferRequest->setBlob(input_name, data);
         }
+
+        if (isFlagSetInCommandLine("use_device_mem"))
+            ::gpu::setSharedOutputBlob(exeNetwork, inferRequest);
+
         if (FLAGS_api == "sync") {
             inferRequest->infer();
         } else {
@@ -831,6 +846,9 @@ int main(int argc, char* argv[]) {
                 batchSize = item.second.batch();
                 inferRequest->setBlob(input_name, data);
             }
+
+            if (isFlagSetInCommandLine("use_device_mem"))
+                ::gpu::setSharedOutputBlob(exeNetwork, inferRequest);
 
             if (FLAGS_api == "sync") {
                 inferRequest->infer();

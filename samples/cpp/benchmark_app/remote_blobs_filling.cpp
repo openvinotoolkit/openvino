@@ -85,26 +85,24 @@ size_t getBytesPerElement(InferenceEngine::Precision precision) {
     }
 }
 
-void fillRemoteBlobs(const std::vector<std::string>& inputFiles,
-                     const size_t& batchSize,
-                     benchmark_app::InputsInfo& app_inputs_info,
-                     std::vector<InferReqWrap::Ptr> requests,
-                     const InferenceEngine::ExecutableNetwork& exeNetwork) {
+std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
+    const std::map<std::string, std::vector<std::string>>& inputFiles,
+    const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
+    const InferenceEngine::ExecutableNetwork& exeNetwork) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
     if (inputFiles.size()) {
         slog::warn << "Device memory supports only random data at this moment, input images will be ignored"
                    << slog::endl;
     }
+
+    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> remoteBlobs;
     auto context = exeNetwork.GetContext();
     auto oclContext = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(context)->get();
     auto oclInstance = std::make_shared<OpenCL>(oclContext);
 
-    auto setShared = [&](size_t requestId,
-                         const std::string name,
-                         const InferenceEngine::TensorDesc& desc,
-                         bool fillRandom = false) {
-        cl_int err;
+    auto setShared = [&](const std::string name, const InferenceEngine::TensorDesc& desc, bool fillRandom = false) {
+        // cl_int err;
         auto inputDims = desc.getDims();
         auto elementsNum = std::accumulate(begin(inputDims), end(inputDims), 1, std::multiplies<size_t>());
         auto inputSize = elementsNum * getBytesPerElement(desc.getPrecision());
@@ -122,21 +120,51 @@ void fillRemoteBlobs(const std::vector<std::string>& inputFiles,
             oclInstance->_queue.enqueueUnmapMemObject(sharedBuffer, mappedPtr);
         }
 
-        InferenceEngine::Blob::Ptr sharedBlob = InferenceEngine::gpu::make_shared_blob(desc, context, sharedBuffer);
-
-        requests.at(requestId)->setBlob(name, sharedBlob);
+        remoteBlobs[name].push_back(InferenceEngine::gpu::make_shared_blob(desc, context, sharedBuffer));
     };
 
-    for (size_t requestId = 0; requestId < requests.size(); requestId++) {
-        for (auto& item : exeNetwork.GetInputsInfo())
-            setShared(requestId, item.first, item.second->getTensorDesc(), true);
-
-        for (auto& item : exeNetwork.GetOutputsInfo())
-            setShared(requestId, item.first, item.second->getTensorDesc());
+    size_t i = 0;
+    for (auto& inputs_info : app_inputs_info) {
+        for (auto& input : inputs_info) {
+            // Fill random
+            slog::info << "Prepare remote blob for input '" << input.first << "' with random values ("
+                       << std::string((input.second.isImage() ? "image" : "some binary data")) << " is expected)"
+                       << slog::endl;
+            setShared(input.first,
+                      InferenceEngine::TensorDesc(input.second.precision,
+                                                  input.second.tensorShape,
+                                                  getLayoutFromString(input.second.layout)),
+                      true);
+        }
     }
+
+    return remoteBlobs;
 #else
     IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
 #endif
 }
 
+void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork, InferReqWrap::Ptr& request) {
+#ifdef HAVE_DEVICE_MEM_SUPPORT
+    for (auto& output : exeNetwork.GetOutputsInfo()) {
+        auto context = exeNetwork.GetContext();
+        auto oclContext = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(context)->get();
+        auto oclInstance = std::make_shared<OpenCL>(oclContext);
+
+        cl_int err;
+        auto desc = output.second->getTensorDesc();
+        auto inputDims = desc.getDims();
+        auto elementsNum = std::accumulate(begin(inputDims), end(inputDims), 1, std::multiplies<size_t>());
+        auto inputSize = elementsNum * getBytesPerElement(desc.getPrecision());
+        cl::Buffer sharedBuffer =
+            cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
+        InferenceEngine::Blob::Ptr sharedBlob = InferenceEngine::gpu::make_shared_blob(desc, context, sharedBuffer);
+
+        request->setBlob(output.first, sharedBlob);
+    }
+
+#else
+    IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
+#endif
+}
 }  // namespace gpu
