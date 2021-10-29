@@ -19,7 +19,7 @@ void inline default_work(T1* op, ov::PartialShape& shape) {
 }
 
 template <class T>
-void shape_infer(Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
     const auto& input_shape = input_shapes[0];
     if (input_shape.is_static())
@@ -32,7 +32,7 @@ void shape_infer(Assign* op, const std::vector<T>& input_shapes, std::vector<T>&
 namespace v6 {
 
 template <class T>
-void shape_infer(Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
     output_shapes[0] = input_shapes[0];
 }

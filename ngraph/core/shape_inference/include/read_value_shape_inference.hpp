@@ -16,14 +16,14 @@ void read_value_shape_infer(T1* op, const std::vector<T2>& input_shapes, std::ve
 
 namespace v3 {
 template <class T>
-void shape_infer(ReadValue* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const ReadValue* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     read_value_shape_infer(op, input_shapes, output_shapes);
 }
 }  // namespace v3
 
 namespace v6 {
 template <class T>
-void shape_infer(ReadValue* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const ReadValue* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     read_value_shape_infer(op, input_shapes, output_shapes);
 }
 }  // namespace v6
