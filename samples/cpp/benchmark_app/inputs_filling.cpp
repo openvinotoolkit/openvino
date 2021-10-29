@@ -108,7 +108,11 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
     InferenceEngine::TensorDesc tDesc(inputInfo.precision,
                                       inputInfo.tensorShape,
                                       getLayoutFromString(inputInfo.layout));
-    return InferenceEngine::make_shared_blob<T>(tDesc, data);
+    auto blob =
+        InferenceEngine::make_shared_blob<T>(tDesc,
+                                             std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
+    blob->allocate();
+    return blob;
 }
 
 template <typename T>

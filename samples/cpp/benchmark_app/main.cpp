@@ -680,11 +680,11 @@ int main(int argc, char* argv[]) {
                     slog::warn << "Number of iterations was aligned by tensor shape groups number from " << FLAGS_niter
                                << " to " << niter << " using number of possible input shapes " << shape_groups_num
                                << slog::endl;
-                } else {
-                    niter = ((niter + nireq - 1) / nireq) * nireq;
-                    slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
-                               << niter << " using number of requests " << nireq << slog::endl;
                 }
+            } else {
+                niter = ((niter + nireq - 1) / nireq) * nireq;
+                slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
+                           << niter << " using number of requests " << nireq << slog::endl;
             }
         }
 
