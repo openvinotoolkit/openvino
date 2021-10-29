@@ -52,7 +52,8 @@ using uniformDistribution = typename std::conditional<
 template <typename T>
 InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& files,
                                                size_t inputId,
-                                               const benchmark_app::InputInfo& inputInfo) {
+                                               const benchmark_app::InputInfo& inputInfo,
+                                               std::string* filenames_used = nullptr) {
     size_t blob_size =
         std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
     T* data = new T[blob_size];
@@ -64,7 +65,9 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
 
     for (size_t b = 0; b < batchSize; ++b) {
         auto inputIndex = (inputId + b) % files.size();
-        slog::info << "Prepare image " << files[inputIndex] << slog::endl;
+        if (filenames_used) {
+            *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];
+        }
         FormatReader::ReaderPtr reader(files[inputIndex].c_str());
         if (reader.get() == nullptr) {
             slog::warn << "Image " << files[inputIndex] << " cannot be read!" << slog::endl << slog::endl;
@@ -149,7 +152,8 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
 template <typename T>
 InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& files,
                                                 size_t inputId,
-                                                const benchmark_app::InputInfo& inputInfo) {
+                                                const benchmark_app::InputInfo& inputInfo,
+                                                std::string* filenames_used = nullptr) {
     size_t blob_size =
         std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
     char* data = new char[blob_size * sizeof(T)];
@@ -157,7 +161,6 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
     const size_t batchSize = inputInfo.batch();  // TODO: change
     for (size_t b = 0; b < batchSize; ++b) {
         auto inputIndex = (inputId + b) % files.size();
-        slog::info << "Prepare binary file " << files[inputIndex] << slog::endl;
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
         if (!binaryFile) {
             IE_THROW() << "Cannot open " << files[inputIndex];
@@ -176,6 +179,10 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
                        << std::to_string(inputSize);
         }
         binaryFile.read(&data[b * inputSize], inputSize);
+
+        if (filenames_used) {
+            *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];
+        }
     }
 
     InferenceEngine::TensorDesc tDesc(inputInfo.precision,
@@ -214,18 +221,19 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
 
 InferenceEngine::Blob::Ptr getImageBlob(const std::vector<std::string>& files,
                                         size_t inputId,
-                                        const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+                                        const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                        std::string* filenames_used = nullptr) {
     auto precision = inputInfo.second.precision;
     if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobFromImage<float>(files, inputId, inputInfo.second);
+        return createBlobFromImage<float>(files, inputId, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobFromImage<short>(files, inputId, inputInfo.second);
+        return createBlobFromImage<short>(files, inputId, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobFromImage<int32_t>(files, inputId, inputInfo.second);
+        return createBlobFromImage<int32_t>(files, inputId, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobFromImage<int64_t>(files, inputId, inputInfo.second);
+        return createBlobFromImage<int64_t>(files, inputId, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::U8) {
-        return createBlobFromImage<uint8_t>(files, inputId, inputInfo.second);
+        return createBlobFromImage<uint8_t>(files, inputId, inputInfo.second, filenames_used);
     } else {
         IE_THROW() << "Input precision is not supported for " << inputInfo.first;
     }
@@ -249,18 +257,19 @@ InferenceEngine::Blob::Ptr getImInfoBlob(const std::pair<size_t, size_t>& image_
 
 InferenceEngine::Blob::Ptr getBinaryBlob(const std::vector<std::string>& files,
                                          size_t inputId,
-                                         const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
+                                         const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
+                                         std::string* filenames_used = nullptr) {
     auto precision = inputInfo.second.precision;
     if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobFromBinary<float>(files, inputId, inputInfo.second);
+        return createBlobFromBinary<float>(files, inputId, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobFromBinary<short>(files, inputId, inputInfo.second);
+        return createBlobFromBinary<short>(files, inputId, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobFromBinary<int32_t>(files, inputId, inputInfo.second);
+        return createBlobFromBinary<int32_t>(files, inputId, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobFromBinary<int64_t>(files, inputId, inputInfo.second);
+        return createBlobFromBinary<int64_t>(files, inputId, inputInfo.second, filenames_used);
     } else if ((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::BOOL)) {
-        return createBlobFromBinary<uint8_t>(files, inputId, inputInfo.second);
+        return createBlobFromBinary<uint8_t>(files, inputId, inputInfo.second, filenames_used);
     } else {
         IE_THROW() << "Input precision is not supported for " << inputInfo.first;
     }
@@ -295,6 +304,19 @@ InferenceEngine::Blob::Ptr getRandomBlob(const std::pair<std::string, benchmark_
     }
 }
 
+std::stringstream getTestInfoStreamHeader(benchmark_app::InputInfo& inputInfo) {
+    std::stringstream strOut;
+    strOut << "(" << inputInfo.layout << ", " << inputInfo.precision << ", "
+           << getShapeString(inputInfo.tensorShape) << ", ";
+    if (inputInfo.partialShape.is_dynamic()) {
+        strOut << std::string("dyn:") << inputInfo.partialShape << "):\t";
+    } else {
+        strOut << "static):\t";
+    }
+    return strOut;
+}
+
+
 std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
     std::map<std::string, std::vector<std::string>>& inputFiles,
     std::vector<benchmark_app::InputsInfo>& app_inputs_info) {
@@ -315,10 +337,6 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
                     inputFiles[input.first] = {""};
                 }
             }
-            slog::info << "Network input '" << input.first << "' precision " << input.second.precision
-                       << ", dimensions (" << input.second.layout << "): ";
-            slog::info << getShapeString(input.second.tensorShape);
-            slog::info << "(dynamic: " << input.second.partialShape << ")" << slog::endl;
         }
     }
 
@@ -362,41 +380,55 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             filesToBeUsed = files.second.size();
             if (shapesToBeUsed != app_inputs_info.size()) {
                 slog::warn
-                    << "Number of tensor shapes must be a multiple of the number of files for certain input. Only " +
+                    << "Number of tensor shapes must be a multiple of the number of files. For input " << files.first << " only " +
                            std::to_string(shapesToBeUsed) + " files will be added."
                     << slog::endl;
             }
             app_inputs_info.resize(shapesToBeUsed);
             net_input_im_sizes.resize(shapesToBeUsed);
         }
-
-        slog::info << "For input " << files.first << " these files will be used: " << slog::endl;
-        for (size_t i = 0; i < filesToBeUsed; ++i) {
-            auto inputInfo = app_inputs_info[i % app_inputs_info.size()].at(input_name);
-            slog::info << "   " << files.second[i] << "  " << getShapeString(inputInfo.tensorShape) << slog::endl;
-        }
     }
 
+    std::vector<std::map<std::string, std::string>> logOutput;
+    // All inputs should process equal number of files, so for the case of N, 1, N number of files,
+    // second input also should have N blobs cloned from 1 file
+    auto filesNum = std::max_element(inputFiles.begin(),
+                                      inputFiles.end(),
+                                      [](const std::pair<std::string, std::vector<std::string>>& a,
+                                         const std::pair<std::string, std::vector<std::string>>& b) {
+                                          return a.second.size() < b.second.size();
+                                      })->second.size();
     for (const auto& files : inputFiles) {
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         size_t n_shape = 0, m_file = 0;
-        while (n_shape < app_inputs_info.size() || m_file < files.second.size()) {
+        while (n_shape < app_inputs_info.size() || m_file < filesNum) {
             auto app_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
             auto precision = app_info.precision;
             size_t inputId = m_file % files.second.size();
+
+            std::string blob_src_info;
             if (app_info.isImage()) {
                 // Fill with Images
-                blobs[input_name].push_back(getImageBlob(files.second, inputId, {input_name, app_info}));
+                blobs[input_name].push_back(getImageBlob(files.second, inputId, {input_name, app_info}, &blob_src_info));
             } else if (app_info.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
-                slog::info << "Fill input '" << input_name << "' with image size " << image_size.first << "x"
-                           << image_size.second << slog::endl;
+                blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
+                        std::to_string(image_size.second);
                 blobs[input_name].push_back(getImInfoBlob(image_size, {input_name, app_info}));
             } else {
                 // Fill with binary files
-                blobs[input_name].push_back(getBinaryBlob(files.second, inputId, {input_name, app_info}));
+                blobs[input_name].push_back(getBinaryBlob(files.second, inputId, {input_name, app_info}, &blob_src_info));
             }
+
+            // Preparing info
+            std::stringstream strOut = getTestInfoStreamHeader(app_info);
+            strOut << blob_src_info;
+            if (n_shape >= logOutput.size()) {
+                logOutput.resize(n_shape+1);
+            }
+            logOutput[n_shape][input_name] += strOut.str();
+
             ++n_shape;
             m_file += app_info.batch();
         }
@@ -406,24 +438,49 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
         slog::warn << "No input files were given: all inputs will be filled with "
                       "random values!"
                    << slog::endl;
+
         size_t i = 0;
+        size_t n_shape = 0;
+        logOutput.resize(app_inputs_info.size());
+
         for (auto& input_info : app_inputs_info) {
             for (auto& input : input_info) {
+                // Preparing info
+                std::stringstream strOut = getTestInfoStreamHeader(input.second);
+
                 if (input.second.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                     // Most likely it is image info: fill with image information
                     auto image_size = net_input_im_sizes.at(i);
-                    slog::info << "Fill input '" << input.first << "' with image size " << image_size.first << "x"
-                               << image_size.second << slog::endl;
+                    strOut << "Image size blob '" << image_size.first << "x" << image_size.second;
                     blobs[input.first].push_back(getImInfoBlob(image_size, input));
                     ++i;
                 } else {
                     // Fill random
-                    slog::info << "Prepare blob for input '" << input.first << "' with random values ("
-                               << std::string((input.second.isImage() ? "image" : "some binary data"))
-                               << " is expected)" << slog::endl;
+                    strOut << "random ("
+                               << std::string((input.second.isImage() ? "image" : "binary data"))
+                               << " is expected)";
                     blobs[input.first].push_back(getRandomBlob(input));
                 }
+
+                logOutput[n_shape][input.first] += strOut.str();
+
             }
+            n_shape++;
+        }
+    }
+
+    for (int i = 0; i < logOutput.size(); i++) {
+        slog::info << "Test Config " << i << slog::endl;
+        auto maxNameWidth = std::max_element(logOutput[i].begin(),
+                                             logOutput[i].end(),
+                                             [](const std::pair<std::string, std::string>& a,
+                                                const std::pair<std::string, std::string>& b) {
+                                                 return a.first.size() < b.first.size();
+                                             })
+                                ->first.size();
+        for (auto inputLog : logOutput[i]) {
+            slog::info << std::left << std::setw(maxNameWidth+2) << inputLog.first << inputLog.second
+                       << slog::endl;
         }
     }
 
