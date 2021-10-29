@@ -214,8 +214,8 @@ static void regclass_graph_InputInfo(py::module m) {
         "network",
         [](const std::shared_ptr<ov::preprocess::InputInfo>& me,
            const std::shared_ptr<ov::preprocess::InputNetworkInfo>& inputNetworkInfo) {
-               me->network(std::move(*inputNetworkInfo));
-               return me;
+            me->network(std::move(*inputNetworkInfo));
+            return me;
         },
         py::arg("input_netwok_info"));
 }
@@ -269,8 +269,8 @@ static void regclass_graph_OutputInfo(py::module m) {
         "network",
         [](const std::shared_ptr<ov::preprocess::OutputInfo>& me,
            const std::shared_ptr<ov::preprocess::OutputNetworkInfo>& outputNetworkInfo) {
-               me->network(std::move(*outputNetworkInfo));
-               return me;
+            me->network(std::move(*outputNetworkInfo));
+            return me;
         },
         py::arg("output_netwok_info"));
 }
