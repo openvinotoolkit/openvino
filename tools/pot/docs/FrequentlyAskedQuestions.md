@@ -20,7 +20,7 @@ What else can I do?</a>
 
 ### <a name="opensourced">Is the Post-training Optimization Tool (POT) opensourced?</a>
 
-No, the POT is not available on any of the opensource platforms. It is distributed as a part of Intel&reg; [OpenVINO&trade;](@ref index) only.
+Yes, POT is developed on GitHub as a part of https://github.com/openvinotoolkit/openvino under Apache-2.0 License.
 
 ### <a name="dataset">Can I quantize my model without a dataset?</a>
 
