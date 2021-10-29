@@ -8,7 +8,7 @@ from openvino.impl import Type, Shape
 
 def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
     """
-    Represents array values as u1,u4 or i4 openvino element type and packs them into uint8 numpy array.
+    Represent array values as u1,u4 or i4 openvino element type and pack them into uint8 numpy array.
 
     If the number of elements in array is odd we pad them with zero value to be able to fit the bit
     sequence into the uint8 array.
@@ -50,8 +50,7 @@ def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
 
 def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.ndarray:
     """
-    Extracts openvino element type values from array bit representation
-                                    and saves them into uint8/int8 numpy array given shape.
+    Extract openvino element type values from array into new uint8/int8 array given shape.
 
     Example: uint8 value [120] can be represented as two u4 values and be unpacked into [7, 8]
              because [120] bit representation is [01111000] will be viewed as [0111, 1000],
