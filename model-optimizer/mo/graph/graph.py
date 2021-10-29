@@ -45,17 +45,9 @@ class Node:
         attrs[k] = v
 
     def __getattr__(self, k):
-        if k == 'name' and not self.has(k):
-            return self.id
-        elif k == 'type' and not self.has(k):
-            return None
         return self.graph.node[self.node][k]
 
     def __getitem__(self, k):
-        if k == 'name' and not self.has(k):
-            return self.id
-        elif k == 'type' and not self.has(k):
-            return None
         return self.graph.node[self.node][k]
 
     def __setitem__(self, k, v):
