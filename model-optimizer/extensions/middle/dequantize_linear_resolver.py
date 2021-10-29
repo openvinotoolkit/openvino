@@ -25,6 +25,10 @@ class DequantizeLinearResolver(MiddleReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
+    def run_after(self):
+        from extensions.middle.quantize_dequantize_linera_resolver import QuantizeDequantizeLinearResolver
+        return [QuantizeDequantizeLinearResolver]
+
     def find_and_replace_pattern(self, graph: Graph):
         for dequantize_node in graph.get_op_nodes(op='DequantizeLinear'):
             node_name = dequantize_node.soft_get('name', dequantize_node.id)
