@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -220,9 +220,65 @@ static void regclass_graph_InputInfo(py::module m) {
         py::arg("input_netwok_info"));
 }
 
+static void regclass_graph_OutputInfo(py::module m) {
+    py::class_<ov::preprocess::OutputInfo, std::shared_ptr<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
+    out.doc() = "openvino.impl.preprocess.OutputInfo wraps ov::preprocess::InputInfo";
+
+    out.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one output)");
+    out.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
+
+    out.def(
+        "tensor",
+        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me,
+           const std::shared_ptr<ov::preprocess::OutputTensorInfo>& outputTensorInfo) {
+            me->tensor(std::move(*outputTensorInfo));
+            return me;
+        },
+        py::arg("tensor"),
+        R"(
+                Adds builder for actual tensor information of client's output.
+                Parameters
+                ----------
+                tensor : OutputTensorInfo
+                    Client's output tensor information. It's internal data will be moved to parent OutputInfo object.
+                Returns
+                ----------
+                tensor : OutputInfo
+                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+              )");
+    out.def(
+        "postprocess",
+        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me,
+           const std::shared_ptr<ov::preprocess::PostProcessSteps>& postProcessSteps) {
+            me->postprocess(std::move(*postProcessSteps));
+            return me;
+        },
+        py::arg("post_process_steps"),
+        R"(
+                Adds builder for actual postprocessing steps for output parameter.
+                Parameters
+                ----------
+                post_process_steps : PostProcessSteps
+                    Postprocessing steps. It's internal data will be moved to parent OutputInfo object.
+                Returns
+                ----------
+                preprocess : OutputInfo
+                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+              )");
+    out.def(
+        "network",
+        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me,
+           const std::shared_ptr<ov::preprocess::OutputNetworkInfo>& outputNetworkInfo) {
+               me->network(std::move(*outputNetworkInfo));
+               return me;
+        },
+        py::arg("output_netwok_info"));
+}
+
 void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_PreProcessSteps(m);
     regclass_graph_InputInfo(m);
+    regclass_graph_OutputInfo(m);
     regclass_graph_InputTensorInfo(m);
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
