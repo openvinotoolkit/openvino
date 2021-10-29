@@ -363,6 +363,36 @@ bool evaluate(const shared_ptr<op::v8::DeformableConvolution>& op,
     return true;
 }
 
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v1::DeformableConvolution>& op,
+              const HostTensorVector& outputs,
+              const HostTensorVector& inputs) {
+    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+    const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
+    const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
+    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+    const auto& out_shape = outputs[0]->get_shape();
+    const auto& in_shape = inputs[0]->get_shape();
+    const auto& offset_shape = inputs[1]->get_shape();
+    const auto& filter_shape = inputs[2]->get_shape();
+    runtime::reference::deformable_convolution<typename element_type_traits<ET>::value_type>(
+        in_data_ptr,
+        offset_data_ptr,
+        filter_data_ptr,
+        out_data_ptr,
+        in_shape,
+        offset_shape,
+        filter_shape,
+        out_shape,
+        op->get_strides(),
+        op->get_dilations(),
+        op->get_pads_begin(),
+        op->get_pads_end(),
+        op->get_group(),
+        op->get_deformable_group());
+    return true;
+}
+
 namespace cum_sum_v0 {
 template <element::Type_t t1, element::Type_t t2>
 inline void evaluate(const shared_ptr<op::v0::CumSum>& op,
