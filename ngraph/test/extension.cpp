@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "load_extensions.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/util/file_util.hpp"
@@ -47,12 +48,17 @@ std::string get_extension_path() {
 }
 
 TEST(extension, load_extension) {
-    ASSERT_NO_THROW(ov::load_extension(get_extension_path()));
+    std::vector<ov::Extension::Ptr> extensions;
+    EXPECT_NO_THROW(extensions = ov::detail::load_extensions(get_extension_path()));
+    EXPECT_NO_THROW(ov::detail::unload_extensions(extensions));
 }
+
 TEST(extension, load_extension_and_cast) {
-    auto extensions = ov::load_extension(get_extension_path());
-    ASSERT_EQ(1, extensions.size());
-    ASSERT_NE(nullptr, dynamic_cast<ov::BaseOpExtension*>(extensions[0].get().get()));
-    ASSERT_NE(nullptr, std::dynamic_pointer_cast<ov::BaseOpExtension>(extensions[0].get()));
+    std::vector<ov::Extension::Ptr> extensions;
+    EXPECT_NO_THROW(extensions = ov::detail::load_extensions(get_extension_path()));
+    EXPECT_EQ(1, extensions.size());
+    EXPECT_NE(nullptr, dynamic_cast<ov::BaseOpExtension*>(extensions[0].get()));
+    EXPECT_NE(nullptr, std::dynamic_pointer_cast<ov::BaseOpExtension>(extensions[0]));
+    EXPECT_NO_THROW(ov::detail::unload_extensions(extensions));
     extensions.clear();
 }

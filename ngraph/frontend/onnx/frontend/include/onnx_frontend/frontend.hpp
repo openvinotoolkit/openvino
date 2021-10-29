@@ -21,13 +21,13 @@ public:
     std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override;
     std::string get_name() const override;
     bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
-    void add_extension(const std::vector<ov::Extension>& extensions) override;
+    void add_extension(const std::shared_ptr<ov::Extension>& extensions) override;
 
 protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 private:
-    std::vector<std::shared_ptr<ov::BaseExtension>> m_extensions;
-    std::shared_ptr<ov::BaseExtension> m_telemetry;
+    std::vector<std::shared_ptr<ov::Extension>> m_extensions;
+    std::shared_ptr<ov::Extension> m_telemetry;
 };
 
 }  // namespace frontend

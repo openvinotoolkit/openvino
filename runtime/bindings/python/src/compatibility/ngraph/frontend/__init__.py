@@ -14,7 +14,7 @@ from _pyngraph import FrontEnd
 from _pyngraph import JsonConfigExtension
 from _pyngraph import InputModel
 from _pyngraph import Place
-from _pyngraph import TelemetryExtension, OpExtension, NodeContext
+from _pyngraph import TelemetryExtension, ConversionExtension, NodeContext
 
 # exceptions
 from _pyngraph import NotImplementedFailure

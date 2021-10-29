@@ -99,7 +99,7 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
         bool activated = false;
         for (auto extension: m_extensions) {
             if (auto decoder_extension = std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
-                manager.register_pass<CustomFunctionPass>(decoder_extension->get_pass()); // TODO: correct forwarding?
+                decoder_extension->register_pass(manager);
                 activated = true;
             }
         }
@@ -183,26 +183,21 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
     return false;
 }
 
-void FrontEndONNX::add_extension(const std::vector<ov::Extension>& extensions) {
-    for(auto ext: extensions) {
-        auto extension = ext.get();
-        // Filter unknown extension out
-        // Now there is only one experimental type of extension, check it
-        if (std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
-            m_extensions.push_back(extension);
-        }
+void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (std::dynamic_pointer_cast<DecoderTransformationExtension>(extension)) {
+        m_extensions.push_back(extension);
+    }
 
-        if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
-            m_telemetry = telemetry;
-        }
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
 
-        if (auto newop = std::dynamic_pointer_cast<OpExtension>(extension)) {
-            std::cerr << "++++++++++++++++REGISTER NEW OP+++++++++: " << newop->m_optype << '\n';
-            for (int i = 1; i < 13; ++i)
-                onnx_import::register_operator(newop->m_optype, i, "", [=](const onnx_import::Node &context) {
-                    return newop->m_converter(
-                            std::make_shared<NodeContext>(context.op_type(), context.get_ng_inputs()));
-                });
-        }
+    if (auto newop = std::dynamic_pointer_cast<ConversionExtension>(extension)) {
+        std::cerr << "++++++++++++++++REGISTER NEW OP+++++++++: " << newop->m_optype << '\n';
+        for (int i = 1; i < 13; ++i)
+            onnx_import::register_operator(newop->m_optype, i, "", [=](const onnx_import::Node &context) {
+                return newop->m_converter(
+                        std::make_shared<NodeContext>(context.op_type(), context.get_ng_inputs()));
+            });
     }
 }

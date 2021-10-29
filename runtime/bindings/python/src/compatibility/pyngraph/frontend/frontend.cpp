@@ -141,7 +141,7 @@ void regclass_pyngraph_FrontEnd(py::module m) {
             )");
 
     fem.def("add_extension",
-            static_cast<void (ngraph::frontend::FrontEnd::*)(const std::shared_ptr<ov::BaseExtension>& extension)>(
+            static_cast<void (ngraph::frontend::FrontEnd::*)(const std::shared_ptr<ov::Extension>& extension)>(
                     &ngraph::frontend::FrontEnd::add_extension));
 
     fem.def("__repr__", [](const ngraph::frontend::FrontEnd& self) -> std::string {
@@ -153,10 +153,11 @@ void regclass_pyngraph_JsonConfigExtension(py::module m) {
     // TODO: Consider mapping of ov::Extension class instead of ov::BaseExtension in the final solution.
     // ov::BaseExtension is used now because it eliminates another level of indirection in object definitions and
     // we need less code.
-    py::class_<ov::BaseExtension, std::shared_ptr<ov::BaseExtension>> ext1(m, "Extension", py::dynamic_attr());
-    py::class_<ngraph::frontend::JsonConfigExtension, std::shared_ptr<ngraph::frontend::JsonConfigExtension>, ov::BaseExtension> ext2(m,
-                                                                                            "JsonConfigExtension",
-                                                                                            py::dynamic_attr());
+    py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext1(m, "Extension", py::dynamic_attr());
+    py::class_<ngraph::frontend::JsonConfigExtension,
+            std::shared_ptr<ngraph::frontend::JsonConfigExtension>,
+            ov::Extension> ext2(m, "JsonConfigExtension", py::dynamic_attr());
+
     ext2.doc() = "Extension class to load and process ModelOptimier JSON config file";
 
     ext2.def(py::init([](const std::string& path) {
@@ -164,12 +165,12 @@ void regclass_pyngraph_JsonConfigExtension(py::module m) {
     }));
 }
 
-void regclass_pyngraph_TelemetryExtension(py::module m) {
+void regclass_pyngraph_OtherExtensions(py::module m) {
     {
         py::class_<
                 ngraph::frontend::TelemetryExtension,
                 std::shared_ptr<ngraph::frontend::TelemetryExtension>,
-                ov::BaseExtension> ext(m, "TelemetryExtension", py::dynamic_attr());
+                ov::Extension> ext(m, "TelemetryExtension", py::dynamic_attr());
 
         ext.def(py::init([](const std::function<void(const std::string &)> callback) {
             return std::make_shared<ngraph::frontend::TelemetryExtension>(callback);
@@ -183,10 +184,15 @@ void regclass_pyngraph_TelemetryExtension(py::module m) {
         ext.def("get_ng_inputs", &ngraph::frontend::NodeContext::get_ng_inputs);
     }
     {
-        py::class_<ngraph::frontend::OpExtension, std::shared_ptr<ngraph::frontend::OpExtension>, ov::BaseExtension> ext(m, "OpExtension", py::dynamic_attr());
-        ext.def(py::init([](const std::string& optype, const std::function<ngraph::OutputVector(std::shared_ptr<ngraph::frontend::NodeContext>)> f) {
-            return std::make_shared<ngraph::frontend::OpExtension>(optype, f);
-        }));
+        py::class_<
+                ngraph::frontend::ConversionExtension,
+                std::shared_ptr<ngraph::frontend::ConversionExtension>,
+                ov::Extension> ext(
+                        m, "ConversionExtension", py::dynamic_attr()
+        );
 
+        ext.def(py::init([](const std::string& optype, const std::function<ngraph::OutputVector(std::shared_ptr<ngraph::frontend::NodeContext>)> f) {
+            return std::make_shared<ngraph::frontend::ConversionExtension>(optype, f);
+        }));
     }
 }

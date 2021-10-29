@@ -6,64 +6,55 @@
 
 #include <iostream>
 #include <fstream>
+#include <type_traits>
 #include "frontend_manager_defs.hpp"
 #include <openvino/pass/pass.hpp>
 #include <openvino/core/extension.hpp>
-#include "../../../../../thirdparty/nlohmann/json/json.hpp"
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/manager.hpp>
+
 
 namespace ngraph {
 namespace frontend {
 
-class FRONTEND_API CustomFunctionPass : public ov::pass::FunctionPass {
+
+class FRONTEND_API DecoderTransformationExtension : public ov::Extension {
 public:
 
-    CustomFunctionPass (std::function<bool(std::shared_ptr<ov::Function>)> pass) :
-        m_pass(pass)
-    {}
+    //DecoderTransformationExtension () {}
 
-    bool run_on_function (std::shared_ptr<ov::Function> f) override
-    {
-        return m_pass(f);
-    }
+    // Create a custom functional pass where code of the pass is implemented as a function.
+    DecoderTransformationExtension (std::function<bool(std::shared_ptr<ov::Function>)> function_pass);
+
+    // Create a custom matcher pass where the code of matcher pass initialization is a given function.
+    DecoderTransformationExtension (std::function<void(ov::pass::MatcherPass*)> matcher_pass_initializer);
+
+    // Register existing transformation object which will be copied and kept for further registration.
+    template <typename Transformation,
+            typename std::enable_if<std::is_base_of<ov::pass::PassBase, Transformation>::value, bool>::type = true>
+    DecoderTransformationExtension (const Transformation& transformation) :
+        m_registration([transformation](ov::pass::Manager& manager) {
+            manager.register_pass<Transformation>(transformation);
+        }) {}
+
+    // Register pass from this object in a given pass manager object
+    void register_pass (ov::pass::Manager& manager) const;
+
 private:
 
-    std::function<bool(std::shared_ptr<ov::Function>)> m_pass;
-};
-
-
-class FRONTEND_API DecoderTransformationExtension : public ov::BaseExtension {
-public:
-    DecoderTransformationExtension () {}
-    DecoderTransformationExtension (std::function<bool(std::shared_ptr<ov::Function>)> pass) : m_pass(pass) {}
-    virtual std::function<bool(std::shared_ptr<ov::Function>)> get_pass () const { return m_pass; }
-protected:
-    std::function<bool(std::shared_ptr<ov::Function>)> m_pass;
+    std::function<void(ov::pass::Manager&)> m_registration;
 };
 
 
 // Reads MO config file and delegate transformation functionality to specified transformation ID from the config
 class FRONTEND_API JsonConfigExtension : public DecoderTransformationExtension {
 public:
-    JsonConfigExtension (const std::string& config_path)
-    {
-        nlohmann::json config_json;
-        std::ifstream config_file(config_path);
-        config_file >> config_json;
-        std::cerr << "++++++++++++++ Read json: ++++++++++++++++\n" << config_json;
-
-        // TODO: Implement real loading of extensions from shared library here using the same functionality
-        // as add_extension uses.
-        m_pass = [](std::shared_ptr<ov::Function> f){
-            auto ops = f->get_ordered_ops();
-            std::cerr << "HELLO! Run on function with " << ops.size() << " nodes\n";
-            return true;
-        };
-    }
+    JsonConfigExtension (const std::string& config_path);
 };
 
 
 /// \brief Provides callback to report telemetry information back to Python code
-class FRONTEND_API TelemetryExtension : public ov::BaseExtension {
+class FRONTEND_API TelemetryExtension : public ov::Extension {
 public:
 
     TelemetryExtension (std::function<void(const std::string& message)> callback) : m_callback(callback) {}
@@ -88,10 +79,10 @@ private:
 };
 
 
-class FRONTEND_API OpExtension : public ov::BaseExtension {
+class FRONTEND_API ConversionExtension : public ov::Extension {
 public:
 
-    OpExtension (const std::string& optype, std::function<OutputVector(std::shared_ptr<NodeContext>)> converter) :
+    ConversionExtension (const std::string& optype, std::function<OutputVector(std::shared_ptr<NodeContext>)> converter) :
         m_optype(optype), m_converter(converter) {}
 
     std::string m_optype;

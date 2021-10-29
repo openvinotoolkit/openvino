@@ -18,38 +18,6 @@
 
 namespace ov {
 
-/*
- * @brief Wrapper for old IE extensions to new API
- */
-class ExtensionWrapper : public ov::BaseOpExtension {
-public:
-    ExtensionWrapper(const std::string& opsetVersion, const std::string& type, const ngraph::OpSet& opset)
-        : m_opset_name(opsetVersion),
-          m_type(type),
-          m_ext_type(m_type.c_str(), 0, m_opset_name.c_str()),
-          m_opset(opset) {}
-
-    const ov::DiscreteTypeInfo& type() override {
-        return m_ext_type;
-    }
-
-    ngraph::OutputVector create(const ngraph::OutputVector& inputs, ngraph::AttributeVisitor& visitor) override {
-        std::shared_ptr<ngraph::Node> node(m_opset.create_insensitive(m_ext_type.name));
-
-        node->set_arguments(inputs);
-        if (node->visit_attributes(visitor)) {
-            node->constructor_validate_and_infer_types();
-        }
-        return node->outputs();
-    }
-
-private:
-    std::string m_opset_name;
-    std::string m_type;
-    ov::DiscreteTypeInfo m_ext_type;
-    ngraph::OpSet m_opset;
-};
-
 struct GenericLayerParams {
     struct LayerPortData {
         size_t portId;

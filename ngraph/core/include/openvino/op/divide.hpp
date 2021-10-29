@@ -15,7 +15,7 @@ public:
     OPENVINO_OP("Divide", "opset1", util::BinaryElementwiseArithmetic, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a division operation.
-    Divide() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Divide() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs a division operation.
     ///

@@ -8,4 +8,4 @@
 #include "identity.hpp"
 
 OPENVINO_CREATE_EXTENSIONS(
-    std::vector<ov::BaseExtension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Identity>>()}));
+    std::vector<ov::Extension::Ptr>({std::make_shared<ov::OpExtension<TemplateExtension::Identity>>()}));

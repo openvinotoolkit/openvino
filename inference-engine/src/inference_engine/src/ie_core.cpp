@@ -27,6 +27,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
+#include "load_extensions.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -40,6 +41,10 @@
 #include "openvino/util/shared_object.hpp"
 #include "xml_parse_utils.h"
 
+#ifdef OPENVINO_STATIC_LIBRARY
+#    include "ie_plugins.hpp"
+#endif
+
 using namespace InferenceEngine::PluginConfigParams;
 using namespace std::placeholders;
 
@@ -48,11 +53,7 @@ namespace runtime {
 
 namespace {
 
-template <typename T>
-struct Parsed {
-    std::string _deviceName;
-    std::map<std::string, T> _config;
-};
+#ifndef OPENVINO_STATIC_LIBRARY
 
 std::string parseXmlConfig(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
@@ -64,6 +65,14 @@ std::string parseXmlConfig(const std::string& xmlFile) {
     }
     return xmlConfigFile_;
 }
+
+#endif
+
+template <typename T>
+struct Parsed {
+    std::string _deviceName;
+    std::map<std::string, T> _config;
+};
 
 template <typename T = ie::Parameter>
 Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
@@ -179,12 +188,15 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
+        // TODO: make extensions to be optional with conditional compilation
         std::vector<ov::util::FilePath> listOfExtentions;
+        InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc;
     };
 
     mutable std::unordered_set<std::string> opsetNames;
+    // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
-    mutable std::vector<ov::Extension> ov_extensions;
+    mutable std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -226,7 +238,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
 
     ov::runtime::SoPtr<ie::IExecutableNetworkInternal> compile_model_impl(
         const InferenceEngine::CNNNetwork& network,
-        InferencePlugin& plugin,
+        ov::runtime::InferencePlugin& plugin,
         const std::map<std::string, std::string>& parsedConfig,
         const ie::RemoteContext::Ptr& context,
         const std::string& blobID,
@@ -364,13 +376,16 @@ public:
         opsetNames.insert("opset5");
         opsetNames.insert("opset6");
         opsetNames.insert("opset7");
+        opsetNames.insert("opset8");
     }
 
-    ~CoreImpl() override = default;
+    ~CoreImpl() override {
+        ov::detail::unload_extensions(ov_extensions);
+    }
 
     /**
-     * @brief Register plugins for devices which are located in .xml configuration file. The function supports UNICODE
-     * path
+     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
     void RegisterPluginsInRegistry(const std::string& xmlConfigFile) {
@@ -428,9 +443,29 @@ public:
 
             // fill value in plugin registry for later lazy initialization
             {
-                PluginDescriptor desc = {pluginPath, config, listOfExtentions};
+                PluginDescriptor desc = {pluginPath, config, listOfExtentions, nullptr};
                 pluginRegistry[deviceName] = desc;
             }
+        }
+    }
+
+    /**
+     * @brief Register plugins for devices which are located in .xml configuration file.
+     * @note The function supports UNICODE path
+     * @param xmlConfigFile An .xml configuraion with device / plugin information
+     */
+    void RegisterPluginsInRegistry(
+        const std::map<std::string, InferenceEngine::CreatePluginEngineFunc*>& static_registry) {
+        std::lock_guard<std::mutex> lock(pluginsMutex);
+
+        for (const auto& plugin : static_registry) {
+            const auto& deviceName = plugin.first;
+            if (deviceName.find('.') != std::string::npos) {
+                IE_THROW() << "Device name must not contain dot '.' symbol";
+            }
+            // TODO: add properties support to enable AUTO device
+            PluginDescriptor desc = {{}, {}, {}, plugin.second};
+            pluginRegistry[deviceName] = desc;
         }
     }
 
@@ -728,12 +763,21 @@ public:
         auto it_plugin = plugins.find(deviceName);
         if (it_plugin == plugins.end()) {
             PluginDescriptor desc = it->second;
-            auto so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+            std::shared_ptr<void> so;
             try {
-                using CreateF = void(std::shared_ptr<ie::IInferencePlugin>&);
-                std::shared_ptr<ie::IInferencePlugin> plugin_impl;
-                reinterpret_cast<CreateF*>(ov::util::get_symbol(so, OV_PP_TOSTRING(IE_CREATE_PLUGIN)))(plugin_impl);
-                auto plugin = InferencePlugin{so, plugin_impl};
+                ov::runtime::InferencePlugin plugin;
+
+                if (desc.pluginCreateFunc) {  // static OpenVINO case
+                    std::shared_ptr<ie::IInferencePlugin> plugin_impl;
+                    desc.pluginCreateFunc(plugin_impl);
+                    plugin = InferencePlugin{nullptr, plugin_impl};
+                } else {
+                    so = ov::util::load_shared_object(desc.libraryLocation.c_str());
+                    std::shared_ptr<ie::IInferencePlugin> plugin_impl;
+                    reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
+                        ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
+                    plugin = InferencePlugin{so, plugin_impl};
+                }
 
                 {
                     plugin.set_name(deviceName);
@@ -789,6 +833,7 @@ public:
 
                 auto result = plugins.emplace(deviceName, plugin).first->second;
 
+                // TODO CVS-69016: need to enable for CPU plugin cache
                 TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
 
                 return result;
@@ -843,7 +888,7 @@ public:
                 pluginPath = absFilePath;
         }
 
-        PluginDescriptor desc = {pluginPath, {}, {}};
+        PluginDescriptor desc = {pluginPath, {}, {}, nullptr};
         pluginRegistry[deviceName] = desc;
     }
 
@@ -941,7 +986,7 @@ public:
         AddExtensionUnsafe(extension);
     }
 
-    void AddOVExtensions(const std::vector<ov::Extension>& extensions) {
+    void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
         for (const auto& ext : extensions)
             ov_extensions.emplace_back(ext);
@@ -955,7 +1000,7 @@ public:
         return extensions;
     }
 
-    const std::vector<ov::Extension>& GetOVExtensions() const {
+    const std::vector<ov::Extension::Ptr>& GetOVExtensions() const {
         return ov_extensions;
     }
 
@@ -1103,7 +1148,11 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
+#ifdef OPENVINO_STATIC_LIBRARY
+    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+#else
     RegisterPlugins(ov::runtime::parseXmlConfig(xmlConfigFile));
+#endif
 }
 
 std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) const {
@@ -1362,7 +1411,11 @@ public:
 Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
-    OV_CORE_CALL_STATEMENT(register_plugins(parseXmlConfig(xmlConfigFile)));
+#ifdef OPENVINO_STATIC_LIBRARY
+    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+#else
+    register_plugins(parseXmlConfig(xmlConfigFile));
+#endif
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& deviceName) const {
@@ -1438,28 +1491,19 @@ void Core::add_extension(const ie::IExtensionPtr& extension) {
 }
 
 void Core::add_extension(const std::string& library_path) {
-    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
+    add_extension(ov::detail::load_extensions(library_path));
 }
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 void Core::add_extension(const std::wstring& library_path) {
-    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(ov::load_extension(library_path)););
+    add_extension(ov::detail::load_extensions(library_path));
 }
 #endif
 
-void Core::add_extension(const std::vector<ov::Extension>& extensions) {
-    OV_CORE_CALL_STATEMENT(_impl->AddOVExtensions(extensions););
+void Core::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    add_extension(std::vector<std::shared_ptr<ov::Extension>>{extension});
 }
-void Core::add_extension(const std::shared_ptr<ov::BaseExtension>& extension) {
-    add_extension(std::vector<std::shared_ptr<ov::BaseExtension>>{extension});
-}
-void Core::add_extension(const std::vector<std::shared_ptr<ov::BaseExtension>>& extensions) {
-    OV_CORE_CALL_STATEMENT({
-        std::vector<ov::Extension> exts;
-        for (const auto& ext : extensions) {
-            exts.emplace_back(ov::Extension(ext));
-        }
-        _impl->AddOVExtensions(exts);
-    });
+void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
+    OV_CORE_CALL_STATEMENT({ _impl->AddOVExtensions(extensions); });
 }
 
 ExecutableNetwork Core::import_model(std::istream& modelStream,
