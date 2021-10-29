@@ -61,7 +61,7 @@ public:
 private:
     Attributes m_attrs;
     template <class T>
-    friend void shape_infer(ExperimentalDetectronPriorGridGenerator* op,
+    friend void shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
 };
