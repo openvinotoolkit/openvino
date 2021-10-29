@@ -108,4 +108,4 @@ It means that some required python module is not installed in your environment. 
 
 ### <a name="dump">Is there a way to collect an intermidiate IR when the AccuracyAware mechanism fails?</a>
 
-You can add '"dump_intermediate_model": true' to the POT configuration file and it will drop an intermidiate IR to 'accuracy_aware_intermediate' folder. 
+You can add `"dump_intermediate_model": true` to the POT configuration file and it will drop an intermidiate IR to `accuracy_aware_intermediate` folder. 
