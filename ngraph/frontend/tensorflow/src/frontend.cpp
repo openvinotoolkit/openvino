@@ -8,7 +8,6 @@
 
 #include "model.hpp"
 #include "op_table.hpp"
-#include "pass/change_placeholder_types.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
@@ -354,7 +353,6 @@ void FrontEndTF::convert(std::shared_ptr<ov::Function> partiallyConverted) const
 
 void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
     ov::pass::Manager manager;
-    manager.register_pass<ov::frontend::tf::pass::ChangePlaceholderTypes>();
     manager.register_pass<ov::frontend::tf::pass::TransposeSinkingOVTF>();
     manager.run_passes(function);
 }

@@ -15,9 +15,17 @@
 #include <transformations/common_optimizations/moc_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
+#include "transformations/common_optimizations/moc_legacy_transformations.hpp"
+
 void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::MOCTransformations>(cf);
+    manager.run_passes(network.actual->getFunction());
+}
+
+void InferenceEnginePython::ApplyMOCLegacyTransformations(InferenceEnginePython::IENetwork network) {
+    ngraph::pass::Manager manager;
+    manager.register_pass<ov::pass::MOCLegacyTransformations>();
     manager.run_passes(network.actual->getFunction());
 }
 

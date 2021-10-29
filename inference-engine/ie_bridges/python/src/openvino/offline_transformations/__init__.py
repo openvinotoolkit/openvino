@@ -29,4 +29,4 @@ if sys.platform == 'win32':
 
 from .offline_transformations_api import *
 
-__all__ = ['ApplyMOCTransformations']
+__all__ = ['ApplyMOCTransformations', 'ApplyMOCLegacyTransformations']

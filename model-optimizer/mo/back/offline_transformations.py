@@ -9,7 +9,8 @@ from mo.utils.cli_parser import parse_transform
 
 def get_available_transformations():
     try:
-        from openvino.offline_transformations import ApplyLowLatencyTransformation, ApplyMakeStatefulTransformation # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import ApplyLowLatencyTransformation, \
+            ApplyMakeStatefulTransformation  # pylint: disable=import-error,no-name-in-module
         return {
             'MakeStateful': ApplyMakeStatefulTransformation,
             'LowLatency2': ApplyLowLatencyTransformation,
@@ -30,8 +31,10 @@ def apply_user_transformations(net: object, transforms: list):
 
 
 def apply_moc_transformations(net: object):
-    from openvino.offline_transformations import ApplyMOCTransformations  # pylint: disable=import-error,no-name-in-module
+    from openvino.offline_transformations import ApplyMOCTransformations, \
+        ApplyMOCLegacyTransformations  # pylint: disable=import-error,no-name-in-module
     ApplyMOCTransformations(net, False)
+    ApplyMOCLegacyTransformations(net)
 
 
 def apply_offline_transformations(input_model: str, framework: str, transforms: list):

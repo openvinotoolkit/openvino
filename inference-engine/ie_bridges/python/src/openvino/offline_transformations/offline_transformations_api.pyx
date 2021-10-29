@@ -14,6 +14,10 @@ def ApplyMOCTransformations(IENetwork network, bool cf):
     C.ApplyMOCTransformations(network.impl, cf)
 
 
+def ApplyMOCLegacyTransformations(IENetwork network):
+    C.ApplyMOCLegacyTransformations(network.impl)
+
+
 def ApplyPOTTransformations(IENetwork network, string device):
     C.ApplyPOTTransformations(network.impl, device)
 

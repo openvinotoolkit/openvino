@@ -14,6 +14,8 @@ namespace InferenceEnginePython {
 
 void ApplyMOCTransformations(InferenceEnginePython::IENetwork network, bool cf);
 
+void ApplyMOCLegacyTransformations(InferenceEnginePython::IENetwork network);
+
 void ApplyPOTTransformations(InferenceEnginePython::IENetwork network, std::string device);
 
 void ApplyLowLatencyTransformation(InferenceEnginePython::IENetwork network, bool use_const_initializer = true);
