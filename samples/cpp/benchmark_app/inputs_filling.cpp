@@ -299,11 +299,11 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
         throw std::logic_error("Inputs Info for network is empty!");
     }
 
-    std::vector<std::pair<size_t, size_t>> input_image_sizes;
+    std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& inputs_info : app_inputs_info) {
         for (auto& input : inputs_info) {
             if (input.second.isImage()) {
-                input_image_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
+                net_input_im_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
             } else if (input.second.isImageInfo()) {
                 // add image info name to the map<input_name, files> if it wasn't specified.
                 // thus we make sure that this input will be filled later.
@@ -328,16 +328,14 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
         auto input = app_inputs_info[0].at(input_name);
         if (input.isImage()) {
             files.second = filterFilesByExtensions(files.second, supported_image_extensions);
+        } else if (input.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
+            slog::info << "Input '" << input_name
+                       << "' probably is image info. All files for this input will"
+                          " be ignored."
+                       << slog::endl;
+            continue;
         } else {
-            if (input.isImageInfo() && input_image_sizes.size() == app_inputs_info.size()) {
-                slog::info << "Input '" << input_name
-                           << "' probably is image info. All files for this input will"
-                              "be ignored."
-                           << slog::endl;
-                continue;
-            } else {
-                files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
-            }
+            files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
         }
 
         if (files.second.empty()) {
@@ -354,9 +352,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
                                   std::to_string(filesToBeUsed) + " files will be added."
                            << slog::endl;
             }
-            while (files.second.size() != filesToBeUsed) {
-                files.second.pop_back();
-            }
+            files.second.resize(filesToBeUsed);
         } else {
             shapesToBeUsed = app_inputs_info.size() - app_inputs_info.size() % files.second.size();
             filesToBeUsed = files.second.size();
@@ -366,10 +362,8 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
                            std::to_string(shapesToBeUsed) + " files will be added."
                     << slog::endl;
             }
-            while (app_inputs_info.size() != shapesToBeUsed) {
-                app_inputs_info.pop_back();
-                input_image_sizes.pop_back();
-            }
+            app_inputs_info.resize(shapesToBeUsed);
+            net_input_im_sizes.resize(shapesToBeUsed);
         }
 
         slog::info << "For input " << files.first << " these files will be used: " << slog::endl;
@@ -389,17 +383,15 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
             if (app_info.isImage()) {
                 // Fill with Images
                 cachedBlobs[input_name].push_back(getImageBlob(files.second, inputId, {input_name, app_info}));
+            } else if (app_info.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
+                // Most likely it is image info: fill with image information
+                auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
+                slog::info << "Fill input '" << input_name << "' with image size " << image_size.first << "x"
+                           << image_size.second << slog::endl;
+                cachedBlobs[input_name].push_back(getImInfoBlob(image_size, {input_name, app_info}));
             } else {
-                if (app_info.isImageInfo() && input_image_sizes.size() == app_inputs_info.size()) {
-                    // Most likely it is image info: fill with image information
-                    auto image_size = input_image_sizes.at(n_shape % app_inputs_info.size());
-                    slog::info << "Fill input '" << input_name << "' with image size " << image_size.first << "x"
-                               << image_size.second << slog::endl;
-                    cachedBlobs[input_name].push_back(getImInfoBlob(image_size, {input_name, app_info}));
-                } else {
-                    // Fill with binary files
-                    cachedBlobs[input_name].push_back(getBinaryBlob(files.second, inputId, {input_name, app_info}));
-                }
+                // Fill with binary files
+                cachedBlobs[input_name].push_back(getBinaryBlob(files.second, inputId, {input_name, app_info}));
             }
             ++n_shape;
             m_file += app_info.batch();
@@ -413,9 +405,9 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> prepareCachedBlob
         size_t i = 0;
         for (auto& input_info : app_inputs_info) {
             for (auto& input : input_info) {
-                if (input.second.isImageInfo() && input_image_sizes.size() == app_inputs_info.size()) {
+                if (input.second.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                     // Most likely it is image info: fill with image information
-                    auto image_size = input_image_sizes.at(i);
+                    auto image_size = net_input_im_sizes.at(i);
                     slog::info << "Fill input '" << input.first << "' with image size " << image_size.first << "x"
                                << image_size.second << slog::endl;
                     cachedBlobs[input.first].push_back(getImInfoBlob(image_size, input));
