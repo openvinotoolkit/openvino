@@ -35,11 +35,11 @@ namespace {
                                               NodeVector& new_ops) {
     const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
 
-    const auto indices_shape = indices.get_partial_shape();
-    // if length of slice indices vector is known
+    const auto& indices_shape = indices.get_partial_shape();
+    // If length of slice indices vector is known
     if (indices_shape.rank().is_static() && indices_shape.rank().get_length() == 1 && indices_shape[0].is_static()) {
         if (static_cast<uint64_t>(indices_shape[0].get_length()) >= slice_indices_length && are_axes_sorted) {
-            // adjusting indices is not needed
+            // Adjusting indices is not needed
             new_ops.push_back(indices.get_node_shared_ptr());
             return indices;
         }
@@ -53,37 +53,18 @@ namespace {
     // steps : [1, 1] - after extending --> [1, 1, 1, 1]
     // axes: [2, 3] - apply slice values to 2 and 3 dimension of input data
     // expected_output_shape: {3, 3, 1, 1}
-    NodeVector adjusted_indices(slice_indices_length);
-    std::vector<int64_t> target_axes(axes);
-    const auto gather_axis = opset8::Constant::create(indices.get_element_type(), {1}, {0});
-    new_ops.push_back(gather_axis);
 
-    int added_indices_number = 0;
-    for (uint64_t i = 0; i < slice_indices_length; ++i) {
-        if (std::find(std::begin(axes), std::end(axes), i) == axes.end()) {
-            adjusted_indices[i] = opset8::Constant::create(indices.get_element_type(), {1}, {fill_in_value});
-            target_axes.insert(std::next(target_axes.begin(), i), i);
-            ++added_indices_number;
-        } else {
-            adjusted_indices[i] = std::make_shared<opset8::Gather>(
-                indices,
-                opset8::Constant::create(indices.get_element_type(), {1}, {i - added_indices_number}),
-                gather_axis);
-        }
-        new_ops.push_back(adjusted_indices[i]);
-    }
-
-    if (!are_axes_sorted) {
-        NodeVector indices_tmp(adjusted_indices);
-        for (size_t i = 0; i < target_axes.size(); ++i) {
-            adjusted_indices[target_axes[i]] = indices_tmp[i];
-        }
-    }
-
-    auto concat = std::make_shared<opset8::Concat>(adjusted_indices, 0);
-    new_ops.push_back(concat);
-    return concat;
+    const auto default_indices = opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
+    const auto adjusted_indices = std::make_shared<opset8::ScatterUpdate>(
+                                                        default_indices,
+                                                        opset8::Constant::create(element::i64, Shape{axes.size()}, axes), // indices
+                                                        indices, // updates
+                                                        opset8::Constant::create(element::i32, Shape{1}, {0}));
+    new_ops.push_back(default_indices);
+    new_ops.push_back(adjusted_indices);
+    return adjusted_indices;
 }
+
 std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, uint64_t slice_indices_length) {
     std::vector<int64_t> mask(slice_indices_length, 1);
     for (auto axis : axes) {
