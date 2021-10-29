@@ -6,29 +6,29 @@
 #include "single_layer_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
-std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>>  inShapes = {
-        {{}, {{{2}}}},
-        {{}, {{{2, 200}}}},
-        {{}, {{{10, 200}}}},
-        {{}, {{{1, 10, 100}}}},
-        {{}, {{{4, 4, 16}}}},
-        {{}, {{{1, 1, 1, 3}}}},
-        {{}, {{{2, 17, 5, 4}, {1, 17, 1, 1}}}},
-        {{}, {{{2, 17, 5, 1}, {1, 17, 1, 4}}}},
-        {{}, {{{1, 2, 4}}}},
-        {{}, {{{1, 4, 4}}}},
-        {{}, {{{1, 4, 4, 1}}}},
-        {{}, {{{1, 4, 3, 2, 1, 3}}}},
-        {{}, {{{1, 3, 1, 1, 1, 3}, {1, 3, 1, 1, 1, 1}}}},
+std::vector<std::vector<ov::Shape>>  inShapes = {
+        {{2}},
+        {{2, 200}},
+        {{10, 200}},
+        {{1, 10, 100}},
+        {{4, 4, 16}},
+        {{1, 1, 1, 3}},
+        {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        {{2, 17, 5, 1}, {1, 17, 1, 4}},
+        {{1, 2, 4}},
+        {{1, 4, 4}},
+        {{1, 4, 4, 1}},
+        {{1, 4, 3, 2, 1, 3}},
+        {{1, 3, 1, 1, 1, 3}, {1, 3, 1, 1, 1, 1}},
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::I64,
+std::vector<ov::test::ElementType> netPrecisions = {
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i64,
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
@@ -55,14 +55,13 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
 std::map<std::string, std::string> additional_config = {};
 
 const auto multiply_params = ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes)),
         ::testing::ValuesIn(eltwiseOpTypes),
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(ov::element::undefined),
+        ::testing::Values(ov::element::undefined),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(additional_config));
 

@@ -136,9 +136,7 @@ void HeteroSyntheticTest::SetUp() {
     if (std::get<Function>(param)._dynamic_batch) {
         for (auto&& input : function->inputs()) {
             auto shape = input.get_partial_shape();
-            targetStaticShapes.emplace_back(1, shape.to_shape());
             shape[0] = ov::Dimension(1, 16);
-            inputDynamicShapes.push_back(shape);
         }
     }
 }
