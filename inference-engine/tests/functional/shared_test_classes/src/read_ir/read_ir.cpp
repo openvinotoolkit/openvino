@@ -131,6 +131,7 @@ std::vector<InferenceEngine::Blob::Ptr> ReadIRTest::GetOutputs() {
             }
         }
     }
+    iter_swap(outputs.begin() + 0, outputs.begin() + 2);
     return outputs;
 }
 } // namespace LayerTestsDefinitions

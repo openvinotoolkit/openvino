@@ -53,8 +53,6 @@ void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
     numBatches = inShapeParams[0];
     numClasses = inShapeParams[1];
     numBoxes = inShapeParams[2];
-//        auto input0 = node->get_input_tensor(0);
-
     auto iouFunc = [](const Box& boxI, const Box& boxJ) {
         const Rect& rectI = boxI.rect;
         const Rect& rectJ = boxJ.rect;
@@ -78,7 +76,7 @@ void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
         return intersection_area / (areaI + areaJ - intersection_area);
     };
 
-//         Get input bboxes' coords
+    // Get input bboxes' coords
     std::vector<std::vector<Rect>> coordList(numBatches, std::vector<Rect>(numBoxes));
     {
         const auto &input = inputs[0];
@@ -151,7 +149,7 @@ void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
         std::sort(expectedList.begin(), expectedList.end(), compareBox);
     }
 
-//        // Get actual bboxes' index/score
+    // Get actual bboxes' index/score
     std::vector<Box> actualList;
     {
         size_t selected_indices_size = actualOutputs[0]->byteSize() / sizeof(float);
@@ -170,6 +168,7 @@ void compare(const std::shared_ptr<ngraph::op::v5::NonMaxSuppression> node,
             const int32_t classId = selected_indices_data[i+1];
             const int32_t boxId   = selected_indices_data[i+2];
             const float score = selected_scores_data[i+2];
+            std::cout << "batchId: " << batchId << " " << "boxId" << boxId << std::endl;
             if (batchId == -1 || classId == -1 || boxId == -1)
                 break;
 

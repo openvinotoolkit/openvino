@@ -475,7 +475,12 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTe
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs;
     switch (refMode) {
         case INTERPRETER: {
+            std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> expectedOutputs_copy(3);
             expectedOutputs = ngraph::helpers::interpreterFunction(functionRefs, referenceInputs, refInputsTypes);
+            iter_swap(expectedOutputs.begin() + 0, expectedOutputs.begin() + 2);
+//            expectedOutputs[0] = expectedOutputs_copy[1];
+//            expectedOutputs[1] = expectedOutputs_copy[2];
+//            expectedOutputs[2] = expectedOutputs_copy[0];
             break;
         }
         case CONSTANT_FOLDING: {
@@ -522,24 +527,39 @@ void LayerTestsCommon::Validate() {
 
     std::cout << "Expected:" << std::endl;
     for (std::size_t i = 0; i < expectedOutputs.size(); ++i) {
-        std::cout << '\t' << i << ": " << expectedOutputs[i].first.size() << ' ' << expectedOutputs[i].second.size() << " bytes - "
-        << expectedOutputs[i].first.get_type_name() << std::endl;
+        std::cout << '\t' << i << ": " << expectedOutputs[i].second.size() << " bytes - "
+        << expectedOutputs[i].first.get_type_name() << " (" << expectedOutputs[i].first.size() << ")" << std::endl << '\t';
+        for (std::size_t j = 0; j < fmin(expectedOutputs[i].second.size(), 100); ++j) {
+            int val = expectedOutputs[i].second[j];
+            std::cout << val << " ";
+        }
+        std::cout << std::endl;
     }
     std::cout << std::endl;
 
     std::cout << "Actual:" << std::endl;
     for (std::size_t i = 0; i < actualOutputs.size(); ++i) {
+        std::size_t actual_size = 1;
         std::cout << '\t' << i << ": ";
         auto dims = actualOutputs[i]->getTensorDesc().getDims();
         for (std::size_t j = 0; j < dims.size(); ++j) {
+            actual_size *= dims[j];
             std::cout << dims[j];
             if (j < dims.size() - 1) {
                 std::cout << '*';
             }
         }
-        std::cout << " elems ";
+        std::cout << " elems  - ";
         std::cout << actualOutputs[0]->getTensorDesc().getPrecision().name();
+        std::cout << std::endl << '\t';
+        auto data = actualOutputs[i]->buffer().as<unsigned char*>();
+        std::size_t actual_size_bytes = actual_size * 8;
+        for (std::size_t j = 0; j < fmin(actual_size_bytes, 100); ++j) {
+            int val = data[j];
+            std::cout << val << " ";
+        }
         std::cout << std::endl;
+//        int val = expectedOutputs[i].second[j];
     }
     std::cout << std::endl;
 
