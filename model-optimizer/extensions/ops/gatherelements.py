@@ -3,8 +3,10 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import dynamic_dimension
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
+from mo.utils.error import Error
 
 
 class GatherElements(Op):
@@ -33,18 +35,19 @@ class GatherElements(Op):
 
         assert data_rank >= 1, 'data_rank must be >= 1'
         assert data_rank == len(indices_shape), 'data and indices inputs for node {} must be of the ' \
-                                                'same rank. Instead got {} and {}'.\
-                                                format(node.name, data_rank, len(indices_shape))
+                                                'same rank. Instead got {} and {}'. \
+            format(node.name, data_rank, len(indices_shape))
         assert -data_rank <= axis < data_rank, 'axis for node {0} must be within interval ' \
-                                               '[-{1}},  {1} - 1]. Instead got: axis={2}'.\
-                                               format(node.name, data_rank, axis)
+                                               '[-{1},  {1} - 1]. Instead got: axis={2}'. \
+            format(node.name, data_rank, axis)
         if axis < 0:
             axis += data_rank
-
+        out_shape = indices_shape.copy()
         for idx, (data_sz, ind_sz) in enumerate(zip(data_shape, indices_shape)):
+            out_shape[idx] = ind_sz if ind_sz is not dynamic_dimension or idx == axis else data_sz
             if idx != axis and data_sz != ind_sz:
-                raise ValueError('Sizes along axis {} for node {} do not match. data and indices must have ' 
-                                 'equal size along all axes except for axis {}'.format(idx, node.name, axis))
+                raise Error('Sizes along axis {} for node {} do not match. data and indices must have '
+                            'equal size along all axes except for axis {}'.format(idx, node.name, axis))
 
         data = node.in_port(0).data.get_value()
         indices = node.in_port(1).data.get_value()
@@ -57,6 +60,6 @@ class GatherElements(Op):
                 out_value[idx] = data[tuple(data_idx)]
             node.out_port(0).data.set_value(out_value)
         else:
-            node.out_port(0).data.set_shape(indices_shape)
+            node.out_port(0).data.set_shape(out_shape)
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
