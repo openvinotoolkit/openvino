@@ -822,3 +822,93 @@ TEST_F(RTInfoDeserialization, IndexesInputAndOutputV11) {
     ASSERT_EQ(f->get_results()[0]->get_friendly_name(), "output2");
     ASSERT_EQ(f->get_results()[1]->get_friendly_name(), "output1");
 }
+
+TEST_F(RTInfoDeserialization, V11toV10WithoutRTInfo) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <rt_info>
+                        <attribute name="fused_names" version="0" value="test1,test2"/>
+                        <attribute name="layout" version="0" layout="[N,C,H,W]" />
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="sum" type="Add" version="opset1">
+            <input>
+                <port id="0">
+                    <rt_info>
+                        <attribute name="fused_names" version="0" value="test2,test3"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+                <port id="1">
+                    <rt_info>
+                        <attribute name="fused_names" version="0" value="test3,test4"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <rt_info>
+                        <attribute name="fused_names" version="0" value="test4,test5"/>
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <input>
+                <port id="0" precision="FP32">
+                    <rt_info>
+                        <attribute name="fused_names" version="0" value="test5,test6"/>
+                        <attribute name="layout" version="0" layout="[?,C,H,W]" />
+                    </rt_info>
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
+        auto& rt_info = f->get_rt_info();
+        ASSERT_TRUE(rt_info.count("version"));
+        auto version = std::dynamic_pointer_cast<VariantWrapper<int64_t>>(rt_info.at("version"));
+        ASSERT_NE(version, nullptr);
+        ASSERT_EQ(version->get(), ref_version);
+    };
+    InferenceEngine::Core core;
+    auto cnn = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+    auto f_10 = cnn.getFunction();
+    ASSERT_NE(nullptr, f_10);
+
+    check_version(f_10, 10);
+}
