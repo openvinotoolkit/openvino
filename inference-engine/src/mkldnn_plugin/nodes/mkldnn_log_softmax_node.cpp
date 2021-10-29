@@ -40,7 +40,7 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    SizeVector dims = getInputShapeAtPort(0).getDims();
+    VectorDims dims = getInputShapeAtPort(0).getDims();
     if (dims.empty())
         dims = SizeVector(1, 1);
     axis = logSoftMax->get_axis();
@@ -49,12 +49,6 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
 
     if (dims.size() < static_cast<size_t>((size_t)(1) + axis))
         IE_THROW() << errorPrefix << " has incorrect input parameters dimensions and axis number!";
-
-    int j;
-    for (j = dims.size() - 1; j >= 0; j--) {
-        if (dims[j] != Shape::UNDEFINED_DIM && dims[j] != 1) break;
-    }
-    if (dims[j] != Shape::UNDEFINED_DIM && j == axis) isLastDim = true;
 }
 
 void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
@@ -66,20 +60,36 @@ void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
-void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {
-    const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+void MKLDNNLogSoftmaxNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
 
-    const auto dims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    size_t reducedAxisSize;
-    size_t reducedAxisStride = 1;
-    size_t axisStep = 1;
+void MKLDNNLogSoftmaxNode::prepareParams() {
+    const auto &dims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    reducedAxisStride = 1;
+    axisStep = 1;
+    isLastDim = false;
+
+    auto j = dims.size() - 1;
+    for (; j >= 0; j--) {
+        if (dims[j] != 1) break;
+    }
+    if (j == axis) isLastDim = true;
 
     for (int i = 0; i < axis; i++)
         axisStep *= dims[i];
     reducedAxisSize = dims[axis];
     for (size_t i = (axis + 1); i < dims.size(); i++)
         reducedAxisStride *= dims[i];
+}
+
+void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {
+    const float *srcData = reinterpret_cast<const float *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    float* dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
     if (isLastDim) {
         parallel_for(axisStep, [&](size_t i) {
