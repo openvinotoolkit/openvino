@@ -57,7 +57,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         from ngraph.impl import Function  # pylint: disable=import-error,no-name-in-module
         from ngraph.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
         from _pyngraph import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
-        from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
+        from openvino.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
 
         import openvino  # pylint: disable=import-error,no-name-in-module
         import ngraph  # pylint: disable=import-error,no-name-in-module
