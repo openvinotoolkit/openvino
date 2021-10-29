@@ -45,10 +45,6 @@ bool is_operator_supported(const std::string& op_name, std::int64_t version, con
     return OperatorsBridge::is_operator_registered(op_name, version, domain == "ai.onnx" ? "" : domain);
 }
 
-void convert_decoded_function(std::shared_ptr<Function> function) {
-    detail::convert_decoded_function(function);
-}
-
 }  // namespace onnx_import
 
 }  // namespace ngraph

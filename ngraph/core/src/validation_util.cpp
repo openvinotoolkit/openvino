@@ -1182,6 +1182,8 @@ bool ngraph::could_propagate(const Output<Node>& output, std::vector<Node*>& ord
     return status;
 }
 
+namespace {
+
 void propagate_rt_info(Node* node, const Output<Node>& final_port) {
     auto node_outputs = node->outputs();
     bool same_outputs = std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
@@ -1259,6 +1261,8 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper) {
         return output.get_tensor().get_lower_value();
 }
 
+}  // namespace
+
 HostTensorPtr ngraph::evaluate_lower_bound(const Output<Node>& output) {
     return evaluate_bound(output, false);
 }
@@ -1290,7 +1294,7 @@ bool ov::evaluate_as_partial_shape(const Output<Node>& output, PartialShape& psh
     return shape_defined;
 }
 
-bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
+inline bool default_bound_evaluator(const Node* node, const HostTensorVector& output_values, bool is_upper) {
     HostTensorVector input_tensors;
     for (const auto& input : node->input_values()) {
         if (auto bound = is_upper ? input.get_tensor().get_upper_value() : input.get_tensor().get_lower_value())
@@ -1367,6 +1371,8 @@ shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
     }
 }
 
+namespace {
+
 HostTensorPtr equality_mask(const HostTensorPtr& tensor, const shared_ptr<op::Constant>& constant) {
     auto mask = std::make_shared<HostTensor>(element::boolean, tensor->get_shape());
     const auto& param = std::make_shared<op::Parameter>(tensor->get_element_type(), tensor->get_shape());
@@ -1383,6 +1389,8 @@ HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs) {
         .evaluate({result}, {lhs, rhs});
     return result;
 }
+
+}  // namespace
 
 bool ngraph::interval_bound_evaluator(const Node* node,
                                       const HostTensorVector& lower_output_values,
