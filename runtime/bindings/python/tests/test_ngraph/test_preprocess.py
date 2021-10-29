@@ -4,6 +4,7 @@
 import numpy as np
 import pytest
 
+import openvino as ov
 import openvino.opset8 as ops
 from openvino.impl.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo
 from openvino.impl import Function, Output, Node, Type
@@ -27,6 +28,55 @@ def test_ngraph_preprocess_mean():
 
     input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
     expected_output = np.array([[0, 1], [2, 3]]).astype(np.float32)
+
+    runtime = get_runtime()
+    computation = runtime.computation(function)
+    output = computation(input_data)
+    assert np.equal(output, expected_output).all()
+
+def test_ngraph_preprocess_mean_vector():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    function = Function(model, [parameter_a], "TestFunction")
+    layout = ov.Layout("NCHW")
+
+    function = PrePostProcessor()\
+        .input(InputInfo()
+               .tensor(InputTensorInfo().set_layout(layout))
+               .preprocess(PreProcessSteps()
+                           .mean([1., 2.])
+                           )
+               )\
+        .build(function)
+
+    input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
+    expected_output = np.array([[0, 0], [2, 2]]).astype(np.float32)
+
+    runtime = get_runtime()
+    computation = runtime.computation(function)
+    output = computation(input_data)
+    assert np.equal(output, expected_output).all()
+
+
+def test_ngraph_preprocess_scale_vector():
+    shape = [2, 2]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
+    model = parameter_a
+    function = Function(model, [parameter_a], "TestFunction")
+    layout = ov.Layout("NCHW")
+
+    function = PrePostProcessor()\
+        .input(InputInfo()
+               .tensor(InputTensorInfo().set_layout(layout))
+               .preprocess(PreProcessSteps()
+                           .scale([0.5, 2.])
+                           )
+               )\
+        .build(function)
+
+    input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
+    expected_output = np.array([[2, 1], [6, 2]]).astype(np.float32)
 
     runtime = get_runtime()
     computation = runtime.computation(function)
