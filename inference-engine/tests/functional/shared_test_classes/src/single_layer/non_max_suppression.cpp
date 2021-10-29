@@ -315,7 +315,8 @@ void NmsLayerTest::SetUp() {
     op::v5::NonMaxSuppression::BoxEncodingType boxEncoding;
     bool sortResDescend;
     element::Type outType;
-    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType, targetDevice) = this->GetParam();
+    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, maxOutBoxesType, boxEncoding, sortResDescend, outType,
+             targetDevice) = this->GetParam();
 
     element::Type paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -333,7 +334,7 @@ void NmsLayerTest::SetUp() {
         ov::Dimension numBatches(batches), numBoxes(boxes), numClasses(classes);
         inputDynamicShapes = std::vector<ngraph::PartialShape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}};
     }
-    
+
     for (const auto &ts : targetInDims) {
         size_t numBatches, numBoxes, numClasses;
         std::tie(numBatches, numBoxes, numClasses) = ts;
