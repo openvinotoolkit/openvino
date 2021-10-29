@@ -81,7 +81,7 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(additional_config));
 
 const auto multiply_params_dynamic = ::testing::Combine(
@@ -92,7 +92,7 @@ const auto multiply_params_dynamic = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_static, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
@@ -122,7 +122,7 @@ const auto single_thread_params = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::element::undefined),
         ::testing::Values(ov::element::undefined),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
         ::testing::Values(additional_config_single_thread));
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
