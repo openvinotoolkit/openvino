@@ -132,7 +132,7 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     if (prim)
         return;
 
-    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
+    AttrPtr attr = initPrimitiveAttr();
     std::shared_ptr<inner_product_forward::primitive_desc> prim_desc;
     prim_desc = std::make_shared<inner_product_forward::primitive_desc>(
             createPrimitiveDescriptor<inner_product_forward::primitive_desc, inner_product_forward::desc>(*attr));
@@ -268,7 +268,7 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
     return implPriorities;
 }
 
-std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveAttr() {
+MKLDNNNode::AttrPtr MKLDNNFullyConnectedNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
     setPostOps(*attr, true, true);

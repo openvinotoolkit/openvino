@@ -638,7 +638,7 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
         outDescs.emplace_back(outConf.desc);
     createDescriptor(inDescs, outDescs);
 
-    std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
+    AttrPtr attr = initPrimitiveAttr();
 
     NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
