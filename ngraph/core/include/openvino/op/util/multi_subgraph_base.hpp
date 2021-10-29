@@ -294,7 +294,6 @@ protected:
     MultiSubGraphOp(size_t number_of_bodies);
     MultiSubGraphOp() = default;
     MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies);
-    explicit MultiSubGraphOp(const OutputVector& args);
 
     std::vector<std::shared_ptr<Function>> m_bodies;
     std::vector<MultiSubgraphInputDescriptionVector> m_input_descriptions;
