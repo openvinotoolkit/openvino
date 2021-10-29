@@ -14,8 +14,8 @@ namespace tf {
 namespace op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0);
-    auto ng_filter = node.get_ng_input(1);
+    auto ng_input = node.get_input(0);
+    auto ng_filter = node.get_input(1);
 
     auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
     auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
@@ -83,7 +83,7 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
                                vec_str_cmp(fused_ops, {"BiasAdd"}) || vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"}),
                                "Unsupported fused operations.");
         TF_OP_VALIDATION_CHECK(node, num_args == 1, "FusedDepthwiseConv2dNativeBiasAdd has incompatible num_args");
-        auto ng_bias = node.get_ng_input(2);
+        auto ng_bias = node.get_input(2);
 
         auto ng_conv_shape = ng_conv.get_shape();
         auto ng_bias_shape = ng_bias.get_shape();

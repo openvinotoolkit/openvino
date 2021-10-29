@@ -13,10 +13,10 @@ namespace frontend {
 namespace tf {
 namespace op {
 OutputVector translate_select_op(const NodeContext& node) {
-    TF_OP_VALIDATION_CHECK(node, node.get_all_ng_inputs().size() == 3, "Select op cannot be converted");
-    auto in_1 = node.get_ng_input(0);
-    auto in_2 = node.get_ng_input(1);
-    auto in_3 = node.get_ng_input(2);
+    TF_OP_VALIDATION_CHECK(node, node.get_all_inputs().size() == 3, "Select op cannot be converted");
+    auto in_1 = node.get_input(0);
+    auto in_2 = node.get_input(1);
+    auto in_3 = node.get_input(2);
     if (in_1.get_partial_shape().is_static() && in_2.get_partial_shape().is_static()) {
         // select broadcast
         if (in_1.get_shape().size() == 1 && in_2.get_shape().size() > 1) {

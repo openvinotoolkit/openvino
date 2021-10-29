@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_reciprocal_op(const NodeContext& node) {
-    auto x = node.get_ng_input(0);
+    auto x = node.get_input(0);
     auto ng_exponent = make_shared<Constant>(x.get_element_type(), Shape{}, -1);
     auto res = make_shared<Power>(x, ng_exponent);
     set_node_name(node.get_name(), res);

@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 ov::OutputVector translate_leaky_relu_op(const NodeContext& node) {
-    auto in = node.get_ng_input(0);
+    auto in = node.get_input(0);
     auto alpha_attr = node.get_attribute<float>("alpha", 0.f);
     auto alpha_const = make_shared<Constant>(element::f32, Shape{1}, alpha_attr);
 

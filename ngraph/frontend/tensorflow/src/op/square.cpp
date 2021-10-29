@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_square_op(const NodeContext& node) {
-    auto n = node.get_ng_input(0);
+    auto n = node.get_input(0);
     auto res = make_shared<Multiply>(n, n);
     set_node_name(node.get_name(), res);
     return res->outputs();

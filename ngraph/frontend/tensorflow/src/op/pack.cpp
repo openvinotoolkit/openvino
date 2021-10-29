@@ -18,8 +18,8 @@ OutputVector translate_pack_op(const NodeContext& node) {
     auto axis_const = make_shared<Constant>(element::i64, Shape{}, axis);
 
     OutputVector concat_inputs;
-    for (size_t i = 0; i < node.get_ng_input_size(); ++i) {
-        auto in = node.get_ng_input(i);
+    for (size_t i = 0; i < node.get_input_size(); ++i) {
+        auto in = node.get_input(i);
         concat_inputs.push_back(make_shared<Unsqueeze>(in, axis_const));
     }
 

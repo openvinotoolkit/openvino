@@ -14,8 +14,8 @@ namespace tf {
 namespace op {
 
 OutputVector translate_tile_op(const NodeContext& node) {
-    auto data = node.get_ng_input(0);
-    auto repeats = node.get_ng_input(1);
+    auto data = node.get_input(0);
+    auto repeats = node.get_input(1);
 
     auto res = make_shared<Tile>(data, repeats);
     set_node_name(node.get_name(), res);

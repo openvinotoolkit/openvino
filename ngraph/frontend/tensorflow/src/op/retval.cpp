@@ -15,16 +15,16 @@ namespace op {
 
 OutputVector translate_retval_op(const NodeContext& node) {
     // Make sure that this _Retval only has one input node.
-    if (node.get_ng_input_size() != 1) {
+    if (node.get_input_size() != 1) {
         TF_OP_VALIDATION_CHECK(node,
                                false,
-                               "_Retval has " + to_string(node.get_ng_input_size()) + " inputs, should have 1");
+                               "_Retval has " + to_string(node.get_input_size()) + " inputs, should have 1");
     }
 
     // auto ret_val_index = node.get_attribute<int>("index");
     // TODO: Put ret_val_index to RT info that should be later utilized to order outpus by indices
 
-    auto res = make_shared<Result>(node.get_ng_input(0));
+    auto res = make_shared<Result>(node.get_input(0));
     set_node_name(node.get_name(), res);
     return res->outputs();
 }

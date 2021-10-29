@@ -13,8 +13,8 @@ namespace frontend {
 namespace tf {
 namespace op {
 ov::OutputVector translate_interpolate_op(const NodeContext& node) {
-    auto input = node.get_ng_input(0);
-    auto input_sizes = node.get_ng_input(1);
+    auto input = node.get_input(0);
+    auto input_sizes = node.get_input(1);
 
     Interpolate::InterpolateAttrs interpolate_attrs;
     interpolate_attrs.mode = Interpolate::InterpolateMode::LINEAR;

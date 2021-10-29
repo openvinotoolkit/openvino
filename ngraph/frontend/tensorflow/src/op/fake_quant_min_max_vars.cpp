@@ -14,9 +14,9 @@ namespace tf {
 namespace op {
 
 OutputVector translate_fake_quant_op(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0);
-    auto ng_min = node.get_ng_input(1);
-    auto ng_max = node.get_ng_input(2);
+    auto ng_input = node.get_input(0);
+    auto ng_min = node.get_input(1);
+    auto ng_max = node.get_input(2);
 
     auto narrow_range = node.get_attribute<bool>("narrow_range");
     auto num_bits = node.get_attribute<int64_t>("num_bits");

@@ -21,7 +21,7 @@ OutputVector translate_fused_mat_mul_op(const NodeContext& node) {
     auto transpose_a = node.get_attribute<bool>("transpose_a", false);
     auto transpose_b = node.get_attribute<bool>("transpose_b", false);
 
-    auto ng_lhs = node.get_ng_input(0), ng_rhs = node.get_ng_input(1), ng_bias = node.get_ng_input(2);
+    auto ng_lhs = node.get_input(0), ng_rhs = node.get_input(1), ng_bias = node.get_input(2);
 
     Output<Node> ng_matmul = make_shared<MatMul>(ng_lhs, ng_rhs, transpose_a, transpose_b);
 

@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_conv_2d_op(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1);
+    auto ng_input = node.get_input(0), ng_filter = node.get_input(1);
 
     auto tf_strides = node.get_attribute<std::vector<int32_t>>("strides");
     auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");

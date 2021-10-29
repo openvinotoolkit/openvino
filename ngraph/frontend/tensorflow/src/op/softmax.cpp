@@ -14,7 +14,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 OutputVector translate_softmax_op(const NodeContext& node) {
-    auto ng_inp = node.get_ng_input(0);
+    auto ng_inp = node.get_input(0);
     // todo: switch to opset8::Softmax when is ready and delete Dynamic rank limitation
     TF_OP_VALIDATION_CHECK(node, ng_inp.get_partial_shape().rank().is_static(), "Dynamic rank is not supported.");
     size_t axis = ng_inp.get_partial_shape().rank().get_length() - 1;

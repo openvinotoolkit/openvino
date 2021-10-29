@@ -15,9 +15,9 @@ namespace frontend {
 namespace tf {
 namespace op {
 ov::OutputVector translate_roll_op(const NodeContext& node) {
-    auto data = node.get_ng_input(0);
-    auto shift = node.get_ng_input(1);
-    auto axis = node.get_ng_input(2);
+    auto data = node.get_input(0);
+    auto shift = node.get_input(1);
+    auto axis = node.get_input(2);
     auto res = std::make_shared<Roll>(data, shift, axis);
     set_node_name(node.get_name(), res);
     return res->outputs();

@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_l2_loss_op(const NodeContext& node) {
-    auto input = node.get_ng_input(0);
+    auto input = node.get_input(0);
 
     vector<float> val;
     val.push_back(2.0);

@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 ov::OutputVector translate_size_op(const NodeContext& node) {
-    auto data = node.get_ng_input(0);
+    auto data = node.get_input(0);
     auto out_type = node.get_attribute<ov::element::Type>("out_type");
     auto shape_of = make_shared<ShapeOf>(data, out_type);
     auto axis = make_shared<Constant>(ov::element::i64, Shape{}, 0);

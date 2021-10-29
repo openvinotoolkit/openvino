@@ -14,8 +14,8 @@ namespace tf {
 namespace op {
 
 OutputVector translate_reverse_op(const NodeContext& node) {
-    auto input = node.get_ng_input(0);
-    auto axes = node.get_ng_input(1);
+    auto input = node.get_input(0);
+    auto axes = node.get_input(1);
 
     auto axes_const = dynamic_pointer_cast<Constant>(axes.get_node_shared_ptr());
     TF_OP_VALIDATION_CHECK(node, axes_const != nullptr, "Axes input must be constant.");

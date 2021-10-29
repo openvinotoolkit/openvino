@@ -14,8 +14,8 @@ namespace tf {
 namespace op {
 
 OutputVector translate_x_div_y_op(const NodeContext& node) {
-    auto x = node.get_ng_input(0);
-    auto y = node.get_ng_input(1);
+    auto x = node.get_input(0);
+    auto y = node.get_input(1);
 
     auto zero = make_shared<Constant>(x.get_element_type(), Shape{}, 0);
     auto x_is_zero = make_shared<Equal>(x, zero);

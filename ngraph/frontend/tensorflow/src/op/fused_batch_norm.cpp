@@ -14,11 +14,11 @@ namespace tf {
 namespace op {
 
 OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0);
-    auto ng_scale = node.get_ng_input(1);
-    auto ng_offset = node.get_ng_input(2);
-    auto ng_mean = node.get_ng_input(3);
-    auto ng_variance = node.get_ng_input(4);
+    auto ng_input = node.get_input(0);
+    auto ng_scale = node.get_input(1);
+    auto ng_offset = node.get_input(2);
+    auto ng_mean = node.get_input(3);
+    auto ng_variance = node.get_input(4);
 
     bool is_v3 = node.get_op_type() == "FusedBatchNormV3";
     bool is_Ex = node.get_op_type() == "_FusedBatchNormEx";

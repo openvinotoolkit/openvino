@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
-    Output<Node> ng_input = node.get_ng_input(0);
+    Output<Node> ng_input = node.get_input(0);
 
     std::vector<int64_t> tf_dim;
     get_static_input_vec(node, 1, &tf_dim);

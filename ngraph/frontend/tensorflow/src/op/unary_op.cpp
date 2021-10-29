@@ -15,7 +15,7 @@ namespace op {
 
 OutputVector translate_unary_op(const NodeContext& op,
                                 const std::function<shared_ptr<Node>(Output<Node>)>& create_unary_op) {
-    auto ng_input = op.get_ng_input(0);
+    auto ng_input = op.get_input(0);
     auto res = create_unary_op(ng_input);
     set_node_name(op.get_name(), res);
     return {res};

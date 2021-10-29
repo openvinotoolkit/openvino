@@ -19,7 +19,7 @@ OutputVector translate_is_finite_op(const NodeContext& node) {
     // (in != inf) && (in != -inf) && (in == in)
     //                                 ^^^^^^^^ checks for NaN's
 
-    auto input = node.get_ng_input(0);
+    auto input = node.get_input(0);
     auto el_type = input.get_element_type();
 
     auto inf = make_shared<Constant>(el_type, Shape{}, vector<float>{numeric_limits<float>::infinity()});

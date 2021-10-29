@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_lrn_op(const NodeContext& node) {
-    auto input = node.get_ng_input(0);
+    auto input = node.get_input(0);
     auto alpha = node.get_attribute<float>("alpha");
     auto beta = node.get_attribute<float>("beta");
     auto bias = node.get_attribute<float>("bias");

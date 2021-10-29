@@ -13,9 +13,9 @@ namespace frontend {
 namespace tf {
 namespace op {
 OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
-    auto input = node.get_ng_input(0);
-    auto block_shape = node.get_ng_input(1);
-    auto crops = node.get_ng_input(2);
+    auto input = node.get_input(0);
+    auto block_shape = node.get_input(1);
+    auto crops = node.get_input(2);
 
     // ng_crops should be of shape N=[ng_input.get_shape()).size()]
     // But TF's ng_crops input is limited only to the spatial dimensions (neither

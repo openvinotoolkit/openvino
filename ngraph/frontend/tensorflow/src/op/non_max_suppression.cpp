@@ -14,10 +14,10 @@ namespace tf {
 namespace op {
 
 OutputVector translate_non_max_suppression_op(const NodeContext& node) {
-    auto boxes = node.get_ng_input(0);
-    auto scores = node.get_ng_input(1);
-    auto max_output_size = node.get_ng_input(2);
-    auto iou_threshold = node.get_ng_input(3);
+    auto boxes = node.get_input(0);
+    auto scores = node.get_input(1);
+    auto max_output_size = node.get_input(2);
+    auto iou_threshold = node.get_input(3);
 
     auto axis = make_shared<Constant>(element::i64, Shape{1}, 0);
     auto boxes_unsqueezed = make_shared<Unsqueeze>(boxes, axis);
@@ -27,8 +27,8 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
 
     const auto& op_type = node.get_op_type();
     if (op_type == "NonMaxSuppressionV5") {
-        auto score_threshold = node.get_ng_input(4);
-        auto soft_nms_sigma = node.get_ng_input(5);
+        auto score_threshold = node.get_input(4);
+        auto soft_nms_sigma = node.get_input(5);
         // todo: pad_to_max_output_size
         auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
                                                   scores_unsqueezed,
@@ -42,7 +42,7 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
         set_node_name(node.get_name(), res);
         return res->outputs();
     } else if (op_type == "NonMaxSuppressionV4") {
-        auto score_threshold = node.get_ng_input(4);
+        auto score_threshold = node.get_input(4);
         // todo: pad_to_max_output_size
         auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
                                                   scores_unsqueezed,
@@ -55,7 +55,7 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
         set_node_name(node.get_name(), res);
         return res->outputs();
     } else if (op_type == "NonMaxSuppressionV3") {
-        auto score_threshold = node.get_ng_input(4);
+        auto score_threshold = node.get_input(4);
         auto res = make_shared<NonMaxSuppression>(boxes_unsqueezed,
                                                   scores_unsqueezed,
                                                   max_output_size,

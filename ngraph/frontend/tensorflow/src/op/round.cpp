@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_round_op(const NodeContext& node) {
-    auto input = node.get_ng_input(0);
+    auto input = node.get_input(0);
     // using default round mode "half_to_even" in openvino,
     // as TF has only that mode
     auto round_mode = Round::RoundMode::HALF_TO_EVEN;

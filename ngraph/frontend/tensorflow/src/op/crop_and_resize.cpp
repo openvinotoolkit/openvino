@@ -26,10 +26,10 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
     ///  1. crop ng_input[ng_box_ind[b]] w/ co-ordinates in ng_boxes
     ///  2. resize according to method
 
-    auto ng_input = node.get_ng_input(0);
-    auto ng_boxes = node.get_ng_input(1);
-    auto ng_box_ind = node.get_ng_input(2);
-    auto ng_size = node.get_ng_input(3);
+    auto ng_input = node.get_input(0);
+    auto ng_boxes = node.get_input(1);
+    auto ng_box_ind = node.get_input(2);
+    auto ng_size = node.get_input(3);
 
     auto resize_method = node.get_attribute<string>("method");
 

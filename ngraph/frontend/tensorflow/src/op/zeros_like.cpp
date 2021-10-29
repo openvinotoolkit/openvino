@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_zeros_like_op(const NodeContext& node) {
-    auto x = node.get_ng_input(0);
+    auto x = node.get_input(0);
     auto shape_of = make_shared<ShapeOf>(x);
     auto zero = make_shared<Constant>(x.get_element_type(), Shape{1}, 0);
     auto res = make_shared<Broadcast>(zero, shape_of);

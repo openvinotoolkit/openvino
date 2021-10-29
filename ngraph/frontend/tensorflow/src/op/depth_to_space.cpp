@@ -15,7 +15,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_depth_to_space_op(const NodeContext& node) {
-    Output<Node> ng_input = node.get_ng_input(0);
+    Output<Node> ng_input = node.get_input(0);
 
     // Get the attributes
     auto block_size = node.get_attribute<int64_t>("block_size");

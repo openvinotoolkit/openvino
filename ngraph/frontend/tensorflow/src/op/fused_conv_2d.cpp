@@ -73,7 +73,7 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
             TF_OP_VALIDATION_CHECK(node, false, "FusedConv2DBiasAdd has incompatible num_args");
         }
 
-        auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1), ng_bias = node.get_ng_input(2),
+        auto ng_input = node.get_input(0), ng_filter = node.get_input(1), ng_bias = node.get_input(2),
              ng_conv = CreateNgConv(ng_input, ng_filter);
 
         auto ng_conv_shape = ng_conv.get_shape();
@@ -108,8 +108,8 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
             TF_OP_VALIDATION_CHECK(node, false, "FusedConv2D with FusedBatchNorm has incompatible num_args");
         }
 
-        auto ng_input = node.get_ng_input(0), ng_filter = node.get_ng_input(1), ng_scale = node.get_ng_input(2),
-             ng_offset = node.get_ng_input(3), ng_mean = node.get_ng_input(4), ng_variance = node.get_ng_input(5),
+        auto ng_input = node.get_input(0), ng_filter = node.get_input(1), ng_scale = node.get_input(2),
+             ng_offset = node.get_input(3), ng_mean = node.get_input(4), ng_variance = node.get_input(5),
              ng_conv = CreateNgConv(ng_input, ng_filter);
 
         auto tf_epsilon = node.get_attribute<float>("epsilon");

@@ -14,8 +14,8 @@ namespace tf {
 namespace op {
 
 OutputVector translate_top_k_v2_op(const NodeContext& node) {
-    auto input = node.get_ng_input(0);
-    auto k = node.get_ng_input(1);
+    auto input = node.get_input(0);
+    auto k = node.get_input(1);
 
     TF_OP_VALIDATION_CHECK(node, input.get_partial_shape().rank().is_static(), "Input rank must be static.");
     TF_OP_VALIDATION_CHECK(node,

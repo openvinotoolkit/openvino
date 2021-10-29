@@ -14,9 +14,9 @@ namespace tf {
 namespace op {
 
 OutputVector translate_range_op(const NodeContext& node) {
-    auto start = node.get_ng_input(0);
-    auto stop = node.get_ng_input(1);
-    auto step = node.get_ng_input(2);
+    auto start = node.get_input(0);
+    auto stop = node.get_input(1);
+    auto step = node.get_input(2);
     auto out_type = node.get_attribute<ov::element::Type>("Tidx");
 
     auto res = make_shared<Range>(start, stop, step, out_type);

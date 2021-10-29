@@ -14,15 +14,15 @@ namespace tf {
 namespace op {
 
 OutputVector translate_no_op(const NodeContext& node) {
-    if (node.get_ng_input_size() == 0) {
+    if (node.get_input_size() == 0) {
         return OutputVector{};
     }
 
     TF_OP_VALIDATION_CHECK(node,
-                           node.get_ng_input_size() == 1,
-                           "NoOp has " + to_string(node.get_ng_input_size()) + " inputs, should have 1");
+                           node.get_input_size() == 1,
+                           "NoOp has " + to_string(node.get_input_size()) + " inputs, should have 1");
 
-    auto input = node.get_ng_input(0);
+    auto input = node.get_input(0);
     set_out_name(node.get_name(), input);
     set_out_name(node.get_name() + ":" + "0", input);
     return {input};

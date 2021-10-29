@@ -13,7 +13,7 @@ namespace frontend {
 namespace tf {
 namespace op {
 ov::OutputVector translate_random_uniform_op(const NodeContext& node) {
-    auto shape = node.get_ng_input(0);
+    auto shape = node.get_input(0);
     auto seed = node.get_attribute<int64_t>("seed", 0);
     auto seed2 = node.get_attribute<int64_t>("seed2", 0);
     auto minval_const = make_shared<Constant>(element::f32, Shape{}, 0);
@@ -25,9 +25,9 @@ ov::OutputVector translate_random_uniform_op(const NodeContext& node) {
 }
 
 ov::OutputVector translate_random_uniform_int_op(const NodeContext& node) {
-    auto shape = node.get_ng_input(0);
-    auto minval = node.get_ng_input(1);
-    auto maxval = node.get_ng_input(2);
+    auto shape = node.get_input(0);
+    auto minval = node.get_input(1);
+    auto maxval = node.get_input(2);
     auto seed = node.get_attribute<int64_t>("seed", 0);
     auto seed2 = node.get_attribute<int64_t>("seed2", 0);
     auto ng_et = minval.get_element_type();

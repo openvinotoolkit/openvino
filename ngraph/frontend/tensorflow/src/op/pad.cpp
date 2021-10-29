@@ -18,7 +18,7 @@ namespace tf {
 namespace op {
 
 OutputVector translate_pad_op(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0), ng_paddings_op = node.get_ng_input(1);
+    auto ng_input = node.get_input(0), ng_paddings_op = node.get_input(1);
     Output<Node> pad_val_op;
 
     // Set inputs and pad_val_op
@@ -26,7 +26,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
     if (op_type == "Pad" || op_type == "MirrorPad") {
         pad_val_op = make_shared<Constant>(ng_input.get_element_type(), Shape(), std::vector<int>({0}));
     } else if (op_type == "PadV2") {
-        pad_val_op = node.get_ng_input(2);
+        pad_val_op = node.get_input(2);
     } else {
         TF_OP_VALIDATION_CHECK(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
     }

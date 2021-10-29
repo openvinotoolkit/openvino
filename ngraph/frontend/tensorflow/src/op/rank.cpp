@@ -14,7 +14,7 @@ namespace tf {
 namespace op {
 
 ov::OutputVector translate_rank_op(const NodeContext& node) {
-    auto data = node.get_ng_input(0);
+    auto data = node.get_input(0);
     auto shape_of_1 = make_shared<ShapeOf>(data, ov::element::i64);
     auto res = make_shared<ShapeOf>(shape_of_1, ov::element::i64);
     set_node_name(node.get_name(), res);
