@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -10,6 +10,7 @@ Low level wrappers for the PrePostProcessing c++ api.
 
 # main classes
 from openvino.pyopenvino.preprocess import InputInfo
+from openvino.pyopenvino.preprocess import OutputInfo
 from openvino.pyopenvino.preprocess import InputTensorInfo
 from openvino.pyopenvino.preprocess import PrePostProcessor
 from openvino.pyopenvino.preprocess import PreProcessSteps
