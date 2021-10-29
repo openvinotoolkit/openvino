@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_model")
     parser.add_argument("--framework")
-    parser.add_argument("--transform")
+    parser.add_argument("--transform", nargs='?', const='')
     args = parser.parse_args()
 
     apply_offline_transformations(args.input_model, args.framework, parse_transform(args.transform))
