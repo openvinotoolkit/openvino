@@ -218,13 +218,10 @@ std::vector<ConstantParams> generateConstantDefinedTypeParams() {
 
 std::vector<ConstantParams> generateConstantCombinedParams() {
     const std::vector<std::vector<ConstantParams>> constantTypeParams {
-        generateConstantParams<element::Type_t::i4>(),
         generateConstantParams<element::Type_t::i8>(),
         generateConstantParams<element::Type_t::i16>(),
         generateConstantParams<element::Type_t::i32>(),
         generateConstantParams<element::Type_t::i64>(),
-        generateConstantParams<element::Type_t::u1>(),
-        generateConstantParams<element::Type_t::u4>(),
         generateConstantParams<element::Type_t::u8>(),
         generateConstantParams<element::Type_t::u16>(),
         generateConstantParams<element::Type_t::u32>(),
