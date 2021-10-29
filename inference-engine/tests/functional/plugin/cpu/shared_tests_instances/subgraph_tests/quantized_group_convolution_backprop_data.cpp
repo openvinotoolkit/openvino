@@ -44,7 +44,7 @@ const auto quantGroupConvBackpropData2DParams = ::testing::Combine(
         ::testing::ValuesIn(granularity)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_QuantGroupConvBackpropData2D, QuantGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConvBackpropData2D, QuantGroupConvBackpropDataLayerTest,
                         ::testing::Combine(
                                 quantGroupConvBackpropData2DParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -73,7 +73,7 @@ const auto quantGroupConvBackpropData3DParams = ::testing::Combine(
         ::testing::ValuesIn(granularity)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_QuantGroupConvBackpropData3D, QuantGroupConvBackpropDataLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_QuantGroupConvBackpropData3D, QuantGroupConvBackpropDataLayerTest,
                         ::testing::Combine(
                                 quantGroupConvBackpropData3DParams,
                                 ::testing::ValuesIn(netPrecisions),

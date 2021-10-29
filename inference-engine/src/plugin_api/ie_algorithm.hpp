@@ -38,7 +38,7 @@ bool contains(const C& container, const T& element) {
  * @brief Associative containers doesnt work with remove_if algorithm
  * @tparam ContainerT
  * @tparam PredicateT
- * @param data An associative container 
+ * @param data An associative container
  * @param predicate A predicate to remove values conditionally
  */
 template <typename Container, typename PredicateT>
@@ -64,7 +64,9 @@ inline void erase_if(Container& data, const PredicateT& predicate) {
  */
 template <typename TIterator>
 auto product(TIterator beg, TIterator en) -> typename std::remove_reference<decltype(*beg)>::type {
-    return std::accumulate(beg, en, static_cast<typename std::remove_reference<decltype(*beg)>::type>(1),
+    return std::accumulate(beg,
+                           en,
+                           static_cast<typename std::remove_reference<decltype(*beg)>::type>(1),
                            std::multiplies<typename std::remove_reference<decltype(*beg)>::type>());
 }
 
@@ -87,10 +89,10 @@ inline void clipping(int* idx, const int min, const int max) {
  * @param rhs Second set container
  * @return Set intersection
  */
-template<typename Set>
+template <typename Set>
 static Set Intersection(const Set& lhs, const Set& rhs) {
     Set result;
-    const auto& minSizeSet = (lhs.size() <  rhs.size()) ? lhs : rhs;
+    const auto& minSizeSet = (lhs.size() < rhs.size()) ? lhs : rhs;
     const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
     for (auto&& val : minSizeSet) {
         if (InferenceEngine::details::contains(maxSizeSet, val)) {
@@ -107,9 +109,9 @@ static Set Intersection(const Set& lhs, const Set& rhs) {
  * @param rhs Second set container
  * @return true if two sets interesect false otherwise
  */
-template<typename Set>
+template <typename Set>
 static bool Intersects(const Set& lhs, const Set& rhs) {
-    const auto& minSizeSet = (lhs.size() <  rhs.size()) ? lhs : rhs;
+    const auto& minSizeSet = (lhs.size() < rhs.size()) ? lhs : rhs;
     const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
     for (auto&& val : minSizeSet) {
         if (InferenceEngine::details::contains(maxSizeSet, val)) {

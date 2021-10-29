@@ -36,7 +36,7 @@ std::vector<size_t> output_sizes = {
     8
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MatmulSqueezeAdd, MatmulSqueezeAddTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MatmulSqueezeAdd, MatmulSqueezeAddTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),

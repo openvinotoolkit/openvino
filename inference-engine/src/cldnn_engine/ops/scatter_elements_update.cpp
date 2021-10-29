@@ -8,7 +8,7 @@
 #include "ngraph/op/scatter_elements_update.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "api/scatter_elements_update.hpp"
+#include "cldnn/primitives/scatter_elements_update.hpp"
 
 namespace CLDNNPlugin {
 
@@ -41,7 +41,7 @@ static inline cldnn::scatter_elements_update::scatter_elements_update_axis GetSc
     return cldnn::scatter_elements_update::scatter_elements_update_axis::along_f;  // shouldn't get here
 }
 
-void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterElementsUpdate>& op) {
+static void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterElementsUpdate>& op) {
     p.ValidateInputs(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -54,10 +54,11 @@ void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngraph::op:
     int32_t axis = axes_constant->cast_vector<int32_t>()[0];
 
     auto primitive = cldnn::scatter_elements_update(layerName,
-                                           inputPrimitives[0],
-                                           inputPrimitives[1],
-                                           inputPrimitives[2],
-                                           GetScatterElementsUpdateAxis(axis, rank));
+                                                    inputPrimitives[0],
+                                                    inputPrimitives[1],
+                                                    inputPrimitives[2],
+                                                    GetScatterElementsUpdateAxis(axis, rank),
+                                                    op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

@@ -10,12 +10,15 @@
 #include <legacy/ie_layers_internal.hpp>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
+#include "single_layer_common.hpp"
 
 #include "conv_ref.hpp"
 #include "deconv_ref.hpp"
 #include "def_conv_ref.hpp"
 #include "pool_ref.hpp"
-#include "common_test_utils/common_layers_params.hpp"
+#include "single_layer_common.hpp"
+#include "common_layers_params.hpp"
+#include <xml_net_builder.hpp>
 
 using namespace InferenceEngine;
 

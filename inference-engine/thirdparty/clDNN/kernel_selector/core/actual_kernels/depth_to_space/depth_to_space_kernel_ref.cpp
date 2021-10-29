@@ -28,6 +28,23 @@ ParamsKey DepthToSpaceKernelRef::GetSupportedKey() const {
     return k;
 }
 
+CommonDispatchData DepthToSpaceKernelRef::SetDefault(const depth_to_space_params& params) const {
+    CommonDispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE },
+                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
+
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Z().v * params.output.Y().v * params.output.X().v };
+
+    // this kernel only supports bfyx and b_fs_yx_fsv16 layout.
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    return dispatchData;
+}
+
 KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }

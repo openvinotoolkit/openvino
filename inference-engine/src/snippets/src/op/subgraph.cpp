@@ -12,6 +12,7 @@
 #include "snippets/pass/assign_registers.hpp"
 
 #include <ngraph/pass/manager.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -19,8 +20,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_RTTI_DEFINITION(snippets::op::Subgraph, "Subgraph", 0);
 
 void snippets::op::Subgraph::set_generator(std::shared_ptr<ngraph::snippets::Generator> generator) {
     m_generator = generator;
@@ -87,7 +86,7 @@ auto snippets::op::Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ngraph:
         }
     }
 
-    auto body_node = node->copy_with_new_inputs(body_inputs);
+    auto body_node = node->clone_with_new_inputs(body_inputs);
     body_node->set_friendly_name(node->get_friendly_name());
 
     if (node->get_output_size() != body_node->get_output_size()) {
@@ -176,9 +175,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
             if (param->get_element_type() != std::get<2>(input_shapes[i])) {
                 throw ngraph::ngraph_error("changes in presision. Is it legal??");
             }
-            if (param->get_shape().size() != std::get<0>(input_shapes[i]).size()) {
-                m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(std::get<2>(input_shapes[i]), std::get<0>(input_shapes[i])));
-            }
+            m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(std::get<2>(input_shapes[i]), std::get<0>(input_shapes[i])));
         }
     }
 
@@ -187,7 +184,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
     for (size_t i = 0; i < m_body->get_results().size(); i++) {
         auto result = m_body->get_results()[i];
         PartialShape partial(result->get_shape());
-        bool isCompatible = ngraph::PartialShape::broadcast_merge_into(partial, std::get<0>(output_shapes[i]), ::ngraph::op::AutoBroadcastSpec::NUMPY);
+        bool isCompatible = ngraph::PartialShape::broadcast_merge_into(partial, std::get<0>(output_shapes[i]), ::ngraph::op::AutoBroadcastType::NUMPY);
         // equality check won't pass since we reshape without changes on external snippet edges
         NODE_VALIDATION_CHECK(this, isCompatible, "Inferend and passed results shapes are difference for snippet : ",
                                                   result->get_shape(), " vs ", std::get<0>(output_shapes[i]), ".");
@@ -204,15 +201,19 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.run_passes(m_body);
 }
 
-snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes) {
+snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
+                                                    ngraph::pass::Manager opt) {
     INTERNAL_OP_SCOPE(Subgraph);
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
     canonicalize(output_shapes, input_shapes);
     convert_to_snippet_dialect();
+    opt.run_passes(m_body);
 
     // generation flow
     snippets::pass::AssignRegisters().run_on_function(m_body);
+
+    // shedule generation should go here and be target agnostic
 
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body);
@@ -220,7 +221,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     // chack that body doesnt have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
     for (auto op : m_body->get_ordered_ops()) {
-        if (auto constant = as_type_ptr<opset1::Constant>(op)) {
+        if (auto constant = ov::as_type_ptr<opset1::Constant>(op)) {
             if (ngraph::shape_size(constant->get_shape()) != 1 && constant->get_shape() != Shape()) {
                 constants.push_back(constant);
             }
@@ -253,7 +254,9 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
 
 bool snippets::op::Subgraph::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return m_body->evaluate(outputs, inputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void snippets::op::Subgraph::print() const {
@@ -341,4 +344,13 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
     if (verbose) {
         this->print();
     }
+}
+
+void snippets::op::Subgraph::serialize() const {
+    std::stringstream xmlFile, binFile;
+    ov::pass::Serialize serializer(xmlFile, xmlFile, ov::pass::Serialize::Version::IR_V10);
+    serializer.run_on_function(get_body());
+    auto m_constants = binFile.str();
+    auto m_model = xmlFile.str();
+    std::cout << m_model << std::endl;
 }

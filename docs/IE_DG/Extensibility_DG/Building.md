@@ -14,6 +14,6 @@ To build an extension library, run the commands below:
 $ cd template_extension
 $ mkdir build
 $ cd build
-$ cmake -DInferenceEngine_DIR=[IE_DIR] -Dngraph_DIR=[NGRAPH_DIR] ../
+$ cmake -DOpenVINO_DIR=[OpenVINO_DIR]  ../
 $ cmake --build .
 ```

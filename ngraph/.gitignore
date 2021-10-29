@@ -110,8 +110,6 @@ python/share/*
 \#*
 \.#*
 
-python/pybind11/
-
 # remnants from a failed in-source build
 CMakeCache.txt
 CMakeFiles/

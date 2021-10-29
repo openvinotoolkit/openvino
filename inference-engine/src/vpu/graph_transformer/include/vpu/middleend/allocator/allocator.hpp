@@ -96,6 +96,8 @@ public:
     DataSet& getCandidatesForCMX() { return _candidatesForCMX; }
     bool removeCMXCandidates(const Data& data);
 
+    std::size_t freeCMXMemoryAmount() const;
+
     AllocatorForShaves& getAllocatorOfShaves() { return _allocatorOfShaves; }
 
 private:
@@ -107,8 +109,7 @@ private:
 
     void extractDatas(MemoryType memType, const DataSet& from, DataVector& out) const;
 
-    std::size_t freeDDRMemoryAmount() const;
-    std::size_t freeCMXMemoryAmount() const;
+    void updateChildDataAllocation(const Data& data);
 
 private:
     int _modelBatchSize = 1;

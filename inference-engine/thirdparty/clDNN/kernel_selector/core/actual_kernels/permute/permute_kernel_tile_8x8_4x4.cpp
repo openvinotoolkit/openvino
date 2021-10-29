@@ -102,18 +102,18 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
     } else {
         // dim is expanded
         if (dim_change.first == 4 && dim_change.second == 5) {
-            order_str = ("b, y,  (x * TILE_SIZE + lh) / " + std::to_string(params.output.Y().v)
-                                 + ", (x * TILE_SIZE +lh) % " + std::to_string(params.output.Y().v)
+            order_str = ("b, y,  (x * TILE_SIZE + lh) / " + toCodeString(params.output.Y().v)
+                                 + ", (x * TILE_SIZE +lh) % " + toCodeString(params.output.Y().v)
                                  + ", (f * TILE_SIZE)");
         } else if (dim_change.first == 4 && dim_change.second == 6) {
-            order_str = ("b, y, (x * TILE_SIZE + lh) / (" + std::to_string(params.output.Y().v)
-                                 + " * " + std::to_string(params.output.Z().v) + ")"
-                                 + ", (x * TILE_SIZE + lh) / " + std::to_string(params.output.Y().v)
-                                 + ", (x * TILE_SIZE + lh) % " + std::to_string(params.output.Y().v)
+            order_str = ("b, y, (x * TILE_SIZE + lh) / (" + toCodeString(params.output.Y().v)
+                                 + " * " + toCodeString(params.output.Z().v) + ")"
+                                 + ", (x * TILE_SIZE + lh) / " + toCodeString(params.output.Y().v)
+                                 + ", (x * TILE_SIZE + lh) % " + toCodeString(params.output.Y().v)
                                  + ", (f * TILE_SIZE)");
         } else if (dim_change.first == 5 && dim_change.second == 6) {
-            order_str = ("b, z, y /" + std::to_string(params.output.Z().v)
-                                 + ", y % " + std::to_string(params.output.Z().v)
+            order_str = ("b, z, y /" + toCodeString(params.output.Z().v)
+                                 + ", y % " + toCodeString(params.output.Z().v)
                                  + ", (x * TILE_SIZE + lh), (f * TILE_SIZE)");
         } else {
             throw std::runtime_error("Unsupported combination\n");
@@ -199,9 +199,10 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     std::vector<size_t> dims{0, 2, 1};
 
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
-    size_t elem_size = params.output.ElementSize();
-    size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
-    size_t max_num_work_items = std::min((size_t)256, (size_t)max_local_mem_size / (elem_size * tile_size * tile_size));
+    const size_t elem_size = params.output.ElementSize();
+    const size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
+    const size_t max_work_group_size = params.engineInfo.maxWorkGroupSize;
+    size_t max_num_work_items = std::min(max_work_group_size, max_local_mem_size / (elem_size * tile_size * tile_size));
 
     for (size_t i = 0; i < dims.size(); ++i) {
         size_t dim = dims[i];

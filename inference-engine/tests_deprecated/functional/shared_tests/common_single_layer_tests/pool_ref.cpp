@@ -4,7 +4,7 @@
 
 #include <legacy/ie_layers.h>
 #include <precision_utils.h>
-#include "common_test_utils/common_layers_params.hpp"
+#include "common_layers_params.hpp"
 #include "pool_ref.hpp"
 
 using namespace InferenceEngine;

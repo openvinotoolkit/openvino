@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "test_utils/convolution_params.hpp"
 #include "subgraph_tests/include/conv_concat.hpp"
 
 using namespace InferenceEngine;
@@ -114,6 +115,7 @@ TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
+
     CheckPluginRelatedResults(executableNetwork, pluginTypeNode);
 };
 
@@ -159,7 +161,7 @@ const auto params2DConv = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D1x1, ConvConcatSubgraphTest, params2DConv, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D1x1, ConvConcatSubgraphTest, params2DConv, ConvConcatSubgraphTest::getTestCaseName);
 
 const std::vector<CPUSpecificParams> CPUParams2DDeconv = {
     conv_avx2_2D_1x1,
@@ -174,7 +176,7 @@ const auto params2DDeconv = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D1x1, ConvConcatSubgraphTest, params2DDeconv, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D1x1, ConvConcatSubgraphTest, params2DDeconv, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace Kernel_1x1
 
@@ -197,7 +199,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWGroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DWGroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionBackpropDataDWConcat
 
@@ -220,7 +222,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWGroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DWGroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 3D) ============= */
 commonConvParams dwConvParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, numOutChannels};
@@ -239,7 +241,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_DWGroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DWGroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionDWConcat
 
@@ -260,7 +262,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= ConvolutionBackpropData (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -277,7 +279,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace ConvolutionBackpropDataConcat
 
@@ -300,7 +302,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -318,7 +320,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace ConvolutionConact
 
@@ -341,7 +343,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -359,7 +361,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionConcat
 
@@ -381,7 +383,7 @@ const auto params2D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolutionBackpropData (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
@@ -398,7 +400,7 @@ const auto params3D = ::testing::Combine(
     ::testing::Values(axis)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_GroupConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionBackpropDataConcat
 

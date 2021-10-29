@@ -63,6 +63,7 @@ enum impl_desc_type {
     jit_uni_dw          = jit  | uni    | _dw,
 };
 
+const char * impl_type_to_string(impl_desc_type type);
 impl_desc_type parse_impl_name(std::string impl_desc_name);
 
 }  // namespace MKLDNNPlugin

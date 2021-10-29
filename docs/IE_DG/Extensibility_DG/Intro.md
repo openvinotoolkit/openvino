@@ -21,16 +21,14 @@ Inference Engine Extension dynamic library contains the following components:
     - Enables the creation of `ngraph::Function` with unsupported operations.
     - Provides a shape inference mechanism for custom operations.
 
-> **NOTE**: This documentation is written based on the `Template extension`, which demonstrates extension 
-development details. Find the complete code of the `Template extension`, which is fully compilable and up-to-date,
-at `<dldt source tree>/docs/template_extension`.
+> **NOTE**: This documentation is written based on the `Template extension`, which demonstrates extension development details. Find the complete code of the `Template extension`, which is fully compilable and up-to-date, at `<dldt source tree>/docs/template_extension`.
 
 ## Execution Kernels
 
 The Inference Engine workflow involves the creation of custom kernels and either custom or existing operations.
 
-An _Operation_ is a network building block implemented in the training framework, for example, `Convolution` in Caffe*.
-A _Kernel_ is defined as the corresponding implementation in the Inference Engine.
+An _operation_ is a network building block implemented in the training framework, for example, `Convolution` in Caffe*.
+A _kernel_ is defined as the corresponding implementation in the Inference Engine.
 
 Refer to the [Model Optimizer Extensibility](../../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
 for details on how a mapping between framework operations and Inference Engine kernels is registered.

@@ -111,6 +111,17 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         weights_port.get_connection().set_source(w_mul.out_port(0))
         w_const.connect(w_mul.in_port(tensor_port.idx))
 
+        fuse_node_in_data = fuse_node.in_node(weights_port.idx)
+        w_const_out_data = w_const.node.out_node(w_const.idx)
+
+        # During this reconnection new data node name is copied from the data node
+        # outgoing from w_const port. Duplicate names of data nodes lead to appearing
+        # of duplicate op node names after constant folding. So we should manually
+        # set a unique name for the new data node.
+        if fuse_node_in_data.soft_get('name') == w_const_out_data.soft_get('name') and \
+                fuse_node_in_data.soft_get('name', None) is not None:
+            fuse_node.in_node(weights_port.idx)['name'] = graph.unique_id(mul_name)
+
         # If we fuse in backward direction we should multiply biases if they exists
         if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected() and \
                 not fuse_node.has_and_set('shape_input'):

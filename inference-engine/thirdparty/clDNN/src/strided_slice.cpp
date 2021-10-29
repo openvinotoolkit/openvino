@@ -4,7 +4,7 @@
 
 #include "strided_slice_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "data_inst.h"
 #include <string>
@@ -52,7 +52,7 @@ std::string strided_slice_inst::to_string(strided_slice_node const& node) {
     return primitive_description.str();
 }
 
-strided_slice_inst::typed_primitive_inst(network_impl& network, strided_slice_node const& node)
+strided_slice_inst::typed_primitive_inst(network& network, strided_slice_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

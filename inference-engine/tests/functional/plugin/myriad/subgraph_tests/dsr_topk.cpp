@@ -53,7 +53,7 @@ TEST_P(DSR_TopK_Const, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicTopKConst, DSR_TopK_Const, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicTopKConst, DSR_TopK_Const, combinations);
 
 class DSR_TopK : public testing::WithParamInterface<Parameters>, public DSR_TestsCommon {
 protected:
@@ -83,6 +83,6 @@ TEST_P(DSR_TopK, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicTopKConst, DSR_TopK, combinations);
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicTopKConst, DSR_TopK, combinations);
 
 }  // namespace

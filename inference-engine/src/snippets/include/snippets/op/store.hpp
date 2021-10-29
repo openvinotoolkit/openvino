@@ -19,7 +19,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API Store : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Store", "SnippetsOpset");
 
     Store(const Output<Node>& x);
     Store() = default;
@@ -30,7 +30,9 @@ public:
 
     void validate_and_infer_types() override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 } // namespace op

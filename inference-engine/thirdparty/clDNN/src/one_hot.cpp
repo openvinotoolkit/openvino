@@ -4,7 +4,7 @@
 
 #include "one_hot_inst.h"
 
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include <string>
@@ -65,7 +65,7 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
     return primitive_description.str();
 }
 
-one_hot_inst::typed_primitive_inst(network_impl& network, one_hot_node const& node) : parent(network, node) {
+one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
     const auto& input_sizes = input_layout.size;

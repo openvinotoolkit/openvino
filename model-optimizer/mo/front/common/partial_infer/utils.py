@@ -6,6 +6,164 @@ from typing import Iterable, List, Union
 
 import numpy as np
 
+from mo.utils.error import Error
+
+dynamic_dimension = np.ma.masked
+# numpy masked array for integer values forces us to select one integer number to be considered as a missing/invalid
+# value. Since the primary purpose of usage of masked arrays in the MO is to specify dynamic dimension, the big prime
+# (by modulo) negative number is selected as such a value
+dynamic_dimension_value = -1000000007
+
+
+def shape_array(value, dtype=np.int64):
+    # if the input tensor has masked values then they should be explicitly converted to dynamic_dimension_value and
+    # a masked array should be created from scratch, otherwise, method "masked_equal" will convert masked elements to
+    # "nan" values
+    if isinstance(value, Iterable) and (not isinstance(value, np.ndarray) or value.ndim != 0):
+        value = [item if item is not dynamic_dimension else dynamic_dimension_value for item in value]
+    return np.ma.masked_equal(value, dynamic_dimension_value).astype(dtype=dtype)
+
+
+def compatible_dims(dim1, dim2):
+    """
+    Compare if dim1 is equal to dim2 or any of them is dynamic
+
+    :param dim1: dimension to compare
+    :param dim2: dimension to compare
+    :return: boolean result of the comparison
+    """
+    return dim1 is dynamic_dimension or dim2 is dynamic_dimension or dim1 == dim2
+
+
+def compatible_shapes(shape1, shape2):
+    """
+    Compares two shape tensors. The shapes are considered equal if they have the same rank and the corresponding
+    dimensions are either equal or at least one of them is dynamic.
+
+    :param shape1: the first shape to compare
+    :param shape2: the second shape to compare
+    :return: boolean result of the comparison
+    """
+    if shape1.ndim != shape2.ndim:
+        return False
+    if shape1.size != shape2.size:
+        return False
+    for d1, d2 in zip(shape1, shape2):
+        if not compatible_dims(d1, d2):
+            return False
+    return True
+
+
+def strict_compare_tensors(tensor1, tensor2):
+    """
+    Strict comparison of two tensors. The tensors are equal iff their corresponding elements are equal or both are
+    dynamic.
+
+    :param tensor1: the first tensor to compare
+    :param tensor2: the second tensor to compare
+    :return: boolean result of the comparison
+    """
+    if tensor1 is None and tensor2 is None:
+        return True
+    if tensor1 is None or tensor2 is None:
+        return False
+
+    if not isinstance(tensor1, np.ma.masked_array):
+        tensor1 = shape_array(tensor1)
+    if not isinstance(tensor2, np.ma.masked_array):
+        tensor2 = shape_array(tensor2)
+
+    if tensor1.ndim != tensor2.ndim:
+        return False
+    if tensor1.size != tensor2.size:
+        return False
+    if tensor1.ndim == 0:
+        return tensor1.item() == tensor2.item()
+    if not np.array_equal(tensor1.shape, tensor2.shape):
+        return False
+    for d1, d2 in zip(tensor1.flatten(), tensor2.flatten()):
+        if (d1 is not dynamic_dimension) ^ (d2 is not dynamic_dimension):
+            return False
+        elif d1 is not dynamic_dimension and d1 != d2:
+            return False
+    return True
+
+
+def shape_delete(shape: np.ma.masked_array, obj: [int, list]):
+    """
+    Removes element in the input tensor shape (presumably the numpy masked array) specified by index/indices obj.
+    The function is implemented to avoid usage of np.delete which corrupts information about the masked elements.
+
+    :param shape: the shape object to remove elements from
+    :param obj: the list or a single integer defining index(es) of elements to remove
+    :return: shape with removed selected elements
+    """
+    if isinstance(obj, (int, np.int64, np.int32)):
+        return shape_delete(shape, [obj])
+    elif isinstance(obj, np.ndarray):
+        return shape_delete(shape, obj.tolist())
+    elif isinstance(obj, list):
+        result = shape.copy()
+        obj = [item if item >= 0 else len(shape) + item for item in obj]
+        for index in sorted(obj, reverse=True):
+            assert 0 <= index < len(result), 'Incorrect element index {} to remove from {}'.format(index, result)
+            result = np.ma.concatenate((result[:index], result[index + 1:]))
+        return result
+    else:
+        raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
+
+
+def shape_insert(shape: [np.ndarray, list], pos: int, obj: [int, list, np.ndarray, dynamic_dimension]):
+    """
+    Insert element(s) in the input tensor shape (presumably the numpy masked array) specified by position pos.
+    The function is implemented to avoid usage of np.insert which corrupts information about the masked elements.
+
+    :param shape: the shape object to insert element(s) to
+    :param pos: the position to insert the elements into
+    :param obj: the list or a single integer or the dynamic_dimension_value or numpy array to insert
+    :return: shape with inserted elements
+    """
+    if isinstance(obj, (int, np.int64, np.int32)) or obj is dynamic_dimension_value:
+        return shape_insert(shape, pos, [obj])
+    elif isinstance(obj, (np.ndarray, list)):
+        return np.ma.concatenate((shape_array(shape[:pos]), shape_array(obj), shape_array(shape[pos:])))
+    else:
+        raise Error('Incorrect parameter type of "obj": {}'.format(type(obj)))
+
+
+def unmask_shape(value: [np.ma.masked_array, np.array]):
+    """
+    Converts all dynamic_dimension values from the input tensor to -1. Used to generate shapes for the IR.
+
+    :param value: the value to be unmasked.
+    :return: the value where dynamic_dimension elements are converted to -1.
+    """
+    if not isinstance(value, np.ma.masked_array):
+        return value
+    else:
+        return value.tolist(-1)
+
+
+def is_fully_defined(value):
+    """
+    Checks that provided input tensor is fully defined. The input value can be of different types: scalar, list, array,
+    masked array.
+
+    :param value: the value to check
+    :return: the result of the check
+    """
+    if value is None:
+        return False
+    elif isinstance(value, np.ma.masked_array):
+        return not np.ma.is_masked(value)
+    elif isinstance(value, np.ndarray):  # numpy array cannot contain dynamic values
+        return True
+    elif isinstance(value, list) or isinstance(value, tuple):
+        return dynamic_dimension not in value
+    elif value is dynamic_dimension:
+        return False
+    return True
+
 
 def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return np.array(value, dtype=np.int64)
@@ -60,24 +218,24 @@ def convert_deconv_tf_padding_to_str(padding):
 # TODO eliminate this dependency and pass necessary function as an argument
 def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
     if input is None or window is None or stride is None or auto_pad is None:
-        return (None, None)
+        return None, None
 
     normalized_stride = stride
     if is_deconv:
         normalized_stride = 1 / stride
 
     if auto_pad in ['same_lower', 'same_upper']:
-        output = np.int64(np.ceil(input / normalized_stride))
+        output = np.ma.ceil(input / normalized_stride)
         residual = input % stride
         mask = residual == 0
         full_pad = window.copy()
         full_pad[mask] -= stride[mask]
         mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
         full_pad[mask] -= input[mask] % stride[mask]
-        full_pad = np.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
+        full_pad = np.ma.maximum(full_pad, 0)  # pylint: disable=assignment-from-no-return
         low_pad = np.int64(full_pad / 2)
         high_pad = full_pad - low_pad
-        pad = np.array([low_pad, high_pad]).transpose()
+        pad = shape_array([low_pad, high_pad]).transpose()
     elif auto_pad == 'valid':
         output = np.int64(np.ceil((input - window + 1) / normalized_stride))
         pad = np.zeros((len(output), 2), dtype=np.int64)
@@ -85,22 +243,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         log.error("Unsupported padding scheme: {}".format(auto_pad))
         pad = None
         output = None
-    return (pad, output)
-
-
-def broadcast_shape(first_shape, second_shape):
-    """
-    Perform broadcasting of one shape to another for different shapes
-    """
-    shape = first_shape if len(first_shape) > len(second_shape) else second_shape
-    new_shape = int64_array(shape)
-    for i in range(len(shape)):
-        a_val = first_shape[-i - 1] if i < len(first_shape) else 1
-        b_val = second_shape[-i - 1] if i < len(second_shape) else 1
-        assert a_val == 1 or b_val == 1 or a_val == b_val, "Input shape do not broadcast"
-        new_val = b_val if a_val == 1 else a_val
-        new_shape[-i - 1] = new_val
-    return int64_array(new_shape)
+    return pad, output
 
 
 def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
@@ -114,8 +257,14 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
 
     in_idx = 0
     for i, s in enumerate(slices):
-        if isinstance(s, slice):
-            output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+        if s is dynamic_dimension or s == dynamic_dimension_value:
+            output_shape.append(dynamic_dimension_value)
+            in_idx += 1
+        elif isinstance(s, slice):
+            if input_shape[in_idx] is not dynamic_dimension and not is_dynamic_slice(s):
+                output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+            else:
+                output_shape.append(dynamic_dimension_value)
             in_idx += 1
         elif s is np.newaxis:
             output_shape.append(1)
@@ -126,8 +275,18 @@ def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
                 output_shape.append(input_shape[in_idx])
                 in_idx += 1
         else:
-            raise Exception('Element type of a slice List is unacceptable. '
-                            'Allowed types are: Ellipsis, slice, int, and None. Instead got: '. format(type(s)))
+            raise Exception('Element type of a slice list is unacceptable: "{}"'.format(type(s)))
     for i in range(in_idx, len(input_shape)):
         output_shape.append(input_shape[i])
-    return int64_array(output_shape)
+    return shape_array(output_shape)
+
+
+def is_dynamic_slice(s: [slice, int, None]):
+    """
+    The function checks that the specified slice produces dynamic value.
+    :param s: slice object
+    :return: the result of the check
+    """
+    return isinstance(s, slice) and (s.start is dynamic_dimension or
+                                     s.stop is dynamic_dimension or
+                                     s.step is dynamic_dimension)

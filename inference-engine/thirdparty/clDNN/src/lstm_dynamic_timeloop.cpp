@@ -6,7 +6,7 @@
 #include "lstm_dynamic_timeloop_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -119,7 +119,7 @@ std::string lstm_dynamic_timeloop_inst::to_string(lstm_dynamic_timeloop_node con
     return primitive_description.str();
 }
 
-lstm_dynamic_timeloop_inst::typed_primitive_inst(network_impl& network, lstm_dynamic_timeloop_node const& node)
+lstm_dynamic_timeloop_inst::typed_primitive_inst(network& network, lstm_dynamic_timeloop_node const& node)
     : parent(network, node) {
     auto batch_size = node.get_output_layout().size.batch[0];
     auto direction = node.direction();

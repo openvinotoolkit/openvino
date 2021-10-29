@@ -4,12 +4,11 @@
 
 set(TARGET_NAME IESharedTests)
 
-disable_deprecated_warnings()
-
 list(APPEND SHARED_LIBRARIES
-        ${NGRAPH_LIBRARIES}
-        ie_tests
+        ngraph
+        commonTestUtils
         ngraphFunctions
+        ieTestHelpers
         )
 
 file(GLOB SHARED_TESTS_SRC
@@ -19,17 +18,19 @@ file(GLOB SHARED_TESTS_SRC
         )
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
-add_dependencies(${TARGET_NAME} inference_engine_preproc MultiDevicePlugin mock_engine)
+
+add_dependencies(${TARGET_NAME} inference_engine_preproc mock_engine)
+
+if(ENABLE_MULTI)
+    add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+endif()
+
+set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "precomp.hpp"
 )
-
-if(ENABLE_MKL_DNN)
-    add_dependencies(${TARGET_NAME} MKLDNNPlugin)
-    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_MKL_DNN)
-endif()
 
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc QUIET)
@@ -42,11 +43,9 @@ endif()
 target_include_directories(${TARGET_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/io_blob_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/input_tests
-        ${CMAKE_CURRENT_SOURCE_DIR}/inference_engine_regression_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/lstm
         ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
-        ${CMAKE_CURRENT_SOURCE_DIR}/graph_tools
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
@@ -57,7 +56,9 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC ${SHARED_LIBRARIES})
 
-add_dependencies(${TARGET_NAME} HeteroPlugin)
+if(ENABLE_HETERO)
+    add_dependencies(${TARGET_NAME} HeteroPlugin)
+endif()
 
 # developer package
 

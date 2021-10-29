@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
-from mo.front.tf.extractors.utils import tf_dtype_extractor
+from mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape
 from mo.ops.op import Op
 
 
@@ -20,7 +19,6 @@ class IteratorGetNextExtractor(FrontExtractorOp):
             extracted_types.append(tf_dtype_extractor(t))
         result_shapes = []
         for shape_pb in shapes:
-            shape = shape_pb.dim
-            result_shapes.append(int64_array([dim.size for dim in shape]))
+            result_shapes.append(tf_tensor_shape(shape_pb))
         Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types})
         return cls.enabled

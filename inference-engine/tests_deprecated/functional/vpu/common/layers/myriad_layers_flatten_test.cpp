@@ -4,7 +4,7 @@
 
 #include "myriad_layers_flatten_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsFlatten_smoke,
+INSTANTIATE_TEST_SUITE_P(accuracy, myriadLayersTestsFlatten_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_flattenTensors),
         ::testing::ValuesIn(s_flattenAxis)

@@ -36,13 +36,65 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
+#include "ie_precision.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
+TEST(CNNNGraphImplTests, TestReshapeWithSameShape) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        input->set_friendly_name("input");
+        auto shape = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 4000});
+        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, shape, true);
+        f = std::make_shared<ngraph::Function>(ngraph::OutputVector{reshape}, ngraph::ParameterVector{input});
+    }
+
+    auto net = InferenceEngine::CNNNetwork(f);
+    ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 4000})}}));
+}
+
+TEST(CNNNGraphImplTests, TestTwoResultsFromOneTensor) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result1 = std::make_shared<ngraph::op::Result>(relu);
+        auto result2 = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result1, result2};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    ASSERT_NO_THROW(auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet));
+}
+
+TEST(CNNNGraphImplTests, TestInvalidReshape) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        input->set_friendly_name("input");
+        auto shape = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {1, 4000});
+        auto reshape = std::make_shared<ngraph::opset5::Reshape>(input, shape, true);
+        f = std::make_shared<ngraph::Function>(ngraph::OutputVector{reshape}, ngraph::ParameterVector{input});
+    }
+
+    auto net = InferenceEngine::CNNNetwork(f);
+    ASSERT_ANY_THROW(net.reshape({{"input", SizeVector({4})}}));
+
+    auto param = *net.getFunction()->get_parameters().begin();
+    ASSERT_EQ(param->get_output_shape(0), ngraph::Shape({1, 1000, 4}));
+
+    ASSERT_NO_THROW(net.reshape({{"input", SizeVector({1, 1000, 4})}}));
+}
 
 TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
     std::shared_ptr<ngraph::Function> f;
@@ -66,6 +118,8 @@ TEST(CNNNGraphImplTests, TestNMS5OutputNames) {
     ASSERT_EQ(outputs_info.count("nms.2"), 1);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -85,7 +139,7 @@ TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
     auto convertedNet = InferenceEngine::CNNNetwork(std::make_shared<details::CNNNetworkImpl>(cnnNet));
     // Remove convert layer
     InferenceEngine::NetPass::ConvertPrecision(convertedNet, Precision::I64, Precision::I32);
@@ -109,7 +163,7 @@ TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
     ASSERT_NO_THROW(auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet));
 }
 
@@ -252,6 +306,37 @@ TEST(CNNNGraphImplTests, TestSetBatchDynamic) {
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
     ASSERT_EQ(1, cnnNet.getBatchSize());
     ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
+}
+
+TEST(CNNNGraphImplTests, TestDoesChangePrecisionsWithNewAPI) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::Type_t::f16, ngraph::PartialShape::dynamic());
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        ngraph = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    }
+
+    // new OpenVINO 2.0
+    {
+        auto ngraphImpl = std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(ngraph,
+            std::vector<InferenceEngine::IExtensionPtr>{}, true);
+        InferenceEngine::CNNNetwork cnnNet(ngraphImpl);
+        ASSERT_EQ(InferenceEngine::Precision::FP16,
+            cnnNet.getInputsInfo().begin()->second->getTensorDesc().getPrecision());
+        ASSERT_EQ(InferenceEngine::Precision::FP16,
+            cnnNet.getOutputsInfo().begin()->second->getTensorDesc().getPrecision());
+    }
+
+    // current API
+    {
+        auto ngraphImpl = std::make_shared<InferenceEngine::details::CNNNetworkNGraphImpl>(ngraph);
+        InferenceEngine::CNNNetwork cnnNet(ngraphImpl);
+        ASSERT_EQ(InferenceEngine::Precision::FP32,
+            cnnNet.getInputsInfo().begin()->second->getTensorDesc().getPrecision());
+        ASSERT_EQ(InferenceEngine::Precision::FP32,
+            cnnNet.getOutputsInfo().begin()->second->getTensorDesc().getPrecision());
+    }
 }
 
 TEST(CNNNGraphImplTests, TestSaveAffinity) {
@@ -459,8 +544,8 @@ TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    auto inputInfo = cnnNet.getInput(name);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+    auto inputInfo = cnnNet.getInputsInfo()[name];
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::NO_RESIZE);
     inputInfo->getPreProcess().setResizeAlgorithm(ResizeAlgorithm::RESIZE_AREA);
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::RESIZE_AREA);
@@ -651,34 +736,115 @@ TEST(CNNNGraphImplTests, ReadMeanImageFromCNNNetReader) {
     InferenceEngine::Core core;
     size_t hwSize = 22*22;
     size_t dataSize = hwSize*3;
-    Blob::Ptr data = make_shared_blob<float>(TensorDesc(Precision::FP32, {dataSize}, Layout::C));
-    data->allocate();
+    Blob::Ptr weights = make_shared_blob<float>(TensorDesc(Precision::FP32, {dataSize}, Layout::C));
+    weights->allocate();
     {
-        auto lockData = data->buffer();
+        auto lockData = weights->buffer();
         float *dataPtr = lockData.as<float*>();
 
         for (size_t i = 0; i < dataSize; ++i) {
-            dataPtr[i] = i;
+            dataPtr[i] = 1;
         }
     }
-    CNNNetwork network = core.ReadNetwork(model, data);
-    ASSERT_EQ(3, network.layerCount());
-    auto inputInfo = network.getInputsInfo().begin()->second;
-    ASSERT_NE(inputInfo, nullptr);
-    auto preProc = inputInfo->getPreProcess();
-    ASSERT_EQ(3, preProc.getNumberOfChannels());
-    ASSERT_EQ(preProc.getMeanVariant(), MeanVariant::MEAN_IMAGE);
+    CNNNetwork network = core.ReadNetwork(model, weights);
+    auto f = network.getFunction();
 
-    for (size_t i = 0; i < preProc.getNumberOfChannels(); i++) {
-        auto chMeanImg = preProc[i];
-        ASSERT_NE(chMeanImg, nullptr);
-        ASSERT_NE(chMeanImg->meanData, nullptr);
-        auto lockData = chMeanImg->meanData->cbuffer();
-        auto *dataPtr = lockData.as<const float*>();
-        for (size_t j = 0; j < hwSize; j++) {
-            ASSERT_EQ(dataPtr[j], hwSize*i + j);
-        }
+    std::shared_ptr<ngraph::Function> f_ref;
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});
+        auto mean_image = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 22, 22}, {1});
+        auto sub = std::make_shared<ngraph::opset1::Subtract>(data, mean_image);
+        auto relu = std::make_shared<ngraph::opset1::Relu>(sub);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
     }
+
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::ATTRIBUTES)
+                        .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f, f_ref);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST(CNNNGraphImplTests, ReadMeanValueFromCNNNetReader) {
+    std::string model = R"V0G0N(
+<net name="Activation" version="10">
+    <pre-process mean-precision="FP32" reference-layer-name="data">
+        <channel id="0">
+            <mean value="1.1"/>
+        </channel>
+        <channel id="1">
+            <mean value="2.2"/>
+        </channel>
+        <channel id="2">
+            <mean value="3.3"/>
+        </channel>
+    </pre-process>
+    <layers>
+        <layer name="data" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="ReLU" version="opset1">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core core;
+    Blob::Ptr weights{nullptr};
+    CNNNetwork network = core.ReadNetwork(model, weights);
+    auto f = network.getFunction();
+
+    std::shared_ptr<ngraph::Function> f_ref;
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});
+        auto mean_image = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3, 1, 1}, {1.1, 2.2, 3.3});
+        auto sub = std::make_shared<ngraph::opset1::Subtract>(data, mean_image);
+        auto relu = std::make_shared<ngraph::opset1::Relu>(sub);
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
+    }
+
+    const auto fc = FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f, f_ref);
+    EXPECT_TRUE(res.valid) << res.message;
 }
 
 TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
@@ -915,7 +1081,7 @@ TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
         ngraph = std::make_shared<ngraph::Function>(results, sinks, params);
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
     auto convertedNet = std::make_shared<details::CNNNetworkImpl>(cnnNet);
     auto status = convertedNet->setBatchSize(4, nullptr);
     EXPECT_EQ(status, StatusCode::OK);
@@ -1476,9 +1642,7 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
     auto nGraphFunc = network.getFunction();
 
     ngraph::pass::Manager manager;
-
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-
     manager.run_passes(nGraphFunc);
 
     auto clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
@@ -1678,4 +1842,110 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
         ASSERT_NE(outputs.find("text_features"), outputs.end());
     }
 }
+
+TEST(CNNNGraphImplTests, CheckUniqueNames) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("boxes");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("scores");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result2 = std::make_shared<ngraph::opset5::Result>(nms->output(1));
+        result2->set_friendly_name("result2");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    ASSERT_NO_THROW(InferenceEngine::CNNNetwork{f});
+}
+
+TEST(CNNNGraphImplTests, CheckNonUniqueParameterName) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("boxes");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("boxes");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result2 = std::make_shared<ngraph::opset5::Result>(nms->output(1));
+        result2->set_friendly_name("result2");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    ASSERT_THROW(InferenceEngine::CNNNetwork{f}, InferenceEngine::Exception);
+}
+
+TEST(CNNNGraphImplTests, CheckNonUniqueResultName) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("nms.1");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("scores");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result2 = std::make_shared<ngraph::opset5::Result>(nms->output(1));
+        result2->set_friendly_name("result2");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result2, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+    ASSERT_THROW(InferenceEngine::CNNNetwork{f}, InferenceEngine::Exception);
+}
+
+TEST(CNNNGraphImplTests, CheckNonUniqueNewResultName) {
+    std::shared_ptr<ngraph::Function> f;
+    {
+        auto boxes = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1000, 4});
+        boxes->set_friendly_name("nms.1");
+        auto scores = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 1000});
+        scores->set_friendly_name("scores");
+        auto max_output_boxes_per_class = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
+        auto iou_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.75});
+        auto score_threshold = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.7});
+        auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
+                                                               ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+
+        auto result1 = std::make_shared<ngraph::opset5::Result>(nms->output(0));
+        result1->set_friendly_name("result1");
+        auto result3 = std::make_shared<ngraph::opset5::Result>(nms->output(2));
+        result3->set_friendly_name("result3");
+        nms->set_friendly_name("nms");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result1, result3}, ngraph::ParameterVector{boxes, scores});
+    }
+
+
+    CNNNetwork cnnNet;
+    ASSERT_NO_THROW(cnnNet = InferenceEngine::CNNNetwork{f});
+    ASSERT_THROW(cnnNet.addOutput("nms", 1), InferenceEngine::Exception);
+}
+
 IE_SUPPRESS_DEPRECATED_END

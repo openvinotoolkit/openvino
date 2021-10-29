@@ -40,7 +40,7 @@ public:
     };
 
     ngraph::Shape constShape;
-    low_precision::LayerTransformation::Params params;
+    TestTransformationParams params;
     bool updatePrecision;
     bool roundValues;
     Actual actual;
@@ -64,8 +64,7 @@ public:
     void SetUp() override {
         const FoldFakeQuantizeInTransformationsTestValues testValues = GetParam();
 
-        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(testValues.params).
-            setUpdatePrecisions(testValues.updatePrecision);
+        const auto params = TestTransformationParams(testValues.params).setUpdatePrecisions(testValues.updatePrecision);
 
         const auto constant = std::make_shared<ngraph::opset1::Constant>(
             testValues.actual.constPrecision, testValues.constShape, testValues.actual.constValues);
@@ -206,7 +205,7 @@ const std::vector<FoldFakeQuantizeInTransformationsTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,
     FoldFakeQuantizeInTransformations,
     ::testing::ValuesIn(testValues),

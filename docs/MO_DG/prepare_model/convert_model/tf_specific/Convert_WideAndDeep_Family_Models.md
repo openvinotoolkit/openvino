@@ -19,6 +19,9 @@ git clone https://github.com/tensorflow/models.git --branch r2.2.0;
 cd official/r1/wide_deep
 ```
 
+The Wide and Deep model is no longer in the master branch of the repository but is still available in the r2.2.0 branch.
+
+
 **Step 2**. Train the model
 
 As the OpenVINO&trade; toolkit does not support the categorical with hash and crossed features, such feature types must be switched off in the model 

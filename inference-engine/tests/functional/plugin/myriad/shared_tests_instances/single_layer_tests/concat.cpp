@@ -10,7 +10,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-std::vector<size_t> axes = {0, 1, 2, 3};
+std::vector<int> axes = {0, 1, 2, 3};
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
@@ -20,7 +20,7 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
 
-INSTANTIATE_TEST_CASE_P(smoke_Concat_Basic, ConcatLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_Basic, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(axes),
                                 ::testing::ValuesIn(inShapes),

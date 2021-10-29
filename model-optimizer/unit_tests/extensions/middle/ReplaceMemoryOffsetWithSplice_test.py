@@ -107,8 +107,6 @@ class ReplaceMemoryOffsetNodePatternTests(unittest.TestCase):
                                  'splice': {'kind': 'op', 'op': 'Splice', 'context': range(-5, 1)},
                                  'splice_data': {'kind': 'data', 'shape': [1, 78]},
                                  'crop': {'kind': 'op', 'op': 'Crop', 'offset': 0, 'dim': 13},
-                                 'crop_input': {'kind': 'op', 'op': 'Crop', 'offset': 65, 'dim': 13},
-                                 'crop_input_data': {'kind': 'data', 'shape': [1, 13]},
                                  'memoryoffset_2_data': {'kind': 'data', 'shape': [1, 13]},
                                  'out_placeholder': {'kind': 'op', 'op': 'placeholder'},
                                  },
@@ -118,10 +116,8 @@ class ReplaceMemoryOffsetNodePatternTests(unittest.TestCase):
                                     ('splice', 'splice_data'),
                                     ('splice_data', 'crop'),
                                     ('crop', 'memoryoffset_2_data'),
-                                    ('splice_data', 'crop_input'),
-                                    ('crop_input', 'crop_input_data'),
                                     ('memoryoffset_2_data', 'out_placeholder'),
-                                    ('crop_input_data', 'out_placeholder')
+                                    ('in_node', 'out_placeholder')
                                 ]
                                 )
 

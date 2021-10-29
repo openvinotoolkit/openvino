@@ -4,8 +4,9 @@
 import logging as log
 import os
 import re
-
 from distutils.version import LooseVersion
+
+from mo.graph.graph import Node
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.versions_checker import get_environment_setup
@@ -139,7 +140,7 @@ def get_output_node_names_list(graph_def, user_defined_output_node_names_list: l
 
 
 def deducing_metagraph_path(meta_graph_file: str):
-    match = re.search('^(.*)\.(data-\d*-of-\d*|index|meta)$', meta_graph_file)
+    match = re.search(r'^(.*)\.(data-\d*-of-\d*|index|meta)$', meta_graph_file)
     if match is not None:
         deduced_meta_graph_file = match.group(1) + '.meta'
         if not os.path.isfile(deduced_meta_graph_file):
@@ -172,7 +173,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                       user_output_node_names_list: list = []):
     # As a provisional solution, use a native TF methods to load a model protobuf
     graph_def = tf_v1.GraphDef()
-    if isinstance(graph_file_name, str) and (re.match('.*\.(ckpt|meta)$', graph_file_name)):
+    if isinstance(graph_file_name, str) and (re.match(r'.*\.(ckpt|meta)$', graph_file_name)):
         print('[ WARNING ] The value for the --input_model command line parameter ends with ".ckpt" or ".meta" '
               'extension.\n'
               'It means that the model is not frozen.\n'
@@ -189,7 +190,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
     try:
         if graph_file_name and not meta_graph_file and not checkpoint:
             # frozen graph
-            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values
+            return read_file_to_graph_def(graph_def, graph_file_name, is_binary), variables_values, 'tf'
         if graph_file_name and not meta_graph_file and checkpoint:
             # inference graph and checkpoint
             graph_def = read_file_to_graph_def(graph_def, graph_file_name, is_binary)
@@ -200,22 +201,22 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def, variables_values = freeze_checkpoints(graph_def=graph_def, checkpoint_dir=checkpoint,
                                                                  output_node_names=outputs)
             # we are sure that checkpoint is existing file or directory due to cli_parser configuration
-            return graph_def, variables_values
+            return graph_def, variables_values, 'tf'
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
             input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
             # pylint: disable=no-member
             with tf_v1.Session() as sess:
                 restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
-                restorer.restore(sess, re.sub('\.meta$', '', meta_graph_file))
+                restorer.restore(sess, re.sub(r'\.meta$', '', meta_graph_file))
                 outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
                 graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def,
                                                                             outputs)
-                return graph_def, variables_values
+                return graph_def, variables_values, 'tf'
         if model_dir:
             # saved model directory
             try:
-                env_setup = get_environment_setup()
+                env_setup = get_environment_setup("tf")
                 # enable eager execution temporarily while TensorFlow 2 model is being loaded
                 tf_v1.enable_eager_execution()
                 # code to extract GraphDef for TF 2.0 SavedModel format
@@ -235,7 +236,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
                 # disable eager execution since next steps are executed with a graph in non-eager mode
                 tf_v1.disable_eager_execution()
-                return graph_def, variables_values
+                return graph_def, variables_values, 'tf2'
             except (TypeError, KeyError):
                 # disable eager execution since TensorFlow 1 model is handled
                 tf_v1.disable_eager_execution()
@@ -245,7 +246,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
                     outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
                     graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
-                    return graph_def, variables_values
+                    return graph_def, variables_values, 'tf'
             except Exception as e:
                 raise FrameworkError('SavedModel format load failure: {}', e) from e
     except Exception as e:
@@ -259,6 +260,14 @@ def protobuf_attrs(pb:tf_v1.NodeDef):
 
 def protobuf2nx(graph, pb: tf_v1.GraphDef):
     fill_graph_with_nodes(graph, pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+
+    if hasattr(graph, 'op_names_statistic'):
+        for node_name in graph.nodes:
+            node = Node(graph, node_name)
+            node_pb = node.soft_get('pb', None)
+            if node_pb is not None:
+                if hasattr(node_pb, 'op'):
+                    graph.op_names_statistic[node_pb.op] += 1
 
     # Create a library with auxiliary functions used in TensorFlow 2 operations
     if hasattr(pb, 'library') and hasattr(pb.library, 'function'):

@@ -4,7 +4,7 @@
 
 #include "broadcast_inst.h"
 
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include <string>
@@ -52,7 +52,7 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
     return primitive_description.str();
 }
 
-broadcast_inst::typed_primitive_inst(network_impl& network, broadcast_node const& node) : parent(network, node) {
+broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
     auto input_layout = node.input().get_output_layout();
 
     const auto& input_sizes = input_layout.size;

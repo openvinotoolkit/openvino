@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/reshape_permute_conv_permute_reshape_act.hpp"
 
 namespace SubgraphTestsDefinitions {
-    std::string ConvReshapeAct::getTestCaseName(testing::TestParamInfo<ConvReshapeActParams> obj) {
+    std::string ConvReshapeAct::getTestCaseName(const testing::TestParamInfo<ConvReshapeActParams>& obj) {
         InferenceEngine::Precision netPrecision;
         std::string targetName;
         std::array<size_t, 4> input_shape;

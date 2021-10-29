@@ -22,7 +22,7 @@ const std::vector<std::vector<size_t>> inputShapes = {
         {1, 3, 2, 2, 2, 2, 2, 2, 4, 5},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_MultipleAdd_Nd, MultiplyAddLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MultipleAdd_Nd, MultiplyAddLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes),
                                 ::testing::ValuesIn(netPrecisions),

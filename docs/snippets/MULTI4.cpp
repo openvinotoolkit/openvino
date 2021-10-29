@@ -1,6 +1,4 @@
-#include <inference_engine.hpp>
-#include <multi-device/multi_device_config.hpp>
-
+#include <ie_core.hpp>
 
 int main() {
 const std::map<std::string, std::string> hddl_config  = { { InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::YES } };

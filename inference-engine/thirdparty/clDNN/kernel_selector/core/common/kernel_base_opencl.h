@@ -24,7 +24,9 @@ protected:
                           const std::string& kernel_name) const;
     std::string GetEntryPoint(const std::string& templateName,
                               const std::string& layerID,
-                              const optional_params& options) const;
+                              const Params& params,
+                              const optional_params& options,
+                              const size_t partID = 0) const;
     Arguments GetArgsDesc(uint32_t num_of_input,
                           bool use_weights,
                           bool use_bias,

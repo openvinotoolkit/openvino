@@ -7,6 +7,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <transformations/utils/utils.hpp>
 #include "itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::EliminateUnsqueezeGather, "EliminateUnsqueezeGather", 0);
@@ -56,5 +57,38 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gather, "EliminateUnsqueezeGather");
+    register_matcher(m, callback);
+}
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::EliminateGatherUnsqueeze, "EliminateGatherUnsqueeze", 0);
+
+ngraph::pass::EliminateGatherUnsqueeze::EliminateGatherUnsqueeze() {
+    MATCHER_SCOPE(EliminateGatherUnsqueeze);
+
+    const auto gather_indices_label = ngraph::pattern::wrap_type<ngraph::op::Constant>(pattern::rank_equals(0));
+    const auto gather_axis_label = ngraph::pattern::wrap_type<ngraph::op::Constant>();
+    const auto gather_label = ngraph::pattern::wrap_type<ngraph::op::util::GatherBase>(
+            {ngraph::pattern::any_input(), gather_indices_label, gather_axis_label}, pattern::rank_equals(0));
+
+    const auto unsqueeze_label = ngraph::pattern::wrap_type<ngraph::opset6::Unsqueeze>(
+            {gather_label, ngraph::pattern::any_input()}, pattern::rank_equals(1));
+
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto pattern_nodes = m.get_pattern_map();
+
+        auto& gather_indices = pattern_nodes.at(gather_indices_label);
+        auto& gather = pattern_nodes.at(gather_label);
+        auto& unsqueeze = pattern_nodes.at(unsqueeze_label);
+
+        auto new_indices = ngraph::op::util::make_try_fold<ngraph::opset6::Reshape>(gather_indices, opset6::Constant::create(element::i32, {1}, {1}), false);
+        auto new_gather = gather->clone_with_new_inputs({gather->input_value(0), new_indices, gather->input_value(2)});
+
+        new_gather->set_friendly_name(gather->get_friendly_name());
+        ngraph::copy_runtime_info({unsqueeze, gather}, {new_gather, new_indices});
+        ngraph::replace_node(unsqueeze, new_gather);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze_label, "EliminateGatherUnsqueeze");
     register_matcher(m, callback);
 }

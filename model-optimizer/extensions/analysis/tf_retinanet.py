@@ -59,7 +59,7 @@ class TensorFlowRetinaNet(AnalyzeAction):
                       "To generate the IR, provide model to the Model Optimizer with the following parameters:\n" \
                       "\t--input_model <path_to_model>/<model>.pb\n" \
                       "\t--input_shape [1,600,600,3]\n" \
-                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/retinanet.json\n" \
+                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/retinanet.json\n" \
                       "\t--reverse_input_channels"
 
             return {'model_type': {'TF_RetinaNet': result}}, message

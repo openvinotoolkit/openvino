@@ -28,6 +28,13 @@ def read_binary_vector(file_desc: io.BufferedReader, read_token: bool = True, dt
     return read_blob(file_desc, elements_number, dtype)
 
 
+def read_binary_vector_of_pairs(file_desc: io.BufferedReader, read_token: bool = True, dtype=np.float32):
+    if read_token:
+        read_placeholder(file_desc)
+    elements_number = read_binary_integer32_token(file_desc)
+    return read_blob(file_desc, 2 * elements_number, dtype)
+
+
 def read_learning_info(pb: io.BufferedReader):
     while True:
         read_placeholder(pb, 1)

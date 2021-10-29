@@ -40,7 +40,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
 
     return std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(parent) },
-        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
+        ngraph::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(input) },
         "DequantizationFunction");
 }
 
@@ -84,7 +84,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::get(
 
     return std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(parent) },
-        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
+        ngraph::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(input) },
         "DequantizationFunction");
 }
 
@@ -113,7 +113,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::getOriginal(
 
     return std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(multiply) },
-        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(input) },
+        ngraph::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(input) },
         "Dequantization");
 }
 
@@ -121,7 +121,7 @@ std::shared_ptr<ngraph::Function> GetDequantizationFunction::getReference(
     ngraph::pass::low_precision::FakeQuantizeDequantization dequantization) {
     return std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(dequantization.multiply) },
-        ngraph::ParameterVector{ as_type_ptr<op::v0::Parameter>(dequantization.data.get_node_shared_ptr()) },
+        ngraph::ParameterVector{ ov::as_type_ptr<op::v0::Parameter>(dequantization.data.get_node_shared_ptr()) },
         "Dequantization");
 }
 

@@ -9,20 +9,7 @@
 
 #include <memory>
 #include <vector>
-
-#if defined(_WIN32)
-    #ifdef IMPLEMENT_FLUID_COMPUTATION_API
-        #define FLUID_COMPUTATION_VISIBILITY __declspec(dllexport)
-    #else
-        #define FLUID_COMPUTATION_VISIBILITY __declspec(dllimport)
-    #endif
-#else
-    #ifdef IMPLEMENT_FLUID_COMPUTATION_API
-        #define FLUID_COMPUTATION_VISIBILITY __attribute__((visibility("default")))
-    #else
-        #define FLUID_COMPUTATION_VISIBILITY
-    #endif
-#endif
+#include <array>
 
 namespace test
 {
@@ -43,9 +30,14 @@ struct Rect{
         return width == 0 && height == 0;
     };
 };
+struct Scalar
+{
+    std::array<double, 4> v;
+};
+
 }
 
-class FLUID_COMPUTATION_VISIBILITY FluidComputation
+class FluidComputation
 {
 protected:
     struct Priv;
@@ -56,52 +48,70 @@ public:
     void apply();
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidResizeComputation : public FluidComputation
+class FluidResizeComputation : public FluidComputation
 {
 public:
     FluidResizeComputation(test::Mat inMat, test::Mat outMat, int interp);
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidResizeRGB8UComputation : public FluidComputation
+class FluidResizeRGB8UComputation : public FluidComputation
 {
 public:
     FluidResizeRGB8UComputation(test::Mat inMat, test::Mat outMat, int interp);
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidSplitComputation : public FluidComputation
+class FluidSplitComputation : public FluidComputation
 {
 public:
     FluidSplitComputation(test::Mat inMat, std::vector<test::Mat> outMats);
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidChanToPlaneComputation : public FluidComputation
+class FluidChanToPlaneComputation : public FluidComputation
 {
 public:
     FluidChanToPlaneComputation(test::Mat inMat, test::Mat outMat, int chan);
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidMergeComputation : public FluidComputation
+class FluidMergeComputation : public FluidComputation
 {
 public:
     FluidMergeComputation(std::vector<test::Mat> inMats, test::Mat outMat);
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidNV12toRGBComputation : public FluidComputation
+class FluidNV12toRGBComputation : public FluidComputation
 {
 public:
     FluidNV12toRGBComputation(test::Mat inMat_y, test::Mat inMat_uv, test::Mat outMat);
 };
 
-class FLUID_COMPUTATION_VISIBILITY FluidI420toRGBComputation : public FluidComputation
+class FluidI420toRGBComputation : public FluidComputation
 {
 public:
     FluidI420toRGBComputation(test::Mat inMat_y, test::Mat inMat_u, test::Mat inMat_v, test::Mat outMat);
 };
 
-class FLUID_COMPUTATION_VISIBILITY ConvertDepthComputation : public FluidComputation
+class ConvertDepthComputation : public FluidComputation
 {
 public:
     ConvertDepthComputation(test::Mat inMat, test::Mat outMat, int depth);
+};
+
+class DivCComputation : public FluidComputation
+{
+public:
+    DivCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c);
+};
+
+class SubCComputation : public FluidComputation
+{
+public:
+    SubCComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& c);
+};
+
+class MeanValueSubtractComputation : public FluidComputation
+{
+public:
+    MeanValueSubtractComputation(test::Mat inMat, test::Mat outMat, test::Scalar const& mean, test::Scalar const& std);
 };
 
 #endif // FLUID_TEST_COMPUTATIONS_HPP

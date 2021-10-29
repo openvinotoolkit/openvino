@@ -39,7 +39,7 @@ protected:
         const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
         const auto inputSubgraph1 = createInputSubgraphWithDSR(inDataType, inDataShapes.rhs);
 
-        const auto eltwise = eltwiseType == ngraph::opset6::Select::type_info ?
+        const auto eltwise = eltwiseType == ngraph::opset6::Select::get_type_info_static() ?
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {createInputSubgraphWithDSR(
                 ngraph::element::boolean, inDataShapes.lhs), inputSubgraph0, inputSubgraph1}) :
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, inputSubgraph1});
@@ -61,7 +61,7 @@ protected:
         const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
         const auto input1 = createParameter(inDataType, inDataShapes.rhs.shape);
 
-        const auto eltwise = eltwiseType == ngraph::opset6::Select::type_info ?
+        const auto eltwise = eltwiseType == ngraph::opset6::Select::get_type_info_static() ?
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {createParameter(
                 ngraph::element::boolean, inDataShapes.rhs.shape), inputSubgraph0, input1}) :
             ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, input1});
@@ -71,20 +71,20 @@ protected:
 };
 
 static const std::vector<ngraph::NodeTypeInfo> binaryEltwiseTypeVector = {
-        ngraph::opset6::Add::type_info,
-        ngraph::opset6::Multiply::type_info,
-        ngraph::opset6::Divide::type_info,
-        ngraph::opset6::Subtract::type_info,
-        ngraph::opset6::Equal::type_info,
-        ngraph::opset6::Greater::type_info,
-        ngraph::opset6::Power::type_info,
-        ngraph::opset6::Select::type_info,
+        ngraph::opset6::Add::get_type_info_static(),
+        ngraph::opset6::Multiply::get_type_info_static(),
+        ngraph::opset6::Divide::get_type_info_static(),
+        ngraph::opset6::Subtract::get_type_info_static(),
+        ngraph::opset6::Equal::get_type_info_static(),
+        ngraph::opset6::Greater::get_type_info_static(),
+        ngraph::opset6::Power::get_type_info_static(),
+        ngraph::opset6::Select::get_type_info_static(),
 };
 
 static const std::set<ngraph::NodeTypeInfo> doNotSupportI32 = {
-        ngraph::opset6::Power::type_info,
-        ngraph::opset6::Equal::type_info,
-        ngraph::opset6::Greater::type_info,
+        ngraph::opset6::Power::get_type_info_static(),
+        ngraph::opset6::Equal::get_type_info_static(),
+        ngraph::opset6::Greater::get_type_info_static(),
 };
 
 TEST_P(DSR_BinaryElementwiseBothDSR, CompareWithReference) {
@@ -92,7 +92,7 @@ TEST_P(DSR_BinaryElementwiseBothDSR, CompareWithReference) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -105,7 +105,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBound = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBinaryElementwise, DSR_BinaryElementwiseBothDSR,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBinaryElementwise, DSR_BinaryElementwiseBothDSR,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBound),
@@ -117,7 +117,7 @@ TEST_P(DSR_BinaryElementwiseSingleDSR, CompareWithReference) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -130,7 +130,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBoundSingleDSR = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBoundSingleDSR),
@@ -152,7 +152,8 @@ protected:
         const auto& rhsShape = inputShapes.rhs.shape;
 
         auto broadcastedPartialShape = ngraph::PartialShape{lhsShape};
-        ngraph::PartialShape::broadcast_merge_into(broadcastedPartialShape, ngraph::PartialShape{rhsShape}, ngraph::op::AutoBroadcastSpec::NUMPY);
+        ngraph::PartialShape::broadcast_merge_into(broadcastedPartialShape, ngraph::PartialShape{rhsShape},
+                                                   ngraph::op::AutoBroadcastType::NUMPY);
         const auto& broadcasted = broadcastedPartialShape.to_shape();
 
         ASSERT_EQ(broadcasted, outputShape);
@@ -169,7 +170,7 @@ TEST_P(DSR_BinaryElementwiseBothDSRCheckOutputShape, CheckOutputShape) {
     const auto& eltwiseType = std::get<2>(GetParam());
 
     if (doNotSupportI32.count(eltwiseType) && inDataType == ngraph::element::i32) {
-        SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
+        GTEST_SKIP() << eltwiseType.name << " doesn't support int32_t inputs" << std::endl;
     }
 
     Run();
@@ -334,7 +335,7 @@ std::vector<BinaryEltwiseShapes> dataShapesWithUpperBoundBothDSREmpty = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BinaryElementwiseBothDSRCheckOutputShape, DSR_BinaryElementwiseBothDSRCheckOutputShape,
+INSTANTIATE_TEST_SUITE_P(smoke_BinaryElementwiseBothDSRCheckOutputShape, DSR_BinaryElementwiseBothDSRCheckOutputShape,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::ValuesIn(dataShapesWithUpperBoundBothDSREmpty),

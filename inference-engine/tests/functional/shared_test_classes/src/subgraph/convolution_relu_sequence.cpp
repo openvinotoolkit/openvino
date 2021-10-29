@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConvolutionReluSequenceTest::getTestCaseName(testing::TestParamInfo<convReluSequenceTestParamsSet> obj) {
+std::string ConvolutionReluSequenceTest::getTestCaseName(const testing::TestParamInfo<convReluSequenceTestParamsSet>& obj) {
     convReluSpecificParamsAll convParamsAll;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

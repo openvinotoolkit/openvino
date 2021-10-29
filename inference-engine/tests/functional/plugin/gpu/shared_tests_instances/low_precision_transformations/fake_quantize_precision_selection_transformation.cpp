@@ -57,10 +57,10 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
 };
 
 // GPU issue
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, FakeQuantizePrecisionSelectionTransformation,
+INSTANTIATE_TEST_SUITE_P(DISABLED_LPT, FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
+        ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(testValues)),

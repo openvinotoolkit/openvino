@@ -18,7 +18,6 @@
 #include <legacy/ie_layers.h>
 #include <ie_blob.h>
 #include <ie_input_info.hpp>
-#include <ie_icnn_network.hpp>
 
 #include "test_model_repo.hpp"
 #include "test_model_path.hpp"
@@ -165,14 +164,6 @@ public:
 #else
     # error Unsupported architecture
 #endif
-
-inline InferenceEngine::InputInfo::Ptr getFirstInput(InferenceEngine::ICNNNetwork *pNet)
-{
-    InferenceEngine::InputsDataMap inputs;
-    pNet->getInputsInfo(inputs);
-    //ASSERT_GT(inputs.size(), 0);
-    return inputs.begin()->second;
-}
 
 /**
  * @brief Splits the RGB channels to either I16 Blob or float blob.

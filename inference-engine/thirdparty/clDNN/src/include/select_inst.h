@@ -4,9 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include <api/select.hpp>
-
+#include "cldnn/primitives/select.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -30,7 +30,7 @@ class typed_primitive_inst<select> : public typed_primitive_inst_base<select> {
 public:
     static layout calc_output_layout(select_node const& node);
     static std::string to_string(select_node const& node);
-    typed_primitive_inst(network_impl& network, select_node const& node);
+    typed_primitive_inst(network& network, select_node const& node);
 };
 
 using select_inst = typed_primitive_inst<select>;

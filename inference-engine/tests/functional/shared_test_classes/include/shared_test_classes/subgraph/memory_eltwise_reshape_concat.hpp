@@ -17,7 +17,7 @@ typedef std::tuple<
     std::map<std::string, std::string>  // Configuration
 > memoryEltwiseReshapeConcatParams;
 
-class MemoryEltwiseReshapeConcatTest : public LayerTestsUtils::LayerTestsCommon,
+class MemoryEltwiseReshapeConcatTest : virtual public LayerTestsUtils::LayerTestsCommon,
     public testing::WithParamInterface<memoryEltwiseReshapeConcatParams> {
 private:
     void initTestModel();

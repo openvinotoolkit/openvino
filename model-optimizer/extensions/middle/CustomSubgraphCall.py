@@ -7,7 +7,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.layout import nhwc_to_nchw_permute
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import shape_array, shape_insert
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Graph
 from mo.graph.graph import Node, add_opoutput
@@ -113,17 +113,16 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         :param shape: shape to extend.
         :return: 4D tensor.
         """
-        new_shape = int64_array(shape)
+        new_shape = shape_array(shape)
         old_shape_len = len(shape)
 
-        for x in range(
-                4 - old_shape_len):  # TODO think about proper way to add additional dimensions considering layout
-            if len(
-                    new_shape) <= 1:  # if the shape is 0D or 1D then we should add additional dimensions to batch dimension
-                new_shape = np.insert(new_shape, 0, 1)
-            #            new_shape = np.array([1, shape[0], 1, 1])
+        # TODO think about proper way to add additional dimensions considering layout
+        for x in range(4 - old_shape_len):
+            # if the shape is 0D or 1D then we should add additional dimensions to batch dimension
+            if len(new_shape) <= 1:
+                new_shape = shape_insert(new_shape, 0, 1)
             else:
-                new_shape = np.insert(new_shape, 1, 1)
+                new_shape = shape_insert(new_shape, 1, 1)
         return new_shape
 
     @staticmethod

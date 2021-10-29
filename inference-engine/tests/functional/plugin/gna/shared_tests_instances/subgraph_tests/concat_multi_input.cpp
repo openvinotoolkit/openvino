@@ -32,7 +32,7 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_PRECISION", "I16"},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_concat_multi_input, ConcatMultiInput,
+INSTANTIATE_TEST_SUITE_P(smoke_concat_multi_input, ConcatMultiInput,
     ::testing::Combine(
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(netPrecisions),

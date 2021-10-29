@@ -12,12 +12,13 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class TRANSFORMATIONS_API TransparentBaseTransformation : public LayerTransformation {
+class LP_TRANSFORMATIONS_API TransparentBaseTransformation : public LayerTransformation {
 public:
     TransparentBaseTransformation(const Params& params) : LayerTransformation(params) {}
     ~TransparentBaseTransformation() override {};
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };
 
 }  // namespace low_precision

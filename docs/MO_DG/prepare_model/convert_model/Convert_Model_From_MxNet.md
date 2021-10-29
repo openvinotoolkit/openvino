@@ -1,4 +1,4 @@
-# Converting a MXNet* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
+# Converting an MXNet* Model {#openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_MxNet}
 
 A summary of the steps for optimizing and deploying a model that was trained with the MXNet\* framework:
 
@@ -27,14 +27,12 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 |SSD-ResNet-50|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.6/resnet50_ssd_512_voc0712_trainval.zip)|
 |SSD-VGG-16-300|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.5-beta/vgg16_ssd_300_voc0712_trainval.zip)|
 |SSD-Inception v3|	[Repo](https://github.com/zhreshold/mxnet-ssd), [Symbol + Params](https://github.com/zhreshold/mxnet-ssd/releases/download/v0.7-alpha/ssd_inceptionv3_512_voc0712trainval.zip)|
-|FCN8 (Semantic Segmentation)|	[Repo](https://github.com/apache/incubator-mxnet/tree/master/example/fcn-xs), [Symbol](https://www.dropbox.com/sh/578n5cxej7ofd6m/AAA9SFCBN8R_uL2CnAd3WQ5ia/FCN8s_VGG16-symbol.json?dl=0), [Params](https://www.dropbox.com/sh/578n5cxej7ofd6m/AABHWZHCtA2P6iR6LUflkxb_a/FCN8s_VGG16-0019-cpu.params?dl=0)|
 |MTCNN part 1 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det1-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det1-0001.params)|
 |MTCNN part 2 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det2-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det2-0001.params)|
 |MTCNN part 3 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det3-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det3-0001.params)|
 |MTCNN part 4 (Face Detection)| [Repo](https://github.com/pangyupo/mxnet_mtcnn_face_detection), [Symbol](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det4-symbol.json), [Params](https://github.com/pangyupo/mxnet_mtcnn_face_detection/blob/master/model/det4-0001.params)|
 |Lightened_moon| [Repo](https://github.com/tornadomeet/mxnet-face/tree/master/model/lightened_moon), [Symbol](https://github.com/tornadomeet/mxnet-face/blob/master/model/lightened_moon/lightened_moon_fuse-symbol.json), [Params](https://github.com/tornadomeet/mxnet-face/blob/master/model/lightened_moon/lightened_moon_fuse-0082.params)|
 |RNN-Transducer| [Repo](https://github.com/HawkAaron/mxnet-transducer) |
-|word_lm| [Repo](https://github.com/apache/incubator-mxnet/tree/master/example/rnn/word_lm) |
 
 **Other supported topologies**
 
@@ -45,10 +43,10 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 To convert an MXNet\* model:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
-2. To convert an MXNet\* model contained in a `model-file-symbol.json` and `model-file-0000.params`, run the Model Optimizer launch script `mo.py`, specifying a path to the input model file:
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
+2. To convert an MXNet\* model contained in a `model-file-symbol.json` and `model-file-0000.params`, run the Model Optimizer launch script `mo.py`, specifying a path to the input model file and a path to an output directory with write permissions:
 ```sh
-python3 mo_mxnet.py --input_model model-file-0000.params
+python3 mo_mxnet.py --input_model model-file-0000.params --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
@@ -67,7 +65,7 @@ MXNet-specific parameters:
   --nd_prefix_name <ND_PREFIX_NAME>
             Prefix name for args.nd and argx.nd files
   --pretrained_model_name <PRETRAINED_MODEL_NAME>
-            Name of a pretrained MXNet model without extension and epoch
+            Name of a pre-trained MXNet model without extension and epoch
             number. This model will be merged with args.nd and argx.nd
             files
   --save_params_from_nd

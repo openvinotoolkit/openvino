@@ -13,10 +13,6 @@
 #
 #   cython_add_module( <module_name> <src1> <src2> ... <srcN> )
 #
-# To create a standalone executable, the function
-#
-#   cython_add_standalone_executable( <executable_name> [MAIN_MODULE src1] <src1> <src2> ... <srcN> )
-#
 # To avoid dependence on Python, set the PYTHON_LIBRARY cache variable to point
 # to a static library.  If a MAIN_MODULE source is specified,
 # the "if __name__ == '__main__':" from that module is used as the C main() method
@@ -92,7 +88,7 @@ find_package( Cython REQUIRED
               PATHS "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
               NO_CMAKE_FIND_ROOT_PATH
               NO_DEFAULT_PATH )
-find_package( PythonLibs REQUIRED )
+find_package(PythonLibs 3 REQUIRED)
 
 set( CYTHON_CXX_EXTENSION "cxx" )
 set( CYTHON_C_EXTENSION "c" )
@@ -239,9 +235,7 @@ function( compile_pyx _name generated_file )
       set( cython_debug_arg "--gdb" )
   endif()
 
-  if( "${PYTHONLIBS_VERSION_STRING}" MATCHES "^2." )
-    set( version_arg "-2" )
-  elseif( "${PYTHONLIBS_VERSION_STRING}" MATCHES "^3." )
+  if( "${PYTHONLIBS_VERSION_STRING}" MATCHES "^3." )
     set( version_arg "-3" )
   else()
     set( version_arg )
@@ -292,48 +286,12 @@ function( cython_add_module _name )
     endif()
   endforeach()
   compile_pyx( ${_name} generated_file ${pyx_module_sources} )
-  include_directories( ${PYTHON_INCLUDE_DIRS} )
-  python_add_module( ${_name} ${generated_file} ${other_module_sources} )
+  python_add_module ( ${_name} ${generated_file} ${other_module_sources} )
+  target_include_directories( ${_name} PRIVATE ${PYTHON_INCLUDE_DIRS})
+  # set_target_properties(${_name} PROPERTIES PREFIX "" SUFFIX "${PYTHON_MODULE_EXTENSION}")
   if( APPLE )
     set_target_properties( ${_name} PROPERTIES LINK_FLAGS "-undefined dynamic_lookup" )
   else()
     target_link_libraries( ${_name} PRIVATE ${PYTHON_LIBRARIES} )
   endif()
-endfunction()
-
-include( CMakeParseArguments )
-# cython_add_standalone_executable( _name [MAIN_MODULE src3.py] src1 src2 ... srcN )
-# Creates a standalone executable the given sources.
-function( cython_add_standalone_executable _name )
-  set( pyx_module_sources "" )
-  set( other_module_sources "" )
-  set( main_module "" )
-  cmake_parse_arguments( cython_arguments "" "MAIN_MODULE" "" ${ARGN} )
-  include_directories( ${PYTHON_INCLUDE_DIRS} )
-  foreach( _file ${cython_arguments_UNPARSED_ARGUMENTS} )
-    if( ${_file} MATCHES ".*\\.py[x]?$" )
-      get_filename_component( _file_we ${_file} NAME_WE )
-      if( "${_file_we}" STREQUAL "${_name}" )
-        set( main_module "${_file}" )
-      elseif( NOT "${_file}" STREQUAL "${cython_arguments_MAIN_MODULE}" )
-        set( PYTHON_MODULE_${_file_we}_static_BUILD_SHARED OFF )
-        compile_pyx( "${_file_we}_static" generated_file "${_file}" )
-        list( APPEND pyx_module_sources "${generated_file}" )
-      endif()
-    else()
-      list( APPEND other_module_sources ${_file} )
-    endif()
-  endforeach()
-
-  if( cython_arguments_MAIN_MODULE )
-    set( main_module ${cython_arguments_MAIN_MODULE} )
-  endif()
-  if( NOT main_module )
-    message( FATAL_ERROR "main module not found." )
-  endif()
-  get_filename_component( main_module_we "${main_module}" NAME_WE )
-  set( CYTHON_FLAGS ${CYTHON_FLAGS} --embed )
-  compile_pyx( "${main_module_we}_static" generated_file ${main_module} )
-  add_executable( ${_name} ${generated_file} ${pyx_module_sources} ${other_module_sources} )
-  target_link_libraries( ${_name} PRIVATE ${PYTHON_LIBRARIES} ${pyx_module_libs} )
 endfunction()

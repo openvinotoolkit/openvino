@@ -14,8 +14,8 @@ class Result(Op):
 
     def __init__(self, graph: Graph, attrs: dict = None):
         super().__init__(graph, {
-            'op': __class__.op,
-            'type': __class__.op,
+            'op': self.op,
+            'type': self.op,
             'version': 'opset1',
             'infer': lambda x: None,
             'value': None,

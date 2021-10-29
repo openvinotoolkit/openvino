@@ -4,8 +4,8 @@
 
 #include "split_inst.h"
 #include "primitive_type_base.h"
-#include "memory_impl.h"
-#include "error_handler.h"
+#include "cldnn/runtime/memory.hpp"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -82,7 +82,7 @@ std::string split_inst::to_string(split_node const& node) {
     return primitive_description.str();
 }
 
-split_inst::typed_primitive_inst(network_impl& network, split_node const& node) : parent(network, node) {
+split_inst::typed_primitive_inst(network& network, split_node const& node) : parent(network, node) {
     CLDNN_ERROR_MESSAGE(node.id(), "Split primitive instance should not be created!");
 }
 

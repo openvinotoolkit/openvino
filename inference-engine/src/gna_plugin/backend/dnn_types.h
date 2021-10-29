@@ -71,7 +71,7 @@ struct DnnActivation {
         return type;
     }
     static DnnActivation fromType(DnnActivationType type) {
-        DnnActivation activation;
+        DnnActivation activation{};
         activation.type = type;
         activation.args = {};
         return activation;
@@ -145,15 +145,12 @@ typedef struct {
     uint32_t num_bytes_per_weight;
     uint32_t num_bytes_per_bias;
     uint32_t num_filters;
-    uint32_t num_filter_rows;
     uint32_t num_filter_coefficients;
-    uint32_t num_feature_maps;
-    uint32_t num_feature_map_rows;
-    uint32_t num_feature_map_columns;
+    uint32_t convStride;
     float weight_scale_factor;
     void *ptr_filters;     // filters stored one after the other
     void *ptr_biases;
-} intel_convolutionalD_t;
+} intel_convolutional1D_t;
 
 typedef struct {
     std::array<uint32_t, 2> convStride;
@@ -197,23 +194,11 @@ typedef struct {
     uint32_t num_copy_rows;            // number of rows to copy
 } intel_copy_t;
 
-#if GNA_LIB_VER == 2
 enum OvGnaType {
     OvGnaTypeInt8 = 1,
     OvGnaTypeInt16 = 2,
     OvGnaTypeInt32 = 4,
     OvGnaTypePwl = 8,
-};
-
-enum OvGnaMode {
-    OvGnaModeDefault = 0,
-    OvGnaModeDisabled = -1
-};
-
-struct OvGnaTensor {
-    std::vector<uint32_t> dimensions;
-    OvGnaType type;
-    OvGnaMode mode;
 };
 
 template <class T>
@@ -230,7 +215,19 @@ OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
     return r->second;
 }
 
-static std::string OvGnaTypeToString(OvGnaType type) {
+#if GNA_LIB_VER == 2
+enum OvGnaMode {
+    OvGnaModeDefault = 0,
+    OvGnaModeDisabled = -1
+};
+
+struct OvGnaTensor {
+    std::vector<uint32_t> dimensions;
+    OvGnaType type;
+    OvGnaMode mode;
+};
+
+inline std::string OvGnaTypeToString(OvGnaType type) {
     static const std::map<OvGnaType, std::string> typeToString = {
         {OvGnaTypeInt8, "OvGnaTypeInt8"},
         {OvGnaTypeInt16, "OvGnaTypeInt16"},
@@ -244,7 +241,7 @@ static std::string OvGnaTypeToString(OvGnaType type) {
     return r->second;
 }
 
-static std::string OvGnaModeToString(OvGnaMode mode) {
+inline std::string OvGnaModeToString(OvGnaMode mode) {
     static const std::map<OvGnaMode, std::string> modeToString = {
         {OvGnaModeDefault, "OvGnaModeDefault"},
         {OvGnaModeDisabled, "OvGnaModeDisabled"},
@@ -273,7 +270,7 @@ struct intel_dnn_component_t {
     intel_dnn_orientation_t orientation_out;
     union operation_struct_t {
         intel_affine_t affine;
-        intel_convolutionalD_t conv1D;
+        intel_convolutional1D_t conv1D;
         intel_convolutional2D_t conv2D;
         intel_maxpool_t maxpool;
         intel_piecewiselinear_t pwl;

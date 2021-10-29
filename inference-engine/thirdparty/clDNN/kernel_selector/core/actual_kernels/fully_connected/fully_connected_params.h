@@ -16,7 +16,7 @@ struct fully_connected_params : public weight_bias_params {
 
     QuantizationType quantization = QuantizationType::NONE;
 
-    virtual ParamsKey GetParamsKey() const {
+    ParamsKey GetParamsKey() const override {
         ParamsKey k = weight_bias_params::GetParamsKey();
 
         k.EnableQuantization(quantization);

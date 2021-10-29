@@ -52,7 +52,7 @@ TEST(TransformationTests, AssignRegisters) {
             auto& rt = op->get_rt_info();
 
             if (auto rinfo = rt["reginfo"]) {
-                auto reginfo = as_type_ptr<VariantWrapper<std::vector<size_t>>>(rinfo)->get();
+                auto reginfo = ov::as_type_ptr<VariantWrapper<std::vector<size_t>>>(rinfo)->get();
                 auto reg = reginfo[0];
                 ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
                 total_ops++;
@@ -126,7 +126,7 @@ TEST(TransformationTests, AssignRegisters2) {
             auto& rt = op->get_rt_info();
 
             if (auto rinfo = rt["reginfo"]) {
-                auto reginfo = as_type_ptr<VariantWrapper<std::vector<size_t>>>(rinfo)->get();
+                auto reginfo = ov::as_type_ptr<VariantWrapper<std::vector<size_t>>>(rinfo)->get();
                 auto reg = reginfo[0];
                 ASSERT_TRUE(ref_registers[op->get_friendly_name()] == reg);
                 total_ops++;
