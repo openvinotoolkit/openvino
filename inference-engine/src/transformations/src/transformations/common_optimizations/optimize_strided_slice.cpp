@@ -41,6 +41,8 @@ bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ng
     return rewritten;
 }
 
+namespace {
+
 ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice) {
     auto convert_mask_to_axis_set = [](const std::vector<int64_t>& mask) {
         ngraph::AxisSet axis_set{};
@@ -76,7 +78,6 @@ ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> s
     return plan;
 }
 
-
 bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlice> lhs,
                                      std::shared_ptr<ngraph::opset1::StridedSlice> rhs) {
     auto lhs_plan = get_slice_plan(lhs);
@@ -87,6 +88,8 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
         return false;
     return lhs_plan == rhs_plan;
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
 

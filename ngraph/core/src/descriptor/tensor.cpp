@@ -8,7 +8,6 @@
 #include "ngraph/node.hpp"
 
 using namespace std;
-atomic<size_t> ov::descriptor::Tensor::m_next_instance_id(0);
 
 ov::descriptor::Tensor::Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name)
     : m_element_type(element_type),
@@ -92,10 +91,17 @@ const std::string& ov::descriptor::Tensor::get_name() const {
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& ov::descriptor::Tensor::get_names() const {
-    AtomicGuard lock(m_names_changing);
-    if (m_names.empty())
-        m_names.insert("Tensor_" + to_string(m_next_instance_id.fetch_add(1)));
     return m_names;
+}
+
+std::string ov::descriptor::Tensor::get_any_name() const {
+    if (m_names.empty()) {
+        throw ngraph::ngraph_error("Attempt to get a name for a Tensor without names");
+    }
+    // As unordered_set for std::string doesn't guaranty the same elements order between runs
+    // we have to manually determine the order by sorting tensor name in lexicographical and returning the first one
+    std::set<std::string> sorted_names(m_names.begin(), m_names.end());
+    return *sorted_names.begin();
 }
 
 void ov::descriptor::Tensor::set_names(const std::unordered_set<std::string>& names) {
@@ -108,7 +114,7 @@ void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& na
     }
 }
 
-ostream& operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
+ostream& ov::descriptor::operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
     std::string names;
     for (const auto& name : tensor.get_names()) {
         if (!names.empty())

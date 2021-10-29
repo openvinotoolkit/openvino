@@ -428,7 +428,7 @@ void program::build_program(bool is_internal) {
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-    if (debug_config->dry_run_path.empty()) {
+    if (debug_config->dry_run_path.empty() || is_internal) {
 #else
     {
 #endif
@@ -521,13 +521,6 @@ void program::pre_optimize_graph(bool is_internal) {
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
     apply_opt_pass<remove_redundant_reorders>(lo, options.get<build_option_type::optimize_data>()->enabled());
-
-    if (options.get<build_option_type::optimize_data>()->enabled() && get_engine().configuration().n_streams == 1) {
-        // Fuse conv + eltw after padding preparations
-        apply_opt_pass<prepare_conv_eltw_fusing>(lo, lo.get_optimization_attributes().b_fs_yx_fsv16_network);
-
-        apply_opt_pass<prepare_conv_eltw_read_write_opt>();
-    }
 
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
@@ -1313,6 +1306,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
             prim.type() != cldnn::region_yolo::type_id() &&
+            prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::mvn::type_id())
             can_use_fsv16 = false;
 

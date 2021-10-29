@@ -16,8 +16,10 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_compound_blob.h"
+#include "ie_ngraph_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "ie_remote_context.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -27,6 +29,43 @@ IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs,
     :  // We should copy maps since they can be overriden in SetBlob with preprocess
       _networkInputs{copyInfo(networkInputs)},
       _networkOutputs{copyInfo(networkOutputs)} {}
+
+IInferRequestInternal::IInferRequestInternal(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                             const std::vector<std::shared_ptr<const ov::Node>>& outputs)
+    : _parameters(inputs),
+      _results(outputs) {
+    const auto& create_old_data = [](const ov::Output<const ov::Node>& output) -> InferenceEngine::DataPtr {
+        IE_SUPPRESS_DEPRECATED_START
+        auto name = ngraph::op::util::get_ie_output_name(output);
+        auto shape = output.get_partial_shape();
+        auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
+        for (const auto& dim : shape) {
+            if (dim.is_static() && dim.get_length() == 0)
+                IE_THROW() << name << " has zero dimension which is not allowed";
+        }
+        const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
+        const auto precision = InferenceEngine::details::convertPrecision(output.get_element_type());
+        return std::make_shared<Data>(name, precision, shape, rankLayout);
+        IE_SUPPRESS_DEPRECATED_END
+    };
+    const auto& create_old_input_data =
+        [create_old_data](const ov::Output<const ov::Node>& output) -> InferenceEngine::InputInfo::Ptr {
+        auto info = std::make_shared<InferenceEngine::InputInfo>();
+        info->setInputData(create_old_data(output));
+        return info;
+    };
+
+    for (const auto& param : _parameters) {
+        const auto& input = create_old_input_data(param->output(0));
+        _networkInputs[input->name()] = input;
+    }
+
+    for (const auto& result : _results) {
+        auto input = result->input_value(0);
+        const auto& output = create_old_data(ov::Output<const ov::Node>(input.get_node(), input.get_index()));
+        _networkOutputs[output->getName()] = output;
+    }
+}
 
 void IInferRequestInternal::Infer() {
     checkBlobs();
@@ -52,18 +91,22 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     }
     if (!userBlob)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const bool compoundBlobPassed = userBlob->is<CompoundBlob>();
     const bool remoteBlobPassed = userBlob->is<RemoteBlob>();
     if (!compoundBlobPassed && !remoteBlobPassed && userBlob->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    if (userBlob->size() == 0) {
+    IE_SUPPRESS_DEPRECATED_START
+    if (userBlob->size() == 0 &&
+        !((foundInput && foundInput->getInputData()->isDynamic()) || (foundOutput && foundOutput->isDynamic()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
+    IE_SUPPRESS_DEPRECATED_END
 
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
     size_t dataSize = userBlob->size();
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+    if (isInput) {
         // ilavreno: the condition below is obsolete, but we need an exact list of precisions
         // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
@@ -368,5 +411,13 @@ void* IInferRequestInternal::GetUserData() noexcept {
 
 void IInferRequestInternal::SetUserData(void* userData) noexcept {
     _userData = userData;
+}
+
+const std::vector<std::shared_ptr<const ov::Node>>& IInferRequestInternal::GetInputs() const {
+    return _parameters;
+}
+
+const std::vector<std::shared_ptr<const ov::Node>>& IInferRequestInternal::GetOutputs() const {
+    return _results;
 }
 }  // namespace InferenceEngine

@@ -38,6 +38,9 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params&
         return false;
     }
 
+    if (!IsSIMDSizeSupported(p.engineInfo, 8))
+        return false;
+
     const lrn_params& params = static_cast<const lrn_params&>(p);
     const auto& out = params.output;
 

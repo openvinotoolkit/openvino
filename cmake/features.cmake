@@ -78,6 +78,18 @@ if (ENABLE_GNA)
     endif()
 endif()
 
+if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
+    set(ENABLE_IR_V7_READER_DEFAULT ON)
+else()
+    set(ENABLE_IR_V7_READER_DEFAULT OFF)
+endif()
+
+ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
+
+ie_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
+
+ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
+
 ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
@@ -123,10 +135,11 @@ endif()
 ie_dependent_option(NGRAPH_ONNX_FRONTEND_ENABLE "Enable ONNX FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_PDPD_FRONTEND_ENABLE "Enable PaddlePaddle FrontEnd" ON "protoc_available" OFF)
 ie_option(NGRAPH_IR_FRONTEND_ENABLE "Enable IR FrontEnd" ON)
+ie_dependent_option(NGRAPH_TF_FRONTEND_ENABLE "Enable TensorFlow FrontEnd" ON "protoc_available" OFF)
 ie_dependent_option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" ON
     "NGRAPH_ONNX_FRONTEND_ENABLE" OFF)
 ie_dependent_option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system protobuf" OFF
-    "NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE" OFF)
+    "NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE" OFF)
 ie_dependent_option(NGRAPH_UNIT_TEST_ENABLE "Enables ngraph unit tests" ON "ENABLE_TESTS;NOT ANDROID" OFF)
 ie_dependent_option(NGRAPH_UNIT_TEST_BACKENDS_ENABLE "Control the building of unit tests using backends" ON
     "NGRAPH_UNIT_TEST_ENABLE" OFF)
