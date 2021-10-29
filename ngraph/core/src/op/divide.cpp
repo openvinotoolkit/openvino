@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/divide.hpp"
+
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
@@ -73,23 +74,26 @@ bool evaluate_bound(const Node* node, const HostTensorVector& output_values, boo
 
         // create mask where zeros in the second argument are placed
         auto input2_zeros_mask = std::make_shared<HostTensor>(element::boolean, input2.get_shape());
-        bool status = op::v1::Equal().evaluate({input2_zeros_mask}, {value2, std::make_shared<HostTensor>(zeros_const)});
-        if (!status) 
+        bool status =
+            op::v1::Equal().evaluate({input2_zeros_mask}, {value2, std::make_shared<HostTensor>(zeros_const)});
+        if (!status)
             return status;
 
         // replace zeros by ones to get result of divide for other values of arguments
-        status = op::v1::Select().evaluate(output_values, {input2_zeros_mask, std::make_shared<HostTensor>(ones_const), value2});
-        if (!status) 
+        status = op::v1::Select().evaluate(output_values,
+                                           {input2_zeros_mask, std::make_shared<HostTensor>(ones_const), value2});
+        if (!status)
             return status;
 
         OPENVINO_SUPPRESS_DEPRECATED_START
         status = node->evaluate(output_values, {value1, output_values[0]});
         OPENVINO_SUPPRESS_DEPRECATED_END
-        if (!status) 
+        if (!status)
             return status;
 
         // replace values where zeros were found in the second argument to maximum values
-        status = op::v1::Select().evaluate(output_values, 
+        status = op::v1::Select().evaluate(
+            output_values,
             {input2_zeros_mask, std::make_shared<HostTensor>(output_maximum_value), output_values[0]});
         return status;
     } else {
