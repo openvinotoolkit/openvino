@@ -69,7 +69,7 @@ INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 INTERPRETER.onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 
-# If inside the function
+# If doesn't have evaluate method and we cannot infer it
 INTERPRETER.onnx_if_inside_if
 INTERPRETER.onnx_if_inside_loop
 

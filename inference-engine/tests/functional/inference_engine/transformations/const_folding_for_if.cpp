@@ -18,6 +18,7 @@ using namespace testing;
 using namespace std;
 using namespace ngraph;
 
+// If doesn't have evaluate methods
 TEST(TransformationTests, DISABLED_if_constant_folding) {
     std::shared_ptr<ngraph::Function> fun(nullptr);
     {
