@@ -2,20 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import numpy as np
-import os
 import subprocess
 import sys
+from pathlib import Path
 
-from tools.pot.tests.utils.path import MO_PATH
+import mo
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
-    mo_runner = MO_PATH.joinpath('mo.py').as_posix()
+    mo_path = Path(mo.__file__).parent
+    mo_runner = mo_path.joinpath('main.py').as_posix()
     if coverage:
-        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(MO_PATH),
+        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(mo_path.parent),
                   '--omit=*_test.py', mo_runner]
     else:
         params = [sys.executable, mo_runner]
