@@ -5,9 +5,9 @@
 set (TARGET_NAME "inference_engine")
 
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    find_package(TBBBIND_2_4 QUIET)
-    if (TBBBIND_2_4_FOUND)
-        message(STATUS "Static tbbbind_2_4 package was found")
+    find_package(TBBBIND_2_5 QUIET)
+    if (TBBBIND_2_5_FOUND)
+        message(STATUS "Static tbbbind_2_5 package was found")
     endif()
 endif()
 
@@ -141,9 +141,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
-if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+if (TBBBIND_2_5_FOUND)
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_5_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
 # Create library file from object library
@@ -166,9 +166,9 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
-if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+if (TBBBIND_2_5_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_5_AVAILABLE)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
@@ -201,9 +201,9 @@ if(BUILD_SHARED_LIBS)
                 ${IE_STATIC_DEPENDENT_FILES})
 
     set_ie_threading_interface_for(${TARGET_NAME}_s)
-    if (TBBBIND_2_4_FOUND)
-        target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_4_AVAILABLE)
-        target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+    if (TBBBIND_2_5_FOUND)
+        target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_5_AVAILABLE)
+        target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
     endif()
 
     target_include_directories(${TARGET_NAME}_s PUBLIC
