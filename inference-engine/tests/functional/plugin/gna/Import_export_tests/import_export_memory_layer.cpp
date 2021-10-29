@@ -55,7 +55,8 @@ public:
         LoadNetwork();
         GenerateInputs();
         Infer();
-        executableNetwork.Export("exported_model.blob");
+        const char *file_name = "exported_model.blob";
+        executableNetwork.Export(file_name);
         for (auto const &configItem : importConfiguration) {
             configuration[configItem.first] = configItem.second;
         }
@@ -63,7 +64,7 @@ public:
         if (inputStream.fail()) {
             FAIL() << "Cannot open file to import model: exported_model.blob";
         }
-        auto importedNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        auto importedNetwork = core->ImportNetwork(file_name, targetDevice, configuration);
         std::vector<std::string> queryToState;
         IE_SUPPRESS_DEPRECATED_START
         for (const auto &query_state : executableNetwork.QueryState()) {

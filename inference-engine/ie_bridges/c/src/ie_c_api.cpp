@@ -369,8 +369,14 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t
         std::stringstream network_model;
         IE::TensorDesc tensor = exported_blob->object->getTensorDesc();
 
-        char* data = exported_blob->object->cbuffer().as<char*>();
-        network_model.write(data, sizeof(data));
+        // char* data = exported_blob->object->cbuffer().as<char*>();
+        // network_model.write(data, sizeof(data));
+
+        InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(exported_blob->object);
+        auto mblobHolder = mblob->rmap();
+        char* blob_data = mblobHolder.as<char*>();
+        IE::TensorDesc desc = exported_blob->object->getTensorDesc();
+        network_model << blob_data;
 
         std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
         exe_net->object = core->object.ImportNetwork(network_model);
@@ -388,8 +394,8 @@ IEStatusCode ie_core_export_network(ie_core_t *core, const char *file_name, ie_e
         return status;
     }
     try {
-        std::fstream fs(file_name, fs.binary | fs.trunc | fs.out);
-        (*exe_network)->object.Export(fs);
+        //std::fstream fs(file_name, fs.binary | fs.trunc | fs.out);
+        (*exe_network)->object.Export(file_name);
     } CATCH_IE_EXCEPTIONS
 
     return status;
@@ -402,21 +408,34 @@ IEStatusCode ie_core_export_network_to_memory(ie_core_t *core, ie_blob_t** blob,
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
-    try {
-        std::stringstream stream;
-        (*exe_network)->object.Export(stream);
-        std::string model = stream.str();
+    // try {
+    std::ofstream ifs("exported_model.blob", ifs.out | ifs.binary);
+    (*exe_network)->object.Export(ifs);
+    // std::string model = ss.str();
 
-        IE::SizeVector dims_vector = {1, model.length()};
-        IE::Precision prec = IE::Precision::U8;
-        IE::TensorDesc tensor(prec, dims_vector, IE::Layout::ANY);
+    std::ifstream ofs("exported_model.blob", ofs.in | ofs.binary);
+    auto eos = std::istream_iterator<char>();
+    auto buffer = std::vector<char>(std::istream_iterator<char>(ofs), eos);
 
-        std::unique_ptr<ie_blob_t> model_blob(new ie_blob_t);
-        model_blob->object->buffer() = &model;
-        char *p = const_cast<char*>(model.c_str());
-        model_blob->object = IE::make_shared_blob(tensor, p, model.size());
-        *blob = model_blob.release();
-    } CATCH_IE_EXCEPTIONS
+
+    IE::SizeVector dims_vector = {1, buffer.size()};
+    IE::Precision prec = IE::Precision::BIN;
+    IE::TensorDesc tensor(prec, dims_vector, IE::Layout::ANY);
+
+    std::unique_ptr<ie_blob_t> model_blob(new ie_blob_t);
+
+    // InferenceEngine::make_shared_blob<BlobType>(desc, reinterpret_cast<BlobType*>(ptr), size)
+    // char *p = const_cast<char*>(model.c_str());
+    model_blob->object = IE::make_shared_blob(tensor, &buffer[0], buffer.size());
+
+    InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(model_blob->object);
+    auto mblobHolder = mblob->wmap();
+    char* blob_data = mblobHolder.as<char*>();
+    for (size_t i = 0; i < buffer.size(); ++i) {
+        *(blob_data + i) = buffer[i];
+    }
+    *blob = model_blob.release();
+    // // } CATCH_IE_EXCEPTIONS
 
     return status;
 }
