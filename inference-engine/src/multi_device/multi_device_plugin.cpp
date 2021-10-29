@@ -77,7 +77,6 @@ std::map<std::string, std::string> MultiDeviceInferencePlugin::GetSupportedConfi
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::ParseMetaDevices");
     std::vector<DeviceInformation> metaDevices;
 
     // parsing the string and splitting to tokens
@@ -219,7 +218,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                                                                               CNNNetwork network,
                                                                               const std::map<std::string, std::string>& config,
                                                                               const std::string &networkPrecision) {
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl");
     if (GetCore() == nullptr) {
         IE_THROW() << "Please, work with " << GetName() << " device via InferenceEngine::Core object";
     }
@@ -272,7 +270,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, needPerfCounters);
     }
-
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
@@ -325,27 +323,23 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             }
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
-    {
-        OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:CreateExeNetwork");
-        bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
-        auto impl = std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
-                                                               metaDevices,
-                                                               multiNetworkConfig,
-                                                               enablePerfCounters);
-        if (!modelPath.empty()) {
-            SetExeNetworkInfo(impl,
-                            executableNetworkPerDevice.begin()->second->GetInputsInfo(),
-                            executableNetworkPerDevice.begin()->second->GetOutputsInfo());
-            impl->setInputs(executableNetworkPerDevice.begin()->second->getInputs());
-            impl->setOutputs(executableNetworkPerDevice.begin()->second->getOutputs());
-        }
-        return impl;
+    bool enablePerfCounters = num_plugins_supporting_perf_counters == executableNetworkPerDevice.size();
+    auto impl = std::make_shared<MultiDeviceExecutableNetwork>(executableNetworkPerDevice,
+                                                            metaDevices,
+                                                            multiNetworkConfig,
+                                                            enablePerfCounters);
+    if (!modelPath.empty()) {
+        SetExeNetworkInfo(impl,
+                        executableNetworkPerDevice.begin()->second->GetInputsInfo(),
+                        executableNetworkPerDevice.begin()->second->GetOutputsInfo());
+        impl->setInputs(executableNetworkPerDevice.begin()->second->getInputs());
+        impl->setOutputs(executableNetworkPerDevice.begin()->second->getOutputs());
     }
+    return impl;
 }
 
 QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&                         network,
                                                             const std::map<std::string, std::string>& config) const {
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::QueryNetwork");
     QueryNetworkResult queryResult;
 
     if (GetCore() == nullptr) {
@@ -559,7 +553,6 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDevice(const std::vector<DeviceInformation>& metaDevices,
         const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::FilterDevice");
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to filter " << GetName() <<  " plugin";
     }

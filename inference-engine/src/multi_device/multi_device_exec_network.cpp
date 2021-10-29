@@ -160,7 +160,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = strDevices;
 
     std::vector<DeviceInformation> needLoadDevices;
-
+    std::string profilingTask = "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode";
     // check if have cpu device
     const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
                                       [=](const DeviceInformation& d)->bool{return d.deviceName.find("CPU") != std::string::npos;});
@@ -169,6 +169,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _config.insert(_cpuDevice.config.begin(), _cpuDevice.config.end());
         needLoadDevices.push_back(_cpuDevice);
         _cpuFuture = _cpuPromise.get_future();
+        profilingTask += _cpuDevice.deviceName;
     }
 
     // get accelerator device, like GPU
@@ -180,8 +181,9 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _config.insert(_acceleratorDevice.config.begin(), _acceleratorDevice.config.end());
         needLoadDevices.push_back(_acceleratorDevice);
         _acceleratorFuture = _acceleratorPromise.get_future();
+        profilingTask += _acceleratorDevice.deviceName;
     }
-
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, openvino::itt::handle(profilingTask));
     if (needLoadDevices.size() == 0) {
         IE_THROW() << "No device set";
     }
@@ -205,7 +207,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         // will not wait for loading accelerator network,
         // so some parameters need to be transferred by value.
        _executor->run([&, modelPath, network, device, deviceConfig]() {
-            OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode" + p.deviceName);
             SoExecutableNetworkInternal executableNetwork;
             if (!modelPath.empty()) {
                 executableNetwork = _core->LoadNetwork(modelPath, device, deviceConfig);
@@ -228,7 +229,6 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 }
 
 void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::WaitFirstNetworkReady");
     if (_alreadyActualNetwork) {
         return;
     }
@@ -309,7 +309,6 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
 bool MultiDeviceExecutableNetwork::RunPipelineTask(Task& inferPipelineTask,
                                             NotBusyWorkerRequests& idleWorkerRequests,
                                             const DeviceName& preferred_device) {
-  OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::RunPipelineTask");
   WorkerInferRequest *workerRequestPtr = nullptr;
   if (idleWorkerRequests.try_pop(workerRequestPtr)) {
       IdleGuard idleGuard{workerRequestPtr, idleWorkerRequests};
@@ -352,11 +351,9 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
     if (_workModeIsAUTO) {
-        OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::GetContext:AutoMode");
         WaitActualNetworkReady();
         return _networkActualNeeded->GetContext();
     }
-    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::GetContext");
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
         return _devicePriorities;
@@ -468,7 +465,6 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
-        OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceExecutableNetwork::GetMetric:AutoMode");
         // fixme: should we wait actual device? meanwhile it will block inference, how to fix?
         if (_alreadyActualNetwork) {
             WaitActualNetworkReady();
