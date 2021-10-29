@@ -521,8 +521,8 @@ def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int 
     :param port: a port number
     :return: a name of new placeholder created by cutting a graph
     """
-    port_type = '_out' if is_out_port else ''
-    return '{}/placeholder{}_port_{}'.format(node_id, port_type, port)
+    name_postfix = ':' if is_out_port else '/placeholder_port_'
+    return '{}{}{}'.format(node_id, name_postfix, port)
 
 
 def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray],

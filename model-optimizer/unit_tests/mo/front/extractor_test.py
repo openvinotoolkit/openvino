@@ -386,8 +386,8 @@ class TestInputAddition(unittest.TestCase):
         self.assertTrue(flag, resp)
 
         # Checks for new input and edges
-        self.assertTrue('conv_1/placeholder_out_port_0' in graph.nodes())
-        new_input = 'conv_1/placeholder_out_port_0'
+        self.assertTrue('conv_1:0' in graph.nodes())
+        new_input = 'conv_1:0'
         self.assertTrue(graph.node[new_input]['is_input'])
         self.assertTrue((new_input, 'relu_1') in graph.edges())
         self.assertTrue(('old_input', 'relu_1') not in graph.edges())
@@ -428,8 +428,8 @@ class TestInputAddition(unittest.TestCase):
         self.assertTrue(flag, resp)
 
         # Checks for new input and edges
-        self.assertTrue('conv_1/placeholder_out_port_0' in graph.nodes())
-        new_input = 'conv_1/placeholder_out_port_0'
+        self.assertTrue('conv_1:0' in graph.nodes())
+        new_input = 'conv_1:0'
 
         self.assertTrue(graph.node[new_input]['is_input'])
 
@@ -561,7 +561,7 @@ class TestUserDataRepack(unittest.TestCase):
         shape_2 = np.array([5])
         input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1, 'Cc:0' : shape_2}, {'Bb': False, 'Cc:0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
         self.assertDictEqual(input, {'A' : [{'shape' : shape_1, 'out' : 0}], 'B' : [{'shape' : None, 'port' : None}], 'C' : [{'shape' : shape_2, 'out' : 0}]})
-        self.assertEqual(freeze_placeholder, {'B' : False, 'C/placeholder_out_port_0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
+        self.assertEqual(freeze_placeholder, {'B' : False, 'C:0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
 
     def test_freeze_new_placeholder_2(self):
         # create a new placeholder Ee by cutting input port with shape_2 = [2, 2] and freeze a value [[1.0, 1.0], [2.0, 3.0]]
