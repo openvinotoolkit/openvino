@@ -11,6 +11,7 @@
 #include "shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
+#include "shape_nodes.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 
 
@@ -27,6 +28,16 @@ void shape_inference(ov::Node* op,
         shape_infer(node, input_shapes, output_shapes, constant_data);
     } else if (auto node = ov::as_type<ov::op::util::LogicalReductionKeepDims>(op)) {
         shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Reshape>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Squeeze>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::Unsqueeze>(op)) {
+        shape_infer(node, input_shapes, output_shapes, constant_data);
+    } else if (auto node = ov::as_type<ov::opset1::ShapeOf>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset3::ShapeOf>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else {

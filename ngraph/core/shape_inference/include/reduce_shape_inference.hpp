@@ -6,6 +6,7 @@
 #include <openvino/op/util/logical_reduction_keep_dims.hpp>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include "utils.hpp"
 
 template <class T>
 inline void dynamic_inference(const T& input_shape, T& output_shape, bool keep_dims) {
@@ -16,35 +17,6 @@ template <>
 inline void dynamic_inference<ov::PartialShape>(const ov::PartialShape& input_shape, ov::PartialShape& output_shape, bool keep_dims) {
     output_shape = keep_dims ? ov::PartialShape::dynamic(input_shape.rank()) : ov::PartialShape::dynamic();
 }
-
-template <class T>
-bool get_data_as_int64(
-        size_t idx, const ov::Node* op, std::vector<int64_t>& axes_value,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    if (constant_data.count(idx)) {
-        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
-    } else {
-        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
-        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
-        axes_value = constant->cast_vector<int64_t>();
-    }
-    return true;
-}
-
-template <>
-bool get_data_as_int64<ov::PartialShape>(
-        size_t idx, const ov::Node* op, std::vector<int64_t>& axes_value,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    if (constant_data.count(idx)) {
-        axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
-    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
-        axes_value = constant->cast_vector<int64_t>();
-    } else {
-        return false;
-    }
-    return true;
-}
-
 
 template<class T>
 void reduce_shape_infer(const ov::op::util::ReductionBase* op, bool keep_dims, const T& input_shape, T& output_shape,
