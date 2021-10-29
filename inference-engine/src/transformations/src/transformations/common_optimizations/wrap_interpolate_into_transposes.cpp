@@ -85,10 +85,7 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         auto interpolate = std::dynamic_pointer_cast<ov::opset8::Interpolate>(m.get_match_root());
         if (!interpolate || !transformation_is_applicable(interpolate)) return false;
 
-        auto axes_node = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
-        if (!axes_node) return false;
-
-        const auto axes = axes_node->cast_vector<int64_t>();
+        const auto axes = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())->cast_vector<int64_t>();
 
         const int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
         const auto first_perm = build_transposition_for_axes(axes, input_rank);
