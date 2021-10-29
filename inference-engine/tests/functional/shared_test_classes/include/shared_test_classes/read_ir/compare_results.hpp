@@ -7,13 +7,20 @@
 #include <ie_core.hpp>
 #include "ngraph/node.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace utils {
 
 using CompareMap = std::map<ngraph::NodeTypeInfo, std::function<void(
         const std::shared_ptr<ngraph::Node> node,
-        const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
-        const std::vector<InferenceEngine::Blob::Ptr>& actual,
-        float threshold)>>;
+        size_t port,
+        const ov::runtime::Tensor &expected,
+        const ov::runtime::Tensor &actual,
+        double absThreshold,
+        double relThreshold)>>;
 
 CompareMap getCompareMap();
-} // namespace LayerTestsDefinitions
+
+} // namespace utils
+} // namespace test
+} // namespace ov

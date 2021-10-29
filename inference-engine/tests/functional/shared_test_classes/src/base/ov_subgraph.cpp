@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <transformations/utils/utils.hpp>
 #include <shared_test_classes/read_ir/generate_inputs.hpp>
+#include <shared_test_classes/read_ir/compare_results.hpp>
 
 #ifdef _WIN32
 #include <process.h>
@@ -119,9 +120,25 @@ void SubgraphBaseTest::query_model() {
 void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
                                const std::vector<ov::runtime::Tensor> &actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    for (size_t i = 0; i < expected.size(); i++) {
-        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
+
+    auto compareMap = utils::getCompareMap();
+    for (const auto &result : function->get_results()) {
+        for (size_t i = 0; i < result->get_input_size(); i++) {
+            for (const auto &node : param->get_input_node_ptr(i)) {
+                const auto nodePtr = node.get_node()->shared_from_this();
+                auto it = inputMap.find(nodePtr->get_type_info());
+                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
+                    }
+                }
+            }
+        }
     }
+
+//    for (size_t i = 0; i < expected.size(); i++) {
+//        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
+//    }
 }
 
 void SubgraphBaseTest::configure_model() {
