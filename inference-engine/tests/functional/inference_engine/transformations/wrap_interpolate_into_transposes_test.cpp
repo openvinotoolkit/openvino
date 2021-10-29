@@ -50,8 +50,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScales) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{2}, { 0.5, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{2, 3});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
@@ -92,8 +92,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizes) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{2}, { 0.5, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{2, 3});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
@@ -134,8 +134,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScales) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{3}, { 0.6, 2.0, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {3}, std::vector<int64_t>{2, 3, 4});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
@@ -176,8 +176,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizes) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{3}, { 0.6, 2.0, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {3}, std::vector<int64_t>{2, 3, 4});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
@@ -218,8 +218,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesDynamic) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{2}, { 0.5, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{2, 3});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
@@ -260,8 +260,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizesDynamic) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{2}, { 0.5, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{2, 3});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 3, 1, 2 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{4}, { 0, 2, 3, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
@@ -302,8 +302,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScalesDynamic) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{3}, { 0.6, 2.0, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {3}, std::vector<int64_t>{2, 3, 4});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
@@ -344,8 +344,8 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizesDynamic) {
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{3}, { 0.6, 2.0, 0.5 });
         auto axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {3}, std::vector<int64_t>{2, 3, 4});
 
-        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
-        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto first_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 4, 1, 2, 3 });
+        auto last_transpose_perm = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{5}, { 0, 2, 3, 4, 1 });
 
         auto first_transpose = std::make_shared<ngraph::opset8::Transpose>(input, first_transpose_perm);
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(first_transpose, sizes_node, scales_node, axis_node, attrs);
