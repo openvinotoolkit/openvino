@@ -323,7 +323,6 @@ void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const T valu
     }
 }
 
-// HERE
 template<>
 void inline fill_data_random<InferenceEngine::Precision::FP32>(InferenceEngine::Blob::Ptr &blob,
                                                                const uint32_t range,
