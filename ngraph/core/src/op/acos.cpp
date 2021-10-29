@@ -18,7 +18,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/acos.hpp"
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::Acos, "Acos", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::Acos);
 
 ov::op::v0::Acos::Acos(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -31,6 +31,7 @@ std::shared_ptr<ov::Node> ov::op::v0::Acos::clone_with_new_inputs(const OutputVe
 }
 
 namespace acosop {
+namespace {
 template <ov::element::Type_t ET>
 inline bool evaluate(const ngraph::HostTensorPtr& arg0, const ngraph::HostTensorPtr& out, const size_t count) {
     using T = typename ov::element_type_traits<ET>::value_type;
@@ -43,7 +44,6 @@ bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, 
     out->set_unary(arg0);
 
     switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_acos, boolean, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_acos, i32, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_acos, i64, arg0, out, count);
         NGRAPH_TYPE_CASE(evaluate_acos, u32, arg0, out, count);
@@ -56,6 +56,7 @@ bool evaluate_acos(const ov::HostTensorPtr& arg0, const ov::HostTensorPtr& out, 
     }
     return rc;
 }
+}  // namespace
 }  // namespace acosop
 
 bool ov::op::v0::Acos::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -72,7 +73,6 @@ bool ov::op::v0::Acos::has_evaluate() const {
     case ngraph::element::u64:
     case ngraph::element::f16:
     case ngraph::element::f32:
-    case ngraph::element::boolean:
         return true;
     default:
         break;

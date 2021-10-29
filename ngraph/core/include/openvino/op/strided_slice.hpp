@@ -7,8 +7,8 @@
 #include <memory>
 #include <vector>
 
-#include "ngraph/op/util/attr_types.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {
@@ -17,7 +17,8 @@ namespace v1 {
 ///        bounding box, optionally with stride.
 class OPENVINO_API StridedSlice : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("StridedSlice", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     StridedSlice() = default;
 
@@ -91,10 +92,14 @@ public:
     }
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 private:
     AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;

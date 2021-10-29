@@ -49,8 +49,9 @@ struct pooling : public primitive_base<pooling> {
             const tensor& size,
             const tensor& stride,
             const tensor& input_offset = {0, 0, 0, 0},
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
@@ -61,6 +62,7 @@ struct pooling : public primitive_base<pooling> {
 
     /// @brief Constructs pooling primitive with argmax.
     /// @param id This primitive id.
+    /// @param ext_prim_id
     /// @param input Input primitive id.
     /// @param argmax Primitive id which contains indices of each max pooling region.
     /// Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.
@@ -76,8 +78,9 @@ struct pooling : public primitive_base<pooling> {
             const tensor& size,
             const tensor& stride,
             const tensor& input_offset = {0, 0, 0, 0},
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           argmax(argmax),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
@@ -102,8 +105,9 @@ struct pooling : public primitive_base<pooling> {
             const tensor& input_offset,
             tensor output_size,
             const data_types output_data_type,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
+        : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type}),
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
@@ -131,8 +135,9 @@ struct pooling : public primitive_base<pooling> {
             const tensor& stride,
             const tensor& input_offset,
             tensor output_size,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           argmax(argmax),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
@@ -149,8 +154,9 @@ struct pooling : public primitive_base<pooling> {
     pooling(const primitive_id& id,
             const primitive_id& input,
             pooling_mode mode,
+            const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(true),

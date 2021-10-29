@@ -198,7 +198,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                 # concat already exists
                 concat = node.in_port(i).get_source().node
                 last_in_port = max(concat.in_ports().keys())
-                assert not concat.in_port(last_in_port).disconnected(), 'The last in_port of Concat node {}' \
+                assert not concat.in_port(last_in_port).disconnected(), 'The last in_port of Concat node {} ' \
                                                                         'should be connected'. \
                     format(concat.soft_get('name', node.id))
 

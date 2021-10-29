@@ -83,6 +83,22 @@ def run(args):
 
         # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
+        def get_device_type_from_name(name) :
+            new_name = str(name)
+            new_name = new_name.split(".", 1)[0]
+            new_name = new_name.split("(", 1)[0]
+            return new_name
+
+        ## Set default values from dumped config
+        default_devices = set()
+        for device in devices:
+            device_type = get_device_type_from_name(device)
+            if device_type in config and device not in config:
+                config[device] = config[device_type].copy()
+                default_devices.add(device_type)
+
+        for def_device in default_devices:
+            config.pop(def_device)
 
         perf_counts = False
         for device in devices:
@@ -108,8 +124,14 @@ def run(args):
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
             perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
 
+            ## high-level performance hints
+            if is_flag_set_in_command_line('hint'):
+                config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
+                if is_flag_set_in_command_line('nireq'):
+                    config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
+            ## the rest are individual per-device settings (overriding the values the device will deduce from perf hint)
             def set_throughput_streams():
-                key = device + "_THROUGHPUT_STREAMS"
+                key = get_device_type_from_name(device) + "_THROUGHPUT_STREAMS"
                 if device in device_number_streams.keys():
                     ## set to user defined value
                     supported_config_keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
@@ -117,16 +139,17 @@ def run(args):
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
                     config[device][key] = device_number_streams[device]
-                elif key not in config[device].keys() and args.api_type == "async":
+                elif key not in config[device].keys() and args.api_type == "async" and not is_flag_set_in_command_line('hint'):
+                    ## set the _AUTO value for the #streams
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
-                                   "Although the automatic selection usually provides a reasonable performance,"
+                                   "Although the automatic selection usually provides a reasonable performance, "
                                    "but it still may be non-optimal for some cases, for more information look at README.")
                     if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
-                        config[device][key] = device + "_THROUGHPUT_AUTO"
+                        config[device][key] = get_device_type_from_name(device) + "_THROUGHPUT_AUTO"
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
 
-            if device == CPU_DEVICE_NAME: # CPU supports few special performance-oriented keys
+            if CPU_DEVICE_NAME in device: # CPU supports few special performance-oriented keys
                 # limit threading for CPU portion of inference
                 if args.number_threads and is_flag_set_in_command_line("nthreads"):
                     config[device]['CPU_THREADS_NUM'] = str(args.number_threads)
@@ -145,7 +168,7 @@ def run(args):
 
                 ## for CPU execution, more throughput-oriented execution via streams
                 set_throughput_streams()
-            elif device == GPU_DEVICE_NAME:
+            elif GPU_DEVICE_NAME in device:
                 ## for GPU execution, more throughput-oriented execution via streams
                 set_throughput_streams()
 
@@ -153,10 +176,10 @@ def run(args):
                     logger.warning("Turn on GPU throttling. Multi-device execution with the CPU + GPU performs best with GPU throttling hint, " +
                                    "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
                     config[device]['GPU_PLUGIN_THROTTLE'] = '1'
-            elif device == MYRIAD_DEVICE_NAME:
+            elif MYRIAD_DEVICE_NAME in device:
                 set_throughput_streams()
                 config[device]['LOG_LEVEL'] = 'LOG_INFO'
-            elif device == GNA_DEVICE_NAME:
+            elif GNA_DEVICE_NAME in device:
                 if is_flag_set_in_command_line('qb'):
                     if args.qb == 8:
                         config[device]['GNA_PRECISION'] = 'I8'
@@ -284,12 +307,19 @@ def run(args):
             if batch_size == 0:
                 batch_size = 1
 
-        # --------------------- 8. Setting optimal runtime parameters --------------------------------------------------
+        # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
+        if is_flag_set_in_command_line('hint'):
+            ## actual device-deduced settings for the hint
+            for device in devices:
+                keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                logger.info(f'DEVICE: {device}')
+                for k in keys:
+                    logger.info(f'  {k}  , {exe_network.get_config(k)}')
 
         # Update number of streams
         for device in device_number_streams.keys():
-            key = device + '_THROUGHPUT_STREAMS'
+            key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # Number of requests
@@ -328,7 +358,7 @@ def run(args):
 
         # ------------------------------------ 10. Measuring performance -----------------------------------------------
 
-        output_string = process_help_inference_string(benchmark)
+        output_string = process_help_inference_string(benchmark, device_number_streams)
 
         next_step(additional_info=output_string)
         progress_bar_total_count = 10000

@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v0::PriorBoxClustered, "PriorBoxClustered", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::PriorBoxClustered);
 
 ov::op::v0::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
                                                  const Output<Node>& image_shape,
@@ -66,9 +66,9 @@ void ov::op::v0::PriorBoxClustered::validate_and_infer_types() {
         auto layer_shape = const_shape->get_shape_val();
         // {Prior boxes, variances-adjusted prior boxes}
         const auto num_priors = m_attrs.widths.size();
-        set_output_type(0, element::f32, ov::StaticShape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
+        set_output_type(0, element::f32, ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * num_priors});
     } else {
-        set_output_type(0, element::f32, ov::Shape::dynamic());
+        set_output_type(0, element::f32, ov::PartialShape::dynamic());
     }
 }
 
@@ -106,6 +106,7 @@ bool ov::op::v0::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor) 
 }
 
 namespace prior_box_clustered {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -139,6 +140,7 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace prior_box_clustered
 
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

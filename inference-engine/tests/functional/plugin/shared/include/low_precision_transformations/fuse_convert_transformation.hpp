@@ -26,7 +26,7 @@ class FuseConvertTransformation :
         public testing::WithParamInterface<FuseConvertTransformationParams>,
         public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseConvertTransformationParams>& obj);
 
 protected:
     void SetUp() override;

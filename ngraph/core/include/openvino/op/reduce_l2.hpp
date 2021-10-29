@@ -14,7 +14,8 @@ namespace v4 {
 /// Reduces the tensor, eliminating the specified reduction axes by taking the L2-norm.
 class OPENVINO_API ReduceL2 : public util::ArithmeticReductionKeepDims {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReduceL2", "opset4", util::ArithmeticReductionKeepDims, 4);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a reducet L2-norm operation.
     ReduceL2() = default;
     /// \brief Constructs a reduce L2-norm operation.
@@ -31,7 +32,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v4

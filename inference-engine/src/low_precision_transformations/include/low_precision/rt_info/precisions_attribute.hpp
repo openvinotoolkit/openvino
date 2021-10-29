@@ -31,7 +31,7 @@ using PrecisionsAttributePtr = std::shared_ptr<PrecisionsAttribute>;
 
 class LP_TRANSFORMATIONS_API PrecisionsAttribute : public SharedValueAttribute<PrecisionsSharedValue> {
 public:
-    static const std::vector<ngraph::element::Type> defaultPrecisions;
+    static std::vector<ngraph::element::Type> defaultPrecisions;
     PrecisionsAttribute(const std::vector<ngraph::element::Type>& precisions = defaultPrecisions);
 };
 } // namespace ngraph

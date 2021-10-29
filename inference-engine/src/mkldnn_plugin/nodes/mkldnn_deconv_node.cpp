@@ -18,6 +18,7 @@
 #include <nodes/common/cpu_memcpy.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -152,6 +153,10 @@ InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceE
 }
 
 bool MKLDNNDeconvolutionNode::canBeExecutedInInt8() const {
+    if (std::dynamic_pointer_cast<MKLDNNInputNode>(getParentEdgeAt(1)->getParent()) == nullptr) {
+        return false;
+    }
+
     // todo: [antonvor] added these checks to fix performance problems
     if (kernel.size() == 3)
         return false;
@@ -269,7 +274,9 @@ void MKLDNNDeconvolutionNode::setPostOps(mkldnn::primitive_attr &attr) {
     for (auto &node : fusedWith) {
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+            // TODO [DS]: change to shape from memory
+            constexpr int align = 16;
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
             continue;
         }
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());

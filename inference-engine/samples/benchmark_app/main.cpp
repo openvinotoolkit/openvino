@@ -21,6 +21,7 @@
 #include "infer_request_wrap.hpp"
 #include "inputs_filling.hpp"
 #include "progress_bar.hpp"
+#include "remote_blobs_filling.hpp"
 #include "statistics_report.hpp"
 #include "utils.hpp"
 
@@ -59,7 +60,10 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (FLAGS_api != "async" && FLAGS_api != "sync") {
         throw std::logic_error("Incorrect API. Please set -api option to `sync` or `async` value.");
     }
-
+    if (!FLAGS_hint.empty() && FLAGS_hint != "throughput" && FLAGS_hint != "tput" && FLAGS_hint != "latency") {
+        throw std::logic_error("Incorrect performance hint. Please set -hint option to"
+                               "either `throughput`(tput) or `latency' value.");
+    }
     if (!FLAGS_report_type.empty() && FLAGS_report_type != noCntReport && FLAGS_report_type != averageCntReport &&
         FLAGS_report_type != detailedCntReport) {
         std::string err = "only " + std::string(noCntReport) + "/" + std::string(averageCntReport) + "/" +
@@ -208,16 +212,44 @@ int main(int argc, char* argv[]) {
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
         next_step();
+        std::string ov_perf_hint;
+        if (FLAGS_hint == "throughput" || FLAGS_hint == "tput")
+            ov_perf_hint = CONFIG_VALUE(THROUGHPUT);
+        else if (FLAGS_hint == "latency")
+            ov_perf_hint = CONFIG_VALUE(LATENCY);
+
+        auto getDeviceTypeFromName = [](std::string device) -> std::string {
+            return device.substr(0, device.find_first_of(".("));
+        };
+
+        // Set default values from dumped config
+        std::set<std::string> default_devices;
+        for (auto& device : devices) {
+            auto default_config = config.find(getDeviceTypeFromName(device));
+            if (default_config != config.end()) {
+                if (!config.count(device)) {
+                    config[device] = default_config->second;
+                    default_devices.emplace(default_config->first);
+                }
+            }
+        }
+        for (auto& device : default_devices) {
+            config.erase(device);
+        }
 
         bool perf_counts = false;
         // Update config per device according to command line parameters
         for (auto& device : devices) {
-            if (device == "AUTO") {
-                continue;
-            }
             if (!config.count(device))
                 config[device] = {};
             std::map<std::string, std::string>& device_config = config.at(device);
+
+            // high-level performance modes
+            if (!ov_perf_hint.empty()) {
+                device_config[CONFIG_KEY(PERFORMANCE_HINT)] = ov_perf_hint;
+                if (FLAGS_nireq != 0)
+                    device_config[CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)] = std::to_string(FLAGS_nireq);
+            }
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -241,8 +273,9 @@ int main(int argc, char* argv[]) {
             }
             perf_counts = (device_config.at(CONFIG_KEY(PERF_COUNT)) == CONFIG_VALUE(YES)) ? true : perf_counts;
 
+            // the rest are individual per-device settings (overriding the values set with perf modes)
             auto setThroughputStreams = [&]() {
-                const std::string key = device + "_THROUGHPUT_STREAMS";
+                const std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
                 if (device_nstreams.count(device)) {
                     // set to user defined value
                     std::vector<std::string> supported_config_keys =
@@ -255,7 +288,7 @@ int main(int argc, char* argv[]) {
                                                " or via configuration file.");
                     }
                     device_config[key] = device_nstreams.at(device);
-                } else if (!device_config.count(key) && (FLAGS_api == "async")) {
+                } else if (ov_perf_hint.empty() && !device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device
                                << " device. "
                                   "Although the automatic selection usually provides a "
@@ -265,13 +298,13 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     if (std::string::npos == device.find("MYRIAD"))  // MYRIAD sets the default number of
                                                                      // streams implicitly (without _AUTO)
-                        device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
+                        device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
                 }
                 if (device_config.count(key))
                     device_nstreams[device] = device_config.at(key);
             };
 
-            if (device == "CPU") {  // CPU supports few special performance-oriented keys
+            if (device.find("CPU") != std::string::npos) {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
@@ -293,7 +326,7 @@ int main(int argc, char* argv[]) {
 
                 // for CPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
-            } else if (device == ("GPU")) {
+            } else if (device.find("GPU") != std::string::npos) {
                 // for GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
 
@@ -306,10 +339,10 @@ int main(int argc, char* argv[]) {
                                << slog::endl;
                     device_config[GPU_CONFIG_KEY(PLUGIN_THROTTLE)] = "1";
                 }
-            } else if (device == "MYRIAD") {
+            } else if (device.find("MYRIAD") != std::string::npos) {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
                 setThroughputStreams();
-            } else if (device == "GNA") {
+            } else if (device.find("GNA") != std::string::npos) {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
                 else
@@ -374,6 +407,12 @@ int main(int argc, char* argv[]) {
             if (statistics)
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {{"load network time (ms)", duration_ms}});
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
+                                                             FLAGS_layout,
+                                                             FLAGS_b,
+                                                             FLAGS_iscale,
+                                                             FLAGS_imean,
+                                                             exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -484,13 +523,28 @@ int main(int argc, char* argv[]) {
                 batchSize = 1;
             }
         }
-        // ----------------- 8. Setting optimal runtime parameters
+        // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();
+        // output of the actual settings that the device selected based on the hint
+        if (!ov_perf_hint.empty()) {
+            for (const auto& device : devices) {
+                std::vector<std::string> supported_config_keys =
+                    ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                slog::info << "Device: " << device << slog::endl;
+                for (const auto& cfg : supported_config_keys) {
+                    try {
+                        slog::info << "  {" << cfg << " , " << exeNetwork.GetConfig(cfg).as<std::string>();
+                    } catch (...) {
+                    };
+                    slog::info << " }" << slog::endl;
+                }
+            }
+        }
 
         // Update number of streams
         for (auto&& ds : device_nstreams) {
-            const std::string key = ds.first + "_THROUGHPUT_STREAMS";
+            const std::string key = getDeviceTypeFromName(ds.first) + "_THROUGHPUT_STREAMS";
             device_nstreams[ds.first] = ie.GetConfig(ds.first, key).as<std::string>();
         }
 
@@ -561,7 +615,16 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+        if (isFlagSetInCommandLine("use_device_mem")) {
+            if (device_name.find("GPU") == 0)
+                ::gpu::fillRemoteBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests, exeNetwork);
+            else if (device_name.find("CPU") == 0)
+                fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+            else
+                IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+        } else {
+            fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
+        }
 
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------

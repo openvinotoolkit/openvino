@@ -7,11 +7,8 @@ The tool compiles networks for the following target devices using corresponding 
 * Intel® Neural Compute Stick 2 (MYRIAD plugin)
 
 
-> **NOTE**: Intel® Distribution of OpenVINO™ toolkit no longer supports the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA. To compile a network for those devices, use the Compile Tool from the Intel® Distribution of OpenVINO™ toolkit [2020.3 LTS release](https://docs.openvinotoolkit.org/2020.3/_inference_engine_tools_compile_tool_README.html).
-
-
 The tool is delivered as an executable file that can be run on both Linux* and Windows*.
-The tool is located in the `<INSTALLROOT>/deployment_tools/tools/compile_tool` directory.
+The tool is located in the `<INSTALLROOT>/tools/compile_tool` directory.
 
 The workflow of the Compile tool is as follows:
 

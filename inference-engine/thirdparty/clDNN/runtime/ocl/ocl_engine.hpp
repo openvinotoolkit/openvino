@@ -40,7 +40,13 @@ public:
     bool extension_supported(std::string extension) const;
 
     stream_ptr create_stream() const override;
+    stream_ptr create_stream(void *handle) const override;
     stream& get_program_stream() const override;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    /// Returns onednn engine object which shares device and context with current engine
+    dnnl::engine& get_onednn_engine() const override;
+#endif
 
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration);
 
@@ -48,6 +54,10 @@ private:
     std::string _extensions;
     std::unique_ptr<stream> _program_stream;
     std::unique_ptr<cl::UsmHelper> _usm_helper;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::shared_ptr<dnnl::engine> _onednn_engine;
+#endif
 };
 
 }  // namespace ocl

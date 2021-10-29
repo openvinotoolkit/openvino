@@ -20,18 +20,18 @@ namespace op {
 /// AnyOf may be given a type and shape for use in strict mode.
 class OPENVINO_API AnyOf : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternAnyOf", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternAnyOf");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief creates a AnyOf node containing a sub-pattern described by \sa type and
     ///        \sa shape.
-    AnyOf(const element::Type& type, const Shape& s, ValuePredicate pred, const OutputVector& wrapped_values)
+    AnyOf(const element::Type& type, const PartialShape& s, ValuePredicate pred, const OutputVector& wrapped_values)
         : Pattern(wrapped_values, pred) {
         if (wrapped_values.size() != 1) {
             throw Exception("AnyOf expects exactly one argument");
         }
         set_output_type(0, type, s);
     }
-    AnyOf(const element::Type& type, const Shape& s, NodePredicate pred, const NodeVector& wrapped_values)
+    AnyOf(const element::Type& type, const PartialShape& s, NodePredicate pred, const NodeVector& wrapped_values)
         : AnyOf(
               type,
               s,

@@ -4,17 +4,11 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_core.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <ngraph/ngraph.hpp>
-#include <shared_test_classes/base/layer_test_utils.hpp>
-#include <tuple>
-
+#include "openvino/op/scatter_elements_update.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
-using namespace ngraph;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 struct ScatterElementsUpdateParams {
@@ -63,12 +57,12 @@ public:
     }
 private:
     static std::shared_ptr<Function> CreateFunction(const ScatterElementsUpdateParams& params) {
-        const auto A = std::make_shared<op::Parameter>(params.input.type, params.input.shape);
-        const auto B = std::make_shared<op::Parameter>(params.indices.type, params.indices.shape);
-        const auto C = std::make_shared<op::Parameter>(params.updates.type, params.updates.shape);
-        const auto D = std::make_shared<op::Parameter>(params.axis.type, params.axis.shape);
-        auto scatterElts = std::make_shared<op::ScatterElementsUpdate>(A, B, C, D);
-        return std::make_shared<Function>(NodeVector{scatterElts}, ParameterVector{A, B, C, D});
+        const auto A = std::make_shared<op::v0::Parameter>(params.input.type, params.input.shape);
+        const auto B = std::make_shared<op::v0::Parameter>(params.indices.type, params.indices.shape);
+        const auto C = std::make_shared<op::v0::Parameter>(params.updates.type, params.updates.shape);
+        const auto D = std::make_shared<op::v0::Parameter>(params.axis.type, params.axis.shape);
+        auto scatterElts = std::make_shared<op::v3::ScatterElementsUpdate>(A, B, C, D);
+        return std::make_shared<ov::Function>(NodeVector{scatterElts}, ParameterVector{A, B, C, D});
     }
 };
 

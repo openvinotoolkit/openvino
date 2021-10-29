@@ -14,14 +14,23 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "blob_factory.hpp"
+#include "cnn_network_ngraph_impl.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "exec_graph_info.hpp"
+#include "ie_api.h"
 #include "ie_icore.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/function.hpp"
+#include "openvino/core/variant.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace InferenceEngine {
 
@@ -116,10 +125,56 @@ std::map<std::string, std::shared_ptr<const T>> const_map_cast(const std::map<st
 }
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
-    const CNNNetwork& network,
+    const CNNNetwork& orig_network,
     const std::map<std::string, std::string>& config,
-    const std::shared_ptr<IRemoteContext>& context) {
+    const std::shared_ptr<RemoteContext>& context) {
     std::shared_ptr<IExecutableNetworkInternal> impl;
+
+    // if IR `version` is not set, suppose it's IR v10 for old API
+    // it allows to use operation names in set_ / get_tensor instead of tensor_names
+    auto orig_function = orig_network.getFunction();
+    std::shared_ptr<ov::Function> function;
+    InferenceEngine::CNNNetwork network = orig_network;
+    if (orig_function) {
+        function = std::make_shared<ov::Function>(orig_function->get_results(),
+                                                  orig_function->get_sinks(),
+                                                  orig_function->get_parameters(),
+                                                  orig_function->get_variables(),
+                                                  orig_function->get_friendly_name());
+        function->get_rt_info() = orig_function->get_rt_info();
+    }
+    if (function && GetCore() && !GetCore()->isNewAPI()) {
+        auto& rt_info = function->get_rt_info();
+        if (rt_info.find("version") == rt_info.end()) {
+            rt_info["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(10);
+
+            // re-create `network` with new patched `function`
+            using namespace InferenceEngine;
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            const auto& orig_icnn = static_cast<const ICNNNetwork&>(orig_network);
+            auto orig_impl =
+                std::dynamic_pointer_cast<const details::CNNNetworkNGraphImpl>(orig_icnn.shared_from_this());
+            OPENVINO_ASSERT(orig_impl != nullptr,
+                            "Internal: orig_impl must be castable to details::CNNNetworkNGraphImpl");
+            auto new_impl = std::make_shared<details::CNNNetworkNGraphImpl>(function,
+                                                                            orig_impl->getExtensions(),
+                                                                            GetCore()->isNewAPI());
+            network = CNNNetwork(new_impl);
+            for (const auto& inputInfo : orig_network.getInputsInfo()) {
+                auto toInfo = network.getInputsInfo().at(inputInfo.first);
+                toInfo->setPrecision(inputInfo.second->getPrecision());
+                toInfo->setLayout(inputInfo.second->getLayout());
+                toInfo->getPreProcess() = inputInfo.second->getPreProcess();
+            }
+            for (const auto& outputInfo : orig_network.getOutputsInfo()) {
+                auto toInfo = network.getOutputsInfo().at(outputInfo.first);
+                toInfo->setPrecision(outputInfo.second->getPrecision());
+                toInfo->setLayout(outputInfo.second->getLayout());
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_END
+        }
+    }
+
     if (nullptr == context) {
         impl = LoadExeNetworkImpl(network, config);
     } else {
@@ -127,9 +182,8 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     }
 
     SetExeNetworkInfo(impl, const_map_cast(network.getInputsInfo()), const_map_cast(network.getOutputsInfo()));
-    auto function = network.getFunction();
     if (function) {
-        SetExeNetworkInfo(impl, std::const_pointer_cast<ov::Function>(function));
+        SetExeNetworkInfo(impl, function);
     }
 
     return impl;
@@ -139,7 +193,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     const std::string& modelPath,
     const std::map<std::string, std::string>& config) {
     auto cnnNet = GetCore()->ReadNetwork(modelPath, std::string());
-    return GetCore()->LoadNetwork(cnnNet, GetName(), config);
+    return GetCore()->LoadNetwork(cnnNet, GetName(), config)._ptr;
 }
 
 void IInferencePlugin::AddExtension(const std::shared_ptr<IExtension>&) {
@@ -158,11 +212,11 @@ Parameter IInferencePlugin::GetMetric(const std::string&, const std::map<std::st
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IRemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {
+std::shared_ptr<RemoteContext> IInferencePlugin::CreateContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
-std::shared_ptr<IRemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
+std::shared_ptr<RemoteContext> IInferencePlugin::GetDefaultContext(const ParamMap&) {
     IE_THROW(NotImplemented);
 }
 
@@ -186,7 +240,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::ImportNetwork(
     std::istream& networkModel,
-    const std::shared_ptr<IRemoteContext>& context,
+    const std::shared_ptr<RemoteContext>& context,
     const std::map<std::string, std::string>& config) {
     IE_THROW(NotImplemented);
 }
@@ -213,7 +267,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl
 
 std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadExeNetworkImpl(
     const CNNNetwork&,
-    const std::shared_ptr<IRemoteContext>&,
+    const std::shared_ptr<RemoteContext>&,
     const std::map<std::string, std::string>&) {
     IE_THROW(NotImplemented);
 }
@@ -222,88 +276,72 @@ void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetwor
                                          const ConstInputsDataMap& inputs,
                                          const ConstOutputsDataMap& outputs) {
     IE_ASSERT(exeNetwork != nullptr);
+
     // Set inputs/outputs and pointer to plugin manually here
     exeNetwork->setNetworkInputs(copyInfo(constMapCast(inputs)));
     exeNetwork->setNetworkOutputs(copyInfo(constMapCast(outputs)));
-
-    ngraph::ParameterVector parameters;
-    ngraph::ResultVector results;
-    std::vector<ngraph::Output<ngraph::Node>> node_outputs;
-
-    for (auto&& input : inputs) {
-        auto tensor_desc = input.second->getTensorDesc();
-        auto dims = tensor_desc.getDims();
-        parameters.push_back(
-            std::make_shared<ngraph::op::v0::Parameter>(details::convertPrecision(tensor_desc.getPrecision()),
-                                                        std::vector<ov::Dimension>{dims.begin(), dims.end()}));
-        parameters.back()->set_friendly_name(input.first);
-        node_outputs.push_back(parameters.back()->output(0));
-    }
-
-    auto node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(node_outputs, outputs.size());
-
-    int i = 0;
-    for (auto&& output : outputs) {
-        auto tensor_desc = output.second->getTensorDesc();
-        auto dims = tensor_desc.getDims();
-        node->set_output_type(i,
-                              details::convertPrecision(tensor_desc.getPrecision()),
-                              std::vector<ov::Dimension>{dims.begin(), dims.end()});
-        results.push_back(std::make_shared<ngraph::op::v0::Result>(node->output(i)));
-        ++i;
-    }
-    exeNetwork->setRuntimeFunction(std::make_shared<ov::Function>(results, parameters, "execution_info"));
 
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 
 void IInferencePlugin::SetExeNetworkInfo(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork,
                                          const std::shared_ptr<ov::Function>& function) {
-    IE_ASSERT(exeNetwork != nullptr);
-    IE_ASSERT(function != nullptr);
-    ngraph::ParameterVector parameters;
-    ngraph::ResultVector results;
-    ngraph::NodeVector nodes;
+    OPENVINO_ASSERT(exeNetwork != nullptr);
+    OPENVINO_ASSERT(function != nullptr);
 
-    std::map<ngraph::Output<ngraph::Node>, ngraph::Output<ngraph::Node>> output_map;
+    std::vector<std::shared_ptr<const ov::Node>> const_params;
+    std::vector<std::shared_ptr<const ov::Node>> const_results;
 
-    for (auto&& node : function->get_ordered_ops()) {
-        ngraph::Node* new_node = nullptr;
-        if (ngraph::is_type<ngraph::op::Parameter>(node)) {
-            parameters.push_back(std::static_pointer_cast<ngraph::op::v0::Parameter>(node->clone_with_new_inputs({})));
-            for (std::size_t i = 0; i < node->outputs().size(); ++i) {
-                output_map.emplace(node->output(i), parameters.back()->output(i));
-            }
-            new_node = parameters.back().get();
-        } else {
-            std::vector<ngraph::Output<ngraph::Node>> outputs;
-            for (auto&& input : node->inputs()) {
-                outputs.emplace_back(output_map.at(input.get_source_output()));
-            }
-            if (ngraph::is_type<ngraph::op::Result>(node)) {
-                results.push_back(
-                    std::static_pointer_cast<ngraph::op::v0::Result>(node->clone_with_new_inputs(outputs)));
-                new_node = results.back().get();
-            } else {
-                nodes.push_back(
-                    std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(outputs, node->outputs().size()));
-                new_node = nodes.back().get();
-                for (std::size_t i = 0; i < node->outputs().size(); ++i) {
-                    auto output = node->output(i);
-                    output_map.emplace(output, nodes.back()->output(i));
-                    new_node->set_output_type(i, output.get_element_type(), output.get_partial_shape());
-                }
-            }
-        }
-        IE_ASSERT(new_node != nullptr);
-        new_node->set_friendly_name(node->get_friendly_name());
-        new_node->get_rt_info()[ExecGraphInfoSerialization::PERF_COUNTER] =
-            std::make_shared<::ngraph::VariantWrapper<std::string>>("not_executed");
-        new_node->get_rt_info()[ExecGraphInfoSerialization::ORIGINAL_NAMES] =
-            std::make_shared<::ngraph::VariantWrapper<std::string>>(node->get_friendly_name());
+    bool add_operation_names = false;
+    const auto& rt_info = function->get_rt_info();
+    const auto it = rt_info.find("version");
+    if (it != rt_info.end()) {
+        auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
+        OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
+        const int64_t ir_version = ir_version_impl->get();
+        // here we decide whether we need to add operation_names as tensor names for
+        // getInputs / getOutputs. Since these functions are designed to be used in new API only
+        // always need to add operation names for IR v10
+        add_operation_names = ir_version == 10;
     }
-    exeNetwork->setRuntimeFunction(
-        std::make_shared<ov::Function>(results, parameters, function->get_friendly_name() + "_execution_info"));
+
+    const auto& inputsInfo = exeNetwork->GetInputsInfo();
+    const auto& outputsInfo = exeNetwork->GetOutputsInfo();
+    OPENVINO_ASSERT(inputsInfo.size() == function->get_parameters().size());
+    OPENVINO_ASSERT(outputsInfo.size() == function->get_output_size());
+
+    for (const auto& param : function->get_parameters()) {
+        auto new_param = param->copy_with_new_inputs({});
+        new_param->set_friendly_name(param->get_friendly_name());
+        if (add_operation_names)
+            new_param->output(0).get_tensor().add_names({new_param->get_friendly_name()});
+        // WA: use CNNNetwork's precisions since plugins sometimes override their precisions
+        // after transformation pipeline is run
+        new_param->set_output_type(
+            0,
+            InferenceEngine::details::convertPrecision(inputsInfo.at(new_param->get_friendly_name())->getPrecision()),
+            new_param->get_output_partial_shape(0));
+        const_params.emplace_back(new_param);
+    }
+    for (const auto& result : function->get_results()) {
+        auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
+                                                                  result->get_output_partial_shape(0));
+        const std::string param_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+        fake_param->set_friendly_name(param_name);
+        fake_param->set_output_type(
+            0,
+            InferenceEngine::details::convertPrecision(outputsInfo.at(param_name)->getPrecision()),
+            fake_param->get_output_partial_shape(0));
+        auto new_result = result->copy_with_new_inputs({fake_param});
+        new_result->set_friendly_name(result->get_friendly_name());
+        if (add_operation_names) {
+            new_result->output(0).get_tensor().add_names({fake_param->get_friendly_name()});
+        }
+        const_results.emplace_back(new_result);
+    }
+
+    exeNetwork->setInputs(const_params);
+    exeNetwork->setOutputs(const_results);
     exeNetwork->SetPointerToPlugin(shared_from_this());
 }
 

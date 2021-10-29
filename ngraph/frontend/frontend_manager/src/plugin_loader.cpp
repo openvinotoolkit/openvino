@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/file_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
 
 using namespace ngraph;
@@ -40,7 +40,7 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
-        ngraph::file_util::iterate_files(
+        ov::util::iterate_files(
             path,
             [&res](const std::string& file, bool is_dir) {
                 if (!is_dir && file.find("_ngraph_frontend") != std::string::npos) {
@@ -56,7 +56,12 @@ static std::vector<std::string> list_files(const std::string& path) {
                     }
                 }
             },
-            false,
+            // ilavreno: this is current solution for static runtime
+            // since frontends are still dynamic libraries and they are located in
+            // a different folder with compare to frontend_manager one (in ./lib)
+            // we are trying to use recursive search. Can be reverted back in future
+            // once the frontends are static too.
+            true,
             true);
     } catch (...) {
         // Ignore exceptions

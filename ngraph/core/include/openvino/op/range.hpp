@@ -12,7 +12,8 @@ namespace v4 {
 /// \brief Range operation, analogous to `arange()` in Numpy.
 class OPENVINO_API Range : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Range", "opset4", op::Op, 4);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an unitialized range operation.
     Range() = default;
 
@@ -31,7 +32,9 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     void set_output_type(element::Type output_type) {
         m_output_type = output_type;
@@ -47,7 +50,8 @@ namespace v0 {
 /// \brief Range operation, analogous to `range()` in Python.
 class OPENVINO_API Range : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Range", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an unitialized range operation.
     Range() = default;
@@ -66,7 +70,9 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v0

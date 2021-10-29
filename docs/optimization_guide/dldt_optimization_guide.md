@@ -196,16 +196,6 @@ Since Intel® Movidius™ Myriad™ X Visual Processing Unit (Intel® Movidius�
 
 Intel® Vision Accelerator Design with Intel® Movidius™ VPUs requires keeping at least 32 inference requests in flight to fully saturate the device.
 
-### FPGA <a name="fpga"></a>
-
-Below are listed the most important tips for the efficient usage of the FPGA:
-
--	Just like for the Intel® Movidius™ Myriad™ VPU flavors, for the FPGA, it is important to hide the communication overheads by running multiple inference requests in parallel. For examples, refer to the [Benchmark App Sample](../../inference-engine/samples/benchmark_app/README.md).
--	Since the first inference iteration with FPGA is always significantly slower than the subsequent ones, make sure you run multiple iterations (all samples, except GUI-based demos, have the `-ni` or 'niter' option  to do that).
--	FPGA performance heavily depends on the bitstream.
--	Number of the infer request per executable network is limited to five, so “channel” parallelism (keeping individual infer request per camera/video input) would not work beyond five inputs. Instead, you need to mux the inputs into some queue that will internally use a pool of (5) requests.
--	In most scenarios, the FPGA acceleration is leveraged through <a href="heterogeneity">heterogeneous execution</a> with further specific tips.
-
 ## Heterogeneity <a name="heterogeneity"></a>
 
 Heterogeneous execution (constituted by the dedicated Inference Engine [“Hetero” plugin](../IE_DG/supported_plugins/HETERO.md)) enables to schedule a network inference to the multiple devices.
@@ -249,23 +239,15 @@ Every Inference Engine sample supports the `-d` (device) option.
 For example, here is a command to run an [Object Detection Sample SSD Sample](../../inference-engine/samples/object_detection_sample_ssd/README.md):
 
 ```sh
-./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:FPGA,CPU
+./object_detection_sample_ssd -m  <path_to_model>/ModelSSD.xml -i <path_to_pictures>/picture.jpg -d HETERO:GPU,CPU
 ```
 
 where:
 
 -	`HETERO` stands for Heterogeneous plugin.
--	`FPGA,CPU` points to fallback policy with first priority on FPGA and further fallback to CPU.
+-	`GPU,CPU` points to fallback policy with first priority on GPU and further fallback to CPU.
 
-You can point more than two devices: `-d HETERO:FPGA,GPU,CPU`.
-
-### Heterogeneous Scenarios with FPGA <a name="heterogeneous-scenarios-fpga"></a>
-
-As FPGA is considered as an inference accelerator, most performance issues are related to the fact that due to the fallback, the CPU can be still used quite heavily.
--	Yet in most cases, the CPU does only small/lightweight layers, for example, post-processing (`SoftMax` in most classification models or `DetectionOutput` in the SSD*-based topologies). In that case, limiting the number of CPU threads with [`KEY_CPU_THREADS_NUM`](../IE_DG/supported_plugins/CPU.md) config would further reduce the CPU utilization without significantly degrading the overall performance.
--	Also, if you are still using OpenVINO™ toolkit version earlier than R1 2019, or if you have recompiled the Inference Engine with OpenMP (say for backward compatibility), setting the `KMP_BLOCKTIME` environment variable to something less than default 200ms (we suggest 1ms) is particularly helpful. Use `KMP_BLOCKTIME=0` if the CPU subgraph is small.
-
-> **NOTE**: General threading tips (see <a href="#note-on-app-level-threading">Note on the App-Level Threading</a>) apply well, even when the entire topology fits the FPGA, because there is still a host-side code for data pre- and post-processing.
+You can point more than two devices: `-d HETERO:GPU,MYRIAD,CPU`.
 
 ### General Tips on GPU/CPU Execution <a name="tips-on-gpu-cpu-execution"></a>
 
@@ -323,7 +305,7 @@ Other than that, when implementing the kernels, you can try the methods from the
 ### A Few Device-Specific Tips <a name="device-specific-tips"></a>
 
 - As already outlined in the <a href="#cpu-checklist">CPU Checklist</a>, align the threading model that you use in your CPU kernels with the model that the rest of the Inference Engine compiled with.
-- For CPU extensions, consider kernel flavor that supports blocked layout, if your kernel is in the hotspots (see <a href="#performance-counters">Internal Inference Performance Counters</a>). Since Intel MKL-DNN internally operates on the blocked layouts, this would save you a data packing (Reorder) on tensor inputs/outputs of your kernel. For example of the blocked layout support, please, refer to the extensions in `<OPENVINO_INSTALL_DIR>/deployment_tools/samples/extension/`.
+- For CPU extensions, consider kernel flavor that supports blocked layout, if your kernel is in the hotspots (see <a href="#performance-counters">Internal Inference Performance Counters</a>). Since Intel MKL-DNN internally operates on the blocked layouts, this would save you a data packing (Reorder) on tensor inputs/outputs of your kernel.
 
 ## Plugging Inference Engine to Applications <a name="plugging-ie-to-applications"></a>
 

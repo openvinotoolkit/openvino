@@ -59,7 +59,6 @@ uint32_t deviceDefaultDeviceDurationInSeconds(const std::string& device) {
                                                                                 {"VPU", 60},
                                                                                 {"MYRIAD", 60},
                                                                                 {"HDDL", 60},
-                                                                                {"FPGA", 120},
                                                                                 {"UNKNOWN", 120}};
     uint32_t duration = 0;
     for (const auto& deviceDurationInSeconds : deviceDefaultDurationInSeconds) {
@@ -114,8 +113,6 @@ std::vector<std::string> parseDevices(const std::string& device_string) {
     if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
         return std::vector<std::string>();
     auto devices = split(comma_separated_devices, ',');
-    for (auto& device : devices)
-        device = device.substr(0, device.find_first_of(".("));
     return devices;
 }
 
@@ -222,11 +219,25 @@ std::map<std::string, std::vector<float>> parseScaleOrMean(const std::string& sc
 
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+    auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
+        if (str.find("_") != std::string::npos) {
+            slog::warn
+                << "Device name contains \"_\" and will be changed during loading of configuration due to limitations."
+                   "This configuration file could not be loaded correctly."
+                << slog::endl;
+        }
+        std::string new_str(str);
+        auto pos = new_str.find(".");
+        if (pos != std::string::npos) {
+            new_str.replace(pos, 1, "_");
+        }
+        return new_str;
+    };
     cv::FileStorage fs(filename, cv::FileStorage::WRITE);
     if (!fs.isOpened())
         throw std::runtime_error("Error: Can't open config file : " + filename);
     for (auto device_it = config.begin(); device_it != config.end(); ++device_it) {
-        fs << device_it->first << "{:";
+        fs << plugin_to_opencv_format(device_it->first) << "{:";
         for (auto param_it = device_it->second.begin(); param_it != device_it->second.end(); ++param_it)
             fs << param_it->first << param_it->second;
         fs << "}";
@@ -235,6 +246,14 @@ void dump_config(const std::string& filename, const std::map<std::string, std::m
 }
 
 void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+    auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
+        std::string new_str(str);
+        auto pos = new_str.find("_");
+        if (pos != std::string::npos) {
+            new_str.replace(pos, 1, ".");
+        }
+        return new_str;
+    };
     cv::FileStorage fs(filename, cv::FileStorage::READ);
     if (!fs.isOpened())
         throw std::runtime_error("Error: Can't load config file : " + filename);
@@ -246,7 +265,7 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
         }
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
-            config[device.name()][item.name()] = item.string();
+            config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
         }
     }
 }

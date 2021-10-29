@@ -1,6 +1,6 @@
 # Converting a Model to Intermediate Representation (IR)  {#openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model}
 
-Use the <code>mo.py</code> script from the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory to run the Model Optimizer and convert the model to the Intermediate Representation (IR): 
+Use the <code>mo.py</code> script from the `<INSTALL_DIR>/tools/model_optimizer` directory to run the Model Optimizer and convert the model to the Intermediate Representation (IR): 
 ```sh
 python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```

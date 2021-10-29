@@ -4,6 +4,13 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+endif()
+
 set (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the build type")
 
 project(time_tests)
@@ -11,16 +18,7 @@ project(time_tests)
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 # Search OpenVINO Inference Engine installed
-find_package(InferenceEngine)
-
-if(NOT InferenceEngine_FOUND)
-    # Define directory where artifacts will be placed
-    set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-
-    # Search OpenVINO Inference Engine via InferenceEngineDeveloperPackage_DIR
-    # in order to provide backward compatibility with old OpenVINO packages
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
-endif()
+find_package(OpenVINO REQUIRED)
 
 add_subdirectory(src)
 

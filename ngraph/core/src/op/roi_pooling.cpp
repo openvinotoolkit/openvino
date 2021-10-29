@@ -9,11 +9,11 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::ROIPooling, "ROIPooling", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::ROIPooling);
 
 op::ROIPooling::ROIPooling(const Output<Node>& input,
                            const Output<Node>& coords,
-                           const ov::StaticShape& output_size,
+                           const ov::Shape& output_size,
                            const float spatial_scale,
                            const string& method)
     : Op({input, coords}),
@@ -87,10 +87,10 @@ void op::ROIPooling::validate_and_infer_types() {
     }
 
     // output shape should be {NUM_ROIS, C, pooled_h, pooled_w}
-    auto output_shape = ov::Shape{{Dimension::dynamic(),
-                                   Dimension::dynamic(),
-                                   Dimension{static_cast<int64_t>(m_output_size[0])},
-                                   Dimension{static_cast<int64_t>(m_output_size[1])}}};
+    auto output_shape = ov::PartialShape{{Dimension::dynamic(),
+                                          Dimension::dynamic(),
+                                          Dimension{static_cast<int64_t>(m_output_size[0])},
+                                          Dimension{static_cast<int64_t>(m_output_size[1])}}};
 
     if (coords_ps.rank().is_static() && coords_ps[0].is_static()) {
         output_shape[0] = coords_ps[0];

@@ -40,9 +40,10 @@ struct select : public primitive_base<select> {
            const primitive_id& mask,
            const primitive_id& input,
            const primitive_id& input2,
+           const primitive_id& ext_prim_id = "",
            const padding& output_padding = padding(),
            const std::string& broadcast_type = "numpy")
-        : primitive_base(id, {mask, input, input2}, output_padding),
+        : primitive_base(id, {mask, input, input2}, ext_prim_id, output_padding),
           broadcast_type(broadcast_type) {}
 
     /// @brief String which determines broadcast type.

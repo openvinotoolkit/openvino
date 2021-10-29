@@ -15,18 +15,18 @@ To customize your topology with an OpenCL layer, follow the steps below:
 > **NOTE:** OpenCL compiler, targeting Intel® Neural Compute Stick 2 for the SHAVE* processor only, is redistributed with OpenVINO.
 OpenCL support is provided by ComputeAorta*, and is distributed under a license agreement between Intel® and Codeplay* Software Ltd.
 
-The OpenCL toolchain for the Intel® Neural Compute Stick 2 supports offline compilation only, so first compile OpenCL C code using the standalone `clc` compiler. You can find the compiler binary at `<INSTALL_DIR>/deployment_tools/tools/cl_compiler`.
+The OpenCL toolchain for the Intel® Neural Compute Stick 2 supports offline compilation only, so first compile OpenCL C code using the standalone `clc` compiler. You can find the compiler binary at `<INSTALL_DIR>/tools/cl_compiler`.
 
 > **NOTE:** By design, custom OpenCL layers support any OpenCL kernels written with 1.2 version assumed. It also supports half float extension and is optimized for this type, because it is a native type for Intel® Movidius™ VPUs.
 
 1. Prior to running a compilation, make sure that the following variables are set:
-   * `SHAVE_MA2X8XLIBS_DIR=<INSTALL_DIR>/deployment_tools/tools/cl_compiler/lib/`
-   * `SHAVE_LDSCRIPT_DIR=<INSTALL_DIR>/deployment_tools/tools/cl_compiler/ldscripts/`
-   * `SHAVE_MYRIAD_LD_DIR=<INSTALL_DIR>/deployment_tools/tools/cl_compiler/bin/`
-   * `SHAVE_MOVIASM_DIR=<INSTALL_DIR>/deployment_tools/tools/cl_compiler/bin/`
+   * `SHAVE_MA2X8XLIBS_DIR=<INSTALL_DIR>/tools/cl_compiler/lib/`
+   * `SHAVE_LDSCRIPT_DIR=<INSTALL_DIR>/tools/cl_compiler/ldscripts/`
+   * `SHAVE_MYRIAD_LD_DIR=<INSTALL_DIR>/tools/cl_compiler/bin/`
+   * `SHAVE_MOVIASM_DIR=<INSTALL_DIR>/tools/cl_compiler/bin/`
 2. Run the compilation with the command below. You should use `--strip-binary-header` to make an OpenCL runtime-agnostic binary runnable with the Inference Engine.
 ```bash
-cd <INSTALL_DIR>/deployment_tools/tools/cl_compiler/bin
+cd <INSTALL_DIR>/tools/cl_compiler/bin
 ./clc --strip-binary-header custom_layer.cl -o custom_layer.bin
 ```
 

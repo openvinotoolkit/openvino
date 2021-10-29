@@ -15,7 +15,8 @@ namespace v0 {
 ///
 class OPENVINO_API PRelu : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("PRelu", "opset1");
+    BWDCMP_RTTI_DECLARATION;
     PRelu();
     /// \brief Constructs a PRelu operation.
     ///
@@ -29,7 +30,9 @@ public:
 
     void validate_and_infer_types() override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v0

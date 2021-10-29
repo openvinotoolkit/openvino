@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v4::Mish, "Mish", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::Mish);
 
 op::v4::Mish::Mish(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -47,6 +47,7 @@ shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_arg
 }
 
 namespace mish {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -68,6 +69,7 @@ bool evaluate_mish(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
+}  // namespace
 }  // namespace mish
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -127,7 +127,8 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo& stageMeta) {
     if (stageMeta.execOrder < 0 || stageMeta.execTime == 0) {
         serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";
     } else {
-        serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(stageMeta.execTime);
+        int execTimeMcs = stageMeta.execTime * 1000; // ms to mcs
+        serializationInfo[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(execTimeMcs);
     }
     std::stringstream layoutStream;
     int ind = 0;

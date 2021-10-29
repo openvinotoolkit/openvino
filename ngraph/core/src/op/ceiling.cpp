@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Ceiling, "Ceiling", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Ceiling);
 
 op::Ceiling::Ceiling(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -26,6 +26,7 @@ shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args
 }
 
 namespace ceiling {
+namespace {
 // function used by TYPE_CASE
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
@@ -63,6 +64,7 @@ bool evaluate_ceiling(const HostTensorPtr& arg0, const HostTensorPtr& out, const
     }
     return rc;
 }
+}  // namespace
 }  // namespace ceiling
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -23,7 +23,7 @@ namespace pass {
 /// \link ov::pass::Manager::set_per_pass_validation(bool) \endlink function.
 class OPENVINO_API Validate : public FunctionPass {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_RTTI("ov::pass::Validate");
 
     Validate() : FunctionPass() {}
     bool run_on_function(std::shared_ptr<ov::Function> f) override;

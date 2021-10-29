@@ -14,7 +14,8 @@ namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 class OPENVINO_API GroupConvolution : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("GroupConvolution", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched convolution operation.
     GroupConvolution() = default;
@@ -100,7 +101,8 @@ protected:
 /// \brief Data batch backprop for batched convolution operation.
 class OPENVINO_API GroupConvolutionBackpropData : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("GroupConvolutionBackpropData", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     GroupConvolutionBackpropData();
@@ -215,8 +217,8 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The spatial shape of the output.
-    const Shape get_convolution_output_shape() const;
-    void set_output_shape(const StaticShape& output_shape);
+    const PartialShape get_convolution_output_shape() const;
+    void set_output_shape(const Shape& output_shape);
     /// \return The strides from the forward prop.
     const Strides& get_strides() const {
         return m_strides;

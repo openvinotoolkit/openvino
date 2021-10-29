@@ -13,17 +13,22 @@ namespace op {
 namespace v0 {
 class OPENVINO_API Unsqueeze : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Unsqueeze", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     Unsqueeze() = default;
     Unsqueeze(const Output<Node>& data, const Output<Node>& axes);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& output_values) const override;
     bool evaluate_upper(const HostTensorVector& output_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
 

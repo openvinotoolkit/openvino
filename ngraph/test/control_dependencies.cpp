@@ -8,6 +8,7 @@
 #include <list>
 #include <memory>
 
+#include "engines_util/random.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
@@ -21,7 +22,6 @@
 #include "ngraph/util.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
-#include "util/random.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ngraph;

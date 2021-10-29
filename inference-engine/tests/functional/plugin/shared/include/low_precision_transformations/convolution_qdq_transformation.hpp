@@ -57,7 +57,7 @@ class ConvolutionQDqTransformation :
     public testing::WithParamInterface<ConvolutionQDqTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionQDqTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj);
 
 protected:
     void SetUp() override;

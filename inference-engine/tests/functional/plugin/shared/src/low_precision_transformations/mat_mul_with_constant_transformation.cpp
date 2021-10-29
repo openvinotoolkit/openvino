@@ -19,7 +19,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParamInfo<MatMulWithConstantTransformationParams> obj) {
+std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
     ngraph::element::Type precision;
     std::string targetDevice;
     MatMulWithConstantTransformationTestValues testValues;

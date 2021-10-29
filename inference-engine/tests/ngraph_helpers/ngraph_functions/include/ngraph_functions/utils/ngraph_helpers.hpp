@@ -103,6 +103,7 @@ enum ActivationTypes {
     Asin,
     Asinh,
     Atan,
+    Atanh,
     Cos,
     Cosh,
     Floor,

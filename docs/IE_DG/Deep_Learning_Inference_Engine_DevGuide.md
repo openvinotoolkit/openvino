@@ -38,12 +38,14 @@ This library contains the classes to:
 
 ### Plugin Libraries to Read a Network Object
 
-Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
+Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Linux* OS:
-    - `libinference_engine_ir_reader.so` to read a network from IR
-    - `onnx_ngraph_frontend.so` to read a network from ONNX model format
+    - `libir_ngraph_frontend.so` to read a network from IR
+    - `libpaddlepaddle_ngraph_frontend.so` to read a network from PaddlePaddle model format
+    - `libonnx_ngraph_frontend.so` to read a network from ONNX model format
 * Windows* OS:
-    - `inference_engine_ir_reader.dll` to read a network from IR
+    - `ir_ngraph_frontend.dll` to read a network from IR
+    - `paddlepaddle_ngraph_frontend.dll` to read a network from PaddlePaddle model format
     - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
 
 ### Device-Specific Plugin Libraries
@@ -79,9 +81,9 @@ Make sure those libraries are in your computer's path or in the place you pointe
 * Windows: `PATH`
 * macOS: `DYLD_LIBRARY_PATH`
 
-On Linux and macOS, use the script `bin/setupvars.sh` to set the environment variables.
+On Linux and macOS, use the script `setupvars.sh` to set the environment variables.
 
-On Windows, run the `bin\setupvars.bat` batch file to set the environment variables.
+On Windows, run the `setupvars.bat` batch file to set the environment variables.
 
 To learn more about supported devices and corresponding plugins, see the [Supported Devices](supported_plugins/Supported_Devices.md) chapter.
 

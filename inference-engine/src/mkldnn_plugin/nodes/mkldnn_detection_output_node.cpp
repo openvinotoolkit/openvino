@@ -4,11 +4,14 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 
+#include "mkldnn/ie_mkldnn.h"
 #include <ngraph/op/detection_output.hpp>
 #include "ie_parallel.hpp"
 #include "mkldnn_detection_output_node.h"
 
+using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
@@ -53,66 +56,79 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    errorPrefix = "DetectionOutput layer with name '" + op->get_friendly_name() + "' ";
+    errorPrefix = "DetectionOutput node with name '" + getName() + "' ";
 
     if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5)
-        IE_THROW() << errorPrefix <<  " has incorrect number of input edges.";
+        IE_THROW() << errorPrefix <<  "has incorrect number of input edges.";
 
     if (getOriginalOutputsNumber() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of output edges.";
+        IE_THROW() << errorPrefix << "has incorrect number of output edges.";
 
     auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
 
-    _num_classes = attributes.num_classes;
-    _background_label_id = attributes.background_label_id;
-    _top_k = attributes.top_k;
-    _variance_encoded_in_target = attributes.variance_encoded_in_target;
-    _keep_top_k = attributes.keep_top_k[0];
-    _nms_threshold = attributes.nms_threshold;
-    _confidence_threshold = attributes.confidence_threshold;
-    _share_location = attributes.share_location;
-    _clip_before_nms = attributes.clip_before_nms;
-    _clip_after_nms = attributes.clip_after_nms;
-    _decrease_label_id = attributes.decrease_label_id;
-    _normalized = attributes.normalized;
-    _image_height = attributes.input_height;
-    _image_width = attributes.input_width;
-    _prior_size = _normalized ? 4 : 5;
-    _offset = _normalized ? 0 : 1;
-    _num_loc_classes = _share_location ? 1 : _num_classes;
+    classesNum = attributes.num_classes;
+    backgroundClassId = attributes.background_label_id;
+    topK = attributes.top_k;
+    varianceEncodedInTarget = attributes.variance_encoded_in_target;
+    keepTopK = attributes.keep_top_k[0];
+    NMSThreshold = attributes.nms_threshold;
+    confidenceThreshold = attributes.confidence_threshold;
+    isShareLoc = attributes.share_location;
+    clipBeforeNMS = attributes.clip_before_nms;
+    clipAfterNMS = attributes.clip_after_nms;
+    decreaseClassId = attributes.decrease_label_id;
+    normalized = attributes.normalized;
+    imgHeight = attributes.input_height;
+    imgWidth = attributes.input_width;
+    priorSize = normalized ? 4 : 5;
+    coordOffset = normalized ? 0 : 1;
+    locNumForClasses = isShareLoc ? 1 : classesNum;
 
-    with_add_box_pred = getOriginalInputsNumber() == 5;
-    _objectness_score = attributes.objectness_score;
+    withAddBoxPred = getOriginalInputsNumber() == 5;
+    objScore = attributes.objectness_score;
 
-    _code_type = (details::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE") ?
+    codeType = (details::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE") ?
                   CodeType::CENTER_SIZE : CodeType::CORNER);
 
-    _num_priors = static_cast<int>(op->get_input_shape(idx_priors).back() / _prior_size);
-    _priors_batches = op->get_input_shape(idx_priors).front() != 1;
+    priorsNum = static_cast<int>(op->get_input_shape(ID_PRIOR).back() / priorSize);
+    isPriorsPerImg = op->get_input_shape(ID_PRIOR).front() != 1;
 
-    if (_num_priors * _num_loc_classes * 4 != static_cast<int>(op->get_input_shape(idx_location)[1]))
-        IE_THROW() << errorPrefix << " has incorrect number of priors must match number of location predictions ("
-                   << _num_priors * _num_loc_classes * 4 << " vs "
-                   << op->get_input_shape(idx_location)[1] << ")";
+    if (priorsNum * locNumForClasses * 4 != static_cast<int>(op->get_input_shape(ID_LOC)[1]))
+        IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of location predictions ("
+                   << priorsNum * locNumForClasses * 4 << " vs "
+                   << op->get_input_shape(ID_LOC)[1] << ")";
 
-    if (_num_priors * _num_classes != static_cast<int>(op->get_input_shape(idx_confidence).back()))
-        IE_THROW() << " has incorrect number of priors must match number of confidence predictions.";
+    if (priorsNum * classesNum != static_cast<int>(op->get_input_shape(ID_CONF).back()))
+        IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of confidence predictions.";
 
-    if (_decrease_label_id && _background_label_id != 0)
-        IE_THROW() << errorPrefix << " cannot use decrease_label_id and background_label_id parameter simultaneously.";
+    if (decreaseClassId && backgroundClassId != 0)
+        IE_THROW() << errorPrefix << "cannot use decrease_label_id and background_label_id parameter simultaneously.";
 
-    _num = static_cast<int>(op->get_input_shape(idx_confidence)[0]);
+    imgNum = static_cast<int>(op->get_input_shape(ID_CONF)[0]);
 
-    _decoded_bboxes.resize(_num * _num_classes * _num_priors * 4);
-    _buffer.resize(_num * _num_classes * _num_priors);
-    _indices.resize(_num * _num_classes * _num_priors);
-    _detections_count.resize(_num * _num_classes);
-    _bbox_sizes.resize(_num * _num_classes * _num_priors);
-    _num_priors_actual.resize(_num);
+    decodedBboxes.resize(imgNum * classesNum * priorsNum * 4);
+    bboxSizes.resize(imgNum * classesNum * priorsNum);
+    indicesBuffer.resize(imgNum * classesNum * priorsNum);
+    indices.resize(imgNum * classesNum * priorsNum);
+    // prior info for shared_location
+    if (isShareLoc)
+        confInfoForPrior.resize(imgNum * priorsNum);
 
-    const auto &confSize = op->get_input_shape(idx_confidence);
-    _reordered_conf.resize(std::accumulate(confSize.begin(), confSize.end(), 1, std::multiplies<size_t>()));
+    // confs...count...indices for caffe style and sparsity case.
+    // caffe: conf_info for sparsity or indices for dense --> topk(buffer) --> nms(indices)
+    //        --> g_topk(vector<>(all detections) --> indices per class))
+    // MXNet: max conf for prior within img, filter(indices) --> topk_img(buffer) --> nms_cls(indices)
+    //        --> g_topk(vector<>(all detections) --> indices per class))
+    int cacheSizeL3 = utils::get_cache_size(3, true);
+    isSparsityWorthwhile =
+        (confidenceThreshold > sparsityThreshold) &&
+        ((classesNum * priorsNum * sizeof(float) * 2) > cacheSizeL3);
+    confInfoLen = (!decreaseClassId && isSparsityWorthwhile) ? (2 * priorsNum + 1) : priorsNum;
+    reorderedConf.resize(imgNum * classesNum * confInfoLen);
+
+    detectionsCount.resize(imgNum * classesNum);
+    numPriorsActual.resize(imgNum);
 }
 
 void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
@@ -129,478 +145,744 @@ void MKLDNNDetectionOutputNode::initSupportedPrimitiveDescriptors() {
                          impl_desc_type::ref_any);
 }
 
+struct ConfidenceComparatorDO {
+    explicit ConfidenceComparatorDO(const float* confDataIn) : confData(confDataIn) {}
+
+    bool operator()(int idx1, int idx2) {
+        if (confData[idx1] > confData[idx2]) return true;
+        if (confData[idx1] < confData[idx2]) return false;
+        return idx1 < idx2;
+    }
+
+    const float* confData;
+};
+
 void MKLDNNDetectionOutputNode::execute(mkldnn::stream strm) {
-    float *dst_data = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
+    float *dstData = reinterpret_cast<float *>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr());
 
-    const float *loc_data    = reinterpret_cast<const float *>(getParentEdgeAt(idx_location)->getMemoryPtr()->GetPtr());
-    const float *conf_data   = reinterpret_cast<const float *>(getParentEdgeAt(idx_confidence)->getMemoryPtr()->GetPtr());
-    const float *prior_data  = reinterpret_cast<const float *>(getParentEdgeAt(idx_priors)->getMemoryPtr()->GetPtr());
-    const float *arm_conf_data = inputShapes.size() > 3 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_confidence)->getMemoryPtr()->GetPtr()) : nullptr;
-    const float *arm_loc_data = inputShapes.size() > 4 ?
-            reinterpret_cast<const float *>(getParentEdgeAt(idx_arm_location)->getMemoryPtr()->GetPtr()) : nullptr;
+    const float *locData     = reinterpret_cast<const float *>(getParentEdgeAt(ID_LOC)->getMemoryPtr()->GetPtr());
+    const float *confData    = reinterpret_cast<const float *>(getParentEdgeAt(ID_CONF)->getMemoryPtr()->GetPtr());
+    const float *priorData   = reinterpret_cast<const float *>(getParentEdgeAt(ID_PRIOR)->getMemoryPtr()->GetPtr());
+    const float *ARMConfData = inputShapes.size() > 3 ?
+            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_CONF)->getMemoryPtr()->GetPtr()) : nullptr;
+    const float *ARMLocData = inputShapes.size() > 4 ?
+            reinterpret_cast<const float *>(getParentEdgeAt(ID_ARM_LOC)->getMemoryPtr()->GetPtr()) : nullptr;
 
-    const int N = getParentEdgeAt(idx_confidence)->getMemory().getStaticDims()[0];
+    float *reorderedConfData = reorderedConf.data();
+    int *reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConf.data());
 
-    float *decoded_bboxes_data = _decoded_bboxes.data();
-    float *reordered_conf_data = _reordered_conf.data();
-    float *bbox_sizes_data     = _bbox_sizes.data();
-    int *detections_data       = _detections_count.data();
-    int *buffer_data           = _buffer.data();
-    int *indices_data          = _indices.data();
-    int *num_priors_actual     = _num_priors_actual.data();
+    float *decodedBboxesData = decodedBboxes.data();
+    float *bboxSizesData     = bboxSizes.data();
+    int *indicesData         = indices.data();
+    int *indicesBufData      = indicesBuffer.data();
+    int *detectionsData      = detectionsCount.data();
 
-    for (int n = 0; n < N; ++n) {
-        const float *ppriors = prior_data;
-        const float *prior_variances = prior_data + _num_priors*_prior_size;
-        if (_priors_batches) {
-            ppriors += _variance_encoded_in_target ? n*_num_priors*_prior_size : 2*n*_num_priors*_prior_size;
-            prior_variances += _variance_encoded_in_target ? 0 : 2*n*_num_priors*_prior_size;
+    memset(detectionsData, 0, imgNum * classesNum * sizeof(int));
+
+    int priorsBatch = isPriorsPerImg ? imgNum : 1;
+    int *numPriorsActualdata = numPriorsActual.data();
+    for (int n = 0; n < priorsBatch; ++n) {
+        const float *ppriors = priorData;
+        ppriors += varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
+        getActualPriorNum(ppriors, numPriorsActualdata, n);
+    }
+    if (!isPriorsPerImg && imgNum > 1)
+        std::fill_n(numPriorsActualdata + 1, imgNum - 1, numPriorsActualdata[0]);
+
+    if (!isSparsityWorthwhile) {
+        confReorderDense(confData, ARMConfData, reorderedConfData);
+
+        if (!decreaseClassId) {
+            confFilterCF(reorderedConfData, indicesData, indicesBufData, detectionsData);
+        } else {
+            confFilterMX(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
+        }
+    } else { // sparsity
+        if (!decreaseClassId) {
+            confReorderAndFilterSparsityCF(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
+        } else {
+            confReorderAndFilterSparsityMX(confData, ARMConfData, reorderedConfData, indicesData, indicesBufData, detectionsData);
+        }
+    }
+
+    int *confInfoV = confInfoForPrior.data();
+
+    for (int n = 0; n < imgNum; ++n) {
+        const float *ppriors = priorData;
+        const float *priorVariances = priorData + priorsNum * priorSize;
+        if (isPriorsPerImg) {
+            int priorSizePerImg = varianceEncodedInTarget ? (n * priorsNum * priorSize) : (2 * n * priorsNum * priorSize);
+            ppriors += priorSizePerImg;
+            priorVariances += varianceEncodedInTarget ? 0 : priorSizePerImg;
         }
 
-        if (_share_location) {
-            const float *ploc = loc_data + n*4*_num_priors;
-            float *pboxes = decoded_bboxes_data + n*4*_num_priors;
-            float *psizes = bbox_sizes_data + n*_num_priors;
+        if (isShareLoc) {
+            int locShift = n * priorsNum;
+            int coordShift = locShift * 4;
+            const float *ploc = locData + coordShift;
+            float *pboxes = decodedBboxesData + coordShift;
+            float *psizes = bboxSizesData + locShift;
+            int *confInfoVB = confInfoV + locShift;
 
-            if (with_add_box_pred) {
-                const float *p_arm_loc = arm_loc_data + n*4*_num_priors;
-                decodeBBoxes(ppriors, p_arm_loc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
-                decodeBBoxes(pboxes, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, 0, 4, false);
+            if (withAddBoxPred) {
+                const float *pARMLoc = ARMLocData + coordShift;
+                decodeBBoxes(ppriors, pARMLoc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, nullptr, confInfoVB);
+                decodeBBoxes(pboxes, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, 0, 4, false, nullptr, confInfoVB);
             } else {
-                decodeBBoxes(ppriors, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
+                decodeBBoxes(ppriors, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, nullptr, confInfoVB);
             }
         } else {
-            for (int c = 0; c < _num_loc_classes; ++c) {
-                if (c == _background_label_id) {
+            for (int c = 0; c < locNumForClasses; ++c) {
+                if (c == backgroundClassId) {
                     continue;
                 }
-                const float *ploc = loc_data + n*4*_num_loc_classes*_num_priors + c*4;
-                float *pboxes = decoded_bboxes_data + n*4*_num_loc_classes*_num_priors + c*4*_num_priors;
-                float *psizes = bbox_sizes_data + n*_num_loc_classes*_num_priors + c*_num_priors;
-                if (with_add_box_pred) {
-                    const float *p_arm_loc = arm_loc_data + n*4*_num_loc_classes*_num_priors + c*4;
-                    decodeBBoxes(ppriors, p_arm_loc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
-                    decodeBBoxes(pboxes, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, 0, 4, false);
+                int locShift = n * priorsNum * locNumForClasses;
+                int coordShift = locShift * 4;
+                const float *ploc = locData + coordShift + c * 4;
+                float *pboxes = decodedBboxesData + coordShift + c * 4 * priorsNum;
+                float *psizes = bboxSizesData + locShift + c * priorsNum;
+                int *confInfoHBC = reorderedConfDataIndices + n * confInfoLen * classesNum + c*confInfoLen;
+                if (withAddBoxPred) {
+                    const float *pARMLoc = ARMLocData + n * 4 * locNumForClasses * priorsNum + c * 4;
+                    decodeBBoxes(ppriors, pARMLoc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, confInfoHBC);
+                    decodeBBoxes(pboxes, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, 0, 4, false, confInfoHBC);
                 } else {
-                    decodeBBoxes(ppriors, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
+                    decodeBBoxes(ppriors, ploc, priorVariances, pboxes, psizes, numPriorsActualdata, n, coordOffset, priorSize, true, confInfoHBC);
                 }
             }
         }
     }
 
-    if (with_add_box_pred) {
-        for (int n = 0; n < N; ++n) {
-            for (int p = 0; p < _num_priors; ++p) {
-                if (arm_conf_data[n*_num_priors*2 + p * 2 + 1] < _objectness_score) {
-                    for (int c = 0; c < _num_classes; ++c) {
-                        reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = c == _background_label_id ? 1.0f : 0.0f;
-                    }
-                } else {
-                    for (int c = 0; c < _num_classes; ++c) {
-                        reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = conf_data[n*_num_priors*_num_classes + p*_num_classes + c];
-                    }
-                }
-            }
-        }
-    } else {
-        for (int n = 0; n < N; ++n) {
-            for (int c = 0; c < _num_classes; ++c) {
-                for (int p = 0; p < _num_priors; ++p) {
-                    reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = conf_data[n*_num_priors*_num_classes + p*_num_classes + c];
-                }
-            }
-        }
-    }
-
-    memset(detections_data, 0, N*_num_classes*sizeof(int));
-
-    for (int n = 0; n < N; ++n) {
-        int detections_total = 0;
-
-        if (!_decrease_label_id) {
+    // NMS
+    for (int n = 0; n < imgNum; ++n) {
+        if (!decreaseClassId) {
             // Caffe style
-            parallel_for(_num_classes, [&](int c) {
-                if (c != _background_label_id) {  // Ignore background class
-                    int *pindices    = indices_data + n*_num_classes*_num_priors + c*_num_priors;
-                    int *pbuffer     = buffer_data + c*_num_priors;
-                    int *pdetections = detections_data + n*_num_classes + c;
+            parallel_for(classesNum, [&](int c) {
+                if (c != backgroundClassId) {  // Ignore background class
+                    int *pindices    = indicesData + n * classesNum * priorsNum + c * priorsNum;
+                    int *pbuffer     = indicesBufData + n * classesNum * priorsNum + c * priorsNum;
+                    int *pdetections = detectionsData + n * classesNum + c;
 
-                    const float *pconf = reordered_conf_data + n*_num_classes*_num_priors + c*_num_priors;
                     const float *pboxes;
                     const float *psizes;
-                    if (_share_location) {
-                        pboxes = decoded_bboxes_data + n*4*_num_priors;
-                        psizes = bbox_sizes_data + n*_num_priors;
+                    if (isShareLoc) {
+                        pboxes = decodedBboxesData + n * 4 * priorsNum;
+                        psizes = bboxSizesData + n * priorsNum;
                     } else {
-                        pboxes = decoded_bboxes_data + n*4*_num_classes*_num_priors + c*4*_num_priors;
-                        psizes = bbox_sizes_data + n*_num_classes*_num_priors + c*_num_priors;
+                        pboxes = decodedBboxesData + n * 4 * classesNum * priorsNum + c * 4 * priorsNum;
+                        psizes = bboxSizesData + n * classesNum * priorsNum + c * priorsNum;
                     }
 
-                    nms_cf(pconf, pboxes, psizes, pbuffer, pindices, *pdetections, num_priors_actual[n]);
+                    NMSCF(pbuffer, *pdetections, pindices, pboxes, psizes);
                 }
             });
         } else {
             // MXNet style
-            int *pindices = indices_data + n*_num_classes*_num_priors;
-            int *pbuffer = buffer_data;
-            int *pdetections = detections_data + n*_num_classes;
+            int *pbuffer = indicesBufData + n * classesNum * priorsNum;
+            int *pdetections = detectionsData + n * classesNum;
+            int *pindices = indicesData + n * classesNum * priorsNum;
+            const float *pboxes = decodedBboxesData + n * 4 * locNumForClasses * priorsNum;
+            const float *psizes = bboxSizesData + n * locNumForClasses * priorsNum;
 
-            const float *pconf = reordered_conf_data + n*_num_classes*_num_priors;
-            const float *pboxes = decoded_bboxes_data + n*4*_num_loc_classes*_num_priors;
-            const float *psizes = bbox_sizes_data + n*_num_loc_classes*_num_priors;
-
-            nms_mx(pconf, pboxes, psizes, pbuffer, pindices, pdetections, _num_priors);
+            NMSMX(pbuffer, pdetections, pindices, pboxes, psizes);
         }
 
-        for (int c = 0; c < _num_classes; ++c) {
-            detections_total += detections_data[n*_num_classes + c];
-        }
+        int detectionsTotal = 0;
+        detectionsTotal = parallel_sum(classesNum, detectionsTotal, [&](size_t c)->int {
+            return detectionsData[n * classesNum + c];
+        });
 
-        if (_keep_top_k > -1 && detections_total > _keep_top_k) {
-            std::vector<std::pair<float, std::pair<int, int>>> conf_index_class_map;
+        // combine detections of all class for this image and filter with global(image) topk(keep_topk)
+        if (keepTopK > -1 && detectionsTotal > keepTopK) {
+            std::vector<std::pair<float, std::pair<int, int>>> confIndicesClassMap;
 
-            for (int c = 0; c < _num_classes; ++c) {
-                int detections = detections_data[n*_num_classes + c];
-                int *pindices = indices_data + n*_num_classes*_num_priors + c*_num_priors;
+            std::mutex mtx;
+            parallel_for(classesNum, [&](int c) {
+                int detections = detectionsData[n * classesNum + c];
+                int *pindices = indicesData + n * classesNum * priorsNum + c * priorsNum;
 
-                float *pconf  = reordered_conf_data + n*_num_classes*_num_priors + c*_num_priors;
+                float *pconf  = reorderedConfData + n * classesNum * confInfoLen + c * confInfoLen;
 
                 for (int i = 0; i < detections; ++i) {
-                    int idx = pindices[i];
-                    conf_index_class_map.push_back(std::make_pair(pconf[idx], std::make_pair(c, idx)));
+                    int pr = pindices[i];
+                    mtx.lock();
+                    confIndicesClassMap.push_back(std::make_pair(pconf[pr], std::make_pair(c, pr)));
+                    mtx.unlock();
                 }
-            }
+            });
 
-            std::sort(conf_index_class_map.begin(), conf_index_class_map.end(),
+            std::sort(confIndicesClassMap.begin(), confIndicesClassMap.end(),
                       SortScorePairDescend<std::pair<int, int>>);
-            conf_index_class_map.resize(_keep_top_k);
+            confIndicesClassMap.resize(keepTopK);
 
-            // Store the new indices.
-            memset(detections_data + n*_num_classes, 0, _num_classes * sizeof(int));
+            // Store the new indices. Assign to class back
+            memset(detectionsData + n * classesNum, 0, classesNum * sizeof(int));
 
-            for (size_t j = 0; j < conf_index_class_map.size(); ++j) {
-                int label = conf_index_class_map[j].second.first;
-                int idx = conf_index_class_map[j].second.second;
-                int *pindices = indices_data + n * _num_classes * _num_priors + label * _num_priors;
-                pindices[detections_data[n*_num_classes + label]] = idx;
-                detections_data[n*_num_classes + label]++;
+            for (size_t j = 0; j < confIndicesClassMap.size(); ++j) {
+                int cls = confIndicesClassMap[j].second.first;
+                int pr = confIndicesClassMap[j].second.second;
+                int *pindices = indicesData + n * classesNum * priorsNum + cls * priorsNum;
+                pindices[detectionsData[n * classesNum + cls]] = pr;
+                detectionsData[n * classesNum + cls]++;
             }
         }
     }
 
+    // get final output
+    generateOutput(reorderedConfData, indicesData, detectionsData, decodedBboxesData, dstData);
+}
+
+inline void MKLDNNDetectionOutputNode::getActualPriorNum(const float *priorData, int* numPriorsActual, int n) {
+    numPriorsActual[n] = priorsNum;
+    if (!normalized) {
+        int num = 0;
+        for (; num < priorsNum; ++num) {
+            float imgId = priorData[num * priorSize];
+            if (imgId == -1.f) {
+                numPriorsActual[n] = num;
+                break;
+            }
+        }
+    }
+}
+
+inline void MKLDNNDetectionOutputNode::confReorderDense(const float *confData, const float *ARMConfData, float *reorderedConfData) {
+    if (withAddBoxPred) {
+        parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
+            if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
+                for (int c = 0; c < classesNum; ++c) {
+                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = c == backgroundClassId ? 1.0f : 0.0f;
+                }
+            } else {
+                for (int c = 0; c < classesNum; ++c) {
+                    reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] = confData[n * priorsNum * classesNum + p * classesNum + c];
+                }
+            }
+        });
+        return;
+    }
+    // withAddBoxPred is false
+    parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
+        int offset = n * priorsNum * classesNum;
+        for (int p = 0; p < priorsNum; ++p) {
+            reorderedConfData[offset + c * priorsNum + p] =
+            confData[offset + p * classesNum + c];
+        }
+    });
+}
+
+inline void MKLDNNDetectionOutputNode::confFilterCF(float* reorderedConfData, int* indicesData, int* indicesBufData, int* detectionsData) {
+    parallel_for2d(imgNum, classesNum, [&](size_t n, size_t c) {
+        // in:  reorderedConf
+        // out: pindices count
+        if (c == backgroundClassId)
+            return;
+        int off = n * priorsNum * classesNum + c * priorsNum;
+        const float *pconf = reorderedConfData + off;
+        int *pindices = indicesData + off;
+        int *pbuffer = indicesBufData + off;
+
+        int count = 0;
+        for (int i = 0; i < numPriorsActual[n]; ++i) {
+            if (pconf[i] > confidenceThreshold) {
+                pindices[count] = i;
+                count++;
+            }
+        }
+
+        // in:  pindices count
+        // out: buffer detectionCount
+        int k = (topK == -1 ? count : (std::min)(topK, count));
+        topk(pindices, pbuffer, pconf, count, k);
+        detectionsData[n*classesNum + c] = k;
+    });
+}
+
+// MX filter is per image filter, max output is prior num(select max for all class within this prior)
+// NMS is per class, keep topk is per image, final output is per class
+inline void MKLDNNDetectionOutputNode::confFilterMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
+    int* indicesData, int* indicesBufData, int* detectionsData) {
+    for (int n = 0; n < imgNum; ++n) {
+        int offB = n * priorsNum * classesNum;
+        std::mutex mtx;
+        parallel_for(numPriorsActual[n], [&](size_t p) {
+            // in:  origin conf
+            // out: pindices, detectionCount
+            // intentionally code branch from higher level
+            if (withAddBoxPred) {
+                bool isARMPrior = ARMConfData[n*priorsNum*2 + p * 2 + 1] < objScore;
+                float maxConf = -1;
+                int maxCIdx = 0;
+                for (int c = 1; c < classesNum; ++c) {
+                    float conf = confData[offB + p * classesNum + c];
+                    if (isARMPrior)
+                        conf = (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
+                    if (conf >= confidenceThreshold && conf > maxConf) {
+                        maxConf = conf;
+                        maxCIdx = c;
+                    }
+                }
+                if (maxCIdx > 0) {
+                    // include this prior
+                    mtx.lock();
+                    indicesData[offB + detectionsData[n*classesNum]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
+                    detectionsData[n*classesNum]++;
+                    mtx.unlock();
+                }
+            } else {
+                float maxConf = -1;
+                int maxCIdx = 0;
+                for (int c = 1; c < classesNum; ++c) {
+                    float conf = confData[offB + p * classesNum + c];
+                    if (conf >= confidenceThreshold && conf > maxConf) {
+                        maxConf = conf;
+                        maxCIdx = c;
+                    }
+                }
+                if (maxCIdx > 0) {
+                    // include this prior and class with max conf
+                    mtx.lock();
+                    indicesData[offB + detectionsData[n*classesNum]] = maxCIdx*priorsNum + p;  // de-refer to get prior and class id.
+                    detectionsData[n*classesNum]++;
+                    mtx.unlock();
+                }
+            }
+        });
+
+        // in:  pindices, detectionCount(filtered num)
+        // out: buffer, detectionCount(k)
+        int count = detectionsData[n*classesNum];
+        int k = (topK == -1 ? count : (std::min)(topK, count));
+
+        const float *pconf = reorderedConfData + offB;
+        int *indices = indicesData + offB;
+        int *pbuffer = indicesBufData + offB;
+        topk(indices, pbuffer, pconf, count, k);
+        detectionsData[n * classesNum] = k;
+    }
+}
+
+inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityCF(const float* confData, const float* ARMConfData, float* reorderedConfData,
+    int* indicesData, int* indicesBufData, int* detectionsData) {
+    int* reorderedConfDataIndices = reinterpret_cast<int*>(reorderedConfData);
+    for (int n = 0; n < imgNum; ++n) {
+        int off = n * priorsNum * classesNum;
+        int offV = n * priorsNum;  // vertical info
+
+        int offH = n * confInfoLen * classesNum; // horizontal info
+        // reset count
+        parallel_for(classesNum, [&](size_t c) {
+            int countIdx = offH + c * confInfoLen + priorsNum;
+            reorderedConfDataIndices[countIdx] = 0;
+        });
+
+        std::mutex mtx;
+        parallel_for(numPriorsActual[n], [&](size_t p) {
+            // intentionally code branch from higher level
+            if (withAddBoxPred) {
+                bool isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
+                bool priorStatusSet = false;
+                if (isShareLoc)
+                    confInfoForPrior[offV + p] = -1;
+                int confIdxPrior = off + p * classesNum;
+                for (int c = 0; c < classesNum; ++c) {
+                    float conf = confData[confIdxPrior + c];
+                    if (isARMPrior)
+                        conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                    if (conf > confidenceThreshold) {
+                        int idx = offH + c * confInfoLen;
+                        reorderedConfData[idx + p] = conf;
+                        mtx.lock();
+                        reorderedConfDataIndices[idx + priorsNum]++;
+                        reorderedConfDataIndices[idx + priorsNum + reorderedConfDataIndices[idx + priorsNum]] = p;
+                        mtx.unlock();
+
+                        // vertical info for isShareLoc(flag to decode for each prior)
+                        if (!priorStatusSet && isShareLoc) {
+                            confInfoForPrior[offV + p] = 1; // 1 for decode
+                        }
+                    }
+                }
+            } else {
+                bool priorStatusSet = false;
+                if (isShareLoc)
+                    confInfoForPrior[offV + p] = -1;
+                int confIdxPrior = off + p * classesNum;
+                for (int c = 0; c < classesNum; ++c) {
+                    float conf = confData[confIdxPrior + c];
+                    if (conf > confidenceThreshold) {
+                        int idx = offH + c * confInfoLen;
+                        reorderedConfData[idx + p] = conf;
+                        mtx.lock();
+                        reorderedConfDataIndices[idx + priorsNum]++;
+                        reorderedConfDataIndices[idx + priorsNum + reorderedConfDataIndices[idx + priorsNum]] = p;
+                        mtx.unlock();
+
+                        if (!priorStatusSet && isShareLoc) {
+                            confInfoForPrior[offV + p] = 1;
+                        }
+                    }
+                }
+            }
+        });
+        // topk
+        parallel_for(classesNum, [&](size_t c) {
+            // in:  conf_h info
+            // out: buffer, detectionCount(k)
+            if (c == backgroundClassId)  // Ignore background class
+                return;
+            int countIdx = offH + c * confInfoLen + priorsNum;
+            int count = reorderedConfDataIndices[countIdx];
+            int k = (topK == -1 ? count : (std::min)(topK, count));
+
+            int *reorderedConfIndices = reorderedConfDataIndices + countIdx + 1;
+            int *pbuffer = indicesBufData + off + c * priorsNum;
+            const float *pconf = reorderedConfData + offH + c * confInfoLen;
+
+            topk(reorderedConfIndices, pbuffer, pconf, count, k);
+            detectionsData[n * classesNum + c] = k;
+        });
+    }
+}
+
+inline void MKLDNNDetectionOutputNode::confReorderAndFilterSparsityMX(const float* confData, const float* ARMConfData, float* reorderedConfData,
+    int* indicesData, int* indicesBufData, int* detectionsData) {
+    for (int n = 0; n < imgNum; ++n) {
+        int off = n * priorsNum * classesNum;
+        int offV = n * priorsNum;  // vertical info
+
+        std::mutex mtx;
+        parallel_for(numPriorsActual[n], [&](size_t p) {
+            bool isARMPrior = false;
+            if (withAddBoxPred)
+                isARMPrior = ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore;
+            bool priorStatusSet = false;
+            if (isShareLoc)
+                confInfoForPrior[offV + p] = -1;
+            float maxConf = -1;
+            int maxCIdx = 0;
+            int confIdxPrior = off + p * classesNum;
+            for (int c = 0; c < classesNum; ++c) {
+                float conf = confData[confIdxPrior + c];
+                if (withAddBoxPred && isARMPrior)
+                    conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                if (conf >= confidenceThreshold) {
+                    int idx = off + c * confInfoLen;
+                    reorderedConfData[idx + p] = conf;
+
+                    // vertical info for isShareLoc(flag to decode for each prior)
+                    if (!priorStatusSet && isShareLoc) {
+                        confInfoForPrior[offV + p] = 1; // 1 for decode
+                    }
+                    // vertical info for MXNet style(max conf for each prior)
+                    if (c != 0) {
+                        if (conf > maxConf) {
+                            maxConf = conf;
+                            maxCIdx = c;
+                        }
+                    }
+                }
+            }
+            // MXNet statistic, indices and detectionCount is for each image
+            if (maxCIdx > 0) {
+                mtx.lock();
+                indicesData[off + detectionsData[n * classesNum]] = maxCIdx * priorsNum + p;  // de-refer to get prior and class id.
+                detectionsData[n * classesNum]++;
+                mtx.unlock();
+            }
+        });
+        // topk
+        // in:  indicesData, detection_count(filtered num)
+        // out: buffer, detection_count(k)
+        int count = detectionsData[n * classesNum];
+        int k = (topK == -1 ? count : (std::min)(topK, count));
+
+        const float *pconf = reorderedConfData + off;
+        int *indices = indicesData + off;
+        int *pbuffer = indicesBufData + off;
+        topk(indices, pbuffer, pconf, count, k);
+        detectionsData[n * classesNum] = k;
+    }
+}
+
+inline void MKLDNNDetectionOutputNode::decodeBBoxes(const float *priorData,
+                                       const float *locData,
+                                       const float *varianceData,
+                                       float *decodedBboxes,
+                                       float *decodedBboxSizes,
+                                       int* numPriorsActual,
+                                       int n,
+                                       const int& offs,
+                                       const int& priorSize,
+                                       bool decodeType,
+                                       const int *confInfoH,
+                                       const int *confInfoV) {
+    int prNum = numPriorsActual[n];
+    if (!decodeType) {
+        prNum = priorsNum;
+    }
+    if (isSparsityWorthwhile && !isShareLoc && !decreaseClassId && confInfoH[priorsNum] == 0) {
+        return;
+    }
+    parallel_for(prNum, [&](int p) {
+        if (isSparsityWorthwhile && isShareLoc && confInfoV[p] == -1) {
+            return;
+        }
+        float newXMin = 0.0f;
+        float newYMin = 0.0f;
+        float newXMax = 0.0f;
+        float newYMax = 0.0f;
+
+        float priorXMin = priorData[p * priorSize + 0 + offs];
+        float priorYMin = priorData[p * priorSize + 1 + offs];
+        float priorXMax = priorData[p * priorSize + 2 + offs];
+        float priorYMax = priorData[p * priorSize + 3 + offs];
+
+        float locXMin = locData[4 * p * locNumForClasses + 0];
+        float locYMin = locData[4 * p * locNumForClasses + 1];
+        float locXMax = locData[4 * p * locNumForClasses + 2];
+        float locYMax = locData[4 * p * locNumForClasses + 3];
+
+        if (!normalized) {
+            priorXMin /= imgWidth;
+            priorYMin /= imgHeight;
+            priorXMax /= imgWidth;
+            priorYMax /= imgHeight;
+        }
+
+        if (codeType == CodeType::CORNER) {
+            if (varianceEncodedInTarget) {
+                // variance is encoded in target, we simply need to add the offset predictions.
+                newXMin = priorXMin + locXMin;
+                newYMin = priorYMin + locYMin;
+                newXMax = priorXMax + locXMax;
+                newYMax = priorYMax + locYMax;
+            } else {
+                newXMin = priorXMin + varianceData[p * 4 + 0] * locXMin;
+                newYMin = priorYMin + varianceData[p * 4 + 1] * locYMin;
+                newXMax = priorXMax + varianceData[p * 4 + 2] * locXMax;
+                newYMax = priorYMax + varianceData[p * 4 + 3] * locYMax;
+            }
+        } else if (codeType == CodeType::CENTER_SIZE) {
+            float priorWidth    =  priorXMax - priorXMin;
+            float priorHeight   =  priorYMax - priorYMin;
+            float priorCenterX = (priorXMin + priorXMax) / 2.0f;
+            float priorCenterY = (priorYMin + priorYMax) / 2.0f;
+
+            float decodeBboxCenterX, decodeBboxCenterY;
+            float decodeBboxWidth, decodeBboxHeight;
+
+            if (varianceEncodedInTarget) {
+                // variance is encoded in target, we simply need to restore the offset predictions.
+                decodeBboxCenterX = locXMin * priorWidth  + priorCenterX;
+                decodeBboxCenterY = locYMin * priorHeight + priorCenterY;
+                decodeBboxWidth  = std::exp(locXMax) * priorWidth;
+                decodeBboxHeight = std::exp(locYMax) * priorHeight;
+            } else {
+                // variance is encoded in bbox, we need to scale the offset accordingly.
+                decodeBboxCenterX = varianceData[p*4 + 0] * locXMin * priorWidth + priorCenterX;
+                decodeBboxCenterY = varianceData[p*4 + 1] * locYMin * priorHeight + priorCenterY;
+                decodeBboxWidth    = std::exp(varianceData[p*4 + 2] * locXMax) * priorWidth;
+                decodeBboxHeight   = std::exp(varianceData[p*4 + 3] * locYMax) * priorHeight;
+            }
+
+            newXMin = decodeBboxCenterX - decodeBboxWidth  / 2.0f;
+            newYMin = decodeBboxCenterY - decodeBboxHeight / 2.0f;
+            newXMax = decodeBboxCenterX + decodeBboxWidth  / 2.0f;
+            newYMax = decodeBboxCenterY + decodeBboxHeight / 2.0f;
+        }
+
+        if (clipBeforeNMS) {
+            newXMin = (std::max)(0.0f, (std::min)(1.0f, newXMin));
+            newYMin = (std::max)(0.0f, (std::min)(1.0f, newYMin));
+            newXMax = (std::max)(0.0f, (std::min)(1.0f, newXMax));
+            newYMax = (std::max)(0.0f, (std::min)(1.0f, newYMax));
+        }
+
+        decodedBboxes[p*4 + 0] = newXMin;
+        decodedBboxes[p*4 + 1] = newYMin;
+        decodedBboxes[p*4 + 2] = newXMax;
+        decodedBboxes[p*4 + 3] = newYMax;
+
+        decodedBboxSizes[p] = (newXMax - newXMin) * (newYMax - newYMin);
+    });
+}
+
+inline void MKLDNNDetectionOutputNode::topk(const int *indicesIn, int *indicesOut, const float *conf, int n, int k) {
+    std::partial_sort_copy(indicesIn, indicesIn + n,
+                           indicesOut, indicesOut + k,
+                           ConfidenceComparatorDO(conf));
+}
+
+static inline float JaccardOverlap(const float *decodedBbox,
+                                   const float *bboxSizes,
+                                   const int idx1,
+                                   const int idx2) {
+    float xmin1 = decodedBbox[idx1 * 4 + 0];
+    float ymin1 = decodedBbox[idx1 * 4 + 1];
+    float xmax1 = decodedBbox[idx1 * 4 + 2];
+    float ymax1 = decodedBbox[idx1 * 4 + 3];
+
+    float xmin2 = decodedBbox[idx2 * 4 + 0];
+    float ymin2 = decodedBbox[idx2 * 4 + 1];
+    float xmax2 = decodedBbox[idx2 * 4 + 2];
+    float ymax2 = decodedBbox[idx2 * 4 + 3];
+
+    if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
+        return 0.0f;
+    }
+
+    float intersectXMin = (std::max)(xmin1, xmin2);
+    float intersectYMin = (std::max)(ymin1, ymin2);
+    float intersectXMax = (std::min)(xmax1, xmax2);
+    float intersectYMax = (std::min)(ymax1, ymax2);
+
+    float intersectWidth  = intersectXMax - intersectXMin;
+    float intersectHeight = intersectYMax - intersectYMin;
+
+    if (intersectWidth <= 0 || intersectHeight <= 0) {
+        return 0.0f;
+    }
+
+    float intersectSize = intersectWidth * intersectHeight;
+    float bbox1Size = bboxSizes[idx1];
+    float bbox2Size = bboxSizes[idx2];
+
+    return intersectSize / (bbox1Size + bbox2Size - intersectSize);
+}
+
+inline void MKLDNNDetectionOutputNode::NMSCF(int* indicesIn,
+                                        int& detections,
+                                        int* indicesOut,
+                                        const float* bboxes,
+                                        const float* boxSizes) {
+    // nms for this class
+    int countIn = detections;
+    detections = 0;
+    for (int i = 0; i < countIn; ++i) {
+        const int prior = indicesIn[i];
+
+        bool keep = true;
+        for (int k = 0; k < detections; ++k) {
+            const int keptPrior = indicesOut[k];
+            float overlap = JaccardOverlap(bboxes, boxSizes, prior, keptPrior);
+            if (overlap > NMSThreshold) {
+                keep = false;
+                break;
+            }
+        }
+        if (keep) {
+            indicesOut[detections] = prior;
+            detections++;
+        }
+    }
+}
+
+inline void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
+                                    int* detections,
+                                    int* indicesOut,
+                                    const float* bboxes,
+                                    const float* sizes) {
+    // Input is candidate for image, output is candidate for each class within image
+    int countIn = detections[0];
+    detections[0] = 0;
+
+    for (int i = 0; i < countIn; ++i) {
+        const int idx = indicesIn[i];
+        const int cls = idx / priorsNum;
+        const int prior = idx % priorsNum;
+
+        // nms within this class
+        int &ndetection = detections[cls];
+        int *pindices = indicesOut + cls * priorsNum;
+
+        bool keep = true;
+        for (int k = 0; k < ndetection; ++k) {
+            const int keptPrior = pindices[k];
+            float overlap = 0.0f;
+            if (isShareLoc) {
+                overlap = JaccardOverlap(bboxes, sizes, prior, keptPrior);
+            } else {
+                overlap = JaccardOverlap(bboxes, sizes, cls * priorsNum + prior, cls * priorsNum + keptPrior);
+            }
+            if (overlap > NMSThreshold) {
+                keep = false;
+                break;
+            }
+        }
+
+        if (keep) {
+            pindices[ndetection++] = prior;
+        }
+    }
+}
+
+inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
+    float* dstData) {
     const auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    const int num_results = outDims[2];
+    const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {
-        IE_THROW() << NOT_IMPLEMENTED;
+        IE_THROW() << errorPrefix << NOT_IMPLEMENTED;
     }
 
-    int dst_data_size = 0;
-    if (_keep_top_k > 0)
-        dst_data_size = N * _keep_top_k * DETECTION_SIZE * sizeof(float);
-    else if (_top_k > 0)
-        dst_data_size = N * _top_k * _num_classes * DETECTION_SIZE * sizeof(float);
+    int dstDataSize = 0;
+    if (keepTopK > 0)
+        dstDataSize = imgNum * keepTopK * DETECTION_SIZE * sizeof(float);
+    else if (topK > 0)
+        dstDataSize = imgNum * topK * classesNum * DETECTION_SIZE * sizeof(float);
     else
-        dst_data_size = N * _num_classes * _num_priors * DETECTION_SIZE * sizeof(float);
+        dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
 
-    if (dst_data_size > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
-        IE_THROW() << OUT_OF_BOUNDS;
+    if (dstDataSize > getChildEdgesAtPort(0)[0]->getMemory().GetSize()) {
+        IE_THROW() << errorPrefix << OUT_OF_BOUNDS;
     }
-    memset(dst_data, 0, dst_data_size);
+    memset(dstData, 0, dstDataSize);
 
+    // set final detection result to output blob
     int count = 0;
-    for (int n = 0; n < N; ++n) {
-        const float *pconf   = reordered_conf_data + n * _num_priors * _num_classes;
-        const float *pboxes  = decoded_bboxes_data + n*_num_priors*4*_num_loc_classes;
-        const int *pindices  = indices_data + n*_num_classes*_num_priors;
+    for (int n = 0; n < imgNum; ++n) {
+        const float *pconf   = reorderedConfData + n * confInfoLen * classesNum;
+        const float *pboxes  = decodedBboxesData + n * priorsNum * 4 * locNumForClasses;
+        const int *pindices  = indicesData + n * classesNum * priorsNum;
 
-        for (int c = 0; c < _num_classes; ++c) {
-            for (int i = 0; i < detections_data[n*_num_classes + c]; ++i) {
-                int idx = pindices[c*_num_priors + i];
+        for (int c = 0; c < classesNum; ++c) {
+            for (int i = 0; i < detectionsData[n * classesNum + c]; ++i) {
+                int prIdx = pindices[c * priorsNum + i];
 
-                dst_data[count * DETECTION_SIZE + 0] = static_cast<float>(n);
-                dst_data[count * DETECTION_SIZE + 1] = static_cast<float>(_decrease_label_id ? c-1 : c);
-                dst_data[count * DETECTION_SIZE + 2] = pconf[c*_num_priors + idx];
+                dstData[count * DETECTION_SIZE + 0] = static_cast<float>(n);
+                dstData[count * DETECTION_SIZE + 1] = static_cast<float>(decreaseClassId ? c-1 : c);
+                dstData[count * DETECTION_SIZE + 2] = pconf[c * confInfoLen + prIdx];
 
-                float xmin = _share_location ? pboxes[idx*4 + 0] :
-                             pboxes[c*4*_num_priors + idx*4 + 0];
-                float ymin = _share_location ? pboxes[idx*4 + 1] :
-                             pboxes[c*4*_num_priors + idx*4 + 1];
-                float xmax = _share_location ? pboxes[idx*4 + 2] :
-                             pboxes[c*4*_num_priors + idx*4 + 2];
-                float ymax = _share_location ? pboxes[idx*4 + 3] :
-                             pboxes[c*4*_num_priors + idx*4 + 3];
+                float xmin = isShareLoc ? pboxes[prIdx * 4 + 0] :
+                             pboxes[c * 4 * priorsNum + prIdx * 4 + 0];
+                float ymin = isShareLoc ? pboxes[prIdx * 4 + 1] :
+                             pboxes[c * 4 * priorsNum + prIdx * 4 + 1];
+                float xmax = isShareLoc ? pboxes[prIdx * 4 + 2] :
+                             pboxes[c * 4 * priorsNum + prIdx * 4 + 2];
+                float ymax = isShareLoc ? pboxes[prIdx * 4 + 3] :
+                             pboxes[c * 4 * priorsNum + prIdx * 4 + 3];
 
-                if (_clip_after_nms) {
+                if (clipAfterNMS) {
                     xmin = (std::max)(0.0f, (std::min)(1.0f, xmin));
                     ymin = (std::max)(0.0f, (std::min)(1.0f, ymin));
                     xmax = (std::max)(0.0f, (std::min)(1.0f, xmax));
                     ymax = (std::max)(0.0f, (std::min)(1.0f, ymax));
                 }
 
-                dst_data[count * DETECTION_SIZE + 3] = xmin;
-                dst_data[count * DETECTION_SIZE + 4] = ymin;
-                dst_data[count * DETECTION_SIZE + 5] = xmax;
-                dst_data[count * DETECTION_SIZE + 6] = ymax;
+                dstData[count * DETECTION_SIZE + 3] = xmin;
+                dstData[count * DETECTION_SIZE + 4] = ymin;
+                dstData[count * DETECTION_SIZE + 5] = xmax;
+                dstData[count * DETECTION_SIZE + 6] = ymax;
 
                 ++count;
             }
         }
     }
 
-    if (count < num_results) {
+    if (count < numResults) {
         // marker at end of boxes list
-        dst_data[count * DETECTION_SIZE + 0] = -1;
-    }
-}
-
-struct ConfidenceComparator {
-    explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
-
-    bool operator()(int idx1, int idx2) {
-        if (_conf_data[idx1] > _conf_data[idx2]) return true;
-        if (_conf_data[idx1] < _conf_data[idx2]) return false;
-        return idx1 < idx2;
-    }
-
-    const float* _conf_data;
-};
-
-static inline float JaccardOverlap(const float *decoded_bbox,
-                                   const float *bbox_sizes,
-                                   const int idx1,
-                                   const int idx2) {
-    float xmin1 = decoded_bbox[idx1*4 + 0];
-    float ymin1 = decoded_bbox[idx1*4 + 1];
-    float xmax1 = decoded_bbox[idx1*4 + 2];
-    float ymax1 = decoded_bbox[idx1*4 + 3];
-
-    float xmin2 = decoded_bbox[idx2*4 + 0];
-    float ymin2 = decoded_bbox[idx2*4 + 1];
-    float xmax2 = decoded_bbox[idx2*4 + 2];
-    float ymax2 = decoded_bbox[idx2*4 + 3];
-
-    if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
-        return 0.0f;
-    }
-
-    float intersect_xmin = (std::max)(xmin1, xmin2);
-    float intersect_ymin = (std::max)(ymin1, ymin2);
-    float intersect_xmax = (std::min)(xmax1, xmax2);
-    float intersect_ymax = (std::min)(ymax1, ymax2);
-
-    float intersect_width  = intersect_xmax - intersect_xmin;
-    float intersect_height = intersect_ymax - intersect_ymin;
-
-    if (intersect_width <= 0 || intersect_height <= 0) {
-        return 0.0f;
-    }
-
-    float intersect_size = intersect_width * intersect_height;
-    float bbox1_size = bbox_sizes[idx1];
-    float bbox2_size = bbox_sizes[idx2];
-
-    return intersect_size / (bbox1_size + bbox2_size - intersect_size);
-}
-
-void MKLDNNDetectionOutputNode::decodeBBoxes(const float *prior_data,
-                                       const float *loc_data,
-                                       const float *variance_data,
-                                       float *decoded_bboxes,
-                                       float *decoded_bbox_sizes,
-                                       int* num_priors_actual,
-                                       int n,
-                                       const int& offs,
-                                       const int& pr_size,
-                                       bool decodeType) {
-    num_priors_actual[n] = _num_priors;
-    if (!_normalized && decodeType) {
-        int num = 0;
-        for (; num < _num_priors; ++num) {
-            float batch_id = prior_data[num * pr_size + 0];
-            if (batch_id == -1.f) {
-                num_priors_actual[n] = num;
-                break;
-            }
-        }
-    }
-    parallel_for(num_priors_actual[n], [&](int p) {
-        float new_xmin = 0.0f;
-        float new_ymin = 0.0f;
-        float new_xmax = 0.0f;
-        float new_ymax = 0.0f;
-
-        float prior_xmin = prior_data[p*pr_size + 0 + offs];
-        float prior_ymin = prior_data[p*pr_size + 1 + offs];
-        float prior_xmax = prior_data[p*pr_size + 2 + offs];
-        float prior_ymax = prior_data[p*pr_size + 3 + offs];
-
-        float loc_xmin = loc_data[4*p*_num_loc_classes + 0];
-        float loc_ymin = loc_data[4*p*_num_loc_classes + 1];
-        float loc_xmax = loc_data[4*p*_num_loc_classes + 2];
-        float loc_ymax = loc_data[4*p*_num_loc_classes + 3];
-
-        if (!_normalized) {
-            prior_xmin /= _image_width;
-            prior_ymin /= _image_height;
-            prior_xmax /= _image_width;
-            prior_ymax /= _image_height;
-        }
-
-        if (_code_type == CodeType::CORNER) {
-            if (_variance_encoded_in_target) {
-                // variance is encoded in target, we simply need to add the offset predictions.
-                new_xmin = prior_xmin + loc_xmin;
-                new_ymin = prior_ymin + loc_ymin;
-                new_xmax = prior_xmax + loc_xmax;
-                new_ymax = prior_ymax + loc_ymax;
-            } else {
-                new_xmin = prior_xmin + variance_data[p*4 + 0] * loc_xmin;
-                new_ymin = prior_ymin + variance_data[p*4 + 1] * loc_ymin;
-                new_xmax = prior_xmax + variance_data[p*4 + 2] * loc_xmax;
-                new_ymax = prior_ymax + variance_data[p*4 + 3] * loc_ymax;
-            }
-        } else if (_code_type == CodeType::CENTER_SIZE) {
-            float prior_width    =  prior_xmax - prior_xmin;
-            float prior_height   =  prior_ymax - prior_ymin;
-            float prior_center_x = (prior_xmin + prior_xmax) / 2.0f;
-            float prior_center_y = (prior_ymin + prior_ymax) / 2.0f;
-
-            float decode_bbox_center_x, decode_bbox_center_y;
-            float decode_bbox_width, decode_bbox_height;
-
-            if (_variance_encoded_in_target) {
-                // variance is encoded in target, we simply need to restore the offset predictions.
-                decode_bbox_center_x = loc_xmin * prior_width  + prior_center_x;
-                decode_bbox_center_y = loc_ymin * prior_height + prior_center_y;
-                decode_bbox_width  = std::exp(loc_xmax) * prior_width;
-                decode_bbox_height = std::exp(loc_ymax) * prior_height;
-            } else {
-                // variance is encoded in bbox, we need to scale the offset accordingly.
-                decode_bbox_center_x = variance_data[p*4 + 0] * loc_xmin * prior_width + prior_center_x;
-                decode_bbox_center_y = variance_data[p*4 + 1] * loc_ymin * prior_height + prior_center_y;
-                decode_bbox_width    = std::exp(variance_data[p*4 + 2] * loc_xmax) * prior_width;
-                decode_bbox_height   = std::exp(variance_data[p*4 + 3] * loc_ymax) * prior_height;
-            }
-
-            new_xmin = decode_bbox_center_x - decode_bbox_width  / 2.0f;
-            new_ymin = decode_bbox_center_y - decode_bbox_height / 2.0f;
-            new_xmax = decode_bbox_center_x + decode_bbox_width  / 2.0f;
-            new_ymax = decode_bbox_center_y + decode_bbox_height / 2.0f;
-        }
-
-        if (_clip_before_nms) {
-            new_xmin = (std::max)(0.0f, (std::min)(1.0f, new_xmin));
-            new_ymin = (std::max)(0.0f, (std::min)(1.0f, new_ymin));
-            new_xmax = (std::max)(0.0f, (std::min)(1.0f, new_xmax));
-            new_ymax = (std::max)(0.0f, (std::min)(1.0f, new_ymax));
-        }
-
-        decoded_bboxes[p*4 + 0] = new_xmin;
-        decoded_bboxes[p*4 + 1] = new_ymin;
-        decoded_bboxes[p*4 + 2] = new_xmax;
-        decoded_bboxes[p*4 + 3] = new_ymax;
-
-        decoded_bbox_sizes[p] = (new_xmax - new_xmin) * (new_ymax - new_ymin);
-    });
-}
-
-void MKLDNNDetectionOutputNode::nms_cf(const float* conf_data,
-                                 const float* bboxes,
-                                 const float* sizes,
-                                 int* buffer,
-                                 int* indices,
-                                 int& detections,
-                                 int num_priors_actual) {
-    int count = 0;
-    for (int i = 0; i < num_priors_actual; ++i) {
-        if (conf_data[i] > _confidence_threshold) {
-            indices[count] = i;
-            count++;
-        }
-    }
-
-    int num_output_scores = (_top_k == -1 ? count : (std::min)(_top_k, count));
-
-    std::partial_sort_copy(indices, indices + count,
-                           buffer, buffer + num_output_scores,
-                           ConfidenceComparator(conf_data));
-
-    for (int i = 0; i < num_output_scores; ++i) {
-        const int idx = buffer[i];
-
-        bool keep = true;
-        for (int k = 0; k < detections; ++k) {
-            const int kept_idx = indices[k];
-            float overlap = JaccardOverlap(bboxes, sizes, idx, kept_idx);
-            if (overlap > _nms_threshold) {
-                keep = false;
-                break;
-            }
-        }
-        if (keep) {
-            indices[detections] = idx;
-            detections++;
-        }
-    }
-}
-
-void MKLDNNDetectionOutputNode::nms_mx(const float* conf_data,
-                                 const float* bboxes,
-                                 const float* sizes,
-                                 int* buffer,
-                                 int* indices,
-                                 int* detections,
-                                 int num_priors_actual) {
-    int count = 0;
-    for (int i = 0; i < num_priors_actual; ++i) {
-        float conf = -1;
-        int id = 0;
-        for (int c = 1; c < _num_classes; ++c) {
-            float temp = conf_data[c*_num_priors + i];
-            if (temp > conf) {
-                conf = temp;
-                id = c;
-            }
-        }
-
-        if (id > 0 && conf >= _confidence_threshold) {
-            indices[count++] = id*_num_priors + i;
-        }
-    }
-
-    int num_output_scores = (_top_k == -1 ? count : (std::min)(_top_k, count));
-
-    std::partial_sort_copy(indices, indices + count,
-                           buffer, buffer + num_output_scores,
-                           ConfidenceComparator(conf_data));
-
-    for (int i = 0; i < num_output_scores; ++i) {
-        const int idx = buffer[i];
-        const int cls = idx/_num_priors;
-        const int prior = idx%_num_priors;
-
-        int &ndetection = detections[cls];
-        int *pindices = indices + cls*_num_priors;
-
-        bool keep = true;
-        for (int k = 0; k < ndetection; ++k) {
-            const int kept_idx = pindices[k];
-            float overlap = 0.0f;
-            if (_share_location) {
-                overlap = JaccardOverlap(bboxes, sizes, prior, kept_idx);
-            } else {
-                overlap = JaccardOverlap(bboxes, sizes, cls*_num_priors + prior, cls*_num_priors + kept_idx);
-            }
-            if (overlap > _nms_threshold) {
-                keep = false;
-                break;
-            }
-        }
-        if (keep) {
-            pindices[ndetection++] = prior;
-        }
+        dstData[count * DETECTION_SIZE + 0] = -1;
     }
 }
 

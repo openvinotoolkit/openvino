@@ -12,9 +12,9 @@ set_target_properties(${TARGET_NAME} PROPERTIES FOLDER "src")
 target_include_directories(${TARGET_NAME}
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-find_package(InferenceEngine REQUIRED COMPONENTS inference_engine)
+find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${InferenceEngine_LIBRARIES} gflags)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime gflags)
 
 if(COMMAND add_clang_format_target)
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

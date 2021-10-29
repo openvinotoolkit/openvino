@@ -11,10 +11,10 @@ You can download TensorFlow\* Object Detection API models from the <a href="http
 
 <strong>NOTE</strong>: Before converting, make sure you have configured the Model Optimizer. For configuration steps, refer to [Configuring the Model Optimizer](../../Config_Model_Optimizer.md).
 
-To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory and run the `mo_tf.py` script with the following required parameters:
+To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/tools/model_optimizer` directory and run the `mo_tf.py` script with the following required parameters:
 
 * `--input_model <path_to_frozen.pb>` --- File with a pre-trained model (binary or text .pb file after freezing) OR `--saved_model_dir <path_to_saved_model>` for the TensorFlow\* 2 models
-* `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf` directory. Use:
+* `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow\* Object Detection API zoo, you can find the configuration files in the `<INSTALL_DIR>/tools/model_optimizer/extensions/front/tf` directory. Use:
     * `ssd_v2_support.json` --- for frozen SSD topologies from the models zoo version up to 1.13.X inclusively
     * `ssd_support_api_v.1.14.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.14 up to 1.14.X inclusively
     * `ssd_support_api_v.1.15.json` --- for SSD topologies trained using the TensorFlow\* Object Detection API version 1.15 up to 2.0
@@ -52,7 +52,7 @@ Additionally to the mandatory parameters listed above you can use optional conve
 For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz) and extracted archive to the directory `/tmp/ssd_inception_v2_coco_2018_01_28`, the sample command line to convert the model looks as follows:
 
 ```
-<INSTALL_DIR>/deployment_tools/model_optimizer/mo_tf.py --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config <INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
+<INSTALL_DIR>/tools/model_optimizer/mo_tf.py --input_model=/tmp/ssd_inception_v2_coco_2018_01_28/frozen_inference_graph.pb --transformations_config <INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/ssd_v2_support.json --tensorflow_object_detection_api_pipeline_config /tmp/ssd_inception_v2_coco_2018_01_28/pipeline.config --reverse_input_channels
 ```
 
 ## Important Notes About Feeding Input Images to the Samples
@@ -128,4 +128,4 @@ It is also important to open the model in the [TensorBoard](https://www.tensorfl
 * `--input_model <path_to_frozen.pb>` --- Path to the frozen model
 * `--tensorboard_logdir` --- Path to the directory where TensorBoard looks for the event files.
 
-Implementation of the transformations for Object Detection API models is located in the file `<INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`. Refer to the code in this file to understand the details of the conversion process.
+Implementation of the transformations for Object Detection API models is located in the file `<INSTALL_DIR>/tools/model_optimizer/extensions/front/tf/ObjectDetectionAPI.py`. Refer to the code in this file to understand the details of the conversion process.

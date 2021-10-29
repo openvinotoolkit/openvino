@@ -35,7 +35,7 @@ typedef std::tuple<
 class ClampFakeQuantizeSubgraphTest : public testing::WithParamInterface<fqSubgraphTestParamsSet>,
                                  virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

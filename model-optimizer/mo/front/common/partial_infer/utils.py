@@ -63,6 +63,11 @@ def strict_compare_tensors(tensor1, tensor2):
     :param tensor2: the second tensor to compare
     :return: boolean result of the comparison
     """
+    if tensor1 is None and tensor2 is None:
+        return True
+    if tensor1 is None or tensor2 is None:
+        return False
+
     if not isinstance(tensor1, np.ma.masked_array):
         tensor1 = shape_array(tensor1)
     if not isinstance(tensor2, np.ma.masked_array):

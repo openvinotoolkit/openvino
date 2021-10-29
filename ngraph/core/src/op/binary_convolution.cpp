@@ -14,7 +14,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v1::BinaryConvolution, "BinaryConvolution", 1);
+BWDCMP_RTTI_DEFINITION(ov::op::v1::BinaryConvolution);
 
 ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                                  const Output<Node>& kernel,
@@ -58,9 +58,9 @@ ov::op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
 
 void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_BinaryConvolution_validate_and_infer_types);
-    const ov::Shape& data_batch_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& data_batch_pshape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
-    const ov::Shape& filters_pshape = get_input_partial_shape(1);
+    const ov::PartialShape& filters_pshape = get_input_partial_shape(1);
 
     NODE_VALIDATION_CHECK(this,
                           data_batch_et.is_real() || data_batch_et.is_integral_number(),
@@ -78,15 +78,15 @@ void ov::op::v1::BinaryConvolution::validate_and_infer_types() {
                           " and ",
                           filters_pshape);
 
-    ov::Shape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
-                                                                                         result_ps_rank,
-                                                                                         data_batch_pshape,
-                                                                                         filters_pshape,
-                                                                                         m_auto_pad,
-                                                                                         m_strides,
-                                                                                         m_dilations,
-                                                                                         m_pads_begin,
-                                                                                         m_pads_end);
+    ov::PartialShape result_shape = ngraph::validate_and_infer_convolution_forward_output_shape(this,
+                                                                                                result_ps_rank,
+                                                                                                data_batch_pshape,
+                                                                                                filters_pshape,
+                                                                                                m_auto_pad,
+                                                                                                m_strides,
+                                                                                                m_dilations,
+                                                                                                m_pads_begin,
+                                                                                                m_pads_end);
     set_output_type(0, data_batch_et, result_shape);
 }
 
@@ -126,7 +126,7 @@ EnumNames<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v1::BinaryConvolution::BinaryConvolutionMode>);
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const ov::op::v1::BinaryConvolution::BinaryConvolutionMode& type) {

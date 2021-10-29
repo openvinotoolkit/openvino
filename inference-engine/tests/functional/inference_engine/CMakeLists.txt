@@ -13,25 +13,39 @@ set(LINK_LIBRARIES
     lptNgraphFunctions
     inference_engine_transformations
     openvino::itt
+    openvino::util
     openvino::conditional_compilation
     sharedTestClasses
     inference_engine_snippets
     offline_transformations
     inference_engine
+    frontend_manager
     pugixml::static
 )
 
 set(DEPENDENCIES
     mock_engine
-    inference_engine_ir_reader
-    inference_engine_ir_v7_reader
-    HeteroPlugin
-    MultiDevicePlugin
     template_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo
 )
+
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+endif()
+
+if(ENABLE_IR_V7_READER)
+    list(APPEND DEPENDENCIES inference_engine_ir_v7_reader)
+endif()
+
+if(ENABLE_HETERO)
+    list(APPEND DEPENDENCIES HeteroPlugin)
+endif()
+
+if(ENABLE_MULTI)
+    list(APPEND DEPENDENCIES MultiDevicePlugin)
+endif()
 
 if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
@@ -79,7 +93,6 @@ file(GLOB_RECURSE legacy_tests
     "${CMAKE_CURRENT_SOURCE_DIR}/lp_transformations/*.cpp" # CVS-55376
     "${CMAKE_CURRENT_SOURCE_DIR}/ngraph_reader/*.cpp" # CVS-55365
     "${CMAKE_CURRENT_SOURCE_DIR}/cnn_network/cnn_ngraph_impl_tests.cpp" # CVS-55375
-    "${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp" # CVS-55386
     )
 
 set_source_files_properties(${legacy_tests} PROPERTIES INCLUDE_DIRECTORIES

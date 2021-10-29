@@ -11,7 +11,7 @@
 #    include "fft_op.hpp"
 #endif
 #include <ngraph/ngraph.hpp>
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLED
+#ifdef OPENVINO_ONNX_FRONTEND_ENABLED
 #    include <onnx_import/onnx_utils.hpp>
 #endif
 
@@ -24,8 +24,8 @@ using namespace TemplateExtension;
 
 //! [extension:ctor]
 Extension::Extension() {
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLED
-    ngraph::onnx_import::register_operator(Operation::type_info.name,
+#ifdef OPENVINO_ONNX_FRONTEND_ENABLED
+    ngraph::onnx_import::register_operator(Operation::get_type_info_static().name,
                                            1,
                                            "custom_domain",
                                            [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
@@ -34,7 +34,7 @@ Extension::Extension() {
                                                return {std::make_shared<Operation>(ng_inputs.at(0), add)};
                                            });
 #    ifdef OPENCV_IMPORT_ENABLED
-    ngraph::onnx_import::register_operator(FFTOp::type_info.name,
+    ngraph::onnx_import::register_operator(FFTOp::get_type_info_static().name,
                                            1,
                                            "custom_domain",
                                            [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
@@ -49,12 +49,12 @@ Extension::Extension() {
 
 //! [extension:dtor]
 Extension::~Extension() {
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLED
-    ngraph::onnx_import::unregister_operator(Operation::type_info.name, 1, "custom_domain");
+#ifdef OPENVINO_ONNX_FRONTEND_ENABLED
+    ngraph::onnx_import::unregister_operator(Operation::get_type_info_static().name, 1, "custom_domain");
 #    ifdef OPENCV_IMPORT_ENABLED
-    ngraph::onnx_import::unregister_operator(FFTOp::type_info.name, 1, "custom_domain");
+    ngraph::onnx_import::unregister_operator(FFTOp::get_type_info_static().name, 1, "custom_domain");
 #    endif  // OPENCV_IMPORT_ENABLED
-#endif      // NGRAPH_ONNX_FRONTEND_ENABLED
+#endif      // OPENVINO_ONNX_FRONTEND_ENABLED
 }
 //! [extension:dtor]
 

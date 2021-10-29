@@ -37,6 +37,9 @@ MKLDNNGRNNode::MKLDNNGRNNode(const std::shared_ptr<ngraph::Node>& op, const mkld
 
     errorPrefix = "GRN layer with name '" + op->get_friendly_name() + "'";
     const auto grn = std::dynamic_pointer_cast<const ngraph::opset1::GRN>(op);
+    if (grn == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of GRN from opset1.";
 
     if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";

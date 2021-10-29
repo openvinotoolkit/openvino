@@ -28,7 +28,7 @@ TEST(gpu_streams, can_create_networks_for_stream) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            activation("relu", "input", activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+            activation("relu", "input", activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology, build_options());
 
     network.set_input_data("input", input);

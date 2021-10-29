@@ -20,10 +20,9 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-NodeDumper::NodeDumper(const DebugCaps::Config& config, const int _count)
+NodeDumper::NodeDumper(const DebugCaps::Config& config)
     : dumpFormat(FORMAT::BIN)
-    , dumpDirName("mkldnn_dump")
-    , count(_count) {
+    , dumpDirName("mkldnn_dump") {
     if (!config.blobDumpDir.empty())
         dumpDirName = config.blobDumpDir;
 
@@ -43,7 +42,7 @@ NodeDumper::NodeDumper(const DebugCaps::Config& config, const int _count)
         dumpFilters[FILTER::BY_NAME] = config.blobDumpNodeName;
 }
 
-void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
+void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node, int count) const {
     if (!shouldBeDumped(node, "IN"))
         return;
 
@@ -77,7 +76,7 @@ void NodeDumper::dumpInputBlobs(const MKLDNNNodePtr& node) const {
     dumpInternalBlobs(node);
 }
 
-void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node) const {
+void NodeDumper::dumpOutputBlobs(const MKLDNNNodePtr& node, int count) const {
     if (!shouldBeDumped(node, "OUT"))
         return;
 
@@ -208,6 +207,17 @@ void NodeDumper::formatNodeName(std::string& name) const {
     std::replace(name.begin(), name.end(), '/', '_');
     std::replace(name.begin(), name.end(), ' ', '_');
     std::replace(name.begin(), name.end(), ':', '-');
+}
+
+std::unique_ptr<NodeDumper> nd;
+
+void initNodeDumper(const DebugCaps::Config& config) {
+    nd.reset(new NodeDumper(config));
+}
+
+const std::unique_ptr<NodeDumper>& getNodeDumper() {
+    assert(nd.get() != nullptr);
+    return nd;
 }
 
 } // namespace MKLDNNPlugin

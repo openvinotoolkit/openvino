@@ -5,7 +5,7 @@ To simply convert a model trained by any supported framework, run the Model Opti
 python3 mo.py --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 ```
 
-The script is in `$INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
+The script is in `$INTEL_OPENVINO_DIR/tools/model_optimizer/`. The output directory must have write permissions, so you can run mo.py from the output directory or specify an output path with the `--output_dir` option.
 
 > **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
 
@@ -99,7 +99,7 @@ Framework-agnostic parameters:
   --data_type {FP16,FP32,half,float}
                         Data type for all intermediate tensors and weights. If
                         original model is in FP32 and --data_type=FP16 is
-                        specified, all model weights and biases are quantized
+                        specified, all model weights and biases are compressed
                         to FP16.
   --disable_fusing      Turn off fusing of linear operations to Convolution
   --disable_resnet_optimization

@@ -21,8 +21,8 @@ endif()
 # install deployment_manager
 
 ie_cpack_add_component(deployment_manager REQUIRED)
-install(DIRECTORY deployment_manager/
-        DESTINATION deployment_tools/tools/deployment_manager
+install(DIRECTORY deployment_manager
+        DESTINATION tools
         COMPONENT deployment_manager
         USE_SOURCE_PERMISSIONS)
 
@@ -46,16 +46,14 @@ if(ENABLE_PYTHON)
     ie_cpack_add_component(python_tools_${PYTHON_VERSION})
     ie_cpack_add_component(python_tools)
 
-    # install cross_check_tool tool
-    install(DIRECTORY cross_check_tool
-            DESTINATION deployment_tools/tools
+    # install benchmark_app tool
+    install(FILES benchmark_tool/README.md
+                  benchmark_tool/requirements.txt
+            DESTINATION tools/benchmark_tool
             COMPONENT python_tools)
 
-    # install benchmark_app tool
-    install(FILES benchmark_tool/benchmark_app.py
-                  benchmark_tool/README.md
-                  benchmark_tool/requirements.txt
-            DESTINATION deployment_tools/tools/benchmark_tool
+    install(PROGRAMS benchmark_tool/benchmark_app.py
+            DESTINATION tools/benchmark_tool
             COMPONENT python_tools)
 
     # install openvino/tools/benchmark as a python package

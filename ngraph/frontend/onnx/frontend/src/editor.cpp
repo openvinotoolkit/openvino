@@ -198,7 +198,7 @@ struct onnx_editor::ONNXModelEditor::Impl {
     Impl(std::istream& model_stream)
         : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_istream(model_stream))} {}
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
         : m_model_proto{std::make_shared<ONNX_NAMESPACE::ModelProto>(onnx_common::parse_from_file(model_path))} {}
 #endif
@@ -210,7 +210,7 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
                   delete impl;
               }} {}
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path)
     : m_model_path{file_util::wstring_to_string(model_path)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
@@ -444,9 +444,24 @@ bool onnx_editor::ONNXModelEditor::is_correct_and_unambiguous_node(const EditorN
     return m_pimpl->m_edge_mapper.is_correct_and_unambiguous_node(node);
 }
 
+int onnx_editor::ONNXModelEditor::get_node_index(const EditorNode& node) const {
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.get_node_index(node);
+}
+
 bool onnx_editor::ONNXModelEditor::is_correct_tensor_name(const std::string& name) const {
     update_mapper_if_needed();
     return m_pimpl->m_edge_mapper.is_correct_tensor_name(name);
+}
+
+std::vector<std::string> onnx_editor::ONNXModelEditor::get_input_ports(const EditorNode& node) const {
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.get_input_ports(node);
+}
+
+std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const EditorNode& node) const {
+    update_mapper_if_needed();
+    return m_pimpl->m_edge_mapper.get_output_ports(node);
 }
 
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode() {

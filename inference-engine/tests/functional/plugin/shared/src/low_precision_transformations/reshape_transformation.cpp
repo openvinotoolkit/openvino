@@ -13,7 +13,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReshapeTransformation::getTestCaseName(testing::TestParamInfo<ReshapeTransformationParams> obj) {
+std::string ReshapeTransformation::getTestCaseName(const testing::TestParamInfo<ReshapeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;

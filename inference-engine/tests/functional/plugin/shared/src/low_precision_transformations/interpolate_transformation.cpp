@@ -28,7 +28,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-std::string InterpolateTransformation::getTestCaseName(testing::TestParamInfo<InterpolateTransformationParams> obj) {
+std::string InterpolateTransformation::getTestCaseName(const testing::TestParamInfo<InterpolateTransformationParams>& obj) {
     ngraph::element::Type precision;
     std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;

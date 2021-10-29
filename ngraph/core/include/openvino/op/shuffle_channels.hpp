@@ -14,7 +14,8 @@ namespace v0 {
 /// \brief Permutes data in the channel dimension of the input
 class OPENVINO_API ShuffleChannels : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ShuffleChannels", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     ShuffleChannels() = default;
     /// \brief Constructs a ShuffleChannels node.
@@ -40,7 +41,9 @@ public:
     int64_t get_group() const {
         return m_group;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

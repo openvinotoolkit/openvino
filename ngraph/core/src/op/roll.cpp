@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v7::Roll, "Roll", 7);
+BWDCMP_RTTI_DEFINITION(op::v7::Roll);
 
 op::v7::Roll::Roll(const Output<Node>& data, const Output<Node>& shift, const Output<Node>& axes)
     : Op({data, shift, axes}) {

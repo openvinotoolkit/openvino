@@ -23,7 +23,7 @@ namespace InferenceEngine {
  * Such context represents a scope on the device within which executable
  * networks and remote memory blobs can exist, function and exchange data.
  */
-class RemoteContext {
+class RemoteContext : public std::enable_shared_from_this<RemoteContext> {
 public:
     /**
      * @brief A smart pointer to the RemoteContext object

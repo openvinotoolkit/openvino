@@ -39,7 +39,7 @@ In the TensorBoard, it looks the following way together with some predecessors:
 
 Convert this model and put the results in a writable output directory:
 ```sh
-${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer
+${INTEL_OPENVINO_DIR}/tools/model_optimizer
 python3 mo.py --input_model inception_v1.pb -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
 (The other examples on this page assume that you first cd to the `model_optimizer` directory and add the `--output_dir` argument with a directory where you have write permissions.)

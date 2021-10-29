@@ -284,14 +284,12 @@ std::vector<cldnn::primitive_id> Program::GetInputPrimitiveIDs(const std::shared
 void Program::AddPrimitiveToProfiler(const std::shared_ptr<ngraph::Node>& op,
                                      cldnn::primitive_id customOutputId) {
     auto id = layer_type_name_ID(op);
-    primitivesToIRLayersMap[id] = { op->get_friendly_name() };
     primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
     profilingIDs.push_back(id);
 }
 
 void Program::AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_ptr<ngraph::Node>& op,
                                      cldnn::primitive_id customOutputId) {
-    primitivesToIRLayersMap[id] = { op->get_friendly_name() };
     primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
     profilingIDs.push_back(id);
 }
@@ -299,7 +297,6 @@ void Program::AddPrimitiveToProfiler(cldnn::primitive_id id, const std::shared_p
 void Program::AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
                                           const std::shared_ptr<ngraph::Node>& op) {
     InitProfileInfo(id, layer_type_lower(op), false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, parentId);
-    primitivesToIRLayersMap[id] = { op->get_friendly_name() };
     primitiveIDs[id] = id;
     profilingIDs.push_back(id);
 }
@@ -328,28 +325,24 @@ void Program::InitProfileInfo(const std::string& layerName,
 
 // TODO: Does it make sense to add such method to ngraph core?
 bool IsNodeOnConstPath(const std::shared_ptr<ngraph::Node>& node) {
-    std::list<std::shared_ptr<ngraph::Node>> nodes_to_process = { node };
-    while (!nodes_to_process.empty()) {
-        auto current_node = nodes_to_process.front();
-        nodes_to_process.pop_front();
-
-        for (size_t i = 0; i < current_node->get_input_size(); i++) {
-            auto input_node = current_node->get_input_node_shared_ptr(i);
-
-            // If input is constant, then drop if from the processing list
-            if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(input_node) != nullptr)
-                continue;
-
-            // If the node doesn't have any parents and it's not a constant, then we deal with dynamic path
-            if (input_node->get_input_size() == 0) {
+    std::set<std::shared_ptr<ngraph::Node>> nodes_processed = {};
+    std::function<bool(const std::shared_ptr<ngraph::Node>&)> is_const_node = [&nodes_processed, &is_const_node](const std::shared_ptr<ngraph::Node>& node) {
+        if (nodes_processed.count(node)) return true;
+        nodes_processed.insert(node);
+        // If input is constant, then drop if from the processing list
+        if (std::dynamic_pointer_cast<ngraph::op::v0::Constant>(node) != nullptr)
+            return true;
+        // If the node doesn't have any parents and it's not a constant, then we deal with dynamic path
+        if (node->get_input_size() == 0)
+            return false;
+        for (size_t i = 0; i < node->get_input_size(); i++) {
+            auto input_node = node->get_input_node_shared_ptr(i);
+            if (!is_const_node(input_node))
                 return false;
-            }
-
-            nodes_to_process.insert(nodes_to_process.end(), input_node);
         }
-    }
-
-    return true;
+        return true;
+    };
+    return is_const_node(node);
 }
 
 }  // namespace CLDNNPlugin

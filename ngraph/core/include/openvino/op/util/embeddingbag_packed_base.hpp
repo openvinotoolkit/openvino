@@ -13,7 +13,8 @@ namespace util {
 /// \brief Returns embeddings for given indices
 class OPENVINO_API EmbeddingBagPackedBase : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("EmbeddingBagPackedBase", "util");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a EmbeddingBagPackedBase operation.
     EmbeddingBagPackedBase() = default;
     /// \brief Constructs a EmbeddingBagPackedBase operation.

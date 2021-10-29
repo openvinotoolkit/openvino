@@ -10,7 +10,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::BinaryElementwiseLogical, "BinaryElementwiseLogical", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::util::BinaryElementwiseLogical);
 
 ov::op::util::BinaryElementwiseLogical::BinaryElementwiseLogical() = default;
 
@@ -25,7 +25,7 @@ void ov::op::util::BinaryElementwiseLogical::validate_and_infer_types() {
 
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
     element::Type& args_et = std::get<0>(args_et_pshape);
-    Shape& args_pshape = std::get<1>(args_et_pshape);
+    PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     NODE_VALIDATION_CHECK(this,
                           args_et.is_dynamic() || args_et == element::boolean,

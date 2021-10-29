@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/function.hpp"
@@ -18,12 +19,23 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
+#include "openvino/core/version.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
+
+TEST(openvino_version, version) {
+    auto version = ov::get_openvino_version();
+    ASSERT_EQ(std::string("OpenVINO Runtime"), version->description);
+    ASSERT_FALSE(std::string(version->buildNumber).empty());
+}
+
+TEST(ngraph_version_variable, version) {
+    ASSERT_FALSE(std::string(NGRAPH_VERSION_NUMBER).empty());
+}
 
 TEST(util, split) {
     {
@@ -171,6 +183,7 @@ public:
         nodes.push_back(A);
         nodes.push_back(B);
         nodes.push_back(C);
+        func->get_rt_info()["version"] = std::make_shared<VariantWrapper<int64_t>>(10);
     }
 
     bool CompareNodeVector(const std::vector<std::shared_ptr<ngraph::Node>>& orig,
@@ -222,6 +235,11 @@ TEST_F(CloneTest, clone_nodes_partial) {
 TEST_F(CloneTest, clone_function_full) {
     auto cloned_func = clone_function(*func, node_map);
     ASSERT_TRUE(CompareNodeVector(func->get_ops(), cloned_func->get_ops(), node_map));
+    ASSERT_EQ(cloned_func->get_rt_info().size(), func->get_rt_info().size());
+    ASSERT_TRUE(cloned_func->get_rt_info().count("version"));
+    auto ver = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(cloned_func->get_rt_info().at("version"));
+    ASSERT_NE(nullptr, ver);
+    ASSERT_EQ(10, ver->get());
 }
 
 TEST(graph_util, clone_multiple_results) {

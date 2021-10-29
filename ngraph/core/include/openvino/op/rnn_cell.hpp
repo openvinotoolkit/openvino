@@ -36,7 +36,8 @@ namespace v0 {
 ///
 class OPENVINO_API RNNCell : public util::RNNCellBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("RNNCell", "opset1", util::RNNCellBase);
+    BWDCMP_RTTI_DECLARATION;
 
     RNNCell();
     ///

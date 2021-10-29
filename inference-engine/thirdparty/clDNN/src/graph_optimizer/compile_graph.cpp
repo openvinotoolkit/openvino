@@ -32,7 +32,7 @@ void compile_graph::run(program& p) {
     }
 
 #if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-    const auto n_threads = p.get_engine().configuration().n_threads;
+    const auto n_threads = p.get_engine().get_device_info().supports_immad ? 1 : p.get_engine().configuration().n_threads;
     auto arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
     arena->initialize(n_threads);
     arena->execute([this, &p] {

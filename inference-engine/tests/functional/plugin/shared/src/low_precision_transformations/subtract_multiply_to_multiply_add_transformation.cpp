@@ -15,7 +15,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string SubtractMultiplyToMultiplyAddTransformation::getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams> obj) {
+std::string SubtractMultiplyToMultiplyAddTransformation::getTestCaseName(const testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams>& obj) {
     std::string targetDevice;
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;

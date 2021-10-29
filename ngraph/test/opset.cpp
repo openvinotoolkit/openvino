@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "openvino/op/op.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
 #include "openvino/opsets/opset3.hpp"
@@ -140,5 +141,72 @@ TEST(opset, opset8_dump) {
         std::cout << t.name << " ";
     }
     std::cout << std::endl;
-    ASSERT_EQ(162, opset.get_types_info().size());
+    ASSERT_EQ(165, opset.get_types_info().size());
+}
+
+class MyOpOld : public ov::op::Op {
+public:
+    static constexpr ov::DiscreteTypeInfo type_info{"MyOpOld", 0};
+    const ov::DiscreteTypeInfo& get_type_info() const override {
+        return type_info;
+    }
+    MyOpOld() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+
+constexpr ov::DiscreteTypeInfo MyOpOld::type_info;
+
+class MyOpNewFromOld : public MyOpOld {
+public:
+    OPENVINO_OP("MyOpNewFromOld", "custom_opset", MyOpOld);
+    BWDCMP_RTTI_DECLARATION;
+    MyOpNewFromOld() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+
+BWDCMP_RTTI_DEFINITION(MyOpNewFromOld);
+
+class MyOpIncorrect : public MyOpOld {
+public:
+    OPENVINO_OP("MyOpIncorrect", "custom_opset", MyOpOld);
+    MyOpIncorrect() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+
+class MyOpNew : public ov::op::Op {
+public:
+    OPENVINO_OP("MyOpNew", "custom_opset", MyOpOld);
+    MyOpNew() = default;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return nullptr;
+    }
+};
+
+TEST(opset, custom_opset) {
+    ov::OpSet opset;
+#ifndef OPENVINO_STATIC_LIBRARY
+    opset.insert<MyOpOld>();
+    opset.insert<MyOpNewFromOld>();
+    opset.insert<MyOpIncorrect>();
+#endif
+    opset.insert<MyOpNew>();
+#ifdef OPENVINO_STATIC_LIBRARY
+    ASSERT_EQ(opset.get_types_info().size(), 1);
+#else
+    ASSERT_EQ(opset.get_types_info().size(), 3);
+#endif
+    ASSERT_TRUE(opset.contains_type("MyOpNew"));
+    ASSERT_TRUE(opset.contains_type("MyOpOld"));
+    ASSERT_TRUE(opset.contains_type("MyOpNewFromOld"));
+    ASSERT_FALSE(opset.contains_type("MyOpIncorrect"));
 }

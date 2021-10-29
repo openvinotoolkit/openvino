@@ -186,7 +186,7 @@ TEST(average_unpooling_gpu, basic_in2x2x2x1_output_padding) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, padding({ 0, 0, 1, 1 }, 0)));
+    topology.add(average_unpooling("average_unpooling", "input", { 2, 2, 3, 2 }, { 1, 1, 2, 2 }, { 1, 1, 1, 1 }, "", padding({ 0, 0, 1, 1 }, 0)));
 
     network network(engine, topology);
 

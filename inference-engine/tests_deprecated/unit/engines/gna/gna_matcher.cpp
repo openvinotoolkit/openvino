@@ -66,7 +66,7 @@ public:
     }
 };
 #if GNA_LIB_VER == 2
-void expect_enqueue_calls(GNACppApi &mockApi, bool enableHardwareConsistency = true){
+void expect_enqueue_calls(GNACppApi &mockApi){
     EXPECT_CALL(mockApi, Gna2ModelCreate(_,_,_)).Times(AtLeast(1)).WillRepeatedly(Invoke([](
         uint32_t deviceIndex,
         struct Gna2Model const * model,
@@ -81,10 +81,6 @@ void expect_enqueue_calls(GNACppApi &mockApi, bool enableHardwareConsistency = t
             *requestConfigId = 0;
             return Gna2StatusSuccess;
         }));
-
-    if (enableHardwareConsistency) {
-        EXPECT_CALL(mockApi, Gna2RequestConfigEnableHardwareConsistency(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
-    }
 
     EXPECT_CALL(mockApi, Gna2RequestConfigSetAccelerationMode(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 
@@ -352,11 +348,7 @@ void GNAPropagateMatcher :: match() {
                         EXPECT_CALL(mockApi, GNAPropagateForward(_, _, _, _, _, Eq(_env.proc_type)))
                             .WillOnce(Return(GNA_NOERROR));
 #elif GNA_LIB_VER == 2
-                        if(_env.proc_type == (GNA_SOFTWARE & GNA_HARDWARE)) {
-                            expect_enqueue_calls(mockApi);
-                        } else {
-                            expect_enqueue_calls(mockApi, false);
-                        }
+                        expect_enqueue_calls(mockApi);
 #endif
                         break;
                     case GnaPluginTestEnvironment::matchPwlInserted :
@@ -574,8 +566,6 @@ void GNAPluginAOTMatcher :: match() {
             return Gna2StatusSuccess;
         }));
 
-    EXPECT_CALL(mockApi, Gna2RequestConfigEnableHardwareConsistency(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
-
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 #else
 #error "Not supported GNA_LIB_VER"
@@ -703,8 +693,6 @@ void GNADumpXNNMatcher::match() {
 
         ON_CALL(mockApi, Gna2RequestConfigSetAccelerationMode(_,_)).WillByDefault(Return(Gna2StatusSuccess));
 
-        ON_CALL(mockApi, Gna2RequestConfigEnableHardwareConsistency(_,_)).WillByDefault(Return(Gna2StatusSuccess));
-
         ON_CALL(mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_,_)).WillByDefault(Return(Gna2StatusSuccess));
     }
 #else
@@ -807,8 +795,6 @@ void GNAQueryStateMatcher :: match() {
             *requestConfigId = 0;
             return Gna2StatusSuccess;
         }));
-
-    EXPECT_CALL(mockApi, Gna2RequestConfigEnableHardwareConsistency(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 #endif

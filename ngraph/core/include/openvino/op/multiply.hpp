@@ -12,10 +12,11 @@ namespace v1 {
 /// \brief Elementwise multiplication operation.
 class OPENVINO_API Multiply : public util::BinaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Multiply", "opset1", util::BinaryElementwiseArithmetic, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a multiplication operation.
-    Multiply() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Multiply() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs a multiplication operation.
     ///
@@ -28,7 +29,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

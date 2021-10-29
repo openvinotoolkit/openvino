@@ -117,7 +117,7 @@ template<typename DST, typename SRC> static inline DST checked_cast(SRC x) {
 }
 
 static inline Q8_8 mulas(Q0_16 a, U8   s) { return static_cast<Q8_8>((a * s) >>  8); }
-static inline Q8_8 mulaw(Q0_16 a, Q8_8 w) { return static_cast<Q8_8>((a * w) >> 16); }
+static inline Q8_8 mulaw(Q0_16 a, Q8_8 w) { return static_cast<Q8_8>((static_cast<uint32_t>(a) * w) >> 16); }
 
 static inline float mulas(float a, float s) { return a * s; }
 static inline float mulaw(float a, float w) { return a * w; }

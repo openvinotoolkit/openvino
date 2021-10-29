@@ -15,7 +15,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTransformationParams> obj) {
+std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<ReluTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

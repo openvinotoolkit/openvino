@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::PriorBox, "PriorBox", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::PriorBox);
 
 op::PriorBox::PriorBox(const Output<Node>& layer_shape,
                        const Output<Node>& image_shape,
@@ -61,9 +61,9 @@ void op::PriorBox::validate_and_infer_types() {
         set_output_type(
             0,
             element::f32,
-            ov::StaticShape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
+            ov::Shape{2, 4 * layer_shape[0] * layer_shape[1] * static_cast<size_t>(number_of_priors(m_attrs))});
     } else {
-        set_output_type(0, element::f32, ov::Shape{2, Dimension::dynamic()});
+        set_output_type(0, element::f32, ov::PartialShape{2, Dimension::dynamic()});
     }
 }
 
@@ -131,6 +131,7 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor) {
 }
 
 namespace prior_box {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -164,6 +165,7 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace prior_box
 
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

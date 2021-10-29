@@ -8,7 +8,7 @@
 #include <cldnn/runtime/engine.hpp>
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <cpp_interfaces/interface/ie_iremote_context.hpp>
+#include <ie_remote_context.hpp>
 #include "cldnn_config.h"
 #include "cldnn_common_utils.h"
 
@@ -54,7 +54,7 @@ public:
     bool deallocate() noexcept;
     InferenceEngine::ParamMap getParams() const;
     std::string getDeviceName() const noexcept;
-    std::shared_ptr<InferenceEngine::IRemoteContext> getContext() const noexcept;
+    std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept;
     InferenceEngine::LockedMemory<void> buffer() noexcept;
     InferenceEngine::LockedMemory<const void> cbuffer() const noexcept;
     InferenceEngine::LockedMemory<void> rwmap()noexcept;
@@ -224,6 +224,7 @@ public:
     std::shared_ptr<cldnn::engine> GetEngine() const { return m_engine; }
     Config& GetConfig() { return m_config; }
     ContextType GetType() const { return m_type; }
+    InferenceEngine::gpu_handle_param GetExternalQueue() const { return m_external_queue; }
     const std::weak_ptr<InferenceEngine::IInferencePlugin> GetPlugin() const { return m_plugin; }
 
     void acquire_lock() {
@@ -238,6 +239,7 @@ protected:
     // TODO: refactor to unique_ptr
     std::shared_ptr<cldnn::engine> m_engine;
     InferenceEngine::gpu_handle_param m_va_display;
+    InferenceEngine::gpu_handle_param m_external_queue;
     Config m_config;
 
     ContextType m_type;

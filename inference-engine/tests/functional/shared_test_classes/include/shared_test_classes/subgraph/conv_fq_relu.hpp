@@ -39,7 +39,7 @@ typedef std::tuple<
 class ConvFqReluTest : public testing::WithParamInterface<ConvFqReluTestParamsSet>,
                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvFqReluTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvFqReluTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

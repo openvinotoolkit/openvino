@@ -37,14 +37,14 @@ def get_lib_path(lib_name):
     os_name = get_os_name()
     all_libs = {
         'inference_engine_transformations': {
-            'Windows': Path('deployment_tools/inference_engine/bin/intel64/Release/inference_engine_transformations.dll'),
-            'Linux': Path('deployment_tools/inference_engine/lib/intel64/libinference_engine_transformations.so')},
+            'Windows': Path('runtime/bin/intel64/Release/inference_engine_transformations.dll'),
+            'Linux': Path('runtime/lib/intel64/libinference_engine_transformations.so')},
         'MKLDNNPlugin': {
-            'Windows': Path('deployment_tools/inference_engine/bin/intel64/Release/MKLDNNPlugin.dll'),
-            'Linux': Path('deployment_tools/inference_engine/lib/intel64/libMKLDNNPlugin.so')},
+            'Windows': Path('runtime/bin/intel64/Release/MKLDNNPlugin.dll'),
+            'Linux': Path('runtime/lib/intel64/libMKLDNNPlugin.so')},
         'ngraph': {
-            'Windows': Path('deployment_tools/ngraph/lib/ngraph.dll'),
-            'Linux': Path('deployment_tools/ngraph/lib/libngraph.so')}
+            'Windows': Path('runtime/bin/intel64/Release/ngraph.dll'),
+            'Linux': Path('runtime/lib/intel64/libngraph.so')}
                 }
     return all_libs[lib_name][os_name]
 

@@ -100,7 +100,7 @@ static cldnn::resample::resample_axis GetInterpolationAxis(int32_t axis, uint32_
     IE_THROW() << "Unsupported Interpolate axis: " << axis;
 }
 
-void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
+static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
     p.ValidateInputs(op, {3, 4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -193,7 +193,8 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
                                         cldnnSampleType,
                                         shapeCalcMode,
                                         coordTransMode,
-                                        nearestMode);
+                                        nearestMode,
+                                        op->get_friendly_name());
 
     p.AddPrimitive(resamplePrim);
     p.AddPrimitiveToProfiler(op);

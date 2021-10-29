@@ -8,8 +8,8 @@
 
 namespace ov {
 namespace opset7 {
-#define OPENVINO_OP(a, b) using b::a;
+#define _OPENVINO_OP_REG(a, b) using b::a;
 #include "openvino/opsets/opset7_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
 }  // namespace opset7
 }  // namespace ov

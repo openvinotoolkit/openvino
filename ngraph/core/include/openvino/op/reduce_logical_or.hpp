@@ -15,7 +15,8 @@ namespace v1 {
 /// on the values passed to the second input - the axes.
 class OPENVINO_API ReduceLogicalOr : public util::LogicalReductionKeepDims {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("ReduceLogicalOr", "opset1", util::LogicalReductionKeepDims, 1);
+    BWDCMP_RTTI_DECLARATION;
     ReduceLogicalOr() = default;
     /// \brief Constructs a ReduceLogicalOr node.
     ///
@@ -27,7 +28,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

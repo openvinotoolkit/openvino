@@ -21,13 +21,14 @@
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
+using namespace ngraph::builder::subgraph;
 
 class GetDequantizationTestValues {
 public:
-    builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    FakeQuantizeOnData fakeQuantize;
     // actual dequantization to create nGraph function to run NetworkHelper::getDequantization
-    builder::subgraph::DequantizationOperations actualDequantization;
-    builder::subgraph::DequantizationOperations expectedDequantization;
+    DequantizationOperations actualDequantization;
+    DequantizationOperations expectedDequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -58,7 +59,7 @@ public:
         const ngraph::Shape shape = std::get<1>(GetParam());
         const GetDequantizationTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::GetDequantizationFunction::get(
+        actualFunction = GetDequantizationFunction::get(
             precision,
             shape,
             testValues.fakeQuantize,
@@ -85,7 +86,7 @@ TEST_P(GetDequantizationTransformation, CompareFunctions) {
 
     const auto output = actualFunction->get_output_op(0);
     const ngraph::pass::low_precision::FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(output);
-    ngraph::builder::subgraph::DequantizationOperations actualDequantization = toDequantizationOperations(dequantization);
+    DequantizationOperations actualDequantization = toDequantizationOperations(dequantization);
     actualDequantization.subtract.constantShapeIsDefined = testValues.expectedDequantization.subtract.constantShapeIsDefined;
     actualDequantization.subtract.outPrecision = testValues.expectedDequantization.subtract.outPrecision;
     actualDequantization.multiply.constantShapeIsDefined = testValues.expectedDequantization.multiply.constantShapeIsDefined;
@@ -93,7 +94,7 @@ TEST_P(GetDequantizationTransformation, CompareFunctions) {
     ASSERT_TRUE(actualDequantization == testValues.expectedDequantization);
 }
 
-const std::vector<ngraph::element::Type> precisions = {
+const element::TypeVector precisions = {
     ngraph::element::f32,
 };
 
@@ -147,6 +148,16 @@ const std::vector<GetDequantizationTestValues> testValues = {
             {{ 127.f }, ngraph::element::f32, {}, false, 0, ngraph::element::u8, true},
             {{ 0.1f }, ngraph::element::f32, {}, false, 0},
         }
+    },
+    {
+        // unexpected precision (non dequantization operations)
+        {},
+        {
+            ngraph::element::i32,
+            DequantizationOperations::Subtract{ 32 }.setConstantPrecision(element::i32),
+            DequantizationOperations::Multiply{ 2 }.setConstantPrecision(element::i32),
+        },
+        {}
     }
 };
 

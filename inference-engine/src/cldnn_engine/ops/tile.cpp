@@ -11,14 +11,15 @@
 
 namespace CLDNNPlugin {
 
-void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
+static void CreateTileOp(Program& p, const std::shared_ptr<ngraph::op::v0::Tile>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto tilePrim = cldnn::tile(layerName,
                                 inputPrimitives[0],
-                                CldnnTensorFromIEDims(op->get_output_shape(0)));
+                                CldnnTensorFromIEDims(op->get_output_shape(0)),
+                                op->get_friendly_name());
 
     p.AddPrimitive(tilePrim);
     p.AddPrimitiveToProfiler(op);

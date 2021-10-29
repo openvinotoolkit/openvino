@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::EmbeddingSegmentsSum, "EmbeddingSegmentsSum", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::EmbeddingSegmentsSum);
 
 op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table,
                                                    const Output<Node>& indices,
@@ -90,7 +90,7 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
                           "INDICES and SEGMENT_IDS shape must be same");
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(NUM_SEGMENTS).compatible(ov::Shape{}),
+                          get_input_partial_shape(NUM_SEGMENTS).compatible(ov::PartialShape{}),
                           "NUM_SEGMENTS must be a scalar");
 
     if (get_input_size() >= 5) {
@@ -108,7 +108,7 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
                               ")");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(DEFAULT_INDEX).compatible(ov::Shape{}),
+                              get_input_partial_shape(DEFAULT_INDEX).compatible(ov::PartialShape{}),
                               "DEFAULT_INDEX must be a scalar");
     }
 
@@ -133,9 +133,9 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
 
     element::Type result_et = get_input_element_type(EMB_TABLE);
 
-    const ov::Shape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
+    const ov::PartialShape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
 
-    ov::Shape result_shape;
+    ov::PartialShape result_shape;
     if (emb_table_shape.rank().is_static()) {
         result_shape = emb_table_shape;
         if (const auto& num_segments_const = get_constant_from_source(input_value(NUM_SEGMENTS))) {
@@ -145,7 +145,7 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
             set_input_is_relevant_to_shape(NUM_SEGMENTS);
         }
     } else {
-        result_shape = ov::Shape::dynamic();
+        result_shape = ov::PartialShape::dynamic();
         set_input_is_relevant_to_shape(NUM_SEGMENTS);
     }
 

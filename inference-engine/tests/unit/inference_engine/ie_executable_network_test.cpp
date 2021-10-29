@@ -38,7 +38,7 @@ using testing::SetArgReferee;
 class ExecutableNetworkTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
-    InferenceEngine::SoExecutableNetworkInternal    exeNetwork;
+    ov::runtime::SoPtr<IExecutableNetworkInternal>  exeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
     InferencePlugin                                 plugin;
 
@@ -53,7 +53,7 @@ protected:
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
         plugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
-        exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
+        exeNetwork = {{}, plugin.LoadNetwork(CNNNetwork{}, {})};
     }
 };
 

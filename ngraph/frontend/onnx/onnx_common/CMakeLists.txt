@@ -16,7 +16,6 @@ source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
 # Create static library
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-add_library(ngraph::onnx_common ALIAS ${TARGET_NAME})
 
 # TODO Add handling ie_faster_build
 

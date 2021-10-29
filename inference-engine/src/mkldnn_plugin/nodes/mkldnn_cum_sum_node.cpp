@@ -52,6 +52,10 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
     numOfDims = dataShape.size();
 
     const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
+    if (cumsum == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of CumSum from opset3.";
+
     exclusive = cumsum->is_exclusive();
     reverse = cumsum->is_reverse();
 
@@ -254,7 +258,7 @@ inline size_t MKLDNNCumSumNode::getStartOffset(const std::vector<size_t> &forSta
 size_t MKLDNNCumSumNode::getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& _data) const {
     const auto& axisPrecision = _axis.getDesc().getPrecision();
     const int64_t dataShapeSize = static_cast<int64_t>(_data.GetShape().getRank());
-    int64_t axisValueFromBlob;
+    int64_t axisValueFromBlob = 0;
     switch (axisPrecision) {
         case Precision::I32 : {
             const auto *axisPtr = reinterpret_cast<const int32_t *>(_axis.GetPtr());

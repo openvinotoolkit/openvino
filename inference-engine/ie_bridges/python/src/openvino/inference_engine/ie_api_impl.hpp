@@ -4,17 +4,16 @@
 
 #pragma once
 
-#include <ie_extension.h>
-
 #include <algorithm>
 #include <chrono>
 #include <condition_variable>
-#include <ie_core.hpp>
+#include <functional>
 #include <iostream>
 #include <iterator>
 #include <list>
 #include <map>
 #include <mutex>
+#include <numeric>
 #include <queue>
 #include <set>
 #include <sstream>
@@ -23,6 +22,7 @@
 #include <vector>
 
 #include "Python.h"
+#include "ie_core.hpp"
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -204,5 +204,7 @@ std::string get_version();
 InferenceEnginePython::IENetwork read_network(std::string path_to_xml, std::string path_to_bin);
 
 PyObject* getPartialShape_capsule(InferenceEngine::CDataPtr data);
+
+const size_t product(const InferenceEngine::SizeVector& dims);
 
 };  // namespace InferenceEnginePython

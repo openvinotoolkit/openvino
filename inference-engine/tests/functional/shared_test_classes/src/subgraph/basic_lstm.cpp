@@ -9,7 +9,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string Basic_LSTM_S::getTestCaseName(testing::TestParamInfo<basicLstmParams> obj) {
+std::string Basic_LSTM_S::getTestCaseName(const testing::TestParamInfo<basicLstmParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
@@ -43,7 +43,6 @@ void Basic_LSTM_S::SetUp() {
     outPrc = InferenceEngine::Precision::FP32;
 
     function = GetNetwork(size_params.first, size_params.second, netPrecision, &hidden_memory_init, &cell_memory_init);
-
     if (decompose) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
@@ -136,6 +135,7 @@ void Basic_LSTM_S::GenerateInputs() {
 
 void Basic_LSTM_S::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    functionRefs = ngraph::clone_function(*function);
 
     LoadNetwork();
     GenerateInputs();

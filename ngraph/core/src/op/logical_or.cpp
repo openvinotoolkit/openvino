@@ -11,7 +11,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::LogicalOr, "LogicalOr", 1, util::BinaryElementwiseLogical);
+BWDCMP_RTTI_DEFINITION(op::v1::LogicalOr);
 
 op::v1::LogicalOr::LogicalOr(const Output<Node>& arg0,
                              const Output<Node>& arg1,
@@ -27,6 +27,7 @@ shared_ptr<Node> op::v1::LogicalOr::clone_with_new_inputs(const OutputVector& ne
 }
 
 namespace logor {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -55,6 +56,7 @@ bool evaluate_logor(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace logor
 
 bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

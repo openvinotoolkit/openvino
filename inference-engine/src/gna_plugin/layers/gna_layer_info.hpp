@@ -61,8 +61,9 @@ class LayerInfo {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
         return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
-                                                                        isActivation() ||
-                                                            (isCrop() && !isCropAffined());
+               isActivation() ||
+               (isCrop() && !isCropAffined()) ||
+               isPermute();
     }
     bool has32BOutput() const noexcept {
         IS_VALID();
@@ -264,6 +265,9 @@ class LayerInfo {
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
+    bool isReshape() const noexcept {
+        return isOfType("reshape");
+    }
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
@@ -341,6 +345,10 @@ class LayerInfo {
     }
     bool isWeightableIdentity() const noexcept {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
+    }
+
+    bool isSynthetic() const noexcept {
+        return isConcatAlignFilter() || isSyntheticScaleShift() || isConvolutionFilter() || isAffineFilter();
     }
 
     size_t paddingSize() const {

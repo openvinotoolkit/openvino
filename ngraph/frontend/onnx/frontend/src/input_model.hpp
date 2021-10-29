@@ -13,7 +13,7 @@ namespace frontend {
 class InputModelONNX : public InputModel {
 public:
     InputModelONNX(const std::string& path);
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     InputModelONNX(const std::wstring& path);
 #endif
     InputModelONNX(std::istream& model_stream);
@@ -25,8 +25,11 @@ public:
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
     Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const override;
+    Place::Ptr get_place_by_operation_name(const std::string& operation_name) const override;
     Place::Ptr get_place_by_operation_name_and_input_port(const std::string& operation_name,
                                                           int input_port_index) override;
+    Place::Ptr get_place_by_operation_name_and_output_port(const std::string& operation_name,
+                                                           int output_port_index) override;
     void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) override;
     ngraph::PartialShape get_partial_shape(Place::Ptr place) const override;
     void set_element_type(Place::Ptr place, const ngraph::element::Type& type) override;

@@ -15,7 +15,8 @@ namespace v1 {
 /// \brief DeformableConvolution operation.
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("DeformableConvolution", "opset1", op::util::DeformableConvolutionBase, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -58,7 +59,8 @@ public:
 namespace v8 {
 class OPENVINO_API DeformableConvolution : public op::util::DeformableConvolutionBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("DeformableConvolution", "opset8", op::util::DeformableConvolutionBase);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolution() = default;
@@ -153,7 +155,9 @@ public:
 
     void validate_and_infer_types() override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     bool has_evaluate() const override;
 

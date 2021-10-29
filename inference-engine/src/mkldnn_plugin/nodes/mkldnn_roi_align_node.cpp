@@ -317,25 +317,20 @@ void MKLDNNROIAlignNode::executeSpecified() {
                                     pointVector[sampleIndex + 3].second * wInputStride + blockResidual_;
                 float part4 = srcData[part4Index];
 
+                float sampleValue =
+                        weightVector[sampleIndex] * part1 +
+                        weightVector[sampleIndex + 1] * part2 +
+                        weightVector[sampleIndex + 2] * part3 +
+                        weightVector[sampleIndex + 3] * part4;
                 switch (getAlgorithm()) {
                     case Algorithm::ROIAlignMax:
                     {
-                        float sampleValue = std::max(
-                                {weightVector[sampleIndex] * part1,
-                                 weightVector[sampleIndex + 1] * part2,
-                                 weightVector[sampleIndex + 2] * part3,
-                                 weightVector[sampleIndex + 3] * part4});
                         pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
                         break;
                     }
                     case Algorithm::ROIAlignAvg:
                     default:
                     {
-                        float sampleValue =
-                                weightVector[sampleIndex] * part1 +
-                                weightVector[sampleIndex + 1] * part2 +
-                                weightVector[sampleIndex + 2] * part3 +
-                                weightVector[sampleIndex + 3] * part4;
                         pooledValue += sampleValue / numSamplesInBin;
                     }
                 }

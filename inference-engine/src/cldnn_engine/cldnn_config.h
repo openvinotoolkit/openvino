@@ -8,38 +8,39 @@
 #include <string>
 
 #include "cldnn_custom_layer.h"
-
+#include <ie_performance_hints.hpp>
 #include <cldnn/graph/network.hpp>
 
 namespace CLDNNPlugin {
 
 struct Config {
-    Config() : throughput_streams(1),
-               useProfiling(false),
-               dumpCustomKernels(false),
-               exclusiveAsyncRequests(false),
-               memory_pool_on(true),
-               enableDynamicBatch(false),
-               enableInt8(true),
-               nv12_two_inputs(false),
-               enable_fp16_for_quantized_models(true),
-               queuePriority(cldnn::priority_mode_types::disabled),
-               queueThrottle(cldnn::throttle_mode_types::disabled),
-               max_dynamic_batch(1),
-               customLayers({}),
-               tuningConfig(),
-               graph_dumps_dir(""),
-               sources_dumps_dir(""),
-               device_id(""),
-               kernels_cache_dir(""),
-               n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())),
-               enable_loop_unrolling(true) {
+    Config(std::string device_id = "0") : device_id(device_id),
+                                          throughput_streams(1),
+                                          useProfiling(false),
+                                          dumpCustomKernels(false),
+                                          exclusiveAsyncRequests(false),
+                                          memory_pool_on(true),
+                                          enableDynamicBatch(false),
+                                          enableInt8(true),
+                                          nv12_two_inputs(false),
+                                          enable_fp16_for_quantized_models(true),
+                                          queuePriority(cldnn::priority_mode_types::disabled),
+                                          queueThrottle(cldnn::throttle_mode_types::disabled),
+                                          max_dynamic_batch(1),
+                                          customLayers({}),
+                                          tuningConfig(),
+                                          graph_dumps_dir(""),
+                                          sources_dumps_dir(""),
+                                          kernels_cache_dir(""),
+                                          n_threads(std::max(static_cast<unsigned int>(1), std::thread::hardware_concurrency())),
+                                          enable_loop_unrolling(true) {
         adjustKeyMapValues();
     }
 
     void UpdateFromMap(const std::map<std::string, std::string>& configMap);
     void adjustKeyMapValues();
 
+    std::string device_id;
     uint16_t throughput_streams;
     bool useProfiling;
     bool dumpCustomKernels;
@@ -56,12 +57,31 @@ struct Config {
     cldnn::tuning_config_options tuningConfig;
     std::string graph_dumps_dir;
     std::string sources_dumps_dir;
-    std::string device_id;
     std::string kernels_cache_dir;
     size_t n_threads;
     bool enable_loop_unrolling;
 
     std::map<std::string, std::string> key_config_map;
+    InferenceEngine::PerfHintsConfig  perfHintsConfig;
+};
+
+struct Configs {
+    using conf_iter = std::map<std::string, Config>::iterator;
+    Configs(Config conf = Config()) : configs({std::make_pair(default_device_id, conf.device_id = default_device_id)}) { }
+
+    void CreateConfig(std::string device_id);
+    Config& GetConfig(std::string device_id);
+    Config& GetDefaultDeviceConfig();
+
+    void SetDefaultDeviceID(std::string default_device_id) { this->default_device_id = default_device_id; }
+    std::string GetDefaultDeviceID() { return default_device_id; }
+
+    conf_iter begin() { return configs.begin(); }
+    conf_iter end() { return configs.end(); }
+
+private:
+    std::string default_device_id = "0";
+    std::map<std::string, Config> configs;
 };
 
 }  // namespace CLDNNPlugin

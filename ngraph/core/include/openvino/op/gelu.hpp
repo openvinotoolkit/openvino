@@ -14,7 +14,8 @@ namespace v0 {
 /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) )
 class OPENVINO_API Gelu : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Gelu", "opset2", op::Op, 0);
+    BWDCMP_RTTI_DECLARATION;
 
     Gelu();
     /// \brief Constructs a Gelu operation.
@@ -41,7 +42,8 @@ namespace v7 {
 /// "tanh"
 class OPENVINO_API Gelu : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Gelu", "opset7", op::Op, 7);
+    BWDCMP_RTTI_DECLARATION;
 
     Gelu() = default;
     /// \brief Constructs a Gelu operation.
@@ -54,7 +56,9 @@ public:
 
     void validate_and_infer_types() override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -73,9 +77,7 @@ class OPENVINO_API AttributeAdapter<op::GeluApproximationMode>
 public:
     AttributeAdapter(op::GeluApproximationMode& value) : EnumAttributeAdapterBase<op::GeluApproximationMode>(value) {}
 
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::GeluApproximationMode>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<ov::op::GeluApproximationMode>");
+    BWDCMP_RTTI_DECLARATION;
 };
 }  // namespace ov

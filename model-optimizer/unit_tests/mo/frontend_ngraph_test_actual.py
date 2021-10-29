@@ -29,7 +29,7 @@ try:
     from ngraph.utils.types import get_element_type
 
 except Exception:
-    print("No mock frontend API available,"
+    print("No mock frontend API available, "
           "ensure to use -DENABLE_TESTS=ON option when running these tests")
     mock_available = False
 
@@ -74,6 +74,8 @@ def replaceArgsHelper(log_level='DEBUG',
         scale_values=scale_values,
         output_dir=output_dir,
         freeze_placeholder_with_value=freeze_placeholder_with_value,
+        use_legacy_frontend=None,
+        use_new_frontend=None,
         framework=None)
 
 

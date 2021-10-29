@@ -15,7 +15,8 @@ namespace v3 {
 ///
 class OPENVINO_API Atanh : public util::UnaryElementwiseArithmetic {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Atanh", "opset4", util::UnaryElementwiseArithmetic, 3);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an Atanh operation.
     Atanh() = default;
@@ -32,7 +33,9 @@ public:
     bool visit_attributes(AttributeVisitor&) override {
         return true;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v3

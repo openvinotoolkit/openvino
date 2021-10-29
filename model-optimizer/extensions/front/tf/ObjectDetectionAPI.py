@@ -874,7 +874,7 @@ class ObjectDetectionAPIPreprocessor2Replacement(FrontReplacementFromConfigFileG
                 # replace sub-graph between start and end nodes (including them) with new_preprocessing_ops nodes
                 end_node.out_port(0).get_connection().set_source(new_preprocessing_ops[-1].out_port(0))
                 start_node.in_port(0).get_connection().set_destination(
-                    new_preprocessing_ops[0].in_port(new_preprocessing_ops[0].is_in_port_connected(0)))
+                    new_preprocessing_ops[0].in_port(int(new_preprocessing_ops[0].is_in_port_connected(0))))
             else:
                 if trailing:  # case 2
                     # change output of the end_node to be produced with the start node producer

@@ -9,7 +9,7 @@
 
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(ov::op::util::EmbeddingBagOffsetsBase, "EmbeddingBagOffsetsBase", 3);
+BWDCMP_RTTI_DEFINITION(ov::op::util::EmbeddingBagOffsetsBase);
 
 ov::op::util::EmbeddingBagOffsetsBase::EmbeddingBagOffsetsBase(const Output<Node>& emb_table,
                                                                const Output<Node>& indices,
@@ -80,7 +80,7 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
                               ")");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(DEFAULT_INDEX).compatible(Shape{}),
+                              get_input_partial_shape(DEFAULT_INDEX).compatible(PartialShape{}),
                               "DEFAULT_INDEX must be a scalar");
     }
 
@@ -105,15 +105,15 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
 
     element::Type result_et = get_input_element_type(EMB_TABLE);
 
-    const Shape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
-    const Shape& offsets_shape = get_input_partial_shape(OFFSETS);
+    const PartialShape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
+    const PartialShape& offsets_shape = get_input_partial_shape(OFFSETS);
 
-    Shape result_shape;
+    PartialShape result_shape;
     if (emb_table_shape.rank().is_static()) {
         result_shape = emb_table_shape;
         result_shape[0] = offsets_shape.rank().is_static() ? offsets_shape[0] : Dimension::dynamic();
     } else {
-        result_shape = Shape::dynamic();
+        result_shape = PartialShape::dynamic();
     }
 
     set_output_type(0, result_et, result_shape);

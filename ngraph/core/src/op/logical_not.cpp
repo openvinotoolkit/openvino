@@ -13,7 +13,7 @@
 using namespace ngraph;
 using namespace std;
 
-OPENVINO_RTTI_DEFINITION(op::v1::LogicalNot, "LogicalNot", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::LogicalNot);
 
 op::v1::LogicalNot::LogicalNot(const Output<Node>& arg) : Op({arg}) {
     constructor_validate_and_infer_types();
@@ -28,7 +28,7 @@ void op::v1::LogicalNot::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v1_LogicalNot_validate_and_infer_types);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
-    ov::Shape& args_pshape = std::get<1>(args_et_pshape);
+    ov::PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     set_output_type(0, args_et, args_pshape);
 }
@@ -40,6 +40,7 @@ shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& n
 }
 
 namespace notop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -65,6 +66,7 @@ bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
     }
     return rc;
 }
+}  // namespace
 }  // namespace notop
 
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

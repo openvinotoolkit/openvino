@@ -7,11 +7,11 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(TARGET_NAME "onnx_custom_op")
 
-find_package(ngraph REQUIRED COMPONENTS onnx_ngraph_frontend)
+find_package(OpenVINO REQUIRED COMPONENTS ONNX)
 
 add_library(${TARGET_NAME} STATIC onnx_custom_op.cpp onnx_custom_op.hpp)
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph::ngraph ngraph::onnx_ngraph_frontend)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::core openvino::frontend::onnx)
 # [cmake:onnx_custom_op]
 
 # Enable code style check

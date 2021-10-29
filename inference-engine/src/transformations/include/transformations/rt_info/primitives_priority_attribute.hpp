@@ -17,63 +17,27 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations_visibility.hpp>
 
-namespace ngraph {
-
-/**
- * @ingroup ie_runtime_attr_api
- * @brief PrimitivesPriority class represents runtime info attribute that
- * can be used for plugins specific primitive choice.
- */
-class TRANSFORMATIONS_API PrimitivesPriority {
-private:
-    std::string primitives_priority;
-
-public:
-    /**
-     * A default constructor
-     */
-    PrimitivesPriority() = default;
-
-    /**
-     * @brief      Constructs a new object consisting of a single name     *
-     * @param[in]  name  The primitives priority value
-     */
-    explicit PrimitivesPriority(const std::string &primitives_priority) : primitives_priority(primitives_priority) {}
-
-    /**
-     * @brief return string with primitives priority value
-     */
-    std::string getPrimitivesPriority() const;
-};
+namespace ov {
 /**
  * @ingroup ie_runtime_attr_api
  * @brief getPrimitivesPriority return string with primitive priorities value
  * @param[in] node The node will be used to get PrimitivesPriority attribute
  */
-TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
+NGRAPH_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
-}  // namespace ngraph
-
-namespace ov {
-
-extern template class TRANSFORMATIONS_API VariantImpl<ngraph::PrimitivesPriority>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<ngraph::PrimitivesPriority> : public VariantImpl<ngraph::PrimitivesPriority> {
+class NGRAPH_API PrimitivesPriority : public VariantImpl<std::string> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::PrimitivesPriority", 0};
+    OPENVINO_RTTI("primitives_priority", "0");
 
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
+    PrimitivesPriority() = default;
 
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
+    PrimitivesPriority(const value_type &value) : VariantImpl<value_type>(value) {}
 
     std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
 
     std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
-};
 
+    bool visit_attributes(AttributeVisitor & visitor) override;
+};
 }  // namespace ov

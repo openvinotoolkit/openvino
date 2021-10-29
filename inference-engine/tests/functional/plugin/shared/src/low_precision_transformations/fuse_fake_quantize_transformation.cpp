@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeTransformationParams> obj) {
+std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj) {
     std::string targetDevice;
     FuseFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;

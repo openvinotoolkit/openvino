@@ -83,13 +83,12 @@ if(THREADING STREQUAL "OMP")
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
     update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
-    log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
     
     ie_cpack_add_component(omp REQUIRED)
     file(GLOB_RECURSE source_list "${OMP}/*${CMAKE_SHARED_LIBRARY_SUFFIX}*")
     install(FILES ${source_list} 
-            DESTINATION "deployment_tools/inference_engine/external/omp/lib"
+            DESTINATION "runtime/3rdparty/omp/lib"
             COMPONENT omp)
 endif()
 
@@ -146,12 +145,6 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
     update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
-
-    if(WIN32)
-        log_rpath_from_dir(TBB "${TBB}/bin")
-    else ()
-        log_rpath_from_dir(TBB "${TBB}/lib")
-    endif()
     debug_message(STATUS "tbb=" ${TBB})
 endif()
 
@@ -242,14 +235,6 @@ if(ENABLE_OPENCV)
     endif()
 
     update_deps_cache(OpenCV_DIR "${ocv_cmake_path}" "Path to OpenCV package folder")
-
-    if(WIN32)
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../bin")
-    elseif(ANDROID)
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../../../lib")
-    else()
-        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
-    endif()
     debug_message(STATUS "opencv=" ${OPENCV})
 else()
     reset_deps_cache(OpenCV_DIR)
@@ -277,8 +262,8 @@ if(ENABLE_GNA)
             set(GNA_HASH "cc954e67525006bf8bd353a6682e38bf208f6d74e973e0fc292850e721f17452")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.1226")
-            set(GNA_HASH "d5450af15c993e264c25ac4591a7dab44722e10d15fca4f222a1b84429d4e5b6")
+            set(GNA_VERSION "03.00.00.1377")
+            set(GNA_HASH "d45fb48994d8c2803a16e88e29ae48851066325b97c1c6c4a5bf4f4573d55c65")
         endif()
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)

@@ -114,11 +114,14 @@ struct EditorOutput {
 ///        You can indicate test_node by name as EditorNode("test_node")
 ///        or by assigned output as EditorNode(EditorOutput("out1"))
 ///        or EditorNode(EditorOutput("out2"))
+///        or you can determine the node by postition of a node in an ONNX graph (in topological order).
 struct EditorNode {
     EditorNode(std::string node_name) : m_node_name{std::move(node_name)} {}
     EditorNode(EditorOutput output) : m_output_name{std::move(output.m_output_name)} {}
+    EditorNode(const int node_index) : m_node_index{node_index} {}
     const std::string m_node_name = "";
     const std::string m_output_name = "";
+    const int m_node_index = -1;
 };
 }  // namespace onnx_editor
 }  // namespace ngraph

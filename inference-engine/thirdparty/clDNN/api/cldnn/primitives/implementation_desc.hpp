@@ -16,6 +16,7 @@ enum class impl_types : uint8_t {
     cpu = 1 << 0,
     common = 1 << 1,
     ocl = 1 << 2,
+    onednn = 1 << 3,
     any = 0xFF,
 };
 
@@ -39,6 +40,7 @@ inline std::ostream& operator<<(std::ostream& out, const impl_types& impl_type) 
         case impl_types::cpu: out << "cpu"; break;
         case impl_types::common: out << "common"; break;
         case impl_types::ocl: out << "ocl"; break;
+        case impl_types::onednn: out << "onednn"; break;
         case impl_types::any: out << "any"; break;
         default: out << "unknown"; break;
     }

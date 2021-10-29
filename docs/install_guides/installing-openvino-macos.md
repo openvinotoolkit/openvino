@@ -119,7 +119,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
    * For root or administrator: `/opt/intel/openvino_<version>/`
    * For regular users: `/home/<USER>/intel/openvino_<version>/` 
 
-   For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`.
+   For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2022/`.
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
    ![](../img/openvino-install-macos-04.png)
    > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
@@ -138,10 +138,10 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 You need to update several environment variables before you can compile and run OpenVINO™ applications. Open the macOS Terminal\* or a command-line interface shell you prefer and run the following script to temporarily set your environment variables:
 
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2022/setupvars.sh
    ```  
 
-If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2022` with your directory.
 
 <strong>Optional</strong>: The OpenVINO environment variables are removed when you close the shell. You can permanently set the environment variables as follows:
 
@@ -153,10 +153,10 @@ If you didn't choose the default installation option, replace `/opt/intel/openvi
 
 3. Add this line to the end of the file:
    ```sh
-   source /opt/intel/openvino_2021/bin/setupvars.sh
+   source /opt/intel/openvino_2022/setupvars.sh
    ```
 
-If you didn't choose the default installation option, replace `/opt/intel/openvino_2021` with your directory.
+If you didn't choose the default installation option, replace `/opt/intel/openvino_2022` with your directory.
 
 4. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
 
@@ -189,7 +189,7 @@ You can choose to either configure the Model Optimizer for all supported framewo
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2022/tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -203,7 +203,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2022/tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script for your model framework. You can run more than one script:
@@ -272,14 +272,14 @@ Now you are ready to get started. To continue, see the following pages:
 
 Follow the steps below to uninstall the Intel® Distribution of OpenVINO™ Toolkit from your system:
 
-1. From the installation directory (by default, `/opt/intel/openvino_2021`), locate and open `openvino_toolkit_uninstaller.app`.
+1. From the installation directory (by default, `/opt/intel/openvino_2022`), locate and open `openvino_toolkit_uninstaller.app`.
 2. Follow the uninstallation wizard instructions.
 3. When uninstallation is complete, click **Finish**. 
 
 
 ## Additional Resources
 
-- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2021/deployment_tools/demo/`.
+- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2022/samples/scripts/`.
 
 - For detailed description of the pre-trained models, go to the [Overview of OpenVINO toolkit Pre-Trained Models](@ref omz_models_group_intel) page.
 

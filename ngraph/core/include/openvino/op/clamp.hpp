@@ -16,7 +16,8 @@ namespace v0 {
 /// this range remain unchanged.
 class OPENVINO_API Clamp : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Clamp", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     Clamp();
     /// \brief Constructs a Clamp node.
@@ -38,7 +39,9 @@ public:
     double get_max() const {
         return m_max;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:

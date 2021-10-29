@@ -7,6 +7,6 @@
 #    define NGRAPH_OP(x, y)
 #endif
 
-#define OPENVINO_OP NGRAPH_OP
+#define _OPENVINO_OP_REG NGRAPH_OP
 #include "openvino/opsets/opset6_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG

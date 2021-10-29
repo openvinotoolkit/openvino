@@ -14,7 +14,8 @@ namespace v0 {
 /// \brief Concatenation operation.
 class OPENVINO_API Concat : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Concat", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a concatenation operation.
     Concat() = default;
@@ -49,10 +50,14 @@ public:
     void set_axis(int64_t axis) {
         m_axis = axis;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& output_values) const override;
     bool evaluate_upper(const HostTensorVector& output_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     /// \ brief m_axis stores default value for all iterations

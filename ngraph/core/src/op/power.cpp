@@ -15,6 +15,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace power {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -49,11 +50,12 @@ bool evaluate_power(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace power
 
 // ------------------------------ v1 -------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::Power, "Power", 1, op::util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v1::Power);
 
 op::v1::Power::Power(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {
