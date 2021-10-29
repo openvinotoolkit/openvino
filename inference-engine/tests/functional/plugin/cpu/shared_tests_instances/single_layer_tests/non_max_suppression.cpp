@@ -7,9 +7,9 @@
 #include "single_layer_tests/non_max_suppression.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
-using namespace InferenceEngine;
-using namespace ngraph;
+namespace ov {
+namespace test {
+namespace subgraph {
 
 const std::vector<InputShapeParams> inShapeParams = {
     InputShapeParams{std::vector<ov::Dimension>{}, std::vector<TargetShapeParams>{{3, 100, 5}}},
@@ -29,9 +29,9 @@ const std::vector<element::Type> outType = {element::i32, element::i64};
 const std::vector<ngraph::helpers::InputLayerType> maxBoxInputTypes = {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
-                                          ::testing::Combine(::testing::Values(Precision::FP32),
-                                                             ::testing::Values(Precision::I32),
-                                                             ::testing::Values(Precision::FP32)),
+                                          ::testing::Combine(::testing::Values(ElementType::f32),
+                                                             ::testing::Values(ElementType::i32),
+                                                             ::testing::Values(ElementType::f32)),
                                           ::testing::ValuesIn(maxOutBoxPerClass),
                                           ::testing::Combine(::testing::ValuesIn(threshold),
                                                              ::testing::ValuesIn(threshold),
@@ -44,3 +44,7 @@ const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_NmsLayerTest, NmsLayerTest, nmsParams, NmsLayerTest::getTestCaseName);
+
+} // namespace subgraph
+} // namespace test
+} // namespace ov
