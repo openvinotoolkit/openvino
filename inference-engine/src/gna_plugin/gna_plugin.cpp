@@ -781,8 +781,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<RemoveSingleInputConcatPass>();
             passes->registerPass<BroadcastConstPass>();
             passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-            passes->registerPass<SubstituteSoftSignPass>();
         }
+
+        if (fake_quantized)
+            passes->registerPass<SubstituteSoftSignPass>();
+
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();

@@ -39,6 +39,7 @@ inline bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorP
     return true;
 }
 
+namespace {
 bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out) {
     bool rc = true;
     out->set_unary(arg);
@@ -57,6 +58,7 @@ bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTenso
     }
     return rc;
 }
+} // namespace
 
 bool SoftSign::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
     return evaluate_softsign(inputs[0], outputs[0]);
