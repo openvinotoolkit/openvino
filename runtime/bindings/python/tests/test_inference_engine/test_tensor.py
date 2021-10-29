@@ -89,7 +89,7 @@ def test_init_with_roi_tensor():
 def test_cannot_create_roi_from_packed_tensor(ov_type):
     ov_tensor = Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
-        roi = Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
+        Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
     assert "ROI Tensor for types with bitwidths less then 8 bit is not implemented" in str(e.value)
 
 
