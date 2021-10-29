@@ -15,6 +15,7 @@ using inputShapesPair = std::pair<std::vector<ov::PartialShape>, std::vector<std
 
 using ActivationLayerCPUTestParamSet = std::tuple<
         inputShapesPair,                                                 // Input shapes
+        std::vector<size_t>,                                             // Activation shapes
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
         InferenceEngine::Precision,                                      // Net precision
         InferenceEngine::Precision,                                      // Input precision
@@ -27,10 +28,11 @@ public:
     ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
         inputShapesPair inputShapes;
+        std::vector<size_t> activationShapes;
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
         Precision netPrecision, inPrecision, outPrecision;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
+        std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::activationNames[activationTypeAndConstValue.first] << "_";
@@ -45,6 +47,7 @@ public:
             }
             result << ")_";
         }
+        result << "AS=" << CommonTestUtils::vec2str(activationShapes) << "_";
         result << "ConstantsValue=" << CommonTestUtils::vec2str(activationTypeAndConstValue.second) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "inPRC=" << inPrecision.name() << "_";
@@ -76,10 +79,11 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         inputShapesPair inputShapes;
+        std::vector<size_t> activationShapes;
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
         Precision inPrecision, outPrecision;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = this->GetParam();
+        std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         activationType = activationTypeAndConstValue.first;
         auto constantsValue = activationTypeAndConstValue.second;
@@ -93,8 +97,8 @@ protected:
         inputDynamicShapes = inputShapes.first;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front()[0], targetStaticShapes.front()[1]});
-        auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, targetStaticShapes.front()[1], constantsValue);
+        auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front().front()});
+        auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, activationShapes, constantsValue);
         activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
     }
@@ -112,6 +116,8 @@ TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
 
 namespace {
 // list only types supported by eltwise
+const std::vector<size_t> activationShapes = {};
+
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
         {Sqrt,        {{}}},
         {Sigmoid,     {{}}},
@@ -123,7 +129,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
         {Mish,        {{}}},
-        {PReLu, {{-0.01f}}},
+        {PReLu,       {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}}
 };
@@ -139,8 +145,14 @@ const std::vector<inputShapesPair> basic4D = {
                 {},
                 // Static shape
                 {
-                        {{2, 4, 4, 1}, {}},
-                        {{2, 17, 5, 4}, {}}
+                        {{2, 4, 4, 1}}
+                }
+        },
+        {
+                {},
+                // Static shape
+                {
+                        {{2, 17, 5, 4}}
                 }
         }
 };
@@ -149,6 +161,7 @@ std::vector<Precision> netPrc = {Precision::BF16, Precision::FP32};
 
 const auto basicCases4D = ::testing::Combine(
             ::testing::ValuesIn(basic4D),
+            ::testing::Values(activationShapes),
             ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
             ::testing::ValuesIn(netPrc),
             ::testing::Values(Precision::FP32),
@@ -169,14 +182,21 @@ const std::vector<inputShapesPair> basic5D = {
                 {},
                 // Static shape
                 {
-                        {{2, 4, 3, 4, 1}, {}},
-                        {{2, 17, 7, 5, 4}, {}}
+                        {{2, 4, 3, 4, 1}}
+                }
+        },
+        {
+                {},
+                // Static shape
+                {
+                        {{2, 17, 7, 5, 4}}
                 }
         }
 };
 
 const auto basicCases5D = ::testing::Combine(
         ::testing::ValuesIn(basic5D),
+        ::testing::Values(activationShapes),
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrc),
         ::testing::Values(Precision::FP32),
@@ -216,46 +236,44 @@ const std::vector<inputShapesPair> dynamicMathBasic = {
         {
                 // dynamic
                 {
-                        {-1, -1},
-                        {}
+                        {-1, -1}
                 },
                 // target
                 {
-                        {{1, 50}, {}},
-                        {{5, 128}, {}},
-                        {{3, 64}, {}}
+                        {{1, 50}},
+                        {{5, 128}},
+                        {{3, 64}}
                 }
         },
         {
                 // dynamic
                 {
-                        {-1, -1, -1, -1, -1, -1, -1, -1},
-                        {}
+                        {-1, -1, -1, -1, -1, -1, -1, -1}
                 },
                 // target
                 {
-                        {{2, 2, 2, 2, 2, 2, 2, 2}, {}},
-                        {{2, 3, 2, 3, 2, 3, 2, 3}, {}},
-                        {{3, 3, 3, 3, 3, 3, 3, 3}, {}}
+                        {{2, 2, 2, 2, 2, 2, 2, 2}},
+                        {{2, 3, 2, 3, 2, 3, 2, 3}},
+                        {{3, 3, 3, 3, 3, 3, 3, 3}}
                 }
         },
         {
                 // dynamic
                 {
-                        {{1, 5}, 128},
-                        {}
+                        {{1, 5}, 128}
                 },
                 // target
                 {
-                        {{1, 128}, {}},
-                        {{3, 128}, {}},
-                        {{5, 128}, {}}
+                        {{1, 128}},
+                        {{3, 128}},
+                        {{5, 128}}
                 }
         }
 };
 
 const auto dynamicMathBasicCases = ::testing::Combine(
         ::testing::ValuesIn(dynamicMathBasic),
+        ::testing::Values(activationShapes),
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypesDynamicMath)),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(Precision::FP32),
