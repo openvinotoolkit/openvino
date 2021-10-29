@@ -173,9 +173,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         } else {
             _output = allocate_output();
         }
-
-        // Allocate internal buffer
-        allocate_internal_buffers();
     }
 }
 
@@ -231,18 +228,14 @@ void primitive_inst::allocate_internal_buffers(void) {
 memory::ptr primitive_inst::allocate_output() {
     auto layout = _node.get_output_layout();
     auto& engine = get_network().get_engine();
-    const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
-    auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
-        if (!b->mem_allocated()) return a;
-        if (b->output_memory().get_allocation_type() == allocation_type::usm_device
-            || b->output_memory().get_allocation_type() == allocation_type::cl_mem)
-            return a + b->output_memory().size();
-        else
-            return a;
+    // TODO: Add a preprocessing step to do  alloc_type check before actual allocation
+    const auto& node_deps = _node.get_dependencies();
+    auto device_mem_acc = [&](size_t a, program_node* b) {
+        return a + b->get_output_layout().bytes_count();
     };
 
     bool usm_device_allocatable = true;
-    const auto& total_device_input_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
+    const auto& total_device_input_mem_size = std::accumulate(node_deps.begin(), node_deps.end(), 0, device_mem_acc);
     if (total_device_input_mem_size > engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
