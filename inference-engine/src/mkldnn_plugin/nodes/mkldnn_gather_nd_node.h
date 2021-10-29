@@ -18,27 +18,28 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    size_t _dataRank;
-    size_t _sliceRank;
-    size_t _blockSize;
-    size_t _batchDims;
-    size_t _batchNum;
-    size_t _batchStep;
-    size_t _dataTypeSize;
-    const size_t _dataIndex = 0;
-    const size_t _indicesIndex = 1;
-    std::string _errorPrefix;
+    size_t batchDims = 0;
+    size_t batchSize = 1;
+    size_t cycles = 1;
+    size_t sliceRank = 0;
+    size_t dataLength = 1;
 
-    template <typename dataType>
-    void gatherElementwise();
-    void gatherBlocks();
+    std::vector<size_t> srcShifts;
+    size_t srcBatchStride = 1;
+    size_t idxBatchStride = 1;
+    size_t dstBatchStride = 1;
+
+    size_t dataTypeSize = 1;
+
+    static constexpr size_t GATHERND_DATA = 0;
+    static constexpr size_t GATHERND_INDEXES = 1;
 };
 
 }  // namespace MKLDNNPlugin
