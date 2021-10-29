@@ -153,7 +153,7 @@ output  = [[[ 2  5],
 ```
 
 ```xml
-<layer id="1" type="GatherND">
+<layer id="1" type="GatherND" version="opset8">
     <data batch_dims="0" />
     <input>
         <port id="0">
@@ -179,7 +179,7 @@ output  = [[[ 2  5],
 ```
 
 ```xml
-<layer id="1" type="GatherND">
+<layer id="1" type="GatherND" version="opset8">
     <data batch_dims="2" />
     <input>
         <port id="0">
@@ -207,7 +207,7 @@ output  = [[[ 2  5],
 ```
 
 ```xml
-<layer id="1" type="GatherND">
+<layer id="1" type="GatherND" version="opset8">
     <data batch_dims="3" />
     <input>
         <port id="0">
