@@ -22,7 +22,7 @@ static inline float clip_less(float x, float threshold) {
     return x > threshold ? x : threshold;
 }
 
-std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
+static std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
         unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
@@ -33,14 +33,14 @@ std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_rati
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
 }
 
-int64_t number_of_priors(const std::vector<float>& attrs_min_size,
-                         const std::vector<float>& attrs_max_size,
-                         const std::vector<float>& attrs_aspect_ratio,
-                         const std::vector<float>& attrs_density,
-                         const std::vector<float>& attrs_fixed_ratio,
-                         const std::vector<float>& attrs_fixed_size,
-                         const bool& attrs_flip,
-                         const bool& attrs_scale_all_sizes) {
+static int64_t number_of_priors(const std::vector<float>& attrs_min_size,
+                                const std::vector<float>& attrs_max_size,
+                                const std::vector<float>& attrs_aspect_ratio,
+                                const std::vector<float>& attrs_density,
+                                const std::vector<float>& attrs_fixed_ratio,
+                                const std::vector<float>& attrs_fixed_size,
+                                const bool& attrs_flip,
+                                const bool& attrs_scale_all_sizes) {
     // Starting with 0 number of prior and then various conditions on attributes will contribute
     // real number of prior boxes as PriorBox is a fat thing with several modes of
     // operation that will be checked in order in the next statements.

@@ -10,7 +10,7 @@
 using namespace ngraph;
 
 TEST(type_prop, prior_box1) {
-    op::v0::PriorBoxAttrs attrs;
+    op::v0::PriorBox::Attributes attrs;
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
     attrs.scale_all_sizes = false;
@@ -22,7 +22,7 @@ TEST(type_prop, prior_box1) {
 }
 
 TEST(type_prop, prior_box2) {
-    op::v0::PriorBoxAttrs attrs;
+    op::v0::PriorBox::Attributes attrs;
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
     attrs.flip = true;
@@ -35,7 +35,7 @@ TEST(type_prop, prior_box2) {
 }
 
 TEST(type_prop, prior_box3) {
-    op::v0::PriorBoxAttrs attrs;
+    op::v0::PriorBox::Attributes attrs;
     attrs.min_size = {256.0f};
     attrs.max_size = {315.0f};
     attrs.aspect_ratio = {2.0f};
@@ -48,7 +48,7 @@ TEST(type_prop, prior_box3) {
 }
 
 TEST(type_prop, prior_box_v8_1) {
-    op::v8::PriorBoxAttrs attrs;
+    op::v8::PriorBox::Attributes attrs;
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
     attrs.scale_all_sizes = false;
@@ -61,7 +61,7 @@ TEST(type_prop, prior_box_v8_1) {
 }
 
 TEST(type_prop, prior_box_v8_2) {
-    op::v8::PriorBoxAttrs attrs;
+    op::v8::PriorBox::Attributes attrs;
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
     attrs.flip = true;

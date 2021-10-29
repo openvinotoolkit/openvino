@@ -24,7 +24,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
 
     {
         auto in = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{2});
-        ngraph::op::v0::PriorBoxAttrs attrs;
+        ngraph::op::v0::PriorBox::Attributes attrs;
         attrs.min_size = {256.0f};
         attrs.max_size = {315.0f};
         attrs.aspect_ratio = {2.0f};
@@ -119,7 +119,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     {
         auto in = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{2, 3, 1, 1});
         auto in_2 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{2, 3, 300, 300});
-        ngraph::op::v0::PriorBoxAttrs attrs;
+        ngraph::op::v0::PriorBox::Attributes attrs;
         attrs.min_size = {256.0f};
         attrs.max_size = {315.0f};
         attrs.aspect_ratio = {2.0f};

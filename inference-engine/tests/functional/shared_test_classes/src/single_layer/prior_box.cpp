@@ -66,7 +66,7 @@ void PriorBoxLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes, imageShapes});
 
-    ngraph::op::v8::PriorBoxAttrs attributes;
+    ngraph::op::v8::PriorBox::Attributes attributes;
     attributes.min_size = min_size;
     attributes.max_size = max_size;
     attributes.aspect_ratio = aspect_ratio;

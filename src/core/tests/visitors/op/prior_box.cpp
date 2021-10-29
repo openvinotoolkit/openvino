@@ -22,7 +22,7 @@ TEST(attributes, prior_box_op) {
     const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
 
-    op::v0::PriorBoxAttrs attrs;
+    op::v0::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};
     attrs.max_size = vector<float>{256.f, 512.f};
     attrs.aspect_ratio = vector<float>{0.66f, 1.56f};
@@ -64,7 +64,7 @@ TEST(attributes, prior_box_v8_op) {
     const auto layer_shape = make_shared<op::Parameter>(element::i64, Shape{128, 128});
     const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{32, 32});
 
-    op::v8::PriorBoxAttrs attrs;
+    op::v8::PriorBox::Attributes attrs;
     attrs.min_size = vector<float>{16.f, 32.f};
     attrs.max_size = vector<float>{256.f, 512.f};
     attrs.aspect_ratio = vector<float>{0.66f, 1.56f};
