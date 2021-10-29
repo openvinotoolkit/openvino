@@ -137,7 +137,7 @@ echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release
 "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release
 if ERRORLEVEL 1 GOTO errorHandling
 
-if NOT "%SAMPLE_INSTALL_DIR%"=="" cmake -DCMAKE_INSTALL_PREFIX="%SAMPLE_INSTALL_DIR%" -P cmake_install.cmake
+if NOT "%SAMPLE_INSTALL_DIR%"=="" cmake -DCMAKE_INSTALL_PREFIX="%SAMPLE_INSTALL_DIR%" -DCOMPONENT=samples_bin -P cmake_install.cmake
 
 echo Done.
 goto :eof

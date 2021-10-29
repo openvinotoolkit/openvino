@@ -246,4 +246,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
 endif()
 add_samples_to_build(${samples_dirs})
 
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/intel64/Release/ DESTINATION samples_bin/)
+install(
+    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/intel64/Release/
+    DESTINATION samples_bin/
+    COMPONENT samples_bin
+    EXCLUDE_FROM_ALL
+)

@@ -95,7 +95,7 @@ cmake -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"
 make $NUM_THREADS
 
 if [ "$sample_install_dir" != "" ]; then
-    cmake -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -P cmake_install.cmake
+    cmake -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P cmake_install.cmake
     printf "\nBuild completed, you can find binaries for all samples in the %s/samples_bin subfolder.\n\n" "$sample_install_dir"
 else
     printf "\nBuild completed, you can find binaries for all samples in the $build_dir/%s/Release subfolder.\n\n" "$OS_PATH"
