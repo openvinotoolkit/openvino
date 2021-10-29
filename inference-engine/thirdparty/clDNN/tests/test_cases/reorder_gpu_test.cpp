@@ -792,7 +792,7 @@ TEST(reorder_gpu, basic_convert_int8) {
     layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1, 1, 3, 3 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
-    std::list<float> final_results = { 1.0f, -3.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
+    std::list<float> final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f, 9.0f };
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -1579,7 +1579,7 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
         reorder("r1", "in", format::bfyx, data_types::i8, mul_val, reorder_mean_mode::mul)
     };
 
-    char answers[] = { 1, 2, 2, 2, 25, 127 };
+    char answers[] = { 0, 2, 1, 2, 25, 127 };
     build_options opts;
     opts.set_option(build_option::optimize_data(true));
     network net(engine, tpl, opts);
@@ -1622,10 +1622,10 @@ TEST(reorder_gpu_i32, basic)
     auto output = outputs.begin()->second.get_memory();
 
     int32_t answers[16] = {
-        1, 0, 5, 2,
+        1, 0, 5, 1,
         2, 0, 6, 5,
-        3, 1, 7, 12,
-        4, -1, 8, 8
+        3, 0, 7, 12,
+        4, 0, 8, 8
     };
 
     int32_t* a_ptr = answers;
@@ -1663,10 +1663,10 @@ TEST(reorder_gpu_i64, basic)
     auto output = outputs.begin()->second.get_memory();
 
     int64_t answers[16] = {
-        1, 0, 5, 2,
+        1, 0, 5, 1,
         2, 0, 6, 5,
-        3, 1, 7, 12,
-        4, -1, 8, 8
+        3, 0, 7, 12,
+        4, 0, 8, 8
     };
 
     int64_t* a_ptr = answers;

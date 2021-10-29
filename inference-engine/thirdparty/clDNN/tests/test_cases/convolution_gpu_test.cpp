@@ -782,8 +782,8 @@ TEST(convolution_f32_fw_gpu, basic_convolution_int8_no_bias) {
     set_values<int8_t>(weights, { 1, 2, 1,
                                   2, 1, 2 });
     VVF<float> output_vec = {
-        { 25.0f, 31.0f, 46.0f },
-        { 22.0f, 20.0f, 21.0f } };
+        { 20.0f, 27.0f, 38.0f },
+        { 17.0f, 19.0f, 19.0f } };
 
     topology topology(
         input_layout("input", input->get_layout()),

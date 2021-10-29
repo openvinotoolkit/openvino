@@ -429,7 +429,7 @@ TEST(pooling_forward_gpu, basic_max_pooling_int8) {
     layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
-    std::list<float> final_results = { 10.0f };
+    std::list<float> final_results = { 9.0f };
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -480,7 +480,7 @@ TEST(pooling_forward_gpu, basic_avg_pooling_int8) {
     for (const auto& val : input_f)
     {
         // reorder fp32 -> int8 do round
-        final_result += (float)(std::roundf(val));
+        final_result += (float)(static_cast<int8_t>(val));
     }
     final_result /= input_f.size();
     // Allocate memory for input image.
@@ -3774,7 +3774,7 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
     layout out_layout = { type_to_data_type<float>::value, format::byxf, { 1, 1, 1, 1 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx, { 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.5f };
-    std::list<float> final_results = { 10.0f };
+    std::list<float> final_results = { 9.0f };
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);

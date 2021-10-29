@@ -166,9 +166,7 @@ KERNEL (reorder_data)(
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
 #if INPUT0_IS_FP && !OUTPUT_IS_FP
-    // TODO: check if this round really needed. Right now it's added to have the same behavior as CPU plugin
-    // becuase CPU's convert instruction performs round
-    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(round(res)), ACTIVATION_PARAMS_TYPED);
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
 #else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif
