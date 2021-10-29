@@ -15,8 +15,17 @@
 #include <ngraph_ops/nms_ie_internal.hpp>
 #include "utils/general_utils.h"
 
+#include "cpu/x64/jit_generator.hpp"
+
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+using namespace mkldnn;
+using namespace mkldnn::impl;
+using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
+using namespace mkldnn::impl::utils;
+using namespace Xbyak;
 
 bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -125,7 +134,18 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
         outDataConf.emplace_back(LayoutType::ncsp, outPrecision);
     }
 
-    addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
+    impl_desc_type impl_type;
+    if (mayiuse(cpu::x64::avx512_common)) {
+        impl_type = impl_desc_type::jit_avx512;
+    } else if (mayiuse(cpu::x64::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+    } else if (mayiuse(cpu::x64::sse41)) {
+        impl_type = impl_desc_type::jit_sse42;
+    } else {
+        impl_type = impl_desc_type::ref;
+    }
+
+    addSupportedPrimDesc(inDataConf, outDataConf, impl_type);
 }
 
 void MKLDNNNonMaxSuppressionNode::prepareParams() {
@@ -198,8 +218,10 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     std::vector<filteredBoxes> filtBoxes(maxNumberOfBoxes);
 
     if (soft_nms_sigma == 0.0f) {
+        std::cout << "with_out_soft_sigma" << std::endl;
         nmsWithoutSoftSigma(boxes, scores, boxesStrides, scoresStrides, filtBoxes);
     } else {
+        std::cout << "with_soft_sigma" << std::endl;
         nmsWithSoftSigma(boxes, scores, boxesStrides, scoresStrides, filtBoxes);
     }
 
@@ -373,8 +395,9 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
     parallel_for2d(num_batches, num_classes, [&](int batch_idx, int class_idx) {
         const float *boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
+        std::vector<float> boxCoord0, boxCoord1, boxCoord2, boxCoord3;
 
-        std::vector<std::pair<float, int>> sorted_boxes;
+        std::vector<std::pair<float, int>> sorted_boxes;  // score, box_idx
         for (int box_idx = 0; box_idx < num_boxes; box_idx++) {
             if (scoresPtr[box_idx] > score_threshold)
                 sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
@@ -388,22 +411,55 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
                           });
             int offset = batch_idx*num_classes*max_output_boxes_per_class + class_idx*max_output_boxes_per_class;
             filtBoxes[offset + 0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
+            if (nms_kernel) {
+                boxCoord0.push_back(boxesPtr[sorted_boxes[0].second * 4]);
+                boxCoord1.push_back(boxesPtr[sorted_boxes[0].second * 4 + 1]);
+                boxCoord2.push_back(boxesPtr[sorted_boxes[0].second * 4 + 2]);
+                boxCoord3.push_back(boxesPtr[sorted_boxes[0].second * 4 + 3]);
+            }
             io_selection_size++;
-            for (size_t box_idx = 1; (box_idx < sorted_boxes.size()) && (io_selection_size < max_out_box); box_idx++) {
+            auto arg = jit_nms_args();
+            arg.iou_threshold = static_cast<float*>(&iou_threshold);
+            for (size_t candidate_idx = 1; (candidate_idx < sorted_boxes.size()) && (io_selection_size < max_out_box); candidate_idx++) {
                 bool box_is_selected = true;
-                for (int idx = io_selection_size - 1; idx >= 0; idx--) {
-                    float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[box_idx].second * 4], &boxesPtr[filtBoxes[offset + idx].box_index * 4]);
-                    if (iou >= iou_threshold) {
+                if (nms_kernel) {
+                    // jitted exec
+                    int isValid = 1;
+                    arg.selected_boxes_coord[0] = static_cast<float*>(&boxCoord0[0]);
+                    arg.selected_boxes_coord[1] = static_cast<float*>(&boxCoord1[0]);
+                    arg.selected_boxes_coord[2] = static_cast<float*>(&boxCoord2[0]);
+                    arg.selected_boxes_coord[3] = static_cast<float*>(&boxCoord3[0]);
+                    arg.selected_boxes_num = io_selection_size;
+                    arg.candidate_box = static_cast<const float*>(&boxesPtr[sorted_boxes[candidate_idx].second * 4]);
+                    arg.is_valid = static_cast<int*>(&isValid);
+                    (*nms_kernel)(&arg);
+
+                    if (!isValid)
                         box_is_selected = false;
-                        break;
+                } else {
+                    for (int selected_idx = io_selection_size - 1; selected_idx >= 0; selected_idx--) {
+                        float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[candidate_idx].second * 4],
+                            &boxesPtr[filtBoxes[offset + selected_idx].box_index * 4]);
+                        if (iou >= iou_threshold) {
+                            box_is_selected = false;
+                            break;
+                        }
                     }
                 }
 
                 if (box_is_selected) {
-                    filtBoxes[offset + io_selection_size] = filteredBoxes(sorted_boxes[box_idx].first, batch_idx, class_idx, sorted_boxes[box_idx].second);
+                    if (nms_kernel) {
+                        boxCoord0.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4]);
+                        boxCoord1.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4 + 1]);
+                        boxCoord2.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4 + 2]);
+                        boxCoord3.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4 + 3]);
+                    }
+                    filtBoxes[offset + io_selection_size] =
+                        filteredBoxes(sorted_boxes[candidate_idx].first, batch_idx, class_idx, sorted_boxes[candidate_idx].second);
                     io_selection_size++;
                 }
             }
+            // std::cout << "io_selection_size:" << io_selection_size << std::endl;
         }
         numFiltBox[batch_idx][class_idx] = io_selection_size;
     });
