@@ -75,6 +75,7 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
 }
 
 namespace unsqueeze {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
@@ -122,6 +123,7 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
     }
     return rc;
 }
+}  // namespace
 }  // namespace unsqueeze
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
