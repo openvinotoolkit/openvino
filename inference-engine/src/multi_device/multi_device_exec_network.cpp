@@ -181,6 +181,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         if (CPUIter != metaDevices.end()) {
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
+            HInfo("[AUTOPLUGIN]:will load CPU for accelerator");
         } else {
             _loadContext[CPU].isEnabled = false;
         }
@@ -333,8 +334,11 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                    _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
                    _loadContext[ACTUALDEVICE].isAlready = true;
                }
+               HInfo("[AUTOPLUGIN]:device:%s loading Network finished",
+                       _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
                std::vector<std::string> supported_config_keys =
-                    _core->GetMetric(_loadContext[ACTUALDEVICE].deviceInfo.deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                    _core->GetMetric(_loadContext[ACTUALDEVICE].deviceInfo.deviceName,
+                            METRIC_KEY(SUPPORTED_CONFIG_KEYS));
                for (const auto& cfg : supported_config_keys) {
                     try {
                         HDebug("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str(),
@@ -359,6 +363,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         } else {
             if (_loadContext[ACTUALDEVICE].isAlready) {
+                WaitActualNetworkReady();
                 devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
             } else {
                 devices.push_back(_loadContext[CPU].deviceInfo);
