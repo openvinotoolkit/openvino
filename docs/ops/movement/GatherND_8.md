@@ -197,7 +197,8 @@ output  = [[[ 2  5],
     </input>
     <output>
         <port id="3">
-            <dim>60</dim>
+            <dim>30</dim>
+            <dim>2</dim>
             <dim>3</dim>
             <dim>35</dim>
         </port>
