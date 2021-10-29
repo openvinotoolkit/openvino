@@ -2,12 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import pytest
 
 import openvino as ov
 import openvino.opset8 as ops
 from openvino.impl.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo
-from openvino.impl import Function, Output, Node, Type
+from openvino.impl import Function, Output, Type
 from openvino.utils.decorators import custom_preprocess_function
 from tests.runtime import get_runtime
 
@@ -33,6 +32,7 @@ def test_ngraph_preprocess_mean():
     computation = runtime.computation(function)
     output = computation(input_data)
     assert np.equal(output, expected_output).all()
+
 
 def test_ngraph_preprocess_mean_vector():
     shape = [2, 2]
@@ -113,10 +113,10 @@ def test_ngraph_preprocess_mean_scale_convert():
                ) \
         .build(function)
 
-    input_data1 = np.array([[0,1], [2,-2]]).astype(np.int32)
-    input_data2 = np.array([[1,3], [5,7]]).astype(np.int32)
-    expected_output1 = np.array([[1,0], [1,3]]).astype(np.float32)
-    expected_output2 = np.array([[0,1], [2,3]]).astype(np.float32)
+    input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
+    input_data2 = np.array([[1, 3], [5, 7]]).astype(np.int32)
+    expected_output1 = np.array([[1, 0], [1, 3]]).astype(np.float32)
+    expected_output2 = np.array([[0, 1], [2, 3]]).astype(np.float32)
 
     runtime = get_runtime()
     computation = runtime.computation(function)
