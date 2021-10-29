@@ -20,6 +20,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace topk {
+namespace {
 template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
 inline bool evaluate_execute(const HostTensorPtr& arg0,
                              const HostTensorPtr& out_indices,
@@ -133,6 +134,7 @@ size_t read_k_from_host_tensor(const HostTensorPtr& arg_k) {
     }
     return k;
 }
+}  // namespace
 }  // namespace topk
 
 // v1 version starts

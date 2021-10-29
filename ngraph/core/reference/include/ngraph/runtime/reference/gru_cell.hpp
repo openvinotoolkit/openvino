@@ -144,9 +144,9 @@ void gru_cell(const T* X,
                    z_t.data(),
                    gate_shape,
                    {B_shape[0] / num_b_splits},
-                   op::AutoBroadcastSpec::NUMPY);  //
+                   op::AutoBroadcastType::NUMPY);  //
     reference::add(X_W_zrh[0].data(), z_t.data(), z_t.data(), gate_shape, gate_shape,
-                   op::AutoBroadcastSpec::NUMPY);  //
+                   op::AutoBroadcastType::NUMPY);  //
     clip_activation(z_t, activation_f);
 
     // calculate r_t
@@ -160,8 +160,8 @@ void gru_cell(const T* X,
                    r_t.data(),
                    gate_shape,
                    {B_shape[0] / num_b_splits},
-                   op::AutoBroadcastSpec::NUMPY);
-    reference::add(X_W_zrh[1].data(), r_t.data(), r_t.data(), gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
+                   op::AutoBroadcastType::NUMPY);
+    reference::add(X_W_zrh[1].data(), r_t.data(), r_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     clip_activation(r_t, activation_f);
 
     // calculate h_t
@@ -173,18 +173,18 @@ void gru_cell(const T* X,
                        h_t.data(),
                        gate_shape,
                        {B_shape[0] / num_b_splits},
-                       op::AutoBroadcastSpec::NUMPY);
-        reference::multiply(r_t.data(), h_t.data(), h_t.data(), gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
+                       op::AutoBroadcastType::NUMPY);
+        reference::multiply(r_t.data(), h_t.data(), h_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
         reference::add(h_t.data(),
                        biases_zrh[2].data(),
                        h_t.data(),
                        gate_shape,
                        {B_shape[0] / num_b_splits},
-                       op::AutoBroadcastSpec::NUMPY);
-        reference::add(X_W_zrh[2].data(), h_t.data(), h_t.data(), gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
+                       op::AutoBroadcastType::NUMPY);
+        reference::add(X_W_zrh[2].data(), h_t.data(), h_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     } else {
         // ht = g(Xt*(Wh^T) + (rt (.) Ht-1)*(Rh^T) + Rbh + Wbh)
-        reference::multiply(r_t.data(), H, h_t.data(), gate_shape, H_shape, op::AutoBroadcastSpec::NUMPY);
+        reference::multiply(r_t.data(), H, h_t.data(), gate_shape, H_shape, op::AutoBroadcastType::NUMPY);
         std::vector<T> matmul(gate_shape_size);
         reference::matmul(h_t.data(), R_zrh[2].data(), matmul.data(), gate_shape, bias_shape, gate_shape, false, true);
         reference::add(matmul.data(),
@@ -192,18 +192,18 @@ void gru_cell(const T* X,
                        h_t.data(),
                        gate_shape,
                        {B_shape[0] / num_b_splits},
-                       op::AutoBroadcastSpec::NUMPY);
-        reference::add(X_W_zrh[2].data(), h_t.data(), h_t.data(), gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
+                       op::AutoBroadcastType::NUMPY);
+        reference::add(X_W_zrh[2].data(), h_t.data(), h_t.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
     }
     clip_activation(h_t, activation_g);
     // Ht = (1 - zt) (.) ht + zt (.) Ht-1
     std::vector<T> mul1(gate_shape_size);
     std::vector<T> mul2(gate_shape_size);
     T one[] = {1};
-    reference::subtract(one, z_t.data(), mul1.data(), {1}, gate_shape, op::AutoBroadcastSpec::NUMPY);
-    reference::multiply(mul1.data(), h_t.data(), mul1.data(), gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
-    reference::multiply(z_t.data(), H, mul2.data(), gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
-    reference::add(mul1.data(), mul2.data(), dst_data, gate_shape, gate_shape, op::AutoBroadcastSpec::NUMPY);
+    reference::subtract(one, z_t.data(), mul1.data(), {1}, gate_shape, op::AutoBroadcastType::NUMPY);
+    reference::multiply(mul1.data(), h_t.data(), mul1.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+    reference::multiply(z_t.data(), H, mul2.data(), gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
+    reference::add(mul1.data(), mul2.data(), dst_data, gate_shape, gate_shape, op::AutoBroadcastType::NUMPY);
 }
 }  // namespace reference
 }  // namespace runtime
