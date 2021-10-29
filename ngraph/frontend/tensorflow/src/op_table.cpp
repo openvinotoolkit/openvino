@@ -243,6 +243,9 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"ZerosLike", translate_zeros_like_op},
 
         // should be registered as an extensions in OVTF:
+        // TODO: implement this translator as an extension.
+        //  _Arg should be converted to Parameter. This is internal operation in tf,
+        //  We do not encounter this op in usual networks.
         //{"_Arg", translate_arg_op},
         {"FusedBatchNorm", translate_fused_batch_norm_op},
         {"FusedBatchNormV2", translate_fused_batch_norm_op},
