@@ -90,7 +90,7 @@ std::vector<std::string> disabledTestPatterns() {
             // TODO: Issue: 67486
             R"(.*(EltwiseLayerTest|SoftMaxLayerTest).*)",
             // TODO: Issue: 68712
-            R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
+            //R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // TODO: Issue 66685
             R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
             // TODO: Issue 69187
