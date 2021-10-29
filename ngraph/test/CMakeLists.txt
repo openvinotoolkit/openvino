@@ -502,12 +502,10 @@ set(MULTI_TEST_SRC
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
     backend/result.in.cpp
-    backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/space_to_depth.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
-    backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
