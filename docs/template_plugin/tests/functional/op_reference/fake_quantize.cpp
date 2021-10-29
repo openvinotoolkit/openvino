@@ -26,7 +26,7 @@ struct FakeQuantizeParams {
                 const std::shared_ptr<op::v0::Constant>& output_low,
                 const std::shared_ptr<op::v0::Constant>& output_high,
                 const std::size_t& levels,
-                const op::AutoBroadcastSpec& broadcast = op::AutoBroadcastSpec::NONE)
+                const op::AutoBroadcastSpec& broadcast = op::AutoBroadcastType::NONE)
         : m_input_shape(input_shape),
           m_expected_shape(expected_shape),
           m_input_type(input_type),
@@ -100,7 +100,7 @@ private:
                                                     const std::size_t& levels,
                                                     const op::AutoBroadcastSpec& broadcast) {
         auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        if (broadcast == op::AutoBroadcastSpec::NONE) {
+        if (broadcast == op::AutoBroadcastType::NONE) {
             return std::make_shared<Function>(
                 NodeVector{std::make_shared<op::v0::FakeQuantize>(in, input_low, input_high, output_low, output_high, levels)},
                 ParameterVector{in});

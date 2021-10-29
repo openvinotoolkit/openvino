@@ -2,51 +2,92 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "engines_util/execute_tools.hpp"
-#include "engines_util/test_case.hpp"
-#include "engines_util/test_engines.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/runtime/tensor.hpp"
-#include "ngraph/type/bfloat16.hpp"
-#include "ngraph/type/float16.hpp"
-#include "runtime/backend.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
-#include "util/test_control.hpp"
+#include <gtest/gtest.h>
 
-using namespace std;
-using namespace ngraph;
+#include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/dft.hpp"
 
-static string s_manifest = "${MANIFEST}";
+using namespace reference_tests;
+using namespace ov;
 
-using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+namespace {
 
-static std::vector<float16> from_float_vector(const std::vector<float>& v_f32) {
-    if (v_f32.empty()) {
-        return std::vector<float16>();
+struct DFTParams {
+    template <class T>
+    DFTParams(const Shape& input_shape,
+                 const Shape& expected_shape,
+                 const element::Type_t& input_type,
+                 const element::Type_t& expected_type,
+                 const std::vector<T>& input_value,
+                 const std::vector<T>& expected_value,
+                 const std::shared_ptr<op::v0::Constant>& axes,
+                 const std::shared_ptr<op::v0::Constant>& signal) {
+        m_input_shape = input_shape;
+        m_expected_shape = expected_shape;
+        m_input_type = input_type;
+        m_expected_type = expected_type;
+        m_input_value = CreateTensor(input_type, input_value);
+        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_axes = axes;
+        m_signal = signal;
     }
 
-    size_t num_of_elems = v_f32.size();
-    std::vector<float16> v_f16(num_of_elems);
-    for (size_t i = 0; i < num_of_elems; ++i) {
-        v_f16[i] = float16(v_f32[i]);
-    }
-    return v_f16;
-}
+    Shape m_input_shape;
+    Shape m_expected_shape;
+    element::Type_t m_input_type;
+    element::Type_t m_expected_type;
+    runtime::Tensor m_input_value;
+    runtime::Tensor m_expected_value;
+    std::shared_ptr<op::v0::Constant> m_axes;
+    std::shared_ptr<op::v0::Constant> m_signal;
+};
 
-static std::vector<float> to_float_vector(const std::vector<float16>& v_f16) {
-    if (v_f16.empty()) {
-        return std::vector<float>();
+class ReferenceDFTLayerTest : public testing::TestWithParam<DFTParams>, public CommonReferenceTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        if (params.m_signal != NULL) {
+            function = CreateFunctionWithSignal(params);
+        } else {
+            function = CreateFunction(params);
+        }
+
+        inputData = {params.m_input_value};
+        refOutData = {params.m_expected_value};
     }
 
-    size_t num_of_elems = v_f16.size();
-    std::vector<float> v_f32(num_of_elems);
-    for (size_t i = 0; i < num_of_elems; ++i) {
-        v_f32[i] = float(v_f16[i]);
+    static std::string getTestCaseName(const testing::TestParamInfo<DFTParams>& obj) {
+        const auto param = obj.param;
+        std::ostringstream result;
+
+        result << "input_shape1=" << param.m_input_shape << "; ";
+        result << "output_shape=" << param.m_expected_shape << "; ";
+        result << "input_type1=" << param.m_input_type << "; ";
+        result << "output_type=" << param.m_expected_type << "; ";
+        result << "transpose1=" << param.m_axes;
+
+        return result.str();
     }
-    return v_f32;
+
+private:
+    static std::shared_ptr<Function> CreateFunction(DFTParams& p) {
+        auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
+        auto dft = std::make_shared<op::v7::DFT>(in, p.m_axes);
+
+        return std::make_shared<ov::Function>(dft, ParameterVector{in});
+    }
+
+    static std::shared_ptr<Function> CreateFunctionWithSignal(DFTParams& p) {
+        auto in = std::make_shared<op::v0::Parameter>(p.m_input_type, p.m_input_shape);
+        auto dft = std::make_shared<op::v7::DFT>(in, p.m_axes, p.m_signal);
+
+        return std::make_shared<ov::Function>(dft, ParameterVector{in});
+    }
+};
+
+TEST_P(ReferenceDFTLayerTest, CompareWithHardcodedRefs) {
+    Exec();
 }
 
 static const std::vector<float> input_data = {
@@ -1077,537 +1118,294 @@ static const std::vector<float> expected_dft3d_signal_size_results = {
     1.1392056,    -4.696983,   0.45275614,   1.9134089,  -3.8572056,   -2.009159,   1.6307822,   -0.9646755,
     -1.2407924,   2.6003554};
 
-NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-    copy_data(backend_data, input_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft1d_results[j], 0.00001);
+template<class T>
+static std::vector<T> convert(const std::vector<float>& v) {
+    if (v.empty()) {
+        return std::vector<T>();
     }
+
+    size_t num_of_elems = v.size();
+    std::vector<T> converted(num_of_elems);
+    for (size_t i = 0; i < num_of_elems; ++i) {
+        converted[i] = static_cast<T>(v[i]);
+    }
+    return converted;
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_1) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft1d_results_1[j], 0.00001);
+template <class T>
+static std::vector<T> convert(const std::vector<float16>& v) {
+    if (v.empty()) {
+        return std::vector<T>();
     }
+
+    size_t num_of_elems = v.size();
+    std::vector<T> converted(num_of_elems);
+    for (size_t i = 0; i < num_of_elems; ++i) {
+        converted[i] = static_cast<T>(v[i]);
+    }
+    return converted;
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_float16) {
-    auto data = std::make_shared<op::Parameter>(element::f16, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
-    copy_data(backend_data, from_float_vector(input_data));
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = to_float_vector(read_vector<float16>(dft_output));
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft1d_float16_results[j], 0.00001);
+template <class T>
+static std::vector<T> convert(const std::vector<bfloat16>& v) {
+    if (v.empty()) {
+        return std::vector<T>();
     }
+
+    size_t num_of_elems = v.size();
+    std::vector<T> converted(num_of_elems);
+    for (size_t i = 0; i < num_of_elems; ++i) {
+        converted[i] = static_cast<T>(v[i]);
+    }
+    return converted;
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_bfloat16) {
-    auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
+template <element::Type_t ET>
+std::vector<DFTParams> generateParamsForDFT() {
+    std::vector<DFTParams> params{
+        // dft1d_eval
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  input_data,
+                  expected_dft1d_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  NULL),
+        // dft1d_eval_1
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft1d_results_1,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  NULL),
+        // dft1d_eval_i32
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  input_data,
+                  expected_dft1d_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{1}, {2}),
+                  NULL),
+        // dft2d_eval_1
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft2d_results_1,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  NULL),
+        // dft2d_eval
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  input_data,
+                  expected_dft2d_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  NULL),
+        // dft2d_eval_i32
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  input_data,
+                  expected_dft2d_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{2}, {1, 2}),
+                  NULL),
+        // dft3d_eval_1
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft3d_results_1,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  NULL),
+        // dft3d_eval
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  input_data,
+                  expected_dft3d_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  NULL),
+        // dft3d_eval_i32
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  input_data,
+                  expected_dft3d_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i32, Shape{3}, {0, 1, 2}),
+                  NULL),
+        // dft1d_signal_size_eval
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  input_data,
+                  expected_dft1d_signal_size_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {-2}),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {20})),
+        // dft2d_signal_size_eval_1
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft2d_signal_size_results_1,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 9})),
+        // dft2d_signal_size_eval_2
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft2d_signal_size_results_2,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 1}),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 6})),
+        // dft2d_signal_size_eval_3
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft2d_signal_size_results_3,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {3, 4})),
+        // dft2d_signal_size_eval_4
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft2d_signal_size_results_4,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {4, 8})),
+        // dft2d_signal_size_eval_5
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft2d_signal_size_results_5,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {0, 2}),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {5, 4})),
+        // dft3d_signal_size_eval
+        DFTParams(Shape{4, 6, 8, 2},
+                  Shape{4, 6, 8, 2},
+                  ET,
+                  ET,
+                  input_data_1,
+                  expected_dft3d_signal_size_results,
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {3, 7, 5})),
+    };
 
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
-    copy_data(backend_data, bfloat16::from_float_vector(input_data));
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = bfloat16::to_float_vector(read_vector<bfloat16>(dft_output));
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft1d_bfloat16_results[j], 0.00001);
-    }
+    return params;
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft1d_eval_i32) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i32, Shape{1}, {2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
+template <element::Type_t ET>
+std::vector<DFTParams> generateParamsForDFT_float16() {
+    using T = typename element_type_traits<ET>::value_type;
 
-    auto f = make_shared<Function>(dft, ParameterVector{data});
+    std::vector<DFTParams> params{
+        // dft1d_eval_float16
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  convert<T>(input_data),
+                  convert<T>(expected_dft1d_float16_results),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  NULL),
+        // dft2d_eval_float16
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  convert<T>(input_data),
+                  convert<T>(expected_dft2d_float16_results),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  NULL),
+        // dft3d_eval_float16
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  convert<T>(input_data),
+                  convert<T>(expected_dft3d_float16_results),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  NULL),
+    };
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-    copy_data(backend_data, input_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft1d_results[j], 0.00001);
-    }
+    return params;
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval_1) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
+template <element::Type_t ET>
+std::vector<DFTParams> generateParamsForDFT_bfloat16() {
+    using T = typename element_type_traits<ET>::value_type;
 
-    auto f = make_shared<Function>(dft, ParameterVector{data});
+    std::vector<DFTParams> params{
+        // dft1d_eval_bfloat16
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  convert<T>(input_data),
+                  convert<T>(expected_dft1d_bfloat16_results),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{1}, {2}),
+                  NULL),
+        // dft2d_eval_bfloat16
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  convert<T>(input_data),
+                  convert<T>(expected_dft2d_bfloat16_results),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {1, 2}),
+                  NULL),
+        // dft3d_eval_bfloat16
+        DFTParams(Shape{2, 10, 10, 2},
+                  Shape{2, 10, 10, 2},
+                  ET,
+                  ET,
+                  convert<T>(input_data),
+                  convert<T>(expected_dft3d_bfloat16_results),
+                  op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{3}, {0, 1, 2}),
+                  NULL),
+    };
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_results_1[j], 0.000062);
-    }
+    return params;
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
+std::vector<DFTParams> generateCombinedParamsForDFT() {
+    const std::vector<std::vector<DFTParams>> allTypeParams{
+        generateParamsForDFT<element::Type_t::f32>(),
+        generateParamsForDFT_float16<element::Type_t::f16>(),
+        generateParamsForDFT_bfloat16<element::Type_t::bf16>(),
+    };
 
-    auto f = make_shared<Function>(dft, ParameterVector{data});
+    std::vector<DFTParams> combinedParams;
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-    copy_data(backend_data, input_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_results[j], 0.000062);
+    for (const auto& params : allTypeParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
     }
+
+    return combinedParams;
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval_float16) {
-    auto data = std::make_shared<op::Parameter>(element::f16, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
-    copy_data(backend_data, from_float_vector(input_data));
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = to_float_vector(read_vector<float16>(dft_output));
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_float16_results[j], 0.002);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval_bfloat16) {
-    auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
-    copy_data(backend_data, bfloat16::from_float_vector(input_data));
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = bfloat16::to_float_vector(read_vector<bfloat16>(dft_output));
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_bfloat16_results[j], 0.0003);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_eval_i32) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i32, Shape{2}, {1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-    copy_data(backend_data, input_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_results[j], 0.000062);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval_1) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{3}, {0, 1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft3d_results_1[j], 0.0002);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{3}, {0, 1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-    copy_data(backend_data, input_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft3d_results[j], 0.0002);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval_float16) {
-    auto data = std::make_shared<op::Parameter>(element::f16, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{3}, {0, 1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f16, Shape{2, 10, 10, 2});
-    copy_data(backend_data, from_float_vector(input_data));
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = to_float_vector(read_vector<float16>(dft_output));
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft3d_float16_results[j], 0.0005);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval_bfloat16) {
-    auto data = std::make_shared<op::Parameter>(element::bf16, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{3}, {0, 1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::bf16, Shape{2, 10, 10, 2});
-    copy_data(backend_data, bfloat16::from_float_vector(input_data));
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = bfloat16::to_float_vector(read_vector<bfloat16>(dft_output));
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft3d_bfloat16_results[j], 0.00001);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft3d_eval_i32) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i32, Shape{3}, {0, 1, 2});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-    copy_data(backend_data, input_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft3d_results[j], 0.0002);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft1d_signal_size_eval) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{2, 10, 10, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {-2});
-    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{1}, {20});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{2, 20, 10, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{2, 10, 10, 2});
-    copy_data(backend_data, input_data);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft1d_signal_size_results[j], 0.00001);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval_1) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
-    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {5, 9});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{5, 6, 9, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_signal_size_results_1[j], 0.000021);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval_2) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 1});
-    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 6});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_signal_size_results_2[j], 0.00001);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval_3) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
-    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {3, 4});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{3, 6, 4, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_signal_size_results_3[j], 0.00001);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval_4) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
-    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {4, 8});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_signal_size_results_4[j], 0.00001);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft2d_signal_size_eval_5) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {0, 2});
-    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{2}, {5, 4});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{5, 6, 4, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft2d_signal_size_results_5[j], 0.00001);
-    }
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dft3d_signal_size_eval) {
-    auto data = std::make_shared<op::Parameter>(element::f32, Shape{4, 6, 8, 2});
-    auto axes_input = op::Constant::create<int64_t>(element::i64, Shape{3}, {0, 1, 2});
-    auto signal_size_input = op::Constant::create<int64_t>(element::i64, Shape{3}, {3, 7, 5});
-    auto dft = std::make_shared<op::v7::DFT>(data, axes_input, signal_size_input);
-
-    auto f = make_shared<Function>(dft, ParameterVector{data});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    auto dft_output = backend->create_tensor(element::f32, Shape{3, 7, 5, 2});
-
-    auto backend_data = backend->create_tensor(element::f32, Shape{4, 6, 8, 2});
-    copy_data(backend_data, input_data_1);
-
-    auto handle = backend->compile(f);
-
-    handle->call({dft_output}, {backend_data});
-
-    auto result = read_vector<float>(dft_output);
-    size_t num_of_elems = result.size();
-    for (std::size_t j = 0; j < num_of_elems; ++j) {
-        EXPECT_NEAR(result[j], expected_dft3d_signal_size_results[j], 0.00002);
-    }
-}
+INSTANTIATE_TEST_SUITE_P(
+    smoke_DFT_With_Hardcoded_Refs,
+    ReferenceDFTLayerTest,
+    ::testing::ValuesIn(generateCombinedParamsForDFT()),
+    ReferenceDFTLayerTest::getTestCaseName);
+
+}  // namespace
