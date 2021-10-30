@@ -8,18 +8,14 @@ SETLOCAL EnableDelayedExpansion
 set "ROOT_DIR=%~dp0"
 FOR /F "delims=\" %%i IN ("%ROOT_DIR%") DO set SAMPLES_TYPE=%%~nxi
 
-set "SOLUTION_DIR64=%USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_%SAMPLES_TYPE%_samples_build"
+set "SAMPLE_BUILD_DIR=%USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_%SAMPLES_TYPE%_samples_build"
 set SAMPLE_INSTALL_DIR=
-
-set MSBUILD_BIN=
-set VS_PATH=
-set VS_VERSION=
 
 :: command line arguments parsing
 :input_arguments_loop
 if not "%1"=="" (
     if "%1"=="-b" (
-        set SOLUTION_DIR64=%2
+        set SAMPLE_BUILD_DIR=%2
         shift
     ) else if "%1"=="-i" (
         set SAMPLE_INSTALL_DIR=%2
@@ -42,7 +38,6 @@ if "%INTEL_OPENVINO_DIR%"=="" (
          echo To fix, run the following command: ^<INSTALL_DIR^>\setupvars.bat
          echo where INSTALL_DIR is the OpenVINO installation directory.
          GOTO errorHandling
-      )
     )
 )
 
@@ -52,59 +47,22 @@ if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
    set "PLATFORM=Win32"
 )
 
-set VSWHERE="false"
-if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
-   set VSWHERE="true"
-   cd "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
-) else if exist "%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe" (
-      set VSWHERE="true"
-      cd "%ProgramFiles%\Microsoft Visual Studio\Installer"
-) else (
-   echo "vswhere tool is not found"
-)
+if exist "%SAMPLE_BUILD_DIR%\CMakeCache.txt" del "%SAMPLE_BUILD_DIR%\CMakeCache.txt"
 
-if !VSWHERE! == "true" (
-   if "!VS_VERSION!"=="" (
-      echo Searching the latest Visual Studio...
-      for /f "usebackq tokens=*" %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath`) do (
-         set VS_PATH=%%i
-      )
-   ) else (
-      echo Searching Visual Studio !VS_VERSION!...
-      for /f "usebackq tokens=*" %%i in (`vswhere -products * -requires Microsoft.Component.MSBuild -property installationPath`) do (
-         set CUR_VS=%%i
-         if not "!CUR_VS:%VS_VERSION%=!"=="!CUR_VS!" (
-            set VS_PATH=!CUR_VS!
-         )
-      )
-   )
-   if exist "!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe"
-      set "MSBUILD_VERSION=16 2019"
-   )
-)
-
-if "!MSBUILD_BIN!" == "" (
-   echo Build tools for Microsoft Visual Studio !VS_VERSION! cannot be found. If you use Visual Studio 2019, please download and install build tools from https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2019
-   GOTO errorHandling
-)
-
-if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
-
-echo Creating Visual Studio %MSBUILD_VERSION% %PLATFORM% files in %SOLUTION_DIR64%... && ^
-cd "%ROOT_DIR%" && cmake -E make_directory "%SOLUTION_DIR64%" && cd "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%ROOT_DIR%"
+cd "%ROOT_DIR%" && cmake -E make_directory "%SAMPLE_BUILD_DIR%" && cd "%SAMPLE_BUILD_DIR%" && cmake -G "Visual Studio 16 2019" -A %PLATFORM% "%ROOT_DIR%"
 
 echo.
 echo ###############^|^| Build Inference Engine samples using MS Visual Studio (MSBuild.exe) ^|^|###############
 echo.
-echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release
-"!MSBUILD_BIN!" Samples.sln /p:Configuration=Release
+
+echo cmake --build . --config Release
+cmake --build . --config Release
 if ERRORLEVEL 1 GOTO errorHandling
 
 if NOT "%SAMPLE_INSTALL_DIR%"=="" cmake -DCMAKE_INSTALL_PREFIX="%SAMPLE_INSTALL_DIR%" -DCOMPONENT=samples_bin -P cmake_install.cmake
 
 echo Done.
-goto :eof
+exit /b
 
 :usage
 echo Build inference engine samples
