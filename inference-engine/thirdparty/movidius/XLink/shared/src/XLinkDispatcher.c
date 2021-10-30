@@ -824,10 +824,12 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
                                             eventQueueHandler_t *q, xLinkEvent_t* event,
                                             XLink_sem_t* sem, xLinkEventOrigin_t o){
     xLinkEvent_t* ev;
+    printf("pthread_mutex_lock addNextQueueElemToProc\n\n");
     XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
     xLinkEventPriv_t* eventP = getNextElementWithState(q->base, q->end, q->cur, EVENT_SERVED);
     if (eventP == NULL) {
         mvLog(MVLOG_ERROR, "getNextElementWithState returned NULL");
+        printf("pthread_mutex_unlock addNextQueueElemToProc 0 \n\n");
         XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
         return NULL;
     }
@@ -846,6 +848,7 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
     q->cur = eventP;
     eventP->isServed = EVENT_ALLOCATED;
     CIRCULAR_INCREMENT_BASE(q->cur, q->end, q->base);
+    printf("pthread_mutex_unlock addNextQueueElemToProc 1\n\n");
     XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
     return ev;
 }
