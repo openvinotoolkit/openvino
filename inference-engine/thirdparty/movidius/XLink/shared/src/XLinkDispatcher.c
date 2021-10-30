@@ -555,10 +555,10 @@ static void* eventReader(void* ctx)
 
         if (sc) {
             mvLog(MVLOG_DEBUG,"Failed to receive event (err %d)", sc);
-            XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
+            // XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
             dispatcherFreeEvents(&curr->lQueue, EVENT_PENDING);
             dispatcherFreeEvents(&curr->lQueue, EVENT_BLOCKED);
-            XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
+            // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
             continue;
         }
 
@@ -695,25 +695,25 @@ int findAvailableScheduler()
 static xLinkSchedulerState_t* findCorrespondingScheduler(void* xLinkFD)
 {
     int i;
-    // XLINK_RET_ERR_IF(pthread_mutex_lock(&num_schedulers_mutex) != 0, NULL);
+    XLINK_RET_ERR_IF(pthread_mutex_lock(&num_schedulers_mutex) != 0, NULL);
     if (xLinkFD == NULL) { //in case of myriad there should be one scheduler
         if (numSchedulers == 1) {
-            // XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
+            XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
             return &schedulerState[0];
         }
         else {
-            // XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
+            XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
             return NULL;
         }
     }
     for (i=0; i < MAX_SCHEDULERS; i++)
         if (schedulerState[i].schedulerId != -1 &&
             schedulerState[i].deviceHandle.xLinkFD == xLinkFD) {
-            // XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
+            XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
             return &schedulerState[i];
         }
 
-    // XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
+    XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
     return NULL;
 }
 
