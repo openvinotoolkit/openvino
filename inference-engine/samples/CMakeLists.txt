@@ -247,7 +247,7 @@ endif()
 add_samples_to_build(${samples_dirs})
 
 install(
-    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/intel64/Release/
+    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${ARCH}/${CMAKE_BUILD_TYPE}/
     DESTINATION samples_bin/
     COMPONENT samples_bin
     EXCLUDE_FROM_ALL
