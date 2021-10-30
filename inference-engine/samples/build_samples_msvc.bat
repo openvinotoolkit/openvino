@@ -18,13 +18,7 @@ set VS_VERSION=
 :: command line arguments parsing
 :input_arguments_loop
 if not "%1"=="" (
-    if "%1"=="VS2015" (
-        set "VS_VERSION=2015" 
-    ) else if "%1"=="VS2017" (
-        set "VS_VERSION=2017" 
-    ) else if "%1"=="VS2019" (
-        set "VS_VERSION=2019" 
-    ) else if "%1"=="-b" (
+    if "%1"=="-b" (
         set SOLUTION_DIR64=%2
         shift
     ) else if "%1"=="-i" (
@@ -84,44 +78,14 @@ if !VSWHERE! == "true" (
          )
       )
    )
-   if exist "C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe"
-      set "MSBUILD_VERSION=14 2015"
-   )
-   if exist "!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe" (
-      set "MSBUILD_BIN=!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe"
-   )
    if exist "!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe" (
       set "MSBUILD_BIN=!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe"
+      set "MSBUILD_VERSION=16 2019"
    )
 )
 
 if "!MSBUILD_BIN!" == "" (
-   if "!VS_VERSION!"=="2015" (
-      if exist "C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" (
-         set "MSBUILD_BIN=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe"
-         set "MSBUILD_VERSION=14 2015"
-      )
-   ) else if "!VS_VERSION!"=="2017" (
-      if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe" (
-         set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe"
-         set "MSBUILD_VERSION=15 2017"
-      ) else if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe" (
-         set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe"
-         set "MSBUILD_VERSION=15 2017"
-      ) else if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe" (
-         set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
-         set "MSBUILD_VERSION=15 2017"
-      )
-   )
-) else (
-   if not "!MSBUILD_BIN:2019=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=16 2019"
-   if not "!MSBUILD_BIN:2017=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=15 2017"
-   if not "!MSBUILD_BIN:2015=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=14 2015"
-)
-
-if "!MSBUILD_BIN!" == "" (
-   echo Build tools for Microsoft Visual Studio !VS_VERSION! cannot be found. If you use Visual Studio 2017, please download and install build tools from https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
+   echo Build tools for Microsoft Visual Studio !VS_VERSION! cannot be found. If you use Visual Studio 2019, please download and install build tools from https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2019
    GOTO errorHandling
 )
 
@@ -146,7 +110,6 @@ goto :eof
 echo Build inference engine samples
 echo.
 echo Options:
-echo   VS_VERSION               VS2015, VS2017, VS2019
 echo   -h                       Print the help message
 echo   -b SAMPLE_BUILD_DIR      Specify the sample build directory
 echo   -i SAMPLE_INSTALL_DIR    Specify the sample install directory
