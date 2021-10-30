@@ -862,9 +862,11 @@ static xLinkEventPriv_t* dispatcherGetNextEvent(xLinkSchedulerState_t* curr)
     }
 
     xLinkEventPriv_t* event = NULL;
+    printf("pthread_mutex_lock dispatcherGetNextEvent\n\n");
     // XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
     event = searchForReadyEvent(curr);
     if (event) {
+        printf("pthread_mutex_unlock dispatcherGetNextEvent 1\n\n");
         // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
         return event;
     }
@@ -875,11 +877,13 @@ static xLinkEventPriv_t* dispatcherGetNextEvent(xLinkSchedulerState_t* curr)
 
     event = getNextQueueElemToProc(hPriorityQueue);
     if (event) {
+        printf("pthread_mutex_unlock dispatcherGetNextEvent 1\n\n");
         // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
         return event;
     }
     event = getNextQueueElemToProc(lPriorityQueue);
 
+    printf("pthread_mutex_unlock dispatcherGetNextEvent 2\n\n");
     // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
     return event;
 }
@@ -905,13 +909,14 @@ static int dispatcherClean(xLinkSchedulerState_t* curr)
     while (event != NULL) {
         mvLog(MVLOG_INFO, "dropped event is %s, status %d\n",
               TypeToStr(event->packet.header.type), event->isServed);
-
+        printf("pthread_mutex_lock dispatcherClean\n\n");
         // XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
         postAndMarkEventServed(event);
+        printf("pthread_mutex_unlock dispatcherClean 1\n\n");
         // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
         event = dispatcherGetNextEvent(curr);
     }
-
+    printf("pthread_mutex_unlock dispatcherClean 2\n\n");
     // XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, 1);
 
     dispatcherFreeEvents(&curr->lQueue, EVENT_PENDING);
@@ -930,6 +935,7 @@ static int dispatcherClean(xLinkSchedulerState_t* curr)
     }
     numSchedulers--;
 
+    printf("pthread_mutex_unlock dispatcherClean 3\n\n");
     // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, 1);
 
     mvLog(MVLOG_INFO, "Clean Dispatcher Successfully...");
