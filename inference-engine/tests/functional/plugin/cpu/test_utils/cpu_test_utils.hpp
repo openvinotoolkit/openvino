@@ -127,6 +127,7 @@ public:
     static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
                                std::vector<cpu_memory_format_t> outFmts,
                                std::vector<std::string> priority);
+    static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
