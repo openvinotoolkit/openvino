@@ -727,25 +727,13 @@ int main(int argc, char* argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
-        // TODO: add cached remote blobs
-        // if (isFlagSetInCommandLine("use_device_mem")) {
-        //    if (device_name.find("GPU") == 0)
-        //        ::gpu::fillRemoteBlobs(inputFiles,
-        //                               batchSize,
-        //                               app_inputs_info[0],
-        //                               inferRequestsQueue.requests,
-        //                               exeNetwork);
-        //    else if (device_name.find("CPU") == 0)
-        //        fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
-        //    else
-        //        IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
-        //} else {
-        //    fillBlobs(inputFiles, batchSize, app_inputs_info[0], inferRequestsQueue.requests);
-        //}
+
         std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputsData;
+        // create vector to store remote blobs buffer
+        std::vector<cl::Buffer> clBuffer;
         if (isFlagSetInCommandLine("use_device_mem")) {
             if (device_name.find("GPU") == 0)
-                inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork);
+                inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
             else if (device_name.find("CPU") == 0)
                 inputsData = getBlobs(inputFiles, app_inputs_info);
             else
@@ -803,12 +791,12 @@ int main(int argc, char* argv[]) {
 
         for (auto& item : input) {
             auto input_name = item.first;
-            const auto& data = inputsData.at(input_name)[0];
+            auto& data = inputsData.at(input_name)[0];
             inferRequest->setBlob(input_name, data);
         }
 
         if (isFlagSetInCommandLine("use_device_mem"))
-            ::gpu::setSharedOutputBlob(exeNetwork, inferRequest);
+            ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
 
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -848,7 +836,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (isFlagSetInCommandLine("use_device_mem"))
-                ::gpu::setSharedOutputBlob(exeNetwork, inferRequest);
+                ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
 
             if (FLAGS_api == "sync") {
                 inferRequest->infer();

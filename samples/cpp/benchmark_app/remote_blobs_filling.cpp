@@ -88,7 +88,8 @@ size_t getBytesPerElement(InferenceEngine::Precision precision) {
 std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
-    const InferenceEngine::ExecutableNetwork& exeNetwork) {
+    const InferenceEngine::ExecutableNetwork& exeNetwork,
+    std::vector<cl::Buffer>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
     if (inputFiles.size()) {
@@ -102,25 +103,25 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
     auto oclInstance = std::make_shared<OpenCL>(oclContext);
 
     auto setShared = [&](const std::string name, const InferenceEngine::TensorDesc& desc, bool fillRandom = false) {
-        // cl_int err;
+        cl_int err;
         auto inputDims = desc.getDims();
         auto elementsNum = std::accumulate(begin(inputDims), end(inputDims), 1, std::multiplies<size_t>());
         auto inputSize = elementsNum * getBytesPerElement(desc.getPrecision());
 
-        cl::Buffer sharedBuffer =
-            cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
+        clBuffer.push_back(cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
 
         if (fillRandom) {
-            void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(sharedBuffer,
+            void* mappedPtr = oclInstance->_queue.enqueueMapBuffer(clBuffer.back(),
                                                                    CL_TRUE,
                                                                    CL_MEM_READ_WRITE,
                                                                    0,
                                                                    (cl::size_type)inputSize);
             fillBuffer(mappedPtr, elementsNum, desc.getPrecision());
-            oclInstance->_queue.enqueueUnmapMemObject(sharedBuffer, mappedPtr);
+            oclInstance->_queue.enqueueUnmapMemObject(clBuffer.back(), mappedPtr);
         }
 
-        remoteBlobs[name].push_back(InferenceEngine::gpu::make_shared_blob(desc, context, sharedBuffer));
+        auto blob = InferenceEngine::gpu::make_shared_blob(desc, context, clBuffer.back());
+        remoteBlobs[name].push_back(blob);
     };
 
     size_t i = 0;
@@ -144,7 +145,9 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
 #endif
 }
 
-void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork, InferReqWrap::Ptr& request) {
+void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork,
+                         InferReqWrap::Ptr& request,
+                         std::vector<cl::Buffer>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     for (auto& output : exeNetwork.GetOutputsInfo()) {
         auto context = exeNetwork.GetContext();
@@ -156,9 +159,8 @@ void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork, I
         auto inputDims = desc.getDims();
         auto elementsNum = std::accumulate(begin(inputDims), end(inputDims), 1, std::multiplies<size_t>());
         auto inputSize = elementsNum * getBytesPerElement(desc.getPrecision());
-        cl::Buffer sharedBuffer =
-            cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
-        InferenceEngine::Blob::Ptr sharedBlob = InferenceEngine::gpu::make_shared_blob(desc, context, sharedBuffer);
+        clBuffer.push_back(cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
+        InferenceEngine::Blob::Ptr sharedBlob = InferenceEngine::gpu::make_shared_blob(desc, context, clBuffer.back());
 
         request->setBlob(output.first, sharedBlob);
     }

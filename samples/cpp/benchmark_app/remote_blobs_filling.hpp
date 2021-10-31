@@ -60,8 +60,11 @@ struct OpenCL {
 std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
-    const InferenceEngine::ExecutableNetwork& exeNetwork);
+    const InferenceEngine::ExecutableNetwork& exeNetwork,
+    std::vector<cl::Buffer>& clBuffer);
 
-void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork, InferReqWrap::Ptr& request);
+void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork,
+                         InferReqWrap::Ptr& request,
+                         std::vector<cl::Buffer>& clBuffer);
 
 }  // namespace gpu
