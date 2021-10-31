@@ -7,11 +7,13 @@
  */
 #pragma once
 
-#include <format_reader.h>
-
 #include <functional>
 #include <string>
 #include <vector>
+
+// clang-format off
+#include "format_reader.h"
+// clang-format on
 
 namespace FormatReader {
 /**

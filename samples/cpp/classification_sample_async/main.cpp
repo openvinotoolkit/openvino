@@ -8,24 +8,31 @@
  * @example classification_sample_async/main.cpp
  */
 
-#include <format_reader_ptr.h>
-#include <samples/classification_results.h>
 #include <sys/stat.h>
 
 #include <condition_variable>
 #include <fstream>
-#include <inference_engine.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
-#include <samples/args_helper.hpp>
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
 #include <string>
 #include <vector>
 
-#include "classification_sample_async.h"
+// clang-format off
 #include "openvino/openvino.hpp"
+
+#include "samples/args_helper.hpp"
+#include "samples/common.hpp"
+#include "samples/classification_results.h"
+#include "samples/slog.hpp"
+#include "format_reader_ptr.h"
+
+#include "classification_sample_async.h"
+// clang-format on
+
+constexpr auto N_TOP_RESULTS = 10;
+
+using namespace ov::preprocess;
 
 /**
  * @brief Checks input args
@@ -41,10 +48,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         return false;
     }
     slog::info << "Parsing input parameters" << slog::endl;
-
-    if (FLAGS_nt <= 0) {
-        throw std::logic_error("Incorrect value for nt argument. It should be greater than 0.");
-    }
 
     if (FLAGS_m.empty()) {
         showUsage();
@@ -79,22 +82,10 @@ int main(int argc, char* argv[]) {
         // -------- Step 1. Initialize OpenVINO Runtime Core --------
         ov::runtime::Core core;
 
-        if (!FLAGS_l.empty()) {
-            auto extension_ptr = std::make_shared<InferenceEngine::Extension>(FLAGS_l);
-            core.add_extension(extension_ptr);
-            slog::info << "Extension loaded: " << FLAGS_l << slog::endl;
-        }
-        if (!FLAGS_c.empty() && (FLAGS_d == "GPU" || FLAGS_d == "MYRIAD" || FLAGS_d == "HDDL")) {
-            // Config for device plugin custom extension is loaded from an .xml
-            // description
-            core.set_config({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, FLAGS_d);
-            slog::info << "Config for " << FLAGS_d << " device plugin custom extension loaded: " << FLAGS_c
-                       << slog::endl;
-        }
-
         // -------- Step 2. Read a model --------
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
+        printInputAndOutputsInfo(*model);
 
         OPENVINO_ASSERT(model->get_parameters().size() == 1, "Sample supports models with 1 input only");
         OPENVINO_ASSERT(model->get_results().size() == 1, "Sample supports models with 1 output only");
@@ -134,7 +125,7 @@ int main(int argc, char* argv[]) {
                 slog::warn << "Image " + i + " cannot be read!" << slog::endl;
                 continue;
             }
-            // Store image data
+            // Collect image data
             std::shared_ptr<unsigned char> data(reader->getData(width, height));
             if (data != nullptr) {
                 images_data.push_back(data);
@@ -148,18 +139,19 @@ int main(int argc, char* argv[]) {
         // Setting batch size using image count
         const size_t batchSize = images_data.size();
         input_shape[ov::layout::batch_idx(tensor_layout)] = batchSize;
+        slog::info << "Reshape model for batch size " << std::to_string(batchSize) << slog::endl;
         model->reshape({{model->input().get_any_name(), input_shape}});
-        slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
+        printInputAndOutputsInfo(*model);
 
         // -------- Step 6. Loading model to the device --------
         slog::info << "Loading model to the device " << FLAGS_d << slog::endl;
         ov::runtime::CompiledModel compiled_model = core.compile_model(model, FLAGS_d);
 
-        // -------- Step 6. Create infer request --------
+        // -------- Step 7. Create infer request --------
         slog::info << "Create infer request" << slog::endl;
         ov::runtime::InferRequest infer_request = compiled_model.create_infer_request();
 
-        // -------- Step 7. Combine multiple input images as batch --------
+        // -------- Step 8. Combine multiple input images as batch --------
         ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();
 
         for (size_t image_id = 0; image_id < images_data.size(); ++image_id) {
@@ -169,50 +161,22 @@ int main(int argc, char* argv[]) {
                         image_size);
         }
 
-        // -------- Step 8. Do asynchronous inference --------
-        size_t num_iterations = 10;
-        size_t cur_iteration = 0;
-        std::condition_variable condVar;
-        std::mutex mutex;
-
+        // -------- Step 9. Do asynchronous inference --------
         infer_request.set_callback([&](std::exception_ptr ex) {
             if (ex)
                 throw ex;
-            std::lock_guard<std::mutex> l(mutex);
-            cur_iteration++;
-            slog::info << "Completed " << cur_iteration << " async request execution" << slog::endl;
-            if (cur_iteration < num_iterations) {
-                /* here a user can read output containing inference results and put new
-                   input to repeat async request again */
-                infer_request.start_async();
-            } else {
-                /* continue sample execution after last Asynchronous inference request
-                 * execution */
-                condVar.notify_one();
-            }
+            slog::info << "Completed async request execution" << slog::endl;
         });
 
-        /* Start async request for the first time */
-        slog::info << "Start inference (" << num_iterations << " asynchronous executions)" << slog::endl;
+        // Start async request for the first time
+        slog::info << "Start inference (asynchronous executions)" << slog::endl;
         infer_request.start_async();
 
-        /* Wait all iterations of the async request */
-        std::unique_lock<std::mutex> lock(mutex);
-        condVar.wait(lock, [&] {
-            return cur_iteration == num_iterations;
-        });
+        // Wait all iterations of the async request
+        infer_request.wait();
 
-        // -------- Step 9. Process output --------
+        // -------- Step 10. Process output --------
         ov::runtime::Tensor output = infer_request.get_output_tensor();
-
-        /** Validating -nt value **/
-        const size_t resultsCnt = output.get_size() / batchSize;
-        if (FLAGS_nt > resultsCnt || FLAGS_nt < 1) {
-            slog::warn << "-nt " << FLAGS_nt << " is not available for this model (-nt should be less than "
-                       << resultsCnt + 1 << " and more than 0)\n            Maximal value " << resultsCnt
-                       << " will be used." << slog::endl;
-            FLAGS_nt = resultsCnt;
-        }
 
         /** Read labels from file (e.x. AlexNet.labels) **/
         std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
@@ -229,20 +193,15 @@ int main(int argc, char* argv[]) {
         }
 
         // Prints formatted classification results
-        ClassificationResult classificationResult(output, valid_image_names, batchSize, FLAGS_nt, labels);
+        ClassificationResult classificationResult(output, valid_image_names, batchSize, N_TOP_RESULTS, labels);
         classificationResult.show();
-    } catch (const std::exception& error) {
-        slog::err << error.what() << slog::endl;
+    } catch (const std::exception& ex) {
+        slog::err << ex.what() << slog::endl;
         return EXIT_FAILURE;
     } catch (...) {
         slog::err << "Unknown/internal exception happened." << slog::endl;
         return EXIT_FAILURE;
     }
 
-    slog::info << "Execution successful" << slog::endl;
-    slog::info << slog::endl
-               << "This sample is an API example, for any performance measurements "
-                  "please use the dedicated benchmark_app tool"
-               << slog::endl;
     return EXIT_SUCCESS;
 }

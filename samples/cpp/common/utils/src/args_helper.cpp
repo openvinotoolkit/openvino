@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "samples/args_helper.hpp"
-
-#include <gflags/gflags.h>
+// clang-format off
 #include <sys/stat.h>
 
 #include <iostream>
-#include <samples/slog.hpp>
 
 #ifdef _WIN32
 #    include <samples/os/windows/w_dirent.h>
 #else
 #    include <dirent.h>
 #endif
+
+#include "openvino/openvino.hpp"
+
+#include "gflags/gflags.h"
+#include "samples/args_helper.hpp"
+#include "samples/slog.hpp"
+// clang-format on
 
 /**
  * @brief Checks input file argument and add it to files vector

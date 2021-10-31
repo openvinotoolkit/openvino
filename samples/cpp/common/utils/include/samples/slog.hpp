@@ -30,6 +30,14 @@ class LogStreamBoolAlpha {};
 static constexpr LogStreamBoolAlpha boolalpha;
 
 /**
+ * @class LogStreamFlush
+ * @brief The LogStreamFlush class implements flushing for a log stream
+ */
+class LogStreamFlush {};
+
+static constexpr LogStreamFlush flush;
+
+/**
  * @class LogStream
  * @brief The LogStream class implements a stream for sample logging
  */
@@ -65,6 +73,9 @@ public:
 
     // Specializing for LogStreamBoolAlpha to support slog::boolalpha
     LogStream& operator<<(const LogStreamBoolAlpha&);
+
+    // Specializing for LogStreamFlush to support slog::flush
+    LogStream& operator<<(const LogStreamFlush&);
 };
 
 extern LogStream info;

@@ -9,9 +9,12 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
+// clang-format off
 #include <string>
 #include <vector>
+#include <inference_engine.hpp>
+#include <openvino/openvino.hpp>
+// clang-format on
 
 /**
  * @brief This function checks input args and existence of specified files in a given folder

@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <fstream>
 #include <functional>
-#include <inference_engine.hpp>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -23,8 +22,10 @@
 #include <utility>
 #include <vector>
 
+// clang-format off
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
+// clang-format on
 
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
@@ -411,6 +412,7 @@ static UNUSED void addRectangles(unsigned char* data,
                                  {180, 130, 70},  {60, 20, 220},  {0, 0, 255},   {142, 0, 0},     {70, 0, 0},
                                  {100, 60, 0},    {90, 0, 0},     {230, 0, 0},   {32, 11, 119},   {0, 74, 111},
                                  {81, 0, 81}};
+
     if (rectangles.size() % 4 != 0 || rectangles.size() / 4 != classes.size()) {
         return;
     }
@@ -1123,8 +1125,8 @@ inline std::size_t getTensorBatch(const InferenceEngine::TensorDesc& desc) {
 }
 
 inline void showAvailableDevices() {
-    InferenceEngine::Core ie;
-    std::vector<std::string> devices = ie.GetAvailableDevices();
+    ov::runtime::Core core;
+    std::vector<std::string> devices = core.get_available_devices();
 
     std::cout << std::endl;
     std::cout << "Available target devices:";

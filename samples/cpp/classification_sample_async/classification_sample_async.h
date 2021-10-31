@@ -27,9 +27,6 @@ static const char target_device_message[] =
     "Default value is CPU. Use \"-d HETERO:<comma_separated_devices_list>\" format to specify HETERO plugin. "
     "Sample will look for a suitable plugin for device specified.";
 
-/// @brief message for top results number
-static const char ntop_message[] = "Optional. Number of top results. Default value is 10.";
-
 /// @brief message for plugin custom kernels desc
 static const char custom_plugin_cfg_message[] = "Required for GPU, MYRIAD, HDDL custom kernels. "
                                                 "Absolute path to the .xml config file with the kernels descriptions.";
@@ -52,10 +49,6 @@ DEFINE_string(m, "", model_message);
 /// @brief device the target device to infer on <br>
 /// It is an optional parameter
 DEFINE_string(d, "CPU", target_device_message);
-
-/// @brief Top results number (default 10) <br>
-/// It is an optional parameter
-DEFINE_uint32(nt, 10, ntop_message);
 
 /// @brief Define parameter for plugin custom kernels path <br>
 /// It is an optional parameter
@@ -80,5 +73,4 @@ static void showUsage() {
     std::cout << "          Or" << std::endl;
     std::cout << "      -c \"<absolute_path>\"  " << custom_plugin_cfg_message << std::endl;
     std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
-    std::cout << "    -nt \"<integer>\"         " << ntop_message << std::endl;
 }

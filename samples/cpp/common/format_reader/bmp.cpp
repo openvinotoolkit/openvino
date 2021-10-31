@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "bmp.h"
-
 #include <fstream>
 #include <iostream>
+
+// clang-format off
+#include "bmp.h"
+// clang-format on
 
 using namespace std;
 using namespace FormatReader;

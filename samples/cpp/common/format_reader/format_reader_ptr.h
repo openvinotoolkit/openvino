@@ -11,7 +11,9 @@
 #include <functional>
 #include <memory>
 
+// clang-format off
 #include "format_reader.h"
+// clang-format on
 
 namespace FormatReader {
 class ReaderPtr {
