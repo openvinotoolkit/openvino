@@ -152,7 +152,6 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
 
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(range)) / k);
-        std::cout << pointer[i] << " ";
     }
 }
 
