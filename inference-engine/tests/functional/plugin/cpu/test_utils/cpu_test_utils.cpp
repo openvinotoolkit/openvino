@@ -3,6 +3,7 @@
 //
 
 #include "cpu_test_utils.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <cstdint>
 
@@ -291,6 +292,12 @@ std::shared_ptr<ngraph::Node>
 CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
+}
+
+std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType) {
+    implString.push_back('_');
+    implString += InferenceEngine::details::convertPrecision(elType).name();
+    return implString;
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
