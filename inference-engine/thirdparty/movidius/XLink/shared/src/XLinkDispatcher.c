@@ -914,7 +914,6 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
                                             eventQueueHandler_t *q, xLinkEvent_t* event,
                                             XLink_sem_t* sem, xLinkEventOrigin_t o){
     xLinkEvent_t* ev;
-    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
     xLinkEventPriv_t* eventP = getNextElementWithState(q->base, q->end, q->cur, EVENT_SERVED);
     if (eventP == NULL) {
         mvLog(MVLOG_ERROR, "getNextElementWithState returned NULL");
