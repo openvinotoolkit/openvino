@@ -59,6 +59,8 @@ protected:
         auto matrixB = builder::makeConstant<float>(element::f32, isB, {}, true);
         auto matMul = builder::makeMatMul(reshape, matrixB, false, transpB);
 
+        selectedType = makeSelectedTypeStr("jit_gemm", element::f32);
+
         function = makeNgraphFunction(element::f32, inputParams, matMul, "ReshapeFC");
     }
 };
@@ -68,7 +70,7 @@ TEST_P(ReshapeFCTest, CompareWithRefs) {
 
     Run();
     CheckNodeOfTypeCount(executableNetwork, "Reshape", 0);
-    CheckFusingResults(executableNetwork, "FullyConnected");
+    CheckPluginRelatedResults(executableNetwork, "FullyConnected");
 }
 
 namespace {
