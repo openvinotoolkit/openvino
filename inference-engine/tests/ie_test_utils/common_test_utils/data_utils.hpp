@@ -8,6 +8,7 @@
 #include <utility>
 
 #include <gtest/gtest.h>
+#include "openvino/core/type/element_type.hpp"
 #include <ngraph/type/bfloat16.hpp>
 #include <ngraph/type/float16.hpp>
 
@@ -150,7 +151,8 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
     }
 
     for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<int64_t>(random.Generate(range)));
+        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(range)) / k);
+        std::cout << pointer[i] << " ";
     }
 }
 
@@ -264,7 +266,7 @@ fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, i
 
 template<class T>
 void inline
-fill_data_random_float(T* ptr, size_t size, ov::element::Type_t ElemType,
+fill_data_random(T* ptr, size_t size, ov::element::Type_t ElemType,
                        const uint32_t range, int32_t start_from, const int32_t k,
                        const int seed = 1) {
     std::default_random_engine random(seed);
