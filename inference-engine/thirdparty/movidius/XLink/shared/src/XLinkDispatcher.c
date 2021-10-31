@@ -792,9 +792,10 @@ static xLinkSchedulerState_t* findCorrespondingScheduler(void* xLinkFD)
         if (numSchedulers == 1) {
             XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
             return &schedulerState[0];
+        } else {
+            XLINK_RET_ERR_IF(pthread_mutex_unlock(&num_schedulers_mutex) != 0, NULL);
+            return NULL;
         }
-        else
-            NULL;
     }
     for (i=0; i < MAX_SCHEDULERS; i++)
         if (schedulerState[i].schedulerId != -1 &&
@@ -817,7 +818,7 @@ static int dispatcherRequestServe(xLinkEventPriv_t * event, xLinkSchedulerState_
               (header->flags.bitField.ack == 0
                && header->flags.bitField.nack == 1)){ //this event is served locally, or it is failed
         postAndMarkEventServed(event);
-    }else if (header->flags.bitField.ack == 1
+    } else if (header->flags.bitField.ack == 1
               && header->flags.bitField.nack == 0){
         event->isServed = EVENT_PENDING;
         mvLog(MVLOG_DEBUG,"------------------------UNserved %s\n",
