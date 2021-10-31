@@ -6,10 +6,10 @@
 
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/place.hpp"
-#include "load_extensions.hpp"
 #include "ngraph/except.hpp"
 #include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
+#include "so_extension.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;

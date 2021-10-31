@@ -402,7 +402,7 @@ set(SRC
     util.cpp
 )
 
-# Add include path to load_extensions.hpp
+# Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
 

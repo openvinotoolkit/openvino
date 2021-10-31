@@ -27,7 +27,6 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
-#include "load_extensions.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -39,6 +38,7 @@
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -196,7 +196,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
-    mutable std::vector<ov::Extension::Ptr> ov_extensions;
+    std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -379,9 +379,7 @@ public:
         opsetNames.insert("opset8");
     }
 
-    ~CoreImpl() override {
-        ov::detail::unload_extensions(ov_extensions);
-    }
+    ~CoreImpl() override = default;
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
@@ -992,8 +990,9 @@ public:
 
     void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
-        for (const auto& ext : extensions)
+        for (const auto& ext : extensions) {
             ov_extensions.emplace_back(ext);
+        }
     }
 
     /**

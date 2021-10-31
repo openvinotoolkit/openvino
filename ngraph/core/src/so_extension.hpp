@@ -11,16 +11,32 @@
 namespace ov {
 namespace detail {
 
+class OPENVINO_API SOExtension : public Extension {
+public:
+    SOExtension(const std::shared_ptr<void>& so, const Extension::Ptr& ext) : m_so(so), m_ext(ext) {}
+
+    const Extension::Ptr& extension() const;
+
+    const std::shared_ptr<void> shared_object() const;
+
+private:
+    std::shared_ptr<void> m_so;
+    Extension::Ptr m_ext;
+};
+
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
     auto so = ov::util::load_shared_object(path.c_str());
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;
     reinterpret_cast<CreateFunction*>(ov::util::get_symbol(so, "create_extensions"))(extensions);
 
+    std::vector<Extension::Ptr> so_extensions;
+    so_extensions.reserve(extensions.size());
+
     for (auto&& ex : extensions) {
-        ex->so = so;
+        so_extensions.emplace_back(std::make_shared<SOExtension>(so, ex));
     }
-    return extensions;
+    return so_extensions;
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -28,18 +44,6 @@ inline std::vector<Extension::Ptr> load_extensions(const std::wstring& path) {
     return load_extensions(ov::util::wstring_to_string(path).c_str());
 }
 #endif
-
-inline void unload_extensions(std::vector<Extension::Ptr>& extensions) {
-    std::vector<std::shared_ptr<void>> shared_objects;
-    shared_objects.reserve(extensions.size());
-
-    for (auto&& ex : extensions) {
-        shared_objects.emplace_back(ex->so);
-    }
-    for (auto&& ex : extensions) {
-        ex.reset();
-    }
-}
 
 }  // namespace detail
 }  // namespace ov
