@@ -45,7 +45,6 @@ ov::runtime::Tensor create_and_fill_tensor(
             ::CommonTestUtils::fill_data_random(
                 static_cast<uint8_t*>(tensor.data()),
                 tensor.get_byte_size(),
-                tensor.get_element_type(),
                 range, start_from, resolution, seed); break;
         default: OPENVINO_UNREACHABLE("Unsupported element type: ", element_type);
     }
