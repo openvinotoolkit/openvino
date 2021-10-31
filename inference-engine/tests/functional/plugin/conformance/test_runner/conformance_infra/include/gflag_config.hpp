@@ -25,6 +25,9 @@ static const char save_report_timeout_message[] = "Optional. Allow to try to sav
                                                   "Default value is 60 seconds";
 static const char skip_config_path_message[] = "Optional. Allows to specify paths to files contain regular expressions list to skip tests. "
                                                "Delimiter is `,` symbol. Default value is empty string.";
+static const char config_path_message[] = "Optional. Allows to specify path to files contain plugin config. "
+                                          "Default value is empty string.";
+
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(device, "CPU", target_device_message);
@@ -32,6 +35,7 @@ DEFINE_string(plugin_lib_name, "", target_plugin_message);
 DEFINE_string(input_folders, ".", input_folders_message);
 DEFINE_string(output_folder, ".", output_folder_message);
 DEFINE_string(skip_config_path, "", skip_config_path_message);
+DEFINE_string(config_path, "", config_path_message);
 DEFINE_uint32(save_report_timeout, 60, save_report_timeout_message);
 DEFINE_bool(disable_test_config, true, disable_test_config_message);
 DEFINE_bool(extend_report, false, extend_report_config_message);
@@ -48,6 +52,7 @@ static void showUsage() {
     std::cout << "    -h                               " << help_message << std::endl;
     std::cout << "    --disable_test_config            " << disable_test_config_message << std::endl;
     std::cout << "    --skip_config_path  \"<paths>\"    " << disable_test_config_message << std::endl;
+    std::cout << "    --config_path  \"<paths\"          " << config_path_message << std::endl;
     std::cout << "    --extend_report                  " << extend_report_config_message << std::endl;
     std::cout << "    --report_unique_name             " << extend_report_config_message << std::endl;
     std::cout << "    --save_report_timeout            " << extend_report_config_message << std::endl;

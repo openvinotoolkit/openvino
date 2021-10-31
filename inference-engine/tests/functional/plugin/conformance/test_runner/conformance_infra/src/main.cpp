@@ -50,6 +50,9 @@ int main(int argc, char* argv[]) {
         ConformanceTests::disabledTests = FuncTestUtils::SkipTestsConfig::readSkipTestConfigFiles(
                 CommonTestUtils::splitStringByDelimiter(FLAGS_skip_config_path));
     }
+    if (!FLAGS_config_path.empty()) {
+        ConformanceTests::pluginConfig = ConformanceTests::readPluginConfig(FLAGS_config_path);
+    }
 
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);

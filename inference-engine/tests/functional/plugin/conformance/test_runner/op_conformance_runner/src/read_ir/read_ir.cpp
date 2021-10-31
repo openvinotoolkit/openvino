@@ -15,7 +15,8 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                         ReadIRTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths,  std::regex(R"(.*\.xml)"))),
-                                ::testing::Values(targetDevice)),
+                                ::testing::Values(targetDevice),
+                                ::testing::Values(pluginConfig)),
                         ReadIRTest::getTestCaseName);
 } // namespace
 } // namespace ConformanceTests
