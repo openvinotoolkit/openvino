@@ -66,6 +66,8 @@ private:
     bool preprocess_collapse_repeated_;
     bool ctc_merge_repeated_;
     bool unique_;
+    template <class T>
+    friend void shape_infer(const CTCLoss* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v4
 }  // namespace op
