@@ -44,6 +44,7 @@
 #include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
+#include <ngraph/runtime/reference/if.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
@@ -418,6 +419,24 @@ bool evaluate(const shared_ptr<op::v0::CumSum>& op, const HostTensorVector& outp
         cum_sum_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
         break;
     }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v8::If>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    std::vector<std::shared_ptr<Function>> bodies;
+    for (size_t i = 0; i < op->get_internal_subgraphs_size(); i++) {
+        bodies.emplace_back(op->get_function(i));
+    }
+    std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector> in_descs;
+    for (size_t i = 0; i < op->get_input_descriptions_size(); i++) {
+        in_descs.emplace_back(op->get_input_descriptions(i));
+    }
+    std::vector<ov::op::util::MultiSubGraphOp::MultiSubgraphOutputDescriptionVector> out_descs;
+    for (size_t i = 0; i < op->get_output_descriptions_size(); i++) {
+        out_descs.emplace_back(op->get_output_descriptions(i));
+    }
+    runtime::reference::if_reference(bodies, out_descs, in_descs, outputs, inputs);
     return true;
 }
 
