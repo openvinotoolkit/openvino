@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from openvino.tools.moops.op import PermuteAttrs
+from openvino.tools.mo.ops.op import PermuteAttrs
 
 
 def permute_nhwc_to_nchw(shape):
