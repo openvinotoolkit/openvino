@@ -7,7 +7,7 @@
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/variadic_split.hpp>
 
-#include "shape_infer_utils.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {

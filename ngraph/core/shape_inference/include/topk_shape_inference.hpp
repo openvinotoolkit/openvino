@@ -7,7 +7,7 @@
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/topk.hpp>
 
-#include "shape_infer_utils.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {

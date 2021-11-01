@@ -4,6 +4,7 @@
 
 #include <openvino/op/experimental_detectron_roi_feature.hpp>
 
+#include "utils.hpp"
 namespace ov {
 namespace op {
 namespace v6 {

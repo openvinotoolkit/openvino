@@ -21,7 +21,7 @@ bool get_data_as_int64(
 }
 
 template <>
-bool get_data_as_int64<ov::PartialShape>(
+inline bool get_data_as_int64<ov::PartialShape>(
         size_t idx, const ov::Node* op, std::vector<int64_t>& axes_value,
         const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     if (constant_data.count(idx)) {

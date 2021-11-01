@@ -42,6 +42,13 @@ public:
     value_type get_min_length() const;
     value_type get_max_length() const;
 
+    /// \brief Return the interval of valid lengths
+    Interval& get_interval() const {
+        static Interval dummy{};
+        OPENVINO_UNREACHABLE("Cannot get interval from StaticDimension.");
+        return dummy;
+    }
+
     bool same_scheme(const StaticDimension& dim) const;
     bool compatible(const StaticDimension& d) const;
     static bool merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);

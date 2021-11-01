@@ -7,7 +7,7 @@
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/split.hpp>
 
-#include "shape_infer_utils.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace op {
@@ -47,7 +47,7 @@ void shape_infer(const Split* op, const std::vector<T>& input_shapes, std::vecto
 
             each_output_shape[axis] = dimension_at_axis / op->m_num_splits;
         } else {
-            const auto dim_interval_at_axis = shape_utils::get_interval(op, data_ps[axis]);
+            const auto dim_interval_at_axis = data_ps[axis].get_interval();
             NODE_VALIDATION_CHECK(op,
                                   dim_interval_at_axis.get_max_val() >= static_cast<int64_t>(op->m_num_splits),
                                   "The interval maximum of the dimension for data "
