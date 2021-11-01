@@ -358,7 +358,7 @@ IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, cons
 }
 
 IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *model_blob, const char *device_name, \
-    ie_config_t *config, ie_executable_network_t **exe_network) {
+    const ie_config_t *config, ie_executable_network_t **exe_network) {
     if (core == nullptr || model_blob == nullptr ||device_name == nullptr || config == nullptr || exe_network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
