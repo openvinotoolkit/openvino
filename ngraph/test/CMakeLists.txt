@@ -266,6 +266,7 @@ set(SRC
     visitors/op/asinh.cpp
     visitors/op/atan.cpp
     visitors/op/atanh.cpp
+    visitors/op/avg_pool.cpp
     visitors/op/batch_norm.cpp
     visitors/op/batch_to_space.cpp
     visitors/op/binary_convolution.cpp
@@ -286,6 +287,7 @@ set(SRC
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
+    visitors/op/dft.cpp
     visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
@@ -310,6 +312,7 @@ set(SRC
     visitors/op/hswish.cpp
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
+    visitors/op/idft.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
@@ -453,12 +456,9 @@ endif()
 
 set(MULTI_TEST_SRC
     backend/abc.in.cpp
-    backend/adaptive_avg_pool.in.cpp
-    backend/adaptive_max_pool.in.cpp
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/avg_pool.in.cpp
     backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
@@ -469,7 +469,6 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
-    backend/dft.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_generate_proposals.in.cpp
@@ -482,12 +481,9 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/idft.in.cpp
     backend/interpolate.in.cpp
     backend/lrn.in.cpp
-    backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
-    backend/max_pool.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
@@ -505,12 +501,10 @@ set(MULTI_TEST_SRC
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
     backend/result.in.cpp
-    backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/space_to_depth.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
-    backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
