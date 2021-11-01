@@ -327,7 +327,7 @@ public:
     void reserve(size_t n) {
         m_dimensions.reserve(n);
     }
-    /// \brief push element to the end of the partial shape
+    /// \brief push element to the end of partial shape
     void push_back(const Dimension& val) {
         m_dimensions.push_back(val);
         m_rank_is_static = true;
