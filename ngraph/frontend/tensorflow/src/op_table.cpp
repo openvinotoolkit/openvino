@@ -46,8 +46,6 @@ OP_CONVERTER(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_gather_op);
 OP_CONVERTER(translate_gather_v2_op);
 OP_CONVERTER(translate_gather_nd_op);
-OP_CONVERTER(translate_fused_conv_2d_op);
-OP_CONVERTER(translate_fused_mat_mul_op);
 OP_CONVERTER(translate_identity_op);
 OP_CONVERTER(translate_interpolate_op);
 OP_CONVERTER(translate_is_finite_op);
@@ -71,7 +69,6 @@ OP_CONVERTER(translate_random_uniform_int_op);
 OP_CONVERTER(translate_relu_6_op);
 OP_CONVERTER(translate_reciprocal_op);
 OP_CONVERTER(translate_reshape_op);
-OP_CONVERTER(translate_retval_op);
 OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
@@ -178,6 +175,9 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"FakeQuantWithMinMaxVars", translate_fake_quant_op},
         {"Fill", translate_fill_op},
         {"FloorDiv", translate_floor_div_op},
+        {"FusedBatchNorm", translate_fused_batch_norm_op},
+        {"FusedBatchNormV2", translate_fused_batch_norm_op},
+        {"FusedBatchNormV3", translate_fused_batch_norm_op},
         {"Gather", translate_gather_op},
         {"GatherV2", translate_gather_v2_op},
         {"GatherNd", translate_gather_nd_op},
@@ -241,20 +241,6 @@ const std::map<const std::string, const CreatorFunction> get_supported_ops() {
         {"Where", translate_where_op},
         {"Xdivy", translate_x_div_y_op},
         {"ZerosLike", translate_zeros_like_op},
-
-        // should be registered as an extensions in OVTF:
-        // TODO: implement this translator as an extension.
-        //  _Arg should be converted to Parameter. This is internal operation in tf,
-        //  We do not encounter this op in usual networks.
-        //{"_Arg", translate_arg_op},
-        {"FusedBatchNorm", translate_fused_batch_norm_op},
-        {"FusedBatchNormV2", translate_fused_batch_norm_op},
-        {"FusedBatchNormV3", translate_fused_batch_norm_op},
-        {"_FusedConv2D", translate_fused_conv_2d_op},
-        {"_FusedMatMul", translate_fused_mat_mul_op},
-        {"_FusedBatchNormEx", translate_fused_batch_norm_op},
-        {"_FusedDepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
-        {"_Retval", translate_retval_op},
     };
 };
 }  // namespace op

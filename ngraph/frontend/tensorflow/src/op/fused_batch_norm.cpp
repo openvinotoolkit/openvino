@@ -21,7 +21,6 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     auto ng_variance = node.get_input(4);
 
     bool is_v3 = node.get_op_type() == "FusedBatchNormV3";
-    bool is_Ex = node.get_op_type() == "_FusedBatchNormEx";
 
     auto data_format = node.get_attribute<std::string>("data_format");
     TF_OP_VALIDATION_CHECK(node, data_format == "NHWC" || data_format == "NCHW", "Unsupported data format");
@@ -41,22 +40,14 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
         make_shared<BatchNormInference>(ng_input, ng_scale, ng_offset, ng_mean, ng_variance, tf_epsilon)->output(0);
     convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_batch_norm);
 
-    if (is_Ex) {
-        string activation_mode = node.get_attribute<string>("activation_mode");
-        TF_OP_VALIDATION_CHECK(node, activation_mode == "Relu", "Unsupported _FusedBatchNormEx activation mode");
-        auto relu_op = make_shared<Relu>(ng_batch_norm);
-        set_node_name(node.get_name(), relu_op);
-        return {relu_op};
-    } else {
-        // TODO: Why are there so many? Is it correct?
-        OutputVector result = {ng_batch_norm, ng_mean, ng_variance, ng_mean, ng_variance};
-        if (is_v3) {
-            // FusedBatchNormV3 has 6 outputs
-            result.push_back(ng_mean);  // reserve_space_3
-        }
-        set_node_name(node.get_name(), ng_batch_norm.get_node_shared_ptr());
-        return result;
+    // TODO: Why are there so many? Is it correct?
+    OutputVector result = {ng_batch_norm, ng_mean, ng_variance, ng_mean, ng_variance};
+    if (is_v3) {
+        // FusedBatchNormV3 has 6 outputs
+        result.push_back(ng_mean);  // reserve_space_3
     }
+    set_node_name(node.get_name(), ng_batch_norm.get_node_shared_ptr());
+    return result;
 }
 }  // namespace op
 }  // namespace tf
