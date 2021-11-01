@@ -503,7 +503,6 @@ set(MULTI_TEST_SRC
     backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
-    backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
 )
 
