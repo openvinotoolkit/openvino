@@ -329,7 +329,6 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    // ie_config_t config = {"CPU_THREADS_NUM", "3", nullptr};
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
     IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "GNA", &config, &exe_network));
@@ -354,7 +353,6 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "327.67", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    // const char* model_path = "openvino/inference-engine/temp/models/src/models/google_cmd/tf_speech_model_fp32.xml";
     std::string model_path_str = TestDataHelpers::generate_model_path("../../models/google_cmd", "tf_speech_model_fp32.xml");
     const char *model_path = model_path_str.c_str();
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));

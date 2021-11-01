@@ -395,7 +395,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memo
     const ie_blob_t *weight_blob, ie_network_t **network);
 
 /**
-* @brief Creates an executable network from a previously exported network. Users can create as many networks as they need and use
+* @brief Creates an executable network from a network previously exported to file. Users can create as many networks as they need and use
 * them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
 * @ingroup Core
 * @param core A pointer to ie_core_t instance.
@@ -409,7 +409,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network(ie_core
         const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**
-* @brief Creates an executable network from a previously exported network. Users can create as many networks as they need and use
+* @brief Creates an executable network from a network previously exported to blob. Users can create as many networks as they need and use
 * them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
 * @ingroup Core
 * @param core A pointer to ie_core_t instance.
