@@ -107,6 +107,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:o
                                                              $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
@@ -115,7 +116,13 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create module library file from object library
 
-add_library(${TARGET_NAME} MODULE
+if(BUILD_SHARED_LIBS)
+    set(library_type MODULE)
+else()
+    set(library_type STATIC)
+endif()
+
+add_library(${TARGET_NAME} ${library_type}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -123,10 +130,17 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util
-                                     PUBLIC inference_engine)
+target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
 
-target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(BUILD_SHARED_LIBS)
+    # for static linkage the dependencies are in opposite order
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+else()
+    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+endif()
+
+target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND

@@ -69,7 +69,6 @@ openvino/tools/mo/back/ReduceTransposeDimensions.py
 openvino/tools/mo/back/remove_last_softmax_pattern.py
 openvino/tools/mo/back/RemoveUselessConvert.py
 openvino/tools/mo/back/replacement.py
-openvino/tools/mo/back/Reshape0DToSqueeze.py
 openvino/tools/mo/back/ReshapeMutation.py
 openvino/tools/mo/back/ResultNormalizer.py
 openvino/tools/mo/back/ResultRename.py

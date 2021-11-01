@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.tools.mo.back.Reshape0DToSqueeze import Reshape0DToSqueeze
 from openvino.tools.mo.back.replacement import BackReplacementPattern
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -21,9 +20,6 @@ class TopKNormalizer(BackReplacementPattern):
     TODO this pass should be removed when IE supports 0D tensors.
     """
     enabled = True
-
-    def run_before(self):
-        return [Reshape0DToSqueeze]
 
     @staticmethod
     def pattern():
