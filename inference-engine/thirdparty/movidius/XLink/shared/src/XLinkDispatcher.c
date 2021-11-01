@@ -86,6 +86,7 @@ typedef struct {
     pthread_mutex_t queueMutex;
 
     XLink_sem_t addEventSem;
+    XLink_sem_t eventSchedulerStartSem;
     XLink_sem_t notifyDispatcherSem;
     volatile uint32_t resetXLink;
     uint32_t semaphores;
@@ -251,6 +252,9 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
         perror("Can't create semaphore\n");
         return -1;
     }
+    if (XLink_sem_init(&schedulerState[idx].eventSchedulerStartSem, 0, 0)) {
+        perror("Can't create semaphore\n");
+    }
     if (XLink_sem_init(&schedulerState[idx].notifyDispatcherSem, 0, 0)) {
         perror("Can't create semaphore\n");
     }
@@ -318,6 +322,8 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
         mvLog(MVLOG_ERROR,"pthread_attr_destroy error");
     }
 
+    while(((XLink_sem_wait(&schedulerState[idx].eventSchedulerStartSem)) == -1) && errno == EINTR)
+        continue;
     sem_post(&addSchedulerSem);
 
     return 0;
@@ -394,7 +400,7 @@ int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle, unsigned int 
         // This is a workaround for sem_timedwait being influenced by the system clock change.
         // This is a temporary solution. TODO: replace this with something more efficient.
         while (timeoutMs--) {
-            XLink_sem_trywait(id);
+            rc = XLink_sem_trywait(id);
             if (!rc) {
                 break;
             } else {
@@ -717,6 +723,10 @@ static void* eventSchedulerRun(void* ctx)
 #endif
     mvLog(MVLOG_INFO,"Scheduler thread started");
 
+    if (XLink_sem_post(&curr->eventSchedulerStartSem)) {
+        mvLog(MVLOG_ERROR,"can't post semaphore\n");
+    }
+
     XLinkError_t rc = sendEvents(curr);
     if(rc) {
         mvLog(MVLOG_ERROR, "sendEvents method finished with an error: %s", XLinkErrorToStr(rc));
@@ -915,10 +925,11 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
                                             eventQueueHandler_t *q, xLinkEvent_t* event,
                                             XLink_sem_t* sem, xLinkEventOrigin_t o){
     xLinkEvent_t* ev;
+    XLINK_RET_ERR_IF(pthread_mutex_lock(&(curr->queueMutex)) != 0, NULL);
     xLinkEventPriv_t* eventP = getNextElementWithState(q->base, q->end, q->cur, EVENT_SERVED);
     if (eventP == NULL) {
         mvLog(MVLOG_ERROR, "getNextElementWithState returned NULL");
-        // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
+        XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
         return NULL;
     }
     mvLog(MVLOG_DEBUG, "Received event %s %d", TypeToStr(event->header.type), o);
@@ -936,7 +947,7 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
     q->cur = eventP;
     eventP->isServed = EVENT_ALLOCATED;
     CIRCULAR_INCREMENT_BASE(q->cur, q->end, q->base);
-    // XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
+    XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, NULL);
     return ev;
 }
 
