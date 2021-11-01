@@ -101,8 +101,27 @@ protected:
     int64_t m_num_spatial = -1;
 
 private:
+    friend int64_t calculate_num_spatial(const Convolution* op,
+                                         const PartialShape& input_shape,
+                                         const PartialShape& filters_shape,
+                                         const int64_t& num_non_spatial_data_dims,
+                                         const int64_t& num_non_spatial_filter_dims);
+
+    friend void update_and_validate_attributes(Convolution* op);
+
     template <class T>
-    friend void shape_infer(Convolution* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+    friend bool resolve_auto_pad_for_shape(const Convolution* op,
+                                           CoordinateDiff& pads_begin,
+                                           CoordinateDiff& pads_end,
+                                           const std::vector<T>& input_shapes,
+                                           const int64_t& num_non_spatial_data_dims,
+                                           const int64_t& num_non_spatial_filter_dims);
+    template <class T>
+    friend void shape_infer(const Convolution* op,
+                            const CoordinateDiff& pads_begin,
+                            const CoordinateDiff& pads_end,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 
 /// \brief Data batch backprop for batched convolution operation.
