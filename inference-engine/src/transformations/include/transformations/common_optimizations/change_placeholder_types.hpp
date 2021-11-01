@@ -3,9 +3,12 @@
 //
 
 #include "openvino/pass/pass.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
+
+class TRANSFORMATIONS_API ChangePlaceholderTypes;
 
 /**
  * @brief Add OldApiMap with legacy type for Parameter node
