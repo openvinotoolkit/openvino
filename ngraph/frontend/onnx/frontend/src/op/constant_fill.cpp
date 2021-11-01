@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "op/constant_fill.hpp"
+
 #include <onnx/onnx_pb.h>  // onnx types
 
 #include "default_opset.hpp"

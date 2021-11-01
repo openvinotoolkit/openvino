@@ -273,7 +273,7 @@ protected:
     bool updatePrecisions;
     element::Type deqPrecision;
 
-    static const char originalLayerPostfix[];
+    static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;
 
 protected:

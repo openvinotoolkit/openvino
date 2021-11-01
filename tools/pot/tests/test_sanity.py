@@ -219,7 +219,6 @@ def test_simplified_mode(tmp_path, models):
 
 
 def test_frame_extractor_tool():
-    pytest.skip()
     # hack due to strange python imports (same as in sample test)
     pot_dir = Path(__file__).parent.parent
     sys.path.append(str(pot_dir / 'tools/frame_extractor'))
@@ -227,7 +226,7 @@ def test_frame_extractor_tool():
     from tools.frame_extractor.extractor import extract_frames_and_make_dataset
 
     test_dir = Path(__file__).parent
-    test_video_path = test_dir / 'data/video/ImageNet_2012_f3_r5.avi'
+    test_video_path = test_dir / 'data/video/video_example.avi'
     output_dir = test_dir / 'data/frame_extractor'
     dataset_size, frame_step = 3, 1
 
@@ -252,10 +251,9 @@ TEST_MULTIPLE_OUT_PORTS = [('multiple_out_ports_net', 'tf')]
     'model_name, model_framework', TEST_MULTIPLE_OUT_PORTS,
     ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MULTIPLE_OUT_PORTS])
 def test_multiport_outputs_model(tmp_path, models, model_name, model_framework):
-    pytest.skip()
     test_dir = Path(__file__).parent
     # one image as dataset
-    data_source = (test_dir / 'data/imagenet/ILSVRC2012_val_00000219.*').as_posix()
+    data_source = (test_dir / 'data/image_data/').as_posix()
     engine_config = Dict({'type': 'simplified',
                           'data_source': data_source,
                           'device': 'CPU'})

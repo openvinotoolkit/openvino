@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
 
-void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
+static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
     OutputsDataMap networkOutputs = p.GetNetworkOutputs();
     p.ValidateInputs(op, {1});
 

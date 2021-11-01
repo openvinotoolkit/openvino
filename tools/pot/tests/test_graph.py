@@ -18,11 +18,11 @@ CPU_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'cpu.json'
 GNA_CONFIG_PATH = HARDWARE_CONFIG_PATH / 'gna.json'
 
 TEST_MODELS = [
-    # ('mobilenet-v2-pytorch', 'pytorch'),
-    # ('resnet-50-pytorch', 'pytorch'),
-    # ('googlenet-v3', 'tf'),
-    # ('ssd_mobilenet_v2_coco', 'tf'),
-    # ('densenet-121', 'caffe'),
+    ('mobilenetv2_example', 'pytorch'),
+    ('resnet_example', 'pytorch'),
+    ('googlenet_example', 'pytorch'),
+    ('mobilenetv2_ssd_example', 'pytorch'),
+    ('densenet121_example', 'pytorch'),
     ('multiple_out_ports_net', 'tf'),  # multiple output ports in node case check,
     # ('rm_nnet4a', 'kaldi')
 ]
@@ -53,16 +53,16 @@ def test_build_quantization_graph(tmp_path, models, model_name, model_framework)
 
 
 MODELS_FOR_TESTING_IGNORED_PARAMS = [
-    # ('mobilenet-v2-pytorch', 'pytorch'),
-    # ('resnet-50-pytorch', 'pytorch'),
-    # ('googlenet-v3', 'tf'),
+    ('mobilenetv2_example', 'pytorch'),
+    ('resnet_example', 'pytorch'),
+    ('googlenet_example', 'pytorch'),
     # ('mtcnn', 'caffe')
 ]
 
 
 @pytest.mark.parametrize(
-    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS[1:],
-    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS[1:]])
+    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS,
+    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS])
 def test_build_quantization_graph_with_ignored_params(
         tmp_path, models, model_name, model_framework):
     if model_name in CASCADE_MAP:
@@ -88,10 +88,10 @@ def test_build_quantization_graph_with_ignored_params(
             ]
         }
 
-    if model_name == 'resnet-50-pytorch':
-        ignored_params['scope'] = ['Conv_5/WithoutBiases', 'Conv_18/WithoutBiases']
-    elif model_name == 'googlenet-v3':
-        node_name = 'InceptionV3/InceptionV3/Mixed_6c/Branch_2/Conv2d_0a_1x1/convolution'
+    if model_name == 'resnet_example':
+        ignored_params['scope'] = ['Conv_11/WithoutBiases', 'Conv_29/WithoutBiases']
+    elif model_name == 'googlenet_example':
+        node_name = 'Conv_10/WithoutBiases'
         ignored_params['scope'] = [node_name]
     elif model_name == 'mtcnn':
         ignored_params = {
@@ -117,8 +117,8 @@ def test_build_quantization_graph_with_ignored_params(
 
 
 @pytest.mark.parametrize(
-    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS[:],
-    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS[:]])
+    'model_name, model_framework', MODELS_FOR_TESTING_IGNORED_PARAMS,
+    ids=['{}_{}'.format(m[0], m[1]) for m in MODELS_FOR_TESTING_IGNORED_PARAMS])
 def test_build_quantization_graph_with_ignored_agnostic_params(
         tmp_path, models, model_name, model_framework):
     if model_name in CASCADE_MAP:
@@ -155,22 +155,19 @@ def test_build_quantization_graph_with_ignored_agnostic_params(
 
 
 TEST_MODELS_REMOVAL = [
-    # ('mobilenet-ssd', 'caffe', ['conv1/WithoutBiases',
-    #                             'conv16_2_mbox_conf/WithoutBiases',
-    #                             'conv15_1/WithoutBiases']),
-    # ('ssd_resnet50_512', 'mxnet', ['stage1_unit1_sc',
-    #                                'stage3_unit1_sc',
-    #                                'multi_feat_2_conv_3x3_relu_cls_pred_conv/WithoutBiases']),
-    # ('squeezenet1.1', 'pytorch', ['fire4/expand3x3/WithoutBiases',
-    #                               'fire8/expand3x3/WithoutBiases']),
-    # ('mobilenet-v2-pytorch', 'pytorch', ['Conv_18/WithoutBiases',
-    #                                      'Conv_66/WithoutBiases',
-    #                                      'Conv_162/WithoutBiases']),
-    # ('googlenet-v3', 'tf', ['InceptionV3/InceptionV3/Conv2d_3b_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_6a/Branch_1/Conv2d_0a_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_6d/Branch_0/Conv2d_0a_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_7c/Branch_2/Conv2d_0a_1x1/convolution',
-    #                         'InceptionV3/InceptionV3/Mixed_6a/Branch_0/Conv2d_1a_1x1/convolution']),
+    ('mobilenetv2_ssd_example', 'caffe', ['Conv_8/WithoutBiases',
+                                          'Conv_172/WithoutBiases',
+                                          'Conv_129/WithoutBiases']),
+    ('squeezenet1_1_example', 'pytorch', ['Conv_14/WithoutBiases',
+                                          'Conv_51/WithoutBiases']),
+    ('mobilenet_example', 'pytorch', ['Conv_10/WithoutBiases',
+                                      'Conv_35/WithoutBiases',
+                                      'Conv_73/WithoutBiases']),
+    ('googlenet_example', 'tf', ['Conv_3/WithoutBiases',
+                                 'Conv_57/WithoutBiases',
+                                 'Conv_65/WithoutBiases',
+                                 'Conv_104/WithoutBiases',
+                                 'Conv_39/WithoutBiases']),
     ('multiple_out_ports_net', 'tf', ['add_indices'])
 ]
 
@@ -205,8 +202,8 @@ def test_cutting_fq_layers(_params, tmp_path, models):
 
 
 TEST_MODELS_WITH_PATTERNS = [
-    # ('efficientnet-b0', 'tf'),
-    # ('se-resnet-50', 'caffe'),
+    ('efficientnet_b0_example', 'pytorch'),
+    ('mobilenet_v3_small_example', 'pytorch'),
     # ('image-retrieval-0001', 'dldt'),
     ('scaleshift_fuse', 'dldt'),
     ('scaleshift_no_fuse_1', 'dldt'),
