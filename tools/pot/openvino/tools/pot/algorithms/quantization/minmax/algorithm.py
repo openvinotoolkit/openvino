@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
-
+from io import SEEK_CUR
 import os
 import numpy as np
 
+
 from openvino.tools.pot.graph import save_model
-from ..utils import get_tensor_statistics, get_stat_name_by_config
+from ..utils import get_tensor_statistics, get_stat_name_by_config, configs_creation, proxy_metrics
 from ...algorithm import Algorithm
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ...quantization import fake_quantize as fqut
@@ -16,13 +17,16 @@ from ....graph import node_utils as nu
 from ....graph.special_operations import TRANSPOSED_OPERATIONS
 from ....samplers.creator import create_sampler
 from ....statistics.function_selector import get_aggregation_function
+from ....utils.logger import get_logger
+from ..accuracy_aware_common.utils import evaluate_model
+
+logger = get_logger(__name__)
 
 
 # pylint: disable=R0912
 @COMPRESSION_ALGORITHMS.register('MinMaxQuantization')
 class MinMaxQuantization(Algorithm):
     name = 'MinMaxQuantization'
-
     def __init__(self, config, engine):
         super().__init__(config, engine)
         stat_subset_size = min(
@@ -34,6 +38,13 @@ class MinMaxQuantization(Algorithm):
         seed = self._config.get('seed', 0)
         self._sampler = create_sampler(engine, stat_subset_size, shuffle_data, seed)
 
+        self.proxy_metric = self._config.get('proxy_metric', 'wassershtein_distance')
+
+        if self._config.get('search_configs', False):
+            self.configs = configs_creation(self._config, use_fast_bias=False)
+        else:
+            self.configs = [self._config]
+
     @property
     def change_original_model(self):
         return False
@@ -42,14 +53,42 @@ class MinMaxQuantization(Algorithm):
         """ this function applies quantization algorithm
          :param model: model to apply algo
          :return model with inserted and filled FakeQuantize nodes
-         """
+        """
         activation_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
-        model = fqut.get_quantized_model(model,
+
+        nodes_names = []
+        output_nodes = mu.get_nodes_by_type(model, ['Result'])
+        for node in output_nodes:
+            previous_node_name = nu.get_node_input(node, 0).name
+            nodes_names.append(previous_node_name)
+        stats_layout = {name: {'raw_output': lambda x: x} for name in nodes_names}
+
+        results_floated = evaluate_model(model, self._engine, self.total_exec_steps,
+                                        stats_layout=stats_layout, count_metrics=False, sampler=self._sampler)
+        count_metric = proxy_metrics[self.proxy_metric]['function']
+        best_proxy_value = np.inf
+        best_config_num = 0
+
+        for config_num, config in enumerate(self.configs):
+            model_quantized = fqut.get_quantized_model(deepcopy(model),
+                                                       self.create_stats_layout,
+                                                       activation_statistics,
+                                                       self.fill_fq_range,
+                                                       config)
+            results_quantized = evaluate_model(model_quantized, self._engine, self.total_exec_steps,
+                                               stats_layout=stats_layout, count_metrics=False, sampler=self._sampler)
+            proxy_value = count_metric(results_floated, results_quantized)
+            logger.debug('Config with parameters %s has proxy value %s', config, proxy_value)
+            if proxy_value == min(proxy_value, best_proxy_value):
+                best_config_num = config_num
+                best_proxy_value = proxy_value
+        logger.info('The best config is number %s with paramaters %s and metric value %s',
+                    best_config_num, self.configs[best_config_num], best_proxy_value)
+        model = fqut.get_quantized_model(deepcopy(model),
                                          self.create_stats_layout,
                                          activation_statistics,
                                          self.fill_fq_range,
-                                         self._config)
-
+                                         self.configs[best_config_num])
         if self._config.get('dump_intermediate_model', False):
             save_model(model,
                        os.path.join(self._config.get('exec_log_dir'), 'optimized'),
@@ -58,22 +97,20 @@ class MinMaxQuantization(Algorithm):
 
     def register_statistics(self, model, stats_collector):
         model = deepcopy(model)
-        fqut.insert_fake_quantize_nodes(self._config, model)
-        activation_statistics_layout = self.__get_activations_statistics_layout(model)
-        layers_mapping = fqut.create_renamed_layers_mapping(model, activation_statistics_layout)
-        stats_collector.register(self.name, activation_statistics_layout, self._sampler, layers_mapping)
+        for config in self.configs:
+            fqut.insert_fake_quantize_nodes(config, model)
+            activation_statistics_layout = self.__get_activations_statistics_layout(model, config)
+            stats_collector.register(self.name, activation_statistics_layout, self._sampler)
         self._stats_collector = stats_collector
 
-    def __get_activations_statistics_layout(self, model):
+    def __get_activations_statistics_layout(self, model, config):
         """
         Compute statistics layout for activations
         :param model: NXModel instance
         :return: statistics layout in format {node_name: [stat_1, stat_2] .. }
         """
-        fake_quantize_config = fqut.compute_stats_layouts(self._config, model)
-
-        activations_stats_layout = self.create_stats_layout(fake_quantize_config, model,
-                                                            for_weights=False,
+        fake_quantize_config = fqut.compute_stats_layouts(config, model)
+        activations_stats_layout = self.create_stats_layout(fake_quantize_config, model, for_weights=False,
                                                             inplace_statistics=self._config['inplace_statistics'])
         return activations_stats_layout
 
@@ -86,7 +123,6 @@ class MinMaxQuantization(Algorithm):
         :return weights or activations statistics layout. Layout is a dictionary with layer name as
          key and dictionary with statistics {stats_name: stats_fn} as values
         """
-
         fq_nodes = mu.get_nodes_by_type(model, ['FakeQuantize'])
 
         statistics_layout = {}

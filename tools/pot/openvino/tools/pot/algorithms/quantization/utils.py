@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
+import itertools
 from pathlib import Path
-
+import numpy as np
+from scipy.spatial import distance
 from .range_estimator import get_range_estimator_config
 from ...api.engine import Engine
 from ...configs.hardware_config import HardwareConfig
@@ -19,7 +21,36 @@ __HARDWARE_CONFIGS_MAP = {'ANY': 'cpu.json',
                           'GNA': 'gna.json',
                           'GPU': 'cpu.json',
                           'VPU': 'vpu.json'}
-
+grid_search_space = [
+    {
+        # range_estimator params
+        'weights': {
+            'min': [
+                {'type': 'min'}
+            ],
+            'max': [
+                {'type': 'max'}
+            ]
+        },
+        'activations': {
+            'min': [
+                {'type': 'min', 'aggregator': 'min'},
+                {'type': 'quantile', 'aggregator': 'mean', 'outlier_prob': 10e-4},
+                {'type': 'quantile', 'aggregator': 'mean', 'outlier_prob': 10e-5}
+            ],
+            'max': [
+                {'type': 'max', 'aggregator': 'max'},
+                {'type': 'quantile', 'aggregator': 'mean', 'outlier_prob': 10e-4},
+                {'type': 'quantile', 'aggregator': 'mean', 'outlier_prob': 10e-5}
+            ]
+        }
+    },
+    {
+        # bias correction variations
+        'use_fast_bias': [True, False]
+    }
+]
+range_estimator_types = ['activations', 'weights']
 
 def load_hardware_config(config):
     """ Loads hardware config based on tool config
@@ -342,3 +373,136 @@ def get_ignored_operations(model):
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
                                  {"type": "SquaredDifference"}]}
     return operation[model]
+
+def create_special_combination(space_name, space_values):
+    '''
+    This method created combination for 'weights' and 'activation' search spaces
+    '''
+    prepared_values = []
+    for range_estimator_type, space_value in space_values.items():
+        prepared_values.append([[range_estimator_type, value] for value in space_value])
+    return create_usual_combination(space_name, prepared_values)
+
+def create_usual_combination(space_name, space_values):
+    return [[(space_name, tup)] for tup in itertools.product(*space_values)]
+
+def create_parameter_combinations(grid_search_space, range_estimator_types):
+    '''
+    This method creates combinations using _grid_search_space values
+    '''
+    parameter_combinations = []
+    for search_space in grid_search_space:
+        parameter_combination = []
+        for space_name, space_values in search_space.items():
+            if space_name in range_estimator_types:
+                combinations = create_special_combination(space_name, space_values)
+            else:
+                combinations = create_usual_combination(space_name, [space_values])
+            parameter_combination.extend(combinations)
+        parameter_combinations.append(parameter_combination)
+    return parameter_combinations
+
+def create_modified_config(config, range_estimator_types, params_data):
+    '''
+    This method creates new config with given parameters
+    '''
+    modified_config = deepcopy(config)
+
+    if params_data:
+        for param_data in params_data:
+            params_namespace = param_data[0]
+            param_values = param_data[1]
+
+            if params_namespace in range_estimator_types:
+                modified_config[params_namespace] = {
+                    'range_estimator': {}
+                }
+                for estimator_type, values in param_values:
+                    for param_name, param_value in values.items():
+                        estimator_config = modified_config[params_namespace]['range_estimator']
+                        if estimator_type not in estimator_config:
+                            estimator_config[estimator_type] = {}
+                        estimator_config[estimator_type].update({param_name: param_value})
+            else:
+                modified_config[params_namespace] = param_values[0]
+    return modified_config
+
+def configs_creation(main_config, use_fast_bias=True):
+    confs = [main_config]
+    if not use_fast_bias:
+        parameter_combinations = create_parameter_combinations(grid_search_space[:-1], range_estimator_types)
+    else:
+        parameter_combinations = create_parameter_combinations(grid_search_space, range_estimator_types)
+    for space in parameter_combinations:
+        for parameters in space:
+            algo_config = create_modified_config(main_config, range_estimator_types, parameters)
+            confs.append(algo_config)
+    return confs
+
+def mse(y_floated, y_quantized):
+    metric_value = 0
+    output_layers = y_floated.keys()
+    for output_layer in output_layers:
+        y_floated_raw = y_floated[output_layer]["raw_output"]
+        y_quantized_raw = y_quantized[output_layer]["raw_output"]
+        if y_floated_raw and y_quantized_raw:
+            metric_local = np.mean([np.mean(np.square(y_f - y_q))
+                                     for y_f, y_q in zip(y_floated_raw, y_quantized_raw)])
+
+            metric_value += metric_local
+    return metric_value / len(output_layers)
+
+def hellinger(y_floated, y_quantized):
+    metric_value = 0
+    output_layers = y_floated.keys()
+    for output_layer in output_layers:
+        y_floated_raw = y_floated[output_layer]["raw_output"]
+        y_quantized_raw = y_quantized[output_layer]["raw_output"]
+        if y_floated_raw and y_quantized_raw:
+            metric_local = np.mean([distance.euclidean(np.sqrt(np.absolute(y_f)), np.sqrt(np.absolute(y_q))) / np.sqrt(2) 
+                                     for y_f, y_q in zip(y_floated_raw, y_quantized_raw)])
+
+            metric_value += metric_local
+    return metric_value / len(output_layers)
+
+def wassershtein_distance(y_floated, y_quantized):
+    metric_value = 0
+    output_layers = y_floated.keys()
+    for output_layer in output_layers:
+        y_floated_raw = y_floated[output_layer]["raw_output"]
+        y_quantized_raw = y_quantized[output_layer]["raw_output"]
+        if y_floated_raw and y_quantized_raw:
+            metric_local = np.mean([np.mean(np.abs(y_f - y_q)) for y_f, y_q in zip(y_floated_raw, y_quantized_raw)])
+            metric_value += metric_local
+    return metric_value / len(output_layers)
+
+def mse_wassershtein(y_floated, y_quantized):
+    metric_value = 0
+    output_layers = y_floated.keys()
+    for output_layer in output_layers:
+        y_floated_raw = y_floated[output_layer]["raw_output"]
+        y_quantized_raw = y_quantized[output_layer]["raw_output"]
+        if y_floated_raw and y_quantized_raw:
+            metric_local = np.mean([np.mean(np.abs(y_f - y_q)) + np.mean(np.square(y_f - y_q)) 
+                                    for y_f, y_q in zip(y_floated_raw, y_quantized_raw)])
+
+            metric_value += metric_local
+    return metric_value / len(output_layers)
+
+def euclidean(y_floated, y_quantized):
+    metric_value = 0
+    output_layers = y_floated.keys()
+    for output_layer in output_layers:
+        y_floated_raw = y_floated[output_layer]["raw_output"]
+        y_quantized_raw = y_quantized[output_layer]["raw_output"]
+        if y_floated_raw and y_quantized_raw:
+            metric_local = np.mean([distance.euclidean(y_f, y_q) for y_f, y_q in zip(y_floated_raw, y_quantized_raw)])
+
+            metric_value += metric_local
+    return metric_value / len(output_layers)
+
+proxy_metrics = {"mse": {"function": mse, "condition": min},
+                 "hellinger": {"function": hellinger, "condition": min},
+                 "wassershtein_distance": {"function": wassershtein_distance, "condition": min},
+                 "mse_wassershtein_distance": {"function": mse_wassershtein, "condition": min},
+                 "euclidean": {"function": euclidean, "condition": min}}
