@@ -797,15 +797,13 @@ struct MKLDNNNodeImpl : public MKLDNNNodeType {
     }
 };
 
-#define REG_MKLDNN_CONCAT3_(X, Y, Z) X ## Y ## Z
-#define REG_MKLDNN_CONCAT3(X, Y, Z) REG_MKLDNN_CONCAT3_(X, Y, Z)
+}  // namespace MKLDNNPlugin
 
-#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                                 \
-static struct REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__) {                            \
-    REG_MKLDNN_CONCAT3(Registrar4, __prim, __LINE__)() {                                    \
-        MKLDNNNode::factory()                                                               \
-            .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
-    }                                                                                       \
-} REG_MKLDNN_CONCAT3(_reg_, __prim, __LINE__);
-
+#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                             \
+namespace MKLDNNPlugin {                                                                \
+void __prim ## __type();                                                                \
+void __prim ## __type() {                                                               \
+    MKLDNNNode::factory()                                                               \
+        .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
+}                                                                                       \
 }  // namespace MKLDNNPlugin
