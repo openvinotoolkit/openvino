@@ -46,8 +46,10 @@ size_t InputInfo::height() const {
 size_t InputInfo::channels() const {
     return getDimentionByLayout('C');
 }
+// implementation changed to not throwing exceptions
 size_t InputInfo::batch() const {
-    return getDimentionByLayout('N');
+    size_t pos = layout.find('N');
+    return pos == std::string::npos ? 1 : tensorShape.at(pos);
 }
 size_t InputInfo::depth() const {
     return getDimentionByLayout('D');

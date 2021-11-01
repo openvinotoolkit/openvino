@@ -414,12 +414,8 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             auto app_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
             auto precision = app_info.precision;
             size_t inputId = m_file % files.second.size();
-            size_t batchSize = 1;
-            try {
-                batchSize = app_info.batch();
-            } catch (std::runtime_error& err) {
-                slog::warn << err.what() << slog::endl;
-            }
+                size_t batchSize = app_info.batch();
+
             std::string blob_src_info;
             if (app_info.isImage()) {
                 // Fill with Images
@@ -463,12 +459,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             for (auto& input : input_info) {
                 // Preparing info
                 std::stringstream strOut = getTestInfoStreamHeader(input.second);
-                size_t batchSize = 1;
-                try {
-                    batchSize = input.second.batch();
-                } catch (std::runtime_error& err) {
-                    slog::warn << err.what() << slog::endl;
-                }
+                size_t batchSize = input.second.batch();
                 if (input.second.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                     // Most likely it is image info: fill with image information
                     auto image_size = net_input_im_sizes.at(i);
