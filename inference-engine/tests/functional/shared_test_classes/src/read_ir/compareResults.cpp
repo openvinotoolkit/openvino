@@ -23,7 +23,10 @@ void compare(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
              const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expected,
              const std::vector<InferenceEngine::Blob::Ptr>& actual,
              float threshold) {
-    ASSERT_EQ(expected.size(), actual.front()->byteSize());
+    if (expected.size() != actual.front()->byteSize()) {
+        IE_THROW() << "expected.size(): " << expected.size() << " actual.front()->byteSize(): " << actual.front()->byteSize()
+                   << " failed";
+    }
 
     size_t expSize = 0;
     size_t actSize = 0;
@@ -46,7 +49,10 @@ void compare(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
             break;
         actSize += 7;
     }
-    ASSERT_EQ(expSize, actSize);
+    if (expSize != actSize) {
+        IE_THROW() << "expSize: " << expSize << " actSize: " << actSize
+                   << " failed";
+    }
     LayerTestsUtils::LayerTestsCommon::Compare<float>(expBuf, actBuf, expSize, 1e-2f);
 }
 
