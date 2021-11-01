@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.priorbox import PriorBoxOp
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.priorbox import PriorBoxOp
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'data'},

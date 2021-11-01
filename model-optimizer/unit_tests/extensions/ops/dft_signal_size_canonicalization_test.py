@@ -6,8 +6,8 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.ops.dft import FFTBase
-from mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.ops.dft import FFTBase
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 
 
 @generator

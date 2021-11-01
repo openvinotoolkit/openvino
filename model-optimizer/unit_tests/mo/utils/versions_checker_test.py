@@ -5,7 +5,7 @@ import unittest
 import unittest.mock as mock
 from unittest.mock import mock_open
 
-from mo.utils.versions_checker import get_module_version_list_from_file, parse_and_filter_versions_list, version_check
+from openvino.tools.mo.utils.versions_checker import get_module_version_list_from_file, parse_and_filter_versions_list, version_check
 
 
 class TestingVersionsChecker(unittest.TestCase):

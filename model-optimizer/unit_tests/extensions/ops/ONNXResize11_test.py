@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.ops.ONNXResize11 import ONNXResize11Op
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.ONNXResize11 import ONNXResize11Op
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

@@ -5,9 +5,9 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.convert_data_type import convert_blobs, SUPPORTED_DATA_TYPES
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.middle.passes.convert_data_type import convert_blobs, SUPPORTED_DATA_TYPES
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'data_node': {'kind': 'data', 'value': None, 'shape': int64_array([5])},

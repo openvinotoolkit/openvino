@@ -32,8 +32,8 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         PATTERN "README.md" EXCLUDE
         PATTERN "CMakeLists.txt" EXCLUDE
 
-        PATTERN "extensions/front/caffe/CustomLayersMapping.xml" EXCLUDE
-        PATTERN "mo/utils/convert.py" EXCLUDE
+        PATTERN "openvino/tools/mo/front/caffe/CustomLayersMapping.xml" EXCLUDE
+        PATTERN "openvino/tools/mo/utils/convert.py" EXCLUDE
         PATTERN "unit_tests" EXCLUDE
         PATTERN "openvino_mo.egg-info" EXCLUDE
         PATTERN "build" EXCLUDE

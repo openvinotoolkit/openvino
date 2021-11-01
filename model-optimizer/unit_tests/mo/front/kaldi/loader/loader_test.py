@@ -7,9 +7,9 @@ import unittest
 
 import numpy as np
 
-from mo.front.kaldi.loader.loader import load_topology_map, load_components
-from mo.graph.graph import Graph, Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.kaldi.loader.loader import load_topology_map, load_components
+from openvino.tools.mo.graph.graph import Graph, Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 

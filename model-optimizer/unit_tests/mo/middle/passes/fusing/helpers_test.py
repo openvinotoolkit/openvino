@@ -3,9 +3,9 @@
 
 import unittest
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.middle.passes.fusing.helpers import forward_bfs, backward_bfs, get_next_operation, common_bfs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.fusing.helpers import forward_bfs, backward_bfs, get_next_operation, common_bfs
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, connect, result, \
     valued_const_with_data, connect_data
 

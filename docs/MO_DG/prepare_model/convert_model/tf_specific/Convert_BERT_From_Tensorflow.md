@@ -32,7 +32,7 @@ Pre-trained model meta-graph files are `bert_model.ckpt.*`.
 
 To generate the BERT Intermediate Representation (IR) of the model, run the Model Optimizer with the following parameters:
 ```sh
-python3 ./mo_tf.py
+ mo
 --input_meta_graph uncased_L-12_H-768_A-12/bert_model.ckpt.meta \
 --output bert/pooler/dense/Tanh                                 \
 --disable_nhwc_to_nchw                                          \
@@ -110,7 +110,7 @@ python3 run_classifier.py \
 
 Run the Model Optimizer with the following command line parameters to generate reshape-able BERT Intermediate Representation (IR):
 ```sh
-python3 ./mo_tf.py
+ mo
 --input_model inference_graph.pb 
 --input "IteratorGetNext:0{i32}[1 128],IteratorGetNext:1{i32}[1 128],IteratorGetNext:4{i32}[1 128]" 
 --disable_nhwc_to_nchw 

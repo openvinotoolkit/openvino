@@ -47,7 +47,7 @@ python tools/test_shadownet.py --image_path data/test_images/test_01.jpg --weigh
 
 **Step 4.** Convert the model into IR:
 ```sh
-python3 path/to/model_optimizer/mo_tf.py --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
+mo --input_model path/to/your/CRNN_Tensorflow/frozen_graph.pb
 ```
 
 

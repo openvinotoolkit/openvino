@@ -3,10 +3,10 @@
 
 import unittest
 
-from extensions.front.HSigmoid_fusion import HSigmoidWithClamp, HSigmoidWithMinMax, HSigmoidWithReluDiv, \
+from openvino.tools.mo.front.HSigmoid_fusion import HSigmoidWithClamp, HSigmoidWithMinMax, HSigmoidWithReluDiv, \
     HSigmoidWithReluMul
-from mo.front.common.partial_infer.utils import float_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.common.partial_infer.utils import float_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, const, regular_op, result, build_graph_with_edge_attrs
 
 ref_nodes = {**regular_op('input', {'type': 'Parameter'}),

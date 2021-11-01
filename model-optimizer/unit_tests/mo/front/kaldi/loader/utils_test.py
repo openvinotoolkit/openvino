@@ -5,11 +5,11 @@ import io
 import struct
 import unittest
 
-from mo.front.kaldi.loader.utils import end_of_nnet_tag, end_of_component_tag, get_bool, get_uint16, get_uint32, \
+from openvino.tools.mo.front.kaldi.loader.utils import end_of_nnet_tag, end_of_component_tag, get_bool, get_uint16, get_uint32, \
     get_uint64, read_binary_bool_token, read_binary_integer32_token, read_binary_integer64_token, read_string, \
     read_binary_float_token, find_next_tag, find_next_component, find_end_of_component, get_parameters, \
     collect_until_token_and_read, get_args_for_specifier
-from mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error
 
 
 class TestKaldiUtilsLoading(unittest.TestCase):

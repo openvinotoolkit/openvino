@@ -5,9 +5,9 @@ import unittest
 
 import numpy as np
 
-from extensions.front.caffe.pooling_ext import PoolingFrontExtractor
-from mo.front.common.extractors.utils import layout_attrs
-from mo.ops.pooling import Pooling
+from openvino.tools.mo.front.caffe.pooling_ext import PoolingFrontExtractor
+from openvino.tools.mo.front.common.extractors.utils import layout_attrs
+from openvino.tools.mo.ops.pooling import Pooling
 from unit_tests.utils.extractors import PB, FakeMultiParam
 
 

@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from mo.front.mxnet.extractors.slice_axis import mxnet_slice_axis_infer
-from mo.front.mxnet.extractors.slice_axis import slice_axis_ext
-from mo.front.mxnet.extractors.utils import AttrDictionary
-from mo.graph.graph import Node
+from openvino.tools.mo.front.mxnet.extractors.slice_axis import mxnet_slice_axis_infer
+from openvino.tools.mo.front.mxnet.extractors.slice_axis import slice_axis_ext
+from openvino.tools.mo.front.mxnet.extractors.utils import AttrDictionary
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

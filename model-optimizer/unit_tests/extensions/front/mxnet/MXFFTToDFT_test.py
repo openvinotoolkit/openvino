@@ -6,9 +6,9 @@ import unittest
 
 from generator import generator, generate
 
-from extensions.front.mxnet.MXFFTToDFT import MXFFTToDFT
-from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.mxnet.MXFFTToDFT import MXFFTToDFT
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 

@@ -6,9 +6,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from extensions.front.caffe.priorbox_clustered_ext import PriorBoxClusteredFrontExtractor
-from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.priorbox_clustered_ext import PriorBoxClusteredFrontExtractor
+from openvino.tools.mo.ops.priorbox_clustered import PriorBoxClusteredOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -26,7 +26,7 @@ class TestPriorBoxClusteredExt(unittest.TestCase):
     def test_priorboxclustered_no_pb_no_ml(self):
         self.assertRaises(AttributeError, PriorBoxClusteredFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.priorbox_clustered_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.priorbox_clustered_ext.merge_attrs')
     def test_priorboxclustered_ext_ideal_numbers(self, merge_attrs_mock):
         params = {
             'width': '30.0',

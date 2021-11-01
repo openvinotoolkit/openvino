@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import mxnet as mx
 
-from mo.front.mxnet.extractors.utils import AttrDictionary
-from mo.front.mxnet.extractors.utils import load_params
+from openvino.tools.mo.front.mxnet.extractors.utils import AttrDictionary
+from openvino.tools.mo.front.mxnet.extractors.utils import load_params
 
 
 class TestAttrDictionary(unittest.TestCase):

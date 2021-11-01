@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
+from openvino.tools.mo.graph.graph import Node, Graph
 from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from unit_tests.utils.graph import build_graph
 

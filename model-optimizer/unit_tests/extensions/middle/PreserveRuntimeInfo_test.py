@@ -6,13 +6,13 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
-from extensions.ops.transpose import Transpose
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Node
-from mo.ops.op import PermuteAttrs
-from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.runtime_info import RTInfo
+from openvino.tools.mo.middle.PreserveRuntimeInfo import PreserveRuntimeInfo
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.op import PermuteAttrs
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.utils.runtime_info import RTInfo
 from unit_tests.utils.graph import build_graph, connect, valued_const_with_data, regular_op_with_empty_data, \
     regular_op_with_shaped_data
 

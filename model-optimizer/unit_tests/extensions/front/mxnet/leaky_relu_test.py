@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.mxnet.leaky_relu import LeakyReLUFrontExtractor
-from mo.graph.graph import Node
+from openvino.tools.mo.front.mxnet.leaky_relu import LeakyReLUFrontExtractor
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.back.names_uniqueness_check import NamesUniquenessCheck
-from mo.graph.graph import Node
+from openvino.tools.mo.back.names_uniqueness_check import NamesUniquenessCheck
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

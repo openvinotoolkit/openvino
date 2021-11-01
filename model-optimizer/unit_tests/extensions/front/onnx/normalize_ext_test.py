@@ -3,7 +3,7 @@
 
 import onnx
 
-from extensions.front.onnx.normalize_ext import NormalizeFrontExtractor
+from openvino.tools.mo.front.onnx.normalize_ext import NormalizeFrontExtractor
 from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 

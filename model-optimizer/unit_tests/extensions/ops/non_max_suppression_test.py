@@ -5,11 +5,11 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.non_max_suppression import NonMaxSuppression
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.non_max_suppression import NonMaxSuppression
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op, regular_op_with_shaped_data, valued_const_with_data, result, connect, empty_data
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 
 
 class TestNonMaxSuppressionInfer(unittest.TestCase):

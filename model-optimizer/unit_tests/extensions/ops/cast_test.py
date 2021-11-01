@@ -6,10 +6,10 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.ops.Cast import Cast
-from mo.middle.passes.convert_data_type import packed_U4, packed_I4
-from mo.middle.passes.infer import partial_infer
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.middle.passes.convert_data_type import packed_U4, packed_I4
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import valued_const_with_data, regular_op_with_empty_data, result, build_graph, connect
 
 nodes = lambda value, dst_type: {

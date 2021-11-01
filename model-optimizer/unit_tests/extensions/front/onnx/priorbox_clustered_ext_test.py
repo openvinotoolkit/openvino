@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 import onnx
 
-from extensions.front.onnx.priorbox_clustered_ext import PriorBoxClusteredFrontExtractor
-from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.onnx.priorbox_clustered_ext import PriorBoxClusteredFrontExtractor
+from openvino.tools.mo.ops.priorbox_clustered import PriorBoxClusteredOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import PB
 
 

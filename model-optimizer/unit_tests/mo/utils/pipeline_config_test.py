@@ -3,8 +3,8 @@
 
 import unittest.mock
 
-from mo.utils.error import Error
-from mo.utils.pipeline_config import PipelineConfig
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.pipeline_config import PipelineConfig
 
 file_content = """model {
   faster_rcnn {

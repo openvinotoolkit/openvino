@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.kaldi.extractors.max_pooling_ext import MaxPoolingComponentFrontExtractor
-from mo.ops.op import Op
-from mo.ops.pooling import Pooling
+from openvino.tools.mo.front.kaldi.extractors.max_pooling_ext import MaxPoolingComponentFrontExtractor
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.pooling import Pooling
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 

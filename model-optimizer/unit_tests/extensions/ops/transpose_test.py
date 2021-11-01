@@ -7,8 +7,8 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.ops.transpose import Transpose
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.transpose import Transpose
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 input_shape = np.array([1, 3, 224, 224])

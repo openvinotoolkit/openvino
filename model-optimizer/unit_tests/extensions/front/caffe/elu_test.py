@@ -4,7 +4,7 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.elu import ELUFrontExtractor
+from openvino.tools.mo.front.caffe.elu import ELUFrontExtractor
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -15,7 +15,7 @@ class FakeProtoLayer:
 
 
 class TestElu(unittest.TestCase):
-    @patch('extensions.front.caffe.elu.collect_attributes')
+    @patch('openvino.tools.mo.front.caffe.elu.collect_attributes')
     def test_elu_ext(self, collect_attrs_mock):
         params = {
             'alpha': 4

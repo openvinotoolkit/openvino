@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from extensions.middle.FakeSplitOutputs import AddFakeOutputsToSplit, AddFakeOutputsToVariadicSplit
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Node
-from mo.middle.passes.eliminate import graph_clean_up
+from openvino.tools.mo.middle.FakeSplitOutputs import AddFakeOutputsToSplit, AddFakeOutputsToVariadicSplit
+from openvino.tools.mo.front.common.partial_infer.elemental import copy_shape_infer
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.eliminate import graph_clean_up
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

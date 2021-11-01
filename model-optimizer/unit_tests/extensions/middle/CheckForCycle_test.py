@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.middle.CheckForCycle import CheckForCycle
-from mo.utils.error import Error
+from openvino.tools.mo.middle.CheckForCycle import CheckForCycle
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},

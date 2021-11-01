@@ -4,9 +4,9 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.proposal_ext import ProposalFrontExtractor
-from extensions.ops.proposal import ProposalOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.proposal_ext import ProposalFrontExtractor
+from openvino.tools.mo.ops.proposal import ProposalOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -24,7 +24,7 @@ class TestProposalExt(unittest.TestCase):
     def test_proposal_no_pb_no_ml(self):
         self.assertRaises(AttributeError, ProposalFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.proposal_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.proposal_ext.merge_attrs')
     def test_proposal_ext_ideal_numbers(self, merge_attrs):
         params = {
             'feat_stride': 1,

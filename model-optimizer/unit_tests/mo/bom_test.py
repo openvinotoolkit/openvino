@@ -11,12 +11,12 @@ dir_patterns_to_skip = ['.*__pycache__.*']
 file_patterns_to_skip = ['.*\\.DS_Store$',
                          '.*\\.swp',
                          '.*\\.pyc$']
-full_name_patterns_to_skip = ['^mo/utils/convert.py$',
-                              '^extensions/front/caffe/CustomLayersMapping.xml$',
+full_name_patterns_to_skip = ['^openvino/tools/mo/utils/convert.py$',
+                              '^openvino/tools/mo/front/caffe/CustomLayersMapping.xml$',
                               ]
 if platform.system() == 'Windows':
     full_name_patterns_to_skip = [i.replace('/', '\\\\') for i in full_name_patterns_to_skip]
-dirs_to_search = ['mo', 'extensions']
+dirs_to_search = ['openvino/tools/mo']
 
 
 def is_match(name: str, patterns: ()):

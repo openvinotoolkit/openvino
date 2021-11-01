@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, dynamic_dimension, \
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value, dynamic_dimension, \
     strict_compare_tensors
-from mo.graph.graph import Node
-from mo.ops.pad import Pad, AttributedPad
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.pad import Pad, AttributedPad
 from unit_tests.utils.graph import build_graph
 
 

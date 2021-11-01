@@ -21,7 +21,7 @@ The IR is a pair of files describing the model:
 Below is a simple command running Model Optimizer to generate an IR for the input model:
 
 ```sh
-python3 mo.py --input_model INPUT_MODEL
+ mo --input_model INPUT_MODEL
 ```
 To learn about all Model Optimizer parameters and conversion technics, see the [Converting a Model to IR](prepare_model/convert_model/Converting_Model.md) page.
 

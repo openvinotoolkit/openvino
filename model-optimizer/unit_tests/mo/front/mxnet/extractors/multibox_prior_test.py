@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from mo.front.mxnet.extractors.multibox_prior import multi_box_prior_ext
-from mo.front.mxnet.extractors.utils import AttrDictionary
+from openvino.tools.mo.front.mxnet.extractors.multibox_prior import multi_box_prior_ext
+from openvino.tools.mo.front.mxnet.extractors.utils import AttrDictionary
 
 
 class TestMultiBoxPrior_Parsing(unittest.TestCase):

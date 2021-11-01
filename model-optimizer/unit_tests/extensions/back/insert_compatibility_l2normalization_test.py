@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.back.insert_compatibility_l2normalization import CompatibilityL2NormalizationPattern
+from openvino.tools.mo.back.insert_compatibility_l2normalization import CompatibilityL2NormalizationPattern
 from unit_tests.utils.graph import build_graph
 
 

@@ -3,9 +3,9 @@
 
 import numpy as np
 
-from extensions.ops.MatMul import FullyConnected
-from mo.front.kaldi.extractors.affine_transform_ext import AffineTransformFrontExtractor
-from mo.ops.op import Op
+from openvino.tools.mo.ops.MatMul import FullyConnected
+from openvino.tools.mo.front.kaldi.extractors.affine_transform_ext import AffineTransformFrontExtractor
+from openvino.tools.mo.ops.op import Op
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from unit_tests.mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 

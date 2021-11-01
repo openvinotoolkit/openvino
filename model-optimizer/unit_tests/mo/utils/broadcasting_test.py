@@ -6,8 +6,8 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array, strict_compare_tensors
-from mo.utils.broadcasting import uni_directional_broadcasting, uni_directional_shape_broadcasting, \
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, shape_array, strict_compare_tensors
+from openvino.tools.mo.utils.broadcasting import uni_directional_broadcasting, uni_directional_shape_broadcasting, \
     bi_directional_shape_broadcasting
 
 

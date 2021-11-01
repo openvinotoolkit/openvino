@@ -3,10 +3,10 @@
 
 import unittest
 
-from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement, \
+from openvino.tools.mo.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement, \
     CTCGreedyDecoderWithSparseToDenseShapeReplacement, CTCGreedyDecoderSingleReplacement
-from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, const
 
 

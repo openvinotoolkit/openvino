@@ -6,9 +6,9 @@ import unittest
 from fnmatch import fnmatch
 from generator import generator, generate
 
-from mo.utils.custom_replacement_config import load_and_validate_json_config
-from mo.utils.error import Error
-from mo.utils.utils import get_mo_root_dir
+from openvino.tools.mo.utils.custom_replacement_config import load_and_validate_json_config
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.utils import get_mo_root_dir
 
 
 def get_json_configs(mo_root_dir):

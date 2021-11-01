@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.back.SpecialNodesFinalization import CreateConstNodesReplacement
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.SpecialNodesFinalization import CreateConstNodesReplacement
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph_with_attrs
 
 

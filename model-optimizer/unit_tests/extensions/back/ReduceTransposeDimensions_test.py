@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.back.ReduceTransposeDimensions import sequential_dims, merge_permute_order_dimensions, merge_dims
-from mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.back.ReduceTransposeDimensions import sequential_dims, merge_permute_order_dimensions, merge_dims
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 
 
 class SequentialDimsTest(unittest.TestCase):

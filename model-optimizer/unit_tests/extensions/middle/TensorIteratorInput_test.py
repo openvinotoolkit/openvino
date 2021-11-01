@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.middle.TensorIteratorInput import SmartInputMatcher, SimpleInputMatcher, BackEdgeSimpleInputMatcher
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.TensorIteratorInput import SmartInputMatcher, SimpleInputMatcher, BackEdgeSimpleInputMatcher
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph_with_attrs
 
 

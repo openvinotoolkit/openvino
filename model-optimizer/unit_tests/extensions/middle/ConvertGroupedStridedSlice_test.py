@@ -6,10 +6,10 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
-from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

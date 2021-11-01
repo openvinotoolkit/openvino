@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.ops.crop import Crop
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.crop import Crop
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 

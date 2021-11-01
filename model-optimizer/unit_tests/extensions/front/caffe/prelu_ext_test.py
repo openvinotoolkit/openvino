@@ -4,9 +4,9 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.prelu_ext import PreluFrontExtractor
-from extensions.ops.prelu import PReLU
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.prelu_ext import PreluFrontExtractor
+from openvino.tools.mo.ops.prelu import PReLU
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -24,7 +24,7 @@ class TestPreluExt(unittest.TestCase):
     def test_prelu_no_pb_no_ml(self):
         self.assertRaises(AttributeError, PreluFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.prelu_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.prelu_ext.merge_attrs')
     def test_reogyolo_ext_ideal_numbers(self, merge_attrs_mock):
         params = {
             'channel_shared': False

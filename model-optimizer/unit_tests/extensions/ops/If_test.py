@@ -7,16 +7,16 @@ import numpy as np
 import numpy.testing as npt
 from generator import generate, generator
 
-from extensions.ops.If import If
-from extensions.ops.elementwise import Add, Mul
-from extensions.ops.identity import Identity
-from extensions.ops.parameter import Parameter
-from mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, \
+from openvino.tools.mo.ops.If import If
+from openvino.tools.mo.ops.elementwise import Add, Mul
+from openvino.tools.mo.ops.identity import Identity
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, strict_compare_tensors, \
     dynamic_dimension_value
-from mo.graph.graph import Node
-from mo.middle.passes.infer import partial_infer
-from mo.ops.eltwise import eltwise_infer
-from mo.ops.shape import Shape
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.infer import partial_infer
+from openvino.tools.mo.ops.eltwise import eltwise_infer
+from openvino.tools.mo.ops.shape import Shape
 from unit_tests.utils.graph import build_graph_with_edge_attrs, build_graph
 from unit_tests.utils.graph import regular_op_with_empty_data, connect, result, valued_const_with_data, regular_op, \
     empty_data

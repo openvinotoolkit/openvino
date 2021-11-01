@@ -4,9 +4,9 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.argmax_ext import ArgMaxFrontExtractor
-from extensions.ops.argmax import ArgMaxOp, arg_ops_infer
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.argmax_ext import ArgMaxFrontExtractor
+from openvino.tools.mo.ops.argmax import ArgMaxOp, arg_ops_infer
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -24,7 +24,7 @@ class TestArgMaxExt(unittest.TestCase):
     def test_argmax_no_pb_no_ml(self):
         self.assertRaises(AttributeError, ArgMaxFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.argmax_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.argmax_ext.merge_attrs')
     def test_argmax_ext_ideal_numbers(self, merge_attrs_mock):
         params = {
             'out_max_val': True,

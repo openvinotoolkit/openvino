@@ -6,10 +6,10 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.middle.FusedBatchNormTraining import FusedBatchNormTraining
-from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.eliminate import shape_inference
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.FusedBatchNormTraining import FusedBatchNormTraining
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.middle.passes.eliminate import shape_inference
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

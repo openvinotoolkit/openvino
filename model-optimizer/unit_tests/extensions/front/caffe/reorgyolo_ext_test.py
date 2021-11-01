@@ -4,9 +4,9 @@
 import unittest
 from unittest.mock import patch
 
-from extensions.front.caffe.reorgyolo_ext import ReorgYoloFrontExtractor
-from extensions.ops.reorgyolo import ReorgYoloOp
-from mo.ops.op import Op
+from openvino.tools.mo.front.caffe.reorgyolo_ext import ReorgYoloFrontExtractor
+from openvino.tools.mo.ops.reorgyolo import ReorgYoloOp
+from openvino.tools.mo.ops.op import Op
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 
@@ -24,7 +24,7 @@ class TestReorgYoloExt(unittest.TestCase):
     def test_elu_no_pb_no_ml(self):
         self.assertRaises(AttributeError, ReorgYoloFrontExtractor.extract, None)
 
-    @patch('extensions.front.caffe.reorgyolo_ext.merge_attrs')
+    @patch('openvino.tools.mo.front.caffe.reorgyolo_ext.merge_attrs')
     def test_elu_ext_ideal_numbers(self, merge_attrs_mock):
         params = {
             'stride': 2

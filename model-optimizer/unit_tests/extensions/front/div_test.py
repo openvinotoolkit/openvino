@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.div import Div
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.div import Div
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, valued_const_with_data, connect, \
     connect_data
 

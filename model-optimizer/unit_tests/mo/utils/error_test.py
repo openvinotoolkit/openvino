@@ -3,7 +3,7 @@
 
 import unittest
 
-from mo.utils.error import classify_error_type
+from openvino.tools.mo.utils.error import classify_error_type
 
 
 class TestingErrorClassifier(unittest.TestCase):

@@ -3,7 +3,7 @@
 
 import unittest
 
-from mo.graph.graph import Node
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph, regular_op, valued_const_with_data, result, connect
 
 nodes = {

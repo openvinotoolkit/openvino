@@ -7,12 +7,12 @@ from unittest.mock import patch
 
 import pytest
 
-from mo.utils.error import FrameworkError
+from openvino.tools.mo.utils.error import FrameworkError
 
 
 ngraph_available = True
 try:
-    from mo.main import main
+    from openvino.tools.mo.main import main
 except Exception:
     ngraph_available = False
 

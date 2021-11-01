@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value, \
     dynamic_dimension, shape_array, compatible_shapes, shape_delete, shape_insert, strict_compare_tensors
-from mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error
 
 
 def gen_masked_array(array, masked_indices):

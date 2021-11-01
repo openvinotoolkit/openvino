@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.softsign_replacer import SoftSign
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.softsign_replacer import SoftSign
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {

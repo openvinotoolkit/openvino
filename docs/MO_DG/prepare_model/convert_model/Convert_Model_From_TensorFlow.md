@@ -179,15 +179,15 @@ There are three ways to store non-frozen TensorFlow models and load them to the 
     To convert such a TensorFlow model:
 
     1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
-    2. Run the `mo_tf.py` script with the path to the checkpoint file to convert a model and an output directory where you have write permissions:
+    2. Run the `mo` script with the path to the checkpoint file to convert a model and an output directory where you have write permissions:
 
     * If input model is in `.pb` format:<br>
 ```sh
-python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT> --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model <INFERENCE_GRAPH>.pb --input_checkpoint <INPUT_CHECKPOINT> --output_dir <OUTPUT_MODEL_DIR>
 ```
     * If input model is in `.pbtxt` format:<br>
 ```sh
-python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT_CHECKPOINT> --input_model_is_text --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 2. MetaGraph:
@@ -201,9 +201,9 @@ python3 mo_tf.py --input_model <INFERENCE_GRAPH>.pbtxt --input_checkpoint <INPUT
     To convert such TensorFlow model:
 
     1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
-    2. Run the `mo_tf.py` script with a path to the MetaGraph `.meta` file and a writable output directory to convert a model:<br>
+    2. Run the `mo` script with a path to the MetaGraph `.meta` file and a writable output directory to convert a model:<br>
 ```sh
-python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 3. SavedModel format of TensorFlow 1.x and 2.x versions:
@@ -213,9 +213,9 @@ python3 mo_tf.py --input_meta_graph <INPUT_META_GRAPH>.meta --output_dir <OUTPUT
     To convert such TensorFlow model:
 
     1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
-    2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory to convert a model:<br>
+    2. Run the `mo` script with a path to the SavedModel directory and a writable output directory to convert a model:<br>
 ```sh
-python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
+ mo --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 You can convert TensorFlow 1.x SavedModel format in the environment that has a 1.x or 2.x version of TensorFlow. However, TensorFlow 2.x SavedModel format strictly requires the 2.x version of TensorFlow.
@@ -252,9 +252,9 @@ Where:
 To convert a TensorFlow model:
 
 1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory
-2. Use the `mo_tf.py` script to simply convert a model with the path to the input model `.pb` file and a writable output directory:
+2. Use the `mo` script to simply convert a model with the path to the input model `.pb` file and a writable output directory:
 ```sh
-python3 mo_tf.py --input_model <INPUT_MODEL>.pb --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model <INPUT_MODEL>.pb --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 Two groups of parameters are available to convert your model:
@@ -308,27 +308,27 @@ TensorFlow*-specific parameters:
 
 * Launching the Model Optimizer for Inception V1 frozen model when model file is a plain text protobuf, specifying a writable output directory:
 ```sh
-python3 mo_tf.py --input_model inception_v1.pbtxt --input_model_is_text -b 1 --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model inception_v1.pbtxt --input_model_is_text -b 1 --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 * Launching the Model Optimizer for Inception V1 frozen model and update custom sub-graph replacement file `transform.json` with information about input and output nodes of the matched sub-graph, specifying a writable output directory. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorflow_custom_operations_config_update transform.json --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model inception_v1.pb -b 1 --tensorflow_custom_operations_config_update transform.json --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 * Launching the Model Optimizer for Inception V1 frozen model and use custom sub-graph replacement file `transform.json` for model conversion. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --transformations_config transform.json --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model inception_v1.pb -b 1 --transformations_config transform.json --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 * Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir `/tmp/log_dir`
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model inception_v1.pb -b 1 --tensorboard_logdir /tmp/log_dir --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 * Launching the Model Optimizer for a model with custom TensorFlow operations (refer to the [TensorFlow* documentation](https://www.tensorflow.org/extend/adding_an_op)) implemented in C++ and compiled into the shared library `my_custom_op.so`. Model Optimizer falls back to TensorFlow to infer output shape of operations implemented in the library if a custom TensorFlow operation library is provided. If it is not provided, a custom operation with an inference function is needed. For more information about custom operations, refer to the [Extending the Model Optimizer with New Primitives](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md).
 ```sh
-python3 mo_tf.py --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so --output_dir <OUTPUT_MODEL_DIR>
+ mo --input_model custom_model.pb --tensorflow_custom_layer_libraries ./my_custom_op.so --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 
@@ -343,9 +343,9 @@ Below are the instructions on how to convert each of them.
 A model in the SavedModel format consists of a directory with a `saved_model.pb` file and two subfolders: `variables` and `assets`. 
 To convert such a model:
 1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
-2. Run the `mo_tf.py` script with a path to the SavedModel directory and a writable output directory:
+2. Run the `mo` script with a path to the SavedModel directory and a writable output directory:
 ```sh
-python3 mo_tf.py --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
+ mo --saved_model_dir <SAVED_MODEL_DIRECTORY> --output_dir <OUTPUT_MODEL_DIR>
 ```
 
 TensorFlow* 2 SavedModel format strictly requires the 2.x version of TensorFlow installed in the

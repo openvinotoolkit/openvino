@@ -7,12 +7,12 @@ from argparse import Namespace
 import numpy as np
 from generator import generator, generate
 
-from extensions.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
-from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Sub, Mul
-from extensions.ops.fakequantize import FakeQuantize
-from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.compress_quantized_weights import CompressQuantizeWeights, ZeroPointOptimizer
+from openvino.tools.mo.ops.Cast import Cast
+from openvino.tools.mo.ops.elementwise import Sub, Mul
+from openvino.tools.mo.ops.fakequantize import FakeQuantize
+from openvino.tools.mo.front.common.partial_infer.eltwise import eltwise_infer
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect, \
     shaped_const_with_data
 

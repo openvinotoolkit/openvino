@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.middle.ReplacePNorm import ReplacePNormNodePattern
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.ReplacePNorm import ReplacePNormNodePattern
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 

@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.ops.MatMul import MatMul
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
-from mo.graph.graph import Node
+from openvino.tools.mo.ops.MatMul import MatMul
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph_with_attrs
 
 

@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.crop import crop_infer
-from mo.graph.graph import Node
+from openvino.tools.mo.front.common.partial_infer.crop import crop_infer
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},

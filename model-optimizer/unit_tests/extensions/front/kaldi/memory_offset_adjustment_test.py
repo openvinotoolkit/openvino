@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 

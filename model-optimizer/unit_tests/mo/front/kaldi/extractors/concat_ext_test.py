@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.kaldi.extractors.concat_ext import ConcatFrontExtractor
-from mo.ops.convolution import Convolution
-from mo.ops.op import Op
+from openvino.tools.mo.front.kaldi.extractors.concat_ext import ConcatFrontExtractor
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.ops.op import Op
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 
 

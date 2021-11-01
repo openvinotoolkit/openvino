@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.AttributedClampNormalizer import AttributedClampNormalizer
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.AttributedClampNormalizer import AttributedClampNormalizer
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, const
 
 nodes_attributes = {

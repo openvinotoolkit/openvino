@@ -6,8 +6,8 @@ from argparse import Namespace
 
 import numpy as np
 
-from extensions.front.mxnet.add_input_data_to_prior_boxes import AddInputDataToPriorBoxes
-from mo.graph.graph import Node
+from openvino.tools.mo.front.mxnet.add_input_data_to_prior_boxes import AddInputDataToPriorBoxes
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

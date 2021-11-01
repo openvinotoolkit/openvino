@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.middle.StridedSliceReplacer import ReplaceStridedSliceWithSqueezeUnsqueeze
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.StridedSliceReplacer import ReplaceStridedSliceWithSqueezeUnsqueeze
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import regular_op_with_shaped_data, regular_op_with_empty_data, shaped_const_with_data, \
     result, connect, build_graph
 

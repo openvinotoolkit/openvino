@@ -46,7 +46,7 @@ jobs:
         working-directory: model-optimizer
 
       - name: Pylint
-        run: pylint -d C,R,W mo/ mo.py extensions/
+        run: pylint -d C,R,W openvino/tools/mo/ openvino/tools/mo/mo.py
         working-directory: model-optimizer
 
       - name: CMake

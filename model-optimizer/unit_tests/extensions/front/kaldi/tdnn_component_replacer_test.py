@@ -6,8 +6,8 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from extensions.front.kaldi.tdnn_component_replacer import TdnnComponentReplacer
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.kaldi.tdnn_component_replacer import TdnnComponentReplacer
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op, result, connect_front, const
 
 

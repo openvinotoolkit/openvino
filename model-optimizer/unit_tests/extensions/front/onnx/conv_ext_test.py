@@ -6,9 +6,9 @@ import unittest
 import numpy as np
 import onnx
 
-from extensions.front.onnx.conv_ext import ConvTransposeFrontExtractor
-from mo.graph.graph import Node
-from mo.utils.error import Error
+from openvino.tools.mo.front.onnx.conv_ext import ConvTransposeFrontExtractor
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.graph import build_graph
 
 

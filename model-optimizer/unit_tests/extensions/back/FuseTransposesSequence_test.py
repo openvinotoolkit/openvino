@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.back.FuseTransposesSequence import FuseTransposesSequence
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.FuseTransposesSequence import FuseTransposesSequence
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the

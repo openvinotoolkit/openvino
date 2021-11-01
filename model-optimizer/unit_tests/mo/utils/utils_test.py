@@ -3,8 +3,8 @@
 
 import unittest
 
-from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
-from mo.utils.utils import match_shapes
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
+from openvino.tools.mo.utils.utils import match_shapes
 
 
 class TestMatchShapes(unittest.TestCase):

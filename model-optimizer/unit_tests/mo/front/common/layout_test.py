@@ -3,9 +3,9 @@
 
 import unittest
 
-from mo.front.common.layout import get_batch_dim, get_width_dim, get_height_dim, get_features_dim, get_depth_dim, \
+from openvino.tools.mo.front.common.layout import get_batch_dim, get_width_dim, get_height_dim, get_features_dim, get_depth_dim, \
     shape_for_layout
-from mo.utils.error import Error
+from openvino.tools.mo.utils.error import Error
 
 
 class TestLayoutFunctions(unittest.TestCase):

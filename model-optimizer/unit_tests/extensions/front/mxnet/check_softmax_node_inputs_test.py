@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.front.mxnet.check_softmax_node_inputs import CheckSoftmaxNodeInputs
-from mo.graph.graph import Node
+from openvino.tools.mo.front.mxnet.check_softmax_node_inputs import CheckSoftmaxNodeInputs
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

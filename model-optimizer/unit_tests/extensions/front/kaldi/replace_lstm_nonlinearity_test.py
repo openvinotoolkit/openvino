@@ -5,9 +5,9 @@ import unittest
 
 import numpy as np
 
-from extensions.front.kaldi.replace_lstm_nonlinearity import ReplaceLstmNonLinearityPattern
-from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.kaldi.replace_lstm_nonlinearity import ReplaceLstmNonLinearityPattern
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 

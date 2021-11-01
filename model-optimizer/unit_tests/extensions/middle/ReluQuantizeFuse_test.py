@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.middle.ReluQuantizeFuse import ReluQuantizeFuse, ReluFakeQuantizeMark
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.middle.ReluQuantizeFuse import ReluQuantizeFuse, ReluFakeQuantizeMark
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
 
 nodes = {

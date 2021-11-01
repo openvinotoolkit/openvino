@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
-from mo.graph.graph import Node
+from openvino.tools.mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},

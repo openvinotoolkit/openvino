@@ -6,12 +6,12 @@ from copy import deepcopy
 
 import networkx as nx
 
-from extensions.ops.parameter import Parameter
-from mo.front.common.partial_infer.utils import int64_array, shape_array
-from mo.graph.graph import Node, Graph
-from mo.middle.pattern_match import all_edges_in_nodes
-from mo.ops.const import Const
-from mo.utils.error import Error
+from openvino.tools.mo.ops.parameter import Parameter
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array
+from openvino.tools.mo.graph.graph import Node, Graph
+from openvino.tools.mo.middle.pattern_match import all_edges_in_nodes
+from openvino.tools.mo.ops.const import Const
+from openvino.tools.mo.utils.error import Error
 
 
 def not_all_new(old_elements: list, new_elements: list):

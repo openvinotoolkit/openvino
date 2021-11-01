@@ -5,8 +5,8 @@ import unittest
 
 import numpy as np
 
-from extensions.front.broadcast_with_range import ExpandRangeConstant
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.broadcast_with_range import ExpandRangeConstant
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, regular_op_with_shaped_data, valued_const_with_data, connect, \
     regular_op_with_empty_data
 

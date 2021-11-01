@@ -6,9 +6,9 @@ from unittest.mock import Mock, call
 
 import numpy as np
 
-from extensions.ops.switch import Switch
-from mo.graph.graph import Node
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.ops.switch import Switch
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph_with_edge_attrs, build_graph_with_attrs
 
 

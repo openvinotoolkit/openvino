@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import onnx
 
-from extensions.front.onnx.rnn_ext import RNNFrontExtractor
+from openvino.tools.mo.front.onnx.rnn_ext import RNNFrontExtractor
 from unit_tests.utils.extractors import PB
 
 

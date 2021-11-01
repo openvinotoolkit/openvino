@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 
-from mo.utils.simple_proto_parser import SimpleProtoParser
+from openvino.tools.mo.utils.simple_proto_parser import SimpleProtoParser
 
 correct_proto_message_1 = 'model { faster_rcnn { num_classes: 90 image_resizer { keep_aspect_ratio_resizer {' \
                           ' min_dimension: 600  max_dimension: 1024 }}}}'

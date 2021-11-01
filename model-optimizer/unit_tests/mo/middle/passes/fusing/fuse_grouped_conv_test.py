@@ -5,11 +5,11 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
-from mo.middle.passes.fusing.fuse_grouped_conv import grouped_convolutions_fusing
-from mo.ops.op import PermuteAttrs
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.middle.passes.fusing.fuse_grouped_conv import grouped_convolutions_fusing
+from openvino.tools.mo.ops.op import PermuteAttrs
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, result, connect, regular_op_with_shaped_data, regular_op, shaped_data, \
     valued_const_with_data, shaped_const_with_data, valued_data
 

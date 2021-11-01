@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from extensions.front.tf.conv_ext import Conv2DFrontExtractor, DepthwiseConv2dNativeFrontExtractor
+from openvino.tools.mo.front.tf.conv_ext import Conv2DFrontExtractor, DepthwiseConv2dNativeFrontExtractor
 from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 

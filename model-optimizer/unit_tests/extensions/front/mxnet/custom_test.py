@@ -3,9 +3,9 @@
 
 import unittest
 
-from extensions.front.mxnet.custom import CustomFrontExtractorOp
-from mo.front.extractor import FrontExtractorOp, MXNetCustomFrontExtractorOp
-from mo.graph.graph import Node
+from openvino.tools.mo.front.mxnet.custom import CustomFrontExtractorOp
+from openvino.tools.mo.front.extractor import FrontExtractorOp, MXNetCustomFrontExtractorOp
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 attrs = {'test_attr': 1}

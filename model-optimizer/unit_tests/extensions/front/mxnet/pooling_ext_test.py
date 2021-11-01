@@ -5,7 +5,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.mxnet.pooling_ext import PoolingFrontExtractor
+from openvino.tools.mo.front.mxnet.pooling_ext import PoolingFrontExtractor
 from unit_tests.utils.extractors import PB
 
 

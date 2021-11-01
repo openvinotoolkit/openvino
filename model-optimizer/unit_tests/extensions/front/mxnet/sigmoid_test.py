@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.front.mxnet.sigmoid import SigmoidFrontExtractor
-from mo.graph.graph import Node
+from openvino.tools.mo.front.mxnet.sigmoid import SigmoidFrontExtractor
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.graph import build_graph
 
 

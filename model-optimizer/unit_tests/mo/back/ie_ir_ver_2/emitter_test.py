@@ -7,10 +7,10 @@ from xml.etree.ElementTree import Element, tostring
 
 import numpy as np
 
-from mo.back.ie_ir_ver_2.emitter import soft_get, xml_shape, serialize_runtime_info
-from mo.graph.graph import Node
-from mo.utils.error import Error
-from mo.utils.runtime_info import RTInfo, OldAPIMap
+from openvino.tools.mo.back.ie_ir_ver_2.emitter import soft_get, xml_shape, serialize_runtime_info
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.utils.runtime_info import RTInfo, OldAPIMap
 from unit_tests.utils.graph import build_graph, result, regular_op
 
 expected_result = b'<net><dim>2</dim><dim>10</dim><dim>50</dim><dim>50</dim></net>'

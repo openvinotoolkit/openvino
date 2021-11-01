@@ -3,9 +3,9 @@
 
 import unittest
 
-from mo.front.caffe.python_layer_extractor import PythonFrontExtractorOp
-from mo.front.extractor import CaffePythonFrontExtractorOp
-from mo.graph.graph import Node
+from openvino.tools.mo.front.caffe.python_layer_extractor import PythonFrontExtractorOp
+from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import FakeNode
 

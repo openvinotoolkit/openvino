@@ -4,8 +4,8 @@
 import unittest
 from unittest.mock import patch, mock_open
 
-from mo.front.tf.loader import load_tf_graph_def
-from mo.utils.summarize_graph import summarize_graph
+from openvino.tools.mo.front.tf.loader import load_tf_graph_def
+from openvino.tools.mo.utils.summarize_graph import summarize_graph
 
 pbtxt = 'node{name:"Placeholder"op:"Placeholder"attr{key:"dtype"value{type:DT_FLOAT}}attr{key:"shape"value{shape{dim' + \
         '{size:1}dim{size:227}dim{size:227}dim{size:3}}}}}node{name:"Output/Identity"op:"Identity"input:"Placeholder' + \
@@ -14,7 +14,7 @@ pbtxt = 'node{name:"Placeholder"op:"Placeholder"attr{key:"dtype"value{type:DT_FL
 
 class TestingSummarizeGraph(unittest.TestCase):
     def test_summarize_graph(self):
-        with patch('mo.front.tf.loader.open', mock_open(read_data=pbtxt)) as m:
+        with patch('openvino.tools.mo.front.tf.loader.open', mock_open(read_data=pbtxt)) as m:
             graph_def, _, _ = load_tf_graph_def('path', False)
             summary = summarize_graph(graph_def)
             self.assertEqual(len(summary['outputs']), 1)

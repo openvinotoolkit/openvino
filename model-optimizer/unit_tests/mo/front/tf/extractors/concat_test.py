@@ -1,14 +1,14 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.tf.extractors.concat import tf_concat_ext
+from openvino.tools.mo.front.tf.extractors.concat import tf_concat_ext
 from unit_tests.utils.extractors import PB, BaseExtractorsTestingClass
 
 
 class ConcatExtractorTest(BaseExtractorsTestingClass):
     @classmethod
     def setUpClass(cls):
-        cls.patcher = 'mo.front.tf.extractors.concat.concat_infer'
+        cls.patcher = 'openvino.tools.mo.front.tf.extractors.concat.concat_infer'
 
     def test_concat(self):
         pb = PB({'attr': {

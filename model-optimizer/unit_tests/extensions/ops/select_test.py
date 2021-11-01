@@ -5,11 +5,11 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.select import Select
-from mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
-from mo.front.common.partial_infer.utils import strict_compare_tensors, int64_array
-from mo.graph.graph import Node
-from mo.utils.error import Error
+from openvino.tools.mo.ops.select import Select
+from openvino.tools.mo.front.common.partial_infer.utils import dynamic_dimension, shape_array, dynamic_dimension_value
+from openvino.tools.mo.front.common.partial_infer.utils import strict_compare_tensors, int64_array
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.graph import build_graph, valued_const_with_data, result, regular_op_with_empty_data, \
     connect
 

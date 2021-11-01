@@ -1,9 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.kaldi.extractors.memoryoffset_ext import MemoryOffsetFrontExtractor
-from mo.ops.memoryoffset import MemoryOffset
-from mo.ops.op import Op
+from openvino.tools.mo.front.kaldi.extractors.memoryoffset_ext import MemoryOffsetFrontExtractor
+from openvino.tools.mo.ops.memoryoffset import MemoryOffset
+from openvino.tools.mo.ops.op import Op
 from unit_tests.mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 
 

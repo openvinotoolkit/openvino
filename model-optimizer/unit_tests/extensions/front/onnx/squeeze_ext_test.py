@@ -7,9 +7,9 @@ import numpy as np
 import onnx
 from generator import generator, generate
 
-from extensions.front.onnx.squeeze_ext import SqueezeFrontExtractor
-from mo.ops.op import Op
-from mo.ops.squeeze import Squeeze
+from openvino.tools.mo.front.onnx.squeeze_ext import SqueezeFrontExtractor
+from openvino.tools.mo.ops.op import Op
+from openvino.tools.mo.ops.squeeze import Squeeze
 from unit_tests.utils.extractors import PB
 
 

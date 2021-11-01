@@ -4,9 +4,9 @@
 import unittest
 from unittest.mock import patch
 
-from mo.front.caffe.extractor import check_phase, register_caffe_python_extractor
-from mo.front.extractor import CaffePythonFrontExtractorOp
-from mo.graph.graph import Node
+from openvino.tools.mo.front.caffe.extractor import check_phase, register_caffe_python_extractor
+from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp
+from openvino.tools.mo.graph.graph import Node
 from unit_tests.utils.extractors import FakeMultiParam
 from unit_tests.utils.graph import build_graph
 
@@ -97,14 +97,14 @@ class TestExtractor(unittest.TestCase):
         exp_res = {}
         self.assertEqual(res, exp_res)
 
-    @patch('mo.ops.activation.Activation')
+    @patch('openvino.tools.mo.ops.activation.Activation')
     def test_register_caffe_python_extractor_by_name(self, op_mock):
         op_mock.op = 'TestLayer'
         name = 'myTestLayer'
         register_caffe_python_extractor(op_mock, name)
         self.assertIn(name, CaffePythonFrontExtractorOp.registered_ops)
 
-    @patch('mo.ops.activation.Activation')
+    @patch('openvino.tools.mo.ops.activation.Activation')
     def test_register_caffe_python_extractor_by_op(self, op_mock):
         op_mock.op = 'TestLayer'
         register_caffe_python_extractor(op_mock)

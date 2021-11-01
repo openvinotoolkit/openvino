@@ -6,7 +6,7 @@ from unittest.mock import patch, call
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import weights_biases, embed_input, get_canonical_axis_index
+from openvino.tools.mo.front.caffe.extractors.utils import weights_biases, embed_input, get_canonical_axis_index
 from unit_tests.utils.extractors import FakeModelLayer
 
 
@@ -15,13 +15,13 @@ class TestWeightsBiases(unittest.TestCase):
         res = weights_biases(False, None)
         self.assertEqual(res, {})
 
-    @patch('mo.front.caffe.extractors.utils.embed_input')
+    @patch('openvino.tools.mo.front.caffe.extractors.utils.embed_input')
     def test_weights_biases_layer_no_bias(self, embed_input_mock):
         weights_biases(False, FakeModelLayer([[1, 2], ]))
         calls = [call({}, 1, 'weights', [1, 2])]
         embed_input_mock.assert_has_calls(calls)
 
-    @patch('mo.front.caffe.extractors.utils.embed_input')
+    @patch('openvino.tools.mo.front.caffe.extractors.utils.embed_input')
     def test_weights_biases_layer_bias(self, embed_input_mock):
         weights_biases(True, FakeModelLayer([[1, 2], [3, 4]]))
         calls = [call({}, 1, 'weights', [1, 2]), call({}, 2, 'biases', [3, 4])]

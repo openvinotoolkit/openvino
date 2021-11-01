@@ -3,8 +3,8 @@
 
 import unittest
 
-from extensions.front.mxnet.mx_reshape_reverse import MXReshapeReverse
-from mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.front.mxnet.mx_reshape_reverse import MXReshapeReverse
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from unit_tests.utils.graph import build_graph
 
 

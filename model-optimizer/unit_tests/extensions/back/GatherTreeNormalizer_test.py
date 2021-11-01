@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from extensions.back.GatherNormalizer import GatherTreeNormalizer
-from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.eliminate import shape_inference
-from mo.utils.ir_engine.compare_graphs import compare_graphs
+from openvino.tools.mo.back.GatherNormalizer import GatherTreeNormalizer
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.middle.passes.eliminate import shape_inference
+from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect
 
 

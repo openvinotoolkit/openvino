@@ -6,7 +6,7 @@ import unittest.mock as mock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
-from mo.utils.version import get_version, extract_release_version, get_simplified_ie_version, get_simplified_mo_version
+from openvino.tools.mo.utils.version import get_version, extract_release_version, get_simplified_ie_version, get_simplified_mo_version
 
 
 class TestingVersion(unittest.TestCase):

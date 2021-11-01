@@ -28,5 +28,5 @@ The script generates the ONNX\* model file `f3net.onnx`. This model conversion w
 ## Convert ONNX* F3Net Model to IR
 
 ```sh
-./mo.py --input_model <MODEL_DIR>/f3net.onnx
+./mo --input_model <MODEL_DIR>/f3net.onnx
 ```

@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
-from mo.graph.graph import Node
-from mo.ops.convolution import Convolution
-from mo.utils.error import Error
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value, strict_compare_tensors
+from openvino.tools.mo.graph.graph import Node
+from openvino.tools.mo.ops.convolution import Convolution
+from openvino.tools.mo.utils.error import Error
 from unit_tests.utils.extractors import FakeValue
 from unit_tests.utils.graph import build_graph
 
