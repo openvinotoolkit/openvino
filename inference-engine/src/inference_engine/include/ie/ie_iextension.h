@@ -238,8 +238,9 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                     \
-    INFERENCE_EXTENSION_API(void)                                              \
-    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {   \
-        ext = std::make_shared<ExtensionType>();                               \
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                         \
+    INFERENCE_EXTENSION_API(void)                                                  \
+    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext);        \
+    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) {  \
+        ext = std::make_shared<ExtensionType>();                                   \
     }

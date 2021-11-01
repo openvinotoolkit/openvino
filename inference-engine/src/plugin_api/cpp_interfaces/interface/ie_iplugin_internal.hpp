@@ -381,11 +381,11 @@ public:
  */
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
     INFERENCE_PLUGIN_API(void)                                               \
-    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false);
+    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false)
 
 /**
  * @private
  */
 #define IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(_IE_CREATE_EXTENSION_FUNC) \
     INFERENCE_EXTENSION_API(void)                                                  \
-    _IE_CREATE_EXTENSION_FUNC(::InferenceEngine::IExtensionPtr>& ext);
+    _IE_CREATE_EXTENSION_FUNC(::InferenceEngine::IExtensionPtr& ext)

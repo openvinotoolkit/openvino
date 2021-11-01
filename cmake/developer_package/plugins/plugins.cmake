@@ -70,6 +70,11 @@ function(ie_add_plugin)
             # to distinguish functions creating plugin objects
             target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
                 IE_CREATE_PLUGIN=CreatePluginEngine${IE_PLUGIN_DEVICE_NAME})
+            if(IE_PLUGIN_AS_EXTENSION)
+                # to distinguish functions creating extensions objects
+                target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
+                    IE_CREATE_EXTENSION=CreateExtensionShared${IE_PLUGIN_DEVICE_NAME})
+            endif()
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
@@ -254,7 +259,7 @@ macro(ie_register_plugins_static)
 
         # register plugin as extension
         if(${device_name}_AS_EXTENSION)
-            list(APPEND as_extension "${device_name}_AS_EXTENSION")
+            list(APPEND as_extension -D "${device_name}_AS_EXTENSION=ON")
         endif()
 
         # add default plugin config options
