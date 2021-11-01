@@ -126,6 +126,9 @@ private:
 
 class MKLDNNNode {
 public:
+    using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
+
+public:
     template<typename T, int N>
     struct Tag {};
 
@@ -561,7 +564,7 @@ public:
     * If node has only scale or shift value, fill missing value with default values
     * i.e. EltwiseAdd: fill shifts from constant, fill scales with default values = 1.0f
     * @param parentNode
-    * node from which data comes 
+    * node from which data comes
     * @return pair of scales and shifts
     */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
@@ -587,7 +590,7 @@ protected:
      * @param ops List of fused post operations
      */
     virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false);
-    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
+    virtual AttrPtr initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
