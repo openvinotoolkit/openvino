@@ -500,7 +500,6 @@ set(MULTI_TEST_SRC
     backend/sqrt.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
-    backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
