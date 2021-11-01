@@ -182,6 +182,8 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedSqueeze, "ngraph::pass::SharedSqueeze", 0);
 
+namespace {
+
 bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs,
                                std::shared_ptr<ngraph::opset5::Squeeze> rhs) {
     size_t l_input_size = lhs->inputs().size(), r_input_size = rhs->inputs().size();
@@ -199,6 +201,8 @@ bool squeezes_perform_the_same(std::shared_ptr<ngraph::opset5::Squeeze> lhs,
                ngraph::normalize_axes(rhs->description(), r_axes->cast_vector<int64_t>(), rank);
     return false;
 }
+
+}  // namespace
 
 bool ngraph::pass::SharedSqueeze::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // TODO: enable conditional compile
