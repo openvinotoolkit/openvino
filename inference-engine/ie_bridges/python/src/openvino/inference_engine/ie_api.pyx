@@ -1221,6 +1221,32 @@ cdef class ExecutableNetwork:
         """
         return deref(self.impl).getConfig(config_name.encode())
 
+    ## Sets configuration for current executable network.
+    #
+    #  @param config: a dictionary of configuration parameters as keys and their values
+    #  @return None
+    #
+    #  Usage example:\n
+    #  ```python
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
+    #  exec_net = ie.load_network(net, "GNA")
+    #  config = exec_net.set_config({"DEVICE_MODE" : "GNA_SW_EXACT"})
+    #  ```
+    def set_config(self, config: dict):
+        cdef map[string, string] c_config = dict_to_c_map(config)
+        deref(self.impl).setConfig(c_config)
+
+    ## Exports the current executable network.
+    #  @param model_file Full path to the target exported file location
+    #  @return None
+    #
+    #  ```python
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
+    #  exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requests=2)
+    #  exec_net.export(path_to_file_to_save)
+    #  ```
     def export(self, model_file: str):
         """Exports the current executable network.
         
