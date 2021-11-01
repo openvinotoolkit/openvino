@@ -25,7 +25,7 @@ bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
             return false;
         }
 
-        if (MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::type_info, ngraph::op::v0::Selu::type_info)) {
+        if (MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::get_type_info_static(), ngraph::op::v0::Selu::get_type_info_static())) {
             auto firstConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
             auto secondConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!firstConst || !secondConst) {
@@ -200,68 +200,68 @@ bool MKLDNNMathNode::created() const {
 }
 
 std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNMathNode& node)>> MKLDNNMathNode::initializers {
-        {ngraph::op::v0::Abs::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Abs::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathAbs;
         }},
-        {ngraph::op::v0::Acos::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Acos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathAcos;
         }},
-        {ngraph::op::v3::Acosh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v3::Acosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathAcosh;
         }},
-        {ngraph::op::v0::Asin::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Asin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathAsin;
         }},
-        {ngraph::op::v3::Asinh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v3::Asinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathAsinh;
         }},
-        {ngraph::op::v0::Atan::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Atan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathAtan;
         }},
-        {ngraph::op::v0::Ceiling::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Ceiling::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathCeiling;
         }},
-        {ngraph::op::v0::Cos::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Cos::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathCos;
         }},
-        {ngraph::op::v0::Cosh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Cosh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathCosh;
         }},
-        {ngraph::op::v0::Floor::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Floor::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathFloor;
         }},
-        {ngraph::op::v0::HardSigmoid::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::HardSigmoid::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathHardSigmoid;
             node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
             node.beta = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
         }},
-        {ngraph::op::v0::Log::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Log::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathLog;
         }},
-        {ngraph::op::v0::Negative::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Negative::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathNegative;
         }},
-        {ngraph::op::v0::Selu::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Selu::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathSelu;
             node.alpha = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
             node.gamma = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<float>()[0];
         }},
-        {ngraph::op::v0::Sign::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Sign::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathSign;
         }},
-        {ngraph::op::v0::Sin::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Sin::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathSin;
         }},
-        {ngraph::op::v0::Sinh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Sinh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathSinh;
         }},
-        {ngraph::op::v4::SoftPlus::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v4::SoftPlus::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathSoftPlus;
         }},
-        {ngraph::op::v0::Tan::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v0::Tan::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathTan;
         }},
-        {ngraph::op::v3::Atanh::type_info, [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
+        {ngraph::op::v3::Atanh::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNMathNode& node) {
             node.algorithm = MKLDNNPlugin::MathAtanh;
         }}
 };
