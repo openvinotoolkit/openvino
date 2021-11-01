@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <openvino/op/experimental_detectron_detection_output.hpp>
 
 namespace ov {

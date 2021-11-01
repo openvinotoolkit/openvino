@@ -4,13 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include <convolution_shape_inference.hpp>
 #include <openvino/core/coordinate_diff.hpp>
 #include <openvino/op/convolution.hpp>
-#include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
-
-#include "utils/shape_inference/static_shape.hpp"
+#include <openvino/op/relu.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+#include <utils/shape_inference/static_shape.hpp>
 
 using namespace ov;
 
@@ -27,21 +26,11 @@ TEST(StaticShapeInferenceTest, ConvolutionTest) {
     auto conv =
         std::make_shared<op::v1::Convolution>(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 6, 5, 5}, PartialShape{7, 6, 3, 3}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(conv.get(), input_shapes, output_shapes);
-
-    ASSERT_EQ(output_shapes[0], PartialShape({3, 7, 5, 5}));
-    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
-
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5}, StaticShape{7, 6, 3, 3}},
                              static_output_shapes = {StaticShape{}};
-    shape_infer(conv.get(), static_input_shapes, static_output_shapes);
+    shape_inference(conv.get(), static_input_shapes, static_output_shapes);
 
     ASSERT_EQ(static_output_shapes[0], StaticShape({3, 7, 5, 5}));
-    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{1, 1}));
-    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 #if 0
 TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {
@@ -63,7 +52,7 @@ TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {
     auto convolution_time_sum = 0;
     for (size_t i = 0; i < 10; ++i) {
         before = std::chrono::high_resolution_clock::now();
-        shape_infer(conv.get(), static_input_shapes, static_output_shapes);
+        shape_inference(conv.get(), static_input_shapes, static_output_shapes);
         after = std::chrono::high_resolution_clock::now();
         auto diff = std::chrono::duration_cast<std::chrono::nanoseconds>(after - before).count();
         std::cout << diff << " ns" << std::endl;
