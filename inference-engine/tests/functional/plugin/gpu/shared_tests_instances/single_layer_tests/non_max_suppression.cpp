@@ -7,14 +7,14 @@
 #include "single_layer_tests/non_max_suppression.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ov::test::subgraph;
+using namespace LayerTestsDefinitions;
 using namespace InferenceEngine;
 using namespace ngraph;
 
 const std::vector<InputShapeParams> inShapeParams = {
-    InputShapeParams{std::vector<ov::Dimension>{}, std::vector<TargetShapeParams>{{3, 100, 5}}},
-    InputShapeParams{std::vector<ov::Dimension>{}, std::vector<TargetShapeParams>{{1, 10, 50}}},
-    InputShapeParams{std::vector<ov::Dimension>{}, std::vector<TargetShapeParams>{{2, 50, 50}}}
+    InputShapeParams{3, 100, 5},
+    InputShapeParams{1, 10, 50},
+    InputShapeParams{2, 50, 50}
 };
 
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
@@ -26,14 +26,13 @@ const std::vector<bool> sortResDesc = {true, false};
 const std::vector<element::Type> outType = {element::i32, element::i64};
 
 const auto nmsParams = ::testing::Combine(::testing::ValuesIn(inShapeParams),
-                                          ::testing::Combine(::testing::Values(ov::element::Type_t::f32),
-                                                             ::testing::Values(ov::element::Type_t::i32),
-                                                             ::testing::Values(ov::element::Type_t::f32)),
+                                          ::testing::Combine(::testing::Values(Precision::FP32),
+                                                             ::testing::Values(Precision::I32),
+                                                             ::testing::Values(Precision::FP32)),
                                           ::testing::ValuesIn(maxOutBoxPerClass),
-                                          ::testing::Combine(::testing::ValuesIn(threshold),
-                                                             ::testing::ValuesIn(threshold),
-                                                             ::testing::ValuesIn(sigmaThreshold)),
-                                          ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                          ::testing::ValuesIn(threshold),
+                                          ::testing::ValuesIn(threshold),
+                                          ::testing::ValuesIn(sigmaThreshold),
                                           ::testing::ValuesIn(encodType),
                                           ::testing::ValuesIn(sortResDesc),
                                           ::testing::ValuesIn(outType),

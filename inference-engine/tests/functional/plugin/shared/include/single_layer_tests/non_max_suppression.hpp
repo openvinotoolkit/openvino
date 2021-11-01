@@ -6,14 +6,10 @@
 
 #include "shared_test_classes/single_layer/non_max_suppression.hpp"
 
-namespace ov {
-namespace test {
-namespace subgraph {
+namespace LayerTestsDefinitions {
 
 TEST_P(NmsLayerTest, CompareWithRefs) {
-    run();
+    Run();
 };
 
-} // namespace subgraph
-} // namespace test
-} // namespace ov
+}  // namespace LayerTestsDefinitions

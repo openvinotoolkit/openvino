@@ -7,7 +7,7 @@
 #include <tuple>
 #include <string>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
 namespace testing {
@@ -20,51 +20,45 @@ PrintTo(const ::ngraph::op::v5::NonMaxSuppression::BoxEncodingType& value,
 }
 }
 
-namespace ov {
-namespace test {
-namespace subgraph {
+namespace LayerTestsDefinitions {
 
-using TargetShapeParams = std::tuple<size_t,   // Number of batches
-                                     size_t,   // Number of boxes
-                                     size_t>;  // Number of classes
+using InputShapeParams = std::tuple<size_t,  // Number of batches
+                                    size_t,  // Number of boxes
+                                    size_t>; // Number of classes
 
-using InputShapeParams = std::tuple<std::vector<ov::Dimension>,       // bounds for input dynamic shape
-                                    std::vector<TargetShapeParams>>;  // target input dimensions
-
-using InputPrecisions = std::tuple<ElementType,  // boxes and scores precisions
-                                   ElementType,  // max_output_boxes_per_class precision
-                                   ElementType>; // iou_threshold, score_threshold, soft_nms_sigma precisions
-
-using ThresholdValues = std::tuple<float,  // IOU threshold
-                                   float,  // Score threshold
-                                   float>; // Soft NMS sigma
+using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and scores precisions
+                                   InferenceEngine::Precision,  // max_output_boxes_per_class precision
+                                   InferenceEngine::Precision>; // iou_threshold, score_threshold, soft_nms_sigma precisions
 
 using NmsParams = std::tuple<InputShapeParams,                                   // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
                              int32_t,                                            // Max output boxes per class
-                             ThresholdValues,                                    // IOU, Score, Soft NMS sigma
-                             ngraph::helpers::InputLayerType,                    // max_output_boxes_per_class input type
+                             float,                                              // IOU threshold
+                             float,                                              // Score threshold
+                             float,                                              // Soft NMS sigma
                              ngraph::op::v5::NonMaxSuppression::BoxEncodingType, // Box encoding
                              bool,                                               // Sort result descending
                              ngraph::element::Type,                              // Output type
                              std::string>;                                       // Device name
 
-class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public SubgraphBaseTest {
+class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
+    void GenerateInputs() override;
+    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs)
+    override;
 
 protected:
     void SetUp() override;
 
 private:
-    void CompareBBoxes(const std::vector<ov::runtime::Tensor> &expectedOutputs, const std::vector<ov::runtime::Tensor> &actualOutputs);
-    std::vector<TargetShapeParams> targetInDims;
-    size_t inferRequestNum = 0;
-    int32_t maxOutBoxesPerClass;
+    void CompareBuffer(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
+    void CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
+                       const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs);
+    size_t numOfSelectedBoxes;
+    InputShapeParams inShapeParams;
 };
 
-} // namespace subgraph
-} // namespace test
-} // namespace ov
+}  // namespace LayerTestsDefinitions
