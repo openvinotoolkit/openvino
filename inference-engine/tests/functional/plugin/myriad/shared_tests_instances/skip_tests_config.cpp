@@ -56,5 +56,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
+        // TODO: Issue: CVS-69640
+        R"(.*EltwiseLayerTest.*OpType=Prod.*)",
+        R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(16\.16\.96\)_\(96\)_\).*OpType=SqDiff.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(52\.1\.52\.3\.2\)_\(2\)_\).*OpType=SqDiff.*)",
     };
 }
