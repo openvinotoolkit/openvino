@@ -115,6 +115,7 @@ jobs:
       cmakeArgs: >
         -GNinja
         -DBUILD_SHARED_LIBS=OFF
+        -DENABLE_CLDNN=OFF
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
