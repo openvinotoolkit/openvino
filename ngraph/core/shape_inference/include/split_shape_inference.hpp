@@ -2,46 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/split.hpp>
+
+#include "shape_infer_utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 
 template <typename T>
-void set_shape(Op* op, T& dst, PartialShape src) {
-    NODE_VALIDATION_CHECK(op, false, "Cannot set dynamic shape as output.");
-}
-
-template <>
-void set_shape<PartialShape>(Op* op, PartialShape& dst, PartialShape src) {
-    dst = src;
-}
-
-template <typename T>
-void set_dim(Op* op, T& dst, Dimension src) {
-    NODE_VALIDATION_CHECK(op, false, "Cannot set dynamic dimension.");
-}
-
-template <>
-void set_dim<Dimension>(Op* op, Dimension& dst, Dimension src) {
-    dst = src;
-}
-
-template <typename T>
-Interval get_interval(Op* op, T& dim) {
-    NODE_VALIDATION_CHECK(op, false, "Cannot get_interval for static shape.");
-    return Interval();
-}
-
-template <>
-Interval get_interval<Dimension>(Op* op, Dimension& dim) {
-    return dim.get_interval();
-}
-
-template <typename T>
-void shape_infer(Split* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const Split* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
     output_shapes.clear();
@@ -73,7 +47,7 @@ void shape_infer(Split* op, const std::vector<T>& input_shapes, std::vector<T>& 
 
             each_output_shape[axis] = dimension_at_axis / op->m_num_splits;
         } else {
-            const auto dim_interval_at_axis = get_interval(op, data_ps[axis]);
+            const auto dim_interval_at_axis = shape_utils::get_interval(op, data_ps[axis]);
             NODE_VALIDATION_CHECK(op,
                                   dim_interval_at_axis.get_max_val() >= static_cast<int64_t>(op->m_num_splits),
                                   "The interval maximum of the dimension for data "
@@ -89,10 +63,10 @@ void shape_infer(Split* op, const std::vector<T>& input_shapes, std::vector<T>& 
             if (dim_interval_at_axis.has_upper_bound()) {
                 dim_interval_at_axis_max = static_cast<int64_t>(dim_interval_at_axis_max * (1.0f / op->m_num_splits));
             }
-            set_dim(op, each_output_shape[axis], Dimension(dim_interval_at_axis_min, dim_interval_at_axis_max));
+            each_output_shape[axis] = Dimension(dim_interval_at_axis_min, dim_interval_at_axis_max);
         }
     } else {
-        set_shape(op, each_output_shape, ov::PartialShape::dynamic(data_ps.rank()));
+        each_output_shape = ov::PartialShape::dynamic(data_ps.rank());
     }
 
     for (size_t i = 0; i < op->m_num_splits; ++i)

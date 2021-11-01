@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
+#include "variadicsplit_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -33,81 +34,15 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types() {
     set_input_is_relevant_to_value(1);
     set_input_is_relevant_to_value(2);
 
-    auto split_lengths_pshape = get_input_partial_shape(2);
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                  get_input_partial_shape(1),
+                                                  get_input_partial_shape(2)};
+    std::vector<ov::PartialShape> output_shapes;
+    shape_infer(this, input_shapes, output_shapes);
 
-    if (split_lengths_pshape.is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              split_lengths_pshape.rank().get_length() == 1,
-                              "Split lengths should be a 1-D tensor. Got ",
-                              split_lengths_pshape.rank(),
-                              " instead.");
-
-        const auto num_outputs = split_lengths_pshape[0].get_length();
-        const auto data = input_value(0);
-        const auto axis_source = input_value(1);
-        const auto split_lengths_source = input_value(2);
-        const auto data_shape = data.get_partial_shape();
-        const auto& data_type = data.get_element_type();
-
-        set_output_size(num_outputs);
-        const auto& axis_input_constant = get_constant_from_source(axis_source);
-        const auto& split_lengths_constant = get_constant_from_source(split_lengths_source);
-        if (data_shape.rank().is_static() && axis_input_constant && split_lengths_constant) {
-            const auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];
-            // Adjust split axis in case of negatives
-            const int64_t axis = ngraph::normalize_axis(this, axis_val, data_shape.rank());
-
-            auto split_lengths = split_lengths_constant->cast_vector<int64_t>();
-            // Adjust split lengths in case of negatives
-            int64_t sum_of_splits = 0;
-            int64_t negative_one = -1;
-            for (size_t i = 0; i < split_lengths.size(); i++) {
-                NODE_VALIDATION_CHECK(this,
-                                      split_lengths[i] >= -1,
-                                      "Invalid value ",
-                                      split_lengths[i],
-                                      " in split lengths input. Should be >= -1.");
-
-                if (split_lengths[i] == -1) {
-                    NODE_VALIDATION_CHECK(this,
-                                          negative_one == -1,
-                                          "Cannot infer split with multiple -1 values at ",
-                                          negative_one,
-                                          " and ",
-                                          i);
-                    negative_one = i;
-                } else {
-                    sum_of_splits += split_lengths[i];
-                }
-            }
-            const auto data_shape_dims = vector<Dimension>{data.get_partial_shape()};
-            const auto dimension_at_axis = data_shape_dims.at(axis);
-
-            if (negative_one >= 0 && dimension_at_axis.is_static()) {
-                split_lengths[negative_one] = dimension_at_axis.get_length() - sum_of_splits;
-                sum_of_splits += split_lengths[negative_one];
-            }
-            if (data_shape[axis].is_static()) {
-                NODE_VALIDATION_CHECK(this,
-                                      sum_of_splits == data_shape[axis].get_length(),
-                                      "Total length of splits: ",
-                                      sum_of_splits,
-                                      " must match the length of the chosen axis: ",
-                                      data_shape[axis]);
-            }
-
-            for (int64_t output{0}; output < num_outputs; ++output) {
-                const auto output_split_dim =
-                    split_lengths.at(output) == -1 ? Dimension::dynamic() : split_lengths.at(output);
-                auto tmp_shape = data_shape_dims;
-                tmp_shape.at(axis) = output_split_dim;
-                set_output_type(output, data_type, ov::PartialShape{tmp_shape});
-            }
-        } else {
-            for (int64_t output{0}; output < num_outputs; ++output) {
-                set_output_type(output, data_type, ov::PartialShape::dynamic());
-            }
-        }
+    const auto& data_type = get_input_element_type(0);
+    for (size_t i = 0; i < output_shapes.size(); ++i) {
+        set_output_type(i, data_type, output_shapes[i]);
     }
 }
 

@@ -11,7 +11,8 @@
 #include "static_dimension.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
-
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/except.hpp"
 namespace ov {
 namespace op {
     struct AutoBroadcastSpec;
@@ -23,6 +24,10 @@ public:
     StaticShape(std::initializer_list<StaticDimension> init);
     StaticShape(const std::vector<StaticDimension::value_type>& dimensions);
     StaticShape(std::vector<StaticDimension> dimensions);
+
+    StaticShape(const PartialShape &) {
+        OPENVINO_UNREACHABLE("Cannot convert from PartialShape.");
+    }
 
     static bool is_static() { return true; }
     static bool is_dynamic() { return false; }

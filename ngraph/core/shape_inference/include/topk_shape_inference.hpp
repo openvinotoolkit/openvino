@@ -2,25 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/topk.hpp>
+
+#include "shape_infer_utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v1 {
 
-template <typename DimType>
-void set_dim(Op* op, DimType& dim, ov::Dimension d) {
-    NODE_VALIDATION_CHECK(op, false, "Cannot set Dimension to in-compatible type.");
-}
-
-template <>
-void set_dim<ov::Dimension>(Op* op, ov::Dimension& dim, ov::Dimension d) {
-    dim = d;
-}
-
 template <typename T>
-void shape_infer(TopK* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const TopK* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 && output_shapes.size() == 2));
@@ -37,8 +31,8 @@ void shape_infer(TopK* op, const std::vector<T>& input_shapes, std::vector<T>& o
     auto output_shape = input_shape;
     if (input_shape.rank().is_static()) {
         ov::PartialShape k_as_shape;
-        op->m_normalized_axis = ov::normalize_axis(op, op->m_axis, input_shape.rank());
-        auto& dim_axis = output_shape[op->m_normalized_axis];
+        auto normalized_axis = ov::normalize_axis(op, op->m_axis, input_shape.rank());
+        auto& dim_axis = output_shape[normalized_axis];
 
         if (ov::evaluate_as_partial_shape(op->input_value(1), k_as_shape)) {
             NODE_VALIDATION_CHECK(op,
@@ -70,17 +64,16 @@ void shape_infer(TopK* op, const std::vector<T>& input_shapes, std::vector<T>& o
                 const auto lower = std::min<Dimension::value_type>(in_min, k_min);
                 const auto upper =
                     in_max < 0 ? Dimension::dynamic().get_max_length() : std::max<Dimension::value_type>(in_max, k_max);
-                set_dim(op, dim_axis, Dimension(lower, upper));
+                dim_axis = Dimension(lower, upper);
             }
         } else {
-            set_dim(op, dim_axis, Dimension(0, dim_axis.get_max_length()));
+            dim_axis = Dimension(0, dim_axis.get_max_length());
         }
     }
 
     output_shapes[0] = output_shape;
     output_shapes[1] = output_shape;
-}
-
+}  // namespace
 }  // namespace v1
 }  // namespace op
 }  // namespace ov

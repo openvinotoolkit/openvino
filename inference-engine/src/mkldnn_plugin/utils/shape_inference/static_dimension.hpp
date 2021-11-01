@@ -9,6 +9,9 @@
 #include <stdexcept>
 #include <ostream>
 
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+
 namespace ov {
 /// \brief Class representing a dimension, which must be static,
 ///        in a shape or shape-like object.
@@ -21,6 +24,10 @@ public:
     /// \brief Construct a static dimension.
     /// \param dimension Value of the dimension.
     StaticDimension(value_type dimension);
+
+    StaticDimension(const Dimension &) {
+        OPENVINO_UNREACHABLE("Cannot convert from Dimension type.");
+    }
 
     /// \brief Construct a zero dimension
     StaticDimension() = default;
