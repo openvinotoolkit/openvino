@@ -44,15 +44,15 @@ std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {
     return result;
 }
 
-std::set<int64_t> create_set_of_all_axes(int64_t input_rank) {
+std::set<int64_t> create_set_of_all_axes(size_t input_rank) {
     std::set<int64_t> result;
-    for (int64_t i = 0; i < input_rank; ++i) {
-        result.insert(i);
+    for (size_t i = 0; i < input_rank; ++i) {
+        result.insert(static_cast<int64_t>(i));
     }
     return result;
 }
 
-std::vector<int64_t> get_non_interpolated_axes(const std::vector<int64_t>& axes, int64_t input_rank) {
+std::vector<int64_t> get_non_interpolated_axes(const std::vector<int64_t>& axes, size_t input_rank) {
     auto non_interpolated_axes = create_set_of_all_axes(input_rank);
     for (auto axis : axes) {
         non_interpolated_axes.erase(axis);
@@ -60,7 +60,7 @@ std::vector<int64_t> get_non_interpolated_axes(const std::vector<int64_t>& axes,
     return std::vector<int64_t>(non_interpolated_axes.begin(), non_interpolated_axes.end());
 }
 
-std::vector<int64_t> build_transposition_for_axes(const std::vector<int64_t>& axes, int64_t input_rank) {
+std::vector<int64_t> build_transposition_for_axes(const std::vector<int64_t>& axes, size_t input_rank) {
     const auto non_interpolated_axes = get_non_interpolated_axes(axes, input_rank);
 
     std::vector<int64_t> result(non_interpolated_axes.begin(), non_interpolated_axes.end());
@@ -69,9 +69,9 @@ std::vector<int64_t> build_transposition_for_axes(const std::vector<int64_t>& ax
     return result;
 }
 
-std::vector<int64_t> build_new_axes(int64_t num_of_axes, int64_t rank) {
+std::vector<int64_t> build_new_axes(size_t num_of_axes, size_t rank) {
     std::vector<int64_t> result(num_of_axes);
-    std::iota(result.begin(), result.end(), rank - num_of_axes);
+    std::iota(result.begin(), result.end(), static_cast<int64_t>(rank - num_of_axes));
     return result;
 }
 } // namespace
@@ -87,13 +87,13 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
 
         const auto axes = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())->cast_vector<int64_t>();
 
-        const int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
+        const size_t input_rank = static_cast<size_t>(interpolate->get_input_partial_shape(0).rank().get_length());
         const auto first_perm = build_transposition_for_axes(axes, input_rank);
         const auto last_perm = reverse_permutation(first_perm);
 
         auto first_transpose_perm = ov::opset8::Constant::create(element::i64, {first_perm.size()}, first_perm);
         auto first_transpose = std::make_shared<ov::opset8::Transpose>(interpolate->input_value(0), first_transpose_perm);
-        auto new_axes = build_new_axes(static_cast<int64_t>(axes.size()), input_rank);
+        auto new_axes = build_new_axes(axes.size(), input_rank);
         auto new_axes_node = ov::opset8::Constant::create(element::i64, {new_axes.size()}, new_axes);
         auto new_interpolate = interpolate->clone_with_new_inputs({first_transpose, interpolate->input_value(1), interpolate->input_value(2), new_axes_node});
         auto last_transpose_perm = ov::opset8::Constant::create(element::i64, {last_perm.size()}, last_perm);
