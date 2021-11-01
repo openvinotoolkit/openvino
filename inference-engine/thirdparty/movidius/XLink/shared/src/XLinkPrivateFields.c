@@ -60,10 +60,10 @@ streamDesc_t* getStreamById(void* fd, streamId_t id)
             while(((rc = XLink_sem_wait(&link->availableStreams[stream].sem)) == -1) && errno == EINTR)
                 continue;
             if (rc) {
-                return &link->availableStreams[stream];
-            } else {
+                mvLog(MVLOG_ERROR,"can't wait semaphore\n");
                 return NULL;
             }
+            return &link->availableStreams[stream];
         }
     }
     return NULL;
@@ -80,10 +80,10 @@ streamDesc_t* getStreamByName(xLinkDesc_t* link, const char* name)
             while(((rc = XLink_sem_wait(&link->availableStreams[stream].sem)) == -1) && errno == EINTR)
                 continue;
             if (rc) {
-                return &link->availableStreams[stream];
-            } else {
+                mvLog(MVLOG_ERROR,"can't wait semaphore\n");
                 return NULL;
             }
+            return &link->availableStreams[stream];
         }
     }
     return NULL;

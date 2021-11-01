@@ -326,8 +326,10 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
     while(((rc = XLink_sem_wait(&schedulerState[idx].eventSchedulerStartSem)) == -1) && errno == EINTR)
         continue;
     if (rc) {
-        sem_post(&addSchedulerSem);
+        mvLog(MVLOG_ERROR,"can't wait semaphore\n");
+        return X_LINK_ERROR;
     }
+    sem_post(&addSchedulerSem);
 
     return 0;
 }
