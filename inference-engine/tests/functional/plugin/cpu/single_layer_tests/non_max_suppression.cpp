@@ -414,8 +414,12 @@ TEST_P(NmsLayerCPUTest, CompareWithRefs) {
 };
 
 const std::vector<InputShapeParams> inShapeParams = {
-    InputShapeParams{std::vector<ov::Dimension>{-1, -1, -1}, std::vector<TargetShapeParams>{{2, 50, 50}, {3, 100, 5}, {1, 10, 50}}},
-    InputShapeParams{std::vector<ov::Dimension>{{1, 5}, {1, 100}, {10, 75}}, std::vector<TargetShapeParams>{{4, 15, 10}, {5, 5, 12}, {1, 35, 15}}}
+    InputShapeParams{std::vector<ov::Dimension>{-1, -1, -1}, std::vector<TargetShapeParams>{TargetShapeParams{2, 50, 50},
+                                                                                            TargetShapeParams{3, 100, 5},
+                                                                                            TargetShapeParams{1, 10, 50}}},
+    InputShapeParams{std::vector<ov::Dimension>{{1, 5}, {1, 100}, {10, 75}}, std::vector<TargetShapeParams>{TargetShapeParams{4, 15, 10},
+                                                                                                            TargetShapeParams{5, 5, 12},
+                                                                                                            TargetShapeParams{1, 35, 15}}}
 };
 
 const std::vector<int32_t> maxOutBoxPerClass = {5, 20};
