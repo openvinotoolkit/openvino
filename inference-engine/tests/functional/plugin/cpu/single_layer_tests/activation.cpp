@@ -3,18 +3,19 @@
 //
 
 #include <shared_test_classes/single_layer/activation.hpp>
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ngraph::helpers;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions  {
 
-using inputShapesPair = std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>;
-
 using ActivationLayerCPUTestParamSet = std::tuple<
-        inputShapesPair,                                                 // Input shapes
+        std::vector<InputShape>,                                         // Input shapes
         std::vector<size_t>,                                             // Activation shapes
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
         InferenceEngine::Precision,                                      // Net precision
@@ -23,11 +24,11 @@ using ActivationLayerCPUTestParamSet = std::tuple<
         CPUSpecificParams>;
 
 class ActivationLayerCPUTest : public testing::WithParamInterface<ActivationLayerCPUTestParamSet>,
-                            virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                            virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
-        inputShapesPair inputShapes;
+        std::vector<InputShape> inputShapes;
         std::vector<size_t> activationShapes;
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
         Precision netPrecision, inPrecision, outPrecision;
@@ -36,16 +37,19 @@ public:
 
         std::ostringstream result;
         result << LayerTestsDefinitions::activationNames[activationTypeAndConstValue.first] << "_";
-        if (!inputShapes.first.empty()) {
-            result << "IS=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
+        if (inputShapes.front().first.size() != 0) {
+            result << "IS=(";
+            for (const auto &shape : inputShapes) {
+                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            }
+            result.seekp(-1, result.cur);
+            result << ")_";
         }
         result << "TS=";
-        for (const auto& shape : inputShapes.second) {
-            result << "(";
-            for (const auto & item : shape) {
+        for (const auto& shape : inputShapes) {
+            for (const auto& item : shape.second) {
                 result << CommonTestUtils::vec2str(item) << "_";
             }
-            result << ")_";
         }
         result << "AS=" << CommonTestUtils::vec2str(activationShapes) << "_";
         result << "ConstantsValue=" << CommonTestUtils::vec2str(activationTypeAndConstValue.second) << "_";
@@ -56,29 +60,43 @@ public:
 
         return result.str();
     }
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
-        int32_t data_start_from;
-        uint32_t data_range;
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+        int32_t startFrom;
+        uint32_t range;
         int32_t resolution;
-
         if (activationType == ActivationTypes::Exp && netPrecision == Precision::BF16) {
-            data_start_from = 0;
-            data_range = 2;
+            startFrom = 0;
+            range = 2;
             resolution = 32768;
+        } else if (activationType == ActivationTypes::Acosh) {
+            startFrom = 2;
+            range = 2;
+            resolution = 128;
         } else {
-            data_start_from = 0;
-            data_range = 15;
+            startFrom = 0;
+            range = 15;
             resolution = 32768;
         }
-
-        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range, data_start_from, resolution);
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (int i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor;
+            if (funcInput.get_element_type().is_real()) {
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i],
+                                                                 range, startFrom, resolution);
+            } else {
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+            }
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
     }
 
 protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        inputShapesPair inputShapes;
+        std::vector<InputShape> inputShapes;
         std::vector<size_t> activationShapes;
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
         Precision inPrecision, outPrecision;
@@ -88,16 +106,14 @@ protected:
         activationType = activationTypeAndConstValue.first;
         auto constantsValue = activationTypeAndConstValue.second;
 
+        inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrecision);
+        outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrecision);
         selectedType = getPrimitiveType() + "_" + netPrecision.name();
 
-        targetStaticShapes.reserve(inputShapes.second.size());
-        for (size_t i = 0; i < inputShapes.second.size(); i++) {
-            targetStaticShapes.push_back(inputShapes.second[i]);
-        }
-        inputDynamicShapes = inputShapes.first;
+        init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes.front().front()});
+        auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes.front()});
         auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, activationShapes, constantsValue);
         activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
@@ -109,8 +125,9 @@ protected:
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    Run();
-    CheckPluginRelatedResults(executableNetwork, "Eltwise");
+    run();
+    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
+    // CheckPluginRelatedResults(executableNetwork, "Eltwise");
 }
 
 
@@ -140,27 +157,19 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {})
 };
 
-const std::vector<inputShapesPair> basic4D = {
-        {
-                {},
-                // Static shape
-                {
-                        {{2, 4, 4, 1}}
-                }
-        },
-        {
-                {},
-                // Static shape
-                {
-                        {{2, 17, 5, 4}}
-                }
-        }
+std::vector<std::vector<ov::Shape>> basic4D = {
+            {{2, 4, 4, 1}},
+            {{2, 17, 5, 4}}
 };
 
-std::vector<Precision> netPrc = {Precision::BF16, Precision::FP32};
+std::vector<Precision> netPrc = {
+        // TODO: Should be uncommented after PR #8339 merge
+        // Precision::BF16
+        Precision::FP32
+};
 
 const auto basicCases4D = ::testing::Combine(
-            ::testing::ValuesIn(basic4D),
+            ::testing::ValuesIn(static_shapes_to_test_representation(basic4D)),
             ::testing::Values(activationShapes),
             ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
             ::testing::ValuesIn(netPrc),
@@ -177,25 +186,13 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
 };
 
-const std::vector<inputShapesPair> basic5D = {
-        {
-                {},
-                // Static shape
-                {
-                        {{2, 4, 3, 4, 1}}
-                }
-        },
-        {
-                {},
-                // Static shape
-                {
-                        {{2, 17, 7, 5, 4}}
-                }
-        }
+std::vector<std::vector<ov::Shape>> basic5D = {
+        {{2, 4, 3, 4, 1}},
+        {{2, 17, 7, 5, 4}}
 };
 
 const auto basicCases5D = ::testing::Combine(
-        ::testing::ValuesIn(basic5D),
+        ::testing::ValuesIn(static_shapes_to_test_representation(basic5D)),
         ::testing::Values(activationShapes),
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrc),
@@ -224,50 +221,18 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP32
 };
 
 std::vector<CPUSpecificParams> cpuParamsDynamicMath = {
         CPUSpecificParams({}, {}, {}, {})
 };
 
-const std::vector<inputShapesPair> dynamicMathBasic = {
+std::vector<std::vector<InputShape>> dynamicMathBasic = {
         {
-                // dynamic
-                {
-                        {-1, -1}
-                },
-                // target
-                {
-                        {{1, 50}},
-                        {{5, 128}},
-                        {{3, 64}}
-                }
-        },
-        {
-                // dynamic
-                {
-                        {-1, -1, -1, -1, -1, -1, -1, -1}
-                },
-                // target
-                {
-                        {{2, 2, 2, 2, 2, 2, 2, 2}},
-                        {{2, 3, 2, 3, 2, 3, 2, 3}},
-                        {{3, 3, 3, 3, 3, 3, 3, 3}}
-                }
-        },
-        {
-                // dynamic
-                {
-                        {{1, 5}, 128}
-                },
-                // target
-                {
-                        {{1, 128}},
-                        {{3, 128}},
-                        {{5, 128}}
-                }
+                {{{-1, -1}, {{1, 50}, {5, 128}, {3, 64}}}},
+                {{{-1, -1, -1, -1, -1, -1, -1, -1}, {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 3, 2, 3, 2, 3, 2, 3}, {3, 3, 3, 3, 3, 3, 3, 3}}}},
+                {{{{1, 5}, 128}, {{1, 128}, {3, 128}, {5, 128}}}}
         }
 };
 
