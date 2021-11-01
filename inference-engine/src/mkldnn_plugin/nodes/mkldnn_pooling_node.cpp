@@ -209,13 +209,12 @@ void MKLDNNPoolingNode::prepareParams() {
         };
 
         VectorDims padsBegin, padsEnd;
-        const auto op = getShapeInferNode();
         if (getAlgorithm() == PoolingMax) {
-            const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(op);
+            const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(opToShapeInfer);
             padsBegin = pool->get_pads_begin();
             padsEnd = pool->get_pads_end();
         } else if (getAlgorithm() == PoolingAvg) {
-            const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(op);
+            const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(opToShapeInfer);
             padsBegin = pool->get_pads_begin();
             padsEnd = pool->get_pads_end();
         }
