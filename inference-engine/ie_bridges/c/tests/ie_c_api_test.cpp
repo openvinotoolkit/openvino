@@ -324,6 +324,27 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     ie_core_free(&core);
 }
 
+TEST(ie_core_export_network_to_file, exportNetworktoFile) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    // ie_config_t config = {"CPU_THREADS_NUM", "3", nullptr};
+    ie_config_t config = {nullptr, nullptr, nullptr};
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "GNA", &config, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+
+    const char* file_name = "exported_model.blob";
+    IE_EXPECT_OK(ie_core_export_network(core, file_name, &exe_network));
+    std::ifstream file(file_name);
+    EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
+
+    EXPECT_NE(nullptr, exe_network);
+    ie_exec_network_free(&exe_network);
+    ie_core_free(&core);
+}
+
 TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -333,21 +354,35 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "327.67", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    const char* model_path = "openvino/inference-engine/temp/models/src/models/google_cmd/tf_speech_model_fp32.xml";
+    // const char* model_path = "openvino/inference-engine/temp/models/src/models/google_cmd/tf_speech_model_fp32.xml";
+    std::string model_path_str = TestDataHelpers::generate_model_path("../../models/google_cmd", "tf_speech_model_fp32.xml");
+    const char *model_path = model_path_str.c_str();
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
     
-    ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_core_export_network_to_memory(core, &blob, &exe_network));
-    EXPECT_NE(nullptr, blob);
-    
-    // tensor_desc_t model_desc { ANY, { 1, { strlen(str) } }, U8 };
-    // ie_blob_t *model_blob = nullptr;
-    // IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&model_desc, str, strlen(str), &model_blob));
-    // EXPECT_NE(nullptr, model_blob);
+    const char* export_path = "exported_model.blob";
+    IE_EXPECT_OK(ie_core_export_network(core, export_path, &exe_network));
 
+    FILE *fileptr;
+    fileptr = fopen(export_path, "rb");
+    fseek(fileptr, 0, SEEK_END);
+    size_t filelen = ftell(fileptr);
+    rewind(fileptr);
+
+    tensor_desc_t blob_desc = {layout_e::ANY, {1,{filelen}}, precision_e::I8};
+    ie_blob_t *blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory(&blob_desc, &blob));
+    ie_blob_buffer_t blob_buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(blob, &blob_buffer));
+    char *input_data = (char *)(blob_buffer.buffer);
+
+    if (fread(input_data, 1, filelen, fileptr) != filelen) {
+        fputs ("Reading error",stderr); exit (3);
+    }
+    fclose(fileptr);
     ie_executable_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_import_network_from_memory(core, blob, &network));
+    
+    IE_EXPECT_OK(ie_core_import_network_from_memory(core, blob, "GNA", &conf2, &network));
     EXPECT_NE(nullptr, network);
     if (network != nullptr) {
         ie_exec_network_free(&network);
@@ -368,11 +403,12 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "32767", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    const char* model_path = "openvino/inference-engine/temp/models/src/models/google_cmd/tf_speech_model_fp32.xml";
+    std::string model_path_str = TestDataHelpers::generate_model_path("../../models/google_cmd", "tf_speech_model_fp32.xml");
+    const char *model_path = model_path_str.c_str();
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    const char* exported_model = "exported.blob";
+    const char* exported_model = "exported_model.blob";
     IE_EXPECT_OK(ie_core_export_network(core, exported_model, &exe_network));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
@@ -382,46 +418,6 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
-
-TEST(ie_core_export_network_to_file, exportNetworktoFile) {
-    ie_core_t *core = nullptr;
-    IE_ASSERT_OK(ie_core_create("", &core));
-    ASSERT_NE(nullptr, core);
-
-    // ie_config_t config = {"CPU_THREADS_NUM", "3", nullptr};
-    ie_config_t config = {nullptr, nullptr, nullptr};
-    ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "GNA", &config, &exe_network));
-    EXPECT_NE(nullptr, exe_network);
-
-    const char* file_name = "expoted.blob";
-    IE_EXPECT_OK(ie_core_export_network(core, file_name, &exe_network));
-    std::ifstream file(file_name);
-    EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
-
-    EXPECT_NE(nullptr, exe_network);
-    ie_exec_network_free(&exe_network);
-    ie_core_free(&core);
-}
-
-// TEST(ie_core_import_network_from_file, importNetworkFromFile) {
-//     ie_core_t *core = nullptr;
-//     IE_ASSERT_OK(ie_core_create("", &core));
-//     ASSERT_NE(nullptr, core);
-
-//     ie_config_t config = {"CPU_THREADS_NUM", "3", nullptr};
-//     ie_executable_network_t *exe_network = nullptr;
-//     IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, &exe_network));
-//     EXPECT_NE(nullptr, exe_network);
-
-//     const char* file = "expoted.bin";
-//     IE_EXPECT_OK(ie_core_export_network(core, file, &exe_network));
-
-//     IE_EXPECT_OK(ie_core_import_network(core, file, "CPU", &config, &exe_network));
-//     EXPECT_NE(nullptr, exe_network);
-//     ie_exec_network_free(&exe_network);
-//     ie_core_free(&core);
-// }
 
 TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     ie_core_t *core = nullptr;
