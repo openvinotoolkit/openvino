@@ -327,6 +327,15 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
         throw std::logic_error("Inputs Info for network is empty!");
     }
 
+    // add key to the map of files if input name was empty
+    for (auto& input : app_inputs_info[0]) {
+        if (!inputFiles.empty() && inputFiles.find("") != inputFiles.end() && !input.second.isImageInfo()) {
+            auto files = inputFiles.at("");
+            inputFiles.erase("");
+            inputFiles[input.first] = files;
+        }
+    }
+
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& inputs_info : app_inputs_info) {
         for (auto& input : inputs_info) {
