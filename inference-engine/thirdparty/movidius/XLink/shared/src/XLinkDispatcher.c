@@ -322,9 +322,12 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
         mvLog(MVLOG_ERROR,"pthread_attr_destroy error");
     }
 
-    while(((XLink_sem_wait(&schedulerState[idx].eventSchedulerStartSem)) == -1) && errno == EINTR)
+    int rc = 0;
+    while(((rc = XLink_sem_wait(&schedulerState[idx].eventSchedulerStartSem)) == -1) && errno == EINTR)
         continue;
-    sem_post(&addSchedulerSem);
+    if (rc) {
+        sem_post(&addSchedulerSem);
+    }
 
     return 0;
 }

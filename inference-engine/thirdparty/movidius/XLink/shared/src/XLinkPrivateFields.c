@@ -56,10 +56,14 @@ streamDesc_t* getStreamById(void* fd, streamId_t id)
     int stream;
     for (stream = 0; stream < XLINK_MAX_STREAMS; stream++) {
         if (link->availableStreams[stream].id == id) {
-            while(((XLink_sem_wait(&link->availableStreams[stream].sem)) == -1) && errno == EINTR)
+            int rc = 0;
+            while(((rc = XLink_sem_wait(&link->availableStreams[stream].sem)) == -1) && errno == EINTR)
                 continue;
-
-            return &link->availableStreams[stream];
+            if (rc) {
+                return &link->availableStreams[stream];
+            } else {
+                return NULL;
+            }
         }
     }
     return NULL;
@@ -72,10 +76,14 @@ streamDesc_t* getStreamByName(xLinkDesc_t* link, const char* name)
     for (stream = 0; stream < XLINK_MAX_STREAMS; stream++) {
         if (link->availableStreams[stream].id != INVALID_STREAM_ID &&
             strcmp(link->availableStreams[stream].name, name) == 0) {
-            while(((XLink_sem_wait(&link->availableStreams[stream].sem)) == -1) && errno == EINTR)
+            int rc = 0;
+            while(((rc = XLink_sem_wait(&link->availableStreams[stream].sem)) == -1) && errno == EINTR)
                 continue;
-
-            return &link->availableStreams[stream];
+            if (rc) {
+                return &link->availableStreams[stream];
+            } else {
+                return NULL;
+            }
         }
     }
     return NULL;
