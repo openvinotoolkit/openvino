@@ -843,9 +843,13 @@ public:
 
                 // add plugin as extension itself
                 if (desc.extensionCreateFunc) {  // static OpenVINO case
-                    ie::IExtensionPtr ext;
-                    desc.extensionCreateFunc(ext);
-                    AddExtensionUnsafe(ext);
+                    try {
+                        ie::IExtensionPtr ext;
+                        desc.extensionCreateFunc(ext);
+                        AddExtensionUnsafe(ext);
+                    } catch (const ie::GeneralError &) {
+                        // the same extension can be registered multiple times - ignore it!
+                    }
                 } else {
                     TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
                 }
