@@ -1,11 +1,14 @@
 #
 # slice paddle model generator
 #
-import numpy as np
-from save_model import saveModel
-import paddle as pdpd
 import sys
 import os
+
+import numpy as np
+import paddle as pdpd
+
+from save_model import exportModel
+from save_model import saveModel
 
 data_type = 'float32'
 
@@ -30,24 +33,9 @@ def slice(name : str, x, axes : list, start : list, end : list):
     return outs[0]
 
 
-'''
-export dyn model, long with input and output for reference.
-'''
-def exportModel(name, dyn_func, inputspecs:list, data):
-    model_dir = os.path.join(sys.argv[1], name)
-    save_path = '{}/{}'.format(model_dir, name)
-    pdpd.jit.save(dyn_func, save_path, inputspecs)
-
-    model = pdpd.jit.load(save_path)
-    result = model(data)
-    print(result.numpy().shape)
-    np.save(os.path.join(model_dir, "input{}".format(0)), data.numpy())
-    np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
-
 def slice_dyn(test_shape=[2,8,10,10]):
     pdpd.disable_static()
 
-    input = pdpd.static.InputSpec(shape=test_shape, dtype='float32', name='x')
     data = pdpd.rand(shape=test_shape, dtype='float32')
 
     '''
@@ -56,7 +44,7 @@ def slice_dyn(test_shape=[2,8,10,10]):
     @pdpd.jit.to_static
     def test_slice_decrease_axis(x):
         return x[0, 1:3, :, 5]
-    exportModel('slice_decrease_axis', test_slice_decrease_axis, [input], data) # output shape (2, 10)
+    exportModel('slice_decrease_axis', test_slice_decrease_axis, [data], target_dir=sys.argv[1]) # output shape (2, 10)
 
     '''
     slice w/o decrease_axis
@@ -64,7 +52,7 @@ def slice_dyn(test_shape=[2,8,10,10]):
     @pdpd.jit.to_static
     def test_slice(x):
         return pdpd.slice(x, axes=[0,1,3], starts=[0,1,5], ends=[1,3,6])
-    # exportModel('slice_dyn', test_slice, [input], data) # output shape (1, 2, 10, 1)  # disable it by default as this kind of test model already there. It's for comparsion only.
+    # exportModel('slice_dyn', test_slice, [data], target_dir=sys.argv[1]) # output shape (1, 2, 10, 1)  # disable it by default as this kind of test model already there. It's for comparsion only.
 
     '''
     slice w/ decrease_axis of all dims
@@ -72,7 +60,7 @@ def slice_dyn(test_shape=[2,8,10,10]):
     @pdpd.jit.to_static
     def test_slice_decrease_axis_all(x):
         return x[0, 0, 0, 0]
-    exportModel('slice_decrease_axis_all', test_slice_decrease_axis_all, [input], data) # output shape (1,)
+    exportModel('slice_decrease_axis_all', test_slice_decrease_axis_all, [data], target_dir=sys.argv[1]) # output shape (1,)
 
     '''
     slice w/o decrease_axis of all dims
@@ -80,7 +68,7 @@ def slice_dyn(test_shape=[2,8,10,10]):
     @pdpd.jit.to_static
     def test_slice_alldim(x):
         return pdpd.slice(x, axes=[0,1,2,3], starts=[0,0,0,0], ends=[1,1,1,1])
-    # exportModel('slice_alldim', test_slice_alldim, [input], data) # output shape (1, 1, 1, 1) # disable it by default as this kind of test model already there. It's for comparsion only.
+    # exportModel('slice_alldim', test_slice_alldim, [data], target_dir=sys.argv[1]) # output shape (1, 1, 1, 1) # disable it by default as this kind of test model already there. It's for comparsion only.
 
 '''
 a test case simulating the last reshape2 of ocrnet which accepts slice (with decrease_axes in all dims) as its parents.
@@ -88,7 +76,6 @@ a test case simulating the last reshape2 of ocrnet which accepts slice (with dec
 def slice_reshape(B=1, C=256, H=16, W=32):
     pdpd.disable_static()
 
-    input = pdpd.static.InputSpec(shape=[B, C, H*W], dtype='float32', name='x')
     data = pdpd.rand(shape=[B, C, H*W], dtype='float32')
 
     @pdpd.jit.to_static
@@ -96,7 +83,7 @@ def slice_reshape(B=1, C=256, H=16, W=32):
         x2 = pdpd.assign([-1, -1, 16, 32]).astype('int32')
         node_reshape = pdpd.reshape(x, [0, 256, x2[2], x2[3]])
         return node_reshape
-    exportModel('slice_reshape', test_model, [input], data)
+    exportModel('slice_reshape', test_model, [data], target_dir=sys.argv[1])
 
 def main():
     x = np.linspace(1, 60, num = 60, dtype=np.int32).reshape(4, 3, 5).astype(data_type)
