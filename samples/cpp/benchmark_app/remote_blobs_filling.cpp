@@ -124,7 +124,6 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
         remoteBlobs[name].push_back(blob);
     };
 
-    size_t i = 0;
     for (auto& inputs_info : app_inputs_info) {
         for (auto& input : inputs_info) {
             // Fill random
