@@ -3,23 +3,35 @@
 //
 
 #include "transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/validation_util.hpp>
+#include "ngraph/opsets/opset1.hpp"
+#include "ngraph/rt_info.hpp"
+#include "ngraph/pattern/op/wrap_type.hpp"
+#include "ngraph/validation_util.hpp"
 #include "itt.hpp"
 
-bool check_transposes(const std::vector<int64_t>& before_order, const std::vector<int64_t>& after_order, const int rank, const bool transposed_b) {
+/// \brief      Check for correct Transpose orders which are before and after MatMul. Second Transpose must be back for
+///  first Transpose before MatMul
+///
+/// \param      before_order       Order of Transpose which is before MatMul
+/// \param      after_order        Order of Transpose which is after MatMul
+/// \param      transposed_b       true - second MatMul input is transposed, otherwise, it's not transposed
+///
+/// \return     True - Transposes have right orders, otherwise, Transposes have incorrect order for transformation
+///
+bool check_transposes(const std::vector<int64_t>& before_order, const std::vector<int64_t>& after_order, const bool transposed_b) {
+    const size_t rank = before_order.size();
+    if (rank < 3)
+        return false;
+
     if (before_order.size() != after_order.size())
         return false;
 
     if (transposed_b) {
-        // order must be before : 0, 1, 2, ..., N-1, N-2
+        // before order must be : 0, 1, 2, ..., N-1, N-2
         std::vector<int64_t> start_order(rank);
         std::iota(start_order.begin(), start_order.begin() + rank - 2, 0);
         start_order[rank - 1] = rank - 2;
@@ -28,16 +40,16 @@ bool check_transposes(const std::vector<int64_t>& before_order, const std::vecto
         if (before_order != start_order)
             return false;
 
-        // order must be after : N-2, ..., 1, 0, N-1
+        // after order must be : 1, ..., N-2, 0, N-1
         std::vector<int64_t> back_order(rank);
-        std::iota(back_order.begin() + 1, back_order.begin() + rank - 1, 0);
-        back_order[0] = rank - 2;
+        std::iota(back_order.begin(), back_order.begin() + rank - 2, 1);
+        back_order[rank - 2] = 0;
         back_order[rank - 1] = rank - 1;
 
         if (after_order != back_order)
             return false;
     } else {
-        // order must be before : N-2, N-1, 0, 1, 2, ...
+        // before order must be : N-2, N-1, 0, 1, 2, ...
         std::vector<int64_t> needed_transpose_order_before(rank);
         std::iota(needed_transpose_order_before.begin() + 2, needed_transpose_order_before.end(), 0);
         needed_transpose_order_before[0] = rank - 2;
@@ -46,12 +58,43 @@ bool check_transposes(const std::vector<int64_t>& before_order, const std::vecto
         if (before_order != needed_transpose_order_before)
             return false;
 
-        // order of transpose after matmul must be back for transpose before
+        // transpose order after matmul must be back for transpose before
         std::vector<int64_t> back_order(rank);
-        for (auto i = 0; i < rank; i++)
+        for (size_t i = 0; i < rank; i++)
             back_order[i] = std::distance(after_order.begin(), std::find(after_order.begin(), after_order.end(), i));
 
         if (before_order != back_order)
+            return false;
+    }
+
+    return true;
+}
+
+/// \brief      Check for input Reshape which are before MatMul
+///
+/// \param      reshape            Reshape which is before MatMul
+/// \param      new_shape          New shape for Reshape
+/// \param      transposed_b       true - second MatMul input is transposed, otherwise, it's not transposed
+///
+/// \return     True - Reshape has right new shape for reshaping, otherwise, Reshape has incorrect new shape for transformation
+///
+bool check_input_reshape(const std::shared_ptr<ngraph::opset1::Reshape>& reshape,
+                         const std::vector<int64_t>& new_shape, const bool transposed_b) {
+    const auto input_shape = reshape->get_input_shape(0);
+    const size_t input_rank = input_shape.size();
+    const size_t output_rank = reshape->get_output_shape(0).size();
+    if (input_rank < 3 || output_rank != 2)
+        return false;
+
+    if (transposed_b) {
+        const int64_t k = input_shape.back();
+        const int64_t new_n  = ov::shape_size(input_shape) / k;
+        if (new_shape != std::vector<int64_t>{new_n, k})
+            return false;
+    } else {
+        const int64_t k = input_shape.front();
+        const int64_t new_n  = ov::shape_size(input_shape) / k;
+        if (new_shape != std::vector<int64_t>{k, -1} && new_shape != std::vector<int64_t>{k, new_n})
             return false;
     }
 
@@ -89,25 +132,37 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
             return false;
 
         auto matmul = std::dynamic_pointer_cast<opset1::MatMul>(pattern_value_map.at(matmul_pattern).get_node_shared_ptr());
+        if (!matmul)
+            return false;
         const bool transposed_a = matmul->get_transpose_a();
         const bool transposed_b = matmul->get_transpose_b();
 
         auto reshape_before = std::dynamic_pointer_cast<opset1::Reshape>(pattern_value_map.at(reshape_before_pattern).get_node_shared_ptr());
         auto reshape_after = std::dynamic_pointer_cast<opset1::Reshape>(pattern_value_map.at(reshape_after_pattern).get_node_shared_ptr());
+        auto reshape_before_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(
+                pattern_value_map.at(const_reshape_before_pattern).get_node_shared_ptr());
+        if (!reshape_before || !reshape_after || !reshape_before_constant)
+            return false;
+        if (!check_input_reshape(reshape_before, reshape_before_constant->cast_vector<int64_t>(), transposed_b))
+            return false;
+
         // this transformation supports only cases when 2nd input of matmul is transpose->reshape
         if (matmul->get_input_node_shared_ptr(1) != reshape_before)
+            return false;
+        if (matmul->get_input_shape(0).size() != 2)
             return false;
 
         // check transpose order before and after matmul
         auto transpose_before = std::dynamic_pointer_cast<opset1::Transpose>(pattern_value_map.at(transpose_before_pattern).get_node_shared_ptr());
         auto transpose_after = std::dynamic_pointer_cast<opset1::Transpose>(pattern_value_map.at(transpose_after_pattern).get_node_shared_ptr());
-        auto transpose_before_order =
-                std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_before->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
-        auto transpose_after_order =
-                std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_after->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
-
+        auto transpose_before_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_before->get_input_node_shared_ptr(1));
+        auto transpose_after_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(transpose_after->get_input_node_shared_ptr(1));
+        if (!transpose_before || !transpose_after || !transpose_before_constant || !transpose_after_constant)
+            return false;
+        auto transpose_before_order = transpose_before_constant->cast_vector<int64_t>();
+        auto transpose_after_order = transpose_after_constant->cast_vector<int64_t>();
         // need to check that input shape is correctly contracted and output shape is correctly unpacked using transposes
-        if (!check_transposes(transpose_before_order, transpose_after_order, transpose_before->get_input_shape(0).size(), transposed_b))
+        if (!check_transposes(transpose_before_order, transpose_after_order, transposed_b))
             return false;
 
         const auto new_matmul = std::make_shared<opset1::MatMul>(input_1, input_2, transposed_a, false);
