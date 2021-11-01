@@ -25,6 +25,8 @@ namespace op {
  */
 class TRANSFORMATIONS_API Subgraph : public ngraph::op::Op {
 public:
+    OPENVINO_OP("Subgraph", "SnippetsOpset");
+
     // < 1, 42, 17, 15, 16> < 0, 1, 2, 3, 1>
     // should be:
     // A = < 1, 42, 17, 15> -> < 1, 3, 17, 15, 16> < 0, 1, 2, 3, 1>
@@ -69,8 +71,6 @@ public:
     using BlockedShape = std::tuple<ngraph::Shape, ngraph::AxisVector, ngraph::element::Type>;
     using BlockedShapeVector = std::vector<BlockedShape>;
 
-    NGRAPH_RTTI_DECLARATION;
-
     Subgraph(const OutputVector& args, std::shared_ptr<Function> body);
 
     Subgraph(const NodeVector& args, std::shared_ptr<Function> body);
@@ -93,7 +93,9 @@ public:
 
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
                                 ngraph::pass::Manager opt = ngraph::pass::Manager());
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     /// Set a new body for the op; body needs to satisfy requirements on inputs/outputs
     void set_body(std::shared_ptr<Function> body);

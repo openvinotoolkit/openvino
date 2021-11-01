@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API Tile : public ngraph::op::Op {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("Tile", "SnippetsOpset");
 
     Tile(const std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>>& region);
     Tile() = default;

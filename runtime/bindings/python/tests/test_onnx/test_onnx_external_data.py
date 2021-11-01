@@ -4,18 +4,17 @@
 import os
 
 import numpy as np
-import ngraph as ng
-from openvino.inference_engine import IECore
+from openvino import Core
 
 from tests.runtime import get_runtime
 
 
 def test_import_onnx_with_external_data():
     model_path = os.path.join(os.path.dirname(__file__), "models/external_data.onnx")
-    ie = IECore()
-    ie_network = ie.read_network(model=model_path)
+    ie = Core()
+    network = ie.read_network(model=model_path)
 
-    ng_function = ng.function_from_cnn(ie_network)
+    ng_function = network.get_function()
 
     dtype = np.float32
     value_a = np.array([1.0, 3.0, 5.0], dtype=dtype)

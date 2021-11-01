@@ -424,6 +424,7 @@ private:
 };
 
 TEST_P(CachingTest, TestLoad) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -454,6 +455,7 @@ TEST_P(CachingTest, TestLoad) {
 
 TEST_P(CachingTest, TestLoadCustomImportExport) {
     const char customData[] = {1, 2, 3, 4, 5};
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -512,6 +514,7 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
 // Brief: when LoadNetwork is called from different config - old cache shall not be used
 TEST_P(CachingTest, TestChangeLoadConfig) {
     const std::string CUSTOM_KEY = "CUSTOM_KEY";
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -547,6 +550,7 @@ TEST_P(CachingTest, TestChangeLoadConfig) {
 }
 
 TEST_P(CachingTest, TestNoCacheEnabled) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -563,6 +567,7 @@ TEST_P(CachingTest, TestNoCacheEnabled) {
 }
 
 TEST_P(CachingTest, TestNoCacheSupported) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _))
             .Times(AnyNumber()).WillRepeatedly(Return(false));
@@ -582,6 +587,7 @@ TEST_P(CachingTest, TestNoCacheSupported) {
 }
 
 TEST_P(CachingTest, TestNoCacheMetricSupported) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
             .Times(AnyNumber()).WillRepeatedly(Return(std::vector<std::string>{}));
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
@@ -688,6 +694,7 @@ TEST_P(CachingTest, TestNoCacheEnabled_cacheDirConfig) {
 }
 
 TEST_P(CachingTest, TestLoadChangeCacheDir) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -719,6 +726,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDir) {
 }
 
 TEST_P(CachingTest, TestClearCacheDir) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(0);
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -737,6 +745,7 @@ TEST_P(CachingTest, TestClearCacheDir) {
 }
 
 TEST_P(CachingTest, TestChangeOtherConfig) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -756,6 +765,7 @@ TEST_P(CachingTest, TestChangeOtherConfig) {
 
 TEST_P(CachingTest, TestChangeCacheDirFailure) {
     std::string longName(1000000, ' ');
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -790,6 +800,7 @@ TEST_P(CachingTest, TestCacheDirCreateRecursive) {
     std::string newCacheDir2 = newCacheDir1 + CommonTestUtils::FileSeparator + "b";
     std::string newCacheDir3 = newCacheDir2 + CommonTestUtils::FileSeparator + CommonTestUtils::FileSeparator;
 
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -810,6 +821,7 @@ TEST_P(CachingTest, TestCacheDirCreateRecursive) {
 }
 
 TEST_P(CachingTest, TestDeviceArchitecture) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
@@ -874,6 +886,7 @@ TEST_P(CachingTest, TestDeviceArchitecture) {
 }
 
 TEST_P(CachingTest, TestNoDeviceArchitecture) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber())
             .WillRepeatedly(Invoke([&] (const std::string&, const std::map<std::string, Parameter>&) {
                 return std::vector<std::string>{METRIC_KEY(IMPORT_EXPORT_SUPPORT)};
@@ -908,6 +921,7 @@ TEST_P(CachingTest, TestNoDeviceArchitecture) {
 }
 
 TEST_P(CachingTest, TestThrowOnExport) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -927,6 +941,7 @@ TEST_P(CachingTest, TestThrowOnExport) {
 // TODO: temporary behavior is to no re-throw exception on import error (see 54335)
 // In future add separate 'no throw' test for 'blob_outdated' exception from plugin
 TEST_P(CachingTest, TestThrowOnImport) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -972,6 +987,7 @@ TEST_P(CachingTest, TestThrowOnImport) {
 
 // FIXME: two different tests expect different number of results
 TEST_P(CachingTest, DISABLED_TestNetworkModified) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -1042,6 +1058,7 @@ TEST_P(CachingTest, DISABLED_TestNetworkModified) {
 }
 
 TEST_P(CachingTest, TestCacheFileCorrupted) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -1089,6 +1106,7 @@ TEST_P(CachingTest, TestCacheFileCorrupted) {
 }
 
 TEST_P(CachingTest, TestCacheFileOldVersion) {
+    EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber());
@@ -1396,7 +1414,8 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
 
 // MULTI-DEVICE test
 // Test that it is safe to load multiple devices sharing same cache
-TEST_P(CachingTest, LoadMulti_race) {
+// TODO: Disabled by issue 69273/68808
+TEST_P(CachingTest, DISABLED_LoadMulti_race) {
     const auto TEST_DURATION_MS = 2000;
     const auto TEST_DEVICE_MAX_COUNT = 10;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
@@ -1431,7 +1450,8 @@ TEST_P(CachingTest, LoadMulti_race) {
     std::cout << "Caching LoadMulti Test completed. Tried " << index << " times" << std::endl;
 }
 
-TEST_P(CachingTest, Load_threads) {
+// TODO: Disabled by issue 69273/68808
+TEST_P(CachingTest, DISABLED_Load_threads) {
     const auto TEST_DURATION_MS = 2000;
     const auto THREADS_COUNT = 4;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
@@ -1467,7 +1487,8 @@ TEST_P(CachingTest, Load_threads) {
 
 // MULTI-DEVICE test
 // Test loading of devices with different architectures
-TEST_P(CachingTest, LoadMulti_Archs) {
+// TODO: Disabled by issue 69273/68808
+TEST_P(CachingTest, DISABLED_LoadMulti_Archs) {
     const auto TEST_DEVICE_MAX_COUNT = 30; // Shall be >= 2
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());

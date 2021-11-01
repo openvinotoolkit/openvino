@@ -186,7 +186,6 @@ void replace_node(const std::shared_ptr<Node>& target,
                   const std::vector<int64_t>& output_order);
 
 /// Replace target.outputs[i] with replacement_values[i] and transfer control dependents and
-/// provenance from target to the node(s) in replacement_values.
 OPENVINO_API
 void replace_node(const std::shared_ptr<Node>& target, const OutputVector& replacement_values);
 
@@ -265,7 +264,8 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
 // NodeMap output (by reference) fully maps input and cloned function ops
 OPENVINO_API
-std::shared_ptr<ov::Function> clone_function(const ov::Function& func, NodeMap& node_map);
+std::shared_ptr<ov::Function> clone_function(const ov::Function& func,
+                                             std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
 // input function is cloned and returned
 OPENVINO_API

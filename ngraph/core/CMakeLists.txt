@@ -4,6 +4,10 @@
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wmissing-declarations)
+endif()
+
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -14,12 +18,10 @@ add_subdirectory(shape_inference)
 
 # WA for Tensor implementation via ie::Blob::Ptr
 set(IE_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src")
-set(IE_SHARED_SRCS
-    "${IE_SRC_ROOT}/system_allocator.cpp"
-    "${IE_SRC_ROOT}/blob_factory.cpp"
-    "${IE_SRC_ROOT}/ie_blob_common.cpp"
-    "${IE_SRC_ROOT}/system_allocator.cpp"
-    "${IE_SRC_ROOT}/ie_layouts.cpp")
+set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
+                   "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/system_allocator.cpp")
 set(MIXED_SRC ${IE_SHARED_SRCS}
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
@@ -61,7 +63,7 @@ endif()
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util ov_shape_inference)
+target_link_libraries(ngraph PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference)
 
 ie_mark_target_as_cc(ngraph)
 
@@ -71,7 +73,7 @@ ov_ncc_naming_style(FOR_TARGET ngraph
 add_clang_format_target(ngraph_clang FOR_TARGETS ngraph)
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(ngraph PUBLIC NGRAPH_STATIC_LIBRARY)
+    target_compile_definitions(ngraph PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -92,6 +94,7 @@ file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cp
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}

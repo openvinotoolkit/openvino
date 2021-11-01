@@ -23,13 +23,15 @@ inline std::shared_ptr<Function> create_preprocess_1input(element::Type type,
     data1->set_friendly_name("input1");
     data1->output(0).get_tensor().set_names({"input1"});
     std::shared_ptr<op::v0::Result> res;
+    auto op1 = std::make_shared<op::v0::Abs>(data1);
     if (type == element::f32) {
-        res = std::make_shared<op::v0::Result>(data1);
+        res = std::make_shared<op::v0::Result>(op1);
     } else {
         auto convert = std::make_shared<op::v0::Convert>(data1, element::f32);
-        res = std::make_shared<op::v0::Result>(convert);
+        res = std::make_shared<op::v0::Result>(op1);
     }
-    res->set_friendly_name("Result");
+    res->set_friendly_name("Result1");
+    res->output(0).get_tensor().set_names({"Result1"});
     return std::make_shared<Function>(ResultVector{res}, ParameterVector{data1});
 }
 
@@ -42,17 +44,37 @@ inline std::shared_ptr<Function> create_preprocess_2inputs(element::Type type,
     data2->set_friendly_name("input2");
     data2->output(0).get_tensor().set_names({"input2"});
     std::shared_ptr<op::v0::Result> res1, res2;
+    auto op1 = std::make_shared<op::v0::Abs>(data1);
+    auto op2 = std::make_shared<op::v0::Abs>(data2);
     if (type == element::f32) {
-        res1 = std::make_shared<op::v0::Result>(data1);
-        res2 = std::make_shared<op::v0::Result>(data2);
+        res1 = std::make_shared<op::v0::Result>(op1);
+        res2 = std::make_shared<op::v0::Result>(op2);
     } else {
-        auto convert1 = std::make_shared<op::v0::Convert>(data1, element::f32);
+        auto convert1 = std::make_shared<op::v0::Convert>(op1, element::f32);
         res1 = std::make_shared<op::v0::Result>(convert1);
-        auto convert2 = std::make_shared<op::v0::Convert>(data2, element::f32);
+        auto convert2 = std::make_shared<op::v0::Convert>(op2, element::f32);
         res2 = std::make_shared<op::v0::Result>(convert2);
     }
     res1->set_friendly_name("Result1");
+    res1->output(0).get_tensor().set_names({"Result1"});
     res2->set_friendly_name("Result2");
+    res2->output(0).get_tensor().set_names({"Result2"});
+    return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
+}
+
+inline std::shared_ptr<Function> create_preprocess_2inputs_trivial() {
+    auto data1 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 1, 1});
+    auto data2 = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 3, 1, 1});
+
+    data1->set_friendly_name("input1");
+    data1->output(0).get_tensor().set_names({"input1"});
+
+    data2->set_friendly_name("input2");
+    data2->output(0).get_tensor().set_names({"input2"});
+
+    auto res1 = std::make_shared<op::v0::Result>(data1);
+    auto res2 = std::make_shared<op::v0::Result>(data2);
+
     return std::make_shared<Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
 }
 
@@ -184,6 +206,13 @@ inline std::shared_ptr<Function> two_inputs_basic() {
     return function;
 }
 
+inline std::shared_ptr<Function> two_inputs_trivial() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_2inputs_trivial();
+    function = PrePostProcessor().input(InputInfo(1).preprocess(PreProcessSteps().mean(1.f).scale(2.0f))).build(function);
+    return function;
+}
+
 inline std::shared_ptr<Function> reuse_network_layout() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::f32, PartialShape{4, 3, 2, 1});
@@ -270,6 +299,17 @@ inline std::shared_ptr<Function> resize_and_convert_layout() {
     return function;
 }
 
+inline std::shared_ptr<Function> convert_layout_by_dims() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(element::f32, PartialShape{1, 30, 20, 3});
+    function = PrePostProcessor()
+            .input(InputInfo()
+                           .preprocess(PreProcessSteps()
+                                               .convert_layout({0, 3, 1, 2})))
+            .build(function);
+    return function;
+}
+
 inline std::shared_ptr<Function> resize_and_convert_layout_i8() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(element::i8, PartialShape{1, 30, 20, 3});
@@ -340,12 +380,14 @@ inline std::vector<preprocess_func> generic_preprocess_functions() {
             preprocess_func(custom_preprocessing, "custom_preprocessing", 0.01f),
             preprocess_func(lvalues_multiple_ops, "lvalues_multiple_ops", 0.01f),
             preprocess_func(two_inputs_basic, "two_inputs_basic", 0.01f),
+            preprocess_func(two_inputs_trivial, "two_inputs_trivial", 0.01f),
             preprocess_func(reuse_network_layout, "reuse_network_layout", 0.01f),
             preprocess_func(tensor_layout, "tensor_layout", 0.01f),
             preprocess_func(resize_linear, "resize_linear", 0.01f),
             preprocess_func(resize_nearest, "resize_nearest", 0.01f),
             preprocess_func(resize_linear_nhwc, "resize_linear_nhwc", 0.01f),
             preprocess_func(resize_cubic, "resize_cubic", 0.01f),
+            preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
             preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
             preprocess_func(resize_and_convert_layout_i8, "resize_and_convert_layout_i8", 0.01f),
             preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 2.f),
