@@ -49,6 +49,10 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
+    void preprocess_notify();
+    void enqueue_notify();
+    void wait_notify();
+
     void preprocess();
     void enqueue();
     void wait();
@@ -79,8 +83,7 @@ private:
                        std::vector<cldnn::event::ptr>& dependencies);
     void prepare_output(const cldnn::primitive_id& outputName, InferenceEngine::Blob::Ptr& outputBlob);
 
-    InferenceEngine::Blob::Ptr create_input_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
-    InferenceEngine::Blob::Ptr create_output_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
+    InferenceEngine::Blob::Ptr create_host_blob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr create_device_blob(const InferenceEngine::TensorDesc& desc, const cldnn::layout& layout);
 
     void copy_output_data(cldnn::memory::ptr outputMemory, InferenceEngine::Blob::Ptr bptr, buf_info* bi = nullptr);
@@ -92,6 +95,8 @@ private:
     void allocate_outputs();
     void allocate_inputs_dynamic();
     void allocate_outputs_dynamic();
+
+    void setStreamGraph();
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;

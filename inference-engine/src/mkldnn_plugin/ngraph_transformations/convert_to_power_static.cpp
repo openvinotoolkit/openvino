@@ -14,6 +14,8 @@
 #include "op/fully_connected.hpp"
 #include "utils/general_utils.h"
 
+namespace {
+
 int getConstPort(const std::shared_ptr<ngraph::Node> &node) {
     const auto const1 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(0));
     const auto const2 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
@@ -41,15 +43,16 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
     auto const_shape = node->get_input_shape(constPort);
     return ngraph::shape_size(const_shape) == 1 &&
            input_rank.get_length() >= const_shape.size() &&
-           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(), ngraph::opset1::NormalizeL2::type_info,
-                                                                                                 ngraph::opset4::Interpolate::type_info,
-                                                                                                 ngraph::opset1::Convolution::type_info,
-                                                                                                 ngraph::opset1::GroupConvolution::type_info,
-                                                                                                 ngraph::opset1::ConvolutionBackpropData::type_info,
-                                                                                                 ngraph::opset1::GroupConvolutionBackpropData::type_info,
-                                                                                                 MKLDNNPlugin::FullyConnectedNode::type_info,
-                                                                                                 ngraph::op::v0::MVN::type_info,
-                                                                                                 ngraph::opset6::MVN::type_info);
+           !MKLDNNPlugin::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
+                                 ngraph::opset1::NormalizeL2::get_type_info_static(),
+                                 ngraph::opset4::Interpolate::get_type_info_static(),
+                                 ngraph::opset1::Convolution::get_type_info_static(),
+                                 ngraph::opset1::GroupConvolution::get_type_info_static(),
+                                 ngraph::opset1::ConvolutionBackpropData::get_type_info_static(),
+                                 ngraph::opset1::GroupConvolutionBackpropData::get_type_info_static(),
+                                 MKLDNNPlugin::FullyConnectedNode::get_type_info_static(),
+                                 ngraph::op::v0::MVN::get_type_info_static(),
+                                 ngraph::opset6::MVN::get_type_info_static());
 }
 
 template <>
@@ -91,6 +94,8 @@ std::shared_ptr<ngraph::Node> convert(const std::shared_ptr<BaseOp> &node) {
         throw ngraph::ngraph_error("ConvertToPowerStatic: op type is not supported");
     }
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::ConvertToPowerStatic, "ConvertToPowerStatic", 0);
 

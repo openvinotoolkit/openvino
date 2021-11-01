@@ -177,6 +177,27 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
     });
 }
 
+void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
+    if (dims.empty()) {
+        return;
+    }
+    m_layout_converts.emplace_front(dims);
+    m_actions.emplace_back([dims](const std::vector<Output<Node>>& nodes,
+                                  const std::shared_ptr<Function>& function,
+                                  PreprocessingContext& context) {
+        OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't convert layout for empty input.");
+        OPENVINO_ASSERT(nodes.size() == 1,
+                        "Can't convert layout for multi-plane input. Suggesting to convert current image to "
+                        "RGB/BGR color format using 'convert_color'");
+        auto new_layout = layout::apply_permutation(context.layout(), dims);
+        auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
+        auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
+        auto res = std::make_tuple(std::vector<Output<Node>>{transpose}, true);
+        context.layout() = std::move(new_layout);  // Update context's current layout
+        return res;
+    });
+}
+
 void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
     m_actions.emplace_back([dst_format](const std::vector<Output<Node>>& nodes,
                                         const std::shared_ptr<Function>& function,
@@ -250,7 +271,7 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
                     "Layout ",
                     context.layout().to_string(),
                     " doesn't have `channels` dimension");
-    auto channels_idx = ov::layout::channels(context.layout());
+    auto channels_idx = ov::layout::channels_idx(context.layout());
     // Get shape of user's input tensor (e.g. Tensor[1, 3, 224, 224] -> {1, 3, 224, 224})
     auto shape_of = std::make_shared<ov::op::v0::ShapeOf>(nodes[0]);  // E.g. {1, 3, 224, 224}
 
@@ -307,6 +328,20 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
         auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
         return std::make_tuple(Output<Node>(transpose), true);
+    });
+}
+
+void PostStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
+    if (dims.empty()) {
+        return;
+    }
+    m_actions.emplace_back([dims](const Output<Node>& node, PostprocessingContext& context) {
+        auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
+        auto new_layout = layout::apply_permutation(context.layout(), dims);
+        auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
+        auto res = std::make_tuple(Output<Node>(transpose), true);
+        context.layout() = std::move(new_layout);  // Update context's current layout
+        return res;
     });
 }
 

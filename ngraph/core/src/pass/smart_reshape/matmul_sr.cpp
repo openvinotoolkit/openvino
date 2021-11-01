@@ -14,6 +14,8 @@
 
 #include "itt.hpp"
 
+namespace {
+
 bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap& pattern_to_output,
                                          const std::shared_ptr<ngraph::Node>& matmul_label,
                                          const std::shared_ptr<ngraph::Node>& reshape_label,
@@ -50,6 +52,8 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap&
     replace_node(reshape_pattern, new_reshape_pattern);
     return true;
 }
+
+}  // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeAMatMul, "ReshapeAMatMul", 0);
 

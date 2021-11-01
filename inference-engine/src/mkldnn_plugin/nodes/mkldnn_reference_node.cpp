@@ -5,7 +5,7 @@
 #include "mkldnn_reference_node.h"
 #include <ie_ngraph_utils.hpp>
 #include <mkldnn_extension_utils.h>
-#include <ngraph/runtime/host_tensor.hpp>
+#include "openvino/runtime/tensor.hpp"
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
 
@@ -48,18 +48,18 @@ void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNReferenceNode::createPrimitive() {}
 
 void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
-    ngraph::HostTensorVector inputs;
+    ov::runtime::TensorVector inputs;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetPtr();
-        inputs.push_back(std::make_shared<ngraph::HostTensor>(ngraphOp->get_input_element_type(i),
-                                                              getParentEdgesAtPort(i)[0]->getMemory().getStaticDims(), srcDataPtr));
+        inputs.push_back(ov::runtime::Tensor(ngraphOp->get_input_element_type(i),
+                                             getParentEdgesAtPort(i)[0]->getMemory().getStaticDims(), srcDataPtr));
     }
 
-    ngraph::HostTensorVector outputs;
+    ov::runtime::TensorVector outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().GetPtr();
-        outputs.push_back(std::make_shared<ngraph::HostTensor>(ngraphOp->get_output_element_type(i),
-                                                               getChildEdgesAtPort(i)[0]->getMemory().getStaticDims(), dstDataPtr));
+        outputs.push_back(ov::runtime::Tensor(ngraphOp->get_output_element_type(i),
+                                              getChildEdgesAtPort(i)[0]->getMemory().getStaticDims(), dstDataPtr));
     }
 
     if (!ngraphOp->evaluate(outputs, inputs)) {
