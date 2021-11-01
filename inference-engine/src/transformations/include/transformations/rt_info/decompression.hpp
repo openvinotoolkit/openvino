@@ -23,6 +23,11 @@ TRANSFORMATIONS_API void unmark_as_decompression(const std::shared_ptr<Node>& no
 
 TRANSFORMATIONS_API bool is_decompression(const std::shared_ptr<Node>& node);
 
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief Decompression class represents runtime info attribute that marks operation
+ * as used as decompression for Compressed Only format.
+ */
 class TRANSFORMATIONS_API Decompression : public VariantImpl<void> {
 public:
     OPENVINO_RTTI("decompression", "0");

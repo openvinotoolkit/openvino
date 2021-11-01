@@ -16,6 +16,11 @@ void OPENVINO_API unmark_as_precision_sensitive(ov::Input<ov::Node> node_input);
 
 bool OPENVINO_API is_precision_sensitive(const ov::Input<ov::Node>& node_input);
 
+/**
+ * @brief PrecisionSensitive class represents runtime info attribute that marks
+ * input to an operation as a precision sensitive and disables compression to FP16
+ * of the subgraph before this input.
+ */
 class OPENVINO_API PrecisionSensitive : public VariantImpl<void> {
 public:
     OPENVINO_RTTI("precision_sensitive", "0");
