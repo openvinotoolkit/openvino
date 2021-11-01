@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
-from io import SEEK_CUR
+
 import os
 import numpy as np
-
 
 from openvino.tools.pot.graph import save_model
 from ..utils import get_tensor_statistics, get_stat_name_by_config, configs_creation, proxy_metrics
@@ -22,11 +21,11 @@ from ..accuracy_aware_common.utils import evaluate_model
 
 logger = get_logger(__name__)
 
-
 # pylint: disable=R0912
 @COMPRESSION_ALGORITHMS.register('MinMaxQuantization')
 class MinMaxQuantization(Algorithm):
     name = 'MinMaxQuantization'
+
     def __init__(self, config, engine):
         super().__init__(config, engine)
         stat_subset_size = min(
@@ -110,8 +109,10 @@ class MinMaxQuantization(Algorithm):
         :return: statistics layout in format {node_name: [stat_1, stat_2] .. }
         """
         fake_quantize_config = fqut.compute_stats_layouts(config, model)
-        activations_stats_layout = self.create_stats_layout(fake_quantize_config, model, for_weights=False,
-                                                            inplace_statistics=self._config['inplace_statistics'])
+
+        activations_stats_layout = self.create_stats_layout(fake_quantize_config, model,
+                                                            for_weights=False,
+                                                            inplace_statistics=config['inplace_statistics'])
         return activations_stats_layout
 
     @staticmethod
@@ -123,6 +124,7 @@ class MinMaxQuantization(Algorithm):
         :return weights or activations statistics layout. Layout is a dictionary with layer name as
          key and dictionary with statistics {stats_name: stats_fn} as values
         """
+
         fq_nodes = mu.get_nodes_by_type(model, ['FakeQuantize'])
 
         statistics_layout = {}
