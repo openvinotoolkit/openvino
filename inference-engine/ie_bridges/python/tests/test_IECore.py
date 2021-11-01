@@ -3,6 +3,7 @@
 
 import os
 import pytest
+import sys
 from sys import platform
 from pathlib import Path
 from threading import Event, Thread
@@ -278,6 +279,7 @@ def test_load_network_release_gil(device):
 
 def test_nogil_safe(device):
     call_thread_func = Event()
+    switch_interval = sys.getswitchinterval()
     core = IECore()
     net = core.read_network(model=test_net_xml, weights=test_net_bin)
 
@@ -289,13 +291,14 @@ def test_nogil_safe(device):
     def main_thread_target(gil_release_func, args):
         call_thread_func.set()
         gil_release_func(*args)
-        assert not call_thread_func.is_set()
 
     def test_run_parallel(gil_release_func, args, thread_func, thread_args):
         thread = Thread(target=thread_target, args=[thread_func, thread_args])
+        sys.setswitchinterval(1000)
         thread.start()
         main_thread_target(gil_release_func, args)
         thread.join()
+        sys.setswitchinterval(switch_interval)
 
     main_targets = [{
                      core.read_network: [test_net_xml, test_net_bin],
