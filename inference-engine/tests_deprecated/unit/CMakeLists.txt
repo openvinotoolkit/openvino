@@ -123,6 +123,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     unitTestUtils
     ieTestHelpers_s
     ${TEST_DEPS}
+
+    # dynamic libraries
+    inference_engine_transformations
+    inference_engine_lp_transformations
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

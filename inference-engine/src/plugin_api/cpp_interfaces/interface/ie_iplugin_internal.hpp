@@ -330,7 +330,8 @@ using CreatePluginEngineFunc = void(std::shared_ptr<IInferencePlugin>&);
 /**
  * @private
  */
-using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);;
+using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
+;
 
 /**
  * @def IE_CREATE_PLUGIN
