@@ -466,7 +466,6 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/deformable_psroi_pooling.in.cpp
     backend/detection_output.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
@@ -489,8 +488,6 @@ set(MULTI_TEST_SRC
     backend/non_max_suppression.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
-    backend/proposal.in.cpp
-    backend/psroi_pooling.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/roll.in.cpp
@@ -500,10 +497,8 @@ set(MULTI_TEST_SRC
     backend/sqrt.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
-    backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
-    backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
 )
 
