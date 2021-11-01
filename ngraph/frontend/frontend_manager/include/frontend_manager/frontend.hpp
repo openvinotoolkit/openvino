@@ -12,6 +12,8 @@
 #include "input_model.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/core/extension.hpp"
+#include "openvino/core/op_extension.hpp"
 
 namespace ngraph {
 namespace frontend {
@@ -87,6 +89,40 @@ public:
     ///
     /// \return Current frontend name. Empty string if not implemented
     virtual std::string get_name() const;
+
+    /// \brief Register base extension in the FrontEnd
+    /// \param extension base extension
+    virtual void add_extension(const std::shared_ptr<ov::Extension>& extension);
+    /// \brief Register base extensions in the FrontEnd
+    /// \param extensions vector of extensions
+    void add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions);
+    /// \brief Registers extension
+    /// \param library_path path to library with ov::Extension
+    void add_extension(const std::string& library_path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /// \brief Registers extension
+    /// \param library_path path to library with ov::Extension
+    void add_extension(const std::wstring& library_path);
+#endif
+
+    /// @brief Registers extension
+    /// @param extension Extension class which is inherited from ov::BaseExtension class
+    template <class T, typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
+    void add_extension(const T& extension) {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
+        add_extension(ext);
+    }
+    /// @brief Registers extensions
+    /// @param extension Extension class which is inherited from ov::Extension class
+    template <class T,
+              class... Targs,
+              typename std::enable_if<std::is_base_of<ov::Extension, T>::value, bool>::type = true>
+    void add_extension(const T& extension, Targs... args) {
+        std::shared_ptr<ov::Extension> ext = std::make_shared<T>(extension);
+        add_extension(ext);
+        add_extension(args...);
+    }
 
 protected:
     virtual bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const;
