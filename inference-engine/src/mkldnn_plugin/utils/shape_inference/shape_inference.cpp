@@ -12,7 +12,10 @@
 #include "convolution_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
 #include "shape_nodes.hpp"
+#include "detection_output_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
+#include "select_shape_inference.hpp"
+#include "shuffle_channels_shape_inference.hpp"
 
 
 void shape_inference(ov::Node* op,
@@ -39,6 +42,12 @@ void shape_inference(ov::Node* op,
     } else if (auto node = ov::as_type<ov::opset3::ShapeOf>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else if (auto node = ov::as_type<ov::opset6::ExperimentalDetectronDetectionOutput>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::DetectionOutput>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::Select>(op)) {
+        shape_infer(node, input_shapes, output_shapes);
+    } else if (auto node = ov::as_type<ov::opset1::ShuffleChannels>(op)) {
         shape_infer(node, input_shapes, output_shapes);
     } else {
         ngraph::OutputVector new_inputs;

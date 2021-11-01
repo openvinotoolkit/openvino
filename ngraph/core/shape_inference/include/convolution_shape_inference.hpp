@@ -3,8 +3,6 @@
 //
 #pragma once
 
-#pragma once
-
 #include <openvino/op/convolution.hpp>
 
 namespace ov {
