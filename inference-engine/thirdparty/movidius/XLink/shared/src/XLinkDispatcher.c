@@ -86,7 +86,6 @@ typedef struct {
     pthread_mutex_t queueMutex;
 
     XLink_sem_t addEventSem;
-    XLink_sem_t eventSchedulerStartSem;
     XLink_sem_t notifyDispatcherSem;
     volatile uint32_t resetXLink;
     uint32_t semaphores;
@@ -252,8 +251,10 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
         perror("Can't create semaphore\n");
         return -1;
     }
-    if (XLink_sem_init(&schedulerState[idx].eventSchedulerStartSem, 0, 0)) {
-        perror("Can't create semaphore\n");
+    if (pthread_mutex_init(&(schedulerState[idx].queueMutex), NULL) != 0) {
+        pthread_attr_destroy(&attr);
+        perror("pthread_mutex_init error");
+        return -1;
     }
     if (XLink_sem_init(&schedulerState[idx].notifyDispatcherSem, 0, 0)) {
         perror("Can't create semaphore\n");
@@ -322,13 +323,6 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
         mvLog(MVLOG_ERROR,"pthread_attr_destroy error");
     }
 
-    int rc = 0;
-    while(((rc = XLink_sem_wait(&schedulerState[idx].eventSchedulerStartSem)) == -1) && errno == EINTR)
-        continue;
-    if (rc) {
-        mvLog(MVLOG_ERROR,"can't wait semaphore\n");
-        return X_LINK_ERROR;
-    }
     sem_post(&addSchedulerSem);
 
     return 0;
@@ -680,12 +674,6 @@ static void* eventSchedulerRun(void* ctx)
         return NULL;
     }
 
-    if (pthread_mutex_init(&(curr->queueMutex), NULL) != 0) {
-        pthread_attr_destroy(&attr);
-        mvLog(MVLOG_ERROR,"pthread_mutex_init error");
-        return NULL;
-    }
-
 #ifndef __PC__
     if (pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED) != 0) {
         pthread_attr_destroy(&attr);
@@ -728,10 +716,6 @@ static void* eventSchedulerRun(void* ctx)
 #endif
     mvLog(MVLOG_INFO,"Scheduler thread started");
 
-    if (XLink_sem_post(&curr->eventSchedulerStartSem)) {
-        mvLog(MVLOG_ERROR,"can't post semaphore\n");
-    }
-
     XLinkError_t rc = sendEvents(curr);
     if(rc) {
         mvLog(MVLOG_ERROR, "sendEvents method finished with an error: %s", XLinkErrorToStr(rc));
@@ -756,8 +740,6 @@ static void* eventSchedulerRun(void* ctx)
     } else {
         mvLog(MVLOG_INFO,"Scheduler thread stopped");
     }
-
-    XLINK_RET_ERR_IF(pthread_mutex_destroy(&(curr->queueMutex)) != 0, NULL);
 
     return NULL;
 }
@@ -1042,6 +1024,7 @@ static int dispatcherClean(xLinkSchedulerState_t* curr)
     if(pthread_mutex_unlock(&clean_mutex) != 0) {
         mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex after clearing dispatcher");
     }
+    XLINK_RET_ERR_IF(pthread_mutex_destroy(&(curr->queueMutex)) != 0, 1);
     return 0;
 }
 
