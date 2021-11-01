@@ -345,9 +345,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 prepost.input(ov::preprocess::InputInfo(i)
                                   .tensor(InputTensorInfo().set_element_type(old_api_type))
                                   .preprocess(PreProcessSteps().convert_layout(old_api_transpose_args)));
-
-                // Set version to 10
-                rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
             }
 
             auto& resuls = function->get_results();
@@ -376,6 +373,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 // remove old api once we applied it
                 rtInfo.erase(it);
             }
+
+            // Set version to 10
+            rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
 
             function = prepost.build(function);
         }
