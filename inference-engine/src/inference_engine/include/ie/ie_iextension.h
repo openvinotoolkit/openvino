@@ -208,6 +208,12 @@ protected:
 using IExtensionPtr = std::shared_ptr<IExtension>;
 
 /**
+ * @brief Creates the default instance of the extension
+ * @param ext Extension interface
+ */
+INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
+
+/**
  * @note: Deprecated API
  * @brief Creates the default instance of the extension
  * @param ext Extension interface
