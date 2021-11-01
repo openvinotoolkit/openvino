@@ -95,7 +95,6 @@ from ngraph.opset8 import hard_sigmoid
 from ngraph.opset8 import hsigmoid
 from ngraph.opset8 import hswish
 from ngraph.opset8 import idft
-from ngraph.opset8 import if_op
 from ngraph.opset8 import interpolate
 from ngraph.opset8 import less
 from ngraph.opset8 import less_equal
