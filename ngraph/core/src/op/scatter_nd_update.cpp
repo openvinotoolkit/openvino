@@ -23,6 +23,7 @@ shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVect
 }
 
 namespace scatter {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -78,6 +79,7 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace scatter
 
 bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

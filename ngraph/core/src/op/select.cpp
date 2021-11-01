@@ -64,6 +64,7 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor) {
 }
 
 namespace detail {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorVector& output_values,
               const HostTensorVector& input_values,
@@ -114,6 +115,7 @@ bool evaluate_select(const HostTensorVector& output_values,
 
     return rc;
 }
+}  // namespace
 }  // namespace detail
 
 bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {

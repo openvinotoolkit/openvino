@@ -28,6 +28,7 @@ ov::op::v0::Sigmoid::Sigmoid(const Output<Node>& arg) : UnaryElementwiseArithmet
 }
 
 namespace sigmoid {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -53,6 +54,7 @@ bool evaluate_sigmoid(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
+}  // namespace
 }  // namespace sigmoid
 
 bool ov::op::v0::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
