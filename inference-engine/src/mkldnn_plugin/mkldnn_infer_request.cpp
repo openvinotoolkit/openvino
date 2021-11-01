@@ -239,9 +239,9 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
     InferenceEngine::Blob::Ptr data;
 
-    const auto &inMaps = graph->inputNodesMap;
-    auto input = inMaps.find(name);
-    if (input != inMaps.end()) {
+    const auto &inMap = graph->inputNodesMap;
+    auto input = inMap.find(name);
+    if (input != inMap.end()) {
         // ROI blob is returned only if it was set previously.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
@@ -380,7 +380,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
     if (!compoundBlobPassed && data->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
     if (data->size() == 0 &&
-        !((foundInput && inputNode->isDynamicNode()) || (foundOutput && outputNode->isDynamicNode()))) {
+        !((inputNode && inputNode->isDynamicNode()) || (outputNode && outputNode->isDynamicNode()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
 
