@@ -27,6 +27,10 @@ public:
     /// \return IR frontend name.
     std::string get_name() const override;
 
+    /// \brief Register extension in the FrontEnd
+    /// \param extension base extension
+    void add_extension(const ov::Extension::Ptr& extension) override;
+
 protected:
     /// \brief Check if FrontEndIR can recognize model from given parts
     /// \param params Can be path to the model file or std::istream
@@ -37,6 +41,10 @@ protected:
     /// \param params Can be path to the model file or std::istream
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
+
+private:
+    std::vector<std::shared_ptr<void>> shared_objects;
+    std::vector<ov::Extension::Ptr> extensions;
 };
 
 }  // namespace frontend

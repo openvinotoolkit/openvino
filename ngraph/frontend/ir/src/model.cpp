@@ -15,7 +15,9 @@ using namespace ngraph;
 using namespace InferenceEngine;
 
 namespace {
-void ParsePreProcess(pugi::xml_node& root, ov::Weights weights, std::shared_ptr<Function> f) {
+void ParsePreProcess(pugi::xml_node& root,
+                     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
+                     std::shared_ptr<Function> f) {
     /* Preprocessing block can have two preprocessing types:
      *
      * <pre-process mean-precision="FP32" reference-layer-name="data">
@@ -183,13 +185,16 @@ void ParsePreProcess(pugi::xml_node& root, ov::Weights weights, std::shared_ptr<
 namespace ngraph {
 namespace frontend {
 class InputModelIR::InputModelIRImpl {
-    ov::Weights m_weights;
-    ov::Extensions m_extensions;
+    std::shared_ptr<ngraph::runtime::AlignedBuffer> m_weights;
+    std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
+    std::unordered_map<std::string, ngraph::OpSet> m_opsets;
     pugi::xml_node m_root;
     pugi::xml_document m_xml_doc;
 
 public:
-    InputModelIRImpl(std::istream& stream, const ov::Weights& weights, const ov::Extensions& extensions)
+    InputModelIRImpl(std::istream& stream,
+                     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
         : m_weights(weights),
           m_extensions(extensions) {
         pugi::xml_parse_result res = m_xml_doc.load(stream);
@@ -197,12 +202,22 @@ public:
             IE_THROW() << res.description() << " at offset " << res.offset;
         }
         m_root = m_xml_doc.document_element();
+        m_opsets["opset1"] = ngraph::get_opset1();
+        m_opsets["opset2"] = ngraph::get_opset2();
+        m_opsets["opset3"] = ngraph::get_opset3();
+        m_opsets["opset4"] = ngraph::get_opset4();
+        m_opsets["opset5"] = ngraph::get_opset5();
+        m_opsets["opset6"] = ngraph::get_opset6();
+        m_opsets["opset7"] = ngraph::get_opset7();
+        m_opsets["opset8"] = ngraph::get_opset8();
     }
 
     std::shared_ptr<Function> convert();
 };
 
-InputModelIR::InputModelIR(std::istream& stream, const ov::Weights& weights, const ov::Extensions& extensions) {
+InputModelIR::InputModelIR(std::istream& stream,
+                           const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                           const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(stream, weights, extensions);
 }
 
@@ -211,29 +226,11 @@ std::shared_ptr<Function> InputModelIR::convert() {
 }
 
 std::shared_ptr<Function> InputModelIR::InputModelIRImpl::convert() {
-    std::unordered_map<std::string, ngraph::OpSet> opsets;
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
 
     // Load default opsets
-    opsets["opset1"] = ngraph::get_opset1();
-    opsets["opset2"] = ngraph::get_opset2();
-    opsets["opset3"] = ngraph::get_opset3();
-    opsets["opset4"] = ngraph::get_opset4();
-    opsets["opset5"] = ngraph::get_opset5();
-    opsets["opset6"] = ngraph::get_opset6();
-    opsets["opset7"] = ngraph::get_opset7();
-    opsets["opset8"] = ngraph::get_opset8();
-
-    // Load custom opsets
-    for (const auto& it : m_extensions) {
-        if (opsets.find(it.first) != opsets.end())
-            IE_THROW() << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
-        opsets[it.first] = it.second;
-    }
-
     size_t version = XMLParseUtils::GetUIntAttr(m_root, "version", 0);
-    ov::XmlDeserializer visitor(m_root, m_weights, opsets, variables, version);
-    visitor.use_framework_node(opsets.count("framework_node_ext"));
+    ov::XmlDeserializer visitor(m_root, m_weights, m_opsets, m_extensions, variables, version);
     std::shared_ptr<ngraph::Function> function;
     visitor.on_attribute("net", function);
     function->get_rt_info()["version"] = std::make_shared<ngraph::VariantWrapper<int64_t>>(version);

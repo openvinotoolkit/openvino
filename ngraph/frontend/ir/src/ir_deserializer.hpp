@@ -14,7 +14,10 @@
 #include <pugixml.hpp>
 #include <utils.hpp>
 
+#include "openvino/core/op_extension.hpp"
+
 namespace ov {
+
 struct GenericLayerParams {
     struct LayerPortData {
         size_t portId;
@@ -55,13 +58,15 @@ struct GenericLayerParams {
 class XmlDeserializer : public ngraph::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
-                             const ov::Weights& weights,
+                             const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                              const std::unordered_map<std::string, ngraph::OpSet>& opsets,
+                             const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables,
                              size_t version)
         : m_node(node),
           m_weights(weights),
           m_opsets(opsets),
+          m_extensions(extensions),
           m_variables(variables),
           m_version(version) {}
 
@@ -134,10 +139,6 @@ public:
         adapter.set(value);
     }
 
-    void use_framework_node(bool flag) {
-        m_use_framework_node = flag;
-    }
-
 private:
     struct IoMap {
         using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
@@ -163,7 +164,8 @@ private:
     /// \param node xml node representation
     /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
-    std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root, const ov::Weights& weights);
+    std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root,
+                                                     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
@@ -180,6 +182,7 @@ private:
     const pugi::xml_node m_node;
     const ov::Weights& m_weights;
     const std::unordered_map<std::string, ngraph::OpSet>& m_opsets;
+    const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
     std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& m_variables;
 
     ///
@@ -188,7 +191,6 @@ private:
     ///
     IoMap io_map;
 
-    bool m_use_framework_node{false};
     int64_t m_version;
 };
 }  // namespace ov

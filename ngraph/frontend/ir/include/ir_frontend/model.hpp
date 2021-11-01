@@ -9,6 +9,7 @@
 #include <istream>
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include <openvino/core/op_extension.hpp>
 
 namespace ngraph {
 namespace frontend {
@@ -18,7 +19,9 @@ class IR_API InputModelIR : public InputModel {
     std::shared_ptr<InputModelIRImpl> _impl;
 
 public:
-    InputModelIR(std::istream& stream, const ov::Weights& weights, const ov::Extensions& extensions);
+    InputModelIR(std::istream& stream,
+                 const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                 const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
 
     std::shared_ptr<Function> convert();
 };

@@ -6,6 +6,7 @@
 
 #include "ie_plugin_config.hpp"
 #include "ngraph/partial_shape.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
@@ -197,7 +198,11 @@ public:
     }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
-        return {{"framework_node_ext", ngraph::OpSet()}};
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<ov::op::util::FrameworkNode>();
+        opsets["util"] = opset;
+        return opsets;
     }
 
     void Unload() noexcept override {}

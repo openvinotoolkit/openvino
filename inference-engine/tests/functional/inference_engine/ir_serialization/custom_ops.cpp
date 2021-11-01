@@ -124,7 +124,13 @@ public:
     }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
-        return {{"framework_node_ext", ngraph::OpSet()}};
+        static std::map<std::string, ngraph::OpSet> opsets;
+        if (opsets.empty()) {
+            ngraph::OpSet opset;
+            opset.insert<ov::op::util::FrameworkNode>();
+            opsets["util"] = opset;
+        }
+        return opsets;
     }
 
     void Unload() noexcept override {}

@@ -36,7 +36,7 @@ if(NOT ENABLE_DOCKER)
 
     # install
 
-    install(TARGETS templatePlugin template_extension
+    install(TARGETS templatePlugin template_extension template_ov_extension
             LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
 

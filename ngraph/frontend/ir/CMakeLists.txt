@@ -10,6 +10,10 @@ file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
 
 set(${TARGET_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+# Add include path to so_extension.hpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 

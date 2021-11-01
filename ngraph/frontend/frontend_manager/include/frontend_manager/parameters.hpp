@@ -56,8 +56,6 @@ public:
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-using WeightsVariant = VariantWrapper<Weights>;
-
 using Extensions = std::map<std::string, ngraph::OpSet>;
 
 template <>
@@ -68,7 +66,5 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
-
-using ExtensionsVariant = VariantWrapper<Extensions>;
 
 }  // namespace ov
