@@ -33,6 +33,8 @@ TransposeTransformation::TransposeTransformation(const Params& params) : LayerTr
     this->register_matcher(m, callback);
 }
 
+namespace {
+
 void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(transpose);
 
@@ -78,6 +80,8 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose) {
         replace_node(dequantization.multiplyConstant, constant);
     }
 }
+
+} // namespace
 
 bool TransposeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     std::shared_ptr<Node> transpose = m.get_match_root();

@@ -14,6 +14,7 @@
 
 #include "transformations/utils/utils.hpp"
 
+namespace {
 bool check_shapes(const ngraph::PartialShape& pshape_input, const ngraph::PartialShape& pshape_reshape_before,
                   const ngraph::AxisVector& transpose_constant_values, const ngraph::PartialShape& pshape_reshape_after) {
     // x: [N, C, H, W]
@@ -76,6 +77,8 @@ bool check_shapes(const ngraph::PartialShape& pshape_input, const ngraph::Partia
 
     return true;
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ShuffleChannelsFusion, "ShuffleChannelsFusion", 0);
 

@@ -14,6 +14,7 @@
 
 #include "transformations/utils/utils.hpp"
 
+namespace {
 bool check_block_first(const ngraph::PartialShape& shape_input, const ngraph::PartialShape& shape_reshape_before,
                        const ngraph::AxisVector& permutation, const ngraph::PartialShape& shape_reshape_after,
                        size_t& possible_block_size) {
@@ -105,6 +106,8 @@ bool check_depth_first(const ngraph::PartialShape& shape_input, const ngraph::Pa
 
     return true;
 }
+
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DepthToSpaceFusion, "DepthToSpaceFusion", 0);
 

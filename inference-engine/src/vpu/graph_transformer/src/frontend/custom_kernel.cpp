@@ -11,6 +11,8 @@
 
 namespace vpu {
 
+namespace {
+
 VPU_PACKED(Elf32Shdr {
     uint32_t shName;
     uint32_t pad0[3];
@@ -78,33 +80,6 @@ VPU_PACKED(KernelArgHdr {
     uint32_t laneSize;
 };)
 
-std::pair<const Elf32Section*, const Elf32Section*> findSymbolTable(
-        const char* ELFData) {
-    const uint32_t SYMTAB = 2;  // Link editing symbol table
-    const uint32_t STRTAB = 3;  // A string table
-
-    IE_ASSERT(ELFData != nullptr);
-
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
-
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    for (size_t i = 0; i < ehdr->eShnum; i++) {
-        if (shdr[i].shType == STRTAB && strShdr == nullptr) {
-            strShdr = &shdr[i];
-        } else if (shdr[i].shType == SYMTAB && symShdr == nullptr) {
-            symShdr = &shdr[i];
-        }
-
-        if (symShdr != nullptr && strShdr != nullptr)
-            break;
-    }
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    return std::make_pair(strShdr, symShdr);
-}
-
 SmallVector<std::string> deduceKernelParameters(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);
     IE_ASSERT(kernelDesc != nullptr);
@@ -129,7 +104,7 @@ SmallVector<std::string> deduceKernelParameters(const md_parser_t& parser, int k
     return arguments;
 }
 
-static const Elf32Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
+const Elf32Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
     IE_ASSERT(elf_data);
     IE_ASSERT(section_name);
 
@@ -167,30 +142,63 @@ static const Elf32Shdr *get_elf_section_with_name(const uint8_t *elf_data, const
     return nullptr;
 }
 
-uint32_t getKernelEntry(const char* ELFData, const std::string& kernelName) {
-    IE_ASSERT(ELFData != nullptr);
+std::pair<CustomDimSource, int> parseDimSource(const std::string& dims) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
-
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
-
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
-    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
-    auto firstStr = ELFData + strShdr->shOffset;
-
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, kernelName)) {
-            return sym[i].stValue - phdr->pVaddr;
+    const auto pos = dims.find_first_of(',');
+    const auto source = dims.substr(0, pos);
+    const auto dimSource = [&] {
+        if (cmp(source, "input")) {
+            return CustomDimSource::Input;
+        } else if (cmp(source, "output")) {
+            return CustomDimSource::Output;
+        } else {
+            IE_THROW() << "Invalid dim source argument" << source;
         }
+    }();
+
+    const auto idx = [&] {
+        if (pos == std::string::npos) {
+            return -1;
+        }
+        const auto idxString = dims.substr(pos + 1, std::string::npos);
+        return std::stoi(idxString);
+    }();
+
+    return std::make_pair(dimSource, idx);
+}
+
+CustomDataFormat formatFromString(const std::string& str) {
+    static const ie::details::caseless_map<std::string, CustomDataFormat> FormatNameToType = {
+        { "BFYX" , CustomDataFormat::BFYX },
+        { "BYXF" , CustomDataFormat::BYXF },
+        { "FYX" , CustomDataFormat::FYX },
+        { "YXF" , CustomDataFormat::YXF },
+        { "BF" , CustomDataFormat::BF },
+        { "ANY"  , CustomDataFormat::Any }
+    };
+
+    auto it = FormatNameToType.find(str);
+    if (it != FormatNameToType.end()) {
+        return it->second;
     }
 
-    IE_THROW() << "Cannot find kernel entry point for custom kernel " << kernelName;
+    IE_THROW() << "Tensor node has an invalid format '" << str << "'";
 }
+
+SmallVector<std::string> parseSizeRule(const std::string& size) {
+    auto result = SmallVector<std::string>();
+    result.reserve(std::count(begin(size), end(size), ',') + 1);
+    std::stringstream sizeRules{size};
+    std::string bufferSize;
+
+    while (std::getline(sizeRules, bufferSize, ',')) {
+        result.push_back(bufferSize);
+    }
+
+    return result;
+}
+
+} // namespace
 
 CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir): _configDir {std::move(configDir)} {
     _maxShaves = XMLParseUtils::GetIntAttr(kernel, "max-shaves", 0);
@@ -244,63 +252,6 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
     };
 
     _inputDataCount = static_cast<int>(std::count_if(begin(_kernelParams), end(_kernelParams), isInputData));
-}
-
-std::pair<CustomDimSource, int> parseDimSource(const std::string& dims) {
-    const auto cmp = ie::details::CaselessEq<std::string>{};
-    const auto pos = dims.find_first_of(',');
-    const auto source = dims.substr(0, pos);
-    const auto dimSource = [&] {
-        if (cmp(source, "input")) {
-            return CustomDimSource::Input;
-        } else if (cmp(source, "output")) {
-            return CustomDimSource::Output;
-        } else {
-            IE_THROW() << "Invalid dim source argument" << source;
-        }
-    }();
-
-    const auto idx = [&] {
-        if (pos == std::string::npos) {
-            return -1;
-        }
-        const auto idxString = dims.substr(pos + 1, std::string::npos);
-        return std::stoi(idxString);
-    }();
-
-    return std::make_pair(dimSource, idx);
-}
-
-
-CustomDataFormat formatFromString(const std::string& str) {
-    static const ie::details::caseless_map<std::string, CustomDataFormat> FormatNameToType = {
-        { "BFYX" , CustomDataFormat::BFYX },
-        { "BYXF" , CustomDataFormat::BYXF },
-        { "FYX" , CustomDataFormat::FYX },
-        { "YXF" , CustomDataFormat::YXF },
-        { "BF" , CustomDataFormat::BF },
-        { "ANY"  , CustomDataFormat::Any }
-    };
-
-    auto it = FormatNameToType.find(str);
-    if (it != FormatNameToType.end()) {
-        return it->second;
-    }
-
-    IE_THROW() << "Tensor node has an invalid format '" << str << "'";
-}
-
-SmallVector<std::string> parseSizeRule(const std::string& size) {
-    auto result = SmallVector<std::string>();
-    result.reserve(std::count(begin(size), end(size), ',') + 1);
-    std::stringstream sizeRules{size};
-    std::string bufferSize;
-
-    while (std::getline(sizeRules, bufferSize, ',')) {
-        result.push_back(bufferSize);
-    }
-
-    return result;
 }
 
 void CustomKernel::processParametersNode(const pugi::xml_node& node) {

@@ -21,7 +21,8 @@ bool MKLDNNTransposeNode::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
 
-        if (!isDynamicNgraphNode(op) && op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+        if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+            // TODO: Support parameterized Order input for dynamic shapes.
             errorMessage = "Constant expected as the second input for static shapes.";
             return false;
         }
@@ -39,7 +40,7 @@ MKLDNNTransposeNode::MKLDNNTransposeNode(const std::shared_ptr<ov::Node>& op, co
     }
 
     if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
-        constMap[INPUT_ORDER_IDX] = true;
+        isInputOrderConst = true;
         order = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(INPUT_ORDER_IDX))->cast_vector<size_t>();
 
         if (order.empty()) {
@@ -68,37 +69,39 @@ void MKLDNNTransposeNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
     config.inConfs[INPUT_DATA_IDX].inPlace = -1;
     config.inConfs[INPUT_DATA_IDX].constant = false;
-    config.inConfs[INPUT_ORDER_IDX].constant = constMap[INPUT_ORDER_IDX];
+    config.inConfs[INPUT_ORDER_IDX].constant = isInputOrderConst;
     config.inConfs[INPUT_ORDER_IDX].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            getOriginalInputPrecisionAtPort(INPUT_ORDER_IDX), getInputShapeAtPort(INPUT_ORDER_IDX));
+            Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX));
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
 
-    if (getInputShapeAtPort(0).getRank() == 4 || getInputShapeAtPort(0).getRank() == 5) {
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getInputShapeAtPort(0));
-        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getOutputShapeAtPort(0));
+    const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);
+    const auto& outputDataShape = getOutputShapeAtPort(0);
+    if (inputDataShape.getRank() == 4 || inputDataShape.getRank() == 5) {
+        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape);
+        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
-        auto srcDims = getInputShapeAtPort(0).getDims();
+        const auto& srcDims = inputDataShape.getDims();
         if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, getInputShapeAtPort(0));
+            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp8c)->createSharedDesc(prec, inputDataShape);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, getInputShapeAtPort(0));
+            config.inConfs[0].desc = creatorsMap.at(LayoutType::nCsp16c)->createSharedDesc(prec, inputDataShape);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (prec == Precision::FP32 || prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, getInputShapeAtPort(0));
-            config.outConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, getOutputShapeAtPort(0));
+            config.inConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape);
+            config.outConfs[0].desc = creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape);
             supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
     } else {
         // general plain case
-        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getInputShapeAtPort(0));
-        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, getOutputShapeAtPort(0));
+        config.inConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape);
+        config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
@@ -114,7 +117,7 @@ void MKLDNNTransposeNode::prepareParams() {
     params.src_block_dims = srcDesc->getBlockDims();
     auto dstDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     params.dst_block_dims = dstDesc->getBlockDims();
-    if (!constMap[INPUT_ORDER_IDX]) {
+    if (!isInputOrderConst) {
         auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
         auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->GetSize();
         params.order.assign(orderPtr, orderPtr + orderLen);
@@ -141,7 +144,7 @@ void MKLDNNTransposeNode::createPrimitive() {
     }
 
     params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
-    if (constMap[INPUT_ORDER_IDX])
+    if (isInputOrderConst)
         params.order = order;
     auto srcDesc = getParentEdgeAt(INPUT_DATA_IDX)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     params.src_block_order = srcDesc->getOrder();

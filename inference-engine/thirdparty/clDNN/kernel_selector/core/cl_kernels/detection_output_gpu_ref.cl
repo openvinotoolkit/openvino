@@ -57,7 +57,7 @@
 // =================================================================================================================
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
-#define NUM_CLASSES_ACC (NUM_CLASSES + 1)
+#define NUM_CLASSES_ACC (NUM_CLASSES + 2)
 
 typedef struct __attribute__((__packed__)) {
     short classId;
@@ -164,11 +164,11 @@ inline int FUNC(get_accumulated_detections)(__global int* size_buf, int batch_id
     return acc_num;
 }
 
-inline int FUNC(get_start_idx)(__global int* size_buf, int batch_id) {
+inline int FUNC(get_start_idx)(__global int* size_buf, int batch_id, int offset) {
     int start_idx = 0;
     for (uint idx_batch = 0; idx_batch < batch_id; idx_batch++)
     {
-        const int num_det = size_buf[idx_batch * NUM_CLASSES_ACC + NUM_CLASSES];
+        const int num_det = size_buf[idx_batch * NUM_CLASSES_ACC + NUM_CLASSES + offset];
         start_idx += (num_det > KEEP_TOP_K ? KEEP_TOP_K: num_det);
     }
     return start_idx;
@@ -658,16 +658,20 @@ KERNEL (detection_output_stage_final_caffe)(__global INPUT0_TYPE* input_location
                                             __global int *buffer1) {
     const int batchId = get_global_id(0);
 
-    __local int class_offset[NUM_CLASSES_ACC];
-
     const int total_det = FUNC_CALL(get_accumulated_detections)(buffer1, batchId);
     buffer1[batchId * NUM_CLASSES_ACC + NUM_CLASSES] = total_det;
+    // the total number of detections is also stored in the extra space of buffer
+    // for case where the number of detections is larger than keep_top_k
+    buffer1[batchId * NUM_CLASSES_ACC + NUM_CLASSES + 1] = total_det;
+
+    barrier(CLK_GLOBAL_MEM_FENCE);
 
     if (KEEP_TOP_K > -1 && total_det > KEEP_TOP_K) {
         __global SCORES_INFO *scoresList = (__global SCORES_INFO*)&buffer0[0];
         int num_det = 0;
         int scores_offset = (batchId * NUM_CLASSES * NUM_OF_PRIORS);
         int scores_size_offset = batchId * NUM_CLASSES_ACC;
+
         for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++) {
             const int acc_num = buffer1[scores_size_offset + idx_class];
 
@@ -689,18 +693,22 @@ KERNEL (detection_output_stage_final_caffe)(__global INPUT0_TYPE* input_location
         }
 
         // calculate starting point of each class
-        class_offset[0] = 0;
+        // store the current number of detections for buffer reuse
+        int prev_offset = buffer1[scores_size_offset];
+        buffer1[scores_size_offset] = 0;
         for (int i = 1; i < NUM_CLASSES_ACC; ++i) {
-            class_offset[i] = class_offset[i - 1] + buffer1[scores_size_offset + i - 1];
+            int cur_offset = buffer1[scores_size_offset + i];
+            buffer1[scores_size_offset + i] = buffer1[scores_size_offset + i - 1] + prev_offset;
+            prev_offset = cur_offset;
         }
 
-        barrier(CLK_LOCAL_MEM_FENCE);
+        barrier(CLK_GLOBAL_MEM_FENCE);
 
-        const int startIdx = FUNC_CALL(get_start_idx)(buffer1, batchId);
+        const int startIdx = FUNC_CALL(get_start_idx)(buffer1, batchId, 1);
         for (uint idx_num_det = 0; idx_num_det < KEEP_TOP_K; idx_num_det++) {
             SCORES_INFO score_info;
             score_info = scoresList[scores_offset + idx_num_det];
-            const int idx = startIdx + class_offset[score_info.classId];
+            const int idx = startIdx + buffer1[scores_size_offset + score_info.classId];
             output[idx * OUTPUT_ROW_SIZE] = TO_OUTPUT_TYPE(batchId);
             output[idx * OUTPUT_ROW_SIZE + 1] = TO_OUTPUT_TYPE((DECREASE_LABEL_ID) ? score_info.classId - 1 : score_info.classId);
             output[idx * OUTPUT_ROW_SIZE + 2] = TO_OUTPUT_TYPE(score_info.score);
@@ -719,10 +727,11 @@ KERNEL (detection_output_stage_final_caffe)(__global INPUT0_TYPE* input_location
                 ymax = max(TO_INPUT0_TYPE(0.0), min(TO_INPUT0_TYPE(1.0), ymax));
             }
             vstore4((OUTPUT_TYPE4)(xmin, ymin, xmax, ymax), 0, output + idx * OUTPUT_ROW_SIZE + 3);
-            class_offset[score_info.classId]++;
+            // increase starting point for the next detection in class
+            buffer1[scores_size_offset + score_info.classId]++;
         }
     } else {
-        const int startIdx = FUNC_CALL(get_start_idx)(buffer1, batchId);
+        const int startIdx = FUNC_CALL(get_start_idx)(buffer1, batchId, 0);
         int outputIdx = 0;
         for (uint idx_class = 0; idx_class < NUM_CLASSES; idx_class++) {
             int scores_size_offset = batchId * NUM_CLASSES_ACC + idx_class;

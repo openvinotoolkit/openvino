@@ -138,7 +138,7 @@ OutputVector quantize_linear(const Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-namespace detail {
+namespace {
 OutputVector quantize_linear(Output<ngraph::Node> x,
                              Output<ngraph::Node> y_scale,
                              Output<ngraph::Node> y_zero_point,
@@ -189,7 +189,7 @@ OutputVector quantize_linear(Output<ngraph::Node> x,
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
 }
-}  // namespace detail
+}  // namespace
 
 OutputVector quantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
@@ -203,7 +203,7 @@ OutputVector quantize_linear(const Node& node) {
     auto scale = inputs[1];
     auto zero_point = op::detail::get_zero_point(inputs);
 
-    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
+    return quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
 }  // namespace set_13
 
