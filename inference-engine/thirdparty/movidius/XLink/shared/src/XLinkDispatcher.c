@@ -252,7 +252,6 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
         return -1;
     }
     if (pthread_mutex_init(&(schedulerState[idx].queueMutex), NULL) != 0) {
-        pthread_attr_destroy(&attr);
         perror("pthread_mutex_init error");
         return -1;
     }
