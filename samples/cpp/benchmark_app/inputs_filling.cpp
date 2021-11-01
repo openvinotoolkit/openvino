@@ -414,7 +414,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             auto app_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
             auto precision = app_info.precision;
             size_t inputId = m_file % files.second.size();
-                size_t batchSize = app_info.batch();
+            size_t batchSize = app_info.batch();
 
             std::string blob_src_info;
             if (app_info.isImage()) {
