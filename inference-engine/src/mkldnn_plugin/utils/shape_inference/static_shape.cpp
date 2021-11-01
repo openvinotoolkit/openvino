@@ -124,6 +124,10 @@ bool ov::StaticShape::broadcast_merge_into(StaticShape& dst,
             // Ranks are both static.
             auto dst_rank = dst.rank().get_length();
             auto src_rank = src.rank().get_length();
+            // source rank can't be bigger than destination rank according to
+            // PDPD broadcast rule.
+            if (src_rank > dst_rank)
+              return false;
             if (dst_rank == src_rank && dst.compatible(src))
                 return true;
 

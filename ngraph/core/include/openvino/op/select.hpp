@@ -66,6 +66,8 @@ public:
     bool has_evaluate() const override;
 
 private:
+    template <class T>
+    friend void shape_infer(const Select* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
     AutoBroadcastSpec m_auto_broadcast;
 };
 }  // namespace v1
