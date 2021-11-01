@@ -82,6 +82,22 @@ def slice_dyn(test_shape=[2,8,10,10]):
         return pdpd.slice(x, axes=[0,1,2,3], starts=[0,0,0,0], ends=[1,1,1,1])
     # exportModel('slice_alldim', test_slice_alldim, [input], data) # output shape (1, 1, 1, 1) # disable it by default as this kind of test model already there. It's for comparsion only.
 
+'''
+a test case simulating the last reshape2 of ocrnet which accepts slice (with decrease_axes in all dims) as its parents.
+'''
+def slice_reshape(B=1, C=256, H=16, W=32):
+    pdpd.disable_static()
+
+    input = pdpd.static.InputSpec(shape=[B, C, H*W], dtype='float32', name='x')
+    data = pdpd.rand(shape=[B, C, H*W], dtype='float32')
+
+    @pdpd.jit.to_static
+    def test_model(x):
+        x2 = pdpd.assign([-1, -1, 16, 32]).astype('int32')
+        node_reshape = pdpd.reshape(x, [0, 256, x2[2], x2[3]])
+        return node_reshape
+    exportModel('slice_reshape', test_model, [input], data)
+
 def main():
     x = np.linspace(1, 60, num = 60, dtype=np.int32).reshape(4, 3, 5).astype(data_type)
     slice("slice", x, axes=[1, 2], start=(0, 1), end=(-1, 3))
@@ -92,3 +108,4 @@ def main():
 if __name__ == "__main__":
     main()
     slice_dyn()
+    slice_reshape()
