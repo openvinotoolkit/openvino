@@ -103,11 +103,11 @@ bool op::v1::Softmax::has_evaluate() const {
 // *** SOFTMAX OP SET V8 ***
 BWDCMP_RTTI_DEFINITION(op::v8::Softmax);
 
-op::v8::Softmax::Softmax(const Output<Node> &arg, const int64_t axis) : Op({arg}), m_axis(axis) {
+op::v8::Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
 }
 
-bool op::v8::Softmax::visit_attributes(AttributeVisitor &visitor) {
+bool op::v8::Softmax::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_Softmax_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
@@ -130,13 +130,13 @@ void op::v8::Softmax::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), input_shape);
 }
 
-shared_ptr<Node> op::v8::Softmax::clone_with_new_inputs(const OutputVector &new_args) const {
+shared_ptr<Node> op::v8::Softmax::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v8_Softmax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v8::Softmax>(new_args.at(0), m_axis);
 }
 
-bool op::v8::Softmax::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) const {
+bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_Softmax_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
@@ -148,13 +148,13 @@ bool op::v8::Softmax::evaluate(const HostTensorVector &outputs, const HostTensor
 bool op::v8::Softmax::has_evaluate() const {
     NGRAPH_OP_SCOPE(v8_Softmax_has_evaluate);
     switch (get_input_element_type(0)) {
-        case ngraph::element::bf16:
-        case ngraph::element::f16:
-        case ngraph::element::f32:
-        case ngraph::element::f64:
-            return true;
-        default:
-            break;
+    case ngraph::element::bf16:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+    case ngraph::element::f64:
+        return true;
+    default:
+        break;
     }
     return false;
 }
