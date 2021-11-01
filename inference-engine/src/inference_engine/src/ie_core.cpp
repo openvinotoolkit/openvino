@@ -847,7 +847,7 @@ public:
                         ie::IExtensionPtr ext;
                         desc.extensionCreateFunc(ext);
                         AddExtensionUnsafe(ext);
-                    } catch (const ie::GeneralError &) {
+                    } catch (const ie::GeneralError&) {
                         // the same extension can be registered multiple times - ignore it!
                     }
                 } else {
