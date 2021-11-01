@@ -1373,37 +1373,37 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **bl
     }
 
     IEStatusCode status = IEStatusCode::OK;
-    // try {
-    std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
-    IE::TensorDesc tensor(prec, dims_vector, l);
+    try {
+        std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
+        IE::TensorDesc tensor(prec, dims_vector, l);
 
-    if (prec == IE::Precision::U8) {
-        _blob->object = IE::make_shared_blob<uint8_t>(tensor);
-    } else if (prec == IE::Precision::U16) {
-        _blob->object = IE::make_shared_blob<uint16_t>(tensor);
-    } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || prec == IE::Precision::U4) {
-        _blob->object = IE::make_shared_blob<int8_t>(tensor);
-    } else if (prec == IE::Precision::I16 || prec == IE::Precision::FP16 || prec == IE::Precision::Q78) {
-        _blob->object = IE::make_shared_blob<int16_t>(tensor);
-    } else if (prec == IE::Precision::I32) {
-        _blob->object = IE::make_shared_blob<int32_t>(tensor);
-    } else if (prec == IE::Precision::U32) {
-        _blob->object = IE::make_shared_blob<uint32_t>(tensor);
-    } else if (prec == IE::Precision::I64) {
-        _blob->object = IE::make_shared_blob<int64_t>(tensor);
-    } else if (prec == IE::Precision::U64) {
-        _blob->object = IE::make_shared_blob<uint64_t>(tensor);
-    } else if  (prec == IE::Precision::FP32) {
-        _blob->object = IE::make_shared_blob<float>(tensor);
-    }  else if  (prec == IE::Precision::FP64) {
-        _blob->object = IE::make_shared_blob<double>(tensor);
-    } else {
-        _blob->object = IE::make_shared_blob<uint8_t>(tensor);
-    }
+        if (prec == IE::Precision::U8) {
+            _blob->object = IE::make_shared_blob<uint8_t>(tensor);
+        } else if (prec == IE::Precision::U16) {
+            _blob->object = IE::make_shared_blob<uint16_t>(tensor);
+        } else if (prec == IE::Precision::I8 || prec == IE::Precision::BIN || prec == IE::Precision::I4 || prec == IE::Precision::U4) {
+            _blob->object = IE::make_shared_blob<int8_t>(tensor);
+        } else if (prec == IE::Precision::I16 || prec == IE::Precision::FP16 || prec == IE::Precision::Q78) {
+            _blob->object = IE::make_shared_blob<int16_t>(tensor);
+        } else if (prec == IE::Precision::I32) {
+            _blob->object = IE::make_shared_blob<int32_t>(tensor);
+        } else if (prec == IE::Precision::U32) {
+            _blob->object = IE::make_shared_blob<uint32_t>(tensor);
+        } else if (prec == IE::Precision::I64) {
+            _blob->object = IE::make_shared_blob<int64_t>(tensor);
+        } else if (prec == IE::Precision::U64) {
+            _blob->object = IE::make_shared_blob<uint64_t>(tensor);
+        } else if  (prec == IE::Precision::FP32) {
+            _blob->object = IE::make_shared_blob<float>(tensor);
+        }  else if  (prec == IE::Precision::FP64) {
+            _blob->object = IE::make_shared_blob<double>(tensor);
+        } else {
+            _blob->object = IE::make_shared_blob<uint8_t>(tensor);
+        }
 
-    _blob->object->allocate();
-    *blob = _blob.release();
-    // } CATCH_IE_EXCEPTIONS
+        _blob->object->allocate();
+        *blob = _blob.release();
+    } CATCH_IE_EXCEPTIONS
 
     return status;
 }
