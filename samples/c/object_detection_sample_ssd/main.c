@@ -127,7 +127,8 @@ void readInputFilesArgument(const char* arg) {
                     file_paths = temp;
                     file_paths[file_num++] = file_path;
                 } else {
-                    for (int i = 0; i < file_num; ++i) {
+                    int i;
+                    for (i = 0; i < file_num; ++i) {
                         free(file_paths[i]);
                     }
                     free(file_path);
