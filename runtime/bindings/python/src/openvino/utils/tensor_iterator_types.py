@@ -112,7 +112,7 @@ class TensorIteratorOutputDesc(object):
 class TensorIteratorBodyOutputDesc(TensorIteratorOutputDesc):
     """Represents an output from a specific iteration."""
 
-    def __init__(self, body_value_idx: int, output_idx: int, iteration: int,) -> None:
+    def __init__(self, body_value_idx: int, output_idx: int, iteration: int = -1) -> None:
         super().__init__(body_value_idx, output_idx)
         self.iteration = iteration
 
