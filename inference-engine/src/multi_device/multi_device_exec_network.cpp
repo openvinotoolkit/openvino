@@ -162,42 +162,43 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     std::string profilingTask = "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode";
 
     // initialize the flags of load network context
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < CONTEXTNUM; i++) {
         _loadContext[i].isEnabled = false;
         _loadContext[i].isAlready = false;
-        _loadContext[i].isLoadSucceeded = false;
-    }
-    // if have CPU Device,  enable _loadContext[0]
-    const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
-                                      [=](const DeviceInformation& d)->bool{return d.deviceName.find("CPU") != std::string::npos;});
-    if (CPUIter != metaDevices.end()) {
-         _loadContext[0].isEnabled = true;
-         _loadContext[0].deviceInfo = *CPUIter;
-         profilingTask += *CPUIter.deviceName;
+        _loadContext[i].isLoadSuccess = false;
     }
 
-    // get accelerator device, like GPU
-    // enable _loadContext[1]
-    _loadContext[1].isEnabled = true;
-    _loadContext[1].networkPrecision = GetNetworkPrecision(network);
-    _loadContext[1].metaDevices = metaDevices;
-    _loadContext[1].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[1].networkPrecision);
-    profilingTask += _loadContext[1].deviceInfo.deviceName;
-    // if the devices of the two context are all CPU, diabled _loadContext[0], only use _loadContext[1]
-    bool isAcceleratorCPU =
-         _loadContext[1].deviceInfo.deviceName.find("CPU") != std::string::npos;
-    if (isAcceleratorCPU) {
-         _loadContext[0].isEnabled = false;
+    // get Acutal device, like GPU
+    // enable _loadContext[ACTUALDEVICE]
+    _loadContext[ACTUALDEVICE].isEnabled = true;
+    _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
+    _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
+    _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
+    bool isActualDevCPU =
+         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
+    // if Acutal device is CPU, diabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
+    if (isActualDevCPU) {
+         _loadContext[CPU].isEnabled = false;
+    } else {
+        const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
+                [=](const DeviceInformation& d)->bool{return d.deviceName.find("CPU") != std::string::npos;});
+        // if have CPU Device,  enable _loadContext[CPU]
+        if (CPUIter != metaDevices.end()) {
+            _loadContext[CPU].isEnabled = true;
+            _loadContext[CPU].deviceInfo = *CPUIter;
+        } else {
+            _loadContext[CPU].isEnabled = false;
+        }
     }
 
     // initialize the rest members of load context
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < CONTEXTNUM; i++) {
          if (_loadContext[i].isEnabled) {
              _loadContext[i].future =  _loadContext[i].promise.get_future();
               auto* contextPtr = &_loadContext[i];
              _loadContext[i].task = [this, contextPtr, modelPath, network]() mutable {
                       TryToLoadNetWork(*contextPtr, modelPath, network);
-                      if (contextPtr->isLoadSucceeded) {
+                      if (contextPtr->isLoadSuccess) {
                           GenerateWorkers(contextPtr->deviceInfo.deviceName, contextPtr->executableNetwork);
                           //need lock
                           {
@@ -208,7 +209,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                           contextPtr->isAlready = true;
                       }
                       contextPtr->promise.set_value();
-                      // the first load network process is finined
+                      // the first load network process finished
                       std::call_once(_firstLoadOC, [this] () {
                               _firstLoadPromise.set_value();
                               });
@@ -217,7 +218,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     }
 
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, openvino::itt::handle(profilingTask));
-    if (_loadContext[0].isEnabled) {
+    if (_loadContext[CPU].isEnabled) {
         _firstLoadFuture = _firstLoadPromise.get_future();
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
@@ -233,11 +234,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             _workerRequests[device.deviceName];
             _inferPipelineTasksDeviceSpecific[device.deviceName] = NULL;
         }
-        _executor->run(_loadContext[0].task);
-        _executor->run(_loadContext[1].task);
+        _executor->run(_loadContext[CPU].task);
+        _executor->run(_loadContext[ACTUALDEVICE].task);
     } else {
         // only one device need to load network, do not need to load it async
-        _loadContext[1].task();
+        _loadContext[ACTUALDEVICE].task();
     }
 
     WaitFirstNetworkReady();
@@ -255,16 +256,17 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         } else {
             context.executableNetwork = _core->LoadNetwork(network, device, deviceConfig);
         }
-        context.isLoadSucceeded = true;
+        context.isLoadSuccess = true;
     } catch (const std::exception& e) {
         context.errMessage += device + ":" + e.what();
-        context.isLoadSucceeded = false;
+        context.isLoadSuccess = false;
     }
 
-    if (context.isLoadSucceeded || curDevIsCPU) {
+    if (context.isLoadSuccess || curDevIsCPU) {
         return;
     }
 
+    // remove the current device from deviceList
     auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(),
             [device](DeviceInformation& d){
             return d.deviceName == device;
@@ -275,6 +277,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
+    // select next candidate device
     try {
         context.deviceInfo = _multiPlugin->SelectDevice(deviceList, context.networkPrecision);
     }
@@ -282,10 +285,13 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
+    // if selec device is CPU, do not need to load CPU again, context[CPU] must have load CPU
     curDevIsCPU = (context.deviceInfo.deviceName.find("CPU") != std::string::npos);
     if (curDevIsCPU) {
         return;
     }
+
+    // try to load this candidate device
     TryToLoadNetWork(context, modelPath, network);
 }
 
@@ -295,22 +301,22 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
         _firstLoadFuture.wait();
     }
 
-    // check if there is any device loaded network successfully
-    for (int i = 1; i >= 0; i--) {
+    // check if there is any device that have loaded network successfully
+    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
             return;
         }
     }
 
     // the first loading is failed, wait for another loading
-    for (int i = 1; i >= 0; i--) {
+    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
            _loadContext[i].future.wait();
         }
     }
 
     // check if another loading is successful
-    for (int i = 1; i >= 0; i--) {
+    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
             return;
         }
@@ -324,14 +330,14 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
     // Maybe different API will call this function, so add call once here
     // for every MultiDeviceExecutableNetwork instance
     std::call_once(_oc, [this] () {
-               if (_loadContext[1].future.valid()) {
-                   _loadContext[1].future.get();
+               if (_loadContext[ACTUALDEVICE].future.valid()) {
+                   _loadContext[ACTUALDEVICE].future.get();
                }
-               // if _loadContext[1] load failed,  fall back to _loadContext[0]
-               if (!_loadContext[1].isAlready) {
-                   _loadContext[1].executableNetwork = _loadContext[0].executableNetwork;
-                   _loadContext[1].deviceInfo = _loadContext[0].deviceInfo;
-                   _loadContext[1].isAlready = true;
+               // if _loadContext[ACTUALDEVICE] load failed,  fall back to _loadContext[CPU]
+               if (!_loadContext[ACTUALDEVICE].isAlready) {
+                   _loadContext[ACTUALDEVICE].executableNetwork = _loadContext[CPU].executableNetwork;
+                   _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
+                   _loadContext[ACTUALDEVICE].isAlready = true;
                }
             });
 }
@@ -344,15 +350,15 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             // if the device needed by customer is not ready, need to wait for it
             WaitActualNetworkReady();
             // the preferred_device should be the selected device in AUTO work mode
-            if (preferred_device != _loadContext[1].deviceInfo.deviceName) {
+            if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
                 IE_THROW(NotFound) << "The preferred_device should be the selected device";
             }
-            devices.push_back(_loadContext[1].deviceInfo);
+            devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         } else {
-            if (_loadContext[1].isAlready) {
-                devices.push_back(_loadContext[1].deviceInfo);
+            if (_loadContext[ACTUALDEVICE].isAlready) {
+                devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
             } else {
-                devices.push_back(_loadContext[0].deviceInfo);
+                devices.push_back(_loadContext[CPU].deviceInfo);
             }
         }
     } else {
@@ -399,8 +405,8 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     // this is necessary to guarantee member destroyed after getting future
-    if (_workModeIsAUTO && _loadContext[0].isEnabled) {
-        _loadContext[0].future.get();
+    if (_workModeIsAUTO && _loadContext[CPU].isEnabled) {
+        _loadContext[CPU].future.get();
         WaitActualNetworkReady();
         // it's necessary to wait the loading network threads to stop here.
         InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
@@ -423,7 +429,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 std::shared_ptr<InferenceEngine::RemoteContext> MultiDeviceExecutableNetwork::GetContext() const {
     if (_workModeIsAUTO) {
         WaitActualNetworkReady();
-        return _loadContext[1].executableNetwork->GetContext();
+        return _loadContext[ACTUALDEVICE].executableNetwork->GetContext();
     }
     auto devices = [&] {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -555,6 +561,7 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::string &name) const {
+    std::lock_guard<std::mutex> confLock(_confMutex);
     auto it = _config.find(name);
     if (it != _config.end()) {
         return it->second;
@@ -576,10 +583,10 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
         // fixme: should we wait actual device? meanwhile it will block inference, how to fix?
-        if (_loadContext[1].isAlready) {
-            return _loadContext[1].executableNetwork->GetMetric(name);
+        if (_loadContext[ACTUALDEVICE].isAlready) {
+            return _loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
         }
-        return _loadContext[0].executableNetwork->GetMetric(name);
+        return _loadContext[CPU].executableNetwork->GetMetric(name);
     }
 
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {

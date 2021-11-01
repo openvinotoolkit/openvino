@@ -42,7 +42,7 @@ struct DeviceInformation {
 struct AutoLoadContext {
     std::atomic<bool> isEnabled;
     std::atomic<bool> isAlready;
-    std::atomic<bool> isLoadSucceeded;
+    std::atomic<bool> isLoadSuccess;
     std::future<void> future;
     std::promise<void> promise;
     InferenceEngine::SoExecutableNetworkInternal executableNetwork;
@@ -51,6 +51,12 @@ struct AutoLoadContext {
     std::string networkPrecision;
     std::string errMessage;
     InferenceEngine::Task task;
+};
+
+enum AutoLoadContextIndex {
+     CPU = 0,
+     ACTUALDEVICE = 1,
+     CONTEXTNUM = 2
 };
 
 template<typename T>
@@ -190,8 +196,8 @@ private:
     std::once_flag                                                      _firstLoadOC;
     std::future<void>                                                   _firstLoadFuture;
     std::promise<void>                                                  _firstLoadPromise;
-    mutable AutoLoadContext                                             _loadContext[2];
-    std::mutex                                                          _confMutex;
+    mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
+    mutable std::mutex                                                   _confMutex;
 };
 
 }  // namespace MultiDevicePlugin
