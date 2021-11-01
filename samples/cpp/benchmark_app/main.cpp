@@ -529,14 +529,11 @@ int main(int argc, char* argv[]) {
             // ----------------- 5. Resizing network to match image sizes and given
             // batch ----------------------------------
             next_step();
-            // Only in static case
-            if (FLAGS_tensor_shape.empty())
-                batchSize = FLAGS_b == 0 ? cnnNetwork.getBatchSize() : FLAGS_b;
             // Parse input shapes if specified
             bool reshape = false;
             app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape,
                                                             FLAGS_layout,
-                                                            batchSize,
+                                                            FLAGS_b,
                                                             FLAGS_tensor_shape,
                                                             FLAGS_iscale,
                                                             FLAGS_imean,
@@ -556,14 +553,12 @@ int main(int argc, char* argv[]) {
                                               {{"reshape network time (ms)", duration_ms}});
             }
 
+            topology_name = cnnNetwork.getName();
             // use batch size according to provided layout and shapes (static case)
             if (FLAGS_tensor_shape.empty())
                 batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info[0]) : cnnNetwork.getBatchSize();
-
-            topology_name = cnnNetwork.getName();
-            if (FLAGS_tensor_shape.empty())
-                slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ")
-                           << batchSize << slog::endl;
+            slog::info << (batchSize != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize
+                       << slog::endl;
 
             // ----------------- 6. Configuring inputs and outputs
             // ----------------------------------------------------------------------
@@ -612,7 +607,7 @@ int main(int argc, char* argv[]) {
                                           {{"import network time (ms)", duration_ms}});
             app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape,
                                                              FLAGS_layout,
-                                                             batchSize,
+                                                             FLAGS_b,
                                                              FLAGS_tensor_shape,
                                                              FLAGS_iscale,
                                                              FLAGS_imean,
@@ -730,10 +725,11 @@ int main(int argc, char* argv[]) {
 
         std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputsData;
         // create vector to store remote blobs buffer
-        std::vector<cl::Buffer> clBuffer;
+        std::vector<::gpu::BufferType> clBuffer;
         if (isFlagSetInCommandLine("use_device_mem")) {
-            if (device_name.find("GPU") == 0)
-                inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
+            if (device_name.find("GPU") == 0) {
+            }
+            // inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
             else if (device_name.find("CPU") == 0)
                 inputsData = getBlobs(inputFiles, app_inputs_info);
             else
@@ -795,8 +791,9 @@ int main(int argc, char* argv[]) {
             inferRequest->setBlob(input_name, data);
         }
 
-        if (isFlagSetInCommandLine("use_device_mem"))
-            ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
+        if (isFlagSetInCommandLine("use_device_mem")) {
+        }
+        //::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
 
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -835,8 +832,9 @@ int main(int argc, char* argv[]) {
                 inferRequest->setBlob(input_name, data);
             }
 
-            if (isFlagSetInCommandLine("use_device_mem"))
-                ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
+            if (isFlagSetInCommandLine("use_device_mem")) {
+            }
+            //::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
 
             if (FLAGS_api == "sync") {
                 inferRequest->infer();

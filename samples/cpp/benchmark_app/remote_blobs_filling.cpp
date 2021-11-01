@@ -89,7 +89,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
     const InferenceEngine::ExecutableNetwork& exeNetwork,
-    std::vector<cl::Buffer>& clBuffer) {
+    std::vector<BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     slog::info << "Device memory will be used for input and output blobs" << slog::endl;
     if (inputFiles.size()) {
@@ -147,7 +147,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
 
 void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork,
                          InferReqWrap::Ptr& request,
-                         std::vector<cl::Buffer>& clBuffer) {
+                         std::vector<BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
     for (auto& output : exeNetwork.GetOutputsInfo()) {
         auto context = exeNetwork.GetContext();

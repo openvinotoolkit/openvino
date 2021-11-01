@@ -17,6 +17,8 @@
 namespace gpu {
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
+using BufferType = cl::Buffer;
+
 struct OpenCL {
     cl::Context _context;
     cl::Device _device;
@@ -55,16 +57,18 @@ struct OpenCL {
         _queue = cl::CommandQueue(_context, _device, props);
     }
 };
+#else
+using BufferType = void*;
 #endif
 
 std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
     const InferenceEngine::ExecutableNetwork& exeNetwork,
-    std::vector<cl::Buffer>& clBuffer);
+    std::vector<BufferType>& clBuffer);
 
 void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork,
                          InferReqWrap::Ptr& request,
-                         std::vector<cl::Buffer>& clBuffer);
+                         std::vector<BufferType>& clBuffer);
 
 }  // namespace gpu

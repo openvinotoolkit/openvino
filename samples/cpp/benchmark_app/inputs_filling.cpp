@@ -52,13 +52,13 @@ using uniformDistribution = typename std::conditional<
 template <typename T>
 InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& files,
                                                size_t inputId,
+                                               size_t batchSize,
                                                const benchmark_app::InputInfo& inputInfo,
                                                std::string* filenames_used = nullptr) {
     size_t blob_size =
         std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
     T* data = new T[blob_size];
 
-    const size_t batchSize = inputInfo.batch();  // not safe
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
     vreader.reserve(batchSize);
@@ -120,12 +120,12 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
 
 template <typename T>
 InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& image_size,
+                                            size_t batchSize,
                                             const benchmark_app::InputInfo& inputInfo) {
     size_t blob_size =
         std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
     T* data = new T[blob_size];
 
-    const size_t batchSize = inputInfo.batch();  // change
     for (size_t b = 0; b < batchSize; b++) {
         size_t iminfoSize = blob_size / batchSize;
         for (size_t i = 0; i < iminfoSize; i++) {
@@ -152,13 +152,13 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
 template <typename T>
 InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& files,
                                                 size_t inputId,
+                                                size_t batchSize,
                                                 const benchmark_app::InputInfo& inputInfo,
                                                 std::string* filenames_used = nullptr) {
     size_t blob_size =
         std::accumulate(inputInfo.tensorShape.begin(), inputInfo.tensorShape.end(), 1, std::multiplies<int>());
     char* data = new char[blob_size * sizeof(T)];
 
-    const size_t batchSize = inputInfo.batch();  // TODO: change
     for (size_t b = 0; b < batchSize; ++b) {
         auto inputIndex = (inputId + b) % files.size();
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
@@ -221,35 +221,37 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
 
 InferenceEngine::Blob::Ptr getImageBlob(const std::vector<std::string>& files,
                                         size_t inputId,
+                                        size_t batchSize,
                                         const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
                                         std::string* filenames_used = nullptr) {
     auto precision = inputInfo.second.precision;
     if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobFromImage<float>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromImage<float>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobFromImage<short>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromImage<short>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobFromImage<int32_t>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromImage<int32_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobFromImage<int64_t>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromImage<int64_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::U8) {
-        return createBlobFromImage<uint8_t>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromImage<uint8_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else {
         IE_THROW() << "Input precision is not supported for " << inputInfo.first;
     }
 }
 
 InferenceEngine::Blob::Ptr getImInfoBlob(const std::pair<size_t, size_t>& image_size,
+                                         size_t batchSize,
                                          const std::pair<std::string, benchmark_app::InputInfo>& inputInfo) {
     auto precision = inputInfo.second.precision;
     if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobImInfo<float>(image_size, inputInfo.second);
+        return createBlobImInfo<float>(image_size, batchSize, inputInfo.second);
     } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobImInfo<short>(image_size, inputInfo.second);
+        return createBlobImInfo<short>(image_size, batchSize, inputInfo.second);
     } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobImInfo<int32_t>(image_size, inputInfo.second);
+        return createBlobImInfo<int32_t>(image_size, batchSize, inputInfo.second);
     } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobImInfo<int64_t>(image_size, inputInfo.second);
+        return createBlobImInfo<int64_t>(image_size, batchSize, inputInfo.second);
     } else {
         IE_THROW() << "Input precision is not supported for " << inputInfo.first;
     }
@@ -257,19 +259,20 @@ InferenceEngine::Blob::Ptr getImInfoBlob(const std::pair<size_t, size_t>& image_
 
 InferenceEngine::Blob::Ptr getBinaryBlob(const std::vector<std::string>& files,
                                          size_t inputId,
+                                         size_t batchSize,
                                          const std::pair<std::string, benchmark_app::InputInfo>& inputInfo,
                                          std::string* filenames_used = nullptr) {
     auto precision = inputInfo.second.precision;
     if (precision == InferenceEngine::Precision::FP32) {
-        return createBlobFromBinary<float>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromBinary<float>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::FP16) {
-        return createBlobFromBinary<short>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromBinary<short>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I32) {
-        return createBlobFromBinary<int32_t>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromBinary<int32_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if (precision == InferenceEngine::Precision::I64) {
-        return createBlobFromBinary<int64_t>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromBinary<int64_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else if ((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::BOOL)) {
-        return createBlobFromBinary<uint8_t>(files, inputId, inputInfo.second, filenames_used);
+        return createBlobFromBinary<uint8_t>(files, inputId, batchSize, inputInfo.second, filenames_used);
     } else {
         IE_THROW() << "Input precision is not supported for " << inputInfo.first;
     }
@@ -394,13 +397,16 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
     std::vector<std::map<std::string, std::string>> logOutput;
     // All inputs should process equal number of files, so for the case of N, 1, N number of files,
     // second input also should have N blobs cloned from 1 file
-    auto filesNum = std::max_element(inputFiles.begin(),
-                                     inputFiles.end(),
-                                     [](const std::pair<std::string, std::vector<std::string>>& a,
-                                        const std::pair<std::string, std::vector<std::string>>& b) {
-                                         return a.second.size() < b.second.size();
-                                     })
-                        ->second.size();
+    size_t filesNum = 0;
+    if (!inputFiles.empty()) {
+        filesNum = std::max_element(inputFiles.begin(),
+                                    inputFiles.end(),
+                                    [](const std::pair<std::string, std::vector<std::string>>& a,
+                                       const std::pair<std::string, std::vector<std::string>>& b) {
+                                        return a.second.size() < b.second.size();
+                                    })
+                       ->second.size();
+    }
     for (const auto& files : inputFiles) {
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         size_t n_shape = 0, m_file = 0;
@@ -408,22 +414,27 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             auto app_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
             auto precision = app_info.precision;
             size_t inputId = m_file % files.second.size();
-
+            size_t batchSize = 1;
+            try {
+                batchSize = app_info.batch();
+            } catch (std::runtime_error& err) {
+                slog::warn << err.what() << slog::endl;
+            }
             std::string blob_src_info;
             if (app_info.isImage()) {
                 // Fill with Images
                 blobs[input_name].push_back(
-                    getImageBlob(files.second, inputId, {input_name, app_info}, &blob_src_info));
+                    getImageBlob(files.second, inputId, batchSize, {input_name, app_info}, &blob_src_info));
             } else if (app_info.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
                 blob_src_info =
                     "Image size blob " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
-                blobs[input_name].push_back(getImInfoBlob(image_size, {input_name, app_info}));
+                blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, app_info}));
             } else {
                 // Fill with binary files
                 blobs[input_name].push_back(
-                    getBinaryBlob(files.second, inputId, {input_name, app_info}, &blob_src_info));
+                    getBinaryBlob(files.second, inputId, batchSize, {input_name, app_info}, &blob_src_info));
             }
 
             // Preparing info
@@ -452,12 +463,17 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             for (auto& input : input_info) {
                 // Preparing info
                 std::stringstream strOut = getTestInfoStreamHeader(input.second);
-
+                size_t batchSize = 1;
+                try {
+                    batchSize = input.second.batch();
+                } catch (std::runtime_error& err) {
+                    slog::warn << err.what() << slog::endl;
+                }
                 if (input.second.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
                     // Most likely it is image info: fill with image information
                     auto image_size = net_input_im_sizes.at(i);
                     strOut << "Image size blob '" << image_size.first << "x" << image_size.second;
-                    blobs[input.first].push_back(getImInfoBlob(image_size, input));
+                    blobs[input.first].push_back(getImInfoBlob(image_size, batchSize, input));
                     ++i;
                 } else {
                     // Fill random
