@@ -5,11 +5,10 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/variant.hpp"
 
 namespace ov {
-
-class Node;
 
 void OPENVINO_API mark_as_precision_sensitive(ov::Input<ov::Node> node_input);
 
