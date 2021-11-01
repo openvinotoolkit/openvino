@@ -14,9 +14,9 @@ The following Inference Engine Python API is used in the application:
 | Options                    | Values                                                                                                    |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------- |
 | Validated Models           | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
-| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                  |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                   |
-| Other language realization | [C++](../../../inference-engine/samples/hello_classification/README.md), [C](../../../inference-engine/ie_bridges/c/samples/hello_classification/README.md)             |
+| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx) |
+| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Other language realization | [C++](../../../inference-engine/samples/hello_classification/README.md), [C](../../c/hello_classification/README.md) |
 
 ## How It Works
 

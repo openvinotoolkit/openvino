@@ -18,21 +18,18 @@ add_subdirectory(samples)
 foreach(sample benchmark_app classification_sample_async hello_classification
                 hello_nv12_input_classification hello_query_device hello_reshape_ssd
                 ngraph_function_creation_sample object_detection_sample_ssd
-                speech_sample style_transfer_sample hello_classification_c
-                object_detection_sample_ssd_c hello_nv12_input_classification_c)
+                speech_sample style_transfer_sample)
     if(TARGET ${sample})
         install(TARGETS ${sample}
                 RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
 endforeach()
 
-foreach(samples_library opencv_c_wrapper format_reader)
-    if(TARGET ${samples_library})
-        install(TARGETS ${samples_library}
-                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
-    endif()
-endforeach()
+if(TARGET format_reader)
+    install(TARGETS format_reader
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)
 
@@ -67,26 +64,3 @@ elseif(WIN32)
             PATTERN .clang-format EXCLUDE)
 endif()
 
-# install C samples
-
-ie_cpack_add_component(c_samples DEPENDS core_c)
-
-if(UNIX)
-    install(PROGRAMS samples/build_samples.sh
-            DESTINATION samples/c
-            COMPONENT c_samples)
-elseif(WIN32)
-    install(PROGRAMS samples/build_samples_msvc.bat
-            DESTINATION samples/c
-            COMPONENT c_samples)
-endif()
-
-install(DIRECTORY ie_bridges/c/samples/
-        DESTINATION samples/c
-        COMPONENT c_samples
-        PATTERN ie_bridges/c/samples/CMakeLists.txt EXCLUDE
-        PATTERN ie_bridges/c/samples/.clang-format EXCLUDE)
-
-install(FILES samples/CMakeLists.txt
-        DESTINATION samples/c
-        COMPONENT c_samples)

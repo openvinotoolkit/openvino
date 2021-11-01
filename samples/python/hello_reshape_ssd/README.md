@@ -15,9 +15,9 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Options                    | Values                                                                                                                      |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
 | Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd) |
-| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                                    |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                                     |
-| Other language realization | [C++](../../../inference-engine/samples/hello_reshape_ssd/README.md)                                                                                |
+| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx) |
+| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Other language realization | [C++](../../../inference-engine/samples/hello_reshape_ssd/README.md) |
 
 ## How It Works
 

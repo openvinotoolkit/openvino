@@ -15,8 +15,8 @@ Basic Inference Engine API is covered by [Hello Classification C sample](../hell
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
 | Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
-| Supported devices                | [All](../../../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization       | [C++](../../../../samples/hello_nv12_input_classification/README.md) |
+| Supported devices                | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Other language realization       | [C++](../../../inference-engine/samples/hello_nv12_input_classification/README.md) |
 
 ## How It Works
 
@@ -29,7 +29,7 @@ each sample step at [Integration Steps](https://docs.openvinotoolkit.org/latest/
 
 ## Building
 
-To build the sample, please use instructions available at [Build the Sample Applications](../../../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
+To build the sample, please use instructions available at [Build the Sample Applications](../../../docs/IE_DG/Samples_Overview.md) section in Inference Engine Samples guide.
 
 ## Running
 
@@ -57,8 +57,8 @@ ffmpeg -i cat.jpg -pix_fmt nv12 cat.yuv
 >   model to work with RGB order, you need to reconvert your model using the Model Optimizer tool
 >   with `--reverse_input_channels` argument specified. For more information about the argument,
 >   refer to **When to Reverse Input Channels** section of
->   [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
-> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+>   [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> - Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 >
 > - The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
@@ -107,10 +107,10 @@ This sample is an API example, for any performance measurements please use the d
 
 ## See Also
 
-- [Integrate the Inference Engine with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
-- [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+- [Integrate the Inference Engine with Your Application](../../../docs/IE_DG/Integrate_with_customer_application_new_API.md)
+- [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
-- [Model Optimizer](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
 [ie_network_set_color_format]:https://docs.openvinotoolkit.org/latest/ie_c_api/group__Network.html#ga85f3251f1f7b08507c297e73baa58969
 [ie_blob_make_memory_nv12]:https://docs.openvinotoolkit.org/latest/ie_c_api/group__Blob.html#ga0a2d97b0d40a53c01ead771f82ae7f4a
