@@ -16,24 +16,24 @@ enum impl_desc_type {
     ref     = 1<<7,
     jit     = 1<<8,
     gemm    = 1<<9,
-    brgconv = 1<<22,
-    brgemm  = 1<<23,
+    brgconv = 1<<10,
+    brgemm  = 1<<11,
     // CPU version
-    sse42  = 1<<10,
-    avx    = 1<<11,
-    avx2   = 1<<12,
-    avx512 = 1<<13,
-    amx    = 1<<21,
-    blas   = 1<<14,
-    any    = 1<<15,
-    uni    = 1<<16,
+    sse42  = 1<<12,
+    avx    = 1<<13,
+    avx2   = 1<<14,
+    avx512 = 1<<15,
+    amx    = 1<<16,
+    blas   = 1<<17,
+    any    = 1<<18,
+    uni    = 1<<19,
     // Other specificator
-    _1x1    = 1<<17,
-    _dw     = 1<<18,
+    _1x1    = 1<<20,
+    _dw     = 1<<21,
     // Other info
-    reorder = 1<<19,
+    reorder = 1<<22,
     // winograd
-    winograd = 1<<20,
+    winograd = 1<<23,
 
     // real types
     ref_any             = ref  | any,
