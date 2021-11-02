@@ -416,17 +416,18 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network(ie_core
         const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**
-* @brief Creates an executable network from a network previously exported to blob. Users can create as many networks as they need and use
+* @brief Creates an executable network from a network previously exported to memory. Users can create as many networks as they need and use
 * them simultaneously (up to the limitation of the hardware resources). Use the ie_exec_network_free() method to free memory.
 * @ingroup Core
 * @param core A pointer to ie_core_t instance.
-* @param model_blob A pointer to ie_blob_t with exported network into blob.
+* @param content A pointer to content of exported network.
+* @param content_size Number of bytes in the exported network.
 * @param device_name Name of device to load network to.
 * @param config Device configuration.
 * @param exe_network A pointer to the newly created executable network.
 * @return Status code of the operation: OK(0) for success.
 */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *model_blob, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *content, size_t content_size,
         const char *device_name, const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**
@@ -437,7 +438,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_me
 * @param exe_network A pointer to the newly created executable network.
 * @return Status code of the operation: OK(0) for success.
 */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_export_network(ie_core_t *core, const char *file_name, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_export_network(ie_core_t *core, const char *file_name,
         ie_executable_network_t *exe_network);
 
 /**

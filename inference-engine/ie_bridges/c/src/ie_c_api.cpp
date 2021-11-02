@@ -379,18 +379,15 @@ IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, cons
     return status;
 }
 
-IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *model_blob, const char *device_name,
+IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *content, size_t content_size, const char *device_name,
        const ie_config_t *config, ie_executable_network_t **exe_network) {
-    if (core == nullptr || model_blob == nullptr ||device_name == nullptr || config == nullptr || exe_network == nullptr) {
+    if (core == nullptr || content == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
 
     IEStatusCode status = IEStatusCode::OK;
     try {
-        IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(model_blob->object);
-        const char *blob_data = mblob->rmap().as<const char *>();
-        size_t blob_size = model_blob->object->byteSize();
-        mem_istream model_stream(blob_data, blob_size);
+        mem_istream model_stream(reinterpret_cast<const char*>(content), content_size);
 
         std::map<std::string, std::string> conf_map = config2Map(config);
         std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
