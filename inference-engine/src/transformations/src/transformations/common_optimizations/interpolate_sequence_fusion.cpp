@@ -222,20 +222,45 @@ bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vec
     return true;
 }
 
+bool shape_calculation_mode_can_use_constant_inputs(const std::shared_ptr<opset8::Interpolate>& interpolate) {
+    const auto& attrs = interpolate->get_attrs();
+    if (attrs.shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
+        return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(1)) != nullptr;
+    }
+    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(2)) != nullptr;
+}
+
+bool is_candidate_for_fusion(const std::shared_ptr<opset8::Interpolate>& interpolate) {
+    return (interpolate->get_input_partial_shape(0).rank().is_static()) &&
+           (interpolate->inputs().size() != 4 || std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3))) &&
+           shape_calculation_mode_can_use_constant_inputs(interpolate);
+}
+
+std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<opset8::Interpolate>& interpolate) {
+    if (interpolate->inputs().size() != 4) {
+        const auto input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
+
+        std::vector<int64_t> default_value(input_rank);
+        std::iota(default_value.begin(), default_value.end(), 0);
+
+        return default_value;
+    }
+    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3))->cast_vector<int64_t>();
+}
+
 bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
-    if (!compatible_attrs(fst->get_attrs(), snd->get_attrs()) || fst->outputs().size() != 1) return false;
+    if (!compatible_attrs(fst->get_attrs(), snd->get_attrs()) || !is_candidate_for_fusion(fst) || !is_candidate_for_fusion(snd) ||
+        !compatible_axes(get_interpolated_axes(fst), get_interpolated_axes(snd)) {
+        return false;
+    }
 
-    if (fst->get_input_partial_shape(0).rank().is_dynamic() || snd->get_input_partial_shape(0).rank().is_dynamic()) return false;
+    for (const auto& output : fst->outputs()) {
+        for (const auto& consumer : output.get_target_inputs()) {
+            if (consumer.get_node() != snd.get()) return false;
+        }
+    }
 
-    if (fst->inputs().size() == 4 && !std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(3))) return false;
-
-    if (snd->inputs().size() == 4 && !std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(3))) return false;
-
-    if (!std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2))) return false;
-
-    if (!std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(2))) return false;
-
-    return compatible_axes(fst->get_axes(), snd->get_axes());
+    return true;
 }
 } // namespace
 
@@ -245,14 +270,62 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
     auto interpolate_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Interpolate>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        using namespace ngraph;
-
         auto snd_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
         if (!snd_interpolate) return false;
 
         auto fst_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(snd_interpolate->input_value(0));
         if (!fst_interpolate) return false;
 
+        if (!can_be_fused(snd_interpolate, snd_interpolate)) return false;
+
+        const auto fst_axes = get_interpolated_axes(fst);
+        const auto snd_axes = get_interpolated_axes(snd);
+
+        if (fst_interpolate->get_attrs().shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
+            const auto fst_sizes = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(1))->cast_vector<int64_t>();
+            const auto snd_sizes = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(1))->cast_vector<int64_t>();
+
+            std::vector<std::pair<int64_t, int64_t>> axes_and_sizes;
+            for (size_t i = 0; i < fst_axes.size(); ++i) {
+                axes_and_sizes.emplace_back({fst_axes[i], fst_sizes[i]});
+            }
+            for (size_t i = 0; i < snd_axes.size(); ++i) {
+                axes_and_sizes.emplace_back({snd_axes[i], snd_sizes[i]});
+            }
+            std::sort(axes_and_sizes.begin(),
+                      axes_and_sizes.end(),
+                      [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
+                          return a.first < b.first;
+                      });
+            std::vector<int64_t> new_axes;
+            std::vector<int64_t> new_sizes;
+            for (const auto& as : axes_and_sizes) {
+                new_axes.emplace_back(as.first);
+                new_sizes.emplace_back(as.second);
+            }
+        } else {
+            const auto fst_scales = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2))->cast_vector<float>();
+            const auto snd_scales = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(2))->cast_vector<float>();
+
+            std::vector<std::pair<int64_t, float>> axes_and_scales;
+            for (size_t i = 0; i < fst_axes.size(); ++i) {
+                axes_and_scales.emplace_back({fst_axes[i], fst_sizes[i]});
+            }
+            for (size_t i = 0; i < snd_axes.size(); ++i) {
+                axes_and_scales.emplace_back({snd_axes[i], snd_sizes[i]});
+            }
+            std::sort(axes_and_scales.begin(),
+                      axes_and_scales.end(),
+                      [](const std::pair<int64_t, float>& a, const std::pair<int64_t, float>& b) {
+                          return a.first < b.first;
+                      });
+            std::vector<int64_t> new_axes;
+            std::vector<float> new_scales;
+            for (const auto& as : axes_and_sizes) {
+                new_axes.emplace_back(as.first);
+                new_scales.emplace_back(as.second);
+            }
+        }
 
         return true;
     };
