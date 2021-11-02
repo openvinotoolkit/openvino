@@ -176,6 +176,25 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     }
 }
 
+void clDNNEngine::UpdateStatistics(CLDNNRemoteCLContext::Ptr context) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateStatistics");
+    {
+        std::lock_guard<std::mutex> lock(engine_mutex);
+
+        std::map<std::string, uint64_t> statistics;
+        auto impl = getContextImpl(context);
+        impl->acquire_lock();
+        std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
+        eng->get_memory_statistics(&statistics);
+        impl->release_lock();
+
+        // if the same context exists, the statistics is replaced with the latest one
+        // (currently, memory usage is accumulated for several networks in the same context)
+        // if it does not exist, a new statistics is added
+        statistics_map[context] = statistics;
+    }
+}
+
 std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
         const std::map<std::string, std::string>& network_config,
         const CLDNNPlugin::Config& plugin_config) const {
@@ -258,7 +277,9 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
     {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
-        return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+        CLDNNExecNetwork::Ptr exeNetwork = std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+        UpdateStatistics(context);
+        return exeNetwork;
     }
 }
 
@@ -703,6 +724,18 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
         std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
+    } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS)) {
+        std::map<std::string, uint64_t> statistics;
+        for (auto const &item : statistics_map) {
+            for (auto const &kv : item.second) {
+                if (!statistics.count(kv.first)) {
+                    statistics[kv.first] = kv.second;
+                } else {
+                    statistics[kv.first] += kv.second;
+                }
+            }
+        }
+        IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
     } else {
         IE_THROW() << "Unsupported metric key " << name;
     }

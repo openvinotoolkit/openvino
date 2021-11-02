@@ -25,6 +25,8 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
+    // key : cldnn context, value: memory statistics
+    std::map<CLDNNRemoteCLContext::Ptr, std::map<std::string, uint64_t>> statistics_map;
     std::mutex engine_mutex;
 
     mutable CLDNNRemoteCLContext::Ptr m_defaultContext;
@@ -38,6 +40,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
 
     void RegisterPrimitives();
     void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
+    void UpdateStatistics(CLDNNRemoteCLContext::Ptr context);
 public:
     clDNNEngine();
 
