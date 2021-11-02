@@ -485,9 +485,7 @@ set(MULTI_TEST_SRC
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
-    backend/concat.in.cpp
     backend/dyn_reshape.in.cpp
     backend/dynamic.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
