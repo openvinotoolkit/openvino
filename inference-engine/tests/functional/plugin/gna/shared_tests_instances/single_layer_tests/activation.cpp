@@ -8,15 +8,59 @@
 
 namespace LayerTestsDefinitions {
 
-class ActivationLayerTestInteger : public ActivationLayerTest {
+class ActivationLayerGNATest : public ActivationLayerTest {
 protected:
     void SetUp() override {
-            ActivationLayerTest::SetUp();
+        ActivationLayerTest::SetUp();
+        // TODO: remove after integer inference output support
+        auto ngPrc = function->get_parameters()[0]->get_element_type().get_type_name();
+        if (ngPrc == "u8" || ngPrc == "i16") {
             threshold = 1.0;
+        }
+    }
+
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+        bool inPrcSigned = function->get_parameters()[0]->get_element_type().is_signed();
+        int32_t data_start_from = -10;
+        uint32_t data_range = 20;
+        int32_t resolution = 32768;
+        switch (activationType) {
+            case ngraph::helpers::ActivationTypes::Log: {
+                data_start_from = 1;
+                data_range = 20;
+                resolution = 32768;
+                break;
+            }
+            case ngraph::helpers::ActivationTypes::Sign: {
+                data_start_from = -10;
+                data_range = 20;
+                resolution = 3072;
+                break;
+            }
+            case ngraph::helpers::ActivationTypes::Exp: {
+                const double max_result_on_GNA = 15.9;
+                const double exp_inverse = std::round(std::log(max_result_on_GNA));
+                if (inPrcSigned) {
+                    data_range = exp_inverse * 2.0;
+                    data_start_from = -exp_inverse;
+                } else {
+                    data_range = exp_inverse;
+                    data_start_from = 0;
+                }
+                break;
+            }
+        }
+        if (!inPrcSigned) {
+            data_range = 15;
+            data_start_from = 0;
+        }
+
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
+                                                data_start_from, resolution);
     }
 };
 
-TEST_P(ActivationLayerTestInteger, CompareWithRefs) {
+TEST_P(ActivationLayerGNATest, CompareWithRefs) {
         Run();
 }
 
@@ -32,14 +76,12 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::U8
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisionsIntegers = {
-        InferenceEngine::Precision::I16,
-        InferenceEngine::Precision::U8
-};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::U8,
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
@@ -78,21 +120,7 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GNA)
 );
 
-const auto integerCases = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
-        ::testing::ValuesIn(netPrecisionsIntegers),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA)
-);
 
-
-
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTestInteger, integerCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerGNATest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
