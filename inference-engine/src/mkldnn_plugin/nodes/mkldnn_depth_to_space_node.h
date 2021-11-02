@@ -15,13 +15,17 @@ class MKLDNNDepthToSpaceNode : public MKLDNNNode {
 public:
     MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void prepareParams() override;
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     enum Mode {
@@ -32,6 +36,9 @@ private:
     Mode mode;
     size_t blockSize;
     size_t blockStep;
+
+    MKLDNNMemoryPtr srcMemPtr;
+    MKLDNNMemoryPtr dstMemPtr;
 
     std::unique_ptr<PermuteKernel> permuteKernel;
 };

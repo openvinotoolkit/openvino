@@ -17,16 +17,10 @@
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-using namespace mkldnn;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
 
 bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto depthToSpace = std::dynamic_pointer_cast<const ngraph::opset1::DepthToSpace>(op);
         if (!depthToSpace) {
             errorMessage = "Only opset1 DepthToSpace operation is supported";
@@ -46,72 +40,55 @@ bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<const ng
 MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        const auto depthToSpace = std::dynamic_pointer_cast<const ngraph::opset1::DepthToSpace>(op);
-
-        const auto modeNgraph = depthToSpace->get_mode();
-        if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
-            mode = Mode::BLOCKS_FIRST;
-        } else if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
-            mode = Mode::DEPTH_FIRST;
-        } else {
-            THROW_ERROR << "doesn't support mode: " << ngraph::as_string(modeNgraph);
-        }
-
-        blockSize = depthToSpace->get_block_size();
-        if (blockSize == 0)
-            THROW_ERROR << "has incorrect block_size parameter is zero!";
-
-        size_t nSpatialDims = inputShapes[0].getRank() - 2;
-        blockStep = static_cast<size_t>(std::pow(blockSize, nSpatialDims));
-    } else {
+    if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-}
+    if (op->get_input_size() != 1 || op->get_output_size() != 1)
+        THROW_ERROR << "has incorrect number of input/output edges!";
 
-void MKLDNNDepthToSpaceNode::getSupportedDescriptors() {
-    SizeVector srcDims = inputShapes[0].getStaticDims();
-    if (srcDims.size() < 3)
-        THROW_ERROR << "has incorrect number of input dimensions";
-    if (srcDims.size() > 5)
-        THROW_ERROR << "doesn't support dimensions with rank greater than 5";
+    const auto depthToSpace = std::dynamic_pointer_cast<const ngraph::opset1::DepthToSpace>(op);
 
-    SizeVector dstDims = outputShapes[0].getStaticDims();
-    if (srcDims.size() != dstDims.size())
-        THROW_ERROR << "has incorrect number of input/output dimensions";
-
-    if (srcDims[1] % blockStep)
-        THROW_ERROR << "has block_size parameter which is incompatible with input tensor channels dimension size";
-
-    if (srcDims[1] / blockStep != dstDims[1])
-        THROW_ERROR << "has incompatible input/output channels";
-
-    size_t nSpatialDims = srcDims.size() - 2;
-    for (size_t i = 0; i < nSpatialDims; ++i) {
-        if (srcDims[i + 2] * blockSize != dstDims[i + 2])
-            THROW_ERROR << "has incompatible spatial dims";
+    const auto modeNgraph = depthToSpace->get_mode();
+    if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
+        mode = Mode::BLOCKS_FIRST;
+    } else if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
+        mode = Mode::DEPTH_FIRST;
+    } else {
+        THROW_ERROR << "doesn't support mode: " << ngraph::as_string(modeNgraph);
     }
 
-    if (getParentEdges().size() != 1)
-        THROW_ERROR << "has incorrect number of input edges";
-    if (getChildEdges().empty())
-        THROW_ERROR << "has incorrect number of output edges";
+    blockSize = depthToSpace->get_block_size();
+    if (blockSize == 0)
+        THROW_ERROR << "has incorrect block_size parameter is zero!";
+
+    const int srcRank = inputShapes[0].getRank();
+    const int dstRank = outputShapes[0].getRank();
+
+    if (srcRank < 3)
+        THROW_ERROR << "has incorrect number of input dimensions";
+    if (srcRank > 5)
+        THROW_ERROR << "doesn't support dimensions with rank greater than 5";
+    if (srcRank != dstRank)
+        THROW_ERROR << "has incorrect number of input/output dimensions";
+
+    size_t nSpatialDims = srcRank - 2;
+    blockStep = static_cast<size_t>(std::pow(blockSize, nSpatialDims));
 }
+
+void MKLDNNDepthToSpaceNode::getSupportedDescriptors() {}
 
 void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
-    auto srcDims = getInputShapeAtPort(0).getStaticDims();
-    const size_t nDims = srcDims.size();
 
     impl_desc_type impl_type;
-    if (mayiuse(impl::cpu::x64::avx512_common)) {
+    if (cpu::x64::mayiuse(cpu::x64::avx512_common)) {
         impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (cpu::x64::mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
     } else {
         impl_type = impl_desc_type::ref;
@@ -126,10 +103,14 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
 
+    const auto& inputDataShape = getInputShapeAtPort(0);
+    const auto& outputDataShape = getOutputShapeAtPort(0);
+
     std::vector<LayoutType> supportedTypes;
-    if (nDims > 2) {
+    if (inputDataShape.getRank() > 2) {
+        const auto& srcDims = inputDataShape.getDims();
         auto canUseBlocked = [=](const size_t block) {
-            return srcDims[1] % block == 0 && (srcDims[1] / block) % blockStep == 0 &&
+            return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % block == 0 && (srcDims[1] / block) % blockStep == 0 &&
                    (mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true);
         };
 
@@ -141,18 +122,18 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     }
     supportedTypes.push_back(LayoutType::ncsp);
     auto creators = BlockedDescCreator::getCommonCreators();
-    auto range = BlockedDescCreator::makeFilteredRange(creators, nDims, supportedTypes);
+    auto range = BlockedDescCreator::makeFilteredRange(creators, inputDataShape.getRank(), supportedTypes);
 
     for (auto itr = range.first; itr != range.second; ++itr) {
-        config.inConfs[0].desc = itr->second->createSharedDesc(precision, getInputShapeAtPort(0));
-        config.outConfs[0].desc = itr->second->createSharedDesc(precision, getOutputShapeAtPort(0));
+        config.inConfs[0].desc = itr->second->createSharedDesc(precision, inputDataShape);
+        config.outConfs[0].desc = itr->second->createSharedDesc(precision, outputDataShape);
         supportedPrimitiveDescriptors.emplace_back(config, impl_type);
     }
 }
 
 void MKLDNNDepthToSpaceNode::createPrimitive() {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         THROW_ERROR << "has not allocated destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -160,12 +141,29 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor";
 
-    VectorDims srcDims = srcMemPtr->getStaticDims();
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
 
+void MKLDNNDepthToSpaceNode::prepareParams() {
+    VectorDims srcDims = srcMemPtr->getStaticDims();
+    VectorDims dstDims = dstMemPtr->getStaticDims();
     size_t nDims = srcDims.size();
     const size_t nSpatialDims = nDims - 2;
-    const bool isBlocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c) ||
-                           getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c);
+    if (srcDims[1] % blockStep)
+        THROW_ERROR << "has block_size parameter which is incompatible with input tensor channels dimension size";
+    if (srcDims[1] / blockStep != dstDims[1])
+        THROW_ERROR << "has incompatible input/output channels";
+    for (size_t i = 0; i < srcDims.size() - 2; ++i) {
+        if (srcDims[i + 2] * blockSize != dstDims[i + 2])
+            THROW_ERROR << "has incompatible spatial dims";
+    }
+
+    const bool isBlocked = srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c) ||
+                           srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c);
     const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
@@ -197,7 +195,7 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     };
 
     if (isBlocked) {
-        VectorDims srcBlockedDims = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        VectorDims srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
         size_t orderShiftForBlocks, orderShiftForDims;
         if (mode == Mode::BLOCKS_FIRST) {
@@ -226,7 +224,7 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
         }
 
         reshapeAndSetPermOrder(orderShiftForDims, orderShiftForBlocks, firstSpatialOrder, srcBlockedDims);
-    } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
         srcDims.push_back(srcDims[1]);
         srcDims.erase(srcDims.begin() + 1);
         firstSpatialOrder = 1;
@@ -253,10 +251,19 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
 }
 
 void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    if (!permuteKernel) {
+        THROW_ERROR << "could not be executed, because primitive was not created.";
+    }
 
-    permuteKernel->execute(srcData, dstData, batchToProcess());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+
+    int MB = isDynamicNode() ? srcMemPtr->getStaticDims()[0] : batchToProcess();
+    permuteKernel->execute(srcData, dstData, MB);
+}
+
+void MKLDNNDepthToSpaceNode::executeDynamicImpl(mkldnn::stream strm) {
+    execute(strm);
 }
 
 bool MKLDNNDepthToSpaceNode::created() const {
