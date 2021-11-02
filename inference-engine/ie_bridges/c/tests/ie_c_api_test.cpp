@@ -312,7 +312,7 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
 
     if (weights_blob != nullptr) {
         std::vector<uint8_t> xml_content(content_from_file(xml, false));
-        
+
         ie_network_t *network = nullptr;
         IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), weights_blob, &network));
         EXPECT_NE(nullptr, network);
@@ -370,22 +370,16 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     fseek(fileptr, 0, SEEK_END);
     size_t filelen = ftell(fileptr);
     rewind(fileptr);
+    uint8_t *buffer = reinterpret_cast<uint8_t *>(malloc(filelen));
 
-    tensor_desc_t blob_desc = {layout_e::ANY, {1,{filelen}}, precision_e::I8};
-    ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_blob_make_memory(&blob_desc, &blob));
-    ie_blob_buffer_t blob_buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob, &blob_buffer));
-    char *input_data = (char *)(blob_buffer.buffer);
-
-    if (fread(input_data, 1, filelen, fileptr) != filelen) {
+    if (fread(buffer, 1, filelen, fileptr) != filelen) {
         fputs ("Reading error",stderr); exit (3);
     }
 
     fclose(fileptr);
     ie_executable_network_t *network = nullptr;
 
-    IE_EXPECT_OK(ie_core_import_network_from_memory(core, blob, "GNA", &conf2, &network));
+    IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer, filelen, "GNA", &conf2, &network));
     EXPECT_NE(nullptr, network);
     if (network != nullptr) {
         ie_exec_network_free(&network);
@@ -393,7 +387,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     if (exe_network != nullptr) {
         ie_exec_network_free(&exe_network);
     }
-    ie_blob_free(&blob);
+    free(buffer);
     ie_core_free(&core);
 }
 
