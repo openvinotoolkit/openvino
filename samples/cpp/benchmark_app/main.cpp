@@ -844,10 +844,10 @@ int main(int argc, char* argv[]) {
             auto input = app_inputs_info[iteration % app_inputs_info.size()];
             inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
 
+            batchSize = getBatchSize(input);
             for (auto& item : input) {
                 auto input_name = item.first;
                 const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
-                batchSize = item.second.batch();
                 inferRequest->setBlob(input_name, data);
             }
 
