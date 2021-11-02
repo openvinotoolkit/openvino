@@ -322,10 +322,13 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
                                 t.first->_inferRequest->SetBlobsToAnotherRequest(t.first->_inferRequestWithoutBatch);
                                 t.first->_inferRequestWithoutBatch->StartAsync();
                             }
-                            auto execTime = std::chrono::duration_cast<std::chrono::microseconds>
-                                    (std::chrono::high_resolution_clock::now() - start).count();
-                            std::cout << "thread::timeout: " << execTime << " micros, tasks:  " << sz << std::endl;
+                            auto exec = std::chrono::high_resolution_clock::now();
                             all_completed_future.get();
+                            auto execTime = std::chrono::duration_cast<std::chrono::microseconds>(exec - start).count();
+                            auto waitTime = std::chrono::duration_cast<std::chrono::milliseconds>
+                                    (std::chrono::high_resolution_clock::now() - exec).count();
+                            std::cout << "thread::timeout exec " << execTime << " micros"
+                                    << ", wait  " << waitTime << " ms, tasks:  " << sz << std::endl;
                             // now when all the tasks for this batch are completed, start waiting for the timeout again
                         }
                     }
