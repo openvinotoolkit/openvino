@@ -187,31 +187,6 @@ std::vector<ConstantParams> generateConstantDefinedTypeParams() {
             std::vector<int64_t>{0x4000000000000001, 0x4000000000000002},
             std::vector<int64_t>{0x4000000000000001, 0x4000000000000002},
             "tensor_constant_int64"),
-        // constant_equality_u4_2x2x3
-        ConstantParams({2, 2, 3}, element::Type_t::u4, element::Type_t::u4,
-            std::vector<char>{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xF, 0xF},
-            std::vector<char>{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xF, 0xF},
-            "constant_equality_u4_2x2x3"),
-        // constant_equality_u4_1x3
-        ConstantParams({1, 3}, element::Type_t::u4, element::Type_t::u4,
-            std::vector<char>{0x1, 0x2, 0x3},
-            std::vector<char>{0x1, 0x2, 0x3},
-            "constant_equality_u4_1x3"),
-        // constant_equality_u1_1x10
-        ConstantParams({1, 10}, element::Type_t::u1, element::Type_t::u1,
-            std::vector<char>{0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0},
-            std::vector<char>{0x0, 0x0, 0x0, 0x1, 0x0, 0x0, 0x1, 0x0, 0x0, 0x0},
-            "constant_equality_u1_1x10"),
-        // constant_equality_i4_2x2x3
-        ConstantParams({2, 2, 3}, element::Type_t::i4, element::Type_t::i4,
-            std::vector<char>{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xF, 0xF},
-            std::vector<char>{0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xF, 0xF},
-            "constant_equality_i4_2x2x3"),
-        // constant_equality_i4_1x3
-        ConstantParams({1, 3}, element::Type_t::i4, element::Type_t::i4,
-            std::vector<char>{0x1, 0x2, 0x3},
-            std::vector<char>{0x1, 0x2, 0x3},
-            "constant_equality_i4_1x3"),
     };
     return constantParams;
 }
@@ -242,13 +217,10 @@ std::vector<ConstantParams> generateConstantCombinedParams() {
 
 std::vector<ConstantParams> generateConstant2ConstantCombinedParams() {
     const std::vector<std::vector<ConstantParams>> constantTypeParams {
-        generateConstantParams<element::Type_t::i4>(),
         generateConstantParams<element::Type_t::i8>(),
         generateConstantParams<element::Type_t::i16>(),
         generateConstantParams<element::Type_t::i32>(),
         generateConstantParams<element::Type_t::i64>(),
-        generateConstantParams<element::Type_t::u1>(),
-        generateConstantParams<element::Type_t::u4>(),
         generateConstantParams<element::Type_t::u8>(),
         generateConstantParams<element::Type_t::u16>(),
         generateConstantParams<element::Type_t::u32>(),
@@ -281,7 +253,6 @@ std::vector<ConstantParams> generateConstantWithOpParams() {
 
 std::vector<ConstantParams> generateConstantWithOpCombinedParams() {
     const std::vector<std::vector<ConstantParams>> constantTypeParams {
-        generateConstantWithOpParams<element::Type_t::i4>(),
         generateConstantWithOpParams<element::Type_t::i8>(),
         generateConstantWithOpParams<element::Type_t::i16>(),
         generateConstantWithOpParams<element::Type_t::i32>(),
