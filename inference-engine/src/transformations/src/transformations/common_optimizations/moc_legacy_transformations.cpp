@@ -9,6 +9,8 @@
 #include "ngraph/pass/manager.hpp"
 #include "transformations/common_optimizations/change_placeholder_types.hpp"
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCLegacyTransformations, "MOCLegacyTransformations", 0);
+
 bool ngraph::pass::MOCLegacyTransformations::run_on_function(
     std::shared_ptr<ov::Function> f) {
   ov::pass::Manager manager(get_pass_config());
