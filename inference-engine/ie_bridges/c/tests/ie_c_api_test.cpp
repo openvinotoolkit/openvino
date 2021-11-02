@@ -423,24 +423,27 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    const char *file_name = "exported_model.blob";
-    IE_EXPECT_NOT_OK(ie_core_import_network(nullptr, file_name, "CPU", &config, &exe_network));
+
+    std::string file_name_str = TestDataHelpers::generate_model_path("../gna", "export2dot1.blob");
+    const char* file_name = file_name_str.c_str();
+
+    IE_EXPECT_NOT_OK(ie_core_import_network(nullptr, file_name, "GNA", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_import_network(core, nullptr, "CPU", &config, &exe_network));
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, nullptr, "GNA", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
     IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, nullptr, &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "CPU", nullptr, &exe_network));
-    EXPECT_EQ(nullptr, exe_network);
-
-    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "CPU", &config, nullptr));
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "GNA", &config, nullptr));
     EXPECT_EQ(nullptr, exe_network);
 
     IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "UnregisteredDevice", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
+
+    IE_EXPECT_OK(ie_core_import_network(core, file_name, "GNA", nullptr, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
 
     ie_core_free(&core);
 }
