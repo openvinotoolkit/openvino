@@ -23,6 +23,7 @@ from openvino.impl import Dimension
 from openvino.impl import Function
 from openvino.impl import Node
 from openvino.impl import PartialShape
+from openvino.impl import Layout
 
 from openvino.pyopenvino import Core
 from openvino.pyopenvino import IENetwork
