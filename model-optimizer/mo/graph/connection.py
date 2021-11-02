@@ -305,8 +305,8 @@ class Connection:
         self.source = None
         self.destinations = []
 
-    def insert_node(self, new_node):
+    def insert_node(self, new_node, attributes_save_mode: str = "merge"):
         assert len(new_node.out_ports()) == 1, 'The node {} has several output ports'.format(new_node.soft_get('name'))
         source_port = self.get_source()
-        self.set_source(new_node.out_port(0))
+        self.set_source(new_node.out_port(0), attributes_save_mode)
         source_port.connect(new_node.in_port(0))

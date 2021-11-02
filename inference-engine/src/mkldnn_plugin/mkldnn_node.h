@@ -126,6 +126,9 @@ private:
 
 class MKLDNNNode {
 public:
+    using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
+
+public:
     template<typename T, int N>
     struct Tag {};
 
@@ -556,10 +559,18 @@ public:
         return outputShapes[port];
     }
 
+    /**
+    * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
+    * If node has only scale or shift value, fill missing value with default values
+    * i.e. EltwiseAdd: fill shifts from constant, fill scales with default values = 1.0f
+    * @param parentNode
+    * node from which data comes
+    * @return pair of scales and shifts
+    */
+    std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
+
 protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
-    // TODO [mandrono]: place outside of the node API
-    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
 
     void setType(Type type) {
         this->type = type;
@@ -578,8 +589,8 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false);
-    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false);
+    virtual AttrPtr initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
@@ -593,6 +604,7 @@ protected:
     std::vector <impl_desc_type> implPriorities;
     std::vector <mkldnn::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <mkldnn::memory::format_tag> outputMemoryFormatsFilter;
+    bool enforceBF16evenForGraphTail = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
