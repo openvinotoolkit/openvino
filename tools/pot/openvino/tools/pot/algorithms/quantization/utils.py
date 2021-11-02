@@ -252,17 +252,8 @@ def get_hardware_config_operation_type(node, available_types):
     :return: default or special type of layer as string
     """
 
-    def _is_depth_wise(node):
-        if node.type == 'Convolution' and node.has_valid('group'):
-            group = node['group']
-            output = node['output']
-            input_shape = get_input_shape(node, 0)
-            if group == output and input_shape[1] == output:
-                return True
-        return False
-
     type_checkers = {
-        'DepthWiseConvolution': _is_depth_wise
+        'DepthWiseConvolution': is_depth_wise
     }
 
     for real_type in type_checkers:
@@ -342,3 +333,12 @@ def get_ignored_operations(model):
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
                                  {"type": "SquaredDifference"}]}
     return operation[model]
+
+def is_depth_wise(node):
+    if node.type == 'Convolution' and node.has_valid('group'):
+        group = node['group']
+        output = node['output']
+        input_shape = get_input_shape(node, 0)
+        if group == output and input_shape[1] == output:
+            return True
+    return False

@@ -5,7 +5,7 @@ from collections import deque, defaultdict
 from copy import deepcopy
 
 from .range_estimator import get_range_estimator_config
-from .utils import get_hardware_config_operation_type, load_hardware_config
+from .utils import get_hardware_config_operation_type, load_hardware_config, is_depth_wise
 from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS, CONCAT_UNIFY_INPUTS
 from ...graph.utils import find_operation_matches, get_operation_list
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
@@ -328,7 +328,8 @@ def find_fqs_to_unify(model, config):
         def _is_followed_by_conv(input_node):
             if _is_quantize_agnostic_op(input_node):
                 concat_stack.extend(get_all_node_outputs(input_node))
-            elif input_node.type in [n['type'] for n in CONCAT_UNIFY_OUTPUTS]:
+            elif input_node.type in [n['type'] for n in CONCAT_UNIFY_OUTPUTS] \
+                and not is_depth_wise(input_node):
                 concat_stack.clear()
                 logger.debug('Found %s %s as Concat %s output',
                              input_node.type, input_node.name, node.name)
