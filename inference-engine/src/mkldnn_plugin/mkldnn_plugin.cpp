@@ -466,8 +466,6 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     auto nGraphFunc = clonedNetwork.getFunction();
     TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT);
-    clonedNetwork.serialize("/home/sidorova/openvino/gnn/gnnrl-csrc/ref_app/ORAN_sim_ONF/openvino/models/tf/tf2/after_cpu.xml",
-                            "/home/sidorova/openvino/gnn/gnnrl-csrc/ref_app/ORAN_sim_ONF/openvino/models/tf/tf2/after_cpu.bin");
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
