@@ -417,7 +417,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
     // align batch in case of ambigous inputs (like NC, where N is not a batch)
     for (const auto& inputs_info : app_inputs_info) {
         std::vector<size_t> batch;
-        for (auto& input = inputs_info.cbegin(); input != inputs_info.cend(); ++input) {
+        for (auto input = inputs_info.cbegin(); input != inputs_info.cend(); ++input) {
             batch.push_back(input->second.batch());
         }
         batchSizes.push_back(*std::min(batch.begin(), batch.end()));
