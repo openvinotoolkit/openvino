@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will be support DS
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
         using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
         if (!one_of(op->get_type_info(), NonMaxSuppressionV5::get_type_info_static(),
                     ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -59,7 +59,7 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         if (const auto nms5 = std::dynamic_pointer_cast<const ngraph::op::v5::NonMaxSuppression>(op)) {
             boxEncodingType = static_cast<boxEncoding>(nms5->get_box_encoding());
             sort_result_descending = nms5->get_sort_result_descending();
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will be support DS
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
             sort_result_descending = nmsIe->m_sort_result_descending;
@@ -83,10 +83,6 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
             IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output rank: " << valid_outputs_shape.getRank();
         if (valid_outputs_shape.getDims()[0] != 1)
             IE_THROW() << errorPrefix << "has unsupported 'valid_outputs' output 1st dimension size: " << valid_outputs_shape.getDims()[1];
-
-        if (!isDynamicNode()) {
-            initRuntimeAttr();
-        }
 }
 
 void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
@@ -132,7 +128,7 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
 }
 
-void MKLDNNNonMaxSuppressionNode::initRuntimeAttr() {
+void MKLDNNNonMaxSuppressionNode::prepareParams() {
     VectorDims boxes_dims, scores_dims;
 
     if (isDynamicNode()) {
@@ -156,8 +152,14 @@ void MKLDNNNonMaxSuppressionNode::initRuntimeAttr() {
         i.resize(num_classes);
 }
 
+void MKLDNNNonMaxSuppressionNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        prepareParams();
+        updateLastInputDims();
+    }
+}
+
 void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
-    initRuntimeAttr();
     execute(strm);
 }
 
@@ -228,7 +230,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     const size_t validOutputs = std::min(filtBoxes.size(), maxNumberOfBoxes);
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will be support DS
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
     if (isDynamicNode()) {
         VectorDims newDims{validOutputs, 3};
         indicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims(newDims));
@@ -253,7 +255,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         selectedScoresPtr += selectedIndicesStride;
     }
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will be support DS
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
     if (!isDynamicNode()) {
         std::fill(selectedIndicesPtr, selectedIndicesPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1);
         std::fill(selectedScoresPtr, selectedScoresPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1.f);

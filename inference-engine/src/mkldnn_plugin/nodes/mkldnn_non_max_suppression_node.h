@@ -20,7 +20,7 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
@@ -53,7 +53,7 @@ public:
     void executeDynamicImpl(mkldnn::stream strm) override;
 
     bool needShapeInfer() const override { return false; }
-    bool needPrepareParams() const override { return false; }
+    void prepareParams() override;
 
 private:
     // input
@@ -95,8 +95,6 @@ private:
 
     std::vector<std::vector<size_t>> numFiltBox;
     const std::string inType = "input", outType = "output";
-
-    void initRuntimeAttr();
 
     void checkPrecision(const Precision& prec, const std::vector<Precision>& precList, const std::string& name, const std::string& type);
     void check1DInput(const Shape& shape, const std::vector<Precision>& precList, const std::string& name, const size_t port);
