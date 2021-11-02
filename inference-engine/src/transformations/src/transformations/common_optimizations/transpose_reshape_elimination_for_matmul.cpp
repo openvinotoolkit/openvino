@@ -13,6 +13,7 @@
 #include "ngraph/validation_util.hpp"
 #include "itt.hpp"
 
+namespace {
 /// \brief      Check for correct Transpose orders which are before and after MatMul. Second Transpose must be back for
 ///  first Transpose before MatMul
 ///
@@ -100,6 +101,7 @@ bool check_input_reshape(const std::shared_ptr<ngraph::opset1::Reshape>& reshape
 
     return true;
 }
+}  // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeReshapeEliminationForMatmul, "TransposeReshapeEliminationForMatmul", 0);
 
