@@ -11,7 +11,7 @@ from common.layer_test_class import CommonLayerTest, check_ir_version
 from unit_tests.utils.graph import build_graph
 
 
-class PytorchLayerTest(CommonLayerTest):
+class PytorchOnnxLayerTest(CommonLayerTest):
     def produce_model_path(self, framework_model, save_path):
         path = os.path.join(save_path, 'model.onnx')
         self.torch_model = framework_model
@@ -36,7 +36,7 @@ class EmbeddingBagModel(torch.nn.Module):
             self.per_sample_weights = None
 
 
-class TestPytorchEmbeddingBag(PytorchLayerTest):
+class TestPytorchEmbeddingBag(PytorchOnnxLayerTest):
     def _prepare_input(self, inputs_dict):
         assert 'input' in inputs_dict and 'offsets' in inputs_dict, "input and offsets should be in inputs_dict"
         indices, offsets = self.var

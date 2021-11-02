@@ -266,7 +266,7 @@ class TestGemm(OnnxRuntimeLayerTest):
                    temp_dir=temp_dir)
 
 
-class PytorchLayerTest(CommonLayerTest):
+class PytorchOnnxLayerTest(CommonLayerTest):
     def produce_model_path(self, framework_model, save_path):
         path = os.path.join(save_path, 'model.onnx')
         self.torch_model = framework_model['model']
@@ -286,7 +286,7 @@ class GemmModel(torch.nn.Module):
         self.weights = torch.from_numpy(weights)
 
 
-class TestPytorchMM(PytorchLayerTest):
+class TestPytorchMM(PytorchOnnxLayerTest):
     def create_net(self, precision, shape, w_shape, output_shape, ir_version):
         """
             Pytorch net               IR net

@@ -32,6 +32,10 @@ class CommonLayerTest:
         """
         model_path = self.produce_model_path(framework_model=framework_model, save_path=temp_dir)
 
+        deps = " ".join([self.__class__.__name__, *[b.__name__ for b in self.__class__.__bases__]])
+        if not "onnx" in deps.lower():
+            legacy_frontend = True
+
         # TODO Pass environment variables via subprocess environment
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms

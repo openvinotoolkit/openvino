@@ -107,7 +107,7 @@ class TestUpsample(OnnxRuntimeLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir)
 
 
-class PytorchLayerTest(CommonLayerTest):
+class PytorchOnnxLayerTest(CommonLayerTest):
     def produce_model_path(self, framework_model, save_path):
         path = os.path.join(save_path, 'model.onnx')
         self.torch_model = framework_model['model']
@@ -133,7 +133,7 @@ class UpsampleModel(torch.nn.Module):
         self.upsample = torch.nn.modules.upsampling.Upsample(**args)
 
 
-class TestPytorchUpsample(PytorchLayerTest):
+class TestPytorchUpsample(PytorchOnnxLayerTest):
     def create_net(self, shape, mode, size, scale_factor, ir_version):
         """
             Pytorch net                        IR net
