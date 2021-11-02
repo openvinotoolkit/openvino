@@ -21,5 +21,5 @@ TEST_P(MultiDevice_Test, canLoadDefaultAutoPluginTest) {
     InferenceEngine::Parameter p;
     ASSERT_NO_THROW(p = execNet.GetConfig(MULTI_CONFIG_KEY(DEVICE_PRIORITIES)));
 }
-INSTANTIATE_TEST_SUITE_P(smoke_DefaultPluginAuto, MultiDevice_Test,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_DefaultLoadedTests, MultiDevice_Test,
         ::testing::ValuesIn(device_names), MultiDevice_Test::getTestCaseName);
