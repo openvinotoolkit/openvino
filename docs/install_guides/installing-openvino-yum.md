@@ -30,7 +30,7 @@ The following components are installed with the OpenVINO runtime package:
 
 ## Set up the Repository
 
-> **NOTE:** You must be logged in as root to set up and install the repository.
+> **NOTE**: You must be logged in as root to set up and install the repository.
 <br>
 Configure YUM with the OpenVINO repository to install OpenVINO. You have two options for this, using the `yum-config-manager` or manually by creating a text file and pointing YUM to the file. 
 
