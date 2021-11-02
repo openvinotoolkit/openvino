@@ -40,14 +40,14 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
     if (inputShapes.size() != 1 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    VectorDims dims = getInputShapeAtPort(0).getDims();
-    if (dims.empty())
-        dims = SizeVector(1, 1);
+    auto dimsSize = getInputShapeAtPort(0).getDims().size();
+    if (dimsSize == 0)
+        dimsSize += 1;
     axis = logSoftMax->get_axis();
     if (axis < 0)
-        axis += dims.size();
+        axis += dimsSize;
 
-    if (dims.size() < static_cast<size_t>((size_t)(1) + axis))
+    if (dimsSize < static_cast<size_t>((size_t)(1) + axis))
         IE_THROW() << errorPrefix << " has incorrect input parameters dimensions and axis number!";
 }
 
@@ -74,7 +74,7 @@ void MKLDNNLogSoftmaxNode::prepareParams() {
     axisStep = 1;
     isLastDim = false;
 
-    auto j = dims.size() - 1;
+    int j = static_cast<int>(dims.size()) - 1;
     for (; j >= 0; j--) {
         if (dims[j] != 1) break;
     }

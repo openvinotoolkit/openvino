@@ -9,17 +9,14 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ov::test;
 
-namespace ov {
-namespace test {
-namespace subgraph {
 namespace CPULayerTestsDefinitions {
 
 using logSoftmaxLayerTestParams = std::tuple<
         std::vector<InputShape>,               // inputShape
         Precision,                             // netPrecision
-        int64_t,                               // axis
-        std::map<std::string, std::string>>;   // config
+        int64_t>;                              // axis
 
 class LogSoftmaxLayerCPUTest
         : public testing::WithParamInterface<logSoftmaxLayerTestParams>,
@@ -30,16 +27,17 @@ public:
         std::vector<InputShape> inputShapes;
         Precision netPrecision;
         int64_t axis;
-        std::map<std::string, std::string> config;
-        std::tie(inputShapes, netPrecision, axis, config) = obj.param;
+        std::tie(inputShapes, netPrecision, axis) = obj.param;
 
         std::ostringstream result;
-        result << "IS=(";
-        for (const auto &shape : inputShapes) {
-            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        if (inputShapes.front().first.size() != 0) {
+            result << "IS=(";
+            for (const auto &shape : inputShapes) {
+                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+            }
+            result.seekp(-1, result.cur);
+            result << ")_";
         }
-        result.seekp(-1, result.cur);
-        result << ")_";
         result << "TS=";
         for (const auto &shape : inputShapes) {
             for (const auto &item : shape.second) {
@@ -58,9 +56,7 @@ protected:
         std::vector<InputShape> inputShapes;
         Precision netPrecision;
         int64_t axis;
-        std::map<std::string, std::string> config;
-        std::tie(inputShapes, netPrecision, axis, config) = this->GetParam();
-        configuration.insert(config.begin(), config.end());
+        std::tie(inputShapes, netPrecision, axis) = this->GetParam();
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         inType = outType = ngPrc;
@@ -85,16 +81,14 @@ TEST_P(LogSoftmaxLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-std::map<std::string, std::string> config{};
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         Precision::FP32
 };
 
 const std::vector<std::vector<InputShape>> inputShapes2D = {
         {
-                {{{-1, -1}, {{1, 100}, {100, 1}, {10, 10}}},
-                 {{-1, {1}}, {{1, 1}, {100, 1}, {10, 1}}}}
+                {{{-1, -1}, {{1, 100}, {100, 1}, {10, 10}}}},
+                {{{-1, {1}}, {{1, 1}, {100, 1}, {10, 1}}}}
         }
 };
 
@@ -105,16 +99,15 @@ const std::vector<int64_t> axis2D = {
 const auto params2D = testing::Combine(
         testing::ValuesIn(inputShapes2D),
         testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(axis2D),
-        testing::Values(config));
+        testing::ValuesIn(axis2D));
 
 INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax2D_dynamic, LogSoftmaxLayerCPUTest, params2D,
                          LogSoftmaxLayerCPUTest::getTestCaseName);
 
 const std::vector<std::vector<InputShape>> inputShapes4D = {
         {
-                {{{-1, -1, -1, -1}, {{1, 100, 1, 1}, {1, 3, 4, 3}, {2, 3, 4, 5}}},
-                 {{{1, 2}, -1, {1, 5}, -1}, {{1, 100, 1, 1}, {1, 3, 5, 3}, {2, 3, 4, 5}}}}
+                {{{-1, -1, -1, -1}, {{1, 100, 1, 1}, {1, 3, 4, 3}, {2, 3, 4, 5}}}},
+                {{{{1, 2}, -1, {1, 5}, -1}, {{1, 100, 1, 1}, {1, 3, 5, 3}, {2, 3, 4, 5}}}}
         }
 };
 
@@ -125,15 +118,10 @@ const std::vector<int64_t> axis4D = {
 const auto params4D = testing::Combine(
         testing::ValuesIn(inputShapes4D),
         testing::ValuesIn(netPrecisions),
-        testing::ValuesIn(axis4D),
-        testing::Values(config));
+        testing::ValuesIn(axis4D));
 
 INSTANTIATE_TEST_SUITE_P(smoke_LogSoftmax4D_dynamic, LogSoftmaxLayerCPUTest, params4D,
                          LogSoftmaxLayerCPUTest::getTestCaseName);
 
 } // namespace
-
 } // namespace CPULayerTestsDefinitions
-} // namespace subgraph
-} // namespace test
-} // namespace ov
