@@ -119,9 +119,9 @@ struct EditorNode {
     EditorNode(std::string node_name) : m_node_name{std::move(node_name)} {}
     EditorNode(EditorOutput output) : m_output_name{std::move(output.m_output_name)} {}
     EditorNode(const int node_index) : m_node_index{node_index} {}
-    const std::string m_node_name = "";
-    const std::string m_output_name = "";
-    const int m_node_index = -1;
+    std::string m_node_name = "";
+    std::string m_output_name = "";
+    int m_node_index = -1;
 };
 }  // namespace onnx_editor
 }  // namespace ngraph

@@ -73,6 +73,9 @@ public:
     bool is_equal_data(Place::Ptr another) const override;
     std::vector<Place::Ptr> get_consuming_operations() const override;
 
+    void set_name(const std::string& new_name);
+    void set_name_for_dimension(size_t shape_dim_index, const std::string& dim_name);
+
 private:
     std::string m_name;
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
@@ -85,7 +88,8 @@ public:
     std::vector<std::string> get_names() const override;
 
     // internal usage
-    onnx_editor::EditorNode get_editor_node() const;
+    const onnx_editor::EditorNode& get_editor_node() const;
+    void set_name(const std::string& new_name);
 
     // external usage
     Place::Ptr get_output_port() const override;
@@ -122,5 +126,4 @@ private:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 }  // namespace frontend
-
 }  // namespace ngraph

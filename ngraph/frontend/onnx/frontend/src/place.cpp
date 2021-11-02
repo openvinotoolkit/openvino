@@ -181,6 +181,17 @@ std::vector<Place::Ptr> PlaceTensorONNX::get_consuming_operations() const {
     return consuming_ops;
 }
 
+void PlaceTensorONNX::set_name(const std::string& new_name) {
+    if (m_name == new_name)
+        return;
+    m_editor->set_tensor_name(m_name, new_name);
+    m_name = new_name;
+}
+
+void PlaceTensorONNX::set_name_for_dimension(size_t shape_dim_index, const std::string& dim_name) {
+    m_editor->set_name_for_dimension(m_name, shape_dim_index, dim_name);
+}
+
 PlaceOpONNX::PlaceOpONNX(const onnx_editor::EditorNode& node, std::shared_ptr<onnx_editor::ONNXModelEditor> editor)
     : m_node{node},
       m_editor{std::move(editor)} {}
@@ -193,7 +204,7 @@ std::vector<std::string> PlaceOpONNX::get_names() const {
     return {m_node.m_node_name};
 }
 
-onnx_editor::EditorNode PlaceOpONNX::get_editor_node() const {
+const onnx_editor::EditorNode& PlaceOpONNX::get_editor_node() const {
     return m_node;
 }
 
@@ -377,4 +388,9 @@ bool PlaceOpONNX::is_input() const {
 
 bool PlaceOpONNX::is_output() const {
     return false;
+}
+
+void PlaceOpONNX::set_name(const std::string& new_name) {
+    m_editor->set_node_name(m_node, new_name);
+    m_node.m_node_name = new_name;
 }
