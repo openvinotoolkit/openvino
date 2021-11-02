@@ -173,7 +173,7 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
             auto impl = getContextImpl(m_context);
             impl->acquire_lock();
             std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
-            eng->get_memory_statistics(&statistics);
+            statistics = eng->get_memory_statistics();
             impl->release_lock();
         }
         IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);

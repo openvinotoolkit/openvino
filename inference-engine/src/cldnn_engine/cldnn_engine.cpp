@@ -185,7 +185,7 @@ void clDNNEngine::UpdateStatistics(CLDNNRemoteCLContext::Ptr context) {
         auto impl = getContextImpl(context);
         impl->acquire_lock();
         std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
-        eng->get_memory_statistics(&statistics);
+        statistics = eng->get_memory_statistics();
         impl->release_lock();
 
         // if the same context exists, the statistics is replaced with the latest one
