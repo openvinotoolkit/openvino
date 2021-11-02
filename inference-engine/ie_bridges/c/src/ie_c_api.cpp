@@ -420,7 +420,7 @@ IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, 
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || network == nullptr || device_name == nullptr || exe_network == nullptr) {
+    if (core == nullptr || network == nullptr || device_name == nullptr || config == nullptr ||exe_network == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
