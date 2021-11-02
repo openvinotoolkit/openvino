@@ -3,7 +3,9 @@
 //
 
 #include "frontend_manager/extension.hpp"
+#include "so_extension.hpp"
 #include "../../../../thirdparty/nlohmann/json/json.hpp"
+#include "../../../core/src/so_extension.hpp"
 
 
 using namespace ngraph;
@@ -65,11 +67,12 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path) :
     OPENVINO_ASSERT(config_json.size() == 1, "JSON config with only one section can be processed. Found none or multiple sections, not one.");
     auto library = config_json[0]["library"];
     auto extension_id = config_json[0]["id"];
-    std::cerr << "Trying to load library " << library;
-    m_loaded_extensions = ov::detail::load_extensions(library);
-    std::cerr << "Loaded extensions successfully";
+    m_loaded_extensions = ov::detail::load_extensions(std::string(library));
 
-    for(auto extension: m_loaded_extensions) {
+    for(auto ext: m_loaded_extensions) {
+        auto so_extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext);
+        OPENVINO_ASSERT(so_extension, "Unexpected extension type loaded from shared library.");
+        auto extension = so_extension->extension();
         if(auto json_ext = std::dynamic_pointer_cast<JsonTransformationExtension>(extension)){
             if(json_ext->id() == extension_id) {
                 OPENVINO_ASSERT(!m_target_extension, "Multiple sections with the same ID were found, the only one is allowed.");
@@ -81,10 +84,8 @@ JsonConfigExtension::JsonConfigExtension(const std::string& config_path) :
 }
 
 JsonConfigExtension::~JsonConfigExtension () {
-    // reset is required here prior unload_extensions, because
-    // there shouldn't be any alive references before the unloading
+    // Reset is required here prior unload_extensions, because
+    // there shouldn't be any alive references before the unloading the library.
+    // Doing it here explicitly to avoid relying on order of class fields definition
     m_target_extension.reset();
-
-    // TODO: Delete this call and rework initialization part as master version has changed
-    //ov::detail::unload_extensions(m_loaded_extensions);
 }

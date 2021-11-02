@@ -27,7 +27,6 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_remote_context.hpp"
-#include "load_extensions.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -398,9 +397,7 @@ public:
         opsetNames.insert("opset8");
     }
 
-    ~CoreImpl() override {
-        ov::detail::unload_extensions(ov_extensions);
-    }
+    ~CoreImpl() override = default;
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
