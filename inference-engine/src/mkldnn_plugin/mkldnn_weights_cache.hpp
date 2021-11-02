@@ -42,7 +42,7 @@ public:
     }
 
 protected:
-    static const int kTableSize = 256;
+    static constexpr int kTableSize = 256;
     uint64_t table[kTableSize];
 };
 
