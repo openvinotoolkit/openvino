@@ -153,6 +153,10 @@ Other general recommendations:
 -	If your application simultaneously performs inference of multiple models on the same CPU, make sure you do not oversubscribe the machine. See <a href="#running-multiple-requests-simultaneously">Performance Aspects of Running Multiple Requests Simultaneously</a> for more information.
 -	Notice that the heterogeneous execution might implicitly load the CPU. For details, refer to the <a href="#heterogeneity">Heterogeneity</a> section.
 - 	Consider [8-bit integer inference on the CPU](../IE_DG/Int8Inference.md).
+-   In order to save power, the OS can decrease the CPU frequency and increase a volatility of the latency values.  Similarly the Intel® Turbo Boost Technolog may also affect the stability of results. For best reproducibility, consider locking the frequency to the processor base frequency (refer to the https://ark.intel.com/ for your specific CPU). For example, in Linux setting the releveant values for the /sys/devices/system/cpu/cpu* entries does the trick. High-level commands like cpupower also exists:
+```bash
+$ cpupower frequency-set --min 3.1GHz
+```
 
 #### Throughput Mode for CPU <a name="cpu-streams"></a>
 Unlike most accelerators, CPU is perceived as an inherently latency-oriented device.
