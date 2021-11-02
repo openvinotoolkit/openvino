@@ -29,10 +29,11 @@ const std::vector<std::vector<size_t >> inputShapesBS2 = {
 };
 
 const auto DepthToSpaceBS2 = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(modes),
+                ::testing::Values(1, 2)),
         ::testing::ValuesIn(inputShapesBS2),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(modes),
-        ::testing::Values(1, 2),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
@@ -44,10 +45,11 @@ const std::vector<std::vector<size_t >> inputShapesBS3 = {
 };
 
 const auto DepthToSpaceBS3 = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(modes),
+                ::testing::Values(1, 3)),
         ::testing::ValuesIn(inputShapesBS3),
         ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(modes),
-        ::testing::Values(1, 3),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 

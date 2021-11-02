@@ -17,8 +17,7 @@ using DepthToSpaceInputShapes = std::pair<std::vector<ov::PartialShape>, std::ve
 using DepthToSpaceLayerCPUTestParamSet = std::tuple<
         DepthToSpaceInputShapes,                        // Input shape
         InferenceEngine::Precision,                     // Input precision
-        DepthToSpace::DepthToSpaceMode,                 // Mode
-        std::size_t,                                    // Block size
+        LayerTestsDefinitions::depthToSpaceSpecificParamsTuple,
         CPUSpecificParams
 >;
 
@@ -26,12 +25,14 @@ class DepthToSpaceLayerCPUTest : public testing::WithParamInterface<DepthToSpace
                                  virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceLayerCPUTestParamSet> obj) {
+        LayerTestsDefinitions::depthToSpaceSpecificParamsTuple d2sParams;
         DepthToSpaceInputShapes inputShapes;
         InferenceEngine::Precision inPrc;
         DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, inPrc, mode, blockSize, cpuParams) = obj.param;
+        std::tie(inputShapes, inPrc, d2sParams, cpuParams) = obj.param;
+        std::tie(mode, blockSize) = d2sParams;
 
         std::ostringstream results;
         if (!inputShapes.first.empty()) {
@@ -60,12 +61,14 @@ public:
     }
 protected:
     void SetUp() override {
+        LayerTestsDefinitions::depthToSpaceSpecificParamsTuple d2sParams;
         DepthToSpaceInputShapes inputShapes;
         InferenceEngine::Precision inPrc;
         DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, inPrc, mode, blockSize, cpuParams) = this->GetParam();
+        std::tie(inputShapes, inPrc, d2sParams, cpuParams) = this->GetParam();
+        std::tie(mode, blockSize) = d2sParams;
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
@@ -166,8 +169,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS2_4D, DepthToSpaceLayerCPUTest,
                          testing::Combine(
                                  testing::ValuesIn(inputShapesBS2_4D),
                                  testing::ValuesIn(inputPrecisions),
-                                 testing::ValuesIn(depthToSpaceModes),
-                                 testing::Values(1, 2),
+                                 testing::Combine(
+                                         testing::ValuesIn(depthToSpaceModes),
+                                         testing::Values(1, 2)),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_4D))),
                          DepthToSpaceLayerCPUTest::getTestCaseName);
 
@@ -181,8 +185,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS3_4D, DepthToSpaceLayerCPUTest,
                          testing::Combine(
                                  testing::ValuesIn(inputShapesBS3_4D),
                                  testing::ValuesIn(inputPrecisions),
-                                 testing::ValuesIn(depthToSpaceModes),
-                                 testing::Values(1, 3),
+                                 testing::Combine(
+                                         testing::ValuesIn(depthToSpaceModes),
+                                         testing::Values(1, 3)),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_4D))),
                          DepthToSpaceLayerCPUTest::getTestCaseName);
 
@@ -216,8 +221,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS2_5D, DepthToSpaceLayerCPUTest,
                          testing::Combine(
                                  testing::ValuesIn(inputShapesBS2_5D),
                                  testing::ValuesIn(inputPrecisions),
-                                 testing::ValuesIn(depthToSpaceModes),
-                                 testing::Values(1, 2),
+                                 testing::Combine(
+                                         testing::ValuesIn(depthToSpaceModes),
+                                         testing::Values(1, 2)),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_5D))),
                          DepthToSpaceLayerCPUTest::getTestCaseName);
 
@@ -231,8 +237,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceStaticBS3_5D, DepthToSpaceLayerCPU
                          testing::Combine(
                                  testing::ValuesIn(inputShapesBS3_5D),
                                  testing::ValuesIn(inputPrecisions),
-                                 testing::ValuesIn(depthToSpaceModes),
-                                 testing::Values(1, 3),
+                                 testing::Combine(
+                                         testing::ValuesIn(depthToSpaceModes),
+                                         testing::Values(1, 3)),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_5D))),
                          DepthToSpaceLayerCPUTest::getTestCaseName);
 
@@ -281,8 +288,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamic4D, DepthToSpaceLayerCPUTes
                          testing::Combine(
                                  testing::ValuesIn(inputShapes4D),
                                  testing::ValuesIn(inputPrecisions),
-                                 testing::ValuesIn(depthToSpaceModes),
-                                 testing::Values(1, 2, 3),
+                                 testing::Combine(
+                                         testing::ValuesIn(depthToSpaceModes),
+                                         testing::Values(1, 2, 3)),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParams))),
                          DepthToSpaceLayerCPUTest::getTestCaseName);
 
@@ -290,8 +298,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamic5D, DepthToSpaceLayerCPUTes
                          testing::Combine(
                                  testing::ValuesIn(inputShapes5D),
                                  testing::ValuesIn(inputPrecisions),
-                                 testing::ValuesIn(depthToSpaceModes),
-                                 testing::Values(1, 2, 3),
+                                 testing::Combine(
+                                         testing::ValuesIn(depthToSpaceModes),
+                                         testing::Values(1, 2, 3)),
                                  testing::ValuesIn(filterCPUInfoForDevice(CPUParams))),
                          DepthToSpaceLayerCPUTest::getTestCaseName);
 
