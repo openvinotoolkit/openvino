@@ -514,6 +514,72 @@ static RefPreprocessParams convert_layout_nhwc_to_net_no_tensor_shape() {
     return res;
 }
 
+static RefPreprocessParams convert_layout_by_dims() {
+    RefPreprocessParams res("convert_layout_by_dims");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 3, 2, 2});
+        f = PrePostProcessor()
+                .input(InputInfo()
+                               .preprocess(PreProcessSteps().convert_layout({0, 3, 1, 2})))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams convert_layout_by_dims_multi() {
+    RefPreprocessParams res("convert_layout_by_dims_multi");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, {1, 3, 2, 2});
+        auto p = PreProcessSteps();
+        p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
+        p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
+        f = PrePostProcessor()
+                .input(InputInfo().preprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
+                                                                                4,  5,  6,       // [H=0, W=1]
+                                                                                7,  8,  9,       // [H=1, W=0]
+                                                                                10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
+                                                                                  2, 5, 8, 11,    // G
+                                                                                  3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams convert_layout_by_dims_multi_layout() {
+    RefPreprocessParams res("convert_layout_by_dims_multi_layout");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, {1, 3, 2, 2});
+        auto p = PreProcessSteps();
+        p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
+        p.mean({1, 2, 2});              // Apply means to 'C' channel
+        p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
+        f = PrePostProcessor()
+                .input(InputInfo().tensor(InputTensorInfo().set_layout("N??C"))
+                               .preprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                4,  5,  6,       // [H=0, W=1]
+                                                                                7,  8,  9,       // [H=1, W=0]
+                                                                                10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1-1, 4-1, 7-1, 10-1,     // R
+                                                                                  2-2, 5-2, 8-2, 11-2,    // G
+                                                                                  3-2, 6-2, 9-2, 12-2});  // B
+    return res;
+}
+
 static RefPreprocessParams resize_and_convert_layout() {
     RefPreprocessParams res("resize_and_convert_layout");
     res.function = []() {
@@ -719,6 +785,48 @@ static RefPreprocessParams postprocess_2_inputs_basic() {
     return res;
 }
 
+static RefPreprocessParams post_convert_layout_by_dims() {
+    RefPreprocessParams res("post_convert_layout_by_dims");
+    res.function = []() {
+        auto f = create_simple_function(element::u8, {1, 2, 2, 3});
+        f = PrePostProcessor()
+                .output(OutputInfo()
+                               .postprocess(PostProcessSteps().convert_layout({0, 3, 1, 2})))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
+                                                                                 4,  5,  6,       // [H=0, W=1]
+                                                                                 7,  8,  9,       // [H=1, W=0]
+                                                                                 10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::u8, std::vector<uint8_t>{1, 4, 7, 10,    // R
+                                                                                   2, 5, 8, 11,    // G
+                                                                                   3, 6, 9, 12});  // B
+    return res;
+}
+
+static RefPreprocessParams post_convert_layout_by_dims_multi() {
+    RefPreprocessParams res("post_convert_layout_by_dims_multi");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, {1, 2, 2, 3});
+        auto p = PostProcessSteps();
+        p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
+        p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
+        f = PrePostProcessor()
+                .output(OutputInfo().postprocess(std::move(p)))
+                .build(f);
+        return f;
+    };
+    res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
+                                                                                4,  5,  6,       // [H=0, W=1]
+                                                                                7,  8,  9,       // [H=1, W=0]
+                                                                                10, 11, 12});    // [H=1, W=1]
+    res.expected.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1, 4, 7, 10,    // R
+                                                                                  2, 5, 8, 11,    // G
+                                                                                  3, 6, 9, 12});  // B
+    return res;
+}
+
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
@@ -862,12 +970,17 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         resize_lvalues(),
         convert_layout_nhwc_to_nchw_lvalue(),
         convert_layout_nhwc_to_net_no_tensor_shape(),
+        convert_layout_by_dims(),
+        convert_layout_by_dims_multi(),
+        convert_layout_by_dims_multi_layout(),
         resize_and_convert_layout(),
         convert_color_nv12_to_bgr_two_planes(),
         convert_color_nv12_single_plane(),
         convert_color_nv12_layout_resize(),
         element_type_before_convert_color_nv12(),
         postprocess_2_inputs_basic(),
+        post_convert_layout_by_dims(),
+        post_convert_layout_by_dims_multi(),
         pre_and_post_processing(),
         rgb_to_bgr(),
         bgr_to_rgb(),

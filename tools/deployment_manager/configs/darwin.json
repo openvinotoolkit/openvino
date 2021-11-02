@@ -56,10 +56,10 @@
       "group": ["opencv"],
       "dependencies" : [],
       "files": [
-        "opencv/version.txt",
-        "opencv/setupvars.sh",
-        "opencv/lib",
-        "opencv/bin"
+        "extras/opencv/version.txt",
+        "extras/opencv/setupvars.sh",
+        "extras/opencv/lib",
+        "extras/opencv/bin"
       ]
     },
     "python_common": {

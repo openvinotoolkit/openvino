@@ -283,7 +283,7 @@ size_t ov::element::Type::bitwidth() const {
     return get_type_info(m_type).m_bitwidth;
 }
 
-size_t compiler_byte_size(ov::element::Type_t et) {
+inline size_t compiler_byte_size(ov::element::Type_t et) {
     switch (et) {
 #define ET_CASE(et)               \
     case ov::element::Type_t::et: \
