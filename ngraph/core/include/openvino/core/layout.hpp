@@ -20,8 +20,9 @@ class Layout;
 namespace layout {
 
 std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& src_shape_rank, const Layout& dst_layout);
+Layout apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
 
-}
+}  // namespace layout
 
 class OPENVINO_API Layout {
 public:
@@ -40,7 +41,7 @@ public:
     /// - partial layout specialization:
     ///   - "NC?" defines 3 dimensional layout, first two NC, 3rd one is not defined
     ///   - "N...C" defines layout with dynamic rank where 1st dimension is N, last one is C
-    ///   - "N...C" defines layout with dynamic rank where first two are NC, others are not
+    ///   - "NC..." defines layout with dynamic rank where first two are NC, others are not
     ///   defined
     /// - only order of dimensions "adbc" (0312)
     /// - Advanced syntax can be used for multi-character names like "[N,C,H,W,...,CustomName]"
@@ -84,6 +85,8 @@ private:
     int64_t m_left_size = 0;
     int64_t m_right_size = 0;
 
+    friend Layout layout::apply_permutation(const Layout& src_layout, const std::vector<uint64_t>& dims);
+
     friend std::vector<int64_t> layout::find_permutation(const Layout& src_layout,
                                                          const Rank& src_shape_rank,
                                                          const Layout& dst_layout);
@@ -98,7 +101,7 @@ OPENVINO_API bool has_batch(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t batch(const Layout& layout);
+OPENVINO_API std::int64_t batch_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'channels' dimension
 ///
@@ -110,7 +113,7 @@ OPENVINO_API bool has_channels(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t channels(const Layout& layout);
+OPENVINO_API std::int64_t channels_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'depth' dimension
 OPENVINO_API bool has_depth(const Layout& layout);
@@ -119,7 +122,7 @@ OPENVINO_API bool has_depth(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t depth(const Layout& layout);
+OPENVINO_API std::int64_t depth_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'height' dimension
 OPENVINO_API bool has_height(const Layout& layout);
@@ -128,7 +131,7 @@ OPENVINO_API bool has_height(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t height(const Layout& layout);
+OPENVINO_API std::int64_t height_idx(const Layout& layout);
 
 /// \brief Checks if layout has 'width' dimension
 OPENVINO_API bool has_width(const Layout& layout);
@@ -137,7 +140,7 @@ OPENVINO_API bool has_width(const Layout& layout);
 ///
 /// \throws ov::AssertFailure if dimension doesn't exist.
 ///
-OPENVINO_API std::int64_t width(const Layout& layout);
+OPENVINO_API std::int64_t width_idx(const Layout& layout);
 
 }  // namespace layout
 
@@ -161,15 +164,15 @@ protected:
     std::string m_dump;
 };
 
-template <>
-class OPENVINO_API VariantWrapper<Layout> : public VariantImpl<Layout> {
+class OPENVINO_API LayoutAttribute : public VariantImpl<Layout> {
 public:
-    static constexpr VariantTypeInfo type_info{"Variant::Layout", 0};
-    const VariantTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("layout", "0");
 
-    explicit VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+    LayoutAttribute() = default;
+
+    explicit LayoutAttribute(const Layout& value) : VariantImpl<Layout>(value) {}
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 }  // namespace ov

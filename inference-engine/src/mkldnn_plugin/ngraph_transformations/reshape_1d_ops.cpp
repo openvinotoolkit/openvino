@@ -15,7 +15,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-namespace Reshape1DOps {
+namespace {
 template <class BaseOp>
 std::shared_ptr<ngraph::Node> convert(const ngraph::Output<ngraph::Node> & data, std::shared_ptr<BaseOp> node, ngraph::NodeVector &new_ops) {
     auto new_strides = node->get_strides();
@@ -177,7 +177,7 @@ ngraph::matcher_pass_callback get_callback() {
         return true;
     };
 }
-} // namespace Reshape1DOps
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DConvolution, "Reshape1DConvolution", 0);
 
@@ -186,7 +186,7 @@ MKLDNNPlugin::Reshape1DConvolution::Reshape1DConvolution() {
     auto weights = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto conv = ngraph::pattern::wrap_type<ngraph::opset1::Convolution>({ activations, weights });
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
-    this->register_matcher(m, Reshape1DOps::get_callback());
+    this->register_matcher(m, get_callback());
 }
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DGroupConvolution, "Reshape1DGroupConvolution", 0);
@@ -196,7 +196,7 @@ MKLDNNPlugin::Reshape1DGroupConvolution::Reshape1DGroupConvolution() {
     auto weights = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto group_conv = ngraph::pattern::wrap_type<ngraph::opset1::GroupConvolution>({ activations, weights });
     auto m = std::make_shared<ngraph::pattern::Matcher>(group_conv, "Reshape1DGroupConvolution");
-    this->register_matcher(m, Reshape1DOps::get_callback());
+    this->register_matcher(m, get_callback());
 }
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
@@ -205,7 +205,7 @@ MKLDNNPlugin::Reshape1DAvgPool::Reshape1DAvgPool() {
     auto input = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto pool = ngraph::pattern::wrap_type<ngraph::opset1::AvgPool>({ input });
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DAvgPool");
-    this->register_matcher(m, Reshape1DOps::get_callback());
+    this->register_matcher(m, get_callback());
 }
 
 NGRAPH_RTTI_DEFINITION(MKLDNNPlugin::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
@@ -214,5 +214,5 @@ MKLDNNPlugin::Reshape1DMaxPool::Reshape1DMaxPool() {
     auto input = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
     auto pool = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>({ input });
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
-    this->register_matcher(m, Reshape1DOps::get_callback());
+    this->register_matcher(m, get_callback());
 }

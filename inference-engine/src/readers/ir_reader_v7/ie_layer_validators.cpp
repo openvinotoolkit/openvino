@@ -1146,7 +1146,7 @@ void BucketizeValidator::checkShapes(const CNNLayer* layer, const vector<SizeVec
     const size_t INPUT_BOUNDARIES_PORT = 1;
 
     Precision input_tensor_precision = layer->insData[INPUT_TENSOR_PORT].lock()->getTensorDesc().getPrecision();
-    if (input_tensor_precision != Precision::I32 || input_tensor_precision != Precision::FP32)
+    if (input_tensor_precision != Precision::I32 && input_tensor_precision != Precision::FP32)
         IE_THROW() << layer->name << " Incorrect input tensor precision. Only I32 and FP32 are supported!";
     Precision input_boundaries_precision = layer->insData[INPUT_BOUNDARIES_PORT].lock()->getTensorDesc().getPrecision();
     if (input_boundaries_precision != Precision::FP32)
@@ -2162,8 +2162,8 @@ void ScatterUpdateValidator::checkShapes(const CNNLayer* layer, const vector<Siz
     if (inShapes[UPDATES].size() != inShapes[INDICES].size() + inShapes[DATA].size() - 1)
         IE_THROW() << layer->name << " Incorrect number of 'indexes' and 'updates' tensors dimension";
 
-    Precision inIdxPrecision = layer->insData[INDICES].lock()->getTensorDesc().getPrecision();
-    if (inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
+    Precision inIndicesPrecision = layer->insData[INDICES].lock()->getTensorDesc().getPrecision();
+    if (inIndicesPrecision != Precision::I32 && inIndicesPrecision != Precision::I64)
         IE_THROW() << layer->name << " Incorrect input 'Indices' precision. Only I32 or I64 are supported!";
 
     Precision inAxisPrecision = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();

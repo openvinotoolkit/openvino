@@ -14,6 +14,8 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
+namespace {
+
 // implementation taken from Caffe2
 template <typename T>
 struct PreCalc {
@@ -303,6 +305,8 @@ void reorder_rois(const float *rois, const int* ids, int* mapping, const int roi
         level_counter[level]++;
     }
 }
+
+} // namespace
 
 bool MKLDNNExperimentalDetectronROIFeatureExtractorNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
                                                                               std::string& errorMessage) noexcept {
