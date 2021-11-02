@@ -67,7 +67,7 @@ void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
 
     const auto& TRANSLATE_OP_MAP = m_op_translators;
     if (no_conversion) {
-        const std::set<std::string> required_types{"Placeholder", "_Retval", "NoOp"};
+        const std::set<std::string> required_types{"Placeholder", "NoOp"};
         for (const auto& name : required_types) {
             translate_map.emplace(name, TRANSLATE_OP_MAP.at(name));
         }
