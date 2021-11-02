@@ -14,13 +14,17 @@ class MKLDNNPadNode : public MKLDNNNode {
 public:
     MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void prepareParams() override;
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
     enum PadMode {
@@ -50,12 +54,17 @@ private:
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
         InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
+        std::vector<unsigned int> padsBegin;
+        std::vector<unsigned int> padsEnd;
         int nThreads = 0;
         size_t nDimsForWork = 0lu;
         size_t workAmount = 0lu;
         size_t lastDstDim = 1lu;
         size_t shift = 0lu;
         uint8_t sizeData = 1;
+        int defBeginIdx;
+        int beginIdx;
+        int endIdx;
     } params;
 
     template<typename T>
@@ -65,13 +74,16 @@ private:
         }
     };
 
-    std::string errorPrefix;
-    static const size_t DATA_ID = 0;
-    static const size_t PADS_BEGIN_ID = 1;
-    static const size_t PADS_END_ID = 2;
-    static const size_t PAD_VALUE_ID = 3;
+    static constexpr size_t DATA_ID = 0lu;
+    static constexpr size_t PADS_BEGIN_ID = 1lu;
+    static constexpr size_t PADS_END_ID = 2lu;
+    static constexpr size_t PAD_VALUE_ID = 3lu;
 
     bool isPadValueSpecified = false;
+    bool arePadsInitForCollapse = false;
+
+    MKLDNNMemoryPtr srcMemPtr;
+    MKLDNNMemoryPtr dstMemPtr;
 };
 
 }  // namespace MKLDNNPlugin
