@@ -39,7 +39,7 @@ CASCADE_MAP = Dict({
 
 @pytest.mark.parametrize(
     'model_name, model_framework, target_device', TEST_MODELS,
-    ids=['{}_{}'.format(m[0], m[1], m[2]) for m in TEST_MODELS])
+    ids=['{}_{}'.format(m[0], m[1]) for m in TEST_MODELS])
 def test_build_quantization_graph(tmp_path, models, model_name, model_framework, target_device):
     model = models.get(model_name, model_framework, tmp_path)
     model = load_model(model.model_params, target_device=target_device)
