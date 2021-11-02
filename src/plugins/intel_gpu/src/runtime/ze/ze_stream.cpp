@@ -129,17 +129,22 @@ ze_stream::ze_stream(const ze_engine& engine) : stream(engine.configuration().qu
     if (sync_method == sync_methods::none && config.queue_type == queue_types::out_of_order) {
         throw std::runtime_error("[CLDNN] Unexpected sync method (none) is specified for out_of_order queue");
     }
-
+    /*
     ze_command_queue_desc_t command_queue_desc = {};
     command_queue_desc.flags = 0;
     command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
-
     command_queue_desc.pNext = nullptr;
     command_queue_desc.mode = config.queue_type == queue_types::out_of_order ? ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS : ZE_COMMAND_QUEUE_MODE_SYNCHRONOUS;
     command_queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-
     ZE_CHECK(zeCommandListCreateImmediate(context, device, &command_queue_desc, &_command_list));
-
+    /*/
+    ze_command_list_desc_t command_list_desc = {};
+    command_list_desc.flags = 0;
+    command_list_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
+    command_list_desc.pNext = nullptr;
+    ZE_CHECK(zeCommandListCreate(context, device, &command_list_desc, &_command_list));
+    //zeCommandQueueSynchronize
+    //*/
     ze_event_pool_desc_t event_pool_desc = {
         ZE_STRUCTURE_TYPE_EVENT_POOL_DESC,
         nullptr,
@@ -230,15 +235,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                     set_output_event ? ret_ev : nullptr,
                                     dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
                                     dep_events_ptr == nullptr ? 0 : &dep_events_ptr->at(0)));
-    // ze_event_handle_t ret_ev2;
-    // ze_event_desc_t eventDesc2 = {
-    //     ZE_STRUCTURE_TYPE_EVENT_DESC,
-    //     nullptr,
-    //     event_idx++ % 100,       // index
-    //     0,                       // no additional memory/cache coherency required on signal
-    //     ZE_EVENT_SCOPE_FLAG_DEVICE // ensure memory coherency across device and Host after event completes
-    // };
-    // zeEventCreate(_event_pool, &eventDesc2, &ret_ev2);
+
     // zeCommandListAppendBarrier(get_queue(), ret_ev2, 0, nullptr);
     // zeEventHostSynchronize(ret_ev2, 0);
     return std::make_shared<ze_event>(ret_ev, ++_queue_counter);
@@ -332,7 +329,50 @@ ze_event::ptr ze_stream::create_base_event() {
 }
 
 void ze_stream::flush() const {
+    //zeCommandQueueSynchronize
     ZE_CHECK(zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr));
+    ZE_CHECK(zeCommandListClose(_command_list));
+    ze_command_queue_desc_t commandQueueDesc = {
+        ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC ,
+        nullptr,
+        0,
+        0,
+        0,
+        ZE_COMMAND_QUEUE_MODE_DEFAULT ,
+        ZE_COMMAND_QUEUE_PRIORITY_NORMAL
+    };
+    ze_command_queue_handle_t hCommandQueue;
+    ZE_CHECK(zeCommandQueueCreate(_engine.get_context(), _engine.get_device(), &commandQueueDesc, &hCommandQueue));
+
+    std::vector<ze_command_list_handle_t> vec_command_list;
+    vec_command_list.push_back(_command_list);
+
+    ze_fence_desc_t fenceDesc = {
+        ZE_STRUCTURE_TYPE_FENCE_DESC ,
+        nullptr,
+        0
+    };
+    ze_fence_handle_t hFence;
+    ZE_CHECK(zeFenceCreate(hCommandQueue, &fenceDesc, & hFence));
+    //ZE_CHECK(zeCommandListAppendBarrier(get_queue(), nullptr, 0, nullptr));
+    ZE_CHECK(zeCommandQueueExecuteCommandLists(hCommandQueue, 1, &vec_command_list.at(0), hFence));//hFence
+    //ZE_CHECK(zeCommandQueueSynchronize(_command_list, 0));
+
+    //ZE_CHECK(zeCommandQueueSynchronize(hCommandQueue, UINT32_MAX));
+    // ze_event_handle_t ret_ev;
+    // ze_event_desc_t eventDesc = {
+    //     ZE_STRUCTURE_TYPE_EVENT_DESC,
+    //     nullptr,
+    //     (event_idx+1) % 100,                 // index
+    //     0,                         // no additional memory/cache coherency required on signal
+    //     ZE_EVENT_SCOPE_FLAG_DEVICE // ensure memory coherency across device and Host after event completes
+    // };
+    // ZE_CHECK(zeEventCreate(_event_pool, &eventDesc, &ret_ev));
+    // ZE_CHECK(zeEventHostSynchronize(ret_ev, UINT32_MAX));
+    //ZE_CHECK(zeCommandListReset(_command_list));
+    ZE_CHECK(zeFenceHostSynchronize(hFence, UINT32_MAX));
+    //ZE_CHECK(zeCommandListReset(_command_list));
+    //ZE_CHECK(zeFenceReset(hFence));
 }
 
 void ze_stream::finish() const {
@@ -343,9 +383,10 @@ void ze_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())
         return;
 
-    std::vector<ze::ze_base_event> clevents;
+    std::vector<ze::ze_base_event> _ze_events;
     for (auto& ev : events) {
         if (auto ze_base_ev = dynamic_cast<ze_base_event*>(ev.get())) {
+            //_ze_events.push_back(ze_base_ev->get());
             ZE_CHECK(zeEventHostSynchronize(ze_base_ev->get(), 0));
         }
     }
@@ -375,17 +416,16 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
     if (needs_barrier) {
         //try {
             if (is_output) {
-                ze_event_desc_t event_desc = {
-                    ZE_STRUCTURE_TYPE_EVENT_DESC,
-                    nullptr,
-                    event_idx++ % 100,         // index
-                    0,                         // no additional memory/cache coherency required on signal
-                    ZE_EVENT_SCOPE_FLAG_DEVICE // ensure memory coherency across device and Host after event completes
-                };
-                ze_event_handle_t event;
-                ZE_CHECK(zeEventCreate(_event_pool, &event_desc, &event));
-                ZE_CHECK(zeCommandListAppendBarrier(_command_list, event, 0, nullptr));
-
+                // ze_event_desc_t event_desc = {
+                //     ZE_STRUCTURE_TYPE_EVENT_DESC,
+                //     nullptr,
+                //     event_idx++ % 100,         // index
+                //     0,                         // no additional memory/cache coherency required on signal
+                //     ZE_EVENT_SCOPE_FLAG_DEVICE // ensure memory coherency across device and Host after event completes
+                // };
+                //ze_event_handle_t event;
+                //ZE_CHECK(zeEventCreate(_event_pool, &event_desc, &event));
+                ZE_CHECK(zeCommandListAppendBarrier(_command_list, _last_barrier_ev, 0, nullptr));
             } else {
                 ZE_CHECK(zeCommandListAppendBarrier(_command_list, nullptr, 0, nullptr));
             }
