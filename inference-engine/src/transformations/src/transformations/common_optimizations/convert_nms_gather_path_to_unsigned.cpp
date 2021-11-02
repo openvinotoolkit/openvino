@@ -19,7 +19,7 @@
 using namespace ngraph;
 using namespace std;
 
-class InitNMSPath: public ngraph::pass::MatcherPass {
+class InitNMSPath: public pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -46,7 +46,7 @@ public:
 NGRAPH_RTTI_DEFINITION(InitNMSPath, "InitNMSPath", 0);
 
 
-class PropagateNMSPath : public ngraph::pass::MatcherPass {
+class PropagateNMSPath: public pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -81,7 +81,7 @@ public:
 
 NGRAPH_RTTI_DEFINITION(PropagateNMSPath, "PropagateNMSPath", 0);
 
-class UpdateConvertGather : public ngraph::pass::MatcherPass {
+class UpdateConvertGather: public pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
@@ -117,11 +117,10 @@ public:
 
 NGRAPH_RTTI_DEFINITION(UpdateConvertGather, "UpdateConvertGather", 0);
 
-ngraph::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
+pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
     add_matcher<InitNMSPath>();
     add_matcher<PropagateNMSPath>();
     add_matcher<UpdateConvertGather>();
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNmsGatherPathToUnsigned,
-                       "ConvertNmsGatherPathToUnsigned", 0);
+NGRAPH_RTTI_DEFINITION(pass::ConvertNmsGatherPathToUnsigned, "ConvertNmsGatherPathToUnsigned", 0);
