@@ -18,6 +18,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
     steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
 
     steps.def(py::init<>());
+
     steps.def(
         "mean",
         [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, float value) {
@@ -139,6 +140,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
     info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
 
     info.def(py::init<>());
+
     info.def(
         "set_element_type",
         [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, const ov::element::Type& type) {
@@ -168,9 +170,29 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
     py::class_<ov::preprocess::OutputTensorInfo, std::shared_ptr<ov::preprocess::OutputTensorInfo>> info(
         m,
         "OutputTensorInfo");
-    info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::OutputTensorInfo";
+    info.doc() = "openvino.impl.preprocess.OutputTensorInfo wraps ov::preprocess::OutputTensorInfo";
 
     info.def(py::init<>());
+
+    info.def(
+        "set_element_type",
+        [](const std::shared_ptr<ov::preprocess::OutputTensorInfo>& me, const ov::element::Type& type) {
+            me->set_element_type(type);
+            return me;
+        },
+        py::arg("type"),
+        R"(
+                Set client's output tensor element type. If type is not the same as network's element type,
+                conversion of element type will be done automatically.
+                Parameters
+                ----------
+                type : Type
+                    Client's output tensor element type.
+                Returns
+                ----------
+                tensor : OutputTensorInfo
+                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+              )");
     info.def("set_layout", [](const std::shared_ptr<ov::preprocess::OutputTensorInfo>& me, const ov::Layout& layout) {
         me->set_layout(layout);
         return me;
@@ -288,18 +310,49 @@ static void regclass_graph_OutputInfo(py::module m) {
         py::arg("output_netwok_info"));
 }
 
+static void regclass_graph_OutputNetworkInfo(py::module m) {
+    py::class_<ov::preprocess::OutputNetworkInfo, std::shared_ptr<ov::preprocess::OutputNetworkInfo>> info(
+        m,
+        "OutputNetworkInfo");
+    info.doc() = "openvino.impl.preprocess.OutputNetworkInfo wraps ov::preprocess::OutputNetworkInfo";
+
+    info.def(py::init<>());
+
+    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::OutputNetworkInfo>& me, const ov::Layout& layout) {
+        me->set_layout(layout);
+        return me;
+    });
+}
+
+static void regclass_graph_InputNetworkInfo(py::module m) {
+    py::class_<ov::preprocess::InputNetworkInfo, std::shared_ptr<ov::preprocess::InputNetworkInfo>> info(
+        m,
+        "InputNetworkInfo");
+    info.doc() = "openvino.impl.preprocess.InputNetworkInfo wraps ov::preprocess::InputNetworkInfo";
+
+    info.def(py::init<>());
+
+    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::InputNetworkInfo>& me, const ov::Layout& layout) {
+        me->set_layout(layout);
+        return me;
+    });
+}
+
 void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_PreProcessSteps(m);
     regclass_graph_InputInfo(m);
     regclass_graph_OutputInfo(m);
     regclass_graph_InputTensorInfo(m);
     regclass_graph_OutputTensorInfo(m);
+    regclass_graph_InputNetworkInfo(m);
+    regclass_graph_OutputNetworkInfo(m);
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");
     proc.doc() = "openvino.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
     proc.def(py::init<>());
+
     proc.def(
         "input",
         [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me,
@@ -314,6 +367,25 @@ void regclass_graph_PrePostProcessor(py::module m) {
                 ----------
                 input_info : InputInfo
                     Preprocessing info for input parameter. It's internal data will be moved to PreProcessing object.
+                Returns
+                ----------
+                in : PrePostProcessor
+                    Reference to itself to allow chaining of calls in client's code.
+              )");
+    proc.def(
+        "output",
+        [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me,
+           const std::shared_ptr<ov::preprocess::OutputInfo>& info) {
+            me->output(std::move(*info));
+            return me;
+        },
+        py::arg("output_info"),
+        R"(
+                Adds builder for preprocessing info for output parameter.
+                Parameters
+                ----------
+                output_info : OutputInfo
+                    Preprocessing info for output parameter. It's internal data will be moved to PreProcessing object.
                 Returns
                 ----------
                 in : PrePostProcessor
