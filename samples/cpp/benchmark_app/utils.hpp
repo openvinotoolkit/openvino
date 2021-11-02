@@ -61,7 +61,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(const std::
         if (end_pos == std::string::npos)
             break;
         if (start_pos)
-            input_name = search_string.substr(0, start_pos - 1);
+            input_name = search_string.substr(0, start_pos);
         auto input_value = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         if (!input_name.empty()) {
             return_value[input_name].push_back(input_value);
