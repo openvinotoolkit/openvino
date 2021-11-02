@@ -4,16 +4,14 @@
 
 #include "pyopenvino/core/profiling_info.hpp"
 
-#include "openvino/runtime/profiling_info.hpp"
-
 #include <pybind11/chrono.h>
+
+#include "openvino/runtime/profiling_info.hpp"
 
 namespace py = pybind11;
 
 void regclass_ProfilingInfo(py::module m) {
-    py::class_<ov::runtime::ProfilingInfo, std::shared_ptr<ov::runtime::ProfilingInfo>>(
-        m,
-        "ProfilingInfo")
+    py::class_<ov::runtime::ProfilingInfo, std::shared_ptr<ov::runtime::ProfilingInfo>>(m, "ProfilingInfo")
         .def(py::init<>())
         .def_readwrite("status", &ov::runtime::ProfilingInfo::status)
         .def_readwrite("real_time", &ov::runtime::ProfilingInfo::real_time)
