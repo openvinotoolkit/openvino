@@ -16,7 +16,7 @@
       "ROIFeatureExtractor2_output": "2751"
     },
     "id": "ONNXMaskRCNNReplacement",
-    "library": "where_transformation_with_id_implemented",
+    "library": "libfrontend_builtin_extensions.so",
     "match_kind": "general"
   }
 ]

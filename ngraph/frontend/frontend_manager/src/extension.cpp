@@ -35,14 +35,16 @@ public:
     }
 };
 
-DecoderTransformationExtension::DecoderTransformationExtension (std::function<bool(std::shared_ptr<ov::Function>)> function_pass) :
+DecoderTransformationExtension::DecoderTransformationExtension (
+        std::function<bool(std::shared_ptr<ov::Function>)> function_pass) :
     m_registration(
             [function_pass](ov::pass::Manager& manager) {
                 manager.register_pass<CustomFunctionPass>(function_pass);
             }) {}
 
 // Create a custom matcher pass where the code of matcher pass initialization is a given function.
-DecoderTransformationExtension::DecoderTransformationExtension (std::function<void(ov::pass::MatcherPass*)> matcher_pass_initializer) :
+DecoderTransformationExtension::DecoderTransformationExtension (
+        std::function<void(ov::pass::MatcherPass*)> matcher_pass_initializer) :
     m_registration(
             [matcher_pass_initializer](ov::pass::Manager& manager) {
                 manager.register_pass<CustomMatcherPass>(matcher_pass_initializer);
@@ -52,21 +54,37 @@ void DecoderTransformationExtension::register_pass (ov::pass::Manager& manager) 
     m_registration(manager);
 }
 
-JsonConfigExtension::JsonConfigExtension (const std::string& config_path) :
-    DecoderTransformationExtension([config_path](std::shared_ptr<ov::Function> f){
-        // TODO: Implement real code here
-        // This is a placeholder that just demonstrates basic steps of config-enabled transformation.
-        // Real transformation should do some pre-work to load a target transformation identified
-        // in json config file from a library file and then here just to call it.
-        // In this placeholder we do all the steps (partially synthetic) as a part of the transformation function itself
-        nlohmann::json config_json;
-        std::ifstream config_file(config_path);
-        config_file >>
-                    config_json;
-        std::cerr << "++++++++++++++ Read json: ++++++++++++++++\n" <<
-                  config_json;
+JsonConfigExtension::JsonConfigExtension(const std::string& config_path) :
+    DecoderTransformationExtension([this](std::shared_ptr<ov::Function> f) {
+        auto extension = std::dynamic_pointer_cast<JsonTransformationExtension>(m_target_extension);
+        return extension->transform(f, m_replacement_descriptions);
+    }) {
+    nlohmann::json config_json;
+    std::ifstream config_file(config_path);
+    config_file >> config_json;
+    OPENVINO_ASSERT(config_json.size() == 1, "JSON config with only one section can be processed. Found none or multiple sections, not one.");
+    auto library = config_json[0]["library"];
+    auto extension_id = config_json[0]["id"];
+    std::cerr << "Trying to load library " << library;
+    m_loaded_extensions = ov::detail::load_extensions(library);
+    std::cerr << "Loaded extensions successfully";
 
-        auto ops = f->get_ordered_ops();
-        std::cerr << "HELLO! Run on function with " << ops.size() << " nodes\n";
-        return true;
-    }) {}
+    for(auto extension: m_loaded_extensions) {
+        if(auto json_ext = std::dynamic_pointer_cast<JsonTransformationExtension>(extension)){
+            if(json_ext->id() == extension_id) {
+                OPENVINO_ASSERT(!m_target_extension, "Multiple sections with the same ID were found, the only one is allowed.");
+                m_target_extension = json_ext;
+            }
+        }
+    }
+    OPENVINO_ASSERT(m_target_extension, "No extension with a given ID from JSON config was found.");
+}
+
+JsonConfigExtension::~JsonConfigExtension () {
+    // reset is required here prior unload_extensions, because
+    // there shouldn't be any alive references before the unloading
+    m_target_extension.reset();
+
+    // TODO: Delete this call and rework initialization part as master version has changed
+    //ov::detail::unload_extensions(m_loaded_extensions);
+}

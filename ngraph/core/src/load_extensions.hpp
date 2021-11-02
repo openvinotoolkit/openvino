@@ -37,6 +37,7 @@ inline void unload_extensions(std::vector<Extension::Ptr>& extensions) {
         shared_objects.emplace_back(ex->so);
     }
     for (auto&& ex : extensions) {
+        // TODO: Should we check here that there is no other references to ex left? Hard to debug otherwise.
         ex.reset();
     }
 }
