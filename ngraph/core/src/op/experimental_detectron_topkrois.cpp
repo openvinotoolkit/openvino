@@ -4,6 +4,8 @@
 
 #include "ngraph/op/experimental_detectron_topkrois.hpp"
 
+#include <experimental_detectron_topkrois_shape_inference.hpp>
+
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -39,31 +41,8 @@ void op::v6::ExperimentalDetectronTopKROIs::validate_and_infer_types() {
     const auto input_rois_shape = get_input_partial_shape(0);
     const auto rois_probs_shape = get_input_partial_shape(1);
 
-    set_output_type(0, get_input_element_type(0), ov::Shape{m_max_rois, 4});
-
-    if (input_rois_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              input_rois_shape.rank().get_length() == 2,
-                              "The 'input_rois' input is expected to be a 2D. Got: ",
-                              input_rois_shape);
-        if (input_rois_shape.is_static()) {
-            NODE_VALIDATION_CHECK(this,
-                                  input_rois_shape[1] == 4,
-                                  "The second dimension of 'input_rois' should be 4. Got: ",
-                                  input_rois_shape[1]);
-        }
-    }
-    if (rois_probs_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              rois_probs_shape.rank().get_length() == 1,
-                              "The 'rois_probs' input is expected to be a 1D. Got: ",
-                              rois_probs_shape);
-    }
-    if (input_rois_shape.rank().is_static() && rois_probs_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              input_rois_shape[0] == rois_probs_shape[0],
-                              "Number of rois and number of probabilities should be equal. Got: ",
-                              input_rois_shape[0],
-                              rois_probs_shape[0]);
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {input_rois_shape, rois_probs_shape};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
