@@ -327,30 +327,23 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
         throw std::logic_error("Inputs Info for network is empty!");
     }
 
-    // add key to the map of files if input name was empty
-    for (auto& input : app_inputs_info[0]) {
-        if (!inputFiles.empty() && inputFiles.find("") != inputFiles.end() && !input.second.isImageInfo()) {
-            auto files = inputFiles.at("");
-            inputFiles.erase("");
-            inputFiles[input.first] = files;
+    if (!inputFiles.empty() && inputFiles.size() != app_inputs_info[0].size()) {
+        throw std::logic_error("Number of inputs specified in -i must be equal number of network inputs!");
+    }
+
+    auto inputFilesIt = inputFiles.begin();
+    auto inputInfoIt = app_inputs_info[0].begin();
+    for (size_t i = 0; i < inputFiles.size(); ++i) {
+        if (inputFilesIt->first != inputInfoIt->first) {
+            throw std::logic_error("Input name " + inputFilesIt->first +
+                                   " provided with -i doesn't correspond network input name " + inputInfoIt->first +
+                                   ".");
         }
+        inputFilesIt++;
+        inputInfoIt++;
     }
 
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
-    for (auto& inputs_info : app_inputs_info) {
-        for (auto& input : inputs_info) {
-            if (input.second.isImage()) {
-                net_input_im_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
-            } else if (input.second.isImageInfo()) {
-                // add image info name to the map<input_name, files> if it wasn't specified.
-                // thus we make sure that this input will be filled later.
-                if (!inputFiles.empty() && inputFiles.find(input.first) == inputFiles.end()) {
-                    inputFiles[input.first] = {""};
-                }
-            }
-        }
-    }
-
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
             throw std::logic_error("Input name" + files.first +
@@ -366,13 +359,16 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
                        << "' probably is image info. All files for this input will"
                           " be ignored."
                        << slog::endl;
+            files.second = {"input_info"};
             continue;
         } else {
             files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
         }
 
         if (files.second.empty()) {
-            throw std::logic_error("No suitable files for input found!");
+            slog::warn << "No suitable files for input found! Random data will be used for input " << input_name
+                       << slog::endl;
+            files.second = {"random"};
         }
 
         size_t filesToBeUsed = 0;
@@ -416,34 +412,51 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
                                     })
                        ->second.size();
     }
+    std::vector<size_t> batchSizes;
+
+    // align batch in case of ambigous inputs (like NC, where N is not a batch)
+    for (const auto& inputs_info : app_inputs_info) {
+        std::vector<size_t> batch;
+        for (auto& input = inputs_info.begin(); input != inputs_info.end(); ++input) {
+            batch.push_back(input->second.batch());
+        }
+        batchSizes.push_back(*std::min(batch.begin(), batch.end()));
+        batch.clear();
+    }
+
     for (const auto& files : inputFiles) {
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         size_t n_shape = 0, m_file = 0;
         while (n_shape < app_inputs_info.size() || m_file < filesNum) {
-            auto app_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
-            auto precision = app_info.precision;
+            auto input_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
+            auto precision = input_info.precision;
             size_t inputId = m_file % files.second.size();
-            size_t batchSize = app_info.batch();
+            size_t batchSize = input_info.batch();
 
             std::string blob_src_info;
-            if (app_info.isImage()) {
+            if (input_info.isImage()) {
                 // Fill with Images
                 blobs[input_name].push_back(
-                    getImageBlob(files.second, inputId, batchSize, {input_name, app_info}, &blob_src_info));
-            } else if (app_info.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
+                    getImageBlob(files.second, inputId, batchSize, {input_name, input_info}, &blob_src_info));
+            } else if (files.second[0] == "image_info") {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
                 blob_src_info =
                     "Image size blob " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
-                blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, app_info}));
+                blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
+            } else if (files.second[0] == "random") {
+                // Fill random
+                blob_src_info =
+                    "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
+                blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
             } else {
                 // Fill with binary files
                 blobs[input_name].push_back(
-                    getBinaryBlob(files.second, inputId, batchSize, {input_name, app_info}, &blob_src_info));
+                    getBinaryBlob(files.second, inputId, batchSize, {input_name, input_info}, &blob_src_info));
             }
 
             // Preparing info
-            std::stringstream strOut = getTestInfoStreamHeader(app_info);
+            std::stringstream strOut = getTestInfoStreamHeader(input_info);
             strOut << blob_src_info;
             if (n_shape >= logOutput.size()) {
                 logOutput.resize(n_shape + 1);
@@ -451,7 +464,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             logOutput[n_shape][input_name] += strOut.str();
 
             ++n_shape;
-            m_file += app_info.batch();
+            m_file += batchSizes[n_shape % app_inputs_info.size()];
         }
     }
 
@@ -485,6 +498,170 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
                 logOutput[n_shape][input.first] += strOut.str();
             }
             n_shape++;
+        }
+    }
+
+    for (int i = 0; i < logOutput.size(); i++) {
+        slog::info << "Test Config " << i << slog::endl;
+        auto maxNameWidth = std::max_element(logOutput[i].begin(),
+                                             logOutput[i].end(),
+                                             [](const std::pair<std::string, std::string>& a,
+                                                const std::pair<std::string, std::string>& b) {
+                                                 return a.first.size() < b.first.size();
+                                             })
+                                ->first.size();
+        for (auto inputLog : logOutput[i]) {
+            slog::info << std::left << std::setw(maxNameWidth + 2) << inputLog.first << inputLog.second << slog::endl;
+        }
+    }
+
+    return blobs;
+}
+
+std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCase(
+    const std::vector<std::string>& inputFiles,
+    const size_t& batchSize,
+    benchmark_app::InputsInfo& app_inputs_info,
+    size_t requestsNum) {
+    std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> blobs;
+
+    std::vector<std::pair<size_t, size_t>> input_image_sizes;
+    for (auto& item : app_inputs_info) {
+        if (item.second.isImage()) {
+            input_image_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
+        }
+        slog::info << "Network input '" << item.first << "' precision " << item.second.precision << ", dimensions ("
+                   << item.second.layout << "): ";
+        for (const auto& i : item.second.tensorShape) {
+            slog::info << i << " ";
+        }
+        slog::info << slog::endl;
+    }
+
+    size_t imageInputCount = input_image_sizes.size();
+    size_t binaryInputCount = app_inputs_info.size() - imageInputCount;
+
+    std::vector<std::string> binaryFiles;
+    std::vector<std::string> imageFiles;
+
+    if (inputFiles.empty()) {
+        slog::warn << "No input files were given: all inputs will be filled with "
+                      "random values!"
+                   << slog::endl;
+    } else {
+        binaryFiles = filterFilesByExtensions(inputFiles, supported_binary_extensions);
+        std::sort(std::begin(binaryFiles), std::end(binaryFiles));
+
+        auto binaryToBeUsed = binaryInputCount * batchSize * requestsNum;
+        if (binaryToBeUsed > 0 && binaryFiles.empty()) {
+            std::stringstream ss;
+            for (auto& ext : supported_binary_extensions) {
+                if (!ss.str().empty()) {
+                    ss << ", ";
+                }
+                ss << ext;
+            }
+            slog::warn << "No supported binary inputs found! Please check your file "
+                          "extensions: "
+                       << ss.str() << slog::endl;
+        } else if (binaryToBeUsed > binaryFiles.size()) {
+            slog::warn << "Some binary input files will be duplicated: " << binaryToBeUsed
+                       << " files are required but only " << binaryFiles.size() << " are provided" << slog::endl;
+        } else if (binaryToBeUsed < binaryFiles.size()) {
+            slog::warn << "Some binary input files will be ignored: only " << binaryToBeUsed << " are required from "
+                       << binaryFiles.size() << slog::endl;
+        }
+
+        imageFiles = filterFilesByExtensions(inputFiles, supported_image_extensions);
+        std::sort(std::begin(imageFiles), std::end(imageFiles));
+
+        auto imagesToBeUsed = imageInputCount * batchSize * requestsNum;
+        if (imagesToBeUsed > 0 && imageFiles.empty()) {
+            std::stringstream ss;
+            for (auto& ext : supported_image_extensions) {
+                if (!ss.str().empty()) {
+                    ss << ", ";
+                }
+                ss << ext;
+            }
+            slog::warn << "No supported image inputs found! Please check your file "
+                          "extensions: "
+                       << ss.str() << slog::endl;
+        } else if (imagesToBeUsed > imageFiles.size()) {
+            slog::warn << "Some image input files will be duplicated: " << imagesToBeUsed
+                       << " files are required but only " << imageFiles.size() << " are provided" << slog::endl;
+        } else if (imagesToBeUsed < imageFiles.size()) {
+            slog::warn << "Some image input files will be ignored: only " << imagesToBeUsed << " are required from "
+                       << imageFiles.size() << slog::endl;
+        }
+    }
+
+    std::map<std::string, std::vector<std::string>> mapped_files;
+    for (auto& input : app_inputs_info) {
+        if (input.second.isImage()) {
+            mapped_files[input.first] = imageFiles;
+        } else {
+            mapped_files[input.first] = binaryFiles;
+        }
+    }
+
+    size_t filesNum = 0;
+    if (!inputFiles.empty()) {
+        filesNum = std::max_element(mapped_files.begin(),
+                                    mapped_files.end(),
+                                    [](const std::pair<std::string, std::vector<std::string>>& a,
+                                       const std::pair<std::string, std::vector<std::string>>& b) {
+                                        return a.second.size() < b.second.size();
+                                    })
+                       ->second.size();
+    }
+    size_t test_configs_num = filesNum / batchSize == 0 ? 1 : filesNum / batchSize;
+    std::vector<std::map<std::string, std::string>> logOutput(test_configs_num);
+    for (const auto& files : mapped_files) {
+        size_t imageInputId = 0;
+        size_t binaryInputId = 0;
+        auto input_name = files.first;
+        auto input_info = app_inputs_info.at(files.first);
+        auto precision = input_info.precision;
+
+        for (size_t i = 0; i < test_configs_num; ++i) {
+            std::string blob_src_info;
+            if (input_info.isImage()) {
+                if (!imageFiles.empty()) {
+                    // Fill with Images
+                    blobs[input_name].push_back(
+                        getImageBlob(files.second, imageInputId, batchSize, {input_name, input_info}, &blob_src_info));
+                    imageInputId = (imageInputId + batchSize) % files.second.size();
+                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+                    continue;
+                }
+            } else {
+                if (!binaryFiles.empty()) {
+                    // Fill with binary files
+                    blobs[input_name].push_back(getBinaryBlob(files.second,
+                                                              binaryInputId,
+                                                              batchSize,
+                                                              {input_name, input_info},
+                                                              &blob_src_info));
+                    binaryInputId = (binaryInputId + batchSize) % files.second.size();
+                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+                    continue;
+                }
+                if (input_info.isImageInfo() && (input_image_sizes.size() == 1)) {
+                    // Most likely it is image info: fill with image information
+                    auto image_size = input_image_sizes.at(0);
+                    blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
+                                    std::to_string(image_size.second);
+                    blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
+                    logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+                    continue;
+                }
+                // Fill random
+                blob_src_info =
+                    "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
+                blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
+                logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
+            }
         }
     }
 

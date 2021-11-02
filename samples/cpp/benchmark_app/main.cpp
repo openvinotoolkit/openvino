@@ -727,15 +727,22 @@ int main(int argc, char* argv[]) {
         // create vector to store remote blobs buffer
         std::vector<::gpu::BufferType> clBuffer;
         if (isFlagSetInCommandLine("use_device_mem")) {
-            if (device_name.find("GPU") == 0) {
-            }
-            // inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
+            if (device_name.find("GPU") == 0)
+                inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
             else if (device_name.find("CPU") == 0)
-                inputsData = getBlobs(inputFiles, app_inputs_info);
+                if (app_inputs_info.size() == 1 && inputFiles.size() == 1) {  // old static case
+                    inputsData = getBlobsStaticCase(inputFiles.begin()->second, batchSize, app_inputs_info[0], nireq);
+                } else {
+                    inputsData = getBlobs(inputFiles, app_inputs_info);
+                }
             else
                 IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
         } else {
-            inputsData = getBlobs(inputFiles, app_inputs_info);
+            if (app_inputs_info.size() == 1 && inputFiles.size() == 1) { // old static case
+                inputsData = getBlobsStaticCase(inputFiles.begin()->second, batchSize, app_inputs_info[0], nireq);
+            } else {
+                inputsData = getBlobs(inputFiles, app_inputs_info);
+            }
         }
 
         // ----------------- 10. Measuring performance
@@ -792,8 +799,8 @@ int main(int argc, char* argv[]) {
         }
 
         if (isFlagSetInCommandLine("use_device_mem")) {
+            ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
         }
-        //::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
 
         if (FLAGS_api == "sync") {
             inferRequest->infer();
@@ -832,9 +839,8 @@ int main(int argc, char* argv[]) {
                 inferRequest->setBlob(input_name, data);
             }
 
-            if (isFlagSetInCommandLine("use_device_mem")) {
-            }
-            //::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
+            if (isFlagSetInCommandLine("use_device_mem"))
+                ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
 
             if (FLAGS_api == "sync") {
                 inferRequest->infer();
