@@ -12,8 +12,8 @@
 #include <openvino/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-
 #include <ngraph/pass/manager.hpp>
+
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -28,22 +28,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SliceToStridedSlice, "SliceToStridedSlice",
 using namespace ov;
 
 namespace {
-    Output<ov::Node> adjust_indices_if_needed(const Output<ov::Node>& indices,
-                                              const std::vector<int64_t>& axes,
-                                              size_t slice_indices_length,
-                                              int64_t fill_in_value,
-                                              NodeVector& new_ops) {
-    const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
-
-    const auto& indices_shape = indices.get_partial_shape();
-    // If length of slice indices vector is known
-    if (indices_shape.rank().is_static() && indices_shape.rank().get_length() == 1 && indices_shape[0].is_static()) {
-        if (indices_shape.size() >= slice_indices_length && are_axes_sorted) {
-            // Adjusting indices is not needed
-            new_ops.push_back(indices.get_node_shared_ptr());
-            return indices;
-        }
-    }
+    Output<ov::Node> align_indices(const Output<ov::Node>& indices,
+                                   const Output<ov::Node>& slice_axes,
+                                   const Output<ov::Node>& scatter_axis,
+                                   size_t slice_indices_length,
+                                   int64_t fill_in_value,
+                                   NodeVector& new_ops) {
     // Handle a case when starts/ends/steps lengths are less than provided axes
     // in order to ensure compatibility with `StridedSlice:v1` interface
     // Example:
@@ -55,13 +45,16 @@ namespace {
     // expected_output_shape: {3, 3, 1, 1}
 
     const auto default_indices = opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
-    const auto adjusted_indices = std::make_shared<opset8::ScatterUpdate>(
-                                                        default_indices,
-                                                        opset8::Constant::create(element::i64, Shape{axes.size()}, axes), // indices
-                                                        indices, // updates
-                                                        opset8::Constant::create(element::i32, Shape{1}, {0}));
-    new_ops.push_back(default_indices);
-    new_ops.push_back(adjusted_indices);
+    std::shared_ptr<ov::Node> adjusted_indices = std::make_shared<opset8::ScatterUpdate>(default_indices,
+                                                                                         slice_axes,
+                                                                                         indices, // updates
+                                                                                         scatter_axis);
+    std::shared_ptr<ov::Node> const_indices = get_constant_from_source(adjusted_indices);
+    if (const_indices) {
+        adjusted_indices = const_indices;
+    } else {
+        new_ops.insert(new_ops.end(), {default_indices, indices.get_node_shared_ptr()});
+    }
     return adjusted_indices;
 }
 
@@ -92,9 +85,9 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
         const auto stop_const = get_constant_from_source(slice_node->input_value(2));
         const auto step_const = get_constant_from_source(slice_node->input_value(3));
 
-        const auto& start_input = start_const ? start_const : slice_node->input_value(1);
-        const auto& stop_input = stop_const ? stop_const : slice_node->input_value(2);
-        const auto& step_input = step_const ? step_const : slice_node->input_value(3);
+        auto start_input = start_const ? start_const : slice_node->input_value(1);
+        auto stop_input = stop_const ? stop_const : slice_node->input_value(2);
+        auto step_input = step_const ? step_const : slice_node->input_value(3);
 
         std::shared_ptr<opset8::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
@@ -112,22 +105,32 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
             axes_vec = std::vector<int64_t>(norm_axes_vec.begin(), norm_axes_vec.end());
         } else {
             const bool need_normalization = std::any_of(axes_vec.begin(),
-                                     axes_vec.end(),
-                                     [](int64_t axis) {
-                                         return axis < 0;
-                                     });
+                                                        axes_vec.end(),
+                                                        [](int64_t axis) {
+                                                            return axis < 0;
+                                                        });
             if (need_normalization)
                 return false;
         }
         const size_t slice_indices_length = *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
         const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
-        NodeVector new_ops;
-        const auto& starts = adjust_indices_if_needed(start_input, axes_vec, slice_indices_length, 0, new_ops);
-        const auto& ends = adjust_indices_if_needed(stop_input, axes_vec, slice_indices_length, 0, new_ops);
-        const auto& steps = adjust_indices_if_needed(step_input, axes_vec, slice_indices_length, 1, new_ops);
+        const bool are_axes_sorted = std::is_sorted(axes_vec.begin(), axes_vec.end());
+        const bool are_indices_aligned = are_axes_sorted && (axes_vec.size() == slice_indices_length);
 
-        const auto strided_slice = std::make_shared<opset8::StridedSlice>(arg, starts, ends, steps, begin_end_mask, begin_end_mask);
+        NodeVector new_ops;
+        if (!are_indices_aligned) {
+            const auto scatter_axis = opset8::Constant::create(element::i32, Shape{1}, {0});
+            const auto slice_axes = opset8::Constant::create(element::i64, Shape{axes_vec.size()}, axes_vec);
+            new_ops.insert(new_ops.end(), {scatter_axis, slice_axes});
+
+            start_input = align_indices(start_input, slice_axes, scatter_axis, slice_indices_length, 0, new_ops);
+            stop_input = align_indices(stop_input, slice_axes, scatter_axis, slice_indices_length, 0, new_ops);
+            step_input = align_indices(step_input, slice_axes, scatter_axis, slice_indices_length, 1, new_ops);
+        }
+        new_ops.insert(new_ops.end(), {start_input.get_node_shared_ptr(), stop_input.get_node_shared_ptr(), step_input.get_node_shared_ptr()});
+
+        const auto strided_slice = std::make_shared<opset8::StridedSlice>(arg, start_input, stop_input, step_input, begin_end_mask, begin_end_mask);
         new_ops.push_back(strided_slice);
 
         strided_slice->set_friendly_name(slice_node->get_friendly_name());
