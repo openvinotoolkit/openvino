@@ -21,7 +21,7 @@ using namespace mkldnn::impl;
 
 bool MKLDNNDepthToSpaceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto depthToSpace = std::dynamic_pointer_cast<const ngraph::opset1::DepthToSpace>(op);
+        const auto depthToSpace = ov::as_type_ptr<const ngraph::opset1::DepthToSpace>(op);
         if (!depthToSpace) {
             errorMessage = "Only opset1 DepthToSpace operation is supported";
             return false;
@@ -46,7 +46,7 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
     if (op->get_input_size() != 1 || op->get_output_size() != 1)
         THROW_ERROR << "has incorrect number of input/output edges!";
 
-    const auto depthToSpace = std::dynamic_pointer_cast<const ngraph::opset1::DepthToSpace>(op);
+    const auto depthToSpace = ov::as_type_ptr<const ngraph::opset1::DepthToSpace>(op);
 
     const auto modeNgraph = depthToSpace->get_mode();
     if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
