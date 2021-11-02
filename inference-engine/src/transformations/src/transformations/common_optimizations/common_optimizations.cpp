@@ -79,6 +79,7 @@
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -168,6 +169,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
     manager.register_pass<ngraph::pass::ConvertSoftmax8ToSoftmax1>();
     manager.register_pass<ngraph::pass::ConvertSoftmax1ToSoftmax8, false>();
+    manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();

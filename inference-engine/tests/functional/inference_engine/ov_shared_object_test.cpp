@@ -11,17 +11,17 @@
 using namespace ::testing;
 using namespace std;
 
-class SharedObjectOVTests: public ::testing::Test {
+class SharedObjectOVTests : public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
         return FileUtils::makePluginLibraryName<char>(InferenceEngine::getIELibraryPath(),
-            std::string("mock_engine") + IE_BUILD_POSTFIX);
+                                                      std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 
     void loadDll(const string &libraryName) {
         shared_object = ov::util::load_shared_object(libraryName.c_str());
     }
-   std::shared_ptr<void> shared_object;
+    std::shared_ptr<void> shared_object;
 
     using CreateF = void(std::shared_ptr<InferenceEngine::IInferencePlugin>&);
 
