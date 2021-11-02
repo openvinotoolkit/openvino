@@ -22,7 +22,8 @@ bool transformation_is_applicable(const std::shared_ptr<ov::opset8::Interpolate>
     if (interpolate->get_input_partial_shape(0).rank().is_dynamic() || interpolate->inputs().size() != 4) return false;
 
     int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
-    if (input_rank < 4) return false;
+    // If the input rank is equal to 1 or 2, then such Interpolate is supportedby MKLDNN.
+    if (input_rank < 3) return false;
 
     auto axes_node = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
     if (!axes_node) return false;
