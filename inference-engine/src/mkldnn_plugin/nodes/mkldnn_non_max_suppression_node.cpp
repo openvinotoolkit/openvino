@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         using NonMaxSuppressionV5 = ngraph::op::v5::NonMaxSuppression;
         if (!one_of(op->get_type_info(), NonMaxSuppressionV5::get_type_info_static(),
                     ngraph::op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
@@ -59,7 +59,7 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
         if (const auto nms5 = std::dynamic_pointer_cast<const ngraph::op::v5::NonMaxSuppression>(op)) {
             boxEncodingType = static_cast<boxEncoding>(nms5->get_box_encoding());
             sort_result_descending = nms5->get_sort_result_descending();
-        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
             boxEncodingType = nmsIe->m_center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
             sort_result_descending = nmsIe->m_sort_result_descending;
@@ -129,15 +129,10 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNNonMaxSuppressionNode::prepareParams() {
-    VectorDims boxes_dims, scores_dims;
-
-    if (isDynamicNode()) {
-        boxes_dims = getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims();
-        scores_dims = getParentEdgesAtPort(NMS_SCORES)[0]->getMemory().getStaticDims();
-    } else {
-        boxes_dims = getInputShapeAtPort(NMS_BOXES).getStaticDims();
-        scores_dims = getInputShapeAtPort(NMS_SCORES).getStaticDims();
-    }
+    const auto& boxes_dims = isDynamicNode() ? getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims() :
+                                               getInputShapeAtPort(NMS_BOXES).getStaticDims();
+    const auto& scores_dims = isDynamicNode() ? getParentEdgesAtPort(NMS_SCORES)[0]->getMemory().getStaticDims() :
+                                                getInputShapeAtPort(NMS_SCORES).getStaticDims();
 
     num_batches = boxes_dims[0];
     num_boxes = boxes_dims[1];
@@ -230,7 +225,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     const size_t validOutputs = std::min(filtBoxes.size(), maxNumberOfBoxes);
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (isDynamicNode()) {
         VectorDims newDims{validOutputs, 3};
         indicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims(newDims));
@@ -255,7 +250,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
         selectedScoresPtr += selectedIndicesStride;
     }
 
-    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model will support DS
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (!isDynamicNode()) {
         std::fill(selectedIndicesPtr, selectedIndicesPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1);
         std::fill(selectedScoresPtr, selectedScoresPtr + (maxNumberOfBoxes - idx) * selectedIndicesStride, -1.f);

@@ -775,11 +775,11 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             if (expectedDesc.getLayout() == Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            out[name]->setShape(outputNodeDims);
+            out[name]->setShape(outDims);
         }
 
         // check for empty output blob
-        if (std::any_of(outputNodeDims.begin(), outputNodeDims.end(), [](const Dim dim) {return dim == 0;})) {
+        if (std::any_of(outDims.begin(), outDims.end(), [](const Dim dim) {return dim == 0;})) {
             return;
         }
 
@@ -796,7 +796,6 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        const auto &outDims = outputNodeDims;
         size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
         // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
