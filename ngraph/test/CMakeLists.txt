@@ -299,6 +299,8 @@ set(SRC
     visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/exp.cpp
+    visitors/op/experimental_detectron_detection_output.cpp
+    visitors/op/experimental_detectron_generate_proposals.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -476,11 +478,9 @@ set(MULTI_TEST_SRC
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
