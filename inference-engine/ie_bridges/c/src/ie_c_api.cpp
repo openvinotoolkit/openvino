@@ -362,13 +362,15 @@ IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, cons
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || file_name == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
+    if (core == nullptr || file_name == nullptr || device_name == nullptr || exe_network == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
 
     try {
-        std::map<std::string, std::string> conf_map = config2Map(config);
+        std::map<std::string, std::string> conf_map;
+        if (config != nullptr)
+            conf_map = config2Map(config);
         std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
 
         exe_net->object = core->object.ImportNetwork(file_name, device_name, conf_map);
@@ -380,7 +382,7 @@ IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, cons
 
 IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *content, size_t content_size, const char *device_name,
        const ie_config_t *config, ie_executable_network_t **exe_network) {
-    if (core == nullptr || content == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
+    if (core == nullptr || content == nullptr || device_name == nullptr || exe_network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
 
@@ -388,7 +390,9 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *
     try {
         mem_istream model_stream(reinterpret_cast<const char*>(content), content_size);
 
-        std::map<std::string, std::string> conf_map = config2Map(config);
+        std::map<std::string, std::string> conf_map;
+        if (config != nullptr)
+            conf_map = config2Map(config);
         std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
 
         exe_net->object = core->object.ImportNetwork(model_stream, device_name, conf_map);
@@ -416,7 +420,7 @@ IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, 
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || network == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
+    if (core == nullptr || network == nullptr || device_name == nullptr || exe_network == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
