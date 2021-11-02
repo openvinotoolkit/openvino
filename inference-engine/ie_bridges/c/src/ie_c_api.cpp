@@ -650,7 +650,7 @@ IEStatusCode ie_network_get_input_name(const ie_network_t *network, size_t numbe
         IE::InputsDataMap inputs = network->object.getInputsInfo();
 
         // check if the number is out of bounds.
-        if (number < 0 || number >= inputs.size()) {
+        if (number >= inputs.size()) {
             status = IEStatusCode::OUT_OF_BOUNDS;
         } else {
             IE::InputsDataMap::iterator iter = inputs.begin();
@@ -970,7 +970,7 @@ IEStatusCode ie_network_get_output_name(const ie_network_t *network, const size_
     try {
         IE::OutputsDataMap outputs = network->object.getOutputsInfo();
         // check if the number is out of bounds.
-        if (number < 0 || number >= outputs.size()) {
+        if (number >= outputs.size()) {
             status = IEStatusCode::OUT_OF_BOUNDS;
         } else {
             IE::OutputsDataMap::iterator iter = outputs.begin();
