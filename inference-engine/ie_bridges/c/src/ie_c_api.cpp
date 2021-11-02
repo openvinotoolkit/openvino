@@ -13,6 +13,8 @@
 #include <chrono>
 #include <tuple>
 #include <memory>
+#include <sstream>
+#include <istream>
 #include <ie_extension.h>
 #include "inference_engine.hpp"
 #include "ie_compound_blob.h"
@@ -58,6 +60,27 @@ struct ie_blob {
  */
 struct ie_network {
     IE::CNNNetwork object;
+};
+
+/**
+ * @struct mem_stringbuf
+ * @brief This struct puts memory buffer to stringbuf.
+ */
+struct mem_stringbuf : std::stringbuf {
+    mem_stringbuf(const char *buffer, size_t sz) {
+        char * bptr(const_cast<char *>(buffer));
+        this->setg(bptr, bptr, bptr + sz);
+    }
+};
+
+
+/**
+ * @struct mem_istream
+ * @brief This struct puts stringbuf buffer to istream.
+ */
+struct mem_istream: virtual mem_stringbuf, std::istream {
+    mem_istream(const char * buffer, size_t sz) : mem_stringbuf(buffer, sz), std::istream(static_cast<std::stringbuf *>(this)) {
+    }
 };
 
 std::map<IE::StatusCode, IEStatusCode> status_map = {{IE::StatusCode::GENERAL_ERROR, IEStatusCode::GENERAL_ERROR},
@@ -365,14 +388,14 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t
     IEStatusCode status = IEStatusCode::OK;
     try {
         IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(model_blob->object);
-        const char *blob_data = mblob->rmap().as<char *>();
+        const char *blob_data = mblob->rmap().as<const char *>();
         size_t blob_size = model_blob->object->byteSize();
-        std::stringstream network_model(std::string(blob_data, blob_size));
+        mem_istream model_stream(blob_data, blob_size);
 
         std::map<std::string, std::string> conf_map = config2Map(config);
-
         std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
-        exe_net->object = core->object.ImportNetwork(network_model, device_name, conf_map);
+
+        exe_net->object = core->object.ImportNetwork(model_stream, device_name, conf_map);
         *exe_network = exe_net.release();
     } CATCH_IE_EXCEPTIONS
 
