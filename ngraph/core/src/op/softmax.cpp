@@ -140,7 +140,9 @@ bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
     NGRAPH_OP_SCOPE(v8_Softmax_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
-    int64_t rank = static_cast<int64_t>(get_input_partial_shape(0).rank().get_length());
+    auto rank = static_cast<int64_t>(inputs[0]->get_shape().size());
+    NGRAPH_CHECK(-rank <= m_axis < rank, "Reduction axis (", m_axis, ") is out of bounds (argument shape: ",
+                 inputs[0]->get_shape(), ").");
     size_t axis = m_axis < 0 ? static_cast<size_t>(rank + m_axis) : static_cast<size_t>(m_axis);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{axis});
 }
