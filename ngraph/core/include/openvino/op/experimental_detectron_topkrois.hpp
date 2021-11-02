@@ -40,6 +40,11 @@ public:
 
 private:
     size_t m_max_rois;
+
+    template <class T>
+    friend void shape_infer(ExperimentalDetectronTopKROIs* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op
