@@ -680,18 +680,13 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         auto networkCloned = CloneAndTransformNetwork(*network, config);
         // DG1
         const float L3_cache_size = 12*1024*1024;
-        unsigned int batch = 1;
         ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(
                 networkCloned.getFunction(), L3_cache_size);
-        if (memPressure.max_mem_tolerance > 8*ov::MemBandwidthPressure::LIMITED) {
-            batch = 32;
-        } else if (memPressure.max_mem_tolerance > 4*ov::MemBandwidthPressure::LIMITED) {
-            batch = 16;
-        } else if (memPressure.max_mem_tolerance > 2*ov::MemBandwidthPressure::LIMITED) {
-            batch = 8;
-        } else if (memPressure.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-            batch = 4;
-        }
+        unsigned int batch = 1;
+        if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
+            batch = 4 * pow(2, floor(log(memPressure.max_mem_tolerance)/log(2))); // closest_pow2
+        batch = std::max(4u, batch); //batch 4 is a min
+        batch = std::min(256u, batch); //batch 256 is a max
         // workaround to emulate the MAX_BATCH
         auto executableNetworkForDeviceBatch1 = const_cast<clDNNEngine*>(this)->LoadExeNetworkImpl(*network,
                                                 {{PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, "1"}});
