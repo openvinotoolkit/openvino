@@ -164,6 +164,19 @@ static void regclass_graph_InputTensorInfo(py::module m) {
     });
 }
 
+static void regclass_graph_OutputTensorInfo(py::module m) {
+    py::class_<ov::preprocess::OutputTensorInfo, std::shared_ptr<ov::preprocess::OutputTensorInfo>> info(
+        m,
+        "OutputTensorInfo");
+    info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::OutputTensorInfo";
+
+    info.def(py::init<>());
+    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::OutputTensorInfo>& me, const ov::Layout& layout) {
+        me->set_layout(layout);
+        return me;
+    });
+}
+
 static void regclass_graph_InputInfo(py::module m) {
     py::class_<ov::preprocess::InputInfo, std::shared_ptr<ov::preprocess::InputInfo>> inp(m, "InputInfo");
     inp.doc() = "openvino.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
@@ -280,6 +293,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_InputInfo(m);
     regclass_graph_OutputInfo(m);
     regclass_graph_InputTensorInfo(m);
+    regclass_graph_OutputTensorInfo(m);
     py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");

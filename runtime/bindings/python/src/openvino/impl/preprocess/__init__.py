@@ -12,5 +12,6 @@ Low level wrappers for the PrePostProcessing c++ api.
 from openvino.pyopenvino.preprocess import InputInfo
 from openvino.pyopenvino.preprocess import OutputInfo
 from openvino.pyopenvino.preprocess import InputTensorInfo
+from openvino.pyopenvino.preprocess import OutputTensorInfo
 from openvino.pyopenvino.preprocess import PrePostProcessor
 from openvino.pyopenvino.preprocess import PreProcessSteps
