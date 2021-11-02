@@ -30,7 +30,7 @@ using namespace ngraph;
 namespace {
     Output<ngraph::Node> adjust_indices_if_needed(const Output<ngraph::Node>& indices,
                                               const std::vector<int64_t>& axes,
-                                              uint64_t slice_indices_length,
+                                              size_t slice_indices_length,
                                               int64_t fill_in_value,
                                               NodeVector& new_ops) {
     const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
@@ -38,7 +38,7 @@ namespace {
     const auto& indices_shape = indices.get_partial_shape();
     // If length of slice indices vector is known
     if (indices_shape.rank().is_static() && indices_shape.rank().get_length() == 1 && indices_shape[0].is_static()) {
-        if (static_cast<uint64_t>(indices_shape[0].get_length()) >= slice_indices_length && are_axes_sorted) {
+        if (indices_shape.size() >= slice_indices_length && are_axes_sorted) {
             // Adjusting indices is not needed
             new_ops.push_back(indices.get_node_shared_ptr());
             return indices;
@@ -65,7 +65,7 @@ namespace {
     return adjusted_indices;
 }
 
-std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, uint64_t slice_indices_length) {
+std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice_indices_length) {
     std::vector<int64_t> mask(slice_indices_length, 1);
     for (auto axis : axes) {
         mask[axis] = 0;
@@ -119,7 +119,7 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
             if (need_normalization)
                 return false;
         }
-        const uint64_t slice_indices_length = *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
+        const size_t slice_indices_length = *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
         const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
         NodeVector new_ops;
