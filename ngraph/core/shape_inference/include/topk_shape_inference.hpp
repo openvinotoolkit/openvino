@@ -14,8 +14,12 @@ namespace op {
 namespace v1 {
 
 template <typename T>
-void shape_infer(const TopK* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const TopK* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    constexpr bool is_dynamic_shape = std::is_base_of<ov::PartialShape, T>::value;
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 && output_shapes.size() == 2));
     const auto& input_shape = input_shapes[0];
@@ -34,7 +38,20 @@ void shape_infer(const TopK* op, const std::vector<T>& input_shapes, std::vector
         auto normalized_axis = ov::normalize_axis(op, op->m_axis, input_shape.rank());
         auto& dim_axis = output_shape[normalized_axis];
 
-        if (ov::evaluate_as_partial_shape(op->input_value(1), k_as_shape)) {
+        if (!is_dynamic_shape) {
+            std::vector<int64_t> k_val;
+            NODE_VALIDATION_CHECK(op,
+                                  get_data_as_int64<T>(1, op, k_val, constant_data),
+                                  "determined k is required to infer static shape");
+
+            NODE_VALIDATION_CHECK(op,
+                                  k_val.size() == 1,
+                                  "Only one value (scalar) should be provided as the 'K' input to TopK",
+                                  " (got ",
+                                  k_val.size(),
+                                  " elements).");
+            dim_axis = k_val[0];
+        } else if (ov::evaluate_as_partial_shape(op->input_value(1), k_as_shape)) {
             NODE_VALIDATION_CHECK(op,
                                   k_as_shape.size() == 1,
                                   "Only one value (scalar) should be provided as the 'K' input to TopK",
@@ -50,10 +67,7 @@ void shape_infer(const TopK* op, const std::vector<T>& input_shapes, std::vector
                                   ").");
             if (k_as_shape.is_static())
                 dim_axis = k_as_shape[0].get_length();
-            else if (k_as_shape[0].get_interval().size() == 1) {
-                // k_as_shape[0] is a static dimension in dynamic-form
-                dim_axis = k_as_shape[0].get_min_length();
-            } else {
+            else {
                 // in this dynamic branch we are sure of dim_axis's type
                 const auto in_min = dim_axis.get_min_length();
                 const auto in_max = dim_axis.get_max_length();

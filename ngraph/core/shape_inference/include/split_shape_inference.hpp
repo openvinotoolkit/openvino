@@ -14,7 +14,10 @@ namespace op {
 namespace v1 {
 
 template <typename T>
-void shape_infer(const Split* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const Split* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
@@ -27,13 +30,17 @@ void shape_infer(const Split* op, const std::vector<T>& input_shapes, std::vecto
 
     auto each_output_shape = data_ps;
     const auto data_rank = data_ps.rank();
-    const auto axis_input = get_constant_from_source(op->input_value(1));
-
     NODE_VALIDATION_CHECK(op, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
 
-    if (axis_input && data_rank.is_static()) {
-        auto axis = axis_input->cast_vector<int64_t>()[0];
-        axis = ov::normalize_axis(op, axis, data_rank);
+    std::vector<int64_t> axes_values;
+    if (get_data_as_int64<T>(1, op, axes_values, constant_data) && data_rank.is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              axes_values.size() == 1,
+                              "a scalar axis value is expected. Got: ",
+                              axes_values.size(),
+                              " axes");
+
+        auto axis = ov::normalize_axis(op, axes_values[0], data_rank);
 
         if (data_ps[axis].is_static()) {
             const auto dimension_at_axis = data_ps[axis].get_length();

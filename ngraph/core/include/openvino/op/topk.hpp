@@ -114,7 +114,10 @@ protected:
     void set_axis(const Rank input_rank, const int64_t axis);
 
     template <class T>
-    friend void shape_infer(const TopK* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
+    friend void shape_infer(const TopK* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
 };
 }  // namespace v1
 

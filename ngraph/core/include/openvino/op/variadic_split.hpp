@@ -43,6 +43,12 @@ public:
 
 private:
     bool evaluate_variadic_split(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
+
+    template <typename T>
+    friend void shape_infer(const VariadicSplit* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
 };
 }  // namespace v1
 }  // namespace op

@@ -15,7 +15,10 @@ namespace v1 {
 
 // specilization on dynamic shape
 template <typename T>
-void shape_infer(VariadicSplit* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const VariadicSplit* op,
+                 const std::vector<T>& input_shapes,
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3));
@@ -31,19 +34,21 @@ void shape_infer(VariadicSplit* op, const std::vector<T>& input_shapes, std::vec
                               " instead.");
 
         const auto num_outputs = split_lengths_pshape[0].get_length();
-        const auto data = op->input_value(0);
-        const auto axis_source = op->input_value(1);
-        const auto split_lengths_source = op->input_value(2);
         const auto data_shape = input_shapes[0];
 
-        const auto& axis_input_constant = get_constant_from_source(axis_source);
-        const auto& split_lengths_constant = get_constant_from_source(split_lengths_source);
-        if (data_shape.rank().is_static() && axis_input_constant && split_lengths_constant) {
-            const auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];
+        std::vector<int64_t> axis_values;
+        std::vector<int64_t> split_lengths;
+        if (data_shape.rank().is_static() && get_data_as_int64<T>(1, op, axis_values, constant_data) &&
+            get_data_as_int64<T>(2, op, split_lengths, constant_data)) {
+            NODE_VALIDATION_CHECK(op,
+                                  axis_values.size() == 1,
+                                  "a scalar axis value is expected. Got: ",
+                                  axis_values.size(),
+                                  " axes");
+            const auto axis_val = axis_values[0];
             // Adjust split axis in case of negatives
             const int64_t axis = ngraph::normalize_axis(op, axis_val, data_shape.rank());
 
-            auto split_lengths = split_lengths_constant->cast_vector<int64_t>();
             // Adjust split lengths in case of negatives
             int64_t sum_of_splits = 0;
             int64_t negative_one = -1;
