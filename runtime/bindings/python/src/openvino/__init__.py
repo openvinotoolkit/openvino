@@ -45,6 +45,7 @@ from openvino.pyopenvino import ResizeAlgorithm
 from openvino.pyopenvino import ColorFormat
 from openvino.pyopenvino import PreProcessChannel
 from openvino.pyopenvino import Tensor
+from openvino.pyopenvino import ProfilingInfo
 
 from openvino import opset1
 from openvino import opset2
