@@ -43,7 +43,13 @@ bool ConvolutionsMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node
                            ref->get_input_tensor(0).get_element_type();
     bool is_dynamic = node->get_input_node_ptr(0)->is_dynamic() ==
                       ref->get_input_node_ptr(0)->is_dynamic();
-    if (!(rankIsEqual && elemTypeIsEqual && is_dynamic)) {
+    const auto dimsNode = node->get_input_tensor(0).get_shape();
+    const auto refNode = ref->get_input_tensor(0).get_shape();
+
+    const auto dimsNodeKernel = node->get_input_tensor(1).get_shape();
+    const auto refNodeKernel = ref->get_input_tensor(1).get_shape();
+    bool is_dims_eq = dimsNode == refNode && dimsNodeKernel == refNodeKernel;
+    if (!(rankIsEqual && elemTypeIsEqual && is_dynamic && is_dims_eq)) {
         return false;
     }
     bool has_groups = std::dynamic_pointer_cast<ngraph::op::v1::GroupConvolution>(node) != nullptr ||

@@ -87,7 +87,11 @@ bool SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node,
                                ref->get_input_tensor(i).get_element_type();
         bool is_dynamic = node->get_input_node_ptr(i)->is_dynamic() ==
                           ref->get_input_node_ptr(i)->is_dynamic();
-        if (!(rankIsEqual && elemTypeIsEqual && is_dynamic)) {
+        const auto dimsNode = node->get_input_tensor(i).get_shape();
+        const auto refNode = ref->get_input_tensor(i).get_shape();
+        bool is_dims_eq = dimsNode == refNode;
+        // one false -> return false
+        if (!(rankIsEqual && elemTypeIsEqual && is_dynamic && is_dims_eq)) {
             return false;
         }
     }
@@ -104,8 +108,15 @@ SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node,
     }
     // Match output element type
     for (size_t i = 0; i < node->get_output_size(); ++i) {
-        if (node->get_output_tensor(i).get_element_type() !=
-            ref->get_output_tensor(i).get_element_type()) {
+        bool rankIsEqual = node->get_output_tensor(i).get_partial_shape().rank() ==
+                           ref->get_output_tensor(i).get_partial_shape().rank();
+        bool elemTypeIsEqual = node->get_output_tensor(i).get_element_type() ==
+                               ref->get_output_tensor(i).get_element_type();
+        const auto dimsNode = node->get_output_tensor(i).get_shape();
+        const auto refNode = ref->get_output_tensor(i).get_shape();
+        bool is_dims_eq = dimsNode == refNode;
+        // one false -> return false
+        if (!(rankIsEqual && elemTypeIsEqual && is_dims_eq)) {
             return false;
         }
     }
