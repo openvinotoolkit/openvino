@@ -782,8 +782,7 @@ class MKLDNNNode::NodesFactory : public openvino::cc::Factory<Type,
                                                         const mkldnn::engine &,
                                                         MKLDNNWeightsSharing::Ptr &)> {
 public:
-    NodesFactory()
-        : Factory("NodesFactory") {}
+    NodesFactory();
 
     MKLDNNNode* create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
@@ -799,11 +798,4 @@ struct MKLDNNNodeImpl : public MKLDNNNodeType {
 
 }  // namespace MKLDNNPlugin
 
-#define REG_MKLDNN_PRIM_FOR(__prim, __type)                                             \
-namespace MKLDNNPlugin {                                                                \
-void __prim ## __type();                                                                \
-void __prim ## __type() {                                                               \
-    MKLDNNNode::factory()                                                               \
-        .registerNodeIfRequired(MKLDNNPlugin, __prim, __type, MKLDNNNodeImpl<__prim>);  \
-}                                                                                       \
-}  // namespace MKLDNNPlugin
+#define REG_MKLDNN_PRIM_FOR(__prim, __type)
