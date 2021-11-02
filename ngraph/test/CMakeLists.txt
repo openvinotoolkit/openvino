@@ -37,12 +37,12 @@ set(SRC
     copy.cpp
     element_type.cpp
     eval.cpp
+    extension.cpp
     file_util.cpp
     float16.cpp
     framework_node.cpp
     function.cpp
     graph_rewrite.cpp
-    includes.cpp
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
@@ -402,13 +402,16 @@ set(SRC
     util.cpp
 )
 
+# Add include path to so_extension.hpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
-    NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
+list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
 if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
@@ -569,8 +572,10 @@ target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
 target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
-add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
-add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
+target_compile_definitions(unit-test
+    PRIVATE
+        SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
+        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
@@ -586,6 +591,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
+                                        openvino::util
                                         frontend_manager)
 
 # Protobuf-lite does not support parsing files from prototxt format
