@@ -13,6 +13,7 @@
 #include "ngraph/variant.hpp"
 #include "openvino/core/op_extension.hpp"
 #include "openvino/util/file_util.hpp"
+#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 using namespace ngraph;
@@ -99,8 +100,14 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
 }
 
 void FrontEndIR::add_extension(const ov::Extension::Ptr& ext) {
+    if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
+        if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
+            shared_objects.emplace_back(so_ext->shared_object());
+            extensions.emplace_back(so_ext->extension());
+        }
+    }
     if (std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-        this->extensions.emplace_back(ext);
+        extensions.emplace_back(ext);
 }
 
 InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
@@ -112,7 +119,7 @@ InputModel::Ptr FrontEndIR::load_impl(const std::vector<std::shared_ptr<Variant>
         std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
         for (const auto& ext : extensions) {
             if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
-                exts.insert({base_ext->type(), base_ext});
+                exts.insert({base_ext->get_type_info(), base_ext});
         }
         return exts;
     };

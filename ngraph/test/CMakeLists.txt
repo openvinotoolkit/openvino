@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+endif()
+
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
@@ -287,12 +292,15 @@ set(SRC
     visitors/op/deformable_psroi_pooling.cpp
     visitors/op/depth_to_space.cpp
     visitors/op/detection_output.cpp
+    visitors/op/dft.cpp
     visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
     visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/exp.cpp
+    visitors/op/experimental_detectron_detection_output.cpp
+    visitors/op/experimental_detectron_generate_proposals.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -311,6 +319,7 @@ set(SRC
     visitors/op/hswish.cpp
     visitors/op/interpolate.cpp
     visitors/op/if.cpp
+    visitors/op/idft.cpp
     visitors/op/less_equal.cpp
     visitors/op/less.cpp
     visitors/op/log.cpp
@@ -400,7 +409,7 @@ set(SRC
     util.cpp
 )
 
-# Add include path to load_extensions.hpp
+# Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
 
@@ -460,7 +469,6 @@ set(MULTI_TEST_SRC
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/batch_norm.in.cpp
     backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -468,56 +476,39 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/deformable_psroi_pooling.in.cpp
-    backend/detection_output.in.cpp
-    backend/dft.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
     backend/gather_elements.in.cpp
     backend/gather_nd.in.cpp
-    backend/idft.in.cpp
     backend/interpolate.in.cpp
-    backend/lrn.in.cpp
-    backend/matmul.in.cpp
     backend/matrix_nms.in.cpp
     backend/multiclass_nms.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp
     backend/node_name.in.cpp
-    backend/normalize_l2.in.cpp
     backend/non_max_suppression.in.cpp
     backend/one_hot.in.cpp
     backend/pad.in.cpp
-    backend/parameter_as_output.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
-    backend/proposal.in.cpp
-    backend/psroi_pooling.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
-    backend/result.in.cpp
-    backend/reverse.in.cpp
     backend/roll.in.cpp
     backend/space_to_depth.in.cpp
     backend/shuffle_channels.in.cpp
     backend/space_to_batch.in.cpp
-    backend/split.in.cpp
     backend/sqrt.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
-    backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
-    backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
 )
 

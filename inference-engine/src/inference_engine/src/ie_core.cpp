@@ -39,6 +39,7 @@
 #include "openvino/runtime/executable_network.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "so_extension.hpp"
 #include "xml_parse_utils.h"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -188,15 +189,33 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
-        // TODO: make extensions to be optional with conditional compilation
         std::vector<ov::util::FilePath> listOfExtentions;
-        InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc;
+        InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc = nullptr;
+        InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr;
+
+        PluginDescriptor() = default;
+
+        PluginDescriptor(const ov::util::FilePath& libraryLocation,
+                         const std::map<std::string, std::string>& defaultConfig = {},
+                         const std::vector<ov::util::FilePath>& listOfExtentions = {}) {
+            this->libraryLocation = libraryLocation;
+            this->defaultConfig = defaultConfig;
+            this->listOfExtentions = listOfExtentions;
+        }
+
+        PluginDescriptor(InferenceEngine::CreatePluginEngineFunc* pluginCreateFunc,
+                         const std::map<std::string, std::string>& defaultConfig = {},
+                         InferenceEngine::CreateExtensionFunc* extensionCreateFunc = nullptr) {
+            this->pluginCreateFunc = pluginCreateFunc;
+            this->defaultConfig = defaultConfig;
+            this->extensionCreateFunc = extensionCreateFunc;
+        }
     };
 
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<ie::IExtensionPtr> extensions;
-    mutable std::vector<ov::Extension::Ptr> ov_extensions;
+    std::vector<ov::Extension::Ptr> ov_extensions;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -443,19 +462,20 @@ public:
 
             // fill value in plugin registry for later lazy initialization
             {
-                PluginDescriptor desc = {pluginPath, config, listOfExtentions, nullptr};
+                PluginDescriptor desc{pluginPath, config, listOfExtentions};
                 pluginRegistry[deviceName] = desc;
             }
         }
     }
+
+#ifdef OPENVINO_STATIC_LIBRARY
 
     /**
      * @brief Register plugins for devices which are located in .xml configuration file.
      * @note The function supports UNICODE path
      * @param xmlConfigFile An .xml configuraion with device / plugin information
      */
-    void RegisterPluginsInRegistry(
-        const std::map<std::string, InferenceEngine::CreatePluginEngineFunc*>& static_registry) {
+    void RegisterPluginsInRegistry(const decltype(::getStaticPluginsRegistry())& static_registry) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         for (const auto& plugin : static_registry) {
@@ -463,23 +483,17 @@ public:
             if (deviceName.find('.') != std::string::npos) {
                 IE_THROW() << "Device name must not contain dot '.' symbol";
             }
-            // TODO: add properties support to enable AUTO device
-            PluginDescriptor desc = {{}, {}, {}, plugin.second};
+            const auto& value = plugin.second;
+            PluginDescriptor desc{value.m_create_plugin_func, value.m_default_config, value.m_create_extension_func};
             pluginRegistry[deviceName] = desc;
         }
     }
 
+#endif
+
     //
     // ICore public API
     //
-
-    /**
-     * @brief Returns global task executor
-     * @return Reference to task executor
-     */
-    ie::ITaskExecutor::Ptr GetTaskExecutor() const override {
-        return nullptr;
-    }
 
     ie::CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::ReadNetwork from file");
@@ -495,7 +509,6 @@ public:
         return newAPI;
     }
 
-    // TODO: In future this method can be added to ICore interface
     ov::runtime::SoPtr<ie::IExecutableNetworkInternal> LoadNetwork(const ie::CNNNetwork& network,
                                                                    const std::shared_ptr<ie::RemoteContext>& context,
                                                                    const std::map<std::string, std::string>& config) {
@@ -831,11 +844,20 @@ public:
                     });
                 }
 
+                // add plugin as extension itself
+                if (desc.extensionCreateFunc) {  // static OpenVINO case
+                    try {
+                        ie::IExtensionPtr ext;
+                        desc.extensionCreateFunc(ext);
+                        AddExtensionUnsafe(ext);
+                    } catch (const ie::GeneralError&) {
+                        // the same extension can be registered multiple times - ignore it!
+                    }
+                } else {
+                    TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
+                }
+
                 auto result = plugins.emplace(deviceName, plugin).first->second;
-
-                // TODO CVS-69016: need to enable for CPU plugin cache
-                TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
-
                 return result;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
@@ -888,7 +910,7 @@ public:
                 pluginPath = absFilePath;
         }
 
-        PluginDescriptor desc = {pluginPath, {}, {}, nullptr};
+        PluginDescriptor desc{pluginPath};
         pluginRegistry[deviceName] = desc;
     }
 
@@ -928,7 +950,7 @@ public:
 
         auto base_desc = pluginRegistry.find(clearDeviceName);
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
-            PluginDescriptor desc = {base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
+            PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
             pluginRegistry[deviceName] = desc;
         }
 
@@ -988,8 +1010,9 @@ public:
 
     void AddOVExtensions(const std::vector<ov::Extension::Ptr>& extensions) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
-        for (const auto& ext : extensions)
+        for (const auto& ext : extensions) {
             ov_extensions.emplace_back(ext);
+        }
     }
 
     /**
@@ -1070,8 +1093,8 @@ private:
         try {
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
             AddExtensionUnsafe(extension_ptr);
-        } catch (const InferenceEngine::NotFound&) {
         } catch (const InferenceEngine::GeneralError&) {
+            // in case of shared library is not opened
         }
     }
 };
@@ -1149,7 +1172,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
     RegisterPlugins(ov::runtime::parseXmlConfig(xmlConfigFile));
 #endif
@@ -1412,7 +1435,7 @@ Core::Core(const std::string& xmlConfigFile) {
     _impl = std::make_shared<Impl>();
 
 #ifdef OPENVINO_STATIC_LIBRARY
-    _impl->RegisterPluginsInRegistry(::plugins_hpp);
+    _impl->RegisterPluginsInRegistry(::getStaticPluginsRegistry());
 #else
     register_plugins(parseXmlConfig(xmlConfigFile));
 #endif

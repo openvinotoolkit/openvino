@@ -43,6 +43,7 @@ protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 
 private:
+    std::vector<std::shared_ptr<void>> shared_objects;
     std::vector<ov::Extension::Ptr> extensions;
 };
 

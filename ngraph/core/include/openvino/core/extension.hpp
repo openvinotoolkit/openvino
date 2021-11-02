@@ -24,30 +24,31 @@ namespace ov {
 
 class Extension;
 
-namespace detail {
-
-std::vector<std::shared_ptr<Extension>> load_extensions(const std::string& path);
-void unload_extensions(std::vector<std::shared_ptr<Extension>>& path);
-
-}  // namespace detail
-
+/**
+ * @brief The class provides the base interface for OpenVINO extensions
+ */
 class OPENVINO_API Extension : public std::enable_shared_from_this<Extension> {
 public:
     using Ptr = std::shared_ptr<Extension>;
 
     virtual ~Extension();
-
-private:
-    friend std::vector<Extension::Ptr> ov::detail::load_extensions(const std::string& path);
-    friend void ov::detail::unload_extensions(std::vector<std::shared_ptr<Extension>>& path);
-    std::shared_ptr<void> so;
 };
 
+/**
+ * @brief The entry point for library with OpenVINO extensions
+ *
+ * @param vector of extensions
+ */
 OPENVINO_EXTENSION_C_API
 void create_extensions(std::vector<Extension::Ptr>&);
 
 }  // namespace ov
 
+/**
+ * @brief Macro generates the entry point for the library
+ *
+ * @param vector of extensions
+ */
 #define OPENVINO_CREATE_EXTENSIONS(extensions)                             \
     OPENVINO_EXTENSION_C_API                                               \
     void ::ov::create_extensions(std::vector<::ov::Extension::Ptr>& ext) { \

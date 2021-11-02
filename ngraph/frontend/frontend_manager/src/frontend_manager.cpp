@@ -6,10 +6,10 @@
 
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/place.hpp"
-#include "load_extensions.hpp"
 #include "ngraph/except.hpp"
 #include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
+#include "so_extension.hpp"
 #include "utils.hpp"
 
 using namespace ngraph;
@@ -150,7 +150,7 @@ void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
-    // Left without the code intentionally.
+    // Left unimplemented intentionally.
     // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
 }
 

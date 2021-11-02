@@ -3,122 +3,164 @@
 //
 
 #include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/single_layer/eltwise.hpp"
 
-namespace LayerTestsDefinitions {
+#include "functional_test_utils/plugin_cache.hpp"
+
+namespace ov {
+namespace test {
+namespace subgraph {
 
 std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj) {
-    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout;
+    std::vector<InputShape> shapes;
+    ElementType netType, inType, outType;
     ngraph::helpers::InputLayerType secondaryInputType;
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
-    std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetName, additional_config) =
-        obj.param;
+    std::tie(shapes, eltwiseOpType, secondaryInputType, opType, netType, inType, outType, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
-    results << "IS=" << CommonTestUtils::partialShape2str(shapes.first) << "_";
-    results << "TS=";
-    for (const auto& shape : shapes.second) {
-        results << "(";
-        for (const auto& item : shape) {
+    results << "IS=(";
+    for (const auto& shape : shapes) {
+        results << CommonTestUtils::partialShape2str({shape.first}) << "_";
+    }
+    results << ")_TS=(";
+    for (const auto& shape : shapes) {
+        for (const auto& item : shape.second) {
             results << CommonTestUtils::vec2str(item) << "_";
         }
-        results << ")_";
     }
-    results << "eltwiseOpType=" << eltwiseOpType << "_";
+    results << ")_eltwiseOpType=" << eltwiseOpType << "_";
     results << "secondaryInputType=" << secondaryInputType << "_";
     results << "opType=" << opType << "_";
-    results << "netPRC=" << netPrecision.name() << "_";
-    results << "inPRC=" << inPrc.name() << "_";
-    results << "outPRC=" << outPrc.name() << "_";
-    results << "inL=" << inLayout << "_";
+    results << "NetType=" << netType << "_";
+    results << "InType=" << inType << "_";
+    results << "OutType=" << outType << "_";
     results << "trgDev=" << targetName;
     return results.str();
 }
 
-InferenceEngine::Blob::Ptr EltwiseLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+void EltwiseLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+    inputs.clear();
     const auto opType = std::get<1>(GetParam());
-    switch (opType) {
-        case ngraph::helpers::EltwiseTypes::POWER:
-        case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
-            return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
-                                                    FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
-        case ngraph::helpers::EltwiseTypes::DIVIDE:
-            return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
-                                                    FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 100, 101);
-        case ngraph::helpers::EltwiseTypes::ERF:
-            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 6, -3);
-        default:
-            return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+    const auto& funcInputs = function->inputs();
+    for (int i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
+        ov::runtime::Tensor tensor;
+        bool isReal = funcInput.get_element_type().is_real();
+        switch (opType) {
+            case ngraph::helpers::EltwiseTypes::POWER:
+            case ngraph::helpers::EltwiseTypes::MOD:
+            case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
+                tensor = isReal ?
+                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
+                        ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 4, 2);
+                break;
+            case ngraph::helpers::EltwiseTypes::DIVIDE:
+                tensor = isReal ?
+                         ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2, 2, 128) :
+                         ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 100, 101);
+                break;
+            case ngraph::helpers::EltwiseTypes::ERF:
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 6, -3);
+                break;
+            default:
+                if (funcInput.get_element_type().is_real()) {
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                } else {
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                }
+                break;
+        }
+        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+    }
+}
+
+void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialShape& secondInputShape) {
+    // propagate shapes in case 1 shape is defined
+    if (inputDynamicShapes.size() == 1) {
+        inputDynamicShapes.push_back(inputDynamicShapes.front());
+        for (auto& staticShape : targetStaticShapes) {
+            staticShape.push_back(staticShape.front());
+        }
+    }
+    ASSERT_EQ(inputDynamicShapes.size(), 2) << "Incorrect inputs number!";
+    if (!secondInputShape.is_static()) {
+        return;
+    }
+    if (secondInputShape.get_shape() == ov::Shape{1}) {
+        inputDynamicShapes[1] = secondInputShape;
+        for (auto& staticShape : targetStaticShapes) {
+            staticShape[1] = secondInputShape.get_shape();
+        }
     }
 }
 
 void EltwiseLayerTest::SetUp() {
-    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>> shapes;
-    InferenceEngine::Precision netPrecision;
+    // w/a for myriad (cann't store 2 caches simultaneously)
+    PluginCache::get().reset();
+
+    std::vector<InputShape> shapes;
+    ElementType netType;
     ngraph::helpers::InputLayerType secondaryInputType;
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
-    std::map<std::string, std::string> additional_config;
-    std::tie(shapes, eltwiseType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetDevice, additional_config) =
+    Config additional_config;
+    std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
         this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    targetStaticShapes = shapes.second;
-    inputDynamicShapes = shapes.first;
+    init_input_shapes(shapes);
 
-    ngraph::Shape inputShape1 = targetStaticShapes.front().front(), inputShape2 = targetStaticShapes.front().back();
+    auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
 
-    configuration.insert(additional_config.begin(), additional_config.end());
-    auto input = ngraph::builder::makeParams(ngPrc, {inputShape1});
-
-    std::vector<size_t> shape_input_secondary;
+    ov::PartialShape shape_input_secondary;
     switch (opType) {
         case CommonTestUtils::OpType::SCALAR: {
-            shape_input_secondary = std::vector<size_t>({1});
+            shape_input_secondary = {1};
             break;
         }
         case CommonTestUtils::OpType::VECTOR:
-            shape_input_secondary = inputShape2;
+            shape_input_secondary = inputDynamicShapes.back();
             break;
         default:
             FAIL() << "Unsupported Secondary operation type";
     }
+    // To propagate shape_input_secondary just in static case because all shapes are defined in dynamic scenarion
+    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        transformInputShapesAccordingEltwise(shape_input_secondary);
+    }
 
     std::shared_ptr<ngraph::Node> secondaryInput;
-    if (eltwiseType == ngraph::helpers::EltwiseTypes::DIVIDE ||
-        eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD ||
-        eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
-        std::vector<float> data(ngraph::shape_size(shape_input_secondary));
-        data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary), 10, 2);
-        secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
-    } else if (eltwiseType == ngraph::helpers::EltwiseTypes::POWER && secondaryInputType == ngraph::helpers::InputLayerType::CONSTANT) {
-        // to avoid floating point overflow on some platforms, let's fill the constant with small numbers.
-        secondaryInput = ngraph::builder::makeConstant<float>(ngPrc, shape_input_secondary, {}, true, 3);
+    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        secondaryInput = ngraph::builder::makeDynamicParams(netType, {shape_input_secondary}).front();
+        parameters.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     } else {
-        secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
-        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        ov::Shape shape = inputDynamicShapes.back().get_max_shape();
+        switch (eltwiseType) {
+            case ngraph::helpers::EltwiseTypes::DIVIDE:
+            case ngraph::helpers::EltwiseTypes::MOD:
+            case ngraph::helpers::EltwiseTypes::FLOOR_MOD: {
+                std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
+                secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
+                break;
+            }
+            case ngraph::helpers::EltwiseTypes::POWER:
+                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);
+                break;
+            default:
+                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
         }
     }
-    input[0]->set_friendly_name("param0");
+
+    parameters[0]->set_friendly_name("param0");
     secondaryInput->set_friendly_name("param1");
 
-    auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
-    function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
-    // w/a: to propagate 1 input shape for other input
-    for (auto& staticShape : targetStaticShapes) {
-        if (function->get_parameters().size() > staticShape.size()) {
-            for (size_t i = 0; i < function->get_parameters().size() - staticShape.size(); i++) {
-                staticShape.push_back(staticShape.front());
-            }
-        }
-    }
+    auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
+    function = std::make_shared<ngraph::Function>(eltwise, parameters, "Eltwise");
 }
-} // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov
