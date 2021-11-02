@@ -9,7 +9,7 @@
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
@@ -25,10 +25,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedS
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SliceToStridedSlice, "SliceToStridedSlice", 0);
 
-using namespace ngraph;
+using namespace ov;
 
 namespace {
-    Output<ngraph::Node> adjust_indices_if_needed(const Output<ngraph::Node>& indices,
+    Output<ov::Node> adjust_indices_if_needed(const Output<ov::Node>& indices,
                                               const std::vector<int64_t>& axes,
                                               size_t slice_indices_length,
                                               int64_t fill_in_value,
@@ -77,9 +77,9 @@ std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice
 
 ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
     MATCHER_SCOPE(SliceToStridedSlice);
-    auto slice = pattern::wrap_type<ngraph::opset8::Slice>();
+    auto slice = pattern::wrap_type<opset8::Slice>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto slice_node = std::dynamic_pointer_cast<ngraph::opset8::Slice>(m.get_match_root());
+        auto slice_node = std::dynamic_pointer_cast<opset8::Slice>(m.get_match_root());
         if (!slice_node)
             return false;
 
@@ -108,7 +108,7 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
         const auto& data_shape = slice_node->get_input_partial_shape(0);
         auto axes_vec = axes_const->cast_vector<int64_t>();
         if (data_shape.rank().is_static()) {
-            auto norm_axes_vec = ngraph::normalize_axes(slice_node->get_friendly_name(), axes_vec, data_shape.rank());
+            auto norm_axes_vec = normalize_axes(slice_node->get_friendly_name(), axes_vec, data_shape.rank());
             axes_vec = std::vector<int64_t>(norm_axes_vec.begin(), norm_axes_vec.end());
         } else {
             const bool need_normalization = std::any_of(axes_vec.begin(),
