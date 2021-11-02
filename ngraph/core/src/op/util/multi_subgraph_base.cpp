@@ -108,8 +108,7 @@ ov::op::util::MultiSubGraphOp::MultiSubGraphOp(size_t number_of_bodies) {
     m_output_descriptions.resize(number_of_bodies);
 }
 
-ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies)
-    : Op(args) {
+ov::op::util::MultiSubGraphOp::MultiSubGraphOp(const OutputVector& args, size_t number_of_bodies) : Op(args) {
     m_bodies.resize(number_of_bodies);
     m_input_descriptions.resize(number_of_bodies);
     m_output_descriptions.resize(number_of_bodies);
