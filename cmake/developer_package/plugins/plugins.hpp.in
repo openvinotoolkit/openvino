@@ -9,8 +9,12 @@
 namespace {
 @IE_PLUGINS_DECLARATIONS@
 
-using Config = std::map<std::string, std::string>;
-using Value = std::pair<InferenceEngine::CreatePluginEngineFunc *, Config>;
+struct Value {
+    InferenceEngine::CreatePluginEngineFunc * m_create_plugin_func;
+    InferenceEngine::CreateExtensionFunc * m_create_extension_func;
+    std::map<std::string, std::string> m_default_config;
+};
+
 using Key = std::string;
 using PluginsStaticRegistry = std::map<Key, Value>;
 
