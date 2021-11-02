@@ -730,7 +730,7 @@ int main(int argc, char* argv[]) {
             if (device_name.find("GPU") == 0)
                 inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
             else if (device_name.find("CPU") == 0)
-                if (app_inputs_info.size() == 1 && inputFiles.size() == 1) {  // old static case
+                if (!isDynamic && inputFiles.size() == 1) {  // old static case
                     inputsData = getBlobsStaticCase(inputFiles.begin()->second, batchSize, app_inputs_info[0], nireq);
                 } else {
                     inputsData = getBlobs(inputFiles, app_inputs_info);
@@ -738,7 +738,7 @@ int main(int argc, char* argv[]) {
             else
                 IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
         } else {
-            if (app_inputs_info.size() == 1 && inputFiles.size() == 1) {  // old static case
+            if (!isDynamic && inputFiles.size() == 1) {  // old static case
                 inputsData = getBlobsStaticCase(inputFiles.begin()->second, batchSize, app_inputs_info[0], nireq);
             } else {
                 inputsData = getBlobs(inputFiles, app_inputs_info);
