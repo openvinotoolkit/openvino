@@ -15,9 +15,9 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Options                    | Values                                                                                                    |
 | :------------------------- | :-------------------------------------------------------------------------------------------------------- |
 | Validated Models           | [alexnet](@ref omz_models_model_alexnet) |
-| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx)                                  |
-| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md)                                   |
-| Other language realization | [C++](../../../inference-engine/samples/classification_sample_async/README.md)                                                    |
+| Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx) |
+| Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
+| Other language realization | [C++](../../../inference-engine/samples/classification_sample_async/README.md) |
 
 ## How It Works
 
