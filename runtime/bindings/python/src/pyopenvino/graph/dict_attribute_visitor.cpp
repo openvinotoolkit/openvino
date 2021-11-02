@@ -75,10 +75,9 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::Va
             }
             a->set(input_descs);
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<
-                       std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>>(
-                       &adapter)) {
+                       std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>>>>(&adapter)) {
             std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::OutputDescription>> output_descs;
-            
+
             if (name == "output_descriptions") {
                 const py::dict& output_desc = m_attributes[name.c_str()].cast<py::dict>();
                 const auto& body_output_desc = output_desc["body_output_desc"].cast<py::list>();
