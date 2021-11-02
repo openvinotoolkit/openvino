@@ -12,7 +12,7 @@ namespace {
 using namespace HeteroTests;
 
 // this tests load plugin by library name: this is not available during static linkage
-#ifdef OPENVINO_STATIC_LIBRARY
+#ifndef OPENVINO_STATIC_LIBRARY
 
 INSTANTIATE_TEST_SUITE_P(smoke_SingleMajorNode, HeteroSyntheticTest,
                         ::testing::Combine(
@@ -26,6 +26,6 @@ INSTANTIATE_TEST_SUITE_P(nightly_RandomMajorNodes, HeteroSyntheticTest,
                                 ::testing::ValuesIn(HeteroTests::HeteroSyntheticTest::_randomMajorNodeFunctions)),
                         HeteroSyntheticTest::getTestCaseName);
 
-#endif // OPENVINO_STATIC_LIBRARY
+#endif // !OPENVINO_STATIC_LIBRARY
 
 }  // namespace
