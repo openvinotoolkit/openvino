@@ -2,10 +2,10 @@ import os
 import sys
 from sphinx.errors import ExtensionError
 import jinja2
-import json
-from json import JSONDecodeError
 from pathlib import Path
+from bs4 import BeautifulSoup as bs
 from sphinx.util import logging
+from pydata_sphinx_theme import index_toctree
 
 
 SPHINX_LOGGER = logging.getLogger(__name__)
@@ -79,20 +79,137 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
     context["theme_show_toc_level"] = int(context.get("theme_show_toc_level", 1))
 
 
-def read_doxygen_mapping(app, config):
-    doxygen_mapping_file = config['doxygen_mapping_file']
-    try:
-        with open(doxygen_mapping_file, 'r') as f:
-            config['doxygen_mapping_file'] = json.load(f)
-    except FileNotFoundError:
-        ExtensionError('{}: file not found.'.format(doxygen_mapping_file))
-    except JSONDecodeError as e:
-        ExtensionError('{}: must be a json file.'.format(doxygen_mapping_file))
-
-
 def get_theme_path():
     theme_path = os.path.abspath(os.path.dirname(__file__))
     return theme_path
+
+
+# override pydata_sphinx_theme
+def _add_collapse_checkboxes(soup, open_first=False):
+    # based on https://github.com/pradyunsg/furo
+
+    toctree_checkbox_count = 0
+
+    for element in soup.find_all("li", recursive=True):
+        # We check all "li" elements, to add a "current-page" to the correct li.
+        classes = element.get("class", [])
+
+        # Nothing more to do, unless this has "children"
+        if not element.find("ul"):
+            continue
+
+        # Add a class to indicate that this has children.
+        element["class"] = classes + ["has-children"]
+
+        # We're gonna add a checkbox.
+        toctree_checkbox_count += 1
+        checkbox_name = f"toctree-checkbox-{toctree_checkbox_count}"
+
+        # Add the "label" for the checkbox which will get filled.
+        if soup.new_tag is None:
+            continue
+        label = soup.new_tag("label", attrs={"for": checkbox_name})
+        label.append(soup.new_tag("i", attrs={"class": "fas fa-chevron-down"}))
+        element.insert(1, label)
+
+        # Add the checkbox that's used to store expanded/collapsed state.
+        checkbox = soup.new_tag(
+            "input",
+            attrs={
+                "type": "checkbox",
+                "class": ["toctree-checkbox"],
+                "id": checkbox_name,
+                "name": checkbox_name,
+            },
+        )
+        # if this has a "current" class, be expanded by default
+        # (by checking the checkbox)
+        if "current" in classes or (open_first and toctree_checkbox_count == 1):
+            checkbox.attrs["checked"] = ""
+
+
+        element.insert(1, checkbox)
+
+def add_toctree_functions(app, pagename, templatename, context, doctree):
+
+    # override pydata_sphinx_theme
+    def generate_sidebar_nav(kind, startdepth=None, **kwargs):
+        """
+        Return the navigation link structure in HTML. Arguments are passed
+        to Sphinx "toctree" function (context["toctree"] below).
+
+        We use beautifulsoup to add the right CSS classes / structure for bootstrap.
+
+        See https://www.sphinx-doc.org/en/master/templating.html#toctree.
+
+        Parameters
+        ----------
+        kind : ["navbar", "sidebar", "raw"]
+            The kind of UI element this toctree is generated for.
+        startdepth : int
+            The level of the toctree at which to start. By default, for
+            the navbar uses the normal toctree (`startdepth=0`), and for
+            the sidebar starts from the second level (`startdepth=1`).
+        kwargs: passed to the Sphinx `toctree` template function.
+
+        Returns
+        -------
+        HTML string (if kind in ["navbar", "sidebar"])
+        or BeautifulSoup object (if kind == "raw")
+        """
+
+        open_first = False
+        if 'open_first' in kwargs:
+            open_first = kwargs.pop('open_first')
+
+        if startdepth is None:
+            startdepth = 1 if kind == "sidebar" else 0
+
+        if startdepth == 0:
+            toc_sphinx = context["toctree"](**kwargs)
+        else:
+            # select the "active" subset of the navigation tree for the sidebar
+            toc_sphinx = index_toctree(app, pagename, startdepth, **kwargs)
+
+        soup = bs(toc_sphinx, "html.parser")
+
+        # pair "current" with "active" since that's what we use w/ bootstrap
+        for li in soup("li", {"class": "current"}):
+            li["class"].append("active")
+
+        # Remove navbar/sidebar links to sub-headers on the page
+        for li in soup.select("li"):
+            # Remove
+            if li.find("a"):
+                href = li.find("a")["href"]
+                if "#" in href and href != "#":
+                    li.decompose()
+
+        if kind == "navbar":
+            # Add CSS for bootstrap
+            for li in soup("li"):
+                li["class"].append("nav-item")
+                li.find("a")["class"].append("nav-link")
+            # only select li items (not eg captions)
+            out = "\n".join([ii.prettify() for ii in soup.find_all("li")])
+
+        elif kind == "sidebar":
+            # Add bootstrap classes for first `ul` items
+            for ul in soup("ul", recursive=False):
+                ul.attrs["class"] = ul.attrs.get("class", []) + ["nav", "bd-sidenav"]
+
+            # Add icons and labels for collapsible nested sections
+            _add_collapse_checkboxes(soup, open_first=open_first)
+
+            out = soup.prettify()
+
+        elif kind == "raw":
+            out = soup
+
+        return out
+
+
+    context["generate_sidebar_nav"] = generate_sidebar_nav
 
 
 def setup(app):
@@ -101,9 +218,7 @@ def setup(app):
     static_path = os.path.join(theme_path, 'static')
     app.config.templates_path.append(templates_path)
     app.config.html_static_path.append(static_path)
-    app.connect('config-inited', read_doxygen_mapping)
     app.connect("html-page-context", setup_edit_url, priority=sys.maxsize)
-    app.add_config_value('repositories', dict(), rebuild=True)
-    app.add_config_value('doxygen_mapping_file', dict(), rebuild=True)
+    app.connect("html-page-context", add_toctree_functions)
     app.add_html_theme('openvino_sphinx_theme', theme_path)
     return {'parallel_read_safe': True, 'parallel_write_safe': True}

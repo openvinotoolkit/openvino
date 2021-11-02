@@ -1,18 +1,28 @@
 # Deployment Optimization Guide {#openvino_docs_deployment_optimization_guide_dldt_optimization_guide}
 
+@sphinxdirective
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   openvino_docs_deployment_optimization_guide_dldt_optimization_guide_additional
+
+@endsphinxdirective
+
 To optimize your performance results during runtime step it is possible to experiment with: 
 
-* preprocess 
+* Preprocess 
 
-* throughput mode  
+* Throughput mode  
 
-* async API 
+* Async API 
 
-* lowering inference precision 
+* Lowering inference precision 
 
-* device optimization 
+* Device optimization 
 
-* combination of devices 
+* Combination of devices 
 
 ## Preprocess
 

@@ -20,7 +20,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 ## Supported Topologies
 
-> **NOTE:** SSD models from the table require converting to the deploy mode. For details, see the [Conversion Instructions](https://github.com/zhreshold/mxnet-ssd/#convert-model-to-deploy-mode) in the GitHub MXNet-SSD repository.
+> **NOTE**: SSD models from the table require converting to the deploy mode. For details, see the [Conversion Instructions](https://github.com/zhreshold/mxnet-ssd/#convert-model-to-deploy-mode) in the GitHub MXNet-SSD repository.
 
 | Model Name| Model File |
 | ------------- |:-------------:|
@@ -89,7 +89,7 @@ MXNet-specific parameters:
             Use only if your topology is one of ssd gluoncv topologies
 ```
 
-> **NOTE:** By default, the Model Optimizer does not use the MXNet loader, as it transforms the topology to another format, which is compatible with the latest
+> **NOTE**: By default, the Model Optimizer does not use the MXNet loader, as it transforms the topology to another format, which is compatible with the latest
 > version of MXNet, but it is required for models trained with lower version of MXNet. If your model was trained with MXNet version lower than 1.0.0, specify the
 > `--legacy_mxnet_model` key to enable the MXNet loader. However, the loader does not support models with custom layers. In this case, you must manually
 > recompile MXNet with custom layers and install it to your environment.

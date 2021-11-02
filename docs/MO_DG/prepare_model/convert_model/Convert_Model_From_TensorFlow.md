@@ -284,7 +284,7 @@ Two groups of parameters are available to convert your model:
 * Framework-agnostic parameters are used to convert a model trained with any supported framework. For details, see see the General Conversion Parameters section on the [Converting a Model to Intermediate Representation (IR)](Converting_Model.md) page.
 * [TensorFlow-specific parameters](#tensorflow_specific_conversion_params): Parameters used to convert only TensorFlow models.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For more information about the parameter, refer to **When to Reverse Input Channels** section of [Converting a Model to Intermediate Representation (IR)](Converting_Model.md).
 
 ### Using TensorFlow\*-Specific Conversion Parameters  <a name="tensorflow_specific_conversion_params"></a>
 The following list provides the TensorFlow\*-specific parameters.
@@ -326,7 +326,7 @@ TensorFlow*-specific parameters:
                         with previous releases.
 ```
 
-> **NOTE:** Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.
+> **NOTE**: Models produces with TensorFlow\* usually have not fully defined shapes (contain `-1` in some dimensions). It is necessary to pass explicit shape for the input using command line parameter `--input_shape` or `-b` to override just batch dimension. If the shape is fully defined, then there is no need to specify either `-b` or `--input_shape` options.
 
 #### Command-Line Interface (CLI) Examples Using TensorFlow\*-Specific Parameters
 
@@ -406,7 +406,7 @@ tf.saved_model.save(model,'model')
 
 Then follow the above instructions for the SavedModel format.
 
-> **NOTE:** Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.
+> **NOTE**: Do not use other hacks to resave TensorFlow* 2 models into TensorFlow* 1 formats.
 
 
 ## Custom Layer Definition

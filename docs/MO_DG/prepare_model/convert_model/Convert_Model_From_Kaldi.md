@@ -17,7 +17,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 3. Test the model in the Intermediate Representation format using the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in the target environment via provided Inference Engine [sample applications](../../../IE_DG/Samples_Overview.md).
 4. [Integrate](../../../IE_DG/Samples_Overview.md) the [Inference Engine](../../../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) in your application to deploy the model in the target environment.
 
-> **NOTE:** The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
+> **NOTE**: The Model Optimizer supports the [nnet1](http://kaldi-asr.org/doc/dnn1.html) and [nnet2](http://kaldi-asr.org/doc/dnn2.html) formats of Kaldi models. Support of the [nnet3](http://kaldi-asr.org/doc/dnn3.html) format is limited.
 
 ## Supported Topologies
 * Convolutional Neural Networks (CNN):
@@ -96,9 +96,9 @@ Kaldi-specific parameters:
 
 The Model Optimizer finds the last layer of the topology and removes this layer only if it is a SoftMax layer.
 
-> **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
+  > **NOTE**: Model Optimizer can remove SoftMax layer only if the topology has one output.
  
-> **NOTE**: For sample inference of Kaldi models, you can use the Inference Engine Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
+  > **NOTE**: For sample inference of Kaldi models, you can use the Inference Engine Speech Recognition sample application. The sample supports models with one output. If your model has several outputs, specify the desired one with the `--output` option.    
   
  If you want to convert a model for inference on Intel® Movidius™ Myriad™, use the `--remove_memory` option. 
 It removes Memory layers from the IR. Instead of it, additional inputs and outputs appear in the IR. 

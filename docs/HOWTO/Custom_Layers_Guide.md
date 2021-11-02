@@ -12,7 +12,7 @@ Representation (IR) for this model.
 This guide illustrates the workflow for running inference on topologies featuring custom operations, allowing you to
 plug in your own implementation for existing or completely new operation.
 
-> **NOTE:** *Layer* — The legacy term for an *operation* which came from Caffe\* framework. Currently it is not used.
+> **NOTE**: *Layer* — The legacy term for an *operation* which came from Caffe\* framework. Currently it is not used.
 > Refer to the [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](../MO_DG/IR_and_opsets.md)
 > for more information on the topic.
 
@@ -44,7 +44,7 @@ plugins to support inference of this operation using a particular target hardwar
 To see the operations that are supported by each device plugin for the Inference Engine, refer to the
 [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md).
 
-> **NOTE:** If a device doesn't support a particular operation, an alternative to creating a new operation is to target
+> **NOTE**: If a device doesn't support a particular operation, an alternative to creating a new operation is to target
 > an additional device using the HETERO plugin. The [Heterogeneous Plugin](../IE_DG/supported_plugins/HETERO.md) may be
 > used to run an inference model on multiple devices allowing the unsupported operations on one device to "fallback" to
 > run on another device (e.g., CPU) that does support those operations.
@@ -63,7 +63,7 @@ operation and uses corresponding operation class to update graph node attributes
 operation. Refer to the "Operation Extractor" section of
 [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) for detailed instructions on how to implement it.
 
-> **NOTE:** In some cases you may need to implement some transformation to support the operation. This topic is covered in the "Graph Transformation Extensions" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
+> **NOTE**: In some cases you may need to implement some transformation to support the operation. This topic is covered in the "Graph Transformation Extensions" section of [Model Optimizer Extensibility](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md).
 
 ## Custom Operations Extensions for the Inference Engine
 
@@ -140,7 +140,7 @@ mo --input_model <PATH_TO_MODEL>/wnet_20.pb -b 1
 
 @endsphinxdirective
 
-> **NOTE:** This conversion guide is applicable for the 2021.3 release of OpenVINO and that starting from 2021.4
+> **NOTE**: This conversion guide is applicable for the 2021.3 release of OpenVINO and that starting from 2021.4
 > the OpenVINO supports this model out of the box.
 
 Model Optimizer produces the following error:
@@ -222,7 +222,7 @@ following snippet provides two extractors: one for "IFFT2D", another one for "FF
 
 @snippet FFT_ext.py fft_ext:extractor
 
-> **NOTE:** The graph is in inconsistent state after extracting node attributes because according to original operation
+> **NOTE**: The graph is in inconsistent state after extracting node attributes because according to original operation
 > "IFFT2D" semantic it should have an input consuming a tensor of complex numbers, but the extractor instantiated an
 > operation "FFT" which expects a real tensor with specific layout. But the inconsistency will be resolved during
 > applying front phase transformations discussed below.
@@ -240,7 +240,7 @@ information on how this type of transformation works. The code snippet should be
 
 @snippet Complex.py complex:transformation
 
-> **NOTE:** The graph is in inconsistent state because the "ComplexAbs" operation consumes complex value tensor but
+> **NOTE**: The graph is in inconsistent state because the "ComplexAbs" operation consumes complex value tensor but
 >  "FFT" produces real value tensor.
 
 Now lets implement a transformation which replace a "ComplexAbs" operation with a sub-graph of primitive operations

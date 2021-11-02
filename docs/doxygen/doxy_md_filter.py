@@ -39,8 +39,8 @@ def replace_links(content, items, md_folder, labels, docs_folder):
 
 def replace_image_links(content, images, input_dir, md_folder, output_dir):
     for image in images:
-        new_path = md_folder.joinpath(image).resolve().relative_to(input_dir).resolve()
-        new_path = output_dir.name / new_path
+        new_path = md_folder.joinpath(image).resolve().relative_to(input_dir)
+        new_path = output_dir / new_path
         content = content.replace(image, new_path.as_posix())
     return content
 

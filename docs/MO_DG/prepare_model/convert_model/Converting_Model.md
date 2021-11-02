@@ -28,7 +28,7 @@ mo --input_model INPUT_MODEL --output_dir <OUTPUT_MODEL_DIR>
 
 The output directory must have write permissions, so you can run Model Optimizer from the output directory or specify an output path with the `--output_dir` option.
 
-> **NOTE:** The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
+> **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. For details, refer to [When to Reverse Input Channels](#when_to_reverse_input_channels).
 
 To adjust the conversion process, you may use general parameters defined in the [General Conversion Parameters](#general_conversion_parameters) and 
 Framework-specific parameters for:

@@ -6,7 +6,7 @@ By default, the [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/in
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*. |
+| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br> Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, ONNX\* and Kaldi\*. |
 | [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications. |
 | [OpenCV\*](https://docs.opencv.org/master/) | OpenCV\* community version compiled for Intel® hardware |
 | [Inference Engine Code Samples](../IE_DG/Samples_Overview.md) | A set of simple command-line applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
@@ -28,19 +28,17 @@ Optimized for these processors:
 * Intel® Neural Compute Stick 2
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
-**Processor Notes**
-
-- Processor graphics are not included in all processors. See [Product Specifications](https://ark.intel.com/) for information about your processor.
+> **NOTE**: Processor graphics are not included in all processors. See [Product Specifications](https://ark.intel.com/) for information about your processor.
 
 **Operating System**
 
 - Microsoft Windows* 10, 64-bit
 
 **Software**
-- [Microsoft Visual Studio* **2019** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **3.14 or higher** 64-bit](https://cmake.org/download/)
-- [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
-    > **IMPORTANT**: As part of this installation, make sure you click the option **[Add Python 3.x to PATH](https://docs.python.org/3/using/windows.html#installation-steps)** to add Python to your `PATH` environment variable.
+- [Microsoft Visual Studio 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
+- [CMake 3.14 or higher, 64-bit](https://cmake.org/download/)
+- [Python 3.6 - 3.8, 64-bit](https://www.python.org/downloads/windows/)
+    > **IMPORTANT**: As part of this installation, make sure you click the option **Add Python 3.x to PATH** to [add Python](https://docs.python.org/3/using/windows.html#installation-steps) to your `PATH` environment variable.
 
 ## Overview
 
@@ -60,44 +58,40 @@ This guide provides step-by-step instructions on how to install the Intel® Dist
 
 ## <a name="install-external-dependencies"></a>Step 1: Install External Software Dependencies
     
-   Install these dependencies:
-   1. [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
-        > **NOTE**: You can choose to download Community version. Use [Microsoft Visual Studio installation guide](https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019) to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
+Install these dependencies:
+
+1. [Microsoft Visual Studio* 2019 with MSBuild](http://visualstudio.microsoft.com/downloads/)
+   > **NOTE**: You can choose to download Community version. Use [Microsoft Visual Studio installation guide](https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019) to walk you through the installation. During installation in the **Workloads** tab, choose **Desktop development with C++**.
    
-   2. [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
-        > **NOTE**: You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
+2. [CMake 3.14 or higher 64-bit](https://cmake.org/download/)
+   > **NOTE**: You can either use `cmake<version>.msi` which is the installation wizard or `cmake<version>.zip` where you have to go into the `bin` folder and then manually add the path to environmental variables.
    
-   3. [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
-        > **IMPORTANT**: As part of this installation, make sure you click the option **[Add Python 3.x to PATH](https://docs.python.org/3/using/windows.html#installation-steps)** to add Python to your `PATH` environment variable.
+3. [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
+   
+   > **IMPORTANT**: As part of this installation, make sure you click the option **Add Python 3.x to PATH** to [add Python](https://docs.python.org/3/using/windows.html#installation-steps) to your `PATH` environment variable.
 
 ## <a name="install-openvino"></a>Step 2: Install the Intel® Distribution of OpenVINO™ toolkit Core Components
 
-2. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
+1. Download the Intel® Distribution of OpenVINO™ toolkit package file from [Intel® Distribution of OpenVINO™ toolkit for Windows*](https://software.intel.com/en-us/openvino-toolkit/choose-download).
    Select the Intel® Distribution of OpenVINO™ toolkit for Windows* package from the dropdown menu.
    
-3. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. A window opens to let you choose your installation directory and components. 
-
+2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. A window opens to let you choose your installation directory and components. 
    ![](../img/openvino-install-windows-01.png)
    
-4. Follow the instructions on your screen. Watch for informational messages such as the following in case you must complete additional steps:
-
+3. Follow the instructions on your screen. Watch for informational messages such as the following in case you must complete additional steps:
    ![](../img/openvino-install-windows-02.png)
 
-5. By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
-      * `C:\Program Files (x86)\Intel\openvino_<version>`
+4. By default, the Intel® Distribution of OpenVINO™ is installed to the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation: `C:\Program Files (x86)\Intel\openvino_<version>`. For simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022`.
 
-   For simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2022`.
+5. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install.
+   > **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
 
-6. **Optional**: You can choose **Customize** to change the installation directory or the components you want to install.
-> **NOTE**: If there is an OpenVINO™ toolkit version previously installed on your system, the installer will use the same destination directory for next installations. If you want to install a newer version to a different directory, you need to uninstall the previously installed versions.
-
-7. The **Finish** screen indicates that the core components have been installed: 
-
+6. The **Finish** screen indicates that the core components have been installed: 
    ![](../img/openvino-install-windows-03.png)
  
-8. Click **Finish** to close the installation wizard.
+7. Click **Finish** to close the installation wizard.
 
-> **NOTE**: Once you click **Finish** to close the installation wizard, a new browser window opens with the document you’re reading now (in case you installed without it) and jumps to the section with the next installation steps.
+   Once you click **Finish** to close the installation wizard, a new browser window opens with the document you’re reading now (in case you installed without it) and jumps to the section with the next installation steps.
 
 The core components are now installed. Continue to the next section to install additional dependencies.
 
@@ -113,7 +107,7 @@ You must update several environment variables before you can compile and run Ope
 
 > **IMPORTANT**: Windows PowerShell* is not recommended to run the configuration commands. Please use the command prompt (cmd) instead.
 
-**(Optional)**: OpenVINO toolkit environment variables are removed when you close the command prompt window. As an option, you can permanently set the environment variables manually.
+**Optional**: OpenVINO toolkit environment variables are removed when you close the command prompt window. As an option, you can permanently set the environment variables manually.
 
 > **NOTE**: If you see an error indicating Python is not installed when you know you installed it, your computer might not be able to find the program. For the instructions to add Python to your system environment variables, see <a href="#Update-Path">Update Your Windows Environment Variables</a>.
 
@@ -138,7 +132,6 @@ If you see error messages, make sure you installed all dependencies. These steps
 
 1. Open a command prompt by typing `cmd` in your **Search Windows** box and then pressing **Enter**.
 Type commands in the opened window:
-
    ![](../img/command_prompt.PNG)
 
 2. Go to the Model Optimizer prerequisites directory.<br>
@@ -151,7 +144,7 @@ Type commands in the opened window:
    install_prerequisites.bat
    ```
 
-3. **Optional:** You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi, and ONNX (`install_prerequisites_caffe.sh`, etc.). 
+3. **Optional:** You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual batch files for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi, and ONNX (`install_prerequisites_caffe.bat`, etc.). If you see error messages, make sure you installed all dependencies. 
    
 The Model Optimizer is configured for one or more frameworks.
 
@@ -170,7 +163,8 @@ Or proceed to the <a href="#get-started">Start Using the Toolkit</a> section to 
 ### <a name="install-gpu"></a>Optional: Steps for Intel® Processor Graphics (GPU)
 
 > **NOTE**: These steps are required only if you want to use an Intel® integrated GPU.
-> **NOTE**: This section will help you check if you require driver installation. Install indicated version or higher.
+
+This section will help you check if you require driver installation. Install indicated version or higher.
 
 If your applications offload computation to **Intel® Integrated Graphics**, you must have the Intel Graphics Driver for Windows installed on your hardware.
 [Download and install the recommended version](https://downloadcenter.intel.com/download/30079/Intel-Graphics-Windows-10-DCH-Drivers). 
@@ -180,13 +174,11 @@ To check if you have this driver installed:
 1. Type **device manager** in your **Search Windows** box and press Enter. The **Device Manager** opens.
 
 2. Click the drop-down arrow to view the **Display adapters**. You can see the adapter that is installed in your computer:
-
    ![](../img/DeviceManager.PNG)
 
 3. Right-click the adapter name and select **Properties**.
 
 4. Click the **Driver** tab to see the driver version. 
-
    ![](../img/DeviceDriverVersion.PNG)
 
 You are done updating your device driver and are ready to use your GPU. Proceed to the <a href="#get-started">Start Using the Toolkit</a> section to learn the basic OpenVINO™ toolkit workflow and run code samples and demo applications.
@@ -219,17 +211,14 @@ After configuration is done, you are ready to go to <a href="#get-started">Start
 Use these steps to update your Windows `PATH` if a command you execute returns an error message stating that an application cannot be found.
 
 1. In your **Search Windows** box, type **Edit the system environment variables** and press **Enter**. A window like the following appears:
-
    ![](../img/System_Properties.PNG)
 
 2. At the bottom of the screen, click **Environment Variables**.
 
 3. Under **System variables**, click **Path** and then **Edit**:
-
    ![](../img/Environment_Variables-select_Path.PNG)
 
 4. In the opened window, click **Browse**. A browse window opens:
-
    ![](../img/Add_Environment_Variable.PNG)
 
 5. If you need to add CMake to the `PATH`, browse to the directory in which you installed CMake. The default directory is `C:\Program Files\CMake`.

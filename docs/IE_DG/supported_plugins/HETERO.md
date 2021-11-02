@@ -69,7 +69,7 @@ If transmitting data from one part of a network to another part in heterogeneous
 In this case, you can define the heaviest part manually and set the affinity to avoid sending data back and forth many times during one inference.
 
 ### Execution Precision
-Precision for inference in heterogeneous plugin is defined by:
+Precision for inference in the heterogeneous plugin is defined by:
 * Precision of IR
 * Ability of final plugins to execute in precision defined in IR
 

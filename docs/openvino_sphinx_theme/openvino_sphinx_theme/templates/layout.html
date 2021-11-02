@@ -26,29 +26,77 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.1/papaparse.min.js"></script>
 {% endblock %}
 
-{% block docs_navbar %}
-{{ super() }}
-{% endblock %}
+{%- block content %}
+    {# Added to support a banner with an alert #}
+    <div class="container-fluid" id="banner"></div>
 
-{% block docs_main %}
-    {% if sidebars %}
-        {% set content_col_class = "col-md-9 col-xl-7" %}
-    {% else %}
-        {% set content_col_class = "col-md-11 col-xl-8" %}
-    {% endif %}
-    <main class="col-12 {{ content_col_class }} py-md-5 pl-md-5 pr-md-4 bd-content" role="main">
-      {%- block edit_page -%}
-        {%- include "edit-this-page.html" with context -%}
-      {%- endblock %}
-      {% block docs_body %}
-          <div>
-            {% block body %} {% endblock %}
+    {% block docs_navbar %}
+      <nav class="navbar navbar-light navbar-expand-lg bg-light fixed-top bd-navbar" id="navbar-main">
+        {%- include "docs-navbar.html" %}
+        <div id="collapse-nav-wrapper" class="container-xl">
+          <button id="collapse-nav" class="button bttn-prm button-size-m" type="button" data-toggle="collapse" data-target="#nav-tree" aria-expanded="false" aria-controls="nav-tree">
+            Documentation navigation <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
+      </nav>
+    {% endblock %}
+
+    <div class="container-xl">
+      <div class="row">
+          {% block docs_sidebar %}
+            {% if sidebars %}
+            <!-- Only show if we have sidebars configured, else just a small margin  -->
+            <div class="col-12 col-md-3 bd-sidebar" id="nav-tree">
+                {%- for sidebartemplate in sidebars %}
+                {%- include sidebartemplate %}
+                {%- endfor %}
+            </div>
+            {% else %}
+            <div class="col-12 col-md-1 col-xl-2 bd-sidebar no-sidebar"></div>
+            {% endif %}
+          {% endblock %}
+
+          {% block docs_toc %}
+          <div class="d-none d-xl-block col-xl-2 bd-toc">
+            {% if meta is defined and not (meta is not none and 'notoc' in meta) %}
+              {% for toc_item in theme_page_sidebar_items %}
+              <div class="toc-item">
+                {% include toc_item %}
+              </div>
+              {% endfor %}
+            {% endif %}
           </div>
-      {% endblock %}
-      {% if theme_show_prev_next %}
-          <div class='prev-next-bottom'>
-            {{ ovino_prev_next(prev, next) }}
-          </div>
-      {% endif %}
-    </main>
-{% endblock %}
+          {% endblock %}
+
+          {% block docs_main %}
+          {% if sidebars %}
+              {% set content_col_class = "col-md-9 col-xl-7" %}
+          {% else %}
+              {% set content_col_class = "col-md-11 col-xl-8" %}
+          {% endif %}
+          <main class="col-12 {{ content_col_class }} py-md-5 pl-md-5 pr-md-4 bd-content" role="main">
+            {%- block edit_page -%}
+              {%- include "edit-this-page.html" with context -%}
+            {%- endblock %}
+            {% block docs_body %}
+                <div>
+                  {% block body %} {% endblock %}
+                </div>
+            {% endblock %}
+            {% if theme_show_prev_next %}
+                <div class='prev-next-bottom'>
+                  {{ ovino_prev_next(prev, next) }}
+                </div>
+            {% endif %}
+          </main>
+          {% endblock %}
+
+      </div>
+    </div>
+
+
+  {%- block scripts_end %}
+  {{ _webpack.body_post() }}
+  {%- endblock %}
+
+{%- endblock %}

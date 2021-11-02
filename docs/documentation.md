@@ -9,7 +9,7 @@
 
    openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
    openvino_docs_HOWTO_Custom_Layers_Guide
-   openvino_docs_IE_DG_Tools_Model_Downloader
+   omz_tools_downloader
 
 
 .. toctree::
@@ -73,9 +73,9 @@
    :caption: Developing Inference Engine Plugins 
    :hidden:
 
+   Inference Engine Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
    groupie_dev_api
-   Inference Engine Plugin Developer Guide <docs_ie_plugin_dg_overview>
-
+   
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -88,10 +88,19 @@
 
 @endsphinxdirective
 
-This section provides documentation that guides you through developing your deep learning applications with the OpenVINO™ toolkit.
+This section provides reference documents that guide you through developing your own deep learning applications with the OpenVINO™ toolkit. These documents will most helpful if you have first gone through the [Get Started](get_started.md) guide.
 
-With the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) and [Model Downloader](@ref omz_tools_downloader) guides, you will learn how to download or prepare deep learning models to use with OpenVINO™ toolkit.
+## Converting and Preparing Models
+With the [Model Downloader](@ref omz_tools_downloader) and [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) guides, you will learn to download pre-trained models and convert them for use with the OpenVINO™ toolkit. You can provide your own model or choose a public or Intel model from a broad selection provided in the [Open Model Zoo](model_zoo.md).
 
-The [Inference Engine Developer Guide](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) and API References provides information on how to integrate and utilize the inference API to run inference on your models.
+## Deploying Inference
+The [Inference Engine Developer Guide](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) explains the process of creating your own application that runs inference with the OpenVINO™ toolkit. The [API Reference](./api_references.html) defines the Inference Engine API for Python, C++, and C and the nGraph API for Python and C++. The Inference Engine API is what you'll use to create an OpenVINO™ application, while the nGraph API is available for using enhanced operations sets and other features. After writing your application, you can use the [Deployment Manager](install_guides/deployment-manager-tool.md) for deploying to target devices.
 
-Read the [Accuracy Checker](@ref omz_tools_accuracy_checker), [Performance Optimization](optimization_guide/dldt_optimization_guide.md) and [Post-Training Optimization Tool](@ref pot_README) guides to know how to check the accuracy of you model, tune it in development and deploy a more efficient application.
+## Tuning for Performance
+The toolkit provides a [Performance Optimization Guide](optimization_guide/dldt_optimization_guide.md) and utilities for squeezing the best performance out of your application, including [Accuracy Checker](@ref omz_tools_accuracy_checker), [Post-Training Optimization Tool](@ref pot_README), and other tools for measuring accuracy, benchmarking performance, and tuning your application.
+
+## Graphical Web Interface for OpenVINO™ Toolkit
+You can choose to use the [OpenVINO™ Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction), a web-based tool that guides you through the process of converting, measuring, optimizing, and deploying models. This tool also serves as a low-effort introduction to the toolkit and provides a variety of useful interactive charts for understanding performance.
+
+## Media Processing
+The OpenVINO™ toolkit comes with several sets of libraries and tools that add capability and flexibility to the toolkit. These include [DL Streamer](@ref gst_samples_README), a utility that eases creation of pipelines via command line or API, and optimized versions of OpenCV and OpenCL.

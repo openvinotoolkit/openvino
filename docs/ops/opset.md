@@ -4,15 +4,16 @@
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
    
-openvino_docs_ops_opset8
-openvino_docs_ops_opset7
-openvino_docs_ops_opset6
-openvino_docs_ops_opset5
-openvino_docs_ops_opset4
-openvino_docs_ops_opset3
-openvino_docs_ops_opset2
-openvino_docs_ops_opset1
+   openvino_docs_ops_opset8
+   openvino_docs_ops_opset7
+   openvino_docs_ops_opset6
+   openvino_docs_ops_opset5
+   openvino_docs_ops_opset4
+   openvino_docs_ops_opset3
+   openvino_docs_ops_opset2
+   openvino_docs_ops_opset1
       
 @endsphinxdirective
 

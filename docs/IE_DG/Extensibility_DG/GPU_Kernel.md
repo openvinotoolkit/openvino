@@ -210,7 +210,7 @@ __kernel void example_relu_kernel(
 }
 ```
 
-> **NOTE:** As described in the previous section, all items like
+> **NOTE**: As described in the previous section, all items like
 > `INPUT0_TYPE` are actually defined as OpenCL (pre-)compiler inputs by
 > the Inference Engine for efficiency reasons. See [Debugging
 > Tips](#debugging-tips) for information on debugging the results.

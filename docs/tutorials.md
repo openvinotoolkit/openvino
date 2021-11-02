@@ -3,7 +3,7 @@
 @sphinxdirective
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Notebooks
    :hidden:
 
@@ -11,8 +11,8 @@
 
 @endsphinxdirective
 
-Use this collection of tutorials written as ready-to-run Jupyter* notebooks for learning and experimenting with the OpenVINO™ toolkit. The notebooks provide an introduction to OpenVINO basics and teach you how to leverage OpenVINO Python API and tools for optimized deep learning inference.
+This collection of Python tutorials are written for running on [Jupyter*](https://jupyter.org) notebooks. The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for optimized deep learning inference. You can run the code one section at a time to see how to integrate your application with OpenVINO™ libraries.
 
-Notebooks with the <img src="https://mybinder.org/badge_logo.svg" alt="binder logo"> Binder logo can be run without installing anything. Binder is a free online service with limited resources. For the best performance, please follow the [Installation Guide](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md#-installation-guide) and run the notebooks locally.
+![Binder logo](img/badge_logo.svg)
 
-
+Tutorials showing this logo may be run remotely using Binder with no setup, although running the notebooks on a local system is recommended for best performance. See the [OpenVINO™ Notebooks Installation Guide](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md#-installation-guide) to install and run locally.

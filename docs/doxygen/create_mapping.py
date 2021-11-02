@@ -4,12 +4,24 @@ import logging
 from lxml import etree
 from pathlib import Path
 
+REPOSITORIES = [
+    'openvino',
+    'omz'
+]
 
 def create_mapping(xml_input: Path, output_dir: Path, strip_path: Path):
     xml_input = xml_input.resolve()
     output_dir = output_dir.resolve()
     strip_path = strip_path.resolve()
-    mapping = dict()
+    mapping = {
+        'get_started': 'openvino/docs/get_started.md',
+        'documentation': 'openvino/docs/documentation.md',
+        'index': 'openvino/docs/index.rst',
+        'model_zoo': 'openvino/docs/model_zoo.md',
+        'resources': 'openvino/docs/resources.md',
+        'tutorials': 'openvino/docs/tutorials.md',
+        'tuning_utilities': 'openvino/docs/tuning_utilities.md'
+    }
     output_dir.mkdir(parents=True, exist_ok=True)
     xml_files = xml_input.glob('*.xml')
     for xml_file in xml_files:
@@ -22,9 +34,16 @@ def create_mapping(xml_input: Path, output_dir: Path, strip_path: Path):
                     continue
                 name_tag = compound.find('compoundname')
                 name = name_tag.text
-                name = name.replace('::', '_')
-                if kind != 'page':
-                    name = kind + '_' + name
+                name = name.replace('::', '_1_1')
+                if kind == 'page':
+                    exclude = True
+                    for rep in REPOSITORIES:
+                        if name.startswith(rep):
+                            exclude = False
+                    if exclude:
+                        continue
+                else:
+                    name = kind + name
                 location_tag = compound.find('location')
                 file = Path(location_tag.attrib['file'])
                 if not file.suffix:
