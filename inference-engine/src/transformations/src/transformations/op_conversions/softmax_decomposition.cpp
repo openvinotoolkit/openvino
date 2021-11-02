@@ -15,7 +15,7 @@
 #include <ngraph/pattern/op/or.hpp>
 
 namespace {
-bool decompose_softmax(const std::shared_ptr<ngraph::Node> &node,
+bool decompose_softmax(const std::shared_ptr<ngraph::Node>& node,
                        const int64_t softmax_axis) {
     if (!node)
         return false;
