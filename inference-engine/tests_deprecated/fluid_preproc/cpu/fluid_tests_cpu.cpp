@@ -280,7 +280,7 @@ INSTANTIATE_TEST_SUITE_P(ColorConvertYUV420Fluid, ColorConvertYUV420TestIE,
                                        cv::Size( 320,  200),
                                        cv::Size( 300,  300),
                                        cv::Size( 150,  150)),
-                                Values(0)));
+                                Values(1)));
 
 INSTANTIATE_TEST_SUITE_P(Reorder_HWC2CHW, ColorConvertTestIE,
                         Combine(Values(CV_8U, CV_32F, CV_16S, CV_16F),
