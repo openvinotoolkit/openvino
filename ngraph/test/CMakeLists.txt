@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+endif()
+
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
@@ -37,12 +42,12 @@ set(SRC
     copy.cpp
     element_type.cpp
     eval.cpp
+    extension.cpp
     file_util.cpp
     float16.cpp
     framework_node.cpp
     function.cpp
     graph_rewrite.cpp
-    includes.cpp
     input_output_assign.cpp
     int4.cpp
     intervals.cpp
@@ -294,6 +299,8 @@ set(SRC
     visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/exp.cpp
+    visitors/op/experimental_detectron_detection_output.cpp
+    visitors/op/experimental_detectron_generate_proposals.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -402,13 +409,16 @@ set(SRC
     util.cpp
 )
 
+# Add include path to so_extension.hpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
                                 PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
 endif()
 
-set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
-    NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
+list(APPEND UNIT_TESTS_DEPENDENCIES template_ov_extension)
 
 if (ENABLE_MKL_DNN AND NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
@@ -466,15 +476,11 @@ set(MULTI_TEST_SRC
     backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/deformable_psroi_pooling.in.cpp
-    backend/detection_output.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
@@ -491,8 +497,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/prior_box_clustered.in.cpp
     backend/prior_box.in.cpp
-    backend/proposal.in.cpp
-    backend/psroi_pooling.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/reorg_yolo.in.cpp
@@ -503,10 +507,8 @@ set(MULTI_TEST_SRC
     backend/sqrt.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp
-    backend/transpose.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
-    backend/variadic_split.in.cpp
     backend/zero_sized.in.cpp
 )
 
@@ -576,8 +578,10 @@ target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime
 get_target_property(NGRAPH_SRC_DIR openvino::core SOURCE_DIR)
 target_include_directories(unit-test PRIVATE ${NGRAPH_SRC_DIR}/src)
 
-add_definitions("-DCURDIR=\"${CMAKE_CURRENT_SOURCE_DIR}\"")
-add_definitions("-DJSON_INCLUDES=\"${JSON_INCLUDE_DIR}\"")
+target_compile_definitions(unit-test
+    PRIVATE
+        SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
+        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
     add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
@@ -593,6 +597,7 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         interpreter_backend
                                         Threads::Threads
                                         openvino::conditional_compilation
+                                        openvino::util
                                         frontend_manager)
 
 # Protobuf-lite does not support parsing files from prototxt format

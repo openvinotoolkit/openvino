@@ -39,12 +39,12 @@ If you do not need an operator anymore, unregister it by calling `unregister_ope
 
 The same principles apply when registering a custom ONNX operator based on custom nGraph operations.
 This example shows how to register a custom ONNX operator based on `Operation` presented in [this tutorial](AddingNGraphOps.md), which is used in [TemplateExtension](Extension.md).
-@snippet template_extension/extension.cpp extension:ctor
+@snippet template_extension/old/extension.cpp extension:ctor
 
 Here, the `register_operator` function is called in the constructor of Extension. The constructor makes sure that the function is called before InferenceEngine::Core::ReadNetwork, because InferenceEngine::Core::AddExtension must be called before a model with a custom operator is read.
 
 The example below demonstrates how to unregister an operator from the destructor of Extension:
-@snippet template_extension/extension.cpp extension:dtor
+@snippet template_extension/old/extension.cpp extension:dtor
 
 > **REQUIRED**: It is mandatory to unregister a custom ONNX operator if it is defined in a dynamic shared library.
 
