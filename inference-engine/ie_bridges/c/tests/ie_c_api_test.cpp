@@ -331,11 +331,14 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "GNA", &config, &exe_network));
+    std::string model_path_str = TestDataHelpers::generate_model_path("../gna", "gna_basic_fp32.xml");
+    const char *model_path = model_path_str.c_str();
+
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
     const char* file_name = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(core, file_name, &exe_network));
+    IE_EXPECT_OK(ie_core_export_network(core, file_name, exe_network));
     std::ifstream file(file_name);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 
@@ -348,18 +351,19 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
-    
+
     ie_config_t conf1 = {"GNA_DEVICE_MODE", "GNA_SW_EXACT", nullptr};
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "327.67", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_model_path("../../models/google_cmd", "tf_speech_model_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_model_path("../gna", "gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
+
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
-    
+
     const char* export_path = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(core, export_path, &exe_network));
+    IE_EXPECT_OK(ie_core_export_network(core, export_path, exe_network));
 
     FILE *fileptr;
     fileptr = fopen(export_path, "rb");
@@ -377,9 +381,10 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     if (fread(input_data, 1, filelen, fileptr) != filelen) {
         fputs ("Reading error",stderr); exit (3);
     }
+
     fclose(fileptr);
     ie_executable_network_t *network = nullptr;
-    
+
     IE_EXPECT_OK(ie_core_import_network_from_memory(core, blob, "GNA", &conf2, &network));
     EXPECT_NE(nullptr, network);
     if (network != nullptr) {
@@ -401,13 +406,13 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "32767", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_model_path("../../models/google_cmd", "tf_speech_model_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_model_path("../gna", "gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
     const char* exported_model = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(core, exported_model, &exe_network));
+    IE_EXPECT_OK(ie_core_export_network(core, exported_model, exe_network));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 

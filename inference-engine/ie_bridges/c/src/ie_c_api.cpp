@@ -13,7 +13,6 @@
 #include <chrono>
 #include <tuple>
 #include <memory>
-#include <fstream>
 #include <ie_extension.h>
 #include "inference_engine.hpp"
 #include "ie_compound_blob.h"
@@ -337,7 +336,7 @@ IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xm
     return status;
 }
 
-IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, const char *device_name, \
+IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, const char *device_name,
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
@@ -357,8 +356,8 @@ IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, cons
     return status;
 }
 
-IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *model_blob, const char *device_name, \
-    const ie_config_t *config, ie_executable_network_t **exe_network) {
+IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *model_blob, const char *device_name,
+       const ie_config_t *config, ie_executable_network_t **exe_network) {
     if (core == nullptr || model_blob == nullptr ||device_name == nullptr || config == nullptr || exe_network == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
     }
@@ -366,8 +365,7 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t
     IEStatusCode status = IEStatusCode::OK;
     try {
         IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(model_blob->object);
-        char *blob_data = mblob->rmap().as<char *>();
-
+        const char *blob_data = mblob->rmap().as<char *>();
         size_t blob_size = model_blob->object->byteSize();
         std::stringstream network_model(std::string(blob_data, blob_size));
 
@@ -381,7 +379,7 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t
     return status;
 }
 
-IEStatusCode ie_core_export_network(ie_core_t *core, const char *file_name, ie_executable_network_t **exe_network) {
+IEStatusCode ie_core_export_network(ie_core_t *core, const char *file_name, ie_executable_network_t *exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
     if (core == nullptr || file_name == nullptr || exe_network == nullptr) {
@@ -389,7 +387,7 @@ IEStatusCode ie_core_export_network(ie_core_t *core, const char *file_name, ie_e
         return status;
     }
     try {
-        (*exe_network)->object.Export(file_name);
+        exe_network->object.Export(file_name);
     } CATCH_IE_EXCEPTIONS
 
     return status;

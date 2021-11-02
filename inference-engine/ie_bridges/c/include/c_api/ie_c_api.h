@@ -426,7 +426,8 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network(ie_core
 * @param exe_network A pointer to the newly created executable network.
 * @return Status code of the operation: OK(0) for success.
 */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *model_blob, const char *device_name, const ie_config_t *config, ie_executable_network_t **exe_network);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_memory(ie_core_t *core, const ie_blob_t *model_blob, \
+        const char *device_name, const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**
 * @brief Exports an executable network to bin file.
@@ -437,7 +438,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_me
 * @return Status code of the operation: OK(0) for success.
 */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_export_network(ie_core_t *core, const char *file_name, \
-        ie_executable_network_t **exe_network);
+        ie_executable_network_t *exe_network);
 
 /**
  * @brief Creates an executable network from a network object. Users can create as many networks as they need and use
