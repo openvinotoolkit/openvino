@@ -18,7 +18,7 @@ void regclass_frontend_Place(py::module m) {
                                                                                         "Place",
                                                                                         py::dynamic_attr(),
                                                                                         py::module_local());
-    place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
+    place.doc() = "openvino.frontend.Place wraps ngraph::frontend::Place";
 
     place.def("is_input",
               &ngraph::frontend::Place::is_input,

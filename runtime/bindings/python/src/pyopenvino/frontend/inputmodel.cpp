@@ -16,7 +16,7 @@ void regclass_frontend_InputModel(py::module m) {
                                                                                                "InputModel",
                                                                                                py::dynamic_attr(),
                                                                                                py::module_local());
-    im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
+    im.doc() = "openvino.frontend.InputModel wraps ngraph::frontend::InputModel";
 
     im.def("get_place_by_tensor_name",
            &ngraph::frontend::InputModel::get_place_by_tensor_name,

@@ -19,7 +19,7 @@ void regclass_frontend_FrontEndManager(py::module m) {
         "FrontEndManager",
         py::dynamic_attr(),
         py::module_local());
-    fem.doc() = "ngraph.impl.FrontEndManager wraps ngraph::frontend::FrontEndManager";
+    fem.doc() = "openvino.frontend.FrontEndManager wraps ngraph::frontend::FrontEndManager";
 
     fem.def(py::init<>());
 

@@ -18,7 +18,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                                                                                             "FrontEnd",
                                                                                             py::dynamic_attr(),
                                                                                             py::module_local());
-    fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
+    fem.doc() = "openvino.frontend.FrontEnd wraps ngraph::frontend::FrontEnd";
 
     fem.def(
         "load",
