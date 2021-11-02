@@ -26,7 +26,7 @@ void InferenceEnginePython::ApplyMOCTransformations(InferenceEnginePython::IENet
 
 void InferenceEnginePython::ApplyMOCLegacyTransformations(InferenceEnginePython::IENetwork network) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ov::pass::MOCLegacyTransformations>();
+    manager.register_pass<ngraph::pass::MOCLegacyTransformations>();
     manager.run_passes(network.actual->getFunction());
 }
 

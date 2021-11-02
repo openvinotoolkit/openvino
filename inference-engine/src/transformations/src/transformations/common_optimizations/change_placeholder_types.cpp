@@ -7,12 +7,12 @@
 #include <memory>
 #include <numeric>
 
-#include "openvino/core/node.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/opsets/opset8.hpp"
 #include "transformations/rt_info/old_api_map_attribute.hpp"
 
 using namespace std;
-using namespace ov;
+using namespace ngraph;
 
 namespace {
 bool is_node_casts_to_float_or_shapeof(const Node* node) {
@@ -28,7 +28,11 @@ bool is_node_casts_to_float_or_shapeof(const Node* node) {
 }
 }  // namespace
 
-bool ov::pass::ChangePlaceholderTypes::run_on_function(shared_ptr<Function> f) {
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ChangePlaceholderTypes,
+                       "ChangePlaceholderTypes", 0);
+
+bool ngraph::pass::ChangePlaceholderTypes::run_on_function(
+    shared_ptr<Function> f) {
   for (const auto& param : f->get_parameters()) {
     element::Type legacy_type = element::undefined;
     bool all_castable_or_shapeof = true;
@@ -58,7 +62,7 @@ bool ov::pass::ChangePlaceholderTypes::run_on_function(shared_ptr<Function> f) {
         new_order.resize(rank);
         std::iota(new_order.begin(), new_order.end(), 0);
       }
-      set_old_api_map(param, OldApiMapAttr(new_order, legacy_type));
+      set_old_api_map(param, ov::OldApiMapAttr(new_order, legacy_type));
     }
   }
 

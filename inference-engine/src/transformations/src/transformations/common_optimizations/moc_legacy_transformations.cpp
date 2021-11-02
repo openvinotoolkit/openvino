@@ -6,14 +6,14 @@
 
 #include <memory>
 
-#include "openvino/pass/manager.hpp"
+#include "ngraph/pass/manager.hpp"
 #include "transformations/common_optimizations/change_placeholder_types.hpp"
 
-bool ov::pass::MOCLegacyTransformations::run_on_function(
+bool ngraph::pass::MOCLegacyTransformations::run_on_function(
     std::shared_ptr<ov::Function> f) {
   ov::pass::Manager manager(get_pass_config());
 
-  manager.register_pass<ov::pass::ChangePlaceholderTypes>();
+  manager.register_pass<ngraph::pass::ChangePlaceholderTypes>();
   manager.run_passes(f);
 
   return false;

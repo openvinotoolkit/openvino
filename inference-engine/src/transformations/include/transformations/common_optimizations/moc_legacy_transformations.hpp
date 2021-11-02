@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "ngraph/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
+namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API MOCLegacyTransformations;
 
 }  // namespace pass
-}  // namespace ov
+}  // namespace ngraph
 
-namespace ov {
+namespace ngraph {
 namespace pass {
 
 /**
@@ -29,9 +29,9 @@ namespace pass {
 
 class MOCLegacyTransformations : public FunctionPass {
  public:
-  OPENVINO_RTTI("ov::pass::MOCLegacyTransformations");
+  NGRAPH_RTTI_DECLARATION;
   bool run_on_function(std::shared_ptr<ov::Function> f) override;
 };
 
 }  // namespace pass
-}  // namespace ov
+}  // namespace ngraph

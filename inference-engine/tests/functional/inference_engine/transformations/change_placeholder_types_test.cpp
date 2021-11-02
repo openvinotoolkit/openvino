@@ -5,14 +5,14 @@
 #include "transformations/common_optimizations/change_placeholder_types.hpp"
 
 #include "gtest/gtest.h"
-#include "openvino/opsets/opset8.hpp"
-#include "openvino/pass/manager.hpp"
+#include "ngraph/opsets/opset8.hpp"
+#include "ngraph/pass/manager.hpp"
 #include "transformations/rt_info/old_api_map_attribute.hpp"
 
 using namespace std;
-using namespace ov;
+using namespace ngraph;
 using namespace opset8;
-using namespace ov::pass;
+using namespace ngraph::pass;
 
 TEST(ChangePlaceholderTypeTest, OldApiMapForI64Param) {
   auto p1 = make_shared<Parameter>(element::i64, Shape({1, 2, 3, 4}));
@@ -36,7 +36,7 @@ TEST(ChangePlaceholderTypeTest, OldApiMapForI64Param) {
 
 TEST(ChangePlaceholderTypeTest, ExistingOldApiMapForU8Param) {
   auto p1 = make_shared<Parameter>(element::u8, Shape({3, 4, 5}));
-  set_old_api_map(p1, OldApiMapAttr({1, 0, 2}, element::u8));
+  set_old_api_map(p1, ov::OldApiMapAttr({1, 0, 2}, element::u8));
 
   auto axes =
       make_shared<Constant>(element::i64, Shape{2}, vector<int64_t>{0, 1});
