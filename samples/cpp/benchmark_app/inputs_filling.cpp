@@ -108,9 +108,7 @@ InferenceEngine::Blob::Ptr createBlobFromImage(const std::vector<std::string>& f
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
-                                      inputInfo.tensorShape,
-                                      getLayoutFromString(inputInfo.layout));
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
     auto blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
@@ -139,9 +137,7 @@ InferenceEngine::Blob::Ptr createBlobImInfo(const std::pair<size_t, size_t>& ima
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
-                                      inputInfo.tensorShape,
-                                      getLayoutFromString(inputInfo.layout));
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
@@ -185,9 +181,7 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
         }
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
-                                      inputInfo.tensorShape,
-                                      getLayoutFromString(inputInfo.layout));
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>((T*)data, blob_size * sizeof(T)));
@@ -209,9 +203,7 @@ InferenceEngine::Blob::Ptr createBlobRandom(const benchmark_app::InputInfo& inpu
         data[i] = static_cast<T>(distribution(gen));
     }
 
-    InferenceEngine::TensorDesc tDesc(inputInfo.precision,
-                                      inputInfo.tensorShape,
-                                      getLayoutFromString(inputInfo.layout));
+    InferenceEngine::TensorDesc tDesc(inputInfo.precision, inputInfo.tensorShape, inputInfo.originalLayout);
     InferenceEngine::Blob::Ptr blob =
         InferenceEngine::make_shared_blob<T>(tDesc,
                                              std::make_shared<SharedBlobAllocator<T>>(data, blob_size * sizeof(T)));
@@ -343,7 +335,16 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
         inputInfoIt++;
     }
 
+    // count image type inputs of network
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
+    for (auto& inputs_info : app_inputs_info) {
+        for (auto& input : inputs_info) {
+            if (input.second.isImage()) {
+                net_input_im_sizes.push_back(std::make_pair(input.second.width(), input.second.height()));
+            }
+        }
+    }
+
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
             throw std::logic_error("Input name" + files.first +
@@ -359,7 +360,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
                        << "' probably is image info. All files for this input will"
                           " be ignored."
                        << slog::endl;
-            files.second = {"input_info"};
+            files.second = {"image_info"};
             continue;
         } else {
             files.second = filterFilesByExtensions(files.second, supported_binary_extensions);
@@ -411,44 +412,38 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
                                         return a.second.size() < b.second.size();
                                     })
                        ->second.size();
-    }
-    std::vector<size_t> batchSizes;
-
-    // align batch in case of ambigous inputs (like NC, where N is not a batch)
-    for (const auto& inputs_info : app_inputs_info) {
-        std::vector<size_t> batch;
-        for (auto input = inputs_info.cbegin(); input != inputs_info.cend(); ++input) {
-            batch.push_back(input->second.batch());
+    } else {
+        std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
+        for (auto& input_info : app_inputs_info[0]) {
+            inputFiles[input_info.first] = {"random"};
         }
-        batchSizes.push_back(*std::min(batch.begin(), batch.end()));
-        batch.clear();
     }
 
     for (const auto& files : inputFiles) {
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
         size_t n_shape = 0, m_file = 0;
         while (n_shape < app_inputs_info.size() || m_file < filesNum) {
+            size_t batchSize = getBatchSize(app_inputs_info[n_shape % app_inputs_info.size()]);
+            size_t inputId = m_file % files.second.size();
             auto input_info = app_inputs_info[n_shape % app_inputs_info.size()].at(input_name);
             auto precision = input_info.precision;
-            size_t inputId = m_file % files.second.size();
-            size_t batchSize = input_info.batch();
 
             std::string blob_src_info;
-            if (input_info.isImage()) {
-                // Fill with Images
-                blobs[input_name].push_back(
-                    getImageBlob(files.second, inputId, batchSize, {input_name, input_info}, &blob_src_info));
+            if (files.second[0] == "random") {
+                // Fill random
+                blob_src_info =
+                    "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
+                blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
             } else if (files.second[0] == "image_info") {
                 // Most likely it is image info: fill with image information
                 auto image_size = net_input_im_sizes.at(n_shape % app_inputs_info.size());
                 blob_src_info =
                     "Image size blob " + std::to_string(image_size.first) + " x " + std::to_string(image_size.second);
                 blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
-            } else if (files.second[0] == "random") {
-                // Fill random
-                blob_src_info =
-                    "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-                blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
+            } else if (input_info.isImage()) {
+                // Fill with Images
+                blobs[input_name].push_back(
+                    getImageBlob(files.second, inputId, batchSize, {input_name, input_info}, &blob_src_info));
             } else {
                 // Fill with binary files
                 blobs[input_name].push_back(
@@ -464,40 +459,7 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
             logOutput[n_shape][input_name] += strOut.str();
 
             ++n_shape;
-            m_file += batchSizes[n_shape % app_inputs_info.size()];
-        }
-    }
-
-    if (inputFiles.empty()) {
-        slog::warn << "No input files were given: all inputs will be filled with "
-                      "random values!"
-                   << slog::endl;
-
-        size_t i = 0;
-        size_t n_shape = 0;
-        logOutput.resize(app_inputs_info.size());
-
-        for (auto& input_info : app_inputs_info) {
-            for (auto& input : input_info) {
-                // Preparing info
-                std::stringstream strOut = getTestInfoStreamHeader(input.second);
-                size_t batchSize = input.second.batch();
-                if (input.second.isImageInfo() && net_input_im_sizes.size() == app_inputs_info.size()) {
-                    // Most likely it is image info: fill with image information
-                    auto image_size = net_input_im_sizes.at(i);
-                    strOut << "Image size blob '" << image_size.first << "x" << image_size.second;
-                    blobs[input.first].push_back(getImInfoBlob(image_size, batchSize, input));
-                    ++i;
-                } else {
-                    // Fill random
-                    strOut << "random (" << std::string((input.second.isImage() ? "image" : "binary data"))
-                           << " is expected)";
-                    blobs[input.first].push_back(getRandomBlob(input));
-                }
-
-                logOutput[n_shape][input.first] += strOut.str();
-            }
-            n_shape++;
+            m_file += batchSize;
         }
     }
 
@@ -525,20 +487,14 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
     size_t requestsNum) {
     std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> blobs;
 
-    std::vector<std::pair<size_t, size_t>> input_image_sizes;
+    std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.isImage()) {
-            input_image_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
+            net_input_im_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
         }
-        slog::info << "Network input '" << item.first << "' precision " << item.second.precision << ", dimensions ("
-                   << item.second.layout << "): ";
-        for (const auto& i : item.second.tensorShape) {
-            slog::info << i << " ";
-        }
-        slog::info << slog::endl;
     }
 
-    size_t imageInputCount = input_image_sizes.size();
+    size_t imageInputCount = net_input_im_sizes.size();
     size_t binaryInputCount = app_inputs_info.size() - imageInputCount;
 
     std::vector<std::string> binaryFiles;
@@ -647,21 +603,21 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobsStaticCas
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
                     continue;
                 }
-                if (input_info.isImageInfo() && (input_image_sizes.size() == 1)) {
+                if (input_info.isImageInfo() && (net_input_im_sizes.size() == 1)) {
                     // Most likely it is image info: fill with image information
-                    auto image_size = input_image_sizes.at(0);
+                    auto image_size = net_input_im_sizes.at(0);
                     blob_src_info = "Image size blob " + std::to_string(image_size.first) + " x " +
                                     std::to_string(image_size.second);
                     blobs[input_name].push_back(getImInfoBlob(image_size, batchSize, {input_name, input_info}));
                     logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
                     continue;
                 }
-                // Fill random
-                blob_src_info =
-                    "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
-                blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
-                logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
             }
+            // Fill random
+            blob_src_info =
+                "random (" + std::string((input_info.isImage() ? "image" : "binary data")) + " is expected)";
+            blobs[input_name].push_back(getRandomBlob({input_name, input_info}));
+            logOutput[i][input_name] += getTestInfoStreamHeader(input_info).str() + blob_src_info;
         }
     }
 

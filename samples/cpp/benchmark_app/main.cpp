@@ -723,6 +723,11 @@ int main(int argc, char* argv[]) {
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
 
+        bool inputHasName = false;
+        if (inputFiles.size() > 0) {
+            inputHasName = inputFiles.begin()->first != "";
+        }
+        bool newInputType = isDynamic || !FLAGS_tensor_shape.empty() || inputHasName;
         std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputsData;
         // create vector to store remote blobs buffer
         std::vector<::gpu::BufferType> clBuffer;
@@ -730,21 +735,28 @@ int main(int argc, char* argv[]) {
             if (device_name.find("GPU") == 0)
                 inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
             else if (device_name.find("CPU") == 0)
-                if (!isDynamic && inputFiles.size() == 1) {  // old static case
-                    inputsData = getBlobsStaticCase(inputFiles.begin()->second, batchSize, app_inputs_info[0], nireq);
-                } else {
+                if (newInputType) {
                     inputsData = getBlobs(inputFiles, app_inputs_info);
+                } else {
+                    inputsData =
+                        getBlobsStaticCase(inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                                           batchSize,
+                                           app_inputs_info[0],
+                                           nireq);
                 }
             else
                 IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
         } else {
-            if (!isDynamic && inputFiles.size() == 1) {  // old static case
-                inputsData = getBlobsStaticCase(inputFiles.begin()->second, batchSize, app_inputs_info[0], nireq);
-            } else {
+            if (newInputType) {
                 inputsData = getBlobs(inputFiles, app_inputs_info);
+            } else {
+                inputsData =
+                    getBlobsStaticCase(inputFiles.empty() ? std::vector<std::string>{} : inputFiles.begin()->second,
+                                       batchSize,
+                                       app_inputs_info[0],
+                                       nireq);
             }
         }
-
         // ----------------- 10. Measuring performance
         // ------------------------------------------------------------------
         size_t progressCnt = 0;

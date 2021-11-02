@@ -16,6 +16,7 @@ struct InputInfo {
     ngraph::PartialShape partialShape;
     InferenceEngine::SizeVector tensorShape;
     std::string layout;
+    InferenceEngine::Layout originalLayout;
     std::vector<float> scale;
     std::vector<float> mean;
     bool isImage() const;
@@ -161,6 +162,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             }
 
             // Layout
+            info.originalLayout = descriptor.getLayout();
             if (layout_map.count(name)) {
                 if (layout_map.at(name).size() > 1) {
                     throw std::logic_error(
@@ -168,6 +170,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                 }
                 info.layout = layout_map.at(name)[0];
                 std::transform(info.layout.begin(), info.layout.end(), info.layout.begin(), ::toupper);
+                // reshape_required = true;
             } else {
                 std::stringstream ss;
                 ss << descriptor.getLayout();
