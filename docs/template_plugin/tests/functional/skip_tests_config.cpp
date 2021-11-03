@@ -57,6 +57,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceProposalV4LayerTest.*f16.*)",
         // CVS-64101
         R"(.*ReferenceExperimentalGPLayerTest.*bf16.*)",
+        // CVS-64105
+        R"(.*ReferenceGatherElementsTestNegative.*)",
     };
 
 #ifdef _WIN32
