@@ -7,7 +7,8 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-from openvino import Core, IENetwork, Blob, DataPtr
+
+from openvino import Core, Blob
 
 from openvino.exceptions import UserInputError
 from openvino.impl import Function, Node, PartialShape, Type

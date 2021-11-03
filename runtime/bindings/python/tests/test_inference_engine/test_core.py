@@ -9,7 +9,7 @@ from pathlib import Path
 
 import openvino.opset8 as ov
 from openvino import Core, IENetwork, ExecutableNetwork, tensor_from_file
-from openvino.impl import Function, Shape, Type
+from openvino.impl import Function
 from openvino import TensorDesc, Blob
 
 from ..conftest import model_path, model_onnx_path, plugins_path
@@ -118,6 +118,7 @@ def test_read_model_from_onnx_as_path():
     func = core.read_model(model=Path(test_net_onnx))
     assert isinstance(func, Function)
 
+
 @pytest.mark.xfail("68212")
 def test_read_net_from_buffer():
     core = Core()
@@ -127,6 +128,7 @@ def test_read_net_from_buffer():
         xml = f.read()
     func = core.read_model(model=xml, weights=bin)
     assert isinstance(func, IENetwork)
+
 
 @pytest.mark.xfail("68212")
 def test_net_from_buffer_valid():
@@ -249,9 +251,10 @@ def test_register_plugins():
     assert isinstance(exec_net,
                       ExecutableNetwork), "Cannot load the network to " \
                                           "the registered plugin with name 'CUSTOM' " \
-                                          "registred in the XML file"
+                                          "registered in the XML file"
 
-#@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
+
+# @pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
 def test_unregister_plugin(device):
     ie = Core()
     ie.unload_plugin(device)
@@ -259,4 +262,3 @@ def test_unregister_plugin(device):
     with pytest.raises(RuntimeError) as e:
         ie.load_network(func, device)
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
-

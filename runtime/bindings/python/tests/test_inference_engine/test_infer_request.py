@@ -13,6 +13,7 @@ test_net_xml, test_net_bin = model_path(is_myriad)
 
 
 def read_image():
+    import cv2
     n, c, h, w = (1, 3, 32, 32)
     image = cv2.imread(image_path())
     if image is None:

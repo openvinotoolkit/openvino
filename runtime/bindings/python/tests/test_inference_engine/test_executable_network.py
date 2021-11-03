@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 
 from ..conftest import model_path, image_path
-from openvino.impl import Function, ConstOutput, Shape, PartialShape
+from openvino.impl import Function, ConstOutput, Shape
 
 from openvino import Core
 
@@ -34,6 +34,7 @@ def test_get_metric(device):
     network_name = exec_net.get_metric("NETWORK_NAME")
     assert network_name == "test_model"
 
+
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Device dependent test")
 def test_get_config(device):
     core = Core()
@@ -52,19 +53,20 @@ def test_get_runtime_function(device):
     runtime_func = exec_net.get_runtime_function()
     assert isinstance(runtime_func, Function)
 
+
 @pytest.mark.skip(reason="After infer will be implemented")
 def test_export_import():
     core = Core()
     func = core.read_model(model=test_net_xml, weights=test_net_bin)
     exec_net = core.compile_model(func, "CPU")
-    exported_net_file = 'exported_model.bin'
+    exported_net_file = "exported_model.bin"
     exec_net.export_model(network_model=exported_net_file)
     assert os.path.exists(exported_net_file)
     exec_net = core.import_network(exported_net_file, "CPU")
     os.remove(exported_net_file)
     img = read_image()
-    res = exec_net.infer({'data': img})
-    assert np.argmax(res['fc_out'][0]) == 3
+    res = exec_net.infer({"data": img})
+    assert np.argmax(res["fc_out"][0]) == 3
     del exec_net
     del core
 
@@ -184,7 +186,7 @@ def test_input_get_index(device):
     input = exec_net.input(0)
     expected_idx = 0
     assert input.get_index() == expected_idx
-    
+
 
 def test_inputs(device):
     core = Core()

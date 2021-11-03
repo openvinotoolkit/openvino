@@ -3,6 +3,7 @@
 //
 
 #include "pyopenvino/core/containers.hpp"
+
 #include <pybind11/stl_bind.h>
 
 PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
