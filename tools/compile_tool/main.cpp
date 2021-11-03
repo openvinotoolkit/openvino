@@ -158,12 +158,18 @@ static std::map<std::string, std::string> parseConfigFile(char comment = '#') {
 
     std::ifstream file(FLAGS_c);
     if (file.is_open()) {
-        std::string key, value;
-        while (file >> key >> value) {
-            if (key.empty() || key[0] == comment) {
+        std::string option;
+        while (std::getline(file, option)) {
+            if (option.empty() || option[0] == comment) {
                 continue;
             }
-            config[key] = value;
+            size_t spacePos = option.find(' ');
+            std::string key, value;
+            if (spacePos != std::string::npos) {
+                key = option.substr(0, spacePos);
+                value = option.substr(spacePos + 1);
+                config[key] = value;
+            }
         }
     }
     return config;
