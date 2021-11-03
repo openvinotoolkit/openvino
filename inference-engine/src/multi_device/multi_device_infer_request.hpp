@@ -15,6 +15,8 @@
 #include <memory>
 #include <string>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include "multi_device_exec_network.hpp"
+#include "ie_remote_blob.hpp"
 
 namespace MultiDevicePlugin {
 
@@ -33,6 +35,7 @@ public:
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
 
 private:
+    void CopyBlob(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst);
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with);
 };
 

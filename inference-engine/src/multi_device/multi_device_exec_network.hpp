@@ -105,6 +105,7 @@ protected:
 class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
                                      public InferenceEngine::ITaskExecutor {
 public:
+    friend class MultiDeviceInferRequest;
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
