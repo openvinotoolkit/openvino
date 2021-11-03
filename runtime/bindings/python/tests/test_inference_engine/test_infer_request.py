@@ -5,20 +5,31 @@ import numpy as np
 import os
 import pytest
 
-from tests.test_inference_engine.helpers import model_path, read_image
+from ..conftest import image_path, model_path
 from openvino import Core, Tensor
-
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 
 
+def read_image():
+    n, c, h, w = (1, 3, 32, 32)
+    image = cv2.imread(image_path())
+    if image is None:
+        raise FileNotFoundError("Input image not found")
+
+    image = cv2.resize(image, (h, w)) / 255
+    image = image.transpose((2, 0, 1)).astype(np.float32)
+    image = image.reshape((n, c, h, w))
+    return image
+
+
 @pytest.mark.skip(reason="ProfilingInfo has to be bound")
 def test_get_profiling_info(device):
-    ie_core = Core()
-    func = ie_core.read_model(test_net_xml, test_net_bin)
-    ie_core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = ie_core.compile_model(func, device)
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    core.set_config({"PERF_COUNT": "YES"}, device)
+    exec_net = core.compile_model(func, device)
     img = read_image()
     request = exec_net.create_infer_request()
     request.infer({0: img})
@@ -27,14 +38,14 @@ def test_get_profiling_info(device):
     assert pc["29"]["status"] == "EXECUTED"
     assert pc["29"]["layer_type"] == "FullyConnected"
     del exec_net
-    del ie_core
+    del core
 
 
 def test_tensor_setter(device):
-    ie_core = Core()
-    func = ie_core.read_model(test_net_xml, test_net_bin)
-    exec_net_1 = ie_core.compile_model(network=func, device_name=device)
-    exec_net_2 = ie_core.compile_model(network=func, device_name=device)
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net_1 = core.compile_model(network=func, device_name=device)
+    exec_net_2 = core.compile_model(network=func, device_name=device)
 
     img = read_image()
     tensor = Tensor(img)
@@ -61,9 +72,9 @@ def test_tensor_setter(device):
 
 
 def test_set_tensors(device):
-    ie_core = Core()
-    func = ie_core.read_model(test_net_xml, test_net_bin)
-    exec_net = ie_core.compile_model(func, device)
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
 
     data1 = read_image()
     tensor1 = Tensor(data1)
@@ -114,9 +125,9 @@ def test_set_tensors(device):
 
 
 def test_cancel(device):
-    ie_core = Core()
-    func = ie_core.read_model(test_net_xml, test_net_bin)
-    exec_net = ie_core.compile_model(func, device)
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
     img = read_image()
     request = exec_net.create_infer_request()
 
@@ -138,10 +149,10 @@ def test_cancel(device):
 
 
 def test_infer_mixed_keys(device):
-    ie_core = Core()
-    func = ie_core.read_model(test_net_xml, test_net_bin)
-    ie_core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = ie_core.compile_model(func, device)
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    core.set_config({"PERF_COUNT": "YES"}, device)
+    exec_net = core.compile_model(func, device)
 
     img = read_image()
     tensor = Tensor(img)

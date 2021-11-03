@@ -10,7 +10,6 @@ from pathlib import Path
 import openvino.opset8 as ov
 from openvino import Core, IENetwork, ExecutableNetwork, tensor_from_file
 from openvino.impl import Function, Shape, Type
-from openvino.impl.op import Parameter
 from openvino import TensorDesc, Blob
 
 from ..conftest import model_path, model_onnx_path, plugins_path
@@ -40,7 +39,7 @@ def test_blobs():
 
 
 @pytest.mark.skip(reason="Fix")
-def test_ie_core_class():
+def test_core_class():
     input_shape = [1, 3, 4, 4]
     param = ov.parameter(input_shape, np.float32, name="parameter")
     relu = ov.relu(param, name="relu")
@@ -49,9 +48,9 @@ def test_ie_core_class():
 
     cnn_network = IENetwork(func)
 
-    ie_core = Core()
-    ie_core.set_config({}, device_name="CPU")
-    executable_network = ie_core.compile_model(cnn_network, "CPU", {})
+    core = Core()
+    core.set_config({}, device_name="CPU")
+    executable_network = core.compile_model(cnn_network, "CPU", {})
 
     td = TensorDesc("FP32", input_shape, "NCHW")
 
@@ -79,65 +78,65 @@ def test_compile_model(device):
     assert isinstance(exec_net, ExecutableNetwork)
 
 
-def test_read_model():
-    ie_core = Core()
-    func = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
+def test_read_model_from_ir():
+    core = Core()
+    func = core.read_model(model=test_net_xml, weights=test_net_bin)
     assert isinstance(func, Function)
 
-    func = ie_core.read_model(model=test_net_xml)
+    func = core.read_model(model=test_net_xml)
     assert isinstance(func, Function)
 
 
-def test_read_model_from_blob():
-    ie_core = Core()
+def test_read_model_from_tensor():
+    core = Core()
     model = open(test_net_xml).read()
     tensor = tensor_from_file(test_net_bin)
-    func = ie_core.read_model(model=model, weights=tensor)
+    func = core.read_model(model=model, weights=tensor)
     assert isinstance(func, Function)
 
 
 def test_read_model_as_path():
-    ie_core = Core()
-    func = ie_core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
+    core = Core()
+    func = core.read_model(model=Path(test_net_xml), weights=Path(test_net_bin))
     assert isinstance(func, Function)
 
-    func = ie_core.read_model(model=test_net_xml, weights=Path(test_net_bin))
+    func = core.read_model(model=test_net_xml, weights=Path(test_net_bin))
     assert isinstance(func, Function)
 
-    func = ie_core.read_model(model=Path(test_net_xml))
+    func = core.read_model(model=Path(test_net_xml))
     assert isinstance(func, Function)
 
 
 def test_read_model_from_onnx():
-    ie_core = Core()
-    func = ie_core.read_model(model=test_net_onnx)
+    core = Core()
+    func = core.read_model(model=test_net_onnx)
     assert isinstance(func, Function)
 
 
 def test_read_model_from_onnx_as_path():
-    ie_core = Core()
-    func = ie_core.read_model(model=Path(test_net_onnx))
+    core = Core()
+    func = core.read_model(model=Path(test_net_onnx))
     assert isinstance(func, Function)
 
 @pytest.mark.xfail("68212")
 def test_read_net_from_buffer():
-    ie_core = Core()
+    core = Core()
     with open(test_net_bin, "rb") as f:
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    func = ie_core.read_model(model=xml, weights=bin)
+    func = core.read_model(model=xml, weights=bin)
     assert isinstance(func, IENetwork)
 
 @pytest.mark.xfail("68212")
 def test_net_from_buffer_valid():
-    ie_core = Core()
+    core = Core()
     with open(test_net_bin, "rb") as f:
         bin = f.read()
     with open(model_path()[0], "rb") as f:
         xml = f.read()
-    func = ie_core.read_model(model=xml, weights=bin)
-    ref_func = ie_core.read_model(model=test_net_xml, weights=test_net_bin)
+    func = core.read_model(model=xml, weights=bin)
+    ref_func = core.read_model(model=test_net_xml, weights=test_net_bin)
     assert func.name == func.name
     assert func.batch_size == ref_func.batch_size
     ii_func = func.input_info
@@ -252,14 +251,12 @@ def test_register_plugins():
                                           "the registered plugin with name 'CUSTOM' " \
                                           "registred in the XML file"
 
+#@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
+def test_unregister_plugin(device):
+    ie = Core()
+    ie.unload_plugin(device)
+    func = ie.read_model(model=test_net_xml, weights=test_net_bin)
+    with pytest.raises(RuntimeError) as e:
+        ie.load_network(func, device)
+    assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
-def test_create_IENetwork_from_nGraph():
-    element_type = Type.f32
-    param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = ov.relu(param)
-    func = Function([relu], [param], "test")
-    cnnNetwork = IENetwork(func)
-    assert cnnNetwork is not None
-    func2 = cnnNetwork.get_function()
-    assert func2 is not None
-    assert len(func2.get_ops()) == 3

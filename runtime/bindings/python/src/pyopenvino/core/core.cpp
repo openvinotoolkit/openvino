@@ -39,15 +39,6 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("config") = py::dict());
 
-    cls.def(
-        "add_extension",
-        [](ov::runtime::Core& self, const std::string& extension_path) {
-            auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(extension_path);
-            auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
-            self.add_extension(extension);
-        },
-        py::arg("extension_path"));
-
     cls.def("get_versions", &ov::runtime::Core::get_versions);
 
     cls.def("read_model",
