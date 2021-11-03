@@ -55,30 +55,30 @@ MKLDNNSelectNode::MKLDNNSelectNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has unsupported broadcast type: " + ngraph::as_string(broadcast.m_type);
     }
 
-    const auto &conditionShape = getInputShapeAtPort(CONDITION).getDims();
-    const auto &thenShape = getInputShapeAtPort(THEN).getDims();
-    const auto &elseShape = getInputShapeAtPort(ELSE).getDims();
-    const auto &outputShape = getOutputShapeAtPort(0).getDims();
+    const auto &inCondDims = getInputShapeAtPort(CONDITION).getDims();
+    const auto &inThenDims = getInputShapeAtPort(THEN).getDims();
+    const auto &inElseDims = getInputShapeAtPort(ELSE).getDims();
+    const auto &outputDims = getOutputShapeAtPort(0).getDims();
 
-    if (broadcastType == SelectBroadcastType::NONE && (!dimsEqualWeak(conditionShape, outputShape) || !dimsEqualWeak(thenShape, outputShape) ||
-                                                       !dimsEqualWeak(elseShape, outputShape))) {
+    if (broadcastType == SelectBroadcastType::NONE && (!dimsEqualWeak(inCondDims, outputDims) || !dimsEqualWeak(inThenDims, outputDims) ||
+                                                       !dimsEqualWeak(inElseDims, outputDims))) {
         IE_THROW() << errorPrefix << " and auto_broadcast='none' has input shapes mismatch";
     }
 
     if (broadcastType == SelectBroadcastType::NUMPY) {
-        if (outputShape.size() < conditionShape.size() || outputShape.size() < thenShape.size() || outputShape.size() < elseShape.size())
+        if (outputDims.size() < inCondDims.size() || outputDims.size() < inThenDims.size() || outputDims.size() < inElseDims.size())
             IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible input and output shapes";
 
-        for (int condIt = conditionShape.size() - 1, outIt = outputShape.size() - 1; condIt >= 0; condIt--, outIt--)
-            if (!dimsEqualWeak(conditionShape[condIt], outputShape[outIt]) && !dimsEqualWeak(conditionShape[condIt], 1))
+        for (int condIt = inCondDims.size() - 1, outIt = outputDims.size() - 1; condIt >= 0; condIt--, outIt--)
+            if (!dimsEqualWeak(inCondDims[condIt], outputDims[outIt]) && !dimsEqualWeak(inCondDims[condIt], 1))
                 IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Condition' input and output shapes";
 
-        for (int thenIt = thenShape.size() - 1, outIt = outputShape.size() - 1; thenIt >= 0; thenIt--, outIt--)
-            if (!dimsEqualWeak(thenShape[thenIt], outputShape[outIt]) && !dimsEqualWeak(thenShape[thenIt], 1))
+        for (int thenIt = inThenDims.size() - 1, outIt = outputDims.size() - 1; thenIt >= 0; thenIt--, outIt--)
+            if (!dimsEqualWeak(inThenDims[thenIt], outputDims[outIt]) && !dimsEqualWeak(inThenDims[thenIt], 1))
                 IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Then' input and output shapes";
 
-        for (int elseIt = elseShape.size() - 1, outIt = outputShape.size() - 1; elseIt >= 0; elseIt--, outIt--)
-            if (!dimsEqualWeak(elseShape[elseIt], outputShape[outIt]) && !dimsEqualWeak(elseShape[elseIt], 1))
+        for (int elseIt = inElseDims.size() - 1, outIt = outputDims.size() - 1; elseIt >= 0; elseIt--, outIt--)
+            if (!dimsEqualWeak(inElseDims[elseIt], outputDims[outIt]) && !dimsEqualWeak(inElseDims[elseIt], 1))
                 IE_THROW() << errorPrefix << " and auto_broadcast='numpy' has incompatible 'Else' input and output shapes";
     }
 

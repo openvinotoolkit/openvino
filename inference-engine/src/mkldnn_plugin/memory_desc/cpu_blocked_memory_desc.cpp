@@ -109,7 +109,9 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+                                                                         // WA: for some nodes ngraph compute upper bound depending on precision max value
+                                                                         std::numeric_limits<int32_t>::max() == x; })) {
         return UNDEFINED_SIZE;
     }
 
