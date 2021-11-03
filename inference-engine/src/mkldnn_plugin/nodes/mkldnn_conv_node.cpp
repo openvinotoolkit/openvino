@@ -415,7 +415,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     mkldnn::primitive_attr attrs[1];
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0)).getStaticDims());
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
 //    setPostOps(attrs[1], false, true);
 
     bool containJitImpl = false;
@@ -629,7 +629,7 @@ void MKLDNNConvolutionNode::initDescriptor(const NodeConfig& config) {
     // attr[0] - depthwise, quantize
     // attr[1] - binary
     mkldnn::primitive_attr attrs[1];
-    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0)).getStaticDims());
+    setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
 //    setPostOps(attrs[1], false, true);
 
     auto rightConfig = selectedPD->getConfig();
@@ -929,9 +929,9 @@ void MKLDNNConvolutionNode::prepareParams() {
 
         // todo: [AV] delete "false" to use binary mechanism
         if (false && getSelectedPrimitiveDescriptor()->getImplementationType() == jit_gemm) {
-            setPostOps(attr, inMemoryDesc->getShape().getStaticDims(), true, true);
+            setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), true, true);
         } else {
-            setPostOps(attr, inMemoryDesc->getShape().getStaticDims(), true);
+            setPostOps(attr, outMemoryDesc->getShape().getStaticDims(), true);
         }
         return std::make_shared<mkldnn::primitive_attr>(std::move(attr));
     };

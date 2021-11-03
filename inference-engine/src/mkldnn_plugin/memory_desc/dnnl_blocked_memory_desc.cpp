@@ -694,7 +694,7 @@ mkldnn::memory::format_tag DnnlBlockedMemoryDesc::getFormat() const {
 }
 
 std::string DnnlBlockedMemoryDesc::serializeFormat() const {
-    // WA, waiting Egor's PR
+    // TODO [DS] : WA, waiting unit test PR
     std::stringstream result;
     char startLetter = 'a';
     std::unordered_map<size_t, size_t> mapAxisBlockSize;
