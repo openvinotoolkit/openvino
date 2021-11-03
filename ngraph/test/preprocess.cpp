@@ -697,6 +697,58 @@ TEST(pre_post_process, preprocess_convert_layout_same) {
     EXPECT_EQ(size_old, f->get_ordered_ops().size());
 }
 
+TEST(pre_post_process, preprocess_convert_layout_dims) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 480, 640});
+
+    f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 1, 2}))).build(f);
+
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 480, 640, 3}));
+}
+
+TEST(pre_post_process, preprocess_convert_layout_dims_empty) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 480, 640});
+
+    f = PrePostProcessor()
+            .input(InputInfo().preprocess(PreProcessSteps().convert_layout(std::vector<uint64_t>{})))
+            .build(f);
+
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{1, 3, 480, 640}));
+}
+
+TEST(pre_post_process, preprocess_convert_layout_dims_dyn_shape) {
+    auto f = create_simple_function(element::f32, PartialShape::dynamic());
+
+    f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 1, 2}))).build(f);
+
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape::dynamic()));
+}
+
+TEST(pre_post_process, preprocess_convert_layout_invalid_dims) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    EXPECT_THROW(
+        f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 2, 2}))).build(f),
+        ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().preprocess(
+                             PreProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, preprocess_convert_layout_invalid_dims_dyn_shape) {
+    auto f = create_simple_function(element::f32, PartialShape::dynamic());
+    EXPECT_THROW(
+        f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().convert_layout({0, 3, 2, 2}))).build(f),
+        ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .input(InputInfo().preprocess(
+                             PreProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
 TEST(pre_post_process, preprocess_reverse_channels_multiple_planes) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     EXPECT_THROW(
@@ -829,13 +881,6 @@ TEST(pre_post_process, postprocess_set_layout_network) {
     EXPECT_EQ(f->get_results()[0]->get_layout(), "NCHW");
 }
 
-TEST(pre_post_process, postprocess_set_layout_tensor) {
-    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-    // no layout is specified for network, no way to implicitly convert it to user's layout
-    EXPECT_THROW(f = PrePostProcessor().output(OutputInfo().tensor(OutputTensorInfo().set_layout("NHWC"))).build(f),
-                 ov::AssertFailure);
-}
-
 TEST(pre_post_process, postprocess_convert_layout_implicit) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
 
@@ -888,13 +933,61 @@ TEST(pre_post_process, postprocess_convert_layout_same) {
     EXPECT_EQ(size_old, f->get_ordered_ops().size());
 }
 
-TEST(pre_post_process, postprocess_convert_layout_default_error) {
+TEST(pre_post_process, postprocess_convert_layout_dims) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 480, 640});
+
+    f = PrePostProcessor().output(OutputInfo().postprocess(PostProcessSteps().convert_layout({0, 2, 3, 1}))).build(f);
+
+    EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 480, 640, 3}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_dims_empty) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 480, 640});
+
+    f = PrePostProcessor()
+            .output(OutputInfo().postprocess(PostProcessSteps().convert_layout(std::vector<uint64_t>{})))
+            .build(f);
+
+    EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 3, 480, 640}));
+}
+
+TEST(pre_post_process, postprocess_convert_layout_has_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 480, 640});
+
+    auto p = PostProcessSteps();
+    p.convert_layout({0, 2, 3, 1});
+    f = PrePostProcessor()
+            .output(OutputInfo().network(OutputNetworkInfo().set_layout("NC??")).postprocess(std::move(p)))
+            .build(f);
+
+    EXPECT_EQ(f->output().get_partial_shape(), (PartialShape{1, 480, 640, 3}));
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "N??C");
+}
+
+TEST(pre_post_process, postprocess_convert_layout_invalid_dims) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    EXPECT_THROW(f = PrePostProcessor()
+                         .output(OutputInfo().postprocess(PostProcessSteps().convert_layout({0, 3, 2, 2})))
+                         .build(f),
+                 ov::AssertFailure);
 
     EXPECT_THROW(f = PrePostProcessor()
-                         .output(OutputInfo()
-                                     .network(OutputNetworkInfo().set_layout("NCHW"))
-                                     .postprocess(PostProcessSteps().convert_layout()))
+                         .output(OutputInfo().postprocess(
+                             PostProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
+                         .build(f),
+                 ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_convert_layout_invalid_dims_dyn_shape) {
+    auto f = create_simple_function(element::f32, PartialShape::dynamic());
+    EXPECT_THROW(f = PrePostProcessor()
+                         .output(OutputInfo().postprocess(PostProcessSteps().convert_layout({0, 3, 2, 2})))
+                         .build(f),
+                 ov::AssertFailure);
+
+    EXPECT_THROW(f = PrePostProcessor()
+                         .output(OutputInfo().postprocess(
+                             PostProcessSteps().convert_layout({0, 3, 1, std::numeric_limits<uint64_t>::max()})))
                          .build(f),
                  ov::AssertFailure);
 }

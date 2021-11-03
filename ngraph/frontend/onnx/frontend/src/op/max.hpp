@@ -14,7 +14,7 @@ namespace onnx_import {
 namespace op {
 namespace set_1 {
 inline OutputVector max(const Node& node) {
-    return variadic::make_ng_variadic_op<default_opset::Maximum>(node, ngraph::op::AutoBroadcastSpec::NONE);
+    return variadic::make_ng_variadic_op<default_opset::Maximum>(node, ngraph::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1
