@@ -148,10 +148,15 @@
                 "activations": "q16_a"
             }
         },
+        {
+            "type": "Concat",
+            "attributes": {
+                "scales": "unified"
+            }
+        },
         {"type": "MaxPool"},
         {"type": "ReduceMax"},
         {"type": "Reshape"},
-        {"type": "Concat"},
         {"type": "Flatten"},
         {"type": "Squeeze"},
         {"type": "Unsqueeze"},
@@ -164,7 +169,6 @@
         {"type": "ShuffleChannels"},
         {"type": "Broadcast"},
         {"type": "Pad"},
-        {"type": "ConvertLike"}, 
         {"type": "DepthToSpace"}
     ]
 }
