@@ -59,7 +59,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
         ncLogLevel = NC_LOG_DEBUG;
         break;
     default:
-        ncLogLevel = NC_LOG_ERROR;
+        ncLogLevel = NC_LOG_WARN;
         break;
     }
     status = ncGlobalSetOption(NC_RW_LOG_LEVEL, &ncLogLevel, sizeof(ncLogLevel));

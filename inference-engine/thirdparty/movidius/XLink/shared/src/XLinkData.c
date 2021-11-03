@@ -182,7 +182,7 @@ XLinkError_t XLinkWriteDataWithTimeout(streamId_t streamId, const uint8_t* buffe
     XLINK_INIT_EVENT(event, streamId, XLINK_WRITE_REQ,
         size,(void*)buffer, link->deviceHandle);
 
-    mvLog(MVLOG_WARN,"XLinkWriteDataWithTimeout is not fully supported yet. The XLinkWriteData method is called instead. Desired timeout = %d\n", timeoutMs);
+    // mvLog(MVLOG_WARN,"XLinkWriteDataWithTimeout is not fully supported yet. The XLinkWriteData method is called instead. Desired timeout = %d\n", timeoutMs);
     XLINK_RET_IF_FAIL(addEventWithPerf(&event, &opTime, XLINK_NO_RW_TIMEOUT));
 
     if( glHandler->profEnable) {
