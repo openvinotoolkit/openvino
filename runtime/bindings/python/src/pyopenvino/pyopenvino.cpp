@@ -32,6 +32,7 @@
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/ie_preprocess_info.hpp"
 #include "pyopenvino/core/ie_version.hpp"
+#include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/tensor_description.hpp"
 #include "pyopenvino/graph/dimension.hpp"
@@ -149,4 +150,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InputInfo(m);
     regclass_InferQueue(m);
     regclass_PreProcessInfo(m);
+
+    regmodule_offline_transformations(m);
 }
