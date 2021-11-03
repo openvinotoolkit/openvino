@@ -331,7 +331,7 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_model_path("../gna", "gna_basic_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
 
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &config, &exe_network));
@@ -356,7 +356,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "327.67", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_model_path("../gna", "gna_basic_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
 
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
@@ -400,7 +400,7 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "32767", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_model_path("../gna", "gna_basic_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
@@ -424,7 +424,7 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
 
-    std::string file_name_str = TestDataHelpers::generate_model_path("../gna", "export2dot1.blob");
+    std::string file_name_str = TestDataHelpers::generate_gna_model_path("export2dot1.blob");
     const char* file_name = file_name_str.c_str();
 
     IE_EXPECT_NOT_OK(ie_core_import_network(nullptr, file_name, "GNA", &config, &exe_network));
