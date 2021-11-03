@@ -39,14 +39,14 @@ bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vec
 bool shape_calculation_mode_can_use_constant_inputs(const std::shared_ptr<opset8::Interpolate>& interpolate) {
     const auto& attrs = interpolate->get_attrs();
     if (attrs.shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
-        return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(1)) != nullptr;
+        return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(1).get_node_shared_ptr()) != nullptr;
     }
-    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(2)) != nullptr;
+    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(2).get_node_shared_ptr()) != nullptr;
 }
 
 bool is_candidate_for_fusion(const std::shared_ptr<opset8::Interpolate>& interpolate) {
     return (interpolate->get_input_partial_shape(0).rank().is_static()) &&
-           (interpolate->inputs().size() != 4 || std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3))) &&
+           (interpolate->inputs().size() != 4 || std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())) &&
            shape_calculation_mode_can_use_constant_inputs(interpolate);
 }
 
@@ -59,7 +59,7 @@ std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<opset8::Interpo
 
         return default_value;
     }
-    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3))->cast_vector<int64_t>();
+    return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())->cast_vector<int64_t>();
 }
 
 bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
@@ -80,8 +80,8 @@ bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::sh
 ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
-    const auto fst_sizes = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(1))->cast_vector<int64_t>();
-    const auto snd_sizes = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(1))->cast_vector<int64_t>();
+    const auto fst_sizes = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(1).get_node_shared_ptr())->cast_vector<int64_t>();
+    const auto snd_sizes = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(1).get_node_shared_ptr())->cast_vector<int64_t>();
 
     std::vector<std::pair<int64_t, int64_t>> axes_and_sizes;
     for (size_t i = 0; i < fst_axes.size(); ++i) {
@@ -121,8 +121,8 @@ ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ops
 ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
-    const auto fst_scales = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2))->cast_vector<float>();
-    const auto snd_scales = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(2))->cast_vector<float>();
+    const auto fst_scales = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2).get_node_shared_ptr())->cast_vector<float>();
+    const auto snd_scales = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(2).get_node_shared_ptr())->cast_vector<float>();
 
     std::vector<std::pair<int64_t, float>> axes_and_scales;
     for (size_t i = 0; i < fst_axes.size(); ++i) {
@@ -173,7 +173,7 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
         auto snd_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
         if (!snd_interpolate) return false;
 
-        auto fst_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(snd_interpolate->input_value(0));
+        auto fst_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
         if (!fst_interpolate) return false;
 
         if (!can_be_fused(snd_interpolate, snd_interpolate)) return false;
