@@ -397,10 +397,10 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *
     return status;
 }
 
-IEStatusCode ie_core_export_network(ie_core_t *core, const char *file_name, ie_executable_network_t *exe_network) {
+IEStatusCode ie_core_export_network(const char *file_name, ie_executable_network_t *exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || file_name == nullptr || exe_network == nullptr) {
+    if (file_name == nullptr || exe_network == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
