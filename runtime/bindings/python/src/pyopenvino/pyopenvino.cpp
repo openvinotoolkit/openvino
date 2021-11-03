@@ -5,8 +5,8 @@
 #include <pybind11/pybind11.h>
 
 #include <ie_iinfer_request.hpp>
-#include <ie_version.hpp>
 #include <openvino/core/node.hpp>
+#include <openvino/core/version.hpp>
 #include <string>
 
 #include "pyopenvino/graph/axis_set.hpp"
@@ -55,9 +55,9 @@
 namespace py = pybind11;
 
 std::string get_version() {
-    auto version = InferenceEngine::GetInferenceEngineVersion();
-    std::string version_str = std::to_string(version->apiVersion.major) + ".";
-    version_str += std::to_string(version->apiVersion.minor) + ".";
+    auto version = ov::get_openvino_version();
+    std::string version_str = std::to_string(OPENVINO_VERSION_MAJOR) + ".";
+    version_str += std::to_string(OPENVINO_VERSION_MINOR) + ".";
     version_str += version->buildNumber;
     return version_str;
 }
