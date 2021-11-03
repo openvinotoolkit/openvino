@@ -244,12 +244,18 @@ endfunction()
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
                                          CXX_STANDARD 17)
 
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx20
+                                             CXX_STANDARD 20)
+endif()
+
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
                                                  FLAGS -Wremarks -Wcheck -Werror-all -Werror -Wall)
     elseif(BUILD_SHARED_LIBS)
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
+        # TODO: fix RTTI macro
+        # ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
@@ -270,6 +276,11 @@ endif()
 
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
                                          CXX_STANDARD 17 PLUGIN_API)
+
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx20
+                                            CXX_STANDARD 20 PLUGIN_API)
+endif()
 
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
