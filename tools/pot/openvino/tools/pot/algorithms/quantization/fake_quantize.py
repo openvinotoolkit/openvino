@@ -449,12 +449,12 @@ def create_renamed_layers_mapping(model, stats_layout):
 
 def get_num_levels(x: np.ndarray) -> int:
     """
-        Calculates the number of discret levels of the values 
+        Calculates the number of discret levels of the values
         in the input NumPy tensor x
         :param x: the input tensor
         :return the number of discret value levels in the input tensor x
     """
-    NUM_BINS=256
+    NUM_BINS = 256
     x = x.flatten()
     hist, _ = np.histogram(x, NUM_BINS)
     non_empty_bins = [i for i, v in enumerate(hist) if v > 0]
