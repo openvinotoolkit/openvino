@@ -23,7 +23,6 @@ if (ENABLE_CLDNN)
     else()
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     endif()
-    set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
     add_subdirectory(clDNN)
 endif()
 
