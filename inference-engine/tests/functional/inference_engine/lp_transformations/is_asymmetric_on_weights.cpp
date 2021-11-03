@@ -88,17 +88,10 @@ public:
 TEST_P(IsAsymmetricOnWeightsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
 
-    std::shared_ptr<ov::Node> convolution;
-    const auto ops = actualFunction->get_ops();
-    for (const auto& op : ops) {
-        if (ov::is_type<ov::op::v1::Convolution>(op)) {
-            convolution = op;
-            break;
-        }
-    }
-    ASSERT_TRUE(convolution != nullptr) << "convolution was not found";
+    const auto convolutions = LayerTransformation::get<opset1::Convolution>(actualFunction);
+    ASSERT_TRUE(convolutions.size() == 1ul) << "convolution was not found";
 
-    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolution);
+    const auto isAsymmetricOnWeights = ngraph::pass::low_precision::WeightableLayerTransformation::isAsymmetricOnWeights(convolutions[0]);
     std::pair<std::vector<bool>, bool> transposeAndIsAsymmetricOnWeights = std::get<3>(GetParam());
     ASSERT_EQ(transposeAndIsAsymmetricOnWeights.second, isAsymmetricOnWeights);
 }

@@ -58,11 +58,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
     const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
 
-    const std::shared_ptr<ngraph::Node> constant = std::make_shared<ngraph::opset1::Constant>(
-        ngraph::element::u64,
-        ngraph::Shape{4},
-        ngraph::Shape{0, 1, 2, 3});
-
+    const std::shared_ptr<ngraph::Node> constant = ngraph::opset1::Constant::create(ngraph::element::u64, ngraph::Shape{4}, {0, 1, 2, 3});
     const std::shared_ptr<Node> onWeights = fqOnWeights.empty() ?
         convertedWeights :
         std::make_shared<opset1::FakeQuantize>(
