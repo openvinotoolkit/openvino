@@ -28,6 +28,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -157,7 +158,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     static const auto precisions = get_convert_precisions();
 
-    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
@@ -184,6 +184,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ngraph::pass::EliminateConvert>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -297,12 +298,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
             [](const_node_ptr &node) -> bool {
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::type_info) {
+                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
                             return false;
                         }
                     }

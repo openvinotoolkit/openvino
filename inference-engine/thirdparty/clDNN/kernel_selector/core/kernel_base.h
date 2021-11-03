@@ -61,7 +61,8 @@ protected:
     static const primitive_db db;
     const std::string kernelName;
 
-    static void CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData);
+    static void CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
+                                  const size_t maxWorkGroupSize);
     virtual Datatype GetUnitType(const base_params& params) const;
 
     bool IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const;

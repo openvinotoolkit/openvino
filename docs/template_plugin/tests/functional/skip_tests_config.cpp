@@ -43,6 +43,22 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
         // CVS-64080
         R"(.*ReferenceMishLayerTest.*dimensionDynamic.*)",
+        //CVS-64012
+        R"(.*ReferenceDeformableConvolutionLayerTest.*f16.*real_offset_padding_stride_dialation.*)",
+        R"(.*ReferenceDeformableConvolutionLayerTest.*bf16.*)",
+        R"(.*ReferenceDeformableConvolutionV8LayerTest.*f16.*real_offset_padding_stride_dialation.*)",
+        R"(.*ReferenceDeformableConvolutionV8LayerTest.*bf16.*)",
+        R"(.*ReferenceDeformableConvolutionV8LayerTest.*f64.*mask.*)",
+        //CVS-63973
+        R"(.*ReferencePSROIPoolingLayerTest.*bf16.*)",
+        //CVS-63977
+        R"(.*ReferenceProposalV1LayerTest.*f16.*)",
+        //CVS-64082
+        R"(.*ReferenceProposalV4LayerTest.*f16.*)",
+        // CVS-64101
+        R"(.*ReferenceExperimentalGPLayerTest.*bf16.*)",
+        // CVS-64105
+        R"(.*ReferenceGatherElementsTestNegative.*)",
     };
 
 #ifdef _WIN32

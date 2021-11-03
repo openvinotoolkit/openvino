@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::PullTransposeThroughFQUp, "PullTransposeThroughFQUp", 0);
 
@@ -59,14 +60,14 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
                                                                        opset1::Constant::create(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes));
                 new_ops.push_back(fq_input.get_node_shared_ptr());
             }
-            fq_input = transpose->copy_with_new_inputs({fq_input, transpose->input_value(1)});
+            fq_input = op::util::make_try_fold<opset1::Transpose>(fq_input, transpose->input_value(1));
             ngraph::copy_runtime_info(transpose, fq_input.get_node_shared_ptr());
             fq_inputs.push_back(fq_input);
         }
 
-        auto new_fq = fq->copy_with_new_inputs(fq_inputs);
+        auto new_fq = fq->clone_with_new_inputs(fq_inputs);
         new_ops.push_back(new_fq);
-        new_fq->set_friendly_name(fq->get_friendly_name());
+        new_fq->set_friendly_name(transpose->get_friendly_name());
         ngraph::copy_runtime_info({fq, transpose}, new_ops);
         ngraph::replace_node(transpose, new_fq);
 

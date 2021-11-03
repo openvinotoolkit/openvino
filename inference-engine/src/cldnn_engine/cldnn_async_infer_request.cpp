@@ -13,17 +13,40 @@ CLDNNPlugin::CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const CLDNNInferRequ
     : AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor), _inferRequest(inferRequest), _waitExecutor(waitExecutor) {
     _pipeline = {};
 
-    _pipeline.push_back({taskExecutor,
-                [this] {
-                    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNAsyncInferRequest::PreprocessingAndStartPipeline");
-                    _inferRequest->preprocess();
-                    _inferRequest->enqueue();
-    } });
-    _pipeline.push_back({_waitExecutor,
+    if (!_inferRequest->use_external_queue()) {
+        _pipeline.push_back({taskExecutor,
                     [this] {
-                        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNAsyncInferRequest::WaitPipeline");
+                        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNAsyncInferRequest::PreprocessingAndStartPipeline");
+                        _inferRequest->setup_stream_graph();
+                        _inferRequest->preprocess();
+                        _inferRequest->enqueue();
                         _inferRequest->wait();
-                    }});
+        } });
+    } else {
+        _pipeline.push_back({ _waitExecutor,
+                        [this] {
+                            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNAsyncInferRequest::WaitPipeline");
+                            _inferRequest->wait_notify();
+                        } });
+    }
+}
+
+void CLDNNPlugin::CLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
+    if (_inferRequest->use_external_queue()) {
+        _inferRequest->setup_stream_graph();
+        _inferRequest->preprocess_notify();
+        _inferRequest->enqueue_notify();
+    }
+    Parent::Infer_ThreadUnsafe();
+}
+
+void CLDNNPlugin::CLDNNAsyncInferRequest::StartAsync_ThreadUnsafe() {
+    if (_inferRequest->use_external_queue()) {
+        _inferRequest->setup_stream_graph();
+        _inferRequest->preprocess_notify();
+        _inferRequest->enqueue_notify();
+    }
+    Parent::StartAsync_ThreadUnsafe();
 }
 
 CLDNNPlugin::CLDNNAsyncInferRequest::~CLDNNAsyncInferRequest() {

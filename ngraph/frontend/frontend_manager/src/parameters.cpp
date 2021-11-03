@@ -4,12 +4,11 @@
 
 #include "frontend_manager/parameters.hpp"
 
-using namespace ngraph;
+BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<ov::Weights>);
+BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<ov::Extensions>);
+BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<std::istream*>);
+BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<std::istringstream*>);
 
-constexpr VariantTypeInfo VariantWrapper<std::istream*>::type_info;
-
-constexpr VariantTypeInfo VariantWrapper<std::istringstream*>::type_info;
-
-constexpr VariantTypeInfo VariantWrapper<std::shared_ptr<ngraph::runtime::AlignedBuffer>>::type_info;
-
-constexpr VariantTypeInfo VariantWrapper<std::map<std::string, ngraph::OpSet>>::type_info;
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<std::wstring>);
+#endif

@@ -21,11 +21,12 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-const char LayerTransformation::originalLayerPostfix[] = "_original";
+constexpr char LayerTransformation::originalLayerPostfix[];
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
-    deqPrecision(params.deqPrecision) {}
+    deqPrecision(params.deqPrecision),
+    context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
     this->context = context;
@@ -198,8 +199,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     const size_t quantizationLevels,
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues) {
+    const float zeroThreshold = std::numeric_limits<float>::denorm_min();
     // TODO: workaround: hardcoded values
-    const float zeroThreshold = 1.e-6f;
     const float quantizationIntervalAsymmetryThreshold = 0.002f;
 
     float asymmetricIntervalSideRatio = -static_cast<float>(quantizationLevels) / (quantizationLevels - 2.f);

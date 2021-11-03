@@ -1,0 +1,59 @@
+{
+    "model": {
+        "model_name": "mobilenet-ssd",
+        "model": "<MODEL_PATH>",
+        "weights": "<PATH_TO_WEIGHTS>"
+    },
+    "engine": {
+        "config": "./configs/examples/accuracy_checker/ssd_mobilenet_v1.yaml"
+    },
+    "optimizer": {
+        "name": "Tpe",
+        "params": {
+            "max_trials": 200,
+            "max_minutes": 1440,
+            "trials_load_method": "cold_start",
+            "accuracy_loss": 0.1,
+            "latency_reduce": 1.5,
+            "accuracy_weight": 1.0,
+            "latency_weight": 0.0,
+            "benchmark": {
+                "performance_count": false,
+                "batch_size": 1,
+                "nthreads": 8,
+                "nstreams": 1,
+                "nireq": 1,
+                "api_type": "async",
+                "niter": 1,
+                "duration_seconds": 30
+            }
+        }
+    },
+    "compression": {
+        "algorithms": [
+            {
+                "name": "ActivationChannelAlignment",
+                "params": {
+                    "stat_subset_size": 1000
+                }
+            },
+            {
+                "name": "TunableQuantization",
+                "params": {
+                    "stat_subset_size": 1000,
+                    "preset": "performance",
+                    "tuning_scope": ["range_estimator"],
+                    "estimator_tuning_scope": ["preset", "outlier_prob"],
+                    "outlier_prob_choices": [1e-3, 1e-4, 1e-5]
+                }
+            },
+            {
+                "name": "FastBiasCorrection",
+                "params": {
+                    "stat_subset_size": 1000
+                }
+            }
+        ]
+    }
+}
+
