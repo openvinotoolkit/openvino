@@ -839,6 +839,8 @@ public:
                     });
                 }
 
+                auto result = plugins.emplace(deviceName, plugin).first->second;
+
                 // add plugin as extension itself
                 if (desc.extensionCreateFunc) {  // static OpenVINO case
                     try {
@@ -852,7 +854,7 @@ public:
                     TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
                 }
 
-                return plugins.emplace(deviceName, plugin).first->second;
+                return result;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
                            << " for device " << deviceName << "\n"

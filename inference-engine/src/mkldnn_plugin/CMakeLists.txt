@@ -26,7 +26,6 @@ addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
-              AS_EXTENSION
               SOURCES ${SOURCES} ${HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME})
