@@ -2315,7 +2315,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
                  reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 
