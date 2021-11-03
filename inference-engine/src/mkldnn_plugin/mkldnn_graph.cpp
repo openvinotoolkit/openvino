@@ -769,7 +769,8 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
                              std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
         }
 
-        if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
+        const auto &outDims = intr_blob.getStaticDims();
+        if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == Layout::BLOCKED) {
