@@ -3,19 +3,21 @@
 
 import unittest
 
-from extensions.front.tf.embedding_segments_sum import EmbeddingSegmentsSumFrontReplacer, EmbeddingSegmentsSumFrontReplacer2
+from extensions.front.tf.embedding_segments_operation_fusing import EmbeddingSegmentsOperationMultipleFeaturesFusing, \
+    EmbeddingSegmentsOperationSingleFeatureFusing
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, const
 
 
-class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
+class EmbeddingSegmentsOperationFusingTest(unittest.TestCase):
     def test1(self):
         nodes_attributes = {
             'input_indices': {'shape': int64_array([5, 2]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'input_values': {'shape': int64_array([5]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'input_dense_shape': {'shape': int64_array([2]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-            'input_params_table': {'shape': int64_array([10, 3, 4]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+            'input_params_table': {'shape': int64_array([10, 3, 4]), 'type': 'Parameter', 'kind': 'op',
+                                   'op': 'Parameter'},
             'input_default_value': {'shape': int64_array([]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
 
             'identity_spw': {'kind': 'op', 'op': 'Identity'},
@@ -58,7 +60,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                              ('input_values', 'gather0_2', {'out': 0, 'in': 0}),
                              ('input_params_table', 'gather', {'out': 0, 'in': 0}),
                              ('input_default_value', 'sparse_fill_empty_rows', {'out': 0, 'in': 3}),
-                                 
+
                              ('gather0_1', 'sparse_fill_empty_rows', {'out': 0, 'in': 0}),
                              ('gather0_2', 'sparse_fill_empty_rows', {'out': 0, 'in': 1}),
                              ('identity_spw', 'sparse_fill_empty_rows', {'out': 0, 'in': 2}),
@@ -78,9 +80,9 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                              ('reshape', 'tile', {'out': 0, 'in': 0}),
                              ('tile', 'select', {'out': 0, 'in': 0}),
                              ('select', 'last', {'out': 0, 'in': 0}),
-                            ], nodes_with_edges_only=True)
+                             ], nodes_with_edges_only=True)
         graph.stage = 'front'
-        EmbeddingSegmentsSumFrontReplacer().find_and_replace_pattern(graph)
+        EmbeddingSegmentsOperationSingleFeatureFusing().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('input_indices', 'split_for_indices', {'in': 0}),
@@ -99,8 +101,8 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                                  ('input_params_table', 'embedding_segments_sum', {'in': 0}),
                                  ('input_default_value', 'cast_default_value', {'in': 0}),
                                  ('cast_default_value', 'embedding_segments_sum', {'in': 4}),
-                                 ('embedding_segments_sum', 'last', {'in': 0}),],
-                                 nodes_with_edges_only=True)
+                                 ('embedding_segments_sum', 'last', {'in': 0}), ],
+                                nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -110,7 +112,8 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
             'input_indices': {'shape': int64_array([5, 2]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'input_values': {'shape': int64_array([5]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'input_dense_shape': {'shape': int64_array([2]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-            'input_params_table': {'shape': int64_array([10, 3, 4]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+            'input_params_table': {'shape': int64_array([10, 3, 4]), 'type': 'Parameter', 'kind': 'op',
+                                   'op': 'Parameter'},
             'input_default_value': {'shape': int64_array([]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
 
             'identity_spw': {'kind': 'op', 'op': 'Identity'},
@@ -155,7 +158,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                              ('input_values', 'gather0_2', {'out': 0, 'in': 0}),
                              ('input_params_table', 'gather', {'out': 0, 'in': 0}),
                              ('input_default_value', 'sparse_fill_empty_rows', {'out': 0, 'in': 3}),
-                                 
+
                              ('identity_spw', 'sparse_fill_empty_rows', {'out': 0, 'in': 2}),
                              ('gather0_1', 'sparse_fill_empty_rows', {'out': 0, 'in': 0}),
                              ('gather0_2', 'sparse_fill_empty_rows', {'out': 0, 'in': 1}),
@@ -177,9 +180,9 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                              ('reshape', 'tile', {'out': 0, 'in': 0}),
                              ('tile', 'select', {'out': 0, 'in': 0}),
                              ('select', 'last', {'out': 0, 'in': 0})],
-                                nodes_with_edges_only=True)
+                            nodes_with_edges_only=True)
         graph.stage = 'front'
-        EmbeddingSegmentsSumFrontReplacer2().find_and_replace_pattern(graph)
+        EmbeddingSegmentsOperationMultipleFeaturesFusing().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('input_indices', 'split_for_indices', {'in': 0}),
@@ -198,7 +201,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                                  ('input_params_table', 'embedding_segments_sum', {'in': 0}),
                                  ('input_default_value', 'cast_default_value', {'in': 0}),
                                  ('cast_default_value', 'embedding_segments_sum', {'in': 4}),
-                                 ('embedding_segments_sum', 'last', {'in': 0}),],
+                                 ('embedding_segments_sum', 'last', {'in': 0}), ],
                                 nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
