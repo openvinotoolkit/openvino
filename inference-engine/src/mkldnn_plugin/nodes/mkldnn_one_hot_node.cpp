@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
 #include <vector>
 #include <string>
 #include <mkldnn_types.h>
 #include "ie_parallel.hpp"
-#include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 #include "mkldnn_one_hot_node.h"
 #include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <ie_ngraph_utils.hpp>
 #include "common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
@@ -19,10 +18,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
         if (!oneHot) {
             errorMessage = "Only opset1 OneHot operation is supported";
@@ -56,20 +51,19 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
     errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
     const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
     const auto depthNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
-    const auto onValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID));
-    const auto offValueNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(OFF_VALUEAXES_ID));
     depth = depthNode->cast_vector<uint32_t>()[0];
     axis = oneHot->get_axis();
-    src_dims = oneHot->get_input_shape(INDICES_ID);
-    if (ngraph::is_scalar(src_dims)) {
-        src_dims = SizeVector{1};
+
+    VectorDims srcDims = inputShapes[INDICES_ID].getDims();
+    if (ngraph::is_scalar(srcDims)) {
+        srcDims = SizeVector{1};
     }
-    dst_dims = oneHot->get_output_shape(0);
-    if (ngraph::is_scalar(dst_dims)) {
-        dst_dims = SizeVector{1};
+    VectorDims dstDims = outputShapes[0].getDims();
+    if (ngraph::is_scalar(dstDims)) {
+        dstDims = SizeVector{1};
     }
 
-    int output_dims_size = dst_dims.size();
+    int output_dims_size = dstDims.size();
     if (axis < 0) {
         axis += output_dims_size;
     }
@@ -77,9 +71,41 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has unsupported 'axis' attribute: " << oneHot->get_axis();
     }
 
-    if (!( ((1 + src_dims.size()) == dst_dims.size()) ||
-           (src_dims.size() == 1 && dst_dims.size() == 1 && dst_dims[0] == depth && src_dims[0] == 1)))
+    if (!( ((1 + srcDims.size()) == dstDims.size()) ||
+           (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
+}
+
+bool MKLDNNOneHotNode::needShapeInfer() const {
+    const auto depthNodePtr = getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr();
+    if (depth != reinterpret_cast<int32_t *>(depthNodePtr)[0])
+        return true;
+    return MKLDNNNode::needShapeInfer();
+}
+
+std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
+    ngraph::OutputVector inputsForShapeInfer;
+    inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(InferenceEngine::details::convertPrecision(
+                                                                              getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision()),
+                                                                              getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().toPartialShape()));
+    inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(InferenceEngine::details::convertPrecision(
+                                                                 getParentEdgesAtPort(1)[0]->getMemory().getDesc().getPrecision()),
+                                                                 VectorDims{ },
+                                                                 getParentEdgesAtPort(1)[0]->getMemory().GetPtr()));
+    inputsForShapeInfer.push_back(opToShapeInfer->get_input_node_shared_ptr(2));
+    inputsForShapeInfer.push_back(opToShapeInfer->get_input_node_shared_ptr(3));
+
+    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
+    localShapeInferOp->validate_and_infer_types();
+
+    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    for (size_t i = 0; i < newOutputShapes.size(); i++) {
+        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
+        if (partShape.is_dynamic())
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+        newOutputShapes[i] = partShape.get_shape();
+    }
+    return newOutputShapes;
 }
 
 void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
@@ -131,7 +157,7 @@ void MKLDNNOneHotNode::execute(mkldnn::stream strm) {
     std::size_t prefix_size = 1;
     auto input_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
 
-    std::size_t actual_axis = (axis == -1) ? src_dims.size() : axis;
+    std::size_t actual_axis = (axis == -1) ? input_dims.size() : axis;
     for (size_t i = 0; i < actual_axis; ++i)
         prefix_size *= input_dims[i];
 
