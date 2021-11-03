@@ -220,17 +220,6 @@ op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
     return outputs_map;
 }
 
-bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v8_If_evaluate);
-    ngraph::runtime::reference::if_reference(m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
-    return true;
-}
-
-bool op::v8::If::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v8_If_has_evaluate);
-    return true;
-}
-
 void op::v8::If::set_input(const Output<Node>& value,
                            const std::shared_ptr<v0::Parameter>& then_parameter,
                            const std::shared_ptr<v0::Parameter>& else_parameter) {

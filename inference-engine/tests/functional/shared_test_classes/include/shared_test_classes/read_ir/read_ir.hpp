@@ -9,10 +9,16 @@
 #include "shared_test_classes/single_layer/roi_align.hpp"
 
 namespace LayerTestsDefinitions {
-class ReadIRTest : public testing::WithParamInterface<std::tuple<std::string, std::string>>,
+
+using ReadIRParams = std::tuple<
+        std::string,                         // IR path
+        std::string,                         // Target Device
+        std::map<std::string, std::string>>; // Plugin Config
+
+class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, std::string>> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
 
 protected:
     void SetUp() override;
