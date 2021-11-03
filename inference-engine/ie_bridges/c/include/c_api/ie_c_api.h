@@ -438,8 +438,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_import_network_from_me
 * @param exe_network A pointer to the newly created executable network.
 * @return Status code of the operation: OK(0) for success.
 */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_export_network(ie_core_t *core, const char *file_name,
-        ie_executable_network_t *exe_network);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_export_network(const char *file_name, ie_executable_network_t *exe_network);
 
 /**
  * @brief Creates an executable network from a given network object. Users can create as many networks as they need and use
