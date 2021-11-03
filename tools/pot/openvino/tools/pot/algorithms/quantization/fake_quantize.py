@@ -459,8 +459,8 @@ def get_num_levels(x: np.ndarray) -> int:
     hist, _ = np.histogram(x, NUM_BINS)
     non_empty_bins = [i for i, v in enumerate(hist) if v > 0]
     deltas = [non_empty_bins[i]-non_empty_bins[i-1] for i in range(1, len(non_empty_bins))]
-    d = sum(deltas)/len(deltas)
-    if round(d) == 1:
+    d = min(deltas)
+    if d == 1:
         return -1
 
     return round(NUM_BINS / d)

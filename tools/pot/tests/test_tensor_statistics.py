@@ -141,8 +141,8 @@ WEIGHTS_CH_STATS_FUNCTIONS = [(name, True) for name in
 
 NUM_LEVELS_PARAMS = [
     (np.random.randint, (0, 2, (3, 100, 100)), 1, 1),
-    (np.random.randint, (-32, 32, (3, 100, 100)), 63, 1),
-    (np.random.randint, (-32, 32, (3, 100, 100)), 63, 1/512),
+    (np.random.randint, (-32, 32, (3, 100, 100)), 64, 1),
+    (np.random.randint, (-32, 32, (3, 100, 100)), 64, 1/512),
     (np.random.rand, (3, 100, 100), -1, 1)
 ]
 
