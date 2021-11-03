@@ -21,11 +21,12 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-const char LayerTransformation::originalLayerPostfix[] = "_original";
+constexpr char LayerTransformation::originalLayerPostfix[];
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
-    deqPrecision(params.deqPrecision) {}
+    deqPrecision(params.deqPrecision),
+    context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
     this->context = context;
