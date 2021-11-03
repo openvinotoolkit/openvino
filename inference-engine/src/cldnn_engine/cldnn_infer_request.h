@@ -49,6 +49,11 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
+    void setup_stream_graph();
+    void preprocess_notify();
+    void enqueue_notify();
+    void wait_notify();
+
     void preprocess();
     void enqueue();
     void wait();
