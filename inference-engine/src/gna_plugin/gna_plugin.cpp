@@ -786,7 +786,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         if (fake_quantized)
             passes->registerPass<SubstituteSoftSignPass>();
 
-
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
