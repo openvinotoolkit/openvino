@@ -1,29 +1,21 @@
-ir_version: 3
+ir_version: 7
 producer_name: "nGraph ONNX Importer"
 graph {
   node {
-    input: "x"
-    output: "y"
-    op_type: "RandomUniformLike"
+    input: "A"
+    output: "Y"
+    name: "operation"
+    op_type: "Template"
+    domain: "custom_domain"
     attribute {
-      name: "high"
-      f: 50
-      type: FLOAT
-    }
-    attribute {
-      name: "low"
-      f: 40
-      type: FLOAT
-    }
-    attribute {
-      name: "seed"
-      f: 100
-      type: FLOAT
+        name: "add"
+        type: INT
+        i: 11
     }
   }
-  name: "test_model"
+  name: "test_graph"
   input {
-    name: "x"
+    name: "A"
     type {
       tensor_type {
         elem_type: 1
@@ -33,13 +25,19 @@ graph {
           }
           dim {
             dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
           }
         }
       }
     }
   }
   output {
-    name: "y"
+    name: "Y"
     type {
       tensor_type {
         elem_type: 1
@@ -49,6 +47,12 @@ graph {
           }
           dim {
             dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
           }
         }
       }
@@ -57,4 +61,5 @@ graph {
 }
 opset_import {
   version: 1
+  domain: "com.example"
 }
