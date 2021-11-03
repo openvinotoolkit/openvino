@@ -94,6 +94,15 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         "Convolution",
         "U8"
     },
+    {
+        { 256ul, ngraph::Shape { 1 }, { 0.f }, { 255.f }, { -18.7f }, { 18.8f } },
+        true,
+        { 255ul, ngraph::Shape { 6, 1, 1, 1 }, { -0.6f }, { 0.6f },
+            { -1.52806e-39f, -0.2, -0.3, -0.3, -0.2, -0.1 }, { 1.52806e-39f, 0.2, 0.3, 0.3, 0.2, 0.1 } },
+        false,
+        "Convolution",
+        "U8"
+    },
 };
 
 const std::vector<ngraph::Shape> shapes = {
