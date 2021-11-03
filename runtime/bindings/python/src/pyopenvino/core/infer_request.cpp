@@ -10,6 +10,7 @@
 
 #include <string>
 
+#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/containers.hpp"
 
 PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
@@ -21,8 +22,9 @@ void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
     cls.def(
         "set_tensors",
-        [](InferRequestWrapper& self, const Containers::TensorNameMap& inputs) {
-            for (auto&& input : inputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs) {
+            auto tensor_map = Common::cast_to_tensor_name_map(inputs);
+            for (auto&& input : tensor_map) {
                 self._request.set_tensor(input.first, input.second);
             }
         },
@@ -30,8 +32,9 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_output_tensors",
-        [](InferRequestWrapper& self, const Containers::TensorIndexMap& outputs) {
-            for (auto&& output : outputs) {
+        [](InferRequestWrapper& self, const py::dict& outputs) {
+            auto outputs_map = Common::cast_to_tensor_index_map(outputs);
+            for (auto&& output : outputs_map) {
                 self._request.set_output_tensor(output.first, output.second);
             }
         },
@@ -39,8 +42,9 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_input_tensors",
-        [](InferRequestWrapper& self, const Containers::TensorIndexMap& inputs) {
-            for (auto&& input : inputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs) {
+            auto inputs_map = Common::cast_to_tensor_index_map(inputs);
+            for (auto&& input : inputs_map) {
                 self._request.set_input_tensor(input.first, input.second);
             }
         },
@@ -48,29 +52,20 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "_infer",
-        [](InferRequestWrapper& self, const Containers::TensorIndexMap& inputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs) {
             // Update inputs if there are any
-            for (auto&& input : inputs) {
-                self._request.set_input_tensor(input.first, input.second);
-            }
-            // Call Infer function
-            self._start_time = Time::now();
-            self._request.infer();
-            self._end_time = Time::now();
-            Containers::InferResults results;
-            for (auto& out : self._outputs) {
-                results.push_back(self._request.get_tensor(out));
-            }
-            return results;
-        },
-        py::arg("inputs"));
-
-    cls.def(
-        "_infer",
-        [](InferRequestWrapper& self, const Containers::TensorNameMap& inputs) {
-            // Update inputs if there are any
-            for (auto&& input : inputs) {
-                self._request.set_tensor(input.first, input.second);
+            if (!inputs.empty()) {
+                if (py::isinstance<py::str>(inputs.begin()->first)) {
+                    auto inputs_map = Common::cast_to_tensor_name_map(inputs);
+                    for (auto&& input : inputs_map) {
+                        self._request.set_tensor(input.first, input.second);
+                    }
+                } else if (py::isinstance<py::int_>(inputs.begin()->first)) {
+                    auto inputs_map = Common::cast_to_tensor_index_map(inputs);
+                    for (auto&& input : inputs_map) {
+                        self._request.set_input_tensor(input.first, input.second);
+                    }
+                }
             }
             // Call Infer function
             self._start_time = Time::now();
@@ -86,40 +81,22 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "_start_async",
-        [](InferRequestWrapper& self, const Containers::TensorIndexMap& inputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs) {
             py::gil_scoped_release release;
-            for (auto&& input : inputs) {
-                self._request.set_input_tensor(input.first, input.second);
-            }
-            // TODO: check for None so next async infer userdata can be updated
-            // if (!userdata.empty())
-            // {
-            //     if (user_callback_defined)
-            //     {
-            //         self._request.SetCompletionCallback([self, userdata]() {
-            //             // py::gil_scoped_acquire acquire;
-            //             auto statusCode = const_cast<InferRequestWrapper&>(self).Wait(
-            //                 InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
-            //             self._request.user_callback(self, statusCode, userdata);
-            //             // py::gil_scoped_release release;
-            //         });
-            //     }
-            //     else
-            //     {
-            //         py::print("There is no callback function!");
-            //     }
-            // }
-            self._start_time = Time::now();
-            self._request.start_async();
-        },
-        py::arg("inputs"));
 
-    cls.def(
-        "_start_async",
-        [](InferRequestWrapper& self, const Containers::TensorNameMap& inputs) {
-            py::gil_scoped_release release;
-            for (auto&& input : inputs) {
-                self._request.set_tensor(input.first, input.second);
+            // Update inputs if there are any
+            if (!inputs.empty()) {
+                if (py::isinstance<std::string>(inputs.begin()->first)) {
+                    auto inputs_map = Common::cast_to_tensor_name_map(inputs);
+                    for (auto&& input : inputs_map) {
+                        self._request.set_tensor(input.first, input.second);
+                    }
+                } else if (py::isinstance<int>(inputs.begin()->first)) {
+                    auto inputs_map = Common::cast_to_tensor_index_map(inputs);
+                    for (auto&& input : inputs_map) {
+                        self._request.set_input_tensor(input.first, input.second);
+                    }
+                }
             }
             // TODO: check for None so next async infer userdata can be updated
             // if (!userdata.empty())

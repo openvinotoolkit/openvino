@@ -164,4 +164,4 @@ def test_infer_mixed_keys(device):
     request = exec_net.create_infer_request()
     with pytest.raises(TypeError) as e:
         request.infer({0: tensor, "fc_out": tensor2})
-    assert "incompatible function arguments." in str(e.value)
+    assert "incompatible function arguments!" in str(e.value)

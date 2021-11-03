@@ -254,7 +254,7 @@ def test_register_plugins():
                                           "registered in the XML file"
 
 
-# @pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
+@pytest.mark.skip(reason="Need to figure out if it's expected behaviour (fails with C++ API as well")
 def test_unregister_plugin(device):
     ie = Core()
     ie.unload_plugin(device)
