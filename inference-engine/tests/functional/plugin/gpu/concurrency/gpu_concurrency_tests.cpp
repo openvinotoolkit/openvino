@@ -10,7 +10,6 @@
 #include "openvino/runtime/core.hpp"
 
 #include <gpu/gpu_config.hpp>
-#include <remote_blob_tests/remote_blob_helpers.hpp>
 #include <common_test_utils/test_common.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -21,7 +20,7 @@
 using namespace ::testing;
 
 using ConcurrencyTestParams = std::tuple<size_t,   // number of streams
-                                 size_t>;  // number of requests
+                                         size_t>;  // number of requests
 
 class OVConcurrencyTest : public CommonTestUtils::TestsCommon,
     public testing::WithParamInterface<ConcurrencyTestParams> {

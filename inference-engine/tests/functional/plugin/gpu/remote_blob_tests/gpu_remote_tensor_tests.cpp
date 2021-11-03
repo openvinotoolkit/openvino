@@ -132,6 +132,162 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
     }
 }
 
+TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_out_of_order) {
+    auto ie = ov::runtime::Core();
+
+    using namespace ov::preprocess;
+    auto function = PrePostProcessor()
+            .input(InputInfo()
+                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
+                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
+            .build(fn_ptr);
+
+    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto input = function->get_parameters().at(0);
+    auto output = function->get_results().at(0);
+
+    // regular inference
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+    inf_req_regular.set_tensor(input, fakeImageData);
+
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+    auto in_size = ov::shape_size(input->get_output_shape(0)) * input->get_output_element_type(0).size();
+    auto out_size = ov::shape_size(output->get_output_shape(0)) * output->get_output_element_type(0).size();
+
+    // inference using remote tensor
+    auto ocl_instance = std::make_shared<OpenCL>();
+    cl_int err;
+
+    // Allocate shared buffers for input and output data which will be set to infer request
+    cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
+    cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+
+    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
+    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::gpu::ocl::ClContext>();
+
+    auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
+    auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
+    auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+
+    auto inf_req_shared = exec_net_shared.create_infer_request();
+    inf_req_shared.set_tensor(input, gpu_in_tensor);
+    inf_req_shared.set_tensor(output, gpu_out_tensor);
+
+    // 1. Pre-processing. Enqueue non-blocking copy from host ptr to shared device input buffer and barrier to ensure that copy is finished before
+    // inference primitives starts execution
+    {
+        void* buffer = fakeImageData.data();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_buffer, false, 0, in_size, buffer);
+        ocl_instance->_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+    }
+
+    // 2. Enqueue inference primitives. With shared queue this call ensures that all kernels are scheduled to the corresponding queue
+    // before giving the control back
+    inf_req_shared.start_async();
+
+    // 3. Post-processing. Enqueue copy from shared blob with inference result to another output blob
+    // Enqueue barrier with empty wait list is needed to ensure that previous kernels are finished before copying the data. It's needed here since we
+    // create OOO queue.
+    // Note: inf_req_shared.wait() can be dropped in some cases, but if plugin-side post-processing is required,
+    // then the result may be incorrect without Wait().
+    {
+        ocl_instance->_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+        ocl_instance->_queue.enqueueReadBuffer(shared_output_buffer, false, 0, out_size, out_tensor.data(), nullptr, nullptr);
+    }
+
+    // 4. Wait for infer request and post-processing completion
+    ocl_instance->_queue.finish();
+
+    // compare results
+    {
+        ASSERT_EQ(output->get_element_type(), ov::element::f32);
+        ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ASSERT_NO_THROW(output_tensor_regular.data());
+        FuncTestUtils::compare_tensor(output_tensor_regular, out_tensor, thr);
+    }
+}
+
+TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_in_order) {
+    auto ie = ov::runtime::Core();
+
+    using namespace ov::preprocess;
+    auto function = PrePostProcessor()
+            .input(InputInfo()
+                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
+                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
+            .build(fn_ptr);
+
+    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto input = function->get_parameters().at(0);
+    auto output = function->get_results().at(0);
+
+    // regular inference
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+    inf_req_regular.set_tensor(input, fakeImageData);
+
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+    auto in_size = ov::shape_size(input->get_output_shape(0)) * input->get_output_element_type(0).size();
+    auto out_size = ov::shape_size(output->get_output_shape(0)) * output->get_output_element_type(0).size();
+
+    // inference using remote tensor
+    auto ocl_instance = std::make_shared<OpenCL>();
+    ocl_instance->_queue = cl::CommandQueue(ocl_instance->_context, ocl_instance->_device);
+    cl_int err;
+
+    // Allocate shared buffers for input and output data which will be set to infer request
+    cl::Buffer shared_input_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, in_size, NULL, &err);
+    cl::Buffer shared_output_buffer(ocl_instance->_context, CL_MEM_READ_WRITE, out_size, NULL, &err);
+
+    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_queue.get());
+    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto gpu_context = exec_net_shared.get_context().as<ov::runtime::gpu::ocl::ClContext>();
+
+    auto gpu_in_tensor = gpu_context.create_tensor(input->get_output_element_type(0), input->get_output_shape(0), shared_input_buffer);
+    auto gpu_out_tensor = gpu_context.create_tensor(output->get_output_element_type(0), output->get_output_shape(0), shared_output_buffer);
+    auto out_tensor = FuncTestUtils::create_and_fill_tensor(output->get_output_element_type(0), output->get_output_shape(0));
+
+    auto inf_req_shared = exec_net_shared.create_infer_request();
+    inf_req_shared.set_tensor(input, gpu_in_tensor);
+    inf_req_shared.set_tensor(output, gpu_out_tensor);
+
+    // 1. Pre-processing. Enqueue non-blocking copy from host ptr to shared device input buffer
+    {
+        void* buffer = fakeImageData.data();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_input_buffer, false, 0, in_size, buffer);
+    }
+
+    // 2. Enqueue inference primitives. With shared queue this call ensures that all kernels are scheduled to the corresponding queue
+    // before giving the control back
+    inf_req_shared.start_async();
+
+    // 3. Post-processing. Enqueue copy from shared blob with inference result to another output blob
+    // Note: inf_req_shared.Wait() can be dropped in some cases, but if plugin-side post-processing is required,
+    // then the result may be incorrect without Wait().
+    {
+        ocl_instance->_queue.enqueueReadBuffer(shared_output_buffer, false, 0, out_size, out_tensor.data(), nullptr, nullptr);
+    }
+
+    // 4. Wait for infer request and post-processing completion
+    ocl_instance->_queue.finish();
+
+    // compare results
+    {
+        ASSERT_EQ(output->get_element_type(), ov::element::f32);
+        ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ASSERT_NO_THROW(output_tensor_regular.data());
+        FuncTestUtils::compare_tensor(output_tensor_regular, out_tensor, thr);
+    }
+}
+
 class OVRemoteTensorBatched_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<size_t> {
     void SetUp() override {
         num_batch = this->GetParam();
