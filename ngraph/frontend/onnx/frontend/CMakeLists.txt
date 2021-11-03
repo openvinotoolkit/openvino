@@ -51,9 +51,6 @@ target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTE
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
-if(NGRAPH_USE_PROTOBUF_LITE)
-    target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)
-endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::onnx)
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets

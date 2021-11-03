@@ -4,7 +4,6 @@ LABEL version=2021.03.30.1
 
 # Build configuration arguments
 ARG BUILD_TYPE=Release
-ARG PROTOBUF_LITE=ON
 
 ARG http_proxy
 ARG https_proxy
@@ -69,8 +68,7 @@ RUN cmake .. \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
     -DNGRAPH_ONNX_FRONTEND_ENABLE=ON \
     -DOPENVINO_DEBUG_ENABLE=OFF \
-    -DCMAKE_INSTALL_PREFIX=/openvino/dist \
-    -DNGRAPH_USE_PROTOBUF_LITE=${PROTOBUF_LITE}
+    -DCMAKE_INSTALL_PREFIX=/openvino/dist
 RUN make -j $(nproc) install
 
 # Run tests via tox

@@ -29,23 +29,11 @@ using TensorProto_DataType = decltype(ONNX_NAMESPACE::TensorProto{}.data_type())
 namespace error {
 namespace tensor {
 struct invalid_data_type : ngraph_error {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
     explicit invalid_data_type(TensorProto_DataType type) : ngraph_error{"invalid data type"} {}
-#else
-    explicit invalid_data_type(TensorProto_DataType type)
-        : ngraph_error{"invalid data type: " + ONNX_NAMESPACE::TensorProto_DataType_Name(
-                                                   static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))} {}
-#endif
 };
 
 struct unsupported_data_type : ngraph_error {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
     explicit unsupported_data_type(TensorProto_DataType type) : ngraph_error{"unsupported data type"} {}
-#else
-    explicit unsupported_data_type(TensorProto_DataType type)
-        : ngraph_error{"unsupported data type: " + ONNX_NAMESPACE::TensorProto_DataType_Name(
-                                                       static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))} {}
-#endif
 };
 
 struct unspecified_name : ngraph_error {
