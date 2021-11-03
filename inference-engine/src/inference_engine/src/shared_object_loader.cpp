@@ -22,7 +22,11 @@ struct SharedObjectLoader::Impl {
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
     void* get_symbol(const char* symbolName) const {
-        return ov::util::get_symbol(shared_object, symbolName);
+        try {
+            return ov::util::get_symbol(shared_object, symbolName);
+        } catch (const std::runtime_error& ex) {
+            IE_THROW(NotFound) << ex.what();
+        }
     }
 };
 

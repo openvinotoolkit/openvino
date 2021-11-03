@@ -329,7 +329,7 @@ class CoreImpl : public ie::ICore, public std::enable_shared_from_this<ie::ICore
             cacheManager->removeCacheEntry(blobId);
             networkIsImported = false;
             // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
-            // throw;
+            throw;
         }
         return execNetwork;
     }
@@ -728,10 +728,6 @@ public:
             try {
                 const ie::Parameter p = GetMetric(deviceName, propertyName);
                 devicesIDs = p.as<std::vector<std::string>>();
-            } catch (ie::Exception&) {
-                // plugin is not created by e.g. invalid env
-            } catch (ov::Exception&) {
-                // plugin is not created by e.g. invalid env
             } catch (std::runtime_error&) {
                 // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
@@ -854,8 +850,7 @@ public:
                     TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
                 }
 
-                auto result = plugins.emplace(deviceName, plugin).first->second;
-                return result;
+                return plugins.emplace(deviceName, plugin).first->second;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
                            << " for device " << deviceName << "\n"
