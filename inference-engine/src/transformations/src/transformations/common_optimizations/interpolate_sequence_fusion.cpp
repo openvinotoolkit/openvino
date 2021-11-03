@@ -63,18 +63,14 @@ std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<opset8::Interpo
 }
 
 bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
-    if (!compatible_attrs(fst->get_attrs(), snd->get_attrs()) || !is_candidate_for_fusion(fst) || !is_candidate_for_fusion(snd) ||
-        !compatible_axes(get_interpolated_axes(fst), get_interpolated_axes(snd)) {
-        return false;
-    }
-
     for (const auto& output : fst->outputs()) {
         for (const auto& consumer : output.get_target_inputs()) {
             if (consumer.get_node() != snd.get()) return false;
         }
     }
 
-    return true;
+    return compatible_attrs(fst->get_attrs(), snd->get_attrs()) && is_candidate_for_fusion(fst) && is_candidate_for_fusion(snd) &&
+           compatible_axes(get_interpolated_axes(fst), get_interpolated_axes(snd));
 }
 
 ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
@@ -85,10 +81,10 @@ ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ops
 
     std::vector<std::pair<int64_t, int64_t>> axes_and_sizes;
     for (size_t i = 0; i < fst_axes.size(); ++i) {
-        axes_and_sizes.emplace_back({fst_axes[i], fst_sizes[i]});
+        axes_and_sizes.emplace_back(std::make_pair(fst_axes[i], fst_sizes[i]));
     }
     for (size_t i = 0; i < snd_axes.size(); ++i) {
-        axes_and_sizes.emplace_back({snd_axes[i], snd_sizes[i]});
+        axes_and_sizes.emplace_back(std::make_pair(snd_axes[i], snd_sizes[i]));
     }
     std::sort(axes_and_sizes.begin(),
               axes_and_sizes.end(),
@@ -108,7 +104,7 @@ ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ops
     auto shape_node = std::make_shared<opset8::ShapeOf>(fst->input_value(0));
 
     auto gather_axis_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{0});
-    auto gather_node = std::make_shared<opset8::ShapeOf>(shape_node, new_axes_node, gather_axis_node);
+    auto gather_node = std::make_shared<opset8::Gather>(shape_node, new_axes_node, gather_axis_node);
     auto cast_shape_to_float = std::make_shared<opset8::Convert>(gather_node, element::f32);
 
     auto div_node = std::make_shared<opset8::Divide>(new_sizes_cast, cast_shape_to_float);
@@ -126,10 +122,10 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
 
     std::vector<std::pair<int64_t, float>> axes_and_scales;
     for (size_t i = 0; i < fst_axes.size(); ++i) {
-        axes_and_scales.emplace_back({fst_axes[i], fst_sizes[i]});
+        axes_and_scales.emplace_back(std::make_pair(fst_axes[i], fst_scales[i]));
     }
     for (size_t i = 0; i < snd_axes.size(); ++i) {
-        axes_and_scales.emplace_back({snd_axes[i], snd_sizes[i]});
+        axes_and_scales.emplace_back(std::make_pair(snd_axes[i], snd_scales[i]));
     }
     std::sort(axes_and_scales.begin(),
               axes_and_scales.end(),
@@ -138,7 +134,7 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
               });
     std::vector<int64_t> new_axes;
     std::vector<float> new_scales;
-    for (const auto& as : axes_and_sizes) {
+    for (const auto& as : axes_and_scales) {
         new_axes.emplace_back(as.first);
         new_scales.emplace_back(as.second);
     }
@@ -148,7 +144,7 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
     auto shape_node = std::make_shared<opset8::ShapeOf>(fst->input_value(0));
 
     auto gather_axis_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{0});
-    auto gather_node = std::make_shared<opset8::ShapeOf>(shape_node, new_axes_node, gather_axis_node);
+    auto gather_node = std::make_shared<opset8::Gather>(shape_node, new_axes_node, gather_axis_node);
     auto cast_shape_to_float = std::make_shared<opset8::Convert>(gather_node, element::f32);
 
     auto mul_node = std::make_shared<opset8::Multiply>(cast_shape_to_float, new_scales_node);
@@ -159,7 +155,7 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
 
     auto new_interpolate = fst->clone_with_new_inputs({fst->input_value(0), cast_mul_result_to_int, new_scales_node, new_axes_node});
 
-    return {new_sizes_node, new_axes_node, shape_node, gather_axis_node, gather_node, cast_shape_to_float, mul_node, eps_node,
+    return {new_scales_node, new_axes_node, shape_node, gather_axis_node, gather_node, cast_shape_to_float, mul_node, eps_node,
             add_node, floor_node, cast_mul_result_to_int, new_interpolate};
 }
 } // namespace
