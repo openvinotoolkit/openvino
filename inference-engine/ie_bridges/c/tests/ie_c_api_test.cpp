@@ -489,6 +489,24 @@ TEST(ie_core_load_network, loadNetworkNoConfig) {
     ie_core_free(&core);
 }
 
+TEST(ie_core_load_network, loadNetworkNullConfig) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    EXPECT_NE(nullptr, network);
+
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network(core, network, "CPU", nullptr, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+
+    ie_exec_network_free(&exe_network);
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+
 TEST(ie_core_load_network_from_file, loadNetworkNoConfig) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -502,6 +520,20 @@ TEST(ie_core_load_network_from_file, loadNetworkNoConfig) {
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
+
+TEST(ie_core_load_network_from_file, loadNetworkNullConfig) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    ie_executable_network_t *exe_network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", nullptr, &exe_network));
+    EXPECT_NE(nullptr, exe_network);
+
+    ie_exec_network_free(&exe_network);
+    ie_core_free(&core);
+}
+
 
 TEST(ie_core_load_network_from_file, loadNetwork_errorHandling) {
     ie_core_t *core = nullptr;
@@ -517,9 +549,6 @@ TEST(ie_core_load_network_from_file, loadNetwork_errorHandling) {
     EXPECT_EQ(nullptr, exe_network);
 
     IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, nullptr, &config, &exe_network));
-    EXPECT_EQ(nullptr, exe_network);
-
-    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "CPU", nullptr, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
     IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, nullptr));
