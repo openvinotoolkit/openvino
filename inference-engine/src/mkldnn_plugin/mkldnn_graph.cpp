@@ -219,10 +219,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
-                IE_SUPPRESS_DEPRECATED_START
-                if (inInfo->second->getInputData()->isDynamic())
+                if (node->isDynamicNode()) {
                     graphHasDynamicInput = true;
-                IE_SUPPRESS_DEPRECATED_END
+                }
             }
         }
 
@@ -771,9 +770,6 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         }
 
         if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
-            if (!node->isDynamicNode())
-                IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
-
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == Layout::BLOCKED) {
