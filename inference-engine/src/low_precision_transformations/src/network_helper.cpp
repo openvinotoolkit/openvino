@@ -1516,12 +1516,24 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
     }
 
     auto data = convertOnSubtract->input_value(0);
-    const auto subtractParent = subtract->get_input_node_shared_ptr(1);
-    if (ov::is_type<opset1::Constant>(subtractParent)) {
+    // check if shift is a constant
+    std::shared_ptr<Node> shift = subtract->get_input_node_shared_ptr(1);
+    bool isShiftConstant = ov::is_type<opset1::Constant>(shift);
+    if (!isShiftConstant && ov::is_type<opset1::Convert>(shift)) {
+        // if not - we're dealing with shift->Convert (to high precision) -> Subtract
+        shift = shift->get_input_node_shared_ptr(0);
+        isShiftConstant = ov::is_type<opset1::Constant>(shift);
+    }
+    if (isShiftConstant) {
         std::shared_ptr<Node> replacement;
 
-        auto shift = subtract->input_value(1).get_node_shared_ptr();
-        auto roundedShift = NetworkHelper::round(shift, convertInputType);
+        auto shiftConst = ov::as_type_ptr<opset1::Constant>(shift);
+        std::shared_ptr<opset1::Constant> roundedShift;
+        if (shiftConst->get_element_type() != convertInputType) {
+            roundedShift = NetworkHelper::round(shiftConst, convertInputType);
+        } else {
+            roundedShift = shiftConst;
+        }
 
         if (isScalarLike(roundedShift)) {
             roundedShift = toScalar(roundedShift);
@@ -1532,7 +1544,7 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
         }
 
         if (roundedShift) {
-            NetworkHelper::copyInfo(shift, roundedShift);
+            NetworkHelper::copyInfo(shiftConst, roundedShift);
 
             // Propagate convertInputType down
             replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift->output(0));
@@ -1541,12 +1553,6 @@ std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Su
             replace_node(subtract, replacement);
         }
 
-        return replacement;
-    } else if (ov::is_type<opset1::Convert>(subtractParent) && ov::is_type<opset1::Constant>(subtractParent->get_input_node_shared_ptr(0))) {
-        auto replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, subtractParent->input_value(0));
-        NetworkHelper::copyInfo(subtract, replacement);
-        NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
-        replace_node(subtract, replacement);
         return replacement;
     }
 
