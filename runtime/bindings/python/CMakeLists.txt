@@ -30,5 +30,5 @@ if(NGRAPH_UNIT_TEST_ENABLE)
 endif()
 
 if(InferenceEngineDeveloperPackage_FOUND)
-    ie_cpack(pyopenvino_${PYTHON_VERSION} pyngraph_${PYTHON_VERSION})
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
 endif()
