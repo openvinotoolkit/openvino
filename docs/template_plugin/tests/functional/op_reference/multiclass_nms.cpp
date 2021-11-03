@@ -117,9 +117,10 @@ TEST_P(ReferenceMulticlassNmsTest, CompareWithRefs) {
     Exec();
 }
 
-template <element::Type_t ET, element::Type_t ET_IND>
+template <element::Type_t ET, element::Type_t ET_TH, element::Type_t ET_IND>
 std::vector<MulticlassNmsParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
+    using T_TH = typename element_type_traits<ET_TH>::value_type;
     using T_IND = typename element_type_traits<ET_IND>::value_type;
     std::vector<MulticlassNmsParams> params {
         MulticlassNmsParams(
@@ -136,9 +137,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {1, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {4, 6}, std::vector<T>{
+            Tensor(ET_TH, {4, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95,
                 0.00, 0.00, 1.00, 1.00,  0.00, 0.90,  0.00, 0.00,
                 1.00, 1.00, 1.00, 0.80,  0.00, 10.00, 1.00, 11.00}),                    // expected_selected_scores
@@ -159,9 +160,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {1, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {4, 6}, std::vector<T>{
+            Tensor(ET_TH, {4, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90,
                 0.00, 0.00, 1.00, 1.00,  1.00, 0.95,  0.00, 0.00,
                 1.00, 1.00, 1.00, 0.80,  0.00, 10.00, 1.00, 11.00}),                    // expected_selected_scores
@@ -182,9 +183,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {1, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {4, 6}, std::vector<T>{
+            Tensor(ET_TH, {4, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90,
                 0.00, 0.00, 1.00, 1.00,  1.00, 0.95,  0.00, 0.00,
                 1.00, 1.00, 1.00, 0.80,  0.00, 10.00, 1.00, 11.00}),                    // expected_selected_scores
@@ -207,10 +208,10 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {2, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {8, 6}, std::vector<T>{
+            Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
                 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
@@ -235,10 +236,10 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {2, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {8, 6}, std::vector<T>{
+            Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
                 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
@@ -263,10 +264,10 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {2, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {8, 6}, std::vector<T>{
+            Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
                 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
@@ -294,10 +295,10 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {2, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {8, 6}, std::vector<T>{
+            Tensor(ET_TH, {8, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
                 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
@@ -323,9 +324,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
                 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0}),   // boxes
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET, {3, 6}, std::vector<T>{
+            Tensor(ET_TH, {3, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 1.00, 1.00, 0.00, 0.00, 0.00, 0.75, 0.00, 0.10, 1.00, 1.10}),
                                                                                         // expected_selected_scores
             Tensor(ET_IND, {3, 1}, std::vector<T_IND>{3, 0, 1}),                        // expected_selected_indices
@@ -346,9 +347,9 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
                 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0}),           // boxes
-            Tensor(ET, {1, 1, 10}, std::vector<T>{
+            Tensor(ET_TH, {1, 1, 10}, std::vector<T_TH>{
                 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9}),                     // scores
-            Tensor(ET, {1, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
                 0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
                                                                                         // expected_selected_scores
             Tensor(ET_IND, {1, 1}, std::vector<T_IND>{0}),                              // expected_selected_indices
@@ -368,9 +369,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET, {2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
                                                                                         // expected_selected_scores
             Tensor(ET_IND, {2, 1}, std::vector<T_IND>{3, 0}),                           // expected_selected_indices
@@ -388,8 +389,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             false,                                          // sort_result_across_batch
             true,                                           // normalized
             Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}),                  // boxes
-            Tensor(ET, {1, 1, 1}, std::vector<T>{0.9}),                                 // scores
-            Tensor(ET, {1, 6}, std::vector<T>{0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),     // expected_selected_scores
+            Tensor(ET_TH, {1, 1, 1}, std::vector<T_TH>{0.9}),                           // scores
+            Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
+                0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),                                   // expected_selected_scores
             Tensor(ET_IND, {1, 1}, std::vector<T_IND>{0}),                              // expected_selected_indices
             Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
             "multiclass_nms_single_box"),
@@ -407,9 +409,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET, {2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
                                                                                         // expected_selected_scores
             Tensor(ET_IND, {2, 1}, std::vector<T_IND>{3, 0}),                           // expected_selected_indices
@@ -429,9 +431,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET, {1, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00}),                                 // expected_selected_scores
             Tensor(ET_IND, {1, 1}, std::vector<T_IND>{3}),                              // expected_selected_indices
             Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
@@ -450,9 +452,9 @@ std::vector<MulticlassNmsParams> generateParams() {
             Tensor(ET, {1, 6, 4}, std::vector<T>{
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {1, 1, 6}, std::vector<T>{
+            Tensor(ET_TH, {1, 1, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),                                       // scores
-            Tensor(ET, {0, 6}, std::vector<T>{}),                                       // expected_selected_scores
+            Tensor(ET_TH, {0, 6}, std::vector<T_TH>{}),                                 // expected_selected_scores
             Tensor(ET_IND, {0, 1}, std::vector<T_IND>{}),                               // expected_selected_indices
             Tensor(ET_IND, {1}, std::vector<T_IND>{0}),                                 // expected_valid_outputs
             "multiclass_nms_no_output"),
@@ -472,10 +474,10 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {2, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {4, 6}, std::vector<T>{
+            Tensor(ET_TH, {4, 6}, std::vector<T_TH>{
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                 1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00}),
                                                                                         // expected_selected_scores
@@ -498,10 +500,10 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {2, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {6, 6}, std::vector<T>{
+            Tensor(ET_TH, {6, 6}, std::vector<T_TH>{
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00,
                 0.00, 1.00, 1.00, 1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
                 0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00,
@@ -525,10 +527,10 @@ std::vector<MulticlassNmsParams> generateParams() {
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
                 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
                 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),   // boxes
-            Tensor(ET, {2, 2, 6}, std::vector<T>{
+            Tensor(ET_TH, {2, 2, 6}, std::vector<T_TH>{
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),      // scores
-            Tensor(ET, {12, 6}, std::vector<T>{
+            Tensor(ET_TH, {12, 6}, std::vector<T_TH>{
                 0.00,   0.95, 0.00,   10.00,  1.00, 11.00,  0.00,   0.90, 0.00,   0.00,   1.00, 1.00,  0.00,  0.30, 0.00,
                 100.00, 1.00, 101.00, 1.00,   0.95, 0.00,   0.00,   1.00, 1.00,   1.00,   0.80, 0.00,  10.00, 1.00, 11.00,
                 1.00,   0.30, 0.00,   100.00, 1.00, 101.00, 0.00,   0.95, 0.00,   10.00,  1.00, 11.00, 0.00,  0.90, 0.00,
@@ -545,8 +547,12 @@ std::vector<MulticlassNmsParams> generateParams() {
 
 std::vector<MulticlassNmsParams> generateCombinedParams() {
     const std::vector<std::vector<MulticlassNmsParams>> generatedParams {
-        generateParams<element::Type_t::f32, element::Type_t::i32>(),
-        generateParams<element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i32>(),
+        generateParams<element::Type_t::bf16, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::f16, element::Type_t::f32, element::Type_t::i64>(),
+        generateParams<element::Type_t::f32, element::Type_t::f32, element::Type_t::i64>(),
     };
     std::vector<MulticlassNmsParams> combinedParams;
 
