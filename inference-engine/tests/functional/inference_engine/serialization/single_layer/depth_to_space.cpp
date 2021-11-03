@@ -32,11 +32,9 @@ const std::vector<std::vector<size_t>> inputShapesBS2 = {
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_DepthToSpaceSerialization, DepthToSpaceLayerTest,
-    ::testing::Combine(::testing::Combine(
-                               ::testing::ValuesIn(modes),
-                               ::testing::Values(1, 2)),
-                       ::testing::ValuesIn(inputShapesBS2),
+    ::testing::Combine(::testing::ValuesIn(inputShapesBS2),
                        ::testing::ValuesIn(inputPrecisions),
+                       ::testing::ValuesIn(modes), ::testing::Values(1, 2),
                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DepthToSpaceLayerTest::getTestCaseName);
 }  // namespace

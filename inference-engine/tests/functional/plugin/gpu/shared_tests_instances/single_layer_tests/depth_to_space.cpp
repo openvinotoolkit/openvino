@@ -27,11 +27,10 @@ const std::vector<std::vector<size_t >> inputShapesBS2 = {
         {1, 8, 1, 1, 1}, {1, 8, 2, 2, 2}, {1, 8, 3, 3, 3}, {2, 32, 3, 3, 3}, {2, 16, 5, 4, 6}};
 
 const auto DepthToSpaceBS2 = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(modes),
-                ::testing::Values(2)),
         ::testing::ValuesIn(inputShapesBS2),
         ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(modes),
+        ::testing::Values(2),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -42,11 +41,10 @@ const std::vector<std::vector<size_t >> inputShapesBS3 = {
         {1, 27, 1, 1, 1}, {1, 27, 2, 2, 2}, {1, 27, 3, 3, 3}, {2, 108, 3, 3, 3}, {2, 54, 5, 4, 6}};
 
 const auto DepthToSpaceBS3 = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(modes),
-                ::testing::Values(3)),
         ::testing::ValuesIn(inputShapesBS3),
         ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(modes),
+        ::testing::Values(3),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 

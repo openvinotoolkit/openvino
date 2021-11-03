@@ -16,14 +16,11 @@
 
 namespace LayerTestsDefinitions {
 
-using depthToSpaceSpecificParamsTuple = typename std::tuple<
-        ngraph::opset3::DepthToSpace::DepthToSpaceMode, // Mode
-        std::size_t>;                                   // Block size
-
 using depthToSpaceParamsTuple = typename std::tuple<
-        depthToSpaceSpecificParamsTuple,                // Specific params for DepthToSpace
         std::vector<size_t>,                            // Input shape
         InferenceEngine::Precision,                     // Input precision
+        ngraph::opset3::DepthToSpace::DepthToSpaceMode, // Mode
+        std::size_t,                                    // Block size
         std::string>;                                   // Device name>
 
 class DepthToSpaceLayerTest : public testing::WithParamInterface<depthToSpaceParamsTuple>,
