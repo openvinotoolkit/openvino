@@ -110,7 +110,6 @@ xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form t
                                       " z should be converted to TileIE operation.")
 xfail_issue_39659 = xfail_test(reason="RuntimeError: Broadcast operation has a form that is not supported."
                                       " y should be converted to Tile operation.")
-xfail_issue_45344 = xfail_test(reason="Unsupported dynamic ops: v3::NonMaxSuppressionIE3")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 
