@@ -79,11 +79,6 @@ public:
                             const std::shared_ptr<v0::Result>& else_result);
 
     void validate_and_infer_types() override;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    bool has_evaluate() const override;
 
 private:
     using OutputMap = std::map<int64_t, std::shared_ptr<MultiSubGraphOp::OutputDescription>>;

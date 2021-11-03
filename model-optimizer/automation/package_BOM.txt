@@ -47,7 +47,6 @@ extensions/back/ReduceMerge.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
 extensions/back/RemoveUselessConvert.py
-extensions/back/Reshape0DToSqueeze.py
 extensions/back/ReshapeMutation.py
 extensions/back/ResultNormalizer.py
 extensions/back/ResultRename.py
@@ -600,6 +599,7 @@ extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MakeKaldiConstReshapable.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
+extensions/middle/MergeNodesPermutations.py
 extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
@@ -612,6 +612,7 @@ extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
 extensions/middle/PoolV2ToAttributedPool.py
 extensions/middle/preprocessing.py
+extensions/middle/PreserveRuntimeInfo.py
 extensions/middle/quantize_fuses.py
 extensions/middle/quantize_linear_resolver.py
 extensions/middle/ReluQuantizeFuse.py
@@ -1073,10 +1074,12 @@ mo/utils/logger.py
 mo/utils/model_analysis.py
 mo/utils/pipeline_config.py
 mo/utils/replacement_pattern.py
+mo/utils/runtime_info.py
 mo/utils/shape.py
 mo/utils/simple_proto_parser.py
 mo/utils/str_to.py
 mo/utils/summarize_graph.py
+mo/utils/telemetry_params.py
 mo/utils/telemetry_stub.py
 mo/utils/telemetry_utils.py
 mo/utils/tensorboard_util.py

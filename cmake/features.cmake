@@ -78,6 +78,18 @@ if (ENABLE_GNA)
     endif()
 endif()
 
+if(ENABLE_TESTS OR BUILD_SHARED_LIBS)
+    set(ENABLE_IR_V7_READER_DEFAULT ON)
+else()
+    set(ENABLE_IR_V7_READER_DEFAULT OFF)
+endif()
+
+ie_option (ENABLE_IR_V7_READER "Enables IR v7 reader" ${ENABLE_IR_V7_READER_DEFAULT})
+
+ie_option (ENABLE_MULTI "Enables Multi Device Plugin" ON)
+
+ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
+
 ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)

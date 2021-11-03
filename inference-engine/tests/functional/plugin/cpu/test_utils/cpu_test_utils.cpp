@@ -4,6 +4,7 @@
 
 #include "cpu_test_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include <cstdint>
 
 namespace CPUTestUtils {
 
@@ -256,6 +257,8 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
     }
+
+    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_variant<int64_t>(true)});
 
     return cpuInfo;
 }
