@@ -86,6 +86,11 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)
 
+set(rel_path "docs/onnx_custom_op")
+ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/docs/models"
+                 docs_onnx_out_files)
+
 if(ENABLE_TESTS)
     if(NGRAPH_ONNX_FRONTEND_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
         find_package(PythonInterp 3 REQUIRED)
@@ -124,7 +129,8 @@ if(ENABLE_TESTS)
                                              ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files})
+                                             ${ie_onnx_import_out_files}
+                                             ${docs_onnx_out_files})
 
     if(TARGET test_pip_prerequsites)
         add_dependencies(test_model_zoo test_pip_prerequsites)
