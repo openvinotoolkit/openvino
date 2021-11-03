@@ -338,7 +338,7 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     EXPECT_NE(nullptr, exe_network);
 
     const char* file_name = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(file_name, exe_network));
+    IE_EXPECT_OK(ie_core_export_network(exe_network, file_name));
     std::ifstream file(file_name);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 
@@ -363,7 +363,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     EXPECT_NE(nullptr, exe_network);
 
     const char* export_path = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(export_path, exe_network));
+    IE_EXPECT_OK(ie_core_export_network(exe_network, export_path));
 
     FILE *fileptr;
     fileptr = fopen(export_path, "rb");
@@ -406,7 +406,7 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     EXPECT_NE(nullptr, exe_network);
 
     const char* exported_model = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(exported_model, exe_network));
+    IE_EXPECT_OK(ie_core_export_network(exe_network, exported_model));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 
