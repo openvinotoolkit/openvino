@@ -343,7 +343,7 @@ bool MKLDNNConcatNode::needPrepareParams() const {
 }
 
 void MKLDNNConcatNode::prepareParams() {
-    if (prim || canOptimizeNspc || isOptimized())
+    if (canOptimizeNspc || isOptimized())
         return;
 
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
@@ -363,7 +363,7 @@ void MKLDNNConcatNode::prepareParams() {
         }
 
         auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        auto& dims = getInputShapeAtPort(i).getStaticDims();
+        const auto& dims = srcMemPtr->getStaticDims();
         for (size_t j = 0; j < dims.size(); j++) {
             desc.data.dims[j] = dims[j];
         }
@@ -371,8 +371,8 @@ void MKLDNNConcatNode::prepareParams() {
         srcs_d.emplace_back(desc);
     }
 
-    auto desc = getChildEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-    auto& dims = getOutputShapeAtPort(0).getStaticDims();
+    auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    const auto& dims = dstMemPtr->getStaticDims();
     for (size_t i = 0; i < dims.size(); i++) {
         desc.data.dims[i] = dims[i];
         desc.data.padded_dims[i] = dims[i];
@@ -422,10 +422,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     }
 
     auto config = selected_pd->getConfig();
-    if (!isConfigDefined(config)) {
-        // TODO [DS]: inplace
-        IE_ASSERT(!isDynamicNode());
-
+    if (!isDynamicNode() && !isConfigDefined(config)) {
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             if (config.outConfs[i].desc->isDefined())
                 continue;
