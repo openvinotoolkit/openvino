@@ -40,11 +40,12 @@ from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.telemetry_utils import send_params_info, send_framework_info
-from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
+from mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
+from mo.utils.telemetry_utils import get_tid
 
 # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEndManager, FrontEnd
+from ngraph.frontend import FrontEndManager
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -425,7 +426,7 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: str):
-    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
+    telemetry = tm.Telemetry(tid=get_tid(), app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session('mo')
     telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
