@@ -10,17 +10,14 @@
 namespace InferenceEngine {
 namespace details {
 
-SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& so) : _so(so) {
-}
+SharedObjectLoader::SharedObjectLoader(const std::shared_ptr<void>& so) : _so(so) {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName) :
-    SharedObjectLoader(ov::util::wstring_to_string(pluginName).c_str()) {
-}
+SharedObjectLoader::SharedObjectLoader(const wchar_t* pluginName)
+    : SharedObjectLoader(ov::util::wstring_to_string(pluginName).c_str()) {}
 #endif
 
-SharedObjectLoader::SharedObjectLoader(const char* pluginName) :
-    _so{nullptr} {
+SharedObjectLoader::SharedObjectLoader(const char* pluginName) : _so{nullptr} {
     try {
         _so = ov::util::load_shared_object(pluginName);
     } catch (const std::runtime_error& ex) {
