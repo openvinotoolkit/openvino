@@ -4,9 +4,17 @@
 
 set(TARGET_NAME "frontend_manager")
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wmissing-declarations)
+endif()
+
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+
+# Add include path to so_extension.hpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
 
 set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

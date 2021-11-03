@@ -16,6 +16,8 @@ namespace low_precision {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::StridedSliceTransformation, "StridedSliceTransformation", 0);
 
+namespace {
+
 std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
@@ -73,6 +75,8 @@ std::shared_ptr<opset1::Constant> stridedSliceDeqConstant(
 
     return ov::as_type_ptr<opset1::Constant>(NetworkHelper::toScalarIfPossible(result));
 }
+
+} // namespace
 
 StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {
     auto matcher = ngraph::pattern::wrap_type<opset1::StridedSlice>();

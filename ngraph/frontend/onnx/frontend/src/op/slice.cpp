@@ -4,6 +4,7 @@
 
 #include "op/slice.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 

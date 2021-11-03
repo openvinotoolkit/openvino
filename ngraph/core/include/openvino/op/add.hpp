@@ -19,7 +19,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
-    Add() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Add() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs an addition operation.
     ///

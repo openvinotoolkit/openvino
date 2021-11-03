@@ -219,10 +219,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
-                IE_SUPPRESS_DEPRECATED_START
-                if (inInfo->second->getInputData()->isDynamic())
+                if (node->isDynamicNode()) {
                     graphHasDynamicInput = true;
-                IE_SUPPRESS_DEPRECATED_END
+                }
             }
         }
 
@@ -486,7 +485,7 @@ void MKLDNNGraph::InitEdges() {
                 std::string convertName = edge->getParent()->getName() + "_" +
                                           inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
 
-                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape().getStaticDims(), inDesc.getPrecision(), outDesc.getPrecision(),
+                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, this->getEngine(), this->weightsCache);
                 convertNode->setDescs(inDesc, outDesc);
                 InsertNode(edge, convertNode, true);
@@ -771,9 +770,6 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         }
 
         if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
-            if (!node->isDynamicNode())
-                IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
-
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == Layout::BLOCKED) {
