@@ -132,6 +132,55 @@ TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
     }
 }
 
+TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContextWithMultipleDevices) {
+    auto ie = ov::runtime::Core();
+
+    using namespace ov::preprocess;
+    auto function = PrePostProcessor()
+            .input(InputInfo()
+                           .tensor(InputTensorInfo().set_element_type(ov::element::i8))
+                           .preprocess(PreProcessSteps().convert_element_type(ov::element::f32)))
+            .build(fn_ptr);
+
+    auto exec_net_regular = ie.compile_model(function, CommonTestUtils::DEVICE_GPU);
+    auto input = function->get_parameters().at(0);
+    auto output = function->get_results().at(0);
+
+    // regular inference
+    auto inf_req_regular = exec_net_regular.create_infer_request();
+    auto fakeImageData = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
+    inf_req_regular.set_tensor(input, fakeImageData);
+
+    inf_req_regular.infer();
+    auto output_tensor_regular = inf_req_regular.get_tensor(exec_net_regular.output());
+
+    // inference using remote tensor
+
+    auto ocl_instance_tmp = std::make_shared<OpenCL>();
+    cl::Context multi_device_ctx({ocl_instance_tmp->_device, ocl_instance_tmp->_device});
+    auto ocl_instance = std::make_shared<OpenCL>(multi_device_ctx.get());
+
+    auto remote_context = ov::runtime::gpu::ocl::ClContext(ie, ocl_instance->_context.get(), 1);
+
+    ASSERT_EQ(remote_context.get_device_name(), "GPU.0");
+    auto exec_net_shared = ie.compile_model(function, remote_context);
+    auto inf_req_shared = exec_net_shared.create_infer_request();
+    inf_req_shared.set_tensor(input, fakeImageData);
+
+    inf_req_shared.infer();
+    auto output_tensor_shared = inf_req_shared.get_tensor(output);
+
+    // compare results
+    {
+        ASSERT_EQ(output->get_element_type(), ov::element::f32);
+        ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        ASSERT_NO_THROW(output_tensor_regular.data());
+        ASSERT_NO_THROW(output_tensor_shared.data());
+        FuncTestUtils::compare_tensor(output_tensor_regular, output_tensor_shared, thr);
+    }
+}
+
 TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserQueue_out_of_order) {
     auto ie = ov::runtime::Core();
 

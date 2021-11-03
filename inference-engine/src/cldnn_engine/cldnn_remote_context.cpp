@@ -277,6 +277,7 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
     switch (m_type) {
     case OCL:
         ret[GPU_PARAM_KEY(CONTEXT_TYPE)] = GPU_PARAM_VALUE(OCL);
+        ret[GPU_PARAM_KEY(OCL_QUEUE)] = static_cast<gpu_handle_param>(m_external_queue);
         break;
     case DEV_SHARED:
         ret[GPU_PARAM_KEY(CONTEXT_TYPE)] = GPU_PARAM_VALUE(VA_SHARED);
