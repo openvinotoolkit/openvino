@@ -11,12 +11,16 @@
  */
 #pragma once
 
+#if !defined(NOMINMAX) && defined(_WIN32)
+#    define NOMINMAX
+#endif
+
 #include <d3d11.h>
 
 #include <memory>
 #include <string>
 
-#include "openvin/runtime/gpu/ocl.hpp"
+#include "openvino/runtime/gpu/ocl.hpp"
 
 namespace ov {
 namespace runtime {
@@ -62,7 +66,7 @@ public:
      * @param remote_tensor remote tensor to check
      */
     static void type_check(const RemoteTensor& remote_tensor) {
-        RemoteTensor::type_check(remote_context.get_params(),
+        RemoteTensor::type_check(remote_tensor,
                                  {{GPU_PARAM_KEY(DEV_OBJECT_HANDLE), {}},
                                   {GPU_PARAM_KEY(VA_PLANE), {}},
                                   {GPU_PARAM_KEY(SHARED_MEM_TYPE), {GPU_PARAM_VALUE(VA_SURFACE)}}});
@@ -136,7 +140,7 @@ public:
      * @param nv12_surf A ID3D11Texture2D instance to create NV12 tensor from
      * @return A pair of remote tensors for each plane
      */
-    std::pair<D3DSurface2DTensor, D3DSurface2DTensor> create_tensor_nv12(const size_t height, const size_t width, const ID3D11Texture2D* nv12_surf) {
+    std::pair<D3DSurface2DTensor, D3DSurface2DTensor> create_tensor_nv12(const size_t height, const size_t width, ID3D11Texture2D* nv12_surf) {
         ParamMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                                   {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(nv12_surf)},
                                   {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
@@ -154,7 +158,7 @@ public:
      * @param buffer A pointer to ID3D11Buffer instance to create remote tensor based on
      * @return A remote tensor instance
      */
-    D3DBufferTensor create_tensor(const element::Type type, const Shape& shape, const ID3D11Buffer* buffer) {
+    D3DBufferTensor create_tensor(const element::Type type, const Shape& shape, ID3D11Buffer* buffer) {
         ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER)},
                            {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), static_cast<gpu_handle_param>(buffer)}};
         create_tensor(type, shape, params);
