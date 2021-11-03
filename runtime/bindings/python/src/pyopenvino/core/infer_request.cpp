@@ -12,6 +12,9 @@
 
 #include "pyopenvino/core/containers.hpp"
 
+PYBIND11_MAKE_OPAQUE(Containers::TensorIndexMap);
+PYBIND11_MAKE_OPAQUE(Containers::TensorNameMap);
+
 namespace py = pybind11;
 
 void regclass_InferRequest(py::module m) {

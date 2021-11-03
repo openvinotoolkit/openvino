@@ -6,6 +6,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 #include <pybind11/pybind11.h>
 
