@@ -240,7 +240,8 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id &&
-               context_config.n_threads == current_config.n_threads &&
+               context_config.task_exec_config._streams == current_config.task_exec_config._streams &&
+               context_config.task_exec_config._threadPreferredCoreType == current_config.task_exec_config._threadPreferredCoreType &&
                context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
     };
 

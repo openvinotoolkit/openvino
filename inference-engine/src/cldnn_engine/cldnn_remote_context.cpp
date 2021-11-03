@@ -251,16 +251,19 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
             queue_type = cldnn::queue_types::out_of_order;
         }
 
+
+        ITaskExecutor::Ptr task_executor = std::make_shared<CPUStreamsExecutor>(m_config.task_exec_config);
         bool use_unified_shared_memory = true;
-        m_engine = cldnn::engine::create(engine_type, runtime_type, dev, cldnn::engine_configuration(enable_profiling,
-                                                                                                     queue_type,
-                                                                                                     m_config.sources_dumps_dir,
-                                                                                                     m_config.queuePriority,
-                                                                                                     m_config.queueThrottle,
-                                                                                                     m_config.memory_pool_on,
-                                                                                                     use_unified_shared_memory,
-                                                                                                     m_config.kernels_cache_dir,
-                                                                                                     m_config.n_threads));
+        m_engine = cldnn::engine::create(engine_type, runtime_type, dev,
+                                                    cldnn::engine_configuration(enable_profiling,
+                                                                                queue_type,
+                                                                                m_config.sources_dumps_dir,
+                                                                                m_config.queuePriority,
+                                                                                m_config.queueThrottle,
+                                                                                m_config.memory_pool_on,
+                                                                                use_unified_shared_memory,
+                                                                                m_config.kernels_cache_dir,
+                                                                                m_config.throughput_streams), task_executor);
     }
 }
 

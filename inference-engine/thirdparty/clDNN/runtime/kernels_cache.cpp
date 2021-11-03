@@ -17,15 +17,6 @@
 #include <utility>
 
 #include "cldnn_itt.hpp"
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-#include <tbb/parallel_for.h>
-#include <tbb/blocked_range.h>
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-#include <thread>
-#include <future>
-#include <queue>
-#include <condition_variable>
-#endif
 #if defined(__unix__) && !defined(__ANDROID__)
 #include <malloc.h>
 #endif
@@ -49,9 +40,6 @@
 #include <Windows.h>
 #endif
 
-#if (CLDNN_THREADING != CLDNN_THREADING_SEQ)
-#define DEFAULT_NUM_THREADS 2
-#endif
 namespace {
 std::mutex cacheAccessMutex;
 
@@ -418,51 +406,35 @@ void kernels_cache::build_all() {
 
     std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
     if (_engine.type() == engine_types::ocl) {
-        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl, _engine.configuration()));
+        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl,
+                                                                    _engine.configuration(), _engine.get_task_executor()));
     }
     std::vector<batch_program> batches;
     {
         std::lock_guard<std::mutex> lock(_mutex);
         get_program_source(_kernels_code, &batches);
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-        int n_threads = _engine.configuration().n_threads;
-        arena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena());
-        arena->initialize(n_threads);
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-        int n_threads = _engine.configuration().n_threads;
-        pool = std::unique_ptr<thread_pool>(new thread_pool(n_threads));
-#endif
     }
 
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-    arena->execute([this, &_build_engine, &batches] {
-        tbb::parallel_for(tbb::blocked_range<size_t>(0, batches.size()), [this, &_build_engine, &batches](const tbb::blocked_range<size_t>& r) {
-            for (auto i = r.begin(); i != r.end(); ++i) {
-                build_batch(*_build_engine, batches[i]);
+    auto _task_executor = _engine.get_task_executor();
+    std::exception_ptr exception;
+    std::vector<InferenceEngine::Task> tasks;
+    for (int idx = 0; idx < batches.size(); idx++) {
+        auto& batch = batches[idx];
+        tasks.push_back([this, &_build_engine, batch, &exception] {
+            try {
+                build_batch(*_build_engine, batch);
+            } catch(...) {
+                exception = std::current_exception();
             }
         });
-    });
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-    std::vector<std::future<void>> builds;
-    for (size_t i = 0; i < batches.size(); ++i) {
-        builds.push_back(pool->enqueue([this, &_build_engine, &batches, i] () {
-            build_batch(*_build_engine, batches[i]);
-        }));
     }
-    std::for_each(builds.begin(), builds.end(), [] (std::future<void>& f) { f.wait(); });
-#else
-    // no parallel build
-    for (const auto& batch : batches) {
-        build_batch(*_build_engine, batch);
-    }
-#endif
+    _task_executor->runAndWait(tasks);
+    tasks.clear();
 
     {
         std::lock_guard<std::mutex> lock(_mutex);
         _kernels_code.clear();
         _pending_compilation = false;
-#if (CLDNN_THREADING == CLDNN_THREADING_TBB)
-        arena.reset();
 #if defined(__unix__) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
@@ -470,12 +442,6 @@ void kernels_cache::build_all() {
     //  Also, this is not happening in Windows.
     //  So, added malloc_trim for linux build until we figure out a better solution.
         malloc_trim(0);
-#endif
-#elif(CLDNN_THREADING == CLDNN_THREADING_THREADPOOL)
-        pool.reset();
-#if defined(__unix__) && !defined(__ANDROID__)
-        malloc_trim(0);
-#endif
 #endif
     }
 }

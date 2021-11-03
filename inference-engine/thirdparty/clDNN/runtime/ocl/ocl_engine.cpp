@@ -39,8 +39,9 @@ namespace ocl {
 ocl_error::ocl_error(cl::Error const& err)
     : std::runtime_error(err.what() + std::string(", error code: ") + std::to_string(err.err())) {}
 
-ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf)
-    : engine(dev, conf) {
+ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type,
+            const engine_configuration& conf, const InferenceEngine::ITaskExecutor::Ptr task_executor)
+    : engine(dev, conf, task_executor) {
     if (runtime_type != runtime_types::ocl) {
         throw std::runtime_error("Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
     }
@@ -221,12 +222,14 @@ stream& ocl_engine::get_program_stream() const {
     return *_program_stream;
 }
 
-std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return std::make_shared<ocl::ocl_engine>(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> ocl_engine::create(const device::ptr device, runtime_types runtime_type,
+                            const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return std::make_shared<ocl::ocl_engine>(device, runtime_type, configuration, task_executor);
 }
 
-std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return ocl_engine::create(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> create_ocl_engine(const device::ptr device, runtime_types runtime_type,
+                            const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return ocl_engine::create(device, runtime_type, configuration, task_executor);
 }
 
 }  // namespace ocl
