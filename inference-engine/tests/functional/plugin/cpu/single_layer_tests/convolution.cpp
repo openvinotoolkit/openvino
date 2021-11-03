@@ -151,10 +151,9 @@ protected:
 
         init_input_shapes({inputShape});
 
-        if (inType == ElementType::undefined) {
-            selectedType = makeSelectedTypeStr(selectedType, ElementType::f32);
-        } else if (inType == ElementType::bf16) {
-            selectedType = makeSelectedTypeStr(selectedType, inType);
+        if (configuration.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
+                PluginConfigParams::YES == configuration[PluginConfigParams::KEY_ENFORCE_BF16]) {
+            selectedType += "_BF16";
             rel_threshold = 1e-2f;
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netType);
@@ -383,8 +382,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_GEMM_BF16, ConvolutionLayerCPUTest,
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_GEMM_2D,
                                          ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::bf16),
-                                         ::testing::Values(ElementType::bf16),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inShapesGemm2D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_2D)),
@@ -453,8 +452,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_GEMM_BF16, ConvolutionLayerCPUTest,
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_GEMM_3D,
                                          ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::bf16),
-                                         ::testing::Values(ElementType::bf16),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inShapesGemm3D),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_GEMM_3D)),
@@ -515,8 +514,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_BF16, ConvolutionLayerCPUTest,
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D,
                                          ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::bf16),
-                                         ::testing::Values(ElementType::bf16),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D, conv_avx512_2D_nspc})),
@@ -563,8 +562,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_2D_BF16, ConvolutionLayerCPUT
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D,
                                          ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::bf16),
-                                         ::testing::Values(ElementType::bf16, ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapesPlain2Blocked2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_2D})),
@@ -610,8 +609,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_BF16, ConvolutionLayerCPUTest,
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_3D,
                                          ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::bf16),
-                                         ::testing::Values(ElementType::bf16),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes3d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D, conv_avx512_3D_nspc})),
@@ -657,8 +656,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_PlainToBlocked_3D_BF16, ConvolutionLayerCPUT
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_3D,
                                          ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::bf16),
-                                         ::testing::Values(ElementType::bf16, ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapesPlain2Blocked3d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_plain_to_blocked_3D})),
@@ -706,8 +705,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_1x1_BF16, ConvolutionLayerCPUTest,
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_1x1_2D,
                                          ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::bf16),
-                                         ::testing::Values(ElementType::bf16),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1, conv_avx512_2D_1x1_nspc})),
