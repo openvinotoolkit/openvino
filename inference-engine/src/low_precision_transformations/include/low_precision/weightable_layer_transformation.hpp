@@ -26,7 +26,7 @@ public:
         return true;
     }
 
-    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) noexcept;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired);
 
 protected:
     bool decomposeFakeQuantizeForWeightsPath(const std::shared_ptr<Node>& weightableLayer, size_t outChannelsShapeIndex = 0ul) const;

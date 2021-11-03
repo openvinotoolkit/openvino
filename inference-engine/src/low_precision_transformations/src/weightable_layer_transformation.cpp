@@ -223,7 +223,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     return true;
 }
 
-bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) noexcept {
+bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer, const bool reshapeIsRequired) {
     FakeQuantizeDequantization dequantizationOnWeights;
     if (reshapeIsRequired) {
         const auto reshape = layer->get_input_node_shared_ptr(1);
