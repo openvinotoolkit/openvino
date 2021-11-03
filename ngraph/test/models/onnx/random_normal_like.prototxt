@@ -4,21 +4,21 @@ graph {
   node {
     input: "x"
     output: "y"
-    op_type: "RandomUniformLike"
+    op_type: "RandomNormalLike"
     attribute {
-      name: "high"
+      name: "mean"
       f: 50
       type: FLOAT
     }
     attribute {
-      name: "low"
+      name: "scale"
       f: 40
       type: FLOAT
     }
     attribute {
       name: "seed"
-      f: 100
-      type: FLOAT
+      i: 100
+      type: INT
     }
   }
   name: "test_model"

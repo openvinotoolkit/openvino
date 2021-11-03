@@ -22,8 +22,8 @@ graph {
     }
     attribute {
       name: "seed"
-      i: 100
-      type: INT
+      f: 100
+      type: FLOAT
     }
   }
   name: "test_model"
