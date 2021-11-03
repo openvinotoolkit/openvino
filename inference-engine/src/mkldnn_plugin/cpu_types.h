@@ -34,6 +34,7 @@ enum Type {
     MatMul,
     Reshape,
     ShapeOf,
+    NonZero,
     Tile,
     ROIAlign,
     ROIPooling,
