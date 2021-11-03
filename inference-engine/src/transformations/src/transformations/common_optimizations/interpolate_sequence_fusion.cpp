@@ -262,6 +262,92 @@ bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::sh
 
     return true;
 }
+
+ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
+    const auto fst_axes = get_interpolated_axes(fst);
+    const auto snd_axes = get_interpolated_axes(snd);
+    const auto fst_sizes = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(1))->cast_vector<int64_t>();
+    const auto snd_sizes = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(1))->cast_vector<int64_t>();
+
+    std::vector<std::pair<int64_t, int64_t>> axes_and_sizes;
+    for (size_t i = 0; i < fst_axes.size(); ++i) {
+        axes_and_sizes.emplace_back({fst_axes[i], fst_sizes[i]});
+    }
+    for (size_t i = 0; i < snd_axes.size(); ++i) {
+        axes_and_sizes.emplace_back({snd_axes[i], snd_sizes[i]});
+    }
+    std::sort(axes_and_sizes.begin(),
+              axes_and_sizes.end(),
+              [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
+                  return a.first < b.first;
+              });
+    std::vector<int64_t> new_axes;
+    std::vector<int64_t> new_sizes;
+    for (const auto& as : axes_and_sizes) {
+        new_axes.emplace_back(as.first);
+        new_sizes.emplace_back(as.second);
+    }
+
+    auto new_sizes_node = opset8::Constant::create(element::i64, {new_sizes.size()}, new_sizes);
+    auto new_axes_node = opset8::Constant::create(element::i64, {new_axes.size()}, new_axes);
+    auto new_sizes_cast = std::make_shared<opset8::Convert>(new_sizes_node, element::f32);
+    auto shape_node = std::make_shared<opset8::ShapeOf>(fst->input_value(0));
+
+    auto gather_axis_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{0});
+    auto gather_node = std::make_shared<opset8::ShapeOf>(shape_node, new_axes_node, gather_axis_node);
+    auto cast_shape_to_float = std::make_shared<opset8::Convert>(gather_node, element::f32);
+
+    auto div_node = std::make_shared<opset8::Divide>(new_sizes_cast, cast_shape_to_float);
+
+    auto new_interpolate = fst->clone_with_new_inputs({fst->input_value(0), new_sizes_node, div_node, new_axes_node});
+
+    return {new_sizes_node, new_axes_node, new_sizes_cast, shape_node, gather_axis_node, gather_node, cast_shape_to_float, div_node, new_interpolate};
+}
+
+ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
+    const auto fst_axes = get_interpolated_axes(fst);
+    const auto snd_axes = get_interpolated_axes(snd);
+    const auto fst_scales = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2))->cast_vector<float>();
+    const auto snd_scales = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(2))->cast_vector<float>();
+
+    std::vector<std::pair<int64_t, float>> axes_and_scales;
+    for (size_t i = 0; i < fst_axes.size(); ++i) {
+        axes_and_scales.emplace_back({fst_axes[i], fst_sizes[i]});
+    }
+    for (size_t i = 0; i < snd_axes.size(); ++i) {
+        axes_and_scales.emplace_back({snd_axes[i], snd_sizes[i]});
+    }
+    std::sort(axes_and_scales.begin(),
+              axes_and_scales.end(),
+              [](const std::pair<int64_t, float>& a, const std::pair<int64_t, float>& b) {
+                  return a.first < b.first;
+              });
+    std::vector<int64_t> new_axes;
+    std::vector<float> new_scales;
+    for (const auto& as : axes_and_sizes) {
+        new_axes.emplace_back(as.first);
+        new_scales.emplace_back(as.second);
+    }
+
+    auto new_scales_node = opset8::Constant::create(element::f32, {new_scales.size()}, new_scales);
+    auto new_axes_node = opset8::Constant::create(element::i64, {new_axes.size()}, new_axes);
+    auto shape_node = std::make_shared<opset8::ShapeOf>(fst->input_value(0));
+
+    auto gather_axis_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{0});
+    auto gather_node = std::make_shared<opset8::ShapeOf>(shape_node, new_axes_node, gather_axis_node);
+    auto cast_shape_to_float = std::make_shared<opset8::Convert>(gather_node, element::f32);
+
+    auto mul_node = std::make_shared<opset8::Multiply>(cast_shape_to_float, new_scales_node);
+    auto eps_node = opset8::Constant::create(element::f32, {}, std::vector<float>{1.0e-5f});
+    auto add_node = std::make_shared<opset8::Multiply>(mul_node, eps_node);
+    auto floor_node = std::make_shared<opset8::Floor>(add_node);
+    auto cast_mul_result_to_int = std::make_shared<opset8::Convert>(floor_node, element::i64);
+
+    auto new_interpolate = fst->clone_with_new_inputs({fst->input_value(0), cast_mul_result_to_int, new_scales_node, new_axes_node});
+
+    return {new_sizes_node, new_axes_node, shape_node, gather_axis_node, gather_node, cast_shape_to_float, mul_node, eps_node,
+            add_node, floor_node, cast_mul_result_to_int, new_interpolate};
+}
 } // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::InterpolateSequenceFusion, "InterpolateSequenceFusion", 0);
@@ -278,54 +364,17 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
 
         if (!can_be_fused(snd_interpolate, snd_interpolate)) return false;
 
-        const auto fst_axes = get_interpolated_axes(fst);
-        const auto snd_axes = get_interpolated_axes(snd);
-
+        NodeVector new_subgraph;
         if (fst_interpolate->get_attrs().shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
-            const auto fst_sizes = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(1))->cast_vector<int64_t>();
-            const auto snd_sizes = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(1))->cast_vector<int64_t>();
-
-            std::vector<std::pair<int64_t, int64_t>> axes_and_sizes;
-            for (size_t i = 0; i < fst_axes.size(); ++i) {
-                axes_and_sizes.emplace_back({fst_axes[i], fst_sizes[i]});
-            }
-            for (size_t i = 0; i < snd_axes.size(); ++i) {
-                axes_and_sizes.emplace_back({snd_axes[i], snd_sizes[i]});
-            }
-            std::sort(axes_and_sizes.begin(),
-                      axes_and_sizes.end(),
-                      [](const std::pair<int64_t, int64_t>& a, const std::pair<int64_t, int64_t>& b) {
-                          return a.first < b.first;
-                      });
-            std::vector<int64_t> new_axes;
-            std::vector<int64_t> new_sizes;
-            for (const auto& as : axes_and_sizes) {
-                new_axes.emplace_back(as.first);
-                new_sizes.emplace_back(as.second);
-            }
+            new_subgraph = subgraph_for_sizes_calculation_mode(fst_interpolate, snd_interpolate);
         } else {
-            const auto fst_scales = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2))->cast_vector<float>();
-            const auto snd_scales = std::dynamic_pointer_cast<opset8::Constant>(snd->input_value(2))->cast_vector<float>();
-
-            std::vector<std::pair<int64_t, float>> axes_and_scales;
-            for (size_t i = 0; i < fst_axes.size(); ++i) {
-                axes_and_scales.emplace_back({fst_axes[i], fst_sizes[i]});
-            }
-            for (size_t i = 0; i < snd_axes.size(); ++i) {
-                axes_and_scales.emplace_back({snd_axes[i], snd_sizes[i]});
-            }
-            std::sort(axes_and_scales.begin(),
-                      axes_and_scales.end(),
-                      [](const std::pair<int64_t, float>& a, const std::pair<int64_t, float>& b) {
-                          return a.first < b.first;
-                      });
-            std::vector<int64_t> new_axes;
-            std::vector<float> new_scales;
-            for (const auto& as : axes_and_sizes) {
-                new_axes.emplace_back(as.first);
-                new_scales.emplace_back(as.second);
-            }
+            new_subgraph = subgraph_for_scales_calculation_mode(fst_interpolate, snd_interpolate);
         }
+
+        auto& new_interpolate = new_subgraph.back();
+        new_interpolate->set_friendly_name(snd_interpolate->get_friendly_name());
+        copy_runtime_info({fst_interpolate, snd_interpolate}, new_subgraph);
+        replace_node(snd_interpolate, new_interpolate);
 
         return true;
     };
