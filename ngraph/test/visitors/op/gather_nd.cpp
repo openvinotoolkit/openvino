@@ -27,7 +27,6 @@ TEST(attributes, gather_nd_v5_op) {
     EXPECT_EQ(g_G->get_batch_dims(), G->get_batch_dims());
 }
 
-
 TEST(attributes, gather_nd_v8_op) {
     NodeBuilder::get_ops().register_factory<opset8::GatherND>();
     int batch_dims = 1;
