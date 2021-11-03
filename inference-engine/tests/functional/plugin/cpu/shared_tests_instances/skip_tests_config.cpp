@@ -45,11 +45,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
         R"(.*ClampLayerTest.*netPrc=U64.*)",
         // TODO: 53618. BF16 gemm ncsp convolution crash
-        R"(.*_GroupConv.*_inPRC=BF16.*_inFmts=nc.*_primitive=jit_gemm.*)",
+        R"(.*_GroupConv.*_inPRC=(BF|bf)16.*_inFmts=nc.*_primitive=jit_gemm.*)",
         // TODO: 53578. fork DW bf16 convolution does not support 3d cases yet
-        R"(.*_DW_GroupConv.*_inPRC=BF16.*_inFmts=(ndhwc|nCdhw16c).*)",
+        R"(.*_DW_GroupConv.*_inPRC=(BF|bf)16.*_inFmts=(ndhwc|nCdhw16c).*)",
         // TODO: 56143. Enable nspc convolutions for bf16 precision
-        R"(.*ConvolutionLayerCPUTest.*BF16.*_inFmts=(ndhwc|nhwc).*)",
+        R"(.*ConvolutionLayerCPUTest.*(BF|bf)16.*_inFmts=(ndhwc|nhwc).*)",
         // TODO: 56827. Sporadic test failures
         R"(.*smoke_Conv.+_FP32.ConvolutionLayerCPUTest\.CompareWithRefs.IS=\(1\.67.+\).*inFmts=n.+c.*_primitive=jit_avx2.*)",
         // incorrect jit_uni_planar_convolution with dilation = {1, 2, 1} and output channel 1
@@ -152,8 +152,11 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 71121
         R"(.*smoke_Proposal*.*TS=\(2.*)",
         // TODO [DS]: make dedicated ticket
-        R"(.*ConvolutionLayerCPUTest.*IS=\{.*\}.*_Fused=.*Add\(Parameters\).*)",
-        R"(.*GroupConvolutionLayerCPUTest.*IS=\{.*\}.*_Fused=.*Add\(Parameters\).*)"
+        R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)",
+        R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*_Fused=.*Add\(Parameters\).*)"
+        // TODO: Investigate inp and outp prec propagation
+        R"(.*ConvolutionLayerCPUTest.*IS=\{.+\}.*(BF|bf)16.*)",
+        R"(.*GroupConvolutionLayerCPUTest.*IS=\{.+\}.*(BF|bf)16.*)"
     };
 
 #define FIX_62820 0
