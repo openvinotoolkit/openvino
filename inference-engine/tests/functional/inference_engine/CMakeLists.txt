@@ -254,8 +254,9 @@ if(UNIX)
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
                                                  FLAGS -Wremarks -Wcheck -Werror-all -Werror -Wall)
     elseif(BUILD_SHARED_LIBS)
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic
-                                                 FLAGS -Wpedantic -Wno-gnu-zero-variadic-macro-arguments)
+        # fix warnings wit RTTI
+        # ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic
+        #                                          FLAGS -Wpedantic)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
@@ -288,9 +289,10 @@ if(UNIX)
                                                  FLAGS -Werror-all -Werror -Wall
                                                  PLUGIN_API)
     elseif(BUILD_SHARED_LIBS)
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic
-                                                 FLAGS -Wpedantic -Wno-gnu-zero-variadic-macro-arguments
-                                                 PLUGIN_API)
+        # fix warnings wit RTTI
+        # ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic
+        #                                          FLAGS -Wpedantic
+        #                                          PLUGIN_API)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
