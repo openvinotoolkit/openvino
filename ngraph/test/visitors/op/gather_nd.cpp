@@ -16,26 +16,27 @@ using ngraph::test::ValueMap;
 
 TEST(attributes, gather_nd_v5_op) {
     NodeBuilder::get_ops().register_factory<opset5::GatherND>();
-    auto data = make_shared<opset1::Parameter>(element::i32, Shape{2, 3, 4});
-    auto indices = make_shared<opset1::Parameter>(element::i32, Shape{2});
-    int64_t batch_dims = 1;
+    int batch_dims = 1;
+    auto P = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
+    auto I = make_shared<op::Parameter>(element::i32, Shape{2, 1});
+    auto G = make_shared<op::v5::GatherND>(P, I, batch_dims);
 
-    auto gather = make_shared<opset5::GatherND>(data, indices, batch_dims);
-    NodeBuilder builder(gather);
-    auto g_gather = ov::as_type_ptr<opset5::GatherND>(builder.create());
+    NodeBuilder builder(G);
+    auto g_G = ov::as_type_ptr<opset5::GatherND>(builder.create());
 
-    EXPECT_EQ(g_gather->get_batch_dims(), gather->get_batch_dims());
+    EXPECT_EQ(g_G->get_batch_dims(), G->get_batch_dims());
 }
 
-TEST(attributes, gather_v8_op) {
+
+TEST(attributes, gather_nd_v8_op) {
     NodeBuilder::get_ops().register_factory<opset8::GatherND>();
-    auto data = make_shared<opset1::Parameter>(element::i32, Shape{2, 3, 4});
-    auto indices = make_shared<opset1::Parameter>(element::i32, Shape{2});
-    int64_t batch_dims = 1;
+    int batch_dims = 1;
+    auto P = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
+    auto I = make_shared<op::Parameter>(element::i32, Shape{2, 1});
+    auto G = make_shared<op::v8::GatherND>(P, I, batch_dims);
 
-    auto gather = make_shared<opset8::GatherND>(data, indices, batch_dims);
-    NodeBuilder builder(gather);
-    auto g_gather = ov::as_type_ptr<opset8::GatherND>(builder.create());
+    NodeBuilder builder(G);
+    auto g_G = ov::as_type_ptr<opset8::GatherND>(builder.create());
 
-    EXPECT_EQ(g_gather->get_batch_dims(), gather->get_batch_dims());
+    EXPECT_EQ(g_G->get_batch_dims(), G->get_batch_dims());
 }

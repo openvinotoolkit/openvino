@@ -322,22 +322,43 @@ protected:
     std::weak_ptr<ICore> _core;                  //!< A pointer to ICore interface
 };
 
-#define IE_CREATE_PLUGIN CreatePluginEngine
+/**
+ * @private
+ */
+using CreatePluginEngineFunc = void(std::shared_ptr<IInferencePlugin>&);
 
+/**
+ * @private
+ */
+using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
+;
+
+/**
+ * @def IE_CREATE_PLUGIN
+ * @brief Defines a name of a function creating plugin instance
+ * @ingroup ie_dev_api_plugin_api
+ */
+#ifndef IE_CREATE_PLUGIN
+#    define IE_CREATE_PLUGIN CreatePluginEngine
+#endif
+
+/**
+ * @private
+ */
 constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 
 namespace details {
 template <>
 class SOCreatorTrait<IInferencePlugin> {
 public:
-    static constexpr auto name = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
+    static constexpr auto name = create_plugin_function;
 };
 }  // namespace details
 }  // namespace InferenceEngine
 
 /**
  * @def IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
- * @brief Defines the exported `CreatePluginEngine` function which is used to create a plugin instance
+ * @brief Defines the exported `IE_CREATE_PLUGIN` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
@@ -355,3 +376,17 @@ public:
         }                                                                                                   \
         plugin->SetVersion(version);                                                                        \
     }
+
+/**
+ * @private
+ */
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
+    INFERENCE_PLUGIN_API(void)                                               \
+    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false)
+
+/**
+ * @private
+ */
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(_IE_CREATE_EXTENSION_FUNC) \
+    INFERENCE_EXTENSION_API(void)                                                  \
+    _IE_CREATE_EXTENSION_FUNC(::InferenceEngine::IExtensionPtr& ext)
