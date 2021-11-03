@@ -62,10 +62,10 @@ public:
      * @param remote_tensor remote tensor to check
      */
     static void type_check(const RemoteTensor& remote_tensor) {
-        remote_type_check(remote_context.get_params(),
-                          {{GPU_PARAM_KEY(DEV_OBJECT_HANDLE), {}},
-                           {GPU_PARAM_KEY(VA_PLANE), {}},
-                           {GPU_PARAM_KEY(SHARED_MEM_TYPE), {GPU_PARAM_VALUE(VA_SURFACE)}}});
+        RemoteTensor::type_check(remote_context.get_params(),
+                                 {{GPU_PARAM_KEY(DEV_OBJECT_HANDLE), {}},
+                                  {GPU_PARAM_KEY(VA_PLANE), {}},
+                                  {GPU_PARAM_KEY(SHARED_MEM_TYPE), {GPU_PARAM_VALUE(VA_SURFACE)}}});
     }
 
     /**
@@ -94,7 +94,6 @@ public:
  */
 class D3DContext : public ClContext {
     using RemoteContext::create_tensor;
-    static constexpr const char* device_name = "GPU";
 
 public:
     /**
@@ -102,8 +101,8 @@ public:
      * @param remote_context remote context to check
      */
     static void type_check(const RemoteContext& remote_context) {
-        remote_type_check(
-            remote_context.get_params(),
+        RemoteContext::type_check(
+            remote_context,
             {{GPU_PARAM_KEY(VA_DEVICE), {}}, {GPU_PARAM_KEY(CONTEXT_TYPE), {GPU_PARAM_VALUE(VA_SHARED)}}});
     }
 
@@ -120,7 +119,7 @@ public:
      * @param core OpenVINO Runtime Core object instance
      * @param device A pointer to ID3D11Device to be used to create a remote context
      */
-    D3DContext(Core& core, ID3D11Device* device) {
+    D3DContext(Core& core, ID3D11Device* device) : ClContext(core, (cl_context) nullptr) {
         // clang-format off
         ParamMap context_params = {
             {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
