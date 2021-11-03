@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+find_package(PythonInterp 3 REQUIRED)
+set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
+
 set(WHEEL_PACKAGE_NAME "openvino" CACHE STRING "Name of the package")
 set(WHEEL_LICENCE_TYPE "OSI Approved :: Apache Software License" CACHE STRING "License type for the package")
 set(WHEEL_AUTHOR "Intel Corporation" CACHE STRING "Package author’s name")
@@ -70,4 +73,4 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
-add_custom_target(ie_wheel DEPENDS ${openvino_wheel_path})
+add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})
