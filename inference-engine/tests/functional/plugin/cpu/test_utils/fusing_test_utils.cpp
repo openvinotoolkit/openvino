@@ -26,7 +26,7 @@ std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
 }
 
 std::shared_ptr<ngraph::Node>
-CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) {
     CPUTestsBase::modifyGraph(ngPrc, params, lastNode);
     std::shared_ptr<ngraph::Node> retNode = lastNode;
     if (postOpMgrPtr) {

@@ -127,13 +127,14 @@ public:
     static CPUInfo makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
                                std::vector<cpu_memory_format_t> outFmts,
                                std::vector<std::string> priority);
+   //TODO: change to setter method
     static std::string makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType);
 
     CPUInfo getCPUInfo() const;
     std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc,
                                                          ngraph::ParameterVector &params,
                                                          const std::shared_ptr<ngraph::Node> &lastNode,
-                                                         std::string name) const;
+                                                         std::string name);
 
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
     void CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &execNet, std::string nodeType) const;
@@ -149,7 +150,7 @@ protected:
      */
     virtual std::shared_ptr<ngraph::Node> modifyGraph(const ngraph::element::Type &ngPrc,
                                                       ngraph::ParameterVector &params,
-                                                      const std::shared_ptr<ngraph::Node> &lastNode) const;
+                                                      const std::shared_ptr<ngraph::Node> &lastNode);
 
 protected:
     std::string getPrimitiveType() const;
