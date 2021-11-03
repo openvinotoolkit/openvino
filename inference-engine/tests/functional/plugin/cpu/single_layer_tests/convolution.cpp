@@ -128,7 +128,7 @@ protected:
     }
 
     void SetUp() override {
-        rel_threshold = 1e-6f;
+        rel_threshold = 1e-4f;
 
         convLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
@@ -182,8 +182,8 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
     if (!inFmts.empty() && (inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
-        auto inpChannels = function->get_parameters().front()->get_shape()[1];
-        auto outChannels = function->get_output_shape(0)[1];
+        auto inpChannels = function->get_parameters().front()->get_partial_shape()[1].get_length();
+        auto outChannels = function->get_output_partial_shape(0)[1].get_length();
         if ((inpChannels % 8) || (outChannels % 8)) {
             GTEST_SKIP() << "Disabled test due to the sse41 convolution kernel does not support tails for nspc layout." << std::endl;
         }
@@ -840,6 +840,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Jit_Planar_3D_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Jit_Planar_3D)),
                                  ::testing::Values(emptyFusingSpec, fusingRelu),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
+/* ============= Convolution auto padding tests ============= */
+
+const auto convParams_AutoPadding_2D = ::testing::Combine(
+        ::testing::Values(kernels2d.front()),
+        ::testing::ValuesIn(strides2d),
+        ::testing::ValuesIn(padBegins2d),
+        ::testing::ValuesIn(padEnds2d),
+        ::testing::ValuesIn(dilations2d),
+        ::testing::ValuesIn(numOutChannels),
+        ::testing::Values(ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_AutoPad_FP32, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_AutoPadding_2D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes2d),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D)),
+                                 ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 

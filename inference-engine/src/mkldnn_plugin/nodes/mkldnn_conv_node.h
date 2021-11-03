@@ -85,6 +85,7 @@ private:
                              const mkldnn::memory::desc& biasDesc,
                              const mkldnn::memory::desc& outputDesc,
                              mkldnn::algorithm alg);
+    void updatePadding();
 
     bool withBiases;
     bool withSum;
@@ -117,6 +118,7 @@ private:
 
     bool isWino = false;
     AttrPtr pAttr;
+    ov::op::PadType padType;
 };
 
 }  // namespace MKLDNNPlugin

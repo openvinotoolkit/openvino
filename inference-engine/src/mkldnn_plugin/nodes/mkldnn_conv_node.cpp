@@ -82,6 +82,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         }
         paddingL = convolutionOp->get_pads_begin();
         paddingR = convolutionOp->get_pads_end();
+        padType = convolutionOp->get_auto_pad();
     } else if (groupConvolutionOp) {
         algorithm = ConvolutionGrouped;
 
@@ -104,6 +105,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         }
         paddingL = groupConvolutionOp->get_pads_begin();
         paddingR = groupConvolutionOp->get_pads_end();
+        padType = convolutionOp->get_auto_pad();
     }
 }
 
@@ -203,6 +205,9 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     int ndims = getInputShapeAtPort(0).getRank();
 
     withDWConv = isFusedWith(Convolution);
+    if (withDWConv && isDynamicNode()) {
+        IE_THROW() << "DW convolution is fused into convolution node " << getName() << " with dynamic shape.";
+    }
 
     for (int i = 0; i < fusedWith.size(); i++) {
         auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(fusedWith[i].get());
@@ -507,6 +512,7 @@ MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inpu
                                                 const mkldnn::memory::desc& weightDesc,
                                                 const mkldnn::memory::desc& outputDesc,
                                                 mkldnn::algorithm alg) {
+    updatePadding();
     std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
     try {
         conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
@@ -528,6 +534,7 @@ MKLDNNConvolutionNode::createDescriptorInternal(const mkldnn::memory::desc& inpu
                                                 const mkldnn::memory::desc& biasDesc,
                                                 const mkldnn::memory::desc& outputDesc,
                                                 mkldnn::algorithm alg) {
+    updatePadding();
     std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
     try {
         conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
@@ -996,6 +1003,19 @@ void MKLDNNConvolutionNode::prepareParams() {
 
 void MKLDNNConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
+}
+
+void MKLDNNConvolutionNode::updatePadding() {
+    //update padding. TODO [DS] : rewrite when the final shape inference interface is available
+    if (isDynamicNode() && one_of(padType, ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER)) {
+        if (auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(opToShapeInfer)) {
+            paddingL = convolutionOp->get_pads_begin();
+            paddingR = convolutionOp->get_pads_end();
+        } else if (auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(opToShapeInfer)) {
+            paddingL = groupConvolutionOp->get_pads_begin();
+            paddingR = groupConvolutionOp->get_pads_end();
+        }
+    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);
