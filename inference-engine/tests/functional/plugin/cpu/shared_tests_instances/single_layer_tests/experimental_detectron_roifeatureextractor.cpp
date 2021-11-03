@@ -100,6 +100,12 @@ TEST_P(ExperimentalDetectronROIFeatureExtractorLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
+const std::vector<std::vector<int64_t>> pyramidScales = {
+        {8, 16, 32, 64},
+        {4, 8, 16, 32},
+        {2, 4, 8, 16}
+};
+
 const std::vector<std::vector<InputShape>> staticInputShape = {
         static_shapes_to_test_representation({{1000, 4}, {1, 8, 200, 336}, {1, 8, 100, 168}, {1, 8, 50, 84}, {1, 8, 25, 42}}),
         static_shapes_to_test_representation({{1000, 4}, {1, 16, 200, 336}, {1, 16, 100, 168}, {1, 16, 50, 84}, {1, 16, 25, 42}}),
@@ -111,7 +117,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_static, ExperimentalDetectronROIF
                                  ::testing::ValuesIn(staticInputShape),
                                  ::testing::Values(14),
                                  ::testing::Values(2),
-                                 ::testing::Values(std::vector<int64_t>{4, 8, 16, 32}),
+                                 ::testing::ValuesIn(pyramidScales),
                                  ::testing::ValuesIn({true, false}),
                                  ::testing::Values(Precision::FP32)),
                          ExperimentalDetectronROIFeatureExtractorLayerCPUTest::getTestCaseName);
@@ -142,7 +148,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExperimentalROI_dynamic, ExperimentalDetectronROI
                                  ::testing::ValuesIn(dynamicInputShape),
                                  ::testing::Values(14),
                                  ::testing::Values(2),
-                                 ::testing::Values(std::vector<int64_t>{4, 8, 16, 32}),
+                                 ::testing::ValuesIn(pyramidScales),
                                  ::testing::ValuesIn({true, false}),
                                  ::testing::Values(Precision::FP32)),
                          ExperimentalDetectronROIFeatureExtractorLayerCPUTest::getTestCaseName);
