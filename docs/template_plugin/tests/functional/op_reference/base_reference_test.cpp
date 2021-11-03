@@ -64,6 +64,7 @@ void CommonReferenceTest::Infer() {
 
 void CommonReferenceTest::Validate() {
     ASSERT_EQ(executableNetwork.outputs().size(), refOutData.size());
+    actualOutData.clear();
     for (const auto& output : executableNetwork.outputs()) {
         actualOutData.emplace_back(inferRequest.get_tensor(output));
     }

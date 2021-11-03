@@ -473,7 +473,6 @@ set(MULTI_TEST_SRC
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/concat.in.cpp
-    backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/depth_to_space.in.cpp
