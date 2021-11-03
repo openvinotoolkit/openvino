@@ -49,10 +49,10 @@ ngraph::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
             return false;
 
         if (ov::is_type<ngraph::opset1::Softmax>(pattern_map.at(softmax).get_node_shared_ptr())) {
-            auto node = std::dynamic_pointer_cast<ngraph::opset1::Softmax>(softmax);
+            auto node = std::dynamic_pointer_cast<ngraph::opset1::Softmax>(m.get_match_root());
             return decompose_softmax(node, static_cast<int64_t>(node->get_axis()));
         } else if (ov::is_type<ngraph::opset8::Softmax>(pattern_map.at(softmax).get_node_shared_ptr())) {
-            auto node = std::dynamic_pointer_cast<ngraph::opset8::Softmax>(softmax);
+            auto node = std::dynamic_pointer_cast<ngraph::opset8::Softmax>(m.get_match_root());
             return decompose_softmax(node, node->get_axis());
         } else {
             return false;
