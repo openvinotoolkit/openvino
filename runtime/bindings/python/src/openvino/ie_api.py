@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import copy
 
 from openvino.pyopenvino import TBlobFloat32
 from openvino.pyopenvino import TBlobFloat64
@@ -36,22 +37,17 @@ precision_map = {"FP32": np.float32,
 
 def normalize_inputs(py_dict: dict) -> dict:
     """Normalize a dictionary of inputs to contiguous numpy arrays."""
-    return {k: (np.ascontiguousarray(v) if isinstance(v, np.ndarray) else v)
+    return {k: (Tensor(v) if isinstance(v, np.ndarray) else v)
             for k, v in py_dict.items()}
 
 # flake8: noqa: D102
-def infer(request: InferRequest, inputs: dict = None) -> dict:
-    results = request._infer(inputs=normalize_inputs(inputs if inputs is not None else {}))
-    return {name: (blob.buffer.copy()) for name, blob in results.items()}
+def infer(request: InferRequest, inputs: dict = None) -> np.ndarray:
+    res = request._infer(inputs=normalize_inputs(inputs if inputs is not None else {}))
+    return np.asarray([copy.deepcopy(tensor.data) for tensor in res])
 
 # flake8: noqa: D102
-def get_result(request: InferRequest, name: str) -> np.ndarray:
-    return request.get_blob(name).buffer.copy()
-
-# flake8: noqa: D102
-def async_infer(request: InferRequest, inputs: dict = None, userdata=None) -> None:  # type: ignore
-    request._async_infer(inputs=normalize_inputs(inputs if inputs is not None else {}),
-                         userdata=userdata)
+def start_async(request: InferRequest, inputs: dict = None) -> None:  # type: ignore
+    request._start_async(inputs=normalize_inputs(inputs if inputs is not None else {}))
 
 # flake8: noqa: C901
 # Dispatch Blob types on Python side.

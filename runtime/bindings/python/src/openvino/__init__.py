@@ -15,8 +15,7 @@ except DistributionNotFound:
 
 from openvino.ie_api import BlobWrapper
 from openvino.ie_api import infer
-from openvino.ie_api import async_infer
-from openvino.ie_api import get_result
+from openvino.ie_api import start_async
 from openvino.ie_api import blob_from_file
 from openvino.ie_api import tensor_from_file
 
@@ -37,7 +36,7 @@ from openvino.pyopenvino import DataPtr
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
 from openvino.pyopenvino import StatusCode
-from openvino.pyopenvino import InferQueue
+#from openvino.pyopenvino import InferQueue
 from openvino.pyopenvino import InferRequest  # TODO: move to ie_api?
 from openvino.pyopenvino import Blob
 from openvino.pyopenvino import PreProcessInfo
@@ -82,7 +81,6 @@ Blob = BlobWrapper
 ExecutableNetwork.infer = infer
 # Patching InferRequest
 InferRequest.infer = infer
-InferRequest.async_infer = async_infer
-InferRequest.get_result = get_result
+InferRequest.start_async = start_async
 # Patching InferQueue
-InferQueue.async_infer = async_infer
+#InferQueue.async_infer = async_infer

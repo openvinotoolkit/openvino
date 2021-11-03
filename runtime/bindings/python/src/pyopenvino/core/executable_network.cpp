@@ -7,8 +7,8 @@
 
 #include "common.hpp"
 #include "pyopenvino/core/containers.hpp"
-#include "pyopenvino/core/ie_infer_request.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"
+#include "pyopenvino/core/infer_request.hpp"
 
 namespace py = pybind11;
 
@@ -17,7 +17,9 @@ void regclass_ExecutableNetwork(py::module m) {
         m,
         "ExecutableNetwork");
 
-    cls.def("create_infer_request", &ov::runtime::ExecutableNetwork::create_infer_request);
+    cls.def("create_infer_request", [](ov::runtime::ExecutableNetwork& self) {
+        return InferRequestWrapper(self.create_infer_request(), self.inputs(), self.outputs());
+    });
 
     // cls.def("infer_new_request", [](ov::runtime::ExecutableNetwork& self, const py::dict& inputs) {
     // TODO: implment after https://github.com/openvinotoolkit/openvino/pull/7962

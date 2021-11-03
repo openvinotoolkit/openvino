@@ -5,27 +5,17 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <openvino/runtime/tensor.hpp>
 #include <string>
-#include <ie_input_info.hpp>
-#include "ie_data.h"
-#include "ie_blob.h"
+#include <map>
 
 namespace py = pybind11;
 
 namespace Containers {
-    using PyInputsDataMap = std::map<std::string, std::shared_ptr<InferenceEngine::InputInfo>>;
+    using TensorIndexMap = std::map<size_t, ov::runtime::Tensor>;
+    using TensorNameMap = std::map<std::string, ov::runtime::Tensor>;
+    using InferResults = std::vector<ov::runtime::Tensor>;
 
-    using PyConstInputsDataMap =
-        std::map<std::string, std::shared_ptr<const InferenceEngine::InputInfo>>;
-
-    using PyOutputsDataMap =
-        std::map<std::string, std::shared_ptr<const InferenceEngine::Data>>;
-
-    using PyResults =
-        std::map<std::string, std::shared_ptr<const InferenceEngine::Blob>>;
-
-    void regclass_PyInputsDataMap(py::module m);
-    void regclass_PyConstInputsDataMap(py::module m);
-    void regclass_PyOutputsDataMap(py::module m);
-    void regclass_PyResults(py::module m);
+    void regclass_TensorIndexMap(py::module m);
+    void regclass_TensorNameMap(py::module m);
 }
