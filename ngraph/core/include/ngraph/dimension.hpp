@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/attribute_adapter.hpp"
 #include "ngraph/interval.hpp"
 #include "openvino/core/dimension.hpp"
 
