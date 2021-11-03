@@ -9,7 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
-#include "variadicsplit_shape_inference.hpp"
+#include "variadic_split_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;

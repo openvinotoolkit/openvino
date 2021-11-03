@@ -47,7 +47,7 @@ void shape_infer(const VariadicSplit* op,
                                   " axes");
             const auto axis_val = axis_values[0];
             // Adjust split axis in case of negatives
-            const int64_t axis = ngraph::normalize_axis(op, axis_val, data_shape.rank());
+            const int64_t axis = ov::normalize_axis(op, axis_val, data_shape.rank());
 
             // Adjust split lengths in case of negatives
             int64_t sum_of_splits = 0;
