@@ -952,7 +952,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, log(one + exp(input)).str()));
             break;
         case ActivationFunction::ABS:
-            jitConstants.AddConstant(MakeJitConstant(macro_def, "(fabs(input))"));
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(fabs(input))"));
+            else
+                jitConstants.AddConstant(MakeJitConstant(macro_def, "(abs(input))"));
             break;
         case ActivationFunction::LINEAR: {
             const JitTerm m = disable_type_conversion ? "m"_jit : to_type("m"_jit);

@@ -167,3 +167,30 @@ class TestPoolingPartialInfer(unittest.TestCase):
 
         with self.assertRaises(Error):
             Pooling.infer(pool_node)
+
+    def test_pooling_infer_with_dilations(self):
+        graph = build_graph(nodes_attributes,
+                            [('node_1', 'pool'),
+                             ('pool', 'node_2'),
+                             ('node_2', 'op_output')
+                             ],
+                            {'node_2': {'shape': None},
+                             'node_1': {'shape': np.array([1, 3, 256, 256])},
+                             'pool': {'window': np.array([1, 1, 2, 2]), 'stride': np.array([1, 1, 2, 2]),
+                                      'pad': np.array([[0, 0], [0, 0], [0, 0], [1, 1]]),
+                                      'pad_spatial_shape': np.array([[0, 0], [1, 1]]),
+                                      'pool_method': 'max', 'exclude_pad': False, 'global_pool': False,
+                                      'output_spatial_shape': None, 'output_shape': None,
+                                      'kernel_spatial': np.array([2, 2]), 'spatial_dims': np.array([2, 3]),
+                                      'channel_dims': np.array([1]), 'batch_dims': np.array([0]),
+                                      'pooling_convention': 'full', 'dilation': np.array([1, 1, 2, 2]),
+                                      'auto_pad': 'valid'}
+                             })
+
+        pool_node = Node(graph, 'pool')
+
+        Pooling.infer(pool_node)
+        exp_shape = np.array([1, 3, 127, 127])
+        res_shape = graph.node['node_2']['shape']
+        for i in range(0, len(exp_shape)):
+            self.assertEqual(exp_shape[i], res_shape[i])

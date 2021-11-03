@@ -42,7 +42,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
@@ -687,8 +686,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
-        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-        manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
