@@ -385,15 +385,15 @@ IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *
     }
 
     IEStatusCode status = IEStatusCode::OK;
-    // try {
-    mem_istream model_stream(reinterpret_cast<const char*>(content), content_size);
+    try {
+        mem_istream model_stream(reinterpret_cast<const char*>(content), content_size);
 
-    std::map<std::string, std::string> conf_map = config2Map(config);
-    std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+        std::map<std::string, std::string> conf_map = config2Map(config);
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
 
-    exe_net->object = core->object.ImportNetwork(model_stream, device_name, conf_map);
-    *exe_network = exe_net.release();
-    // } CATCH_IE_EXCEPTIONS
+        exe_net->object = core->object.ImportNetwork(model_stream, device_name, conf_map);
+        *exe_network = exe_net.release();
+    } CATCH_IE_EXCEPTIONS
 
     return status;
 }
