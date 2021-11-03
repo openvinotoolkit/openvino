@@ -362,24 +362,13 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    const char* export_path = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(exe_network, export_path));
+    std::string export_path = TestDataHelpers::generate_gna_model_path("exported_model.blob");
+    IE_EXPECT_OK(ie_core_export_network(exe_network, export_path.c_str()));
 
-    FILE *fileptr;
-    fileptr = fopen(export_path, "rb");
-    fseek(fileptr, 0, SEEK_END);
-    size_t filelen = ftell(fileptr);
-    rewind(fileptr);
-    uint8_t *buffer = reinterpret_cast<uint8_t *>(malloc(filelen));
-
-    if (fread(buffer, 1, filelen, fileptr) != filelen) {
-        fputs ("Reading error",stderr); exit (3);
-    }
-
-    fclose(fileptr);
+    std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
     ie_executable_network_t *network = nullptr;
 
-    IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer, filelen, "GNA", &conf2, &network));
+    IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer.data(), buffer.size(), "GNA", &conf2, &network));
     EXPECT_NE(nullptr, network);
     if (network != nullptr) {
         ie_exec_network_free(&network);
@@ -387,7 +376,6 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     if (exe_network != nullptr) {
         ie_exec_network_free(&exe_network);
     }
-    free(buffer);
     ie_core_free(&core);
 }
 
