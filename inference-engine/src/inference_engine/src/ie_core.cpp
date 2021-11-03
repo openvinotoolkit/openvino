@@ -728,7 +728,9 @@ public:
             try {
                 const ie::Parameter p = GetMetric(deviceName, propertyName);
                 devicesIDs = p.as<std::vector<std::string>>();
-            } catch (std::runtime_error&) {
+            } catch (ie::Exception&) {
+                // plugin is not created by e.g. invalid env
+            } catch (ov::Exception&) {
                 // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
