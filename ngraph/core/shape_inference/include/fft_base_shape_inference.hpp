@@ -4,6 +4,7 @@
 #pragma once
 #include <openvino/op/util/fft_base.hpp>
 
+#include "openvino/core/axis_vector.hpp"
 #include "utils.hpp"
 
 template <class T>
@@ -59,19 +60,20 @@ void fft_base_shape_infer(const ov::op::util::FFTBase* op,
                 }
             }
 
-            std::vector<size_t> axes_vector;
-            std::set<size_t> axes_set;
+            ov::AxisVector axes_vector;
+            ov::AxisSet axes_set;
 
             for (const int64_t axis : axes) {
                 axes_vector.push_back(static_cast<size_t>(axis));
                 axes_set.insert(static_cast<size_t>(axis));
             }
 
-            NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "FFT op axes must be unique. Got: ");
+            NODE_VALIDATION_CHECK(op, axes.size() == axes_set.size(), "FFT op axes must be unique. Got: ", axes_vector);
 
             NODE_VALIDATION_CHECK(op,
                                   std::find(axes.begin(), axes.end(), input_rank - 1) == axes.end(),
-                                  "FFT op axes cannot contain the last axis. Got axes: ");
+                                  "FFT op axes cannot contain the last axis. Got axes: ",
+                                  axes_vector);
         }
     }
 
@@ -129,9 +131,7 @@ void shape_infer(const ov::op::v7::DFT* op,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 1);
-    fft_base_shape_infer(op, input_shapes,
-                         output_shapes,
-                         constant_data);
+    fft_base_shape_infer(op, input_shapes, output_shapes, constant_data);
 }
 
 template <class T>
@@ -140,7 +140,5 @@ void shape_infer(const ov::op::v7::IDFT* op,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2 || input_shapes.size() == 3) && output_shapes.size() == 1);
-    fft_base_shape_infer(op, input_shapes,
-                         output_shapes,
-                         constant_data);
+    fft_base_shape_infer(op, input_shapes, output_shapes, constant_data);
 }
