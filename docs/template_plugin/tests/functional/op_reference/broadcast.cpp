@@ -74,6 +74,19 @@ private:
     }
 };
 
+class ReferenceBroadcastTestV3 : public ReferenceBroadcastTest {
+private:
+    static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
+        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto f = std::make_shared<Function>(
+            std::make_shared<op::v3::Broadcast>(A, op::v0::Constant::create(params.targetShapeTensor.type,
+                                                                            params.targetShapeTensor.shape,
+                                                                            params.targetShapeTensor.data.data())),
+            ParameterVector{A});
+        return f;
+    }
+};
+
 class ReferenceBroadcastTestExplicitAxis : public testing::TestWithParam<BroadcastParamsExplicitAxis>, public CommonReferenceTest {
 public:
     void SetUp() override {
@@ -139,6 +152,10 @@ private:
 };
 
 TEST_P(ReferenceBroadcastTest, CompareWithRefs) {
+    Exec();
+}
+
+TEST_P(ReferenceBroadcastTestV3, CompareWithRefs) {
     Exec();
 }
 
@@ -311,6 +328,9 @@ std::vector<BroadcastParamsExplicitAxis> generateCombinedParamsExplicitAxisRever
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTest,
+    testing::ValuesIn(generateCombinedParams()), ReferenceBroadcastTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestV3,
     testing::ValuesIn(generateCombinedParams()), ReferenceBroadcastTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestExplicitAxis,
