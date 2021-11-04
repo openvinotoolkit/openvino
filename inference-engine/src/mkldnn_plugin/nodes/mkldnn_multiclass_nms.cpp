@@ -55,20 +55,29 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MulticlassNms>(op);
 
     auto& atrri = nms->get_attrs();
-    m_sort_result_across_batch = atrri.sort_result_across_batch;
+    m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopk = atrri.nms_top_k;
     m_iouThreshold = atrri.iou_threshold;
     m_scoreThreshold = atrri.score_threshold;
     m_backgroundClass = atrri.background_class;
     m_keepTopK = atrri.keep_top_k;
     if (atrri.sort_result_type == ngNmsSortResultType::CLASSID)
-        m_sort_result_type = MulticlassNmsSortResultType::CLASSID;
+        m_sortResultType = MulticlassNmsSortResultType::CLASSID;
     else if (atrri.sort_result_type == ngNmsSortResultType::SCORE)
-        m_sort_result_type = MulticlassNmsSortResultType::SCORE;
+        m_sortResultType = MulticlassNmsSortResultType::SCORE;
     else if (atrri.sort_result_type == ngNmsSortResultType::NONE)
-        m_sort_result_type = MulticlassNmsSortResultType::NONE;
+        m_sortResultType = MulticlassNmsSortResultType::NONE;
     m_nmsEta = atrri.nms_eta;
     m_normalized = atrri.normalized;
+
+    const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
+    if (boxes_dims.size() != 3)
+        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
+    if (boxes_dims[2] != 4)
+        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+    const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
+    if (scores_dims.size() != 3)
+        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 }
 
 void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
@@ -95,8 +104,7 @@ void MKLDNNMultiClassNmsNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNMultiClassNmsNode::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
+        prepareParams();
         updateLastInputDims();
     }
 }
@@ -106,27 +114,17 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
         IE_THROW() << "Can't prepare params for MKLDNNMultiClassNmsNode node with name: " << getName();
     }
 
-    if (getOriginalInputsNumber() != 2)
-        IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
-
-    if (getOriginalOutputsNumber() != 3)
-        IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
-
-    const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
-    const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
+    const auto& boxes_dims = isDynamicNode() ? getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims() :
+                                               getInputShapeAtPort(NMS_BOXES).getStaticDims();
+    const auto& scores_dims = isDynamicNode() ? getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims() :
+                                                getInputShapeAtPort(NMS_SCORES).getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
         IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
     }
 
-    if (boxes_dims.size() != 3)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
-    if (boxes_dims[2] != 4)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
     m_numBatches = boxes_dims[0];
     m_numBoxes = boxes_dims[1];
 
-    if (scores_dims.size() != 3)
-        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;
@@ -229,21 +227,21 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         }
     }
 
-    if (m_sort_result_across_batch) {
-        if (m_sort_result_type == SCORE) {
+    if (m_sortResultAcrossBatch) {
+        if (m_sortResultType == MulticlassNmsSortResultType::SCORE) {
             parallel_sort(m_filtBoxes.begin(), m_filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
             });
-        } else if (m_sort_result_type == CLASSID) {
+        } else if (m_sortResultType == MulticlassNmsSortResultType::CLASSID) {
             parallel_sort(m_filtBoxes.begin(), m_filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.class_index < r.class_index) || (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score > r.score) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score == r.score && l.box_index < r.box_index);
             });
         }
-    } else if (m_sort_result_type == CLASSID) {
+    } else if (m_sortResultType == MulticlassNmsSortResultType::CLASSID) {
         parallel_sort(m_filtBoxes.begin(), m_filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
             return ((l.batch_index < r.batch_index) ||
                     ((l.batch_index == r.batch_index) &&

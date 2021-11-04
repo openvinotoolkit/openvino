@@ -44,8 +44,8 @@ private:
     const size_t NMS_SELECTEDINDICES = 1;
     const size_t NMS_SELECTEDNUM = 2;
 
-    bool m_sort_result_across_batch = false;
-    MulticlassNmsSortResultType m_sort_result_type = NONE;
+    bool m_sortResultAcrossBatch = false;
+    MulticlassNmsSortResultType m_sortResultType = MulticlassNmsSortResultType::NONE;
 
     size_t m_numBatches;
     size_t m_numBoxes;

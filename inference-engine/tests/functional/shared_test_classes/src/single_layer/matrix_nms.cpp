@@ -2,13 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph_functions/builders.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/single_layer/matrix_nms.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
-namespace LayerTestsDefinitions {
+#include "functional_test_utils/plugin_cache.hpp"
+
+namespace ov {
+namespace test {
+namespace subgraph {
 
 using namespace ngraph;
 using namespace InferenceEngine;
-using namespace FuncTestUtils::PrecisionUtils;
 
 std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
     ShapeParams inShapeParams;
@@ -24,7 +30,7 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     std::tie(inShapeParams, inPrecisions, sortResultType, outType, topKParams, thresholdParams,
         backgroudClass, normalized, decayFunction, targetDevice) = obj.param;
 
-    Precision paramsPrec, maxBoxPrec, thrPrec;
+    ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
     int nmsTopK, keepTopK;
@@ -49,22 +55,44 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr MatrixNmsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    if (inputs.empty()) {
-        return LayerTestsCommon::GenerateInput(info);
-    } else {
-        Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
-        blob->allocate();
-        CommonTestUtils::fill_data_random_float<Precision::FP32>(blob, 1, 0, 100000);
-        return blob;
+void MatrixNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+
+    const auto& funcInputs = function->inputs();
+    for (int i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
+        ov::runtime::Tensor tensor;
+
+        if (i == 1) {
+            tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+
+            const size_t range = 1;
+            const size_t startFrom = 0;
+            const size_t k = 1000;
+            const int seed = 1;
+            std::default_random_engine random(seed);
+            std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+
+            auto *dataPtr = tensor.data<float>();
+            for (size_t i = 0; i < tensor.get_size(); i++) {
+                auto value = static_cast<float>(distribution(random));
+                dataPtr[i] = value / static_cast<float>(k);
+            }
+        } else {
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        }
+
+        inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 }
 
 void MatrixNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch) {
     size_t it = 0;
     size_t numBoxes = 0, numClasses = 0;
-    for (const auto &input : inputs) {
-        const auto& dims = input->getTensorDesc().getDims();
+    const auto& funcInputs = function->inputs();
+    for (int i = 0; i < funcInputs.size(); ++i) {
+        const auto& funcInput = funcInputs[i];
+        const auto& dims = inputs[funcInput.get_node_shared_ptr()].get_shape();
 
         if (it == 1) {
             numClasses = dims[1];
@@ -95,22 +123,18 @@ void MatrixNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutputBo
                std::min(maxOutputBoxesPerBatch, static_cast<size_t>(m_attrs.keep_top_k));
 }
 
-void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                                     const std::vector<Blob::Ptr> &actualOutputs) {
+void MatrixNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &expectedOutputs,
+                                 const std::vector<ov::runtime::Tensor> &actualOutputs) {
     auto batchIndex = -1;
     size_t numBatches, maxOutputBoxesPerBatch;
     GetOutputParams(numBatches, maxOutputBoxesPerBatch);
     std::vector<int32_t> numPerBatch(numBatches);
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& actual = actualOutputs[outputIndex];
-        const auto _dims = actual->getTensorDesc().getDims();
+        const auto _dims = actual.get_shape();
         if (_dims.size() == 1 && _dims[0] == numBatches) {
             batchIndex = outputIndex;
-            auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-            IE_ASSERT(memory);
-            const auto lockedMemory = memory->wmap();
-            const auto actualBuffer = lockedMemory.as<const uint8_t *>();
-            auto buffer = reinterpret_cast<const int32_t *>(actualBuffer);
+            auto buffer = reinterpret_cast<const int32_t*>(actual.data());
             std::copy_n(buffer, numBatches, numPerBatch.begin());
         }
     }
@@ -118,39 +142,30 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
     for (int outputIndex = static_cast<int>(expectedOutputs.size()) - 1; outputIndex >= 0 ; outputIndex--) {
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
+        const auto actualBuffer = static_cast<uint8_t*>(actual.data());
+        const auto expectedBuffer = static_cast<uint8_t*>(expected.data());
 
         //Compare Selected Outputs & Selected Indices
         if (outputIndex != batchIndex) {
-            const auto &expectedBuffer = expected.second.data();
-            auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-            IE_ASSERT(memory);
-            const auto lockedMemory = memory->wmap();
-            const auto actualBuffer = lockedMemory.as<const uint8_t *>();
-
-            auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
-            // W/A for int4, uint4
-            if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
-                k /= 2;
-            }
             if (outputIndex == 2) {
-                if (expected.second.size() != k * actual->byteSize())
+                if (expected.get_size() != actual.get_size())
                     throw std::runtime_error("Expected and actual size 3rd output have different size");
             }
 
-            const auto &precision = actual->getTensorDesc().getPrecision();
+            const auto& precision = actual.get_element_type();
             auto expected_offset = 0;
             auto actual_offset = 0;
             for (size_t i = 0; i < numPerBatch.size(); i++) {
                 auto validNums = numPerBatch[i];
                 switch (precision) {
-                    case InferenceEngine::Precision::FP32: {
-                        switch (expected.first) {
-                            case ngraph::element::Type_t::f32:
+                    case ov::element::f32: {
+                        switch (expected.get_element_type()) {
+                            case ov::element::f32:
                                 LayerTestsUtils::LayerTestsCommon::Compare(
                                         reinterpret_cast<const float *>(expectedBuffer) + expected_offset * 6,
                                         reinterpret_cast<const float *>(actualBuffer) + actual_offset * 6, validNums * 6, 1e-5f);
                                 break;
-                            case ngraph::element::Type_t::f64:
+                            case ov::element::f64:
                                 LayerTestsUtils::LayerTestsCommon::Compare(
                                         reinterpret_cast<const double *>(expectedBuffer) + expected_offset * 6,
                                         reinterpret_cast<const float *>(actualBuffer) + actual_offset * 6, validNums *6, 1e-5f);
@@ -159,7 +174,7 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                                 break;
                         }
                         if (m_outStaticShape) {
-                            const auto fBuffer = lockedMemory.as<const float *>();
+                            const auto fBuffer = static_cast<float*>(actual.data());
                             for (size_t tailing = validNums * 6; tailing < maxOutputBoxesPerBatch * 6; tailing++) {
                                 ASSERT_TRUE(std::abs(fBuffer[(actual_offset * 6 + tailing)] - -1.f) < 1e-5)
                                     << "Invalid default value: " << fBuffer[i] << " at index: " << i;
@@ -167,14 +182,14 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                         }
                         break;
                     }
-                    case InferenceEngine::Precision::I32: {
-                        switch (expected.first) {
-                            case ngraph::element::Type_t::i32:
+                    case ov::element::i32: {
+                        switch (expected.get_element_type()) {
+                            case ov::element::i32:
                                 LayerTestsUtils::LayerTestsCommon::Compare(
                                         reinterpret_cast<const int32_t *>(expectedBuffer) + expected_offset,
                                         reinterpret_cast<const int32_t *>(actualBuffer) + actual_offset, validNums, 0);
                                 break;
-                            case ngraph::element::Type_t::i64:
+                            case ov::element::i64:
                                 LayerTestsUtils::LayerTestsCommon::Compare(
                                         reinterpret_cast<const int64_t *>(expectedBuffer) + expected_offset,
                                         reinterpret_cast<const int32_t *>(actualBuffer) + actual_offset, validNums, 0);
@@ -183,7 +198,7 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                                 break;
                         }
                         if (m_outStaticShape) {
-                            const auto iBuffer = lockedMemory.as<const int *>();
+                            const auto iBuffer = static_cast<int*>(actual.data());
                             for (size_t tailing = validNums; tailing < maxOutputBoxesPerBatch; tailing++) {
                                 ASSERT_TRUE(iBuffer[actual_offset + tailing] == -1) << "Invalid default value: " << iBuffer[i] << " at index: " << i;
                             }
@@ -202,33 +217,22 @@ void MatrixNmsLayerTest::Compare(const std::vector<std::pair<ngraph::element::Ty
                 }
             }
         } else {
-            const auto &expectedBuffer = expected.second.data();
-            auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
-            IE_ASSERT(memory);
-            const auto lockedMemory = memory->wmap();
-            const auto actualBuffer = lockedMemory.as<const uint8_t *>();
-
-            auto k =  static_cast<float>(expected.first.size()) / actual->getTensorDesc().getPrecision().size();
-            // W/A for int4, uint4
-            if (expected.first == ngraph::element::Type_t::u4 || expected.first == ngraph::element::Type_t::i4) {
-                k /= 2;
-            }
             if (outputIndex == 2) {
-                if (expected.second.size() != k * actual->byteSize())
+                if (expected.get_size() != actual.get_size())
                     throw std::runtime_error("Expected and actual size 3rd output have different size");
             }
 
-            const auto &precision = actual->getTensorDesc().getPrecision();
-            size_t size = expected.second.size() / (k * actual->getTensorDesc().getPrecision().size());
+            const auto& precision = actual.get_element_type();
+            size_t size = expected.get_size();
             switch (precision) {
-                case InferenceEngine::Precision::I32: {
-                    switch (expected.first) {
-                        case ngraph::element::Type_t::i32:
+                case ov::element::i32: {
+                    switch (expected.get_element_type()) {
+                        case ov::element::i32:
                             LayerTestsUtils::LayerTestsCommon::Compare(
                                     reinterpret_cast<const int32_t *>(expectedBuffer),
                                     reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
                             break;
-                        case ngraph::element::Type_t::i64:
+                        case ov::element::i64:
                             LayerTestsUtils::LayerTestsCommon::Compare(
                                     reinterpret_cast<const int64_t *>(expectedBuffer),
                                     reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
@@ -260,11 +264,12 @@ void MatrixNmsLayerTest::SetUp() {
     inputDynamicShapes = std::get<0>(inShapeParams);
     targetStaticShapes = std::get<1>(inShapeParams);
     m_outStaticShape = std::get<2>(inShapeParams);
+    if (inputDynamicShapes.empty())
+        inputDynamicShapes = std::vector<ngraph::PartialShape>{targetStaticShapes[0][0], targetStaticShapes[0][1]};
 
-    Precision paramsPrec, maxBoxPrec, thrPrec;
+    ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
-    auto ngPrc = convertIE2nGraphPrc(paramsPrec);
-    const auto params = ngraph::builder::makeParams(ngPrc, {targetStaticShapes[0][0], targetStaticShapes[0][1]});
+    const auto params = ngraph::builder::makeDynamicParams(paramsPrec, inputDynamicShapes);
     const auto paramOuts =
             ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);
@@ -278,4 +283,6 @@ void MatrixNmsLayerTest::SetUp() {
     }
 }
 
-}  // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov

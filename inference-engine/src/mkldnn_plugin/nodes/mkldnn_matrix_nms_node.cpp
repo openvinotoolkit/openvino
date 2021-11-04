@@ -89,6 +89,15 @@ MKLDNNMatrixNmsNode::MKLDNNMatrixNmsNode(const std::shared_ptr<ngraph::Node>& op
             return std::exp((max_iou * max_iou - iou * iou) * sigma);
         };
     }
+
+    const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
+    if (boxes_dims.size() != 3)
+        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
+    if (boxes_dims[2] != 4)
+        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+    const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
+    if (scores_dims.size() != 3)
+        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
 }
 
 void MKLDNNMatrixNmsNode::initSupportedPrimitiveDescriptors() {
@@ -230,8 +239,7 @@ size_t MKLDNNMatrixNmsNode::nmsMatrix(const float* boxesData, const float* score
 
 void MKLDNNMatrixNmsNode::createPrimitive() {
     if (inputShapesDefined()) {
-        if (needPrepareParams())
-            prepareParams();
+        prepareParams();
         updateLastInputDims();
     }
 }
@@ -241,27 +249,17 @@ void MKLDNNMatrixNmsNode::prepareParams() {
         IE_THROW() << "Can't prepare params for MKLDNNMatrixNmsNode node with name: " << getName();
     }
 
-    if (getOriginalInputsNumber() != 2)
-        IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
-
-    if (getOriginalOutputsNumber() != 3)
-        IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
-
-    const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
-    const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
+    const auto& boxes_dims = isDynamicNode() ? getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims() :
+                                               getInputShapeAtPort(NMS_BOXES).getStaticDims();
+    const auto& scores_dims = isDynamicNode() ? getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims() :
+                                                getInputShapeAtPort(NMS_SCORES).getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
         IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
     }
 
-    if (boxes_dims.size() != 3)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
-    if (boxes_dims[2] != 4)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
     m_numBatches = boxes_dims[0];
     m_numBoxes = boxes_dims[1];
 
-    if (scores_dims.size() != 3)
-        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
     m_numClasses = scores_dims[1];
 
     int64_t max_output_boxes_per_class = 0;

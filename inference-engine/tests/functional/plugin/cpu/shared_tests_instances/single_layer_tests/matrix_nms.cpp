@@ -8,11 +8,11 @@
 #include "single_layer_tests/matrix_nms.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 using namespace InferenceEngine;
 using namespace ngraph;
 const std::vector<ShapeParams> inStaticShapeParams = {
-    // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out is static shape
+    // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out if static shape
     ShapeParams{{}, {{{3, 100, 4}, {3,   1, 100}}}, true},
     ShapeParams{{}, {{{1, 10,  4}, {1, 100, 10 }}}, false}
 };
@@ -46,9 +46,9 @@ const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::Mat
                                                 op::v8::MatrixNms::DecayFunction::LINEAR};
 
 const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(inStaticShapeParams),
-                                                ::testing::Combine(::testing::Values(Precision::FP32),
-                                                                    ::testing::Values(Precision::I32),
-                                                                    ::testing::Values(Precision::FP32)),
+                                                ::testing::Combine(::testing::Values(ov::element::f32),
+                                                                   ::testing::Values(ov::element::i32),
+                                                                   ::testing::Values(ov::element::f32)),
                                                 ::testing::ValuesIn(sortResultType),
                                                 ::testing::ValuesIn(outType),
                                                 ::testing::ValuesIn(topKParams),
@@ -60,9 +60,9 @@ const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(inStaticShap
 );
 
 const auto nmsParamsDynamic = ::testing::Combine(::testing::ValuesIn(inDynamicShapeParams),
-                                                 ::testing::Combine(::testing::Values(Precision::FP32),
-                                                                    ::testing::Values(Precision::I32),
-                                                                    ::testing::Values(Precision::FP32)),
+                                                 ::testing::Combine(::testing::Values(ov::element::f32),
+                                                                    ::testing::Values(ov::element::i32),
+                                                                    ::testing::Values(ov::element::f32)),
                                                  ::testing::ValuesIn(sortResultType),
                                                  ::testing::ValuesIn(outType),
                                                  ::testing::ValuesIn(topKParams),

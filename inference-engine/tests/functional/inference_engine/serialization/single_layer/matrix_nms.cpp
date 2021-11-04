@@ -7,20 +7,20 @@
 #include "shared_test_classes/single_layer/matrix_nms.hpp"
 
 using namespace ngraph;
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
     TEST_P(MatrixNmsLayerTest, Serialize) {
-        Serialize();
+        serialize();
     }
 
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::FP32,
-            InferenceEngine::Precision::FP16
+    const std::vector<ov::test::ElementType> netPrecisions = {
+            ov::element::f32,
+            ov::element::f16
     };
 
     const std::vector<ShapeParams> shapeParams = {
-            // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out is static shape
+            // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out if static shape
             ShapeParams{{}, {{{3, 100, 4}, {3,   5, 100}}}, false},
             ShapeParams{{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
                 {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}, false}
@@ -45,9 +45,9 @@ namespace {
     const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                     op::v8::MatrixNms::DecayFunction::LINEAR};
     const auto nmsParams = ::testing::Combine(::testing::ValuesIn(shapeParams),
-                                          ::testing::Combine(::testing::Values(InferenceEngine::Precision::FP32),
-                                                             ::testing::Values(InferenceEngine::Precision::I32),
-                                                             ::testing::Values(InferenceEngine::Precision::FP32)),
+                                          ::testing::Combine(::testing::Values(ov::element::f32),
+                                                             ::testing::Values(ov::element::i32),
+                                                             ::testing::Values(ov::element::f32)),
                                           ::testing::ValuesIn(sortResultType),
                                           ::testing::ValuesIn(outType),
                                           ::testing::ValuesIn(topKParams),

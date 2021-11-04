@@ -7,17 +7,21 @@
 #include <tuple>
 #include <string>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
-// Dynamic shape + Target static shapes + output is static shape
+// Dynamic shape + Target static shapes + output if static shape
 using ShapeParams = std::tuple<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>, bool>;
 
-using InputPrecisions = std::tuple<InferenceEngine::Precision,  // boxes and scores precisions
-                                   InferenceEngine::Precision,  // max_output_boxes_per_class precision
-                                   InferenceEngine::Precision>; // iou_threshold, score_threshold, soft_nms_sigma precisions
+using InputPrecisions = std::tuple<ElementType,   // boxes and scores precisions
+                                   ElementType,   // max_output_boxes_per_class
+                                                  // precision
+                                   ElementType>;  // iou_threshold, score_threshold,
 
 using TopKParams = std::tuple<int,      // Maximum number of boxes to be selected per class
                               int>;     // Maximum number of boxes to be selected per batch element
@@ -37,13 +41,12 @@ using NmsParams = std::tuple<ShapeParams,                                       
                              ngraph::op::v8::MatrixNms::DecayFunction,           // Decay function
                              std::string>;                                       // Device name
 
-class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public LayerTestsUtils::LayerTestsCommon {
+class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>,
+                           virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs)
-    override;
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override;
 
 protected:
     void SetUp() override;
@@ -54,4 +57,6 @@ private:
     bool m_outStaticShape;
 };
 
-}  // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov
