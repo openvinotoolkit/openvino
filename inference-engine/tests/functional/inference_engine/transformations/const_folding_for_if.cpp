@@ -14,6 +14,7 @@
 #include "ngraph/opsets/opset8.hpp"
 #include <ngraph/pass/constant_folding.hpp>
 
+#include <ngraph/pass/manager.hpp>
 using namespace testing;
 using namespace std;
 using namespace ngraph;
@@ -49,7 +50,9 @@ TEST(TransformationTests, DISABLED_if_constant_folding) {
         auto add = make_shared<op::v1::Add>(if_res, param_add);
         auto add_res = make_shared<op::Result>(add);
         fun = make_shared<Function>(OutputVector{ add_res }, ParameterVector{ param_add });
-        ngraph::pass::ConstantFolding().run_on_function(fun);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        manager.run_passes(fun);
     }
     std::shared_ptr<ngraph::Function> f_ref(nullptr);
     {

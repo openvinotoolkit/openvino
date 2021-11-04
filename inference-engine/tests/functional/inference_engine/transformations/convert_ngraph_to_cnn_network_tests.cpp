@@ -23,6 +23,8 @@
 #include <transformations/init_node_info.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 using namespace InferenceEngine;
 
@@ -37,7 +39,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.run_passes(f);
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -66,7 +70,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.run_passes(f);
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -162,7 +168,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.run_passes(f);
     }
 
     ngraph::pass::Manager manager;
