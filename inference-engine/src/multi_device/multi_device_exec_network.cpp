@@ -148,6 +148,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            , _needPerfCounters(needPerfCounters)
                                                            , _multiPlugin(plugin)
                                                            , _workModeIsAUTO(true) {
+    std::cout << "==============Network:" << std::endl;
     if (_multiPlugin->GetCore() == nullptr) {
         IE_THROW() << "Please, work with MULTI device via InferencEngine::Core object";
     }
@@ -259,6 +260,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         context.isLoadSuccess = true;
     } catch (const std::exception& e) {
         context.errMessage += device + ":" + e.what();
+        std::cout << "==========error:" << e.what() << std::endl;
         context.isLoadSuccess = false;
     }
 
