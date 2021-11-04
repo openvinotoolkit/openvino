@@ -56,6 +56,10 @@ private:
     int64_t m_seq_axis = 1;
     size_t m_normalized_batch_axis;
     size_t m_normalized_seq_axis;
+    template <class T>
+    friend void shape_infer(const ReverseSequence* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v0
 }  // namespace op

@@ -28,8 +28,7 @@ void op::CTCGreedyDecoder::validate_and_infer_types() {
     auto input_et = get_input_element_type(0);
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {logits_pshape,
-                                                  seq_mask_pshape};
+    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_mask_pshape};
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, input_et, output_shapes[0]);
 }

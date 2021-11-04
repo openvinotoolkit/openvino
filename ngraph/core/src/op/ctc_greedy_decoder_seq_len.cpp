@@ -63,8 +63,7 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types() {
     }
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
-    std::vector<ov::PartialShape> input_shapes = {logits_pshape,
-                                                  seq_len_pshape};
+    std::vector<ov::PartialShape> input_shapes = {logits_pshape, seq_len_pshape};
     shape_infer(this, input_shapes, output_shapes);
     NODE_VALIDATION_CHECK(this, output_shapes.size() == 2);
     set_output_type(0, m_classes_index_type, output_shapes[0]);

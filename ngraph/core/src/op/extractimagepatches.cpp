@@ -31,8 +31,7 @@ op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
 
 void op::v3::ExtractImagePatches::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_ExtractImagePatches_validate_and_infer_types);
-    std::vector<PartialShape> input_shapes = {get_input_partial_shape(0)},
-                              output_shapes = {PartialShape{}, PartialShape{}};
+    std::vector<PartialShape> input_shapes = {get_input_partial_shape(0)}, output_shapes = {PartialShape{}};
     shape_infer(this, input_shapes, output_shapes);
     if (output_shapes[0].is_dynamic())
         set_input_is_relevant_to_shape(0);
