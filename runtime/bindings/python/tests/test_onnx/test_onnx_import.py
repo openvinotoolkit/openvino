@@ -15,9 +15,7 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 def test_import_onnx_function():
     model_path = os.path.join(os.path.dirname(__file__), "models/add_abc.onnx")
     ie = Core()
-    network = ie.read_network(model=model_path)
-
-    ng_function = network.get_function()
+    func = ie.read_model(model=model_path)
 
     dtype = np.float32
     value_a = np.array([1.0], dtype=dtype)
@@ -25,7 +23,7 @@ def test_import_onnx_function():
     value_c = np.array([3.0], dtype=dtype)
 
     runtime = get_runtime()
-    computation = runtime.computation(ng_function)
+    computation = runtime.computation(func)
     result = computation(value_a, value_b, value_c)
     assert np.allclose(result, np.array([6], dtype=dtype))
 
