@@ -17,6 +17,7 @@
 #include <ie_algorithm.hpp>
 
 #include "cldnn_engine.h"
+#include "cldnn_engine_factory.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_transformations_pipeline.h"
 #include "cldnn_custom_layer.h"
@@ -763,10 +764,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         std::tie(input_name, input_shape) = *input_shapes.begin();
         size_t base_batch_size = input_shape[0];
 
-        // currently onednn impl is only availalbe for in order queue
-        cldnn::queue_types queue_type = device_info.supports_immad ? cldnn::queue_types::in_order : cldnn::queue_types::out_of_order;
-        auto engine = cldnn::engine::create(cldnn::engine_types::ocl, cldnn::runtime_types::ocl, iter->second, {false, queue_type});
-
+        auto engine = clDNNEngineFactory::create(config, iter->second, nullptr, true);
         std::shared_ptr<Program> program;
 
         if (options.find("BASE_BATCH_SIZE") != options.end()) {
