@@ -190,5 +190,9 @@ def main():
     axis = 0
     elementwise_ops("4", data_x, data_y, axis, in_dtype)
 
+    data_y = (0.1 + np.random.rand(2, 5, 3, 4).astype(np.float32)) / 1.1
+    axis = 2
+    elementwise_ops("5", data_x, data_y, axis, in_dtype)
+
 if __name__ == "__main__":
     main()
