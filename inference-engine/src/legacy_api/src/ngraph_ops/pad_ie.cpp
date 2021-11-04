@@ -37,12 +37,22 @@ op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
     constructor_validate_and_infer_types();
 }
 
+op::PadIE::PadIE(const Output<ngraph::Node>& input, PadMode pad_mode, CoordinateDiff pads_begin, CoordinateDiff pads_end, Shape output_shape, float pad_value)
+                 : Op({input})
+                 , m_pad_mode(pad_mode)
+                 , m_pads_begin(pads_begin)
+                 , m_pads_end(pads_end)
+                 , m_output_shape(output_shape)
+                 , m_pad_value(pad_value) {
+    constructor_validate_and_infer_types();
+}
+
 void op::PadIE::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), m_output_shape);
 }
 
 shared_ptr<Node> op::PadIE::clone_with_new_inputs(const OutputVector& new_args) const {
-    return nullptr;
+    return std::make_shared<PadIE>(new_args.at(0), m_pad_mode, m_pads_begin, m_pads_end, m_output_shape, m_pad_value);
 }
 
 bool op::PadIE::visit_attributes(AttributeVisitor& visitor) {
