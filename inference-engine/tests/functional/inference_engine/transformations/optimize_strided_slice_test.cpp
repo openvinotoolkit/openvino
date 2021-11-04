@@ -500,7 +500,8 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_negative_
 
 TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_dyn_shape_axes_const_negative_unsorted) {
     {
-        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ov::PartialShape{ov::Dimension(-1), ov::Dimension(2, 6), 4, ov::Dimension(-1)});
+        auto data_shape = ov::PartialShape{ov::Dimension(-1), ov::Dimension(2, 6), 4, ov::Dimension(-1)};
+        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);
         auto begin = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::PartialShape{ov::Dimension(-1)});
         auto end = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::PartialShape{ov::Dimension(-1)});
         auto step = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::PartialShape{ov::Dimension(-1)});
@@ -514,8 +515,8 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_dyn_shape_axes_const
         manager.register_pass<ngraph::pass::ConstantFolding>();
     }
     {
-        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ov::PartialShape{ov::Dimension(-1), ov::Dimension(2, 6), 4, ov::Dimension(-1)});
-        auto start = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::PartialShape{ov::Dimension(-1)});
+        auto data_shape = ov::PartialShape{ov::Dimension(-1), ov::Dimension(2, 6), 4, ov::Dimension(-1)};
+        auto data = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, data_shape);        auto start = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::PartialShape{ov::Dimension(-1)});
         auto stop = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::PartialShape{ov::Dimension(-1)});
         auto step = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::PartialShape{ov::Dimension(-1)});
 
