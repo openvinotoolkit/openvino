@@ -3674,6 +3674,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_inbounds) {
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_min_const_default_max) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/test_clip_default_max.onnx"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data{0.1, -999.8, 1, 0.0001, 9999};
+    const std::vector<float> output{0.1, 0.0001, 1, 0.0001, 9999};
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{data.size()}, output);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_mvn_v6) {
     auto function = onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/mvn_v6.onnx"));
 
