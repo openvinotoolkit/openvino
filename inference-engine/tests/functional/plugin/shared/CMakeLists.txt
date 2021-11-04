@@ -16,6 +16,11 @@ if(ENABLE_MULTI)
     list(APPEND DEPENDENCIES MultiDevicePlugin)
 endif()
 
+# remove once CVS-69781 is fixed
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+endif()
+
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND DEPENDENCIES test_model_zoo)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")

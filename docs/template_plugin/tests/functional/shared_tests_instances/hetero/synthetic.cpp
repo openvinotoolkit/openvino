@@ -11,6 +11,9 @@
 namespace {
 using namespace HeteroTests;
 
+// this tests load plugin by library name: this is not available during static linkage
+#ifndef OPENVINO_STATIC_LIBRARY
+
 INSTANTIATE_TEST_SUITE_P(smoke_SingleMajorNode, HeteroSyntheticTest,
                         ::testing::Combine(
                                 ::testing::Values(std::vector<PluginParameter>{{"TEMPLATE0", "templatePlugin"}, {"TEMPLATE1", "templatePlugin"}}),
@@ -68,5 +71,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_RandomMajorNodes_dynamic_batch, HeteroSynthetic
                                 ::testing::ValuesIn(HeteroTests::HeteroSyntheticTest::randomMajorNodeFunctions(
                                         dynamicBuilders, true))),
                         HeteroSyntheticTest::getTestCaseName);
+
+#endif // !OPENVINO_STATIC_LIBRARY
 
 }  // namespace

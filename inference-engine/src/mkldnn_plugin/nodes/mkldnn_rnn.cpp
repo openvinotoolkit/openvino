@@ -794,6 +794,7 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
     (*prim).execute(strm, args);
 }
 
+}  // namespace MKLDNNPlugin
+
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
-}  // namespace MKLDNNPlugin

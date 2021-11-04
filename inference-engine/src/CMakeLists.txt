@@ -59,17 +59,21 @@ if(ENABLE_IR_V7_READER)
 endif()
 
 if(NGRAPH_IR_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries ir_ngraph_frontend)
+    if(BUILD_SHARED_LIBS)
+        add_dependencies(ie_libraries ir_ngraph_frontend)
+    endif()
+    # use this one once CVS-69781 is fixed
+    # add_dependencies(inference_engine ir_ngraph_frontend)
 endif()
 
 if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries onnx_ngraph_frontend)
+    add_dependencies(inference_engine onnx_ngraph_frontend)
 endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries paddlepaddle_ngraph_frontend)
+    add_dependencies(inference_engine paddlepaddle_ngraph_frontend)
 endif()
 
 if(NGRAPH_TF_FRONTEND_ENABLE)
-    add_dependencies(ie_libraries tensorflow_ngraph_frontend)
+    add_dependencies(inference_engine tensorflow_ngraph_frontend)
 endif()
