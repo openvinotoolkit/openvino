@@ -491,7 +491,7 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
         auto dstData = dstMemPtrs[i];
 
         size_t innerSize = 1;
-        auto dims = outputShapes[i].getStaticDims();
+        auto dims = getChildEdgesAtPort(i)[0]->getMemory().getStaticDims();
 
         for (size_t j = axis; j < dims.size(); j++) {
             innerSize *= dims[j];
@@ -577,7 +577,7 @@ void MKLDNNSplitNode::SplitOptimizedExecutor::exec(const uint8_t* srcData, const
     if (origBatch != perInferBatch)
         execCountStrides = execCountStrides / origBatch * perInferBatch;
 
-    parallel_for2d(dstMemPtrs.size(), countStrides, [&](size_t i, size_t j) {
+    parallel_for2d(dstMemPtrs.size(), execCountStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = dstMemPtrs[i];
 
         cpu_memcpy(&dstData[j * dataSize[i]],
