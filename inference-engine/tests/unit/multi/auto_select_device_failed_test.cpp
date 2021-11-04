@@ -35,8 +35,15 @@ using namespace MockMultiDevice;
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = \
         __VA_ARGS__;
 
-class AutoLoadFailedTest: public ::testing::Test {
-protected:
+using ConfigParams = std::tuple<
+        bool,                        // if can continue to run
+        bool,                        // if select throw exception
+        std::vector<std::tuple<std::string, bool>>, // {device, loadSuccess}
+        unsigned int,                // select count
+        unsigned int                // load count
+        >;
+class AutoLoadFailedTest : public ::testing::TestWithParam<ConfigParams> {
+public:
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::CNNNetwork cnnNet;
     std::shared_ptr<MockICore> core;
@@ -49,6 +56,31 @@ protected:
     InferenceEngine::InferencePlugin                mockPlugin;
     std::map<std::string, std::string>              config;
     std::vector<DeviceInformation>                  metaDevices;
+
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+        unsigned int selectCount;
+        unsigned int loadCount;
+        std::vector<std::tuple<std::string, bool>> deviceConfigs;
+        bool continueRun;
+        bool thrExcWheSelect;
+        std::tie(continueRun, thrExcWheSelect, deviceConfigs, selectCount, loadCount) = obj.param;
+        std::ostringstream result;
+        for (auto& item : deviceConfigs) {
+            if (std::get<1>(item)) {
+                result << std::get<0>(item) << "_success_";
+            } else {
+                result << std::get<0>(item) << "_failed_";
+            }
+        }
+        if (thrExcWheSelect) {
+            result << "select_failed_";
+        } else {
+            result << "select_success_";
+        }
+        result << "select_" << selectCount << "_loadCount_" << loadCount;
+        return result.str();
+    }
 
     void TearDown() override {
         core.reset();
@@ -81,273 +113,113 @@ protected:
        IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNum, 2);
        ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)))).
            WillByDefault(Return(optimalNum));
-
-       config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
-    }
-    void SetUpTwoDevice() {
-       config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                      CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU});
-       DeviceInformation GPU = {CommonTestUtils::DEVICE_GPU, {}, 2, ""};
-       DeviceInformation CPU = {CommonTestUtils::DEVICE_CPU, {}, 2, ""};
-       metaDevices.push_back(GPU);
-       metaDevices.push_back(CPU);
-       ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
-
-       ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(2)), _)).WillByDefault(Return(GPU));
-       ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _)).WillByDefault(Return(CPU));
-    }
-
-    void SetUpTwoDeviceCase() {
-       config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                      CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU});
-       DeviceInformation GPU = {CommonTestUtils::DEVICE_GPU, {}, 2, ""};
-       DeviceInformation CPU = {CommonTestUtils::DEVICE_CPU, {}, 2, ""};
-       metaDevices.push_back(GPU);
-       metaDevices.push_back(CPU);
-       ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
-
-       ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(2)), _)).WillByDefault(Return(GPU));
-       ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _)).WillByDefault(Return(CPU));
-    }
-
-    void SetUpThreeDeviceCase() {
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
-                      CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU +
-                      std::string(",") + CommonTestUtils::DEVICE_MYRIAD});
-        DeviceInformation GPU = {CommonTestUtils::DEVICE_GPU, {}, 2, ""};
-        DeviceInformation CPU = {CommonTestUtils::DEVICE_CPU, {}, 2, ""};
-        DeviceInformation MYRIAD = {CommonTestUtils::DEVICE_MYRIAD, {}, 2, ""};
-        metaDevices.push_back(GPU);
-        metaDevices.push_back(CPU);
-        metaDevices.push_back(MYRIAD);
-        ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
-
-        ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(3)), _)).WillByDefault(Return(GPU));
-        ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(2)), _)).WillByDefault(Return(MYRIAD));
-        ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _)).WillByDefault(Return(CPU));
     }
 };
 
-TEST_F(AutoLoadFailedTest, canContinueIfCpuFailedInTwoDevice) {
-    // mock load GPU Success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
+TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
+    unsigned int selectCount;
+    unsigned int loadCount;
+    std::vector<std::tuple<std::string, bool>> deviceConfigs;
+    bool continueRun;
+    bool thrExcWheSelect;
+    std::tie(continueRun, thrExcWheSelect, deviceConfigs, selectCount, loadCount) = this->GetParam();
 
-    // mock load CPU failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+    config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
+    std::string devicesStr = "";
+    int selDevsSize = deviceConfigs.size();
+    for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
+        std::string deviceName = std::get<0>(*iter);
+        bool loadSuccess = std::get<1>(*iter);
+        if (loadSuccess) {
+            ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
+                        ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
+        } else {
+            ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                        ::testing::Matcher<const std::string&>(StrEq(deviceName)),
+                        ::testing::Matcher<const Config&>(_)))
+                .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+        }
+        DeviceInformation devInfo = {deviceName, {}, 2, ""};
+        metaDevices.push_back(std::move(devInfo));
+            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _))
+            .WillByDefault(Return(metaDevices[deviceConfigs.size() - selDevsSize]));
+        devicesStr += deviceName;
+        devicesStr += ((++iter) == deviceConfigs.end()) ? "" : ",";
+    }
+    ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , devicesStr});
+    if (thrExcWheSelect) {
+        selDevsSize = deviceConfigs.size();
+        if (selDevsSize > 1) {
+            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize - 1)), _))
+            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+        } else {
+            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _))
+            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+        }
+    }
 
-    SetUpTwoDevice();
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(1);
+    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(selectCount);
     EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(2);
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
+                ::testing::Matcher<const Config&>(_))).Times(loadCount);
+    if (continueRun) {
+        ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
+    } else {
+        ASSERT_THROW(plugin->LoadExeNetworkImpl(cnnNet, config), InferenceEngine::Exception);
+    }
 }
 
-TEST_F(AutoLoadFailedTest, canContinueIfGpuFailedINTwoDevice) {
-    // mock load GPU failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
+const std::vector<ConfigParams> testConfigs = {{true, false, {{CommonTestUtils::DEVICE_GPU, true},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, true},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 1, 2},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, true},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 2, 3},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, true},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, false},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 1, 2},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, true},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, true},
+                                                        {CommonTestUtils::DEVICE_CPU, false}}, 1, 2},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, true},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, false},
+                                                        {CommonTestUtils::DEVICE_CPU, false}}, 1, 2},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, true},
+                                                        {CommonTestUtils::DEVICE_CPU, false}}, 2, 3},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, false},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 3, 3},
+                                               {false, false, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, false},
+                                                        {CommonTestUtils::DEVICE_CPU, false}}, 3, 3},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, true},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 1, 2},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 2, 2},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, true},
+                                                        {CommonTestUtils::DEVICE_CPU, false}}, 1, 2},
+                                               {false, false, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_CPU, false}}, 2, 2},
+                                               {false, false, {{CommonTestUtils::DEVICE_GPU, false}}, 1, 1},
+                                               {false, false, {{CommonTestUtils::DEVICE_CPU, false}}, 1, 1},
+                                               {true, false, {{CommonTestUtils::DEVICE_GPU, true}}, 1, 1},
+                                               {true, false, {{CommonTestUtils::DEVICE_CPU, true}}, 1, 1},
+                                               {false, true, {{CommonTestUtils::DEVICE_GPU, true}}, 1, 0},
+                                               {false, true, {{CommonTestUtils::DEVICE_CPU, true}}, 1, 0},
+                                               {true, true, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, true},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 2, 2},
+                                               {false, true, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_MYRIAD, true},
+                                                        {CommonTestUtils::DEVICE_CPU, false}}, 2, 2},
+                                               {true, true, {{CommonTestUtils::DEVICE_GPU, false},
+                                                        {CommonTestUtils::DEVICE_CPU, true}}, 2, 2},
+                                              };
 
-    // mock load CPU Success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-
-    SetUpTwoDevice();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(2);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(2);
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
-}
-
-TEST_F(AutoLoadFailedTest, throwExceptionifCpuANDGpuFailed) {
-    // mock GPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    // mock CPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-
-    SetUpTwoDevice();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(2);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(2);
-    ASSERT_THROW(plugin->LoadExeNetworkImpl(cnnNet, config), InferenceEngine::Exception);
-}
-
-TEST_F(AutoLoadFailedTest, throwExceptionifThreeDeviceAllFailed) {
-    // mock GPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    // mock CPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    //mock MYRIAD LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_MYRIAD)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    SetUpThreeDeviceCase();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(3);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(3);
-    ASSERT_THROW(plugin->LoadExeNetworkImpl(cnnNet, config), InferenceEngine::Exception);
-}
-
-TEST_F(AutoLoadFailedTest, ContinueIfOnlyGPUfailInThreeDevice) {
-    // mock GPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    // mock CPU LOad Success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-    //mock MYRIAD LOad Success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_MYRIAD)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-
-    SetUpThreeDeviceCase();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(2);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(3);
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
-}
-
-TEST_F(AutoLoadFailedTest, ContinueIfOnlyCPUfailInThreeDevice) {
-    // mock GPU LOad success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-    // mock CPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    //mock MYRIAD LOad success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_MYRIAD)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-
-    SetUpThreeDeviceCase();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(1);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(2);
-
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
-}
-
-TEST_F(AutoLoadFailedTest, ContinueIfOnlyMYRIADfailInThreeDevice) {
-    // mock GPU LOad success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-    // mock CPU LOad success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-    //mock MYRIAD LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_MYRIAD)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-
-    SetUpThreeDeviceCase();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(1);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(2);
-
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
-}
-
-TEST_F(AutoLoadFailedTest, ContinueIfOnlyGPUSuccessInThreeDevice) {
-    // mock GPU LOad success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-    // mock CPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    //mock MYRIAD LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_MYRIAD)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-
-    SetUpThreeDeviceCase();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(1);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(2);
-
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
-}
-
-TEST_F(AutoLoadFailedTest, ContinueIfOnlyMYRIADSuccessInThreeDevice) {
-    // mock GPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    // mock CPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    //mock MYRIAD LOad Success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_MYRIAD)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-
-    SetUpThreeDeviceCase();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(2);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(3);
-
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
-}
-
-TEST_F(AutoLoadFailedTest, ContinueIfOnlyCPUSuccessInThreeDevice) {
-    // mock GPU LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-    // mock CPU LOad Success
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
-    //mock MYRIAD LOad failed
-    ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_MYRIAD)),
-                ::testing::Matcher<const Config&>(_))).WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-
-    SetUpThreeDeviceCase();
-
-    EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(3);
-    EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                ::testing::Matcher<const std::string&>(_),
-                ::testing::Matcher<const Config&>(_))).Times(3);
-
-    ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(cnnNet, config));
-}
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AutoLoadFailedTest,
+                ::testing::ValuesIn(testConfigs),
+            AutoLoadFailedTest::getTestCaseName);
 
