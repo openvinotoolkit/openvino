@@ -306,6 +306,8 @@ set(SRC
     visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
+    visitors/op/gather_elements.cpp
+    visitors/op/gather_nd.cpp
     visitors/op/gather_tree.cpp
     visitors/op/gelu.cpp
     visitors/op/greater_equal.cpp
@@ -473,7 +475,6 @@ set(MULTI_TEST_SRC
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/concat.in.cpp
-    backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/depth_to_space.in.cpp
@@ -484,8 +485,6 @@ set(MULTI_TEST_SRC
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
-    backend/gather_elements.in.cpp
-    backend/gather_nd.in.cpp
     backend/interpolate.in.cpp
     backend/matrix_nms.in.cpp
     backend/multiclass_nms.in.cpp
