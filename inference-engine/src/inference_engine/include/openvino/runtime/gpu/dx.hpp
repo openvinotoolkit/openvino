@@ -11,7 +11,7 @@
  */
 #pragma once
 
-#if !defined(NOMINMAX) && defined(_WIN32)
+#ifndef NOMINMAX
 #    define NOMINMAX
 #endif
 
