@@ -27,7 +27,6 @@ using namespace InferenceEngine::details;
 TEST(AsyncInferQueueOVTests, flowTest) {
     ov::Shape input_shape{8};
 
-    // Function with 4 parameters
     auto arg0 = make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     auto arg1 = make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     auto add = make_shared<ov::op::v1::Add>(arg0, arg1);
@@ -39,12 +38,17 @@ TEST(AsyncInferQueueOVTests, flowTest) {
     ov::runtime::Core core;
     ov::runtime::ExecutableNetwork net = core.compile_model(model, "CPU");
 
-    ov::runtime::AsyncInferQueue iksde(net, 4);
+    ov::runtime::AsyncInferQueue my_first_queue(net, 6);
 
-    auto f = [](std::exception_ptr e, ov::runtime::InferRequest &request) {
+    size_t counter = 0;
+    size_t *counter_ptr = &counter;
+
+    auto f = [counter_ptr](std::exception_ptr e, ov::runtime::InferRequest &request) {
         auto tensor = request.get_output_tensor();
         float* data_ptr = reinterpret_cast<float*>(tensor.data());
         vector<float> values(data_ptr, data_ptr + tensor.get_size());
+
+        *counter_ptr += 1;
 
         for (auto i : values) {
             std::cout << i << ' ';
@@ -52,10 +56,12 @@ TEST(AsyncInferQueueOVTests, flowTest) {
         std::cout << "request: " << &request << std::endl;
     };
 
-    iksde.set_callback(f);
+    my_first_queue.set_callback(f);
 
-    for (size_t i = 0; i < 16; i++) {
-        std::vector<float> input_data(8, i);
+    size_t num_of_runs = 16;
+
+    for (size_t i = 0; i < num_of_runs; i++) {
+        std::vector<float> input_data(input_shape[0], i);
         auto t = ov::runtime::Tensor(ov::element::f32, input_shape);
         std::memcpy(t.data(), reinterpret_cast<void*>(&input_data[0]), t.get_byte_size());
 
@@ -63,8 +69,14 @@ TEST(AsyncInferQueueOVTests, flowTest) {
         my_map.insert({0, t});
         my_map.insert({1, t});
 
-        iksde.start_async(my_map);
+        my_first_queue.start_async(my_map);
     }
 
-    iksde.wait_all();
+    std::cout << "counter: " << counter << std::endl;
+
+    my_first_queue.wait_all();
+
+    std::cout << "counter: " << counter << std::endl;
+
+    ASSERT_EQ(counter, num_of_runs);
 }

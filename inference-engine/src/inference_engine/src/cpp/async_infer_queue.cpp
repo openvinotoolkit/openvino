@@ -76,7 +76,6 @@ void AsyncInferQueue::start_async(std::map<size_t, ov::runtime::Tensor> inputs) 
     for (auto const& t : inputs) {
         _requests[request_id].set_input_tensor(t.first, t.second);
     }
-    std::cout << std::endl << "Popped: " << request_id << std::endl;
     _requests[request_id].start_async();
 }
 

@@ -28,6 +28,9 @@ namespace runtime {
  * @brief This is an interface of asynchronous infer request
  *
  * It can throw exceptions safely for the application, where it is properly handled.
+ * 
+ * @note AsyncInferQueue provides simple and unifed interface for multiple asynchronous
+ * calls to OpenVINO's InferRequests.
  */
 class OPENVINO_RUNTIME_API AsyncInferQueue {
 public:
@@ -87,6 +90,9 @@ public:
      * @brief Set callback function that will be called on success or failure for all jobs.
      *
      * @param callback callback object which will be called on when inference finish.
+     * @note Callback function differs from single InferRequest's set_callback function. There is
+     * a requirement to use InferRequest as an argument. This allows queue's internals 
+     * to pass underlaying request's object back to the user (for example: to get output tensors).
      */
     void set_callback(std::function<void(std::exception_ptr, ov::runtime::InferRequest&)> callback);
 
