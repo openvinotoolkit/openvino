@@ -28,7 +28,6 @@ from tests_compatibility import (
     xfail_issue_38734,
     xfail_issue_38735,
     xfail_issue_39658,
-    xfail_issue_39659,
     xfail_issue_39662,
     xfail_issue_44854,
     xfail_issue_44858,
@@ -129,10 +128,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_tile_precomputed_cpu",
     ),
     (
-        xfail_issue_39659,
-        "OnnxBackendNodeModelTest.test_constantofshape_int_shape_zero_cpu",
-    ),
-    (
         xfail_issue_39662,
         "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
         "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
@@ -221,12 +216,6 @@ tests_expected_to_fail = [
     (xfail_issue_38706, "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (
         xfail_issue_38708,
-        "OnnxBackendNodeModelTest.test_slice_default_steps_cpu",
-        "OnnxBackendNodeModelTest.test_slice_negative_axes_cpu",
-        "OnnxBackendNodeModelTest.test_slice_neg_steps_cpu",
-        "OnnxBackendNodeModelTest.test_slice_neg_cpu",
-        "OnnxBackendNodeModelTest.test_slice_cpu",
-        "OnnxBackendNodeModelTest.test_slice_end_out_of_bounds_cpu",
         "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
