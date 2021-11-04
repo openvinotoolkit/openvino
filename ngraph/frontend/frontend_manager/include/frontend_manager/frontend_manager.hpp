@@ -79,7 +79,7 @@ private:
 };
 
 template <>
-FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants);
+FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants);
 
 // --------- Plugin exporting information --------------
 

@@ -52,3 +52,6 @@ install(TARGETS ngraph_backend
 
 add_subdirectory(interpreter)
 add_subdirectory(ie)
+
+file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+add_clang_format_target(ngraph_backend_clang FOR_SOURCES ${all_backends_src})

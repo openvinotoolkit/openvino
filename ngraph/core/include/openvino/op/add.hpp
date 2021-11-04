@@ -19,7 +19,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
-    Add() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
+    Add() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs an addition operation.
     ///
@@ -40,7 +40,9 @@ public:
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

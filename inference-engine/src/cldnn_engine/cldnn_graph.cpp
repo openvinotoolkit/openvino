@@ -4,6 +4,7 @@
 
 #include <cldnn/graph/network.hpp>
 #include <cldnn/runtime/profiling.hpp>
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include "cldnn_graph.h"
 #include "simple_math.h"
@@ -43,7 +44,8 @@ CLDNNGraph::CLDNNGraph(InferenceEngine::CNNNetwork& network, gpu::ClContext::Ptr
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
-    , m_stream_id(stream_id) {
+    , m_stream_id(stream_id)
+    , m_state(0) {
     m_program = std::make_shared<Program>(network, GetEngine(), m_config);
     Build();
 }
@@ -53,7 +55,8 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
         , m_program(graph->m_program)
         , m_networkName(graph->m_networkName)
         , m_config(graph->m_config)
-        , m_stream_id(stream_id) {
+        , m_stream_id(stream_id)
+        , m_state(0) {
     Build();
 }
 
@@ -82,11 +85,35 @@ void CLDNNGraph::Build() {
     }
 
     UpdateImplementationsMap();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dry_run_path.empty()) {
+        CNNNetwork net(GetExecGraphInfo());
+        net.serialize(debug_config->dry_run_path);
+        exit(0);
+    }
+}
+
+bool CLDNNGraph::use_external_queue() const {
+    auto impl = getContextImpl(m_context);
+    return impl->GetExternalQueue() != nullptr;
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::BuildNetwork");
-    auto network = std::make_shared<cldnn::network>(program, m_stream_id);
+    std::shared_ptr<cldnn::network> network = nullptr;
+
+    auto impl = getContextImpl(m_context);
+    auto externalQueue = impl->GetExternalQueue();
+    if (externalQueue) {
+        if (m_config.throughput_streams != 1)
+            IE_THROW(ParameterMismatch) << "Throughput streams can't be used with shared queue!\n";
+        auto &engine = m_program->GetEngine();
+        network = std::make_shared<cldnn::network>(program, engine.create_stream(externalQueue), m_stream_id);
+    } else {
+        network = std::make_shared<cldnn::network>(program, m_stream_id);
+    }
+
 
     if (!m_config.graph_dumps_dir.empty() && m_stream_id == 0) {
         static int net_id = 0;
@@ -458,11 +485,11 @@ void CLDNNGraph::UpdatePerfStatistics() {
             using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
             auto count = std::chrono::duration_cast<duration_t>(interval.value->value()).count();
 
-            if (interval.name == "submission") {
+            if (interval.stage == cldnn::instrumentation::profiling_stage::submission) {
                 pc.cpu_uSec += count;
-            } else if (interval.name == "executing") {
+            } else if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
                 pc.realTime_uSec += count;
-            } else if (interval.name == "duration") {  // "duration" is used for CPU layers
+            } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                 pc.cpu_uSec += count;
 
                 if (pc.num == 0)
@@ -665,11 +692,11 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::G
                 using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
                 auto count = std::chrono::duration_cast<duration_t>(interval.value->value()).count();
 
-                if (interval.name == "submission") {
+                if (interval.stage == cldnn::instrumentation::profiling_stage::submission) {
                     cpuTime += count;
-                } else if (interval.name == "executing") {
+                } else if (interval.stage == cldnn::instrumentation::profiling_stage::executing) {
                     deviceTime += count;
-                } else if (interval.name == "duration") {  // "duration" is used for CPU layers
+                } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                     cpuTime += count;
                 }
             }

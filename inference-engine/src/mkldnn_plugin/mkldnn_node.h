@@ -126,6 +126,9 @@ private:
 
 class MKLDNNNode {
 public:
+    using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
+
+public:
     template<typename T, int N>
     struct Tag {};
 
@@ -556,24 +559,24 @@ public:
         return outputShapes[port];
     }
 
-protected:
-    // TODO [DS] : make pure after all nodes will be support dynamic shapes
-    virtual std::vector<VectorDims> shapeInfer() const {
-        IE_THROW(NotImplemented) << "[DS] MKLDNNNode::shapeInfer is not defined for node with type: " << getTypeStr();
-    }
-    virtual void executeDynamicImpl(mkldnn::stream strm) {
-        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
-    }
+    /**
+    * @brief Return scales and shift if nodes can be executed as ScaleShift, else raise exception
+    * If node has only scale or shift value, fill missing value with default values
+    * i.e. EltwiseAdd: fill shifts from constant, fill scales with default values = 1.0f
+    * @param parentNode
+    * node from which data comes
+    * @return pair of scales and shifts
+    */
+    std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const MKLDNNNode *parentNode) const;
 
+protected:
     bool canFuseSimpleOperation(const MKLDNNNodePtr& node) const;
-    // TODO [mandrono]: place outside of the node API
-    void fillScalesAndShifts(const MKLDNNNode *parentNode, std::vector<float> &scales, std::vector<float> &shifts, const int align = -1);
 
     void setType(Type type) {
         this->type = type;
     }
 
-    virtual size_t getMaxBatch();
+    virtual size_t getMaxBatch() const;
 
 
     virtual MemoryDescPtr getDefinedInputDesc(const NodeConfig &config, size_t idx) const;
@@ -586,8 +589,8 @@ protected:
      * Seed node should call this routine and pass its post operations list as parameter.
      * @param ops List of fused post operations
      */
-    virtual void appendPostOps(mkldnn::post_ops& ops);
-    virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
+    virtual void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false);
+    virtual AttrPtr initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<DnnlMemoryDescPtr (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>
             GetPrimitiveMemoryFormatFunc;
@@ -601,6 +604,7 @@ protected:
     std::vector <impl_desc_type> implPriorities;
     std::vector <mkldnn::memory::format_tag> inputMemoryFormatsFilter;
     std::vector <mkldnn::memory::format_tag> outputMemoryFormatsFilter;
+    bool enforceBF16evenForGraphTail = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
@@ -621,6 +625,7 @@ protected:
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     std::unordered_map<int, mkldnn::memory> primArgs;
+    std::vector<mkldnn::memory> binaryPostOpsArgs;
     MKLDNNPrimitive prim;
     std::vector<MKLDNNDescriptor> descs;
 
@@ -642,7 +647,7 @@ protected:
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
 
     virtual std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
-    int batchToProcess();
+    int batchToProcess() const;
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
 
@@ -698,9 +703,32 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
-private:
     bool isDynamic = false;
 
+    bool inputShapesDefined() const;
+    void updateLastInputDims();
+
+    bool inputShapesModified() const;
+    virtual bool needShapeInfer() const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    virtual std::vector<VectorDims> shapeInfer() const;
+    // TODO [DS] : make pure after all nodes will be support dynamic shapes
+    virtual void executeDynamicImpl(mkldnn::stream strm) {
+        IE_THROW(NotImplemented) << "[DS] executeDynamicImpl not implemented for node with type: " << getTypeStr();
+    }
+
+    virtual bool needPrepareParams() const;
+    // TODO [mandrono]: add description
+    // called after memory allocation/reallocation
+    virtual void prepareParams() {
+        IE_THROW(NotImplemented) << "[DS] prapareParams not implemented for node with type " << NameFromType(getType());
+    }
+
+    std::vector<VectorDims> lastInputDims = {};
+
+    std::shared_ptr<ngraph::Node> opToShapeInfer;
+
+private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
 
@@ -722,6 +750,8 @@ private:
     PerfCounters profiling;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
+
+    void createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& op);
 
     template <class PD, class D, typename FPD>
     typename std::enable_if<!std::is_same<FPD, bool>::value, PD>::type

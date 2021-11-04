@@ -41,7 +41,7 @@ static uint32_t GetNumberOfInputs(EltwiseMode m) {
 
 std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info, std::vector<size_t> limited_size_lws) {
     const size_t lws_max = info.maxWorkGroupSize;
-    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
+    const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 3, 2, 1};
     size_t total_lws = 1;
     std::vector<size_t> lws;
     for (size_t i = 0; i < gws.size(); ++i) {
@@ -585,7 +585,9 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
 
     auto local = GetOptimalLocalWorkGroupSizes({dispatchData.gws[0], dispatchData.gws[1], dispatchData.gws[2]}, params.engineInfo);
 
-    const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
+    // TODO: can be potentially improved for GPUs with support of LWS > 256
+    const size_t optimal_lws_values[] = { 256, 224, 192, 160, 128, 96, 64, 32, 16 };
+
     if ((params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 ||
          params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
          params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 ||
@@ -620,6 +622,13 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             dispatchData.lws[1] = bs_fsv32_local[2];
             dispatchData.lws[2] = bs_fsv32_local[0];
         }
+    } else if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+                (params.output.Feature().v % 16 != 0 || dispatchData.gws[1] % 16 != 0)) {
+            auto bs_fsv16_local = GetLimitedOptimalLocalWorkGroupSizes({dispatchData.gws[1], dispatchData.gws[2], dispatchData.gws[0]},
+                                                                        params.engineInfo, {16, 32, params.engineInfo.maxWorkGroupSize});
+            dispatchData.lws[0] = bs_fsv16_local[2];
+            dispatchData.lws[1] = bs_fsv16_local[0];
+            dispatchData.lws[2] = bs_fsv16_local[1];
     } else {
         dispatchData.lws[0] = local[0];
         dispatchData.lws[1] = local[1];

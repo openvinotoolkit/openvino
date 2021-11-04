@@ -18,13 +18,19 @@ namespace cldnn {
 class engine;
 class stream;
 
+enum class mem_lock_type : int32_t {
+    read,
+    write,
+    read_write
+};
+
 struct memory {
     using ptr = std::shared_ptr<memory>;
     using cptr = std::shared_ptr<const memory>;
     memory(engine* engine, const layout& layout,  allocation_type type, bool reused = false);
 
     virtual ~memory();
-    virtual void* lock(const stream& stream) = 0;
+    virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
     virtual void unlock(const stream& stream) = 0;
     virtual event::ptr fill(stream& stream, unsigned char pattern) = 0;
     virtual event::ptr fill(stream& stream) = 0;
@@ -83,7 +89,7 @@ struct simple_attached_memory : memory {
     simple_attached_memory(const layout& layout, void* pointer)
         : memory(nullptr, layout, allocation_type::unknown), _pointer(pointer) {}
 
-    void* lock(const stream& /* stream */) override { return _pointer; }
+    void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
     event::ptr fill(stream& /* stream */, unsigned char) override { return nullptr; }
     event::ptr fill(stream& /* stream */) override { return nullptr; }
@@ -102,9 +108,9 @@ private:
     void* _pointer;
 };
 
-template <class T>
+template <class T, mem_lock_type lock_type = mem_lock_type::read_write>
 struct mem_lock {
-    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(mem), _stream(stream), _ptr(reinterpret_cast<T*>(_mem->lock(_stream))) {}
+    explicit mem_lock(memory::ptr mem, const stream& stream) : _mem(mem), _stream(stream), _ptr(reinterpret_cast<T*>(_mem->lock(_stream, lock_type))) {}
 
     ~mem_lock() {
         _ptr = nullptr;

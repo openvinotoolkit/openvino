@@ -68,16 +68,25 @@ bool BinaryConvolutionKernelBase::CheckWorkGroups(const BinaryConvolutionKernelB
 BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefault(const binary_convolution_params& params,
                                                                                   int) const {
     DispatchData dispatchData;
+    auto in_layout = params.inputs[0].GetLayout();
+    auto out_layout = params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& out = params.output;
     std::vector<size_t> global;
-    if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf) {
+    if (out_layout == DataLayout::bfyx || out_layout == DataLayout::byxf) {
         global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     } else {
         global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
+        dims_by_gws = {{Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH},
+                       {Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y}};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     dispatchData.gws = global;
     dispatchData.lws = local;

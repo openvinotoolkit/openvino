@@ -25,7 +25,7 @@ public:
     ///
     /// \param element_type The element type of the parameter.
     /// \param pshape The partial shape of the parameter.
-    Parameter(const ngraph::element::Type& element_type, const PartialShape& pshape);
+    Parameter(const ov::element::Type& element_type, const PartialShape& pshape);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -55,7 +55,9 @@ public:
     /// \brief Returns current layout, or empty Layout if it is not set
     Layout get_layout() const;
 
-    /// \brief Sets layout runtime information to tensor
+    /// \brief Sets layout runtime information to tensor.
+    ///
+    /// \param layout Layout to set. If empty (default constructed), layout runtime information is erased.
     void set_layout(const Layout& layout);
 
 protected:

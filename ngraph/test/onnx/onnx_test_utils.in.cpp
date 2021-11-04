@@ -7,14 +7,14 @@
 
 #include "default_opset.hpp"
 #include "editor.hpp"
+#include "engines_util/test_case.hpp"
+#include "engines_util/test_engines.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 

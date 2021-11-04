@@ -78,6 +78,12 @@ public:
 
     size_t getPaddedElementsCount() const override;
 
+    MemoryDescPtr cloneWithUndefStridesAndOffset() const override;
+
+    MemoryDescPtr cloneWithDefaultStridesAndOffset() const override;
+
+    MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const override;
+
 private:
     size_t getElementOffset(size_t elemNumber) const override;
     size_t getCurrentMemSizeImp() const override;
@@ -95,7 +101,6 @@ private:
 private:
     InferenceEngine::Precision precision;
     size_t offsetPadding;
-    mutable VectorDims paddedDims;
 };
 
 using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;
