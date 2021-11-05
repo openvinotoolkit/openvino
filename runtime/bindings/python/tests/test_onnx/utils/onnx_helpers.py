@@ -22,6 +22,6 @@ def import_onnx_model(model: onnx.ModelProto) -> Function:
     onnx.checker.check_model(model)
     model_byte_string = model.SerializeToString()
     ie = Core()
-    func = ie.read_model(bytes(model_byte_string), Tensor(np.array([], dtype=np.uint8)))
+    func = ie.read_model(bytes(model_byte_string), Tensor(type=np.uint8, shape=[]))
 
     return func
