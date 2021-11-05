@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
 #include "pyopenvino/graph/function.hpp"
@@ -14,6 +15,16 @@
 namespace py = pybind11;
 
 static const char* CAPSULE_NAME = "ngraph_function";
+
+void set_tensor_names(const ov::ParameterVector& parameters) {
+    for (const auto& param : parameters) {
+        ov::Output<ov::Node> p = param;
+        if (p.get_node()->output(0).get_names().empty()) {
+            std::unordered_set<std::string> p_names({p.get_node()->get_friendly_name()});
+            p.get_node()->output(0).set_names(p_names);
+        }
+    }
+}
 
 void regclass_graph_Function(py::module m) {
     py::class_<ov::Function, std::shared_ptr<ov::Function>> function(m, "Function", py::module_local());
@@ -53,12 +64,15 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init<const std::vector<std::shared_ptr<ov::Node>>&,
-                          const std::vector<std::shared_ptr<ov::op::v0::Parameter>>&,
-                          const std::string&>(),
+    function.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
+                             const ov::ParameterVector& parameters,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     return std::make_shared<ov::Function>(results, parameters, name);
+                 }),
                  py::arg("results"),
                  py::arg("parameters"),
-                 py::arg("name"),
+                 py::arg("name") = "",
                  R"(
                     Create user-defined Function which is a representation of a model.
 
@@ -74,12 +88,15 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init<const std::shared_ptr<ov::Node>&,
-                          const std::vector<std::shared_ptr<ov::op::v0::Parameter>>&,
-                          const std::string&>(),
+    function.def(py::init([](const std::shared_ptr<ov::Node>& results,
+                             const ov::ParameterVector& parameters,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     return std::make_shared<ov::Function>(results, parameters, name);
+                 }),
                  py::arg("result"),
                  py::arg("parameters"),
-                 py::arg("name"),
+                 py::arg("name") = "",
                  R"(
                     Create user-defined Function which is a representation of a model.
 
@@ -94,6 +111,41 @@ void regclass_graph_Function(py::module m) {
                     name : str
                         String to set as function's friendly name.
                  )");
+
+    function.def(
+        "reshape",
+        [](ov::Function& self, const std::map<std::string, ov::PartialShape>& partial_shapes) {
+            self.reshape(partial_shapes);
+        },
+        py::arg("partial_shapes"),
+        R"(
+                Parameters
+                ----------
+                partial_shapes : Dict[string, PartialShape]
+                    Index of Output.
+
+                Returns
+                ----------
+                reshape : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Function& self, const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
+            self.reshape(partial_shapes);
+        },
+        py::arg("partial_shapes"),
+        R"(
+                Parameters
+                ----------
+                partial_shapes : Dict[Output, PartialShape]
+                    Index of Output.
+
+                Returns
+                ----------
+                reshape : void
+             )");
+
     function.def("get_output_size",
                  &ov::Function::get_output_size,
                  R"(
