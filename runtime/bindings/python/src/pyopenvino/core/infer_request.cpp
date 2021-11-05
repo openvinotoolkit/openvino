@@ -179,6 +179,28 @@ void regclass_InferRequest(py::module m) {
         py::arg("port"));
 
     cls.def(
+        "get_input_tensor",
+        [](InferRequestWrapper& self, size_t idx) {
+            return self._request.get_input_tensor(idx);
+        },
+        py::arg("idx"));
+
+    cls.def("get_input_tensor", [](InferRequestWrapper& self) {
+        return self._request.get_input_tensor();
+    });
+
+    cls.def(
+        "get_output_tensor",
+        [](InferRequestWrapper& self, size_t idx) {
+            return self._request.get_output_tensor(idx);
+        },
+        py::arg("idx"));
+
+    cls.def("get_output_tensor", [](InferRequestWrapper& self) {
+        return self._request.get_output_tensor();
+    });
+
+    cls.def(
         "set_tensor",
         [](InferRequestWrapper& self, const std::string& name, const ov::runtime::Tensor& tensor) {
             self._request.set_tensor(name, tensor);
@@ -232,12 +254,28 @@ void regclass_InferRequest(py::module m) {
         },
         py::arg("tensor"));
 
-    cls.def_property_readonly("input_tensors", [](InferRequestWrapper& self) {
+    cls.def_property_readonly("inputs", [](InferRequestWrapper& self) {
         return self._inputs;
     });
 
-    cls.def_property_readonly("output_tensors", [](InferRequestWrapper& self) {
+    cls.def_property_readonly("outputs", [](InferRequestWrapper& self) {
         return self._outputs;
+    });
+
+    cls.def_property_readonly("input_tensors", [](InferRequestWrapper& self) {
+        std::vector<ov::runtime::Tensor> tensors;
+        for (auto&& node : self._inputs) {
+            tensors.push_back(self._request.get_tensor(node));
+        }
+        return tensors;
+    });
+
+    cls.def_property_readonly("output_tensors", [](InferRequestWrapper& self) {
+        std::vector<ov::runtime::Tensor> tensors;
+        for (auto&& node : self._outputs) {
+            tensors.push_back(self._request.get_tensor(node));
+        }
+        return tensors;
     });
 
     cls.def_property_readonly("latency", [](InferRequestWrapper& self) {
