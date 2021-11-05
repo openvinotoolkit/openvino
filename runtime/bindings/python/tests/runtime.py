@@ -33,18 +33,6 @@ def get_runtime():
         return runtime()
 
 
-def _convert_val(val):
-    """WA converts unsupported input values."""
-    if type(val) is np.ndarray:
-        if val.dtype == np.float64:
-            return np.array(val, dtype=np.float32)
-        elif val.dtype == np.int64:
-            return np.array(val, dtype=np.int32)
-        return np.array(val)
-
-    return np.array(val, dtype=np.float32)
-
-
 class Runtime(object):
     """Represents an nGraph runtime environment."""
 
@@ -93,24 +81,6 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return "<Computation: {}({})>".format(self.function.get_name(), params_string)
 
-    def _get_ie_output_blob_name(self, outputs: Dict, ng_result: result) -> str:
-        if len(self.results) == 1:
-            return next(iter(outputs.keys()))
-        else:
-            prev_layer = ng_result.input(0).get_source_output()
-            out_name = prev_layer.get_node().get_friendly_name()
-            if prev_layer.get_node().get_output_size() != 1:
-                out_name += "." + str(prev_layer.get_index())
-            return out_name
-
-    def _get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
-        out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
-        out_blob = output_blobs[out_name]
-
-        if out_blob.tensor_desc.layout == "SCALAR":
-            return out_blob.buffer.reshape(())
-        else:
-            return out_blob.buffer
 
     def convert_buffers(self, source_buffers, target_dtypes):
         converted_buffers = []
@@ -130,19 +100,21 @@ class Computation(object):
             raise UserInputError(
                 "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values)
             )
-        # ignore not needed input values
-        input_values = input_values[:len(self.parameters)]
 
-        input_values = [_convert_val(input_value) for input_value in input_values]
-        input_shapes = [get_shape(input_value) for input_value in input_values]
-
+        param_types = [param.get_element_type() for param in self.parameters]
         param_names = [param.friendly_name for param in self.parameters]
+
+        # ignore not needed input values
+        input_values = [
+            np.array(input_value[0], dtype=get_dtype(input_value[1]))
+            for input_value in zip(input_values[: len(self.parameters)], param_types)
+        ]
+        input_shapes = [get_shape(input_value) for input_value in input_values]
 
         if self.network_cache.get(str(input_shapes)) is None:
             function = self.function
             if self.function.is_dynamic():
-                function.reshape(dict(zip(param_names, input_shapes)))
-            # Convert unsupported inputs of the network
+                function.reshape(dict(zip(param_names, [PartialShape(i) for i in input_shapes])))
             self.network_cache[str(input_shapes)] = function
         else:
             function = self.network_cache[str(input_shapes)]
@@ -160,13 +132,16 @@ class Computation(object):
                 )
 
         request = executable_network.create_infer_request()
-        request.infer(dict(zip(param_names, input_values)))
+        result_buffers = request.infer(dict(zip(param_names, input_values)))
+        # # Note: other methods to get result_buffers from request
+        # # First call infer with no return value:
+        # request.infer(dict(zip(param_names, input_values)))
+        # # Now use any of following options:
+        # result_buffers = [request.get_tensor(n).data for n in request.outputs]
+        # result_buffers = [request.get_output_tensor(i).data for i in range(len(request.outputs))]
+        # result_buffers = [t.data for t in request.output_tensors]
 
-        # Set order of output blobs compatible with nG Function
-        result_buffers = [self._get_ie_output_blob_buffer(request.output_blobs, result)
-                          for result in self.results]
-
-        # Since OV overwrite result data type we have to convert results to the original one.
+        # # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
         converted_buffers = self.convert_buffers(result_buffers, original_dtypes)
         return converted_buffers
