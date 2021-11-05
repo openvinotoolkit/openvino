@@ -8,8 +8,6 @@ from openvino.impl import Type, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
-from tests import xfail_issue_67415
-
 
 def test_reverse_sequence():
     input_data = np.array(
@@ -180,7 +178,6 @@ def test_pad_constant():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_67415
 def test_select():
     cond = np.array([[False, False], [True, False], [True, True]])
     then_node = np.array([[-1, 0], [1, 2], [3, 4]], dtype=np.int32)
