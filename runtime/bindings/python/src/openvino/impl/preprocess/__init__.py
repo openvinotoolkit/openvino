@@ -17,3 +17,5 @@ from openvino.pyopenvino.preprocess import InputNetworkInfo
 from openvino.pyopenvino.preprocess import OutputNetworkInfo
 from openvino.pyopenvino.preprocess import PrePostProcessor
 from openvino.pyopenvino.preprocess import PreProcessSteps
+from openvino.pyopenvino.preprocess import ColorFormat
+from openvino.pyopenvino.preprocess import ResizeAlgorithm
