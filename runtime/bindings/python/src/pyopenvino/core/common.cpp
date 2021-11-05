@@ -285,6 +285,8 @@ void blob_from_numpy(const py::handle& arr, InferenceEngine::Blob::Ptr blob) {
         Common::fill_blob<float>(arr, blob);
     } else if (py::isinstance<py::array_t<double>>(arr)) {
         Common::fill_blob<double>(arr, blob);
+    } else if (py::isinstance<py::array_t<bool>>(arr)) {
+        Common::fill_blob<bool>(arr, blob);
     } else if (py::isinstance<py::array_t<int8_t>>(arr)) {
         Common::fill_blob<int8_t>(arr, blob);
     } else if (py::isinstance<py::array_t<int16_t>>(arr)) {
