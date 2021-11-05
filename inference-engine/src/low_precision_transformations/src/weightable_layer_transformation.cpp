@@ -361,6 +361,9 @@ std::shared_ptr<opset1::FakeQuantize> WeightableLayerTransformation::getFakeQuan
 DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(const std::shared_ptr<Node>& node) {
     const auto fq = getFakeQuantizeOnWeights(node);
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
+    if (quantizationDetails.empty()) {
+        return DataPrecision();
+    }
 
     const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttributePtr>(fq);
     const auto precisions = precisionsAttribute == nullptr ?
@@ -380,6 +383,10 @@ bool WeightableLayerTransformation::isAsymmetricOnWeights(const std::shared_ptr<
 
     if (dequantization.empty()) {
         const auto dataPrecision = WeightableLayerTransformation::getDataPrecisionOnWeights(n);
+        if (dataPrecision.empty()) {
+            return false;
+        }
+
         if (dataPrecision.hasZeroPoint) {
             return true;
         }

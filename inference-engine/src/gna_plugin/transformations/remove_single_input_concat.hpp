@@ -10,6 +10,18 @@ namespace GNAPluginNS {
 
 /**
  * @brief remove concat layers with single input
+ *
+ * Searches for next pattern
+ *     Any input layer
+ *           |
+ *         Concat
+ *           |
+ *     Any output layer
+ *
+ * And transforms to
+ *     Any input layer
+ *           |
+ *     Any output layer
  */
 class RemoveSingleInputConcat : public ngraph::pass::MatcherPass {
 public:
