@@ -74,7 +74,7 @@ using IEClassSpecificDeviceTestSetConfig = BehaviorTestsUtils::IEClassBaseTestP;
 using IEClassSpecificDeviceTestGetConfig = BehaviorTestsUtils::IEClassBaseTestP;
 
 using IEClassLoadNetworkAfterCoreRecreateTest = BehaviorTestsUtils::IEClassBaseTestP;
-
+using IEClassLoadNetworkToDefaultPluginTest = BehaviorTestsUtils::IEClassBaseTestP;
 class IEClassSeveralDevicesTest : public BehaviorTestsUtils::IEClassNetworkTest,
                                   public ::testing::WithParamInterface<std::vector<std::string>> {
 public:
@@ -950,6 +950,13 @@ TEST_P(IEClassSeveralDevicesTestLoadNetwork, LoadNetworkActualSeveralDevicesNoTh
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, multiDeviceName));
 }
 
+TEST_P(IEClassLoadNetworkToDefaultPluginTest, canLoadAutoPluginAsDefault) {
+    InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+    InferenceEngine::ExecutableNetwork execNet;
+    ASSERT_NO_THROW(execNet = ie.LoadNetwork(actualCnnNetwork, deviceName));
+    InferenceEngine::Parameter p;
+    ASSERT_NO_THROW(p = execNet.GetConfig(MULTI_CONFIG_KEY(DEVICE_PRIORITIES)));
+}
 using IEClassLoadNetworkTest = IEClassQueryNetworkTest;
 //
 // LoadNetwork with HETERO on particular device

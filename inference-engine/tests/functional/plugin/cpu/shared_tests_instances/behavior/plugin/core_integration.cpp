@@ -99,4 +99,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
         ::testing::Values("CPU"));
+
+// IE Class Load network to default device
+INSTANTIATE_TEST_SUITE_P(smoke_AutoDefaultLoadTests, IEClassLoadNetworkToDefaultPluginTest,
+            ::testing::Values(""));
 } // namespace
