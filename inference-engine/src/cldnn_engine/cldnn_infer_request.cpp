@@ -472,7 +472,6 @@ CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov:
 // ---------------------------- internal pipeline stages ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //
 void CLDNNInferRequest::preprocess_notify() {
-    setStreamGraph();
     m_graph->wait(CLDNNGraph::Stage::PREPROC);
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         preprocess_dynamic();
@@ -483,7 +482,6 @@ void CLDNNInferRequest::preprocess_notify() {
 }
 
 void CLDNNInferRequest::preprocess() {
-    setStreamGraph();
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         preprocess_dynamic();
     } else {
@@ -631,7 +629,7 @@ void CLDNNInferRequest::wait_dynamic() {
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- internal utils --------- ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //
-void CLDNNInferRequest::setStreamGraph() {
+void CLDNNInferRequest::setup_stream_graph() {
     int streamID = 0;
     auto& streamGraphs = static_cast<CLDNNExecNetwork*>(_exeNetwork.get())->m_graphs;
     if (nullptr != streamExecutor) {
@@ -868,7 +866,8 @@ void CLDNNInferRequest::allocate_outputs_dynamic() {
 
 void CLDNNInferRequest::InferImpl() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::InferImpl");
-
+    setup_stream_graph();
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     preprocess();
     enqueue();
     wait();

@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+endif()
+
 add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
@@ -294,11 +299,15 @@ set(SRC
     visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/exp.cpp
+    visitors/op/experimental_detectron_detection_output.cpp
+    visitors/op/experimental_detectron_generate_proposals.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
+    visitors/op/gather_elements.cpp
+    visitors/op/gather_nd.cpp
     visitors/op/gather_tree.cpp
     visitors/op/gelu.cpp
     visitors/op/greater_equal.cpp
@@ -466,21 +475,16 @@ set(MULTI_TEST_SRC
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/concat.in.cpp
-    backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/experimental_detectron_generate_proposals.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/experimental_detectron_detection_output.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
     backend/gather.in.cpp
-    backend/gather_elements.in.cpp
-    backend/gather_nd.in.cpp
     backend/interpolate.in.cpp
     backend/matrix_nms.in.cpp
     backend/multiclass_nms.in.cpp
