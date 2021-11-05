@@ -109,19 +109,19 @@ def test_set_tensors(device):
     assert np.allclose(tensor3.data, t5.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensor(tensor3)
-    t6 = request.get_tensor(request.input_tensors[0])
+    t6 = request.get_tensor(request.inputs[0])
     assert np.allclose(tensor3.data, t6.data, atol=1e-2, rtol=1e-2)
 
     request.set_input_tensor(0, tensor1)
-    t7 = request.get_tensor(request.input_tensors[0])
+    t7 = request.get_tensor(request.inputs[0])
     assert np.allclose(tensor1.data, t7.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensor(tensor2)
-    t8 = request.get_tensor(request.output_tensors[0])
+    t8 = request.get_tensor(request.outputs[0])
     assert np.allclose(tensor2.data, t8.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensor(0, tensor4)
-    t9 = request.get_tensor(request.output_tensors[0])
+    t9 = request.get_tensor(request.outputs[0])
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
 
 

@@ -47,5 +47,19 @@ def test_simple_graph():
 
     runtime = get_runtime()
     computation = runtime.computation(ng_model_function)
-    assert np.array_equal(computation(1, 2, 3)[0], np.array([6.0], dtype=np.float32))
-    assert np.array_equal(computation(4, 5, 6)[0], np.array([15.0], dtype=np.float32))
+    assert np.array_equal(
+        computation(
+            np.array([1], dtype=np.float32),
+            np.array([2], dtype=np.float32),
+            np.array([3], dtype=np.float32),
+        )[0],
+        np.array([6.0], dtype=np.float32),
+    )
+    assert np.array_equal(
+        computation(
+            np.array([4], dtype=np.float32),
+            np.array([5], dtype=np.float32),
+            np.array([6], dtype=np.float32),
+        )[0],
+        np.array([15.0], dtype=np.float32),
+    )
