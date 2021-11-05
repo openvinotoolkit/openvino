@@ -140,7 +140,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("dst_format"));
     steps.def(
         "resize",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, ResizeAlgorithm alg, size_t dst_height, size_t dst_width) {
+        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, ov::preprocess::ResizeAlgorithm alg, size_t dst_height, size_t dst_width) {
             me->resize(alg, dst_height, dst_width);
             return me;
         },
@@ -149,7 +149,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("dst_width"));
     steps.def(
         "resize",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, ResizeAlgorithm alg) {
+        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, ov::preprocess::ResizeAlgorithm alg) {
             me->resize(alg);
             return me;
         },
