@@ -30,12 +30,16 @@ NamedOutputs elementwise_ops(const NodeContext& node) {
         auto const_0 = ngraph::opset6::Constant::create(ngraph::element::i64, ov::Shape{}, {0});
         auto const_1 = ngraph::opset6::Constant::create(ngraph::element::i64, ov::Shape{}, {1});
 
-        // condition of when to broadcast
+        /*  Use if op to handle when to broadcast y or not:
+         *  if ((axis == x_rank - 1) || (x_rank == y_rank))
+         *      not broadcast y;
+         *  else
+         *      broadcast y;
+         */
         auto x_rank_sub_1 = std::make_shared<ngraph::opset6::Subtract>(x_rank, const_1);
         auto axis_is_last = std::make_shared<ngraph::opset6::Equal>(axis, x_rank_sub_1);
         auto rank_is_equal = std::make_shared<ngraph::opset6::Equal>(x_rank, y_rank);
         auto not_broadcast = std::make_shared<ngraph::opset6::LogicalOr>(axis_is_last, rank_is_equal);
-        // if broadcast or not
         auto if_op = std::make_shared<ngraph::op::v8::If>(not_broadcast);
         auto element_type = y.get_element_type();
         // not broadcast
