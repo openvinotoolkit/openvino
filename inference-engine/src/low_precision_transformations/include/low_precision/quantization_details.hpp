@@ -51,6 +51,8 @@ public:
     float getOutputLowValue(const size_t channel) const;
     float getOutputHighValue(const size_t channel) const;
 
+    bool empty() const noexcept;
+
     static bool isSupportedLevel(const size_t level);
 
     const size_t levels;

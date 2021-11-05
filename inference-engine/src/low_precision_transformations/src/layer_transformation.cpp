@@ -311,6 +311,9 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
 bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer) {
     const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
     const auto dequantization = NetworkHelper::getDequantization(nonConstNode);
+    if (dequantization.empty()) {
+        return false;
+    }
     return dequantization.subtract != nullptr;
 }
 
