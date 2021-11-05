@@ -6,6 +6,7 @@ import logging
 import onnx.backend.test
 from tests import (
     BACKEND_NAME,
+    xfail_issue_FLOAT_LIKE,
     skip_rng_tests,
     xfail_issue_33488,
     xfail_issue_33538,
@@ -104,6 +105,20 @@ OnnxBackendPyTorchConvertedModelTest = None
 globals().update(backend_test.enable_report().test_cases)
 
 tests_expected_to_fail = [
+    (
+        xfail_issue_FLOAT_LIKE,
+        "OnnxBackendNodeModelTest.test_cast_BFLOAT16_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_DOUBLE_cpu",
+        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_FLOAT_cpu",
+        "OnnxBackendNodeModelTest.test_cast_FLOAT_to_BFLOAT16_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_expanded_cpu",
+        "OnnxBackendNodeModelTest.test_max_float16_cpu",
+        "OnnxBackendNodeModelTest.test_min_float16_cpu",
+        "OnnxBackendNodeModelTest.test_mod_mixed_sign_float16_cpu",
+    ),
     (
         xfail_issue_49207,
         "OnnxBackendNodeModelTest.test_rnn_seq_length_cpu",
