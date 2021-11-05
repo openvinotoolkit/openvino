@@ -28,6 +28,21 @@ def create_swish_pattern():
     return pattern.set_name('swish_activation').pattern
 
 
+# Removing pattern se-blocks reduces accuracy
+@registry_ignore_patterns('blocks')
+def create_se_pattern():
+    pattern = PatternBuilder()
+    pattern.insert_se(start_name='input', end_name='output')
+    return pattern.set_name('se_block').pattern
+
+
+@registry_ignore_patterns('blocks')
+def create_se_swish_pattern():
+    pattern = PatternBuilder()
+    pattern.insert_se(start_name='input', end_name='output', is_swish=True)
+    return pattern.set_name('se_block_swish_activation').pattern
+
+
 @registry_ignore_patterns('blocks')
 def create_biased_op_pattern():
     pattern = PatternBuilder()
