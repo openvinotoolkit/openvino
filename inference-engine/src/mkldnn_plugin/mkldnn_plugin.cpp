@@ -134,7 +134,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
-
+    // BRUH
     auto get_convert_precisions = []() {
         precisions_array array = {
             {ngraph::element::i64,     ngraph::element::i32},
@@ -440,9 +440,11 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     for (const auto &ii : _networkInputs) {
-        auto input_precision = ii.second->getPrecision();
-        if (input_precision != InferenceEngine::Precision::FP32 &&
+        auto input_precision = ii.second->getPrecision(); // BRUH
+        if (input_precision != InferenceEngine::Precision::FP64 &&
+            input_precision != InferenceEngine::Precision::FP32 &&
             input_precision != InferenceEngine::Precision::I32 &&
+            input_precision != InferenceEngine::Precision::U32 &&
             input_precision != InferenceEngine::Precision::U16 &&
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::I8 &&
