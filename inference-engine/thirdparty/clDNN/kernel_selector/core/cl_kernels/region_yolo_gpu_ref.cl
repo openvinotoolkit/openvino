@@ -73,8 +73,10 @@ KERNEL (region_yolo_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
 #else
     for (int j = 0; j < CLASSES; j++)
     {
-        in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + j + region_offset, y_index, x_index);
-        output[in_i] = FUNC_CALL(logistic_activate)(input[in_i]);
+        volatile int var = COORDS + 1 + j + region_offset; // WA for igc crash
+        in_i = INPUT0_GET_INDEX(batch, var, y_index, x_index);
+        out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + 1 + j + region_offset);
+        output[out_i] = FUNC_CALL(logistic_activate)(input[in_i]);
     }
 #endif
 }
