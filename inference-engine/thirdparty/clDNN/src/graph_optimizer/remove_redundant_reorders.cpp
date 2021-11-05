@@ -15,6 +15,7 @@
 #include "one_hot_inst.h"
 #include "permute_inst.h"
 #include "depth_to_space_inst.h"
+#include "region_yolo_inst.h"
 
 using namespace cldnn;
 
@@ -318,7 +319,8 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>()) || (input.is_type<permute>() || input.is_type<depth_to_space>());
+            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
+                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
