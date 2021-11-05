@@ -43,7 +43,9 @@ def normalize_inputs(py_dict: dict) -> dict:
 # flake8: noqa: D102
 def infer(request: InferRequest, inputs: dict = None) -> np.ndarray:
     res = request._infer(inputs=normalize_inputs(inputs if inputs is not None else {}))
-    return np.asarray([copy.deepcopy(tensor.data) for tensor in res])
+    # Required to return list since np.ndarray forces all of tensors data to match in
+    # dimensions. This results in errors when running ops like variadic split.
+    return [copy.deepcopy(tensor.data) for tensor in res]
 
 # flake8: noqa: D102
 def start_async(request: InferRequest, inputs: dict = None) -> None:  # type: ignore
