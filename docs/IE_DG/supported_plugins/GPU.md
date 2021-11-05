@@ -122,6 +122,11 @@ When specifying key values as raw strings (that is, when using Python API), omit
 | `KEY_TUNING_MODE`     | `TUNING_DISABLED` <br /> `TUNING_CREATE` <br />  `TUNING_USE_EXISTING`            | `TUNING_DISABLED` | Disable inference kernel tuning     <br /> Create tuning file (expect much longer runtime)  <br />         Use an existing tuning file. **Deprecated**. Will be removed in the next release |
 | `KEY_TUNING_FILE`     | `"<filename>"`                  | `""`              | Tuning file to create / use. **Deprecated**. Will be removed in the next release |
 
+## Quering GPU specific metric keys
+* MEMORY_STATISTICS : Returns overall memory statistics of `GPU` device allocated by engine with allocation types. If the network has `TensorIterator` or `Loop` operation which is not unrolled, there will be additional allocation at the first inference phase. In such a case, querying for `MEMORY_STATISTICS` should be done after first inference for more accurate result. The code below demonstrates how to query overall memory statistics of `GPU` device:
+
+@snippet snippets/GPU_Metric0.cpp part0
+
 ## GPU Context and Video Memory Sharing RemoteBlob API
 
 See [RemoteBlob API of GPU Plugin](GPU_RemoteBlob_API.md)

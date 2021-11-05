@@ -153,6 +153,30 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("GPU")
 );
 
+using IEClassGetMetricTest_GPU_MEMORY_STATISTICS = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
+
+    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+    std::map<std::string, uint64_t> t = p;
+
+    std::cout << "Memory Statistics: " << std::endl;
+    for (auto &&kv : t) {
+        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+    }
+
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MEMORY_STATISTICS));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_MEMORY_STATISTICS,
+        ::testing::Values("GPU")
+);
+
 //
 // IE Class GetConfig
 //

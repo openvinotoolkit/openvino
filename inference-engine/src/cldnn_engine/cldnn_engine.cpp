@@ -664,6 +664,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
         metrics.push_back(GPU_METRIC_KEY(UARCH_VERSION));
         metrics.push_back(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+        metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
 
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
