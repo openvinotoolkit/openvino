@@ -66,9 +66,6 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    //network(const network&) = delete;
-    //network& operator=(const network&) = delete;
-
     ~network();
 
 
@@ -184,8 +181,8 @@ public:
                                     std::set<primitive_id> dependencies,
                                     allocation_type type,
                                     bool reusable = true);
-    std::unique_ptr<memory_pool>& get_memory_pool() {
-        return _memory_pool;
+    memory_pool& get_memory_pool() {
+        return *_memory_pool;
     }
 
 private:

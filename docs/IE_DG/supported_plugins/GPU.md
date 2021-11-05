@@ -123,9 +123,16 @@ When specifying key values as raw strings (that is, when using Python API), omit
 | `KEY_TUNING_FILE`     | `"<filename>"`                  | `""`              | Tuning file to create / use. **Deprecated**. Will be removed in the next release |
 
 ## Quering GPU specific metric keys
+For common metric keys, see [Plugin.md](Plugin.md)
+
 * MEMORY_STATISTICS : Returns overall memory statistics of `GPU` device allocated by engine with allocation types. If the network has `TensorIterator` or `Loop` operation which is not unrolled, there will be additional allocation at the first inference phase. In such a case, querying for `MEMORY_STATISTICS` should be done after first inference for more accurate result. The code below demonstrates how to query overall memory statistics of `GPU` device:
 
 @snippet snippets/GPU_Metric0.cpp part0
+
+* MAX_BATCH_SIZE : returns maximum batch size for a given network which is not only executable but also does not lose performance due to the memory swap impact. The example code to set the required and optional configs for this metic is available in the following snippet:
+
+@snippet snippets/GPU_Metric1.cpp part0
+
 
 ## GPU Context and Video Memory Sharing RemoteBlob API
 

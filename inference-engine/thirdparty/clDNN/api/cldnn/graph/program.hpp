@@ -233,7 +233,7 @@ public:
     void load_tuning_cache();
     std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
 
-    std::pair<int64_t, int64_t> get_estimated_device_mem_usage();
+    std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
 private:
     uint32_t prog_id = 0;

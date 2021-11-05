@@ -462,13 +462,6 @@ int main(int argc, char* argv[]) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
-            std::map<std::string, Parameter> options = {{"CNN_NETWORK", &cnnNetwork}};
-            // user specified streams and base batch size
-            //            options.insert(std::make_pair("GPU_THROGHPUT_STREAMS", 2));
-            //            options.insert(std::make_pair("BASE_BATCH_SIZE", 32));
-            //            options.insert(std::make_pair("AVAILABLE_DEVICE_MEM_SIZE", 3221225472));
-            auto max_batch_size = ie.GetMetric(device_name, METRIC_KEY(MAX_BATCH_SIZE), options).as<unsigned int>();
-            std::cout << "max batch size is " << max_batch_size << std::endl;
             // use batch size according to provided layout and shapes
             batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
 

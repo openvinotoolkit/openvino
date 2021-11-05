@@ -258,13 +258,13 @@ void primitive_inst::allocate_internal_buffers(void) {
             _intermediates_memory.push_back(engine.allocate_memory(layout, allocation_type::usm_host));
     }
 }
-memory::ptr primitive_inst::allocate_output(engine& _engine, std::unique_ptr<memory_pool>& pool, const program_node& _node,
-        bool is_internal, bool is_dummy) {
+memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node,
+        bool is_internal) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
             allocation_type type, bool reusable) {
         if (_engine.configuration().use_memory_pool)
-                return pool->get_memory(layout, id, 0, dependencies, type, reusable);
-        return pool->get_memory(layout, type);
+                return pool.get_memory(layout, id, 0, dependencies, type, reusable);
+        return pool.get_memory(layout, type);
     };
 
     auto layout = _node.get_output_layout();
@@ -327,7 +327,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, std::unique_ptr<mem
     }
 }
 memory::ptr primitive_inst::allocate_output() {
-    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal(), false);
+    return allocate_output(get_network().get_engine(), _network.get_memory_pool(), _node, _network.is_internal());
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(
