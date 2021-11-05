@@ -236,7 +236,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
     // if workMode is AUTO
     if (workModeAuto) {
-        std::cout << "==============MultiDeviceInferencePlugin: Auto" << std::endl;
         // check the configure and check if need to set PerfCounters configure to device
         // and set filter configure
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
@@ -245,11 +244,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         CheckConfig(fullConfig, needPerfCounters, filterConfig);
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
-        std::cout << "==============MultiDeviceInferencePlugin: Auto1" << std::endl;
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
-        std::cout << "==============MultiDeviceInferencePlugin: Auto2" << std::endl;
         auto supportDevices = FilterDevice(metaDevices, filterConfig);
-        std::cout << "==============MultiDeviceInferencePlugin: Auto3" << std::endl;
         if (supportDevices.size() == 0) {
              IE_THROW() << "there is no device support the configure";
         }
