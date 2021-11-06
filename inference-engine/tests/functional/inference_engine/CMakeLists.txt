@@ -25,15 +25,28 @@ set(LINK_LIBRARIES
 
 set(DEPENDENCIES
     mock_engine
-    ir_ngraph_frontend
-    inference_engine_ir_v7_reader
-    HeteroPlugin
-    MultiDevicePlugin
     template_extension
+    template_ov_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo
 )
+
+if(NGRAPH_IR_FRONTEND_ENABLE)
+    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+endif()
+
+if(ENABLE_IR_V7_READER)
+    list(APPEND DEPENDENCIES inference_engine_ir_v7_reader)
+endif()
+
+if(ENABLE_HETERO)
+    list(APPEND DEPENDENCIES HeteroPlugin)
+endif()
+
+if(ENABLE_MULTI)
+    list(APPEND DEPENDENCIES MultiDevicePlugin)
+endif()
 
 if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")

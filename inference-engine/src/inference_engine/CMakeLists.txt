@@ -5,9 +5,9 @@
 set (TARGET_NAME "inference_engine")
 
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    find_package(TBBBIND_2_4 QUIET)
-    if (TBBBIND_2_4_FOUND)
-        message(STATUS "Static tbbbind_2_4 package was found")
+    find_package(TBBBIND_2_5 QUIET)
+    if (TBBBIND_2_5_FOUND)
+        message(STATUS "Static tbbbind_2_5 package was found")
     endif()
 endif()
 
@@ -19,6 +19,10 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
+# Add include path to so_extension.hpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/ie_core.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+
 # TODO: WA for OneHot pass usage in reshape
 set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
 set(LEGACY_LIBRARY_SHARED_SRCS
@@ -28,10 +32,15 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "BUILD_AS_IE_SOURCES")
+    COMPILE_DEFINITIONS "USE_STATIC_IE")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
+
+if(ENABLE_IR_V7_READER)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/ie_network_reader.cpp PROPERTIES
+        COMPILE_DEFINITIONS "ENABLE_IR_V7_READER")
+endif()
 
 file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
@@ -94,7 +103,8 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-    ${PUBLIC_HEADERS_DIR} ${PUBLIC_HEADERS_DIR}/ie)
+    ${PUBLIC_HEADERS_DIR}
+    ${PUBLIC_HEADERS_DIR}/ie)
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt openvino::util)
 
@@ -126,6 +136,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:n
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+                                                      "${CMAKE_CURRENT_BINARY_DIR}" # for static ie_plugins.hpp
                                                       "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader_v7" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
@@ -134,9 +145,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
-if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+if (TBBBIND_2_5_FOUND)
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_5_AVAILABLE)
+    target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
 # Create library file from object library
@@ -159,9 +170,9 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
-if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+if (TBBBIND_2_5_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_5_AVAILABLE)
+    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
@@ -187,35 +198,48 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # Static library used for unit tests which are always built
 
-add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            ${IE_STATIC_DEPENDENT_FILES})
+if(BUILD_SHARED_LIBS)
+    add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
+                $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
+                $<TARGET_OBJECTS:${TARGET_NAME}_obj>
+                ${IE_STATIC_DEPENDENT_FILES})
 
-set_ie_threading_interface_for(${TARGET_NAME}_s)
-if (TBBBIND_2_4_FOUND)
-    target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_4_AVAILABLE)
-    target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_4_IMPORTED_TARGETS})
+    set_ie_threading_interface_for(${TARGET_NAME}_s)
+    if (TBBBIND_2_5_FOUND)
+        target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_5_AVAILABLE)
+        target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
+    endif()
+
+    target_include_directories(${TARGET_NAME}_s PUBLIC
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
+
+    if(WIN32)
+        set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
+    endif()
+
+    target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
+        frontend_manager::static inference_engine_transformations pugixml::static)
+
+    target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+
+    set_target_properties(${TARGET_NAME}_s PROPERTIES
+        EXCLUDE_FROM_ALL ON
+        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+else()
+    # for static OpenVINO build we can re-use inference_engine which is already static
+    add_library(${TARGET_NAME}_s ALIAS ${TARGET_NAME})
+
+    target_include_directories(${TARGET_NAME} PUBLIC
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
 endif()
-
-target_include_directories(${TARGET_NAME}_s PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
-
-if(WIN32)
-    set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
-endif()
-
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph frontend_manager::static
-                                               inference_engine_transformations pugixml::static)
-
-target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
-
-set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
 # LTO
 
-set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # Export for build tree

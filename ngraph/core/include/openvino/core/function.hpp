@@ -145,7 +145,6 @@ public:
     std::vector<std::shared_ptr<ov::Node>> get_ordered_ops() const;
     void map_unordered_ops(std::function<void(ov::Node*)> f) const;
 
-    friend std::ostream& operator<<(std::ostream&, const Function&);
     // updates graph and m_results list
     void replace_node(std::shared_ptr<ov::Node> old, std::shared_ptr<ov::Node> repl);
 
@@ -283,11 +282,12 @@ public:
         return m_rt_info;
     }
 
-private:
     Function(const Function&) = delete;
-    Function(const Function&&) = delete;
+    Function(Function&&) = delete;
     Function& operator=(const Function&) = delete;
+    Function& operator=(Function&&) = delete;
 
+private:
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Function
     /// parameters/variables or finds all Parameters/Variables in a function and registers them.
@@ -311,6 +311,9 @@ private:
     ov::op::util::VariableVector m_variables;
     RTMap m_rt_info;
 };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream&, const Function&);
 
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Function>>

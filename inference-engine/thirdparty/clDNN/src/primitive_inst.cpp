@@ -8,7 +8,6 @@
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
 #include "arg_max_min_inst.h"
-#include "fused_conv_eltwise_inst.h"
 
 #include "cldnn/graph/network.hpp"
 #include "cldnn/runtime/engine.hpp"
@@ -22,6 +21,40 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+
+namespace {
+
+bool is_optimized_output_user(const program_node* user) {
+    if (user->can_be_optimized()) {
+        if (user->is_output())
+            return true;
+
+        auto users = user->get_users();
+        for (const auto& u : users) {
+            if (is_optimized_output_user(u)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
+bool is_output_buffer(const program_node& node) {
+    if (node.is_output())
+        return true;
+
+    // Try to recursively find any optimized out user which is also network output
+    for (const auto& user : node.get_users()) {
+        if (is_optimized_output_user(user)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+}  // namespace
 
 namespace cldnn {
 
@@ -161,13 +194,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
             // Get mutable_data nodes count from nodes users
             if (user->is_type<mutable_data>()) {
                 mutable_data_count++;
-            } else if (user->is_type<fused_conv_eltwise>()) {
-                if (!user->as<fused_conv_eltwise>().get_users().empty() &&
-                    (*user->as<fused_conv_eltwise>().get_users().begin())->is_type<mutable_data>()) {
-                    if (user->as<fused_conv_eltwise>().get_dependency(1).id() == node.id()) {
-                        user_count--;
-                    }
-                }
             }
         }
 
@@ -181,9 +207,6 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
         } else {
             _output = allocate_output();
         }
-
-        // Allocate internal buffer
-        allocate_internal_buffers();
     }
 }
 
@@ -239,28 +262,21 @@ void primitive_inst::allocate_internal_buffers(void) {
 memory::ptr primitive_inst::allocate_output() {
     auto layout = _node.get_output_layout();
     auto& engine = get_network().get_engine();
-    const auto& inst_deps = _network.get_primitives(_node.get_dependencies());
-    auto device_mem_acc = [&](size_t a, std::shared_ptr<primitive_inst> b) {
-        if (!b->mem_allocated()) return a;
-        if (b->output_memory().get_allocation_type() == allocation_type::usm_device
-            || b->output_memory().get_allocation_type() == allocation_type::cl_mem)
-            return a + b->output_memory().size();
-        else
-            return a;
+    // TODO: Add a preprocessing step to do  alloc_type check before actual allocation
+    const auto& node_deps = _node.get_dependencies();
+    auto device_mem_acc = [&](size_t a, program_node* b) {
+        return a + b->get_output_layout().bytes_count();
     };
 
     bool usm_device_allocatable = true;
-    const auto& total_device_input_mem_size = std::accumulate(inst_deps.begin(), inst_deps.end(), 0, device_mem_acc);
+    const auto& total_device_input_mem_size = std::accumulate(node_deps.begin(), node_deps.end(), 0, device_mem_acc);
     if (total_device_input_mem_size > engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
     // For outputs, cpu prim we want to have lockable alloc type
     // Also if the successor of a node is an cpu, then memory needs to be lockable.
-    auto use_lockable_memory = _node.is_output() || _node.get_selected_impl()->is_cpu()
-                               || std::any_of(_node.get_users().begin(), _node.get_users().end(),
-                                              [](const program_node* n) {
-                                     return n->get_selected_impl()->is_cpu() || is_any_user_cpu(n->get_users());
-                                  }) || !engine.supports_allocation(allocation_type::usm_device);
+    auto use_lockable_memory = is_output_buffer(_node) || _node.get_selected_impl()->is_cpu() || is_any_user_cpu(_node.get_users()) ||
+                               !engine.supports_allocation(allocation_type::usm_device);
 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     const auto& lockable_mem_type = engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
