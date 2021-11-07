@@ -206,7 +206,9 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             newSubtractFullPathValues == nullptr ?
-                fullPathInput :
+                (fullPathInput.get_element_type() != newMultiplyFullPathValues->get_element_type() ?
+                     std::make_shared<opset1::Convert>(fullPathInput, newMultiplyFullPathValues->get_element_type()) :
+                     fullPathInput) :
                 std::make_shared<opset1::Subtract>(
                     // precision on branch with dequantization operations can be different with dequantization precision,
                     // for example: FP16 model with FP32 dequantization

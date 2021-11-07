@@ -497,6 +497,9 @@ void network::allocate_primitives() {
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = node->get_output_layout();
 
+                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                        continue;
+
                     if (eltw_in_layout.size == out_layout.size &&
                         eltw_in_layout.format == out_layout.format &&
                         eltw_in_layout.data_padding == out_layout.data_padding &&
