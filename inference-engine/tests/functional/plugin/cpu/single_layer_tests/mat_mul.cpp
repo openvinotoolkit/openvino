@@ -29,7 +29,7 @@ typedef std::tuple<
         ElementType,        // Input precision
         ElementType,        // Output precision
         ngraph::helpers::InputLayerType,   // Secondary input type
-        LayerTestsUtils::TargetDevice,     // Device name
+        TargetDevice,     // Device name
         std::map<std::string, std::string> // Additional network configuration
 > MatMulLayerTestParamsSet;
 
@@ -51,7 +51,7 @@ public:
         ElementType inType, outType;
         ShapeRelatedParams shapeRelatedParams;
         ngraph::helpers::InputLayerType secondaryInputType;
-        std::string targetDevice;
+        TargetDevice targetDevice;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) =
                 basicParamsSet;
