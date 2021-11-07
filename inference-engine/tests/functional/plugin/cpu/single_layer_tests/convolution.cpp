@@ -228,9 +228,6 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingAddPerChannel
 };
 
-const std::map<std::string, std::string> cpuEmptyPluginConfig;
-const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
-
 /* ============= Convolution params (GEMM layout) ============= */
 const SizeVector numOutChannels_Gemm = {6 };
 

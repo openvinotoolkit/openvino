@@ -159,7 +159,12 @@ protected:
     std::string selectedType;
 };
 
+// common parameters
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
+const std::map<std::string, std::string> cpuEmptyPluginConfig;
+const std::map<std::string, std::string> cpuBF16PluginConfig =
+        { { InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES } };
+
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);

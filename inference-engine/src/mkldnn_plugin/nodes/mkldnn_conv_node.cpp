@@ -105,7 +105,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         }
         paddingL = groupConvolutionOp->get_pads_begin();
         paddingR = groupConvolutionOp->get_pads_end();
-        padType = convolutionOp->get_auto_pad();
+        padType = groupConvolutionOp->get_auto_pad();
     }
 }
 
