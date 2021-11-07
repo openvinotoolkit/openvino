@@ -6,6 +6,7 @@
 
 #include "transformations/convert_precision.hpp"
 #include "transformations/utils/utils.hpp"
+#include "itt.hpp"
 
 using namespace ov;
 
@@ -37,7 +38,6 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 }
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_function(std::shared_ptr<ov::Function> f) {
-    RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
 
     manager.register_pass<ov::pass::ConvertPrecisionCompressedOnly>();

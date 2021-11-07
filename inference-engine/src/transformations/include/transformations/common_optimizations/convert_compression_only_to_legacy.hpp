@@ -45,5 +45,5 @@ public:
 class ov::pass::ConvertCompressedOnlyToLegacy : public ov::pass::FunctionPass {
 public:
     OPENVINO_RTTI("ConvertCompressedOnlyToLegacy", "0");
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    bool run_on_function(std::shared_ptr<Function> f) override;
 };
