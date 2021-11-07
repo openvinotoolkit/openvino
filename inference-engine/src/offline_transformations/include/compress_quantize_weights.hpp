@@ -12,6 +12,7 @@ namespace ngraph {
 namespace pass {
 
 class CompressQuantizeWeights;
+class ZeroPointOptimizer;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -60,8 +61,14 @@ class CompressQuantizeWeights;
     Such constant data packing reduces IR size (.bin file size) in offline transformations.
     With that we can skip same calculations in the runtime and make loading of such sub-graphs to the plugin faster.
 */
-class TRANSFORMATIONS_API ngraph::pass::CompressQuantizeWeights: public ngraph::pass::MatcherPass {
+class ngraph::pass::CompressQuantizeWeights: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     CompressQuantizeWeights();
+};
+
+class ngraph::pass::ZeroPointOptimizer: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ZeroPointOptimizer();
 };
