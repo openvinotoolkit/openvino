@@ -22,9 +22,9 @@ size_t DiscreteTypeInfo::hash() const {
     size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
     // don't use parent for hash calculation, it is not a part of type (yet)
     NGRAPH_SUPPRESS_DEPRECATED_START
-    hash_value = ngraph::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
+    size_t res_value = ngraph::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
     NGRAPH_SUPPRESS_DEPRECATED_END
-    return hash_value;
+    return res_value;
 }
 
 std::ostream& operator<<(std::ostream& s, const DiscreteTypeInfo& info) {
@@ -59,10 +59,9 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
     return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
-    if (version_id == nullptr || b.version_id == nullptr)
+    if (hash_value == 0 || b.hash_value == 0)
         return version == b.version && strcmp(name, b.name) == 0;  // && parent == b.parent;
-    else
-        return strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0;  // && parent == b.parent;
+    return hash_value == b.hash_value;
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;
