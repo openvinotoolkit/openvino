@@ -6,6 +6,7 @@
 
 #include "transformations_visibility.hpp"
 #include "openvino/pass/pass.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace pass {

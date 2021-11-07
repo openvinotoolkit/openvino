@@ -6,6 +6,8 @@
 
 #include "transformations/convert_precision.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/pass/manager.hpp"
 #include "itt.hpp"
 
 using namespace ov;
@@ -38,7 +40,7 @@ ov::pass::EnableDecompressionConvertConstantFolding::EnableDecompressionConvertC
 }
 
 bool ov::pass::ConvertCompressedOnlyToLegacy::run_on_function(std::shared_ptr<ov::Function> f) {
-    ngraph::pass::Manager manager(get_pass_config());
+    Manager manager(get_pass_config());
 
     manager.register_pass<ov::pass::ConvertPrecisionCompressedOnly>();
     manager.register_pass<ov::pass::EnableDecompressionConvertConstantFolding>();
