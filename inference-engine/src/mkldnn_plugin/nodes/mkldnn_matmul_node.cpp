@@ -98,7 +98,8 @@ MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) 
 }
 
 MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() const {
-    return initPrimitiveAttr(MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0)).getStaticDims());
+    auto dummyShape = MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0));
+    return initPrimitiveAttr(dummyShape.getStaticDims());
 }
 
 /* Example MatMul:

@@ -193,10 +193,10 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     functionRefs->validate_nodes_and_infer_types();
 
     auto convertTensorPrc = [](const ov::runtime::Tensor& srcTensor, const ov::runtime::Tensor& dstTensor) {
-        static ngraph::op::Convert covert;
+        static ngraph::op::Convert convert;
         auto src = std::make_shared<ov::HostTensor>(srcTensor.get_element_type(), srcTensor.get_shape(), srcTensor.data());
         auto dst = std::make_shared<ov::HostTensor>(dstTensor.get_element_type(), dstTensor.get_shape(), dstTensor.data());
-        covert.evaluate({dst}, {src});
+        convert.evaluate({dst}, {src});
     };
 
     InputsMap referenceFuncInputs;
