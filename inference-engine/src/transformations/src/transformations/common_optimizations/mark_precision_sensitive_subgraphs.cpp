@@ -18,7 +18,7 @@
 using namespace std;
 
 namespace {
-void visit_shape_path(const shared_ptr<ov::Node>& node, set<shared_ptr<ov::Node>>& visited) {
+void visit_shape_path(const shared_ptr<ov::Node>& node, unordered_set<shared_ptr<ov::Node>>& visited) {
     if (!node)
         return;
     visited.insert(node);
@@ -46,7 +46,7 @@ void visit_shape_path(const shared_ptr<ov::Node>& node, set<shared_ptr<ov::Node>
 
 bool ov::pass::MarkPrecisionSensitiveSubgraphs::run_on_function(std::shared_ptr<ov::Function> f) {
     deque<shared_ptr<Node>> nodes;
-    set<shared_ptr<Node>> visited;
+    unordered_set<shared_ptr<Node>> visited;
     for (auto& r : f->get_results())
         nodes.push_back(r);
     for (auto& r : f->get_sinks())

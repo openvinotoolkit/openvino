@@ -16,6 +16,11 @@ class TRANSFORMATIONS_API MarkPrecisionSensitiveSubgraphs;
 }  // namespace pass
 }  // namespace ov
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MarkPrecisionSensitiveSubgraphs transformation marks the constants
+ * inside the subgraph starting from precision-sensitive input and ending at the ShapeOf node.
+ */
 class ov::pass::MarkPrecisionSensitiveSubgraphs : public FunctionPass {
 public:
     OPENVINO_RTTI("MarkPrecisionSensitiveSubgraphs", "0");
