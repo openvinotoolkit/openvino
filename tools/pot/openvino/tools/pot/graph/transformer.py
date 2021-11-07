@@ -60,6 +60,9 @@ class GraphTransformer:
         self.fq_name_swapper.rename_fqs_in_the_end(graph)
         graph.clean_up()
 
+        self.fq_removal.optimize_for_gp_hw(graph, self.target_device)
+        graph.clean_up()
+
         return graph
 
     def insert_fake_quantize(self, model, ignored_params=None):
