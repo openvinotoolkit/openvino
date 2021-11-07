@@ -70,9 +70,8 @@ struct mem_stringbuf : std::streambuf {
         char * bptr(const_cast<char *>(buffer));
         setg(bptr, bptr, bptr + sz);
     }
-    
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in) override
-    {
+
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in) override {
         switch (dir) {
             case std::ios_base::beg:
                 setg(eback(), eback() + off, egptr());
@@ -86,11 +85,10 @@ struct mem_stringbuf : std::streambuf {
             default:
                 return pos_type(off_type(-1));
         }
-        return gptr() < eback() || gptr() > egptr() ? pos_type(off_type(-1)) : gptr() - eback();
+        return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
     }
 
-    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override
-    {
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
         return seekoff(pos, std::ios_base::beg, which);
     }
 };
