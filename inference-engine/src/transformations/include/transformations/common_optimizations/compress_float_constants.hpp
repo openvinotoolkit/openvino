@@ -46,6 +46,6 @@ public:
     OPENVINO_RTTI("CompressFloatConstants", "0");
     CompressFloatConstants() {
         add_matcher<ov::pass::CompressFloatConstantsImpl>();
-        add_matcher<ov::pass::AddOldApiMapToParameters, false>();
+        add_matcher<ov::pass::AddOldApiMapToParameters>();
     }
 };
