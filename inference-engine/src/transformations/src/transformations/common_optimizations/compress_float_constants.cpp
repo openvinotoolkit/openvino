@@ -17,26 +17,25 @@ namespace {
 template <ov::element::Type_t PREC_FROM>
 std::shared_ptr<ov::Node> change_constant_precision_to_fp16(std::shared_ptr<ov::opset8::Constant>& constant) {
     using src_type = typename ov::element_type_traits<PREC_FROM>::value_type;
-    using dst_type = typename float16;
 
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = ov::shape_size(constant->get_shape());
 
     auto new_constant = std::make_shared<ov::opset8::Constant>(ov::element::f16, constant->get_shape());
-    auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
+    auto* dst_data = const_cast<ov::float16*>(reinterpret_cast<const ov::float16*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
         return nullptr;
 
     bool is_overflow = false;
     for (size_t i = 0; i < size; ++i) {
-        if (src_data[i] > std::numeric_limits<dst_type>::max()) {
-            dst_data[i] = std::numeric_limits<dst_type>::max();
+        if (src_data[i] > std::numeric_limits<ov::float16>::max()) {
+            dst_data[i] = std::numeric_limits<ov::float16>::max();
             is_overflow = true;
-        } else if (src_data[i] < std::numeric_limits<dst_type>::lowest()) {
-            dst_data[i] = std::numeric_limits<dst_type>::lowest();
+        } else if (src_data[i] < std::numeric_limits<ov::float16>::lowest()) {
+            dst_data[i] = std::numeric_limits<ov::float16>::lowest();
             is_overflow = true;
         } else {
-            dst_data[i] = static_cast<dst_type>(src_data[i]);
+            dst_data[i] = static_cast<ov::float16>(src_data[i]);
         }
     }
     if (is_overflow) {

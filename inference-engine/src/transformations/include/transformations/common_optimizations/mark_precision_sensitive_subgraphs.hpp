@@ -19,7 +19,8 @@ class TRANSFORMATIONS_API MarkPrecisionSensitiveSubgraphs;
 /**
  * @ingroup ie_transformation_common_api
  * @brief MarkPrecisionSensitiveSubgraphs transformation marks the constants
- * inside the subgraph starting from precision-sensitive input and ending at the ShapeOf node.
+ * inside the subgraph starting from precision-sensitive input and ending at
+ * the ShapeOf node as disabled for FP16 compression.
  */
 class ov::pass::MarkPrecisionSensitiveSubgraphs : public FunctionPass {
 public:
