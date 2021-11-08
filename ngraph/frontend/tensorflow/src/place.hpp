@@ -19,8 +19,7 @@ public:
         : m_input_model(input_model),
           m_names(names) {}
 
-    explicit PlaceTF(const ov::frontend::InputModel& input_model)
-        : PlaceTF(input_model, std::vector<std::string>{}) {}
+    explicit PlaceTF(const ov::frontend::InputModel& input_model) : PlaceTF(input_model, std::vector<std::string>{}) {}
 
     ~PlaceTF() override = default;
 

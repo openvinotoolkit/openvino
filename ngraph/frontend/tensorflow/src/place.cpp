@@ -140,8 +140,7 @@ ov::frontend::Place::Ptr OpPlaceTF::get_producing_operation(const std::string& i
     return get_input_port(inputName)->get_producing_operation();
 }
 
-ov::frontend::Place::Ptr OpPlaceTF::get_producing_operation(const std::string& inputName,
-                                                                int inputPortIndex) const {
+ov::frontend::Place::Ptr OpPlaceTF::get_producing_operation(const std::string& inputName, int inputPortIndex) const {
     return get_input_port(inputName, inputPortIndex)->get_producing_operation();
 }
 

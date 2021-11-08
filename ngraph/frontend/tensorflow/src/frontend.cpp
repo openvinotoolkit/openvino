@@ -291,8 +291,7 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>&
     return false;
 }
 
-ov::frontend::InputModel::Ptr FrontEndTF::load_impl(
-    const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
+ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
         // a case when binary protobuf format is provided
