@@ -44,7 +44,7 @@ std::string generate_model_path(std::string dir, std::string filename) {
 }
 
 std::string generate_gna_model_path(std::string filename) {
-    return get_data_path() + kPathSeparator + std::string("gna") + kPathSeparator + filename;
+    return get_data_path() + kPathSeparator + "gna" + kPathSeparator + filename;
 }
 
 std::string generate_image_path(std::string dir, std::string filename) {
