@@ -5,8 +5,8 @@ Code snippets below show how application code should be changed for migration to
 
 nGraph API:
 
-@snippet snippets/ngraph.cpp ngraph::graph
+@snippet snippets/ngraph.cpp ngraph:graph
 
 OpenVINO™ 2.0 API:
 
-@snippet snippets/ov_graph.cpp ov::graph
+@snippet snippets/ov_graph.cpp ov:graph
