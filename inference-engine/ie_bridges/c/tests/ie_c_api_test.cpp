@@ -331,7 +331,7 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_model_path("test_model", "gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
 
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &config, &exe_network));
@@ -356,7 +356,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "327.67", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_model_path("test_model", "gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
 
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
@@ -388,7 +388,7 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "32767", &conf1};
 
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
+    std::string model_path_str = TestDataHelpers::generate_model_path("test_model", "gna_basic_fp32.xml");
     const char *model_path = model_path_str.c_str();
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
