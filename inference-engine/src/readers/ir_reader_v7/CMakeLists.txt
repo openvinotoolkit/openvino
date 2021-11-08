@@ -15,7 +15,13 @@ source_group("src" FILES ${LIBRARY_SRC})
 
 # Create module library
 
-add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
+if(BUILD_SHARED_LIBS)
+    set(library_type MODULE)
+else()
+    set(library_type STATIC)
+endif()
+
+add_library(${TARGET_NAME} ${library_type} ${LIBRARY_SRC})
 
 ie_faster_build(${TARGET_NAME}
     UNITY
@@ -29,7 +35,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLU
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/")
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api
-                                             inference_engine_legacy inference_engine pugixml::static openvino::itt)
+                                             inference_engine_legacy pugixml::static openvino::itt)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -37,6 +43,12 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+endif()
+
+if(NOT BUILD_SHARED_LIBS)
+    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 endif()
 
 # code style

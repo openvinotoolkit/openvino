@@ -94,7 +94,7 @@ public:
     /// \brief Hook for adapters that need visitor access
     virtual void on_adapter(const std::string& name, VisitorAdapter& adapter);
 
-    /// \brief Provides API to handle nGraph Function attribute type, accessed as ValueAccessor
+    /// \brief Provides API to handle openvino Function attribute type, accessed as ValueAccessor
     /// \param name attribute name
     /// \param adapter reference to a Function ValueAccessor<VAT>
     virtual void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Function>>& adapter);
@@ -119,7 +119,7 @@ public:
     /// \brief Finish visiting a nested structure
     virtual std::string finish_structure();
     using node_id_t = std::string;
-    static const node_id_t invalid_node_id;
+    static constexpr char invalid_node_id[] = "";
     /// \brief Associate a node with an id.
     ///
     /// No node may be used as an attribute unless it has already been registered with an ID.

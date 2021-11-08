@@ -265,6 +265,9 @@ class LayerInfo {
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
+    bool isReshape() const noexcept {
+        return isOfType("reshape");
+    }
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
@@ -342,6 +345,10 @@ class LayerInfo {
     }
     bool isWeightableIdentity() const noexcept {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isCropAffined();
+    }
+
+    bool isSynthetic() const noexcept {
+        return isConcatAlignFilter() || isSyntheticScaleShift() || isConvolutionFilter() || isAffineFilter();
     }
 
     size_t paddingSize() const {

@@ -29,6 +29,18 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
                                                      MKLDNNExecNetwork::Ptr             execNetwork_)
 : IInferRequestInternal(networkInputs, networkOutputs)
 , execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                     const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                                                     MKLDNNExecNetwork::Ptr             execNetwork_)
+: IInferRequestInternal(inputs, outputs)
+, execNetwork(execNetwork_) {
+    CreateInferRequest();
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::CreateInferRequest() {
     auto id = (execNetwork->_numRequests)++;
     profilingTask = openvino::itt::handle("MKLDNN_INFER_" + execNetwork->_name + "_" + std::to_string(id));
 
@@ -227,7 +239,9 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
 
     InferenceEngine::Blob::Ptr data;
 
-    if (graph->hasInputWithName(name)) {
+    const auto &inMap = graph->inputNodesMap;
+    auto input = inMap.find(name);
+    if (input != inMap.end()) {
         // ROI blob is returned only if it was set previously.
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
@@ -238,7 +252,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
         if (_inputs.find(name) == _inputs.end()) {
             if (_networkInputs.find(name) != _networkInputs.end()) {
                 InferenceEngine::TensorDesc desc = _networkInputs[name]->getTensorDesc();
-                bool isDynamic = _networkInputs[name]->getInputData()->isDynamic();
+                bool isDynamic = input->second->isDynamicNode();
 
                 _inputs[name] = make_blob_with_precision(desc);
                 _inputs[name]->allocate();
@@ -273,60 +287,67 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
     }
 
     if (graph->hasOutputWithName(name)) {
-        const auto outNode = graph->getOutputNodeByName(name);
-        if (_outputs.find(name) == _outputs.end()) {
-            if (_networkOutputs.find(name) != _networkOutputs.end()) {
-                bool isDynamic = outNode->isDynamicNode();
-                const auto &desc = outNode->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
+        if (auto outNode = graph->getOutputNodeByName(name)) {
+            if (_outputs.find(name) == _outputs.end()) {
+                if (_networkOutputs.find(name) != _networkOutputs.end()) {
+                    bool isDynamic = outNode->isDynamicNode();
+                    const auto &desc = outNode->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
 
-                if (!data) {
-                    InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
-                    desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
+                    if (!data) {
+                        InferenceEngine::TensorDesc desc = _networkOutputs[name]->getTensorDesc();
+                        desc.setPrecision(normalizeToSupportedPrecision(desc.getPrecision()));
 
-                    data = make_blob_with_precision(desc);
-                    data->allocate();
-                } else {
-                    const auto& expectedTensorDesc = isDynamic ? InferenceEngine::TensorDesc(desc.getPrecision(),
-                                                                          InferenceEngine::TensorDesc::getLayoutByRank(desc.getShape().getRank()))
-                                                                : MemoryDescUtils::convertToTensorDesc(desc);
-                    const auto &tensorDesc = data->getTensorDesc();
-                    if (expectedTensorDesc.getPrecision() != tensorDesc.getPrecision()) {
-                        IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different precision: "
-                                                    << tensorDesc.getPrecision() << " for input and " << expectedTensorDesc.getPrecision()
-                                                    << " for output.";
-                    }
-
-                    if (expectedTensorDesc.getDims() != tensorDesc.getDims()) {
-                        IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different shapes.";
-                    }
-
-                    if (tensorDesc.getLayout() != InferenceEngine::Layout::ANY && expectedTensorDesc.getLayout() != InferenceEngine::Layout::ANY) {
-                        if (tensorDesc.getLayout() != expectedTensorDesc.getLayout() && !(tensorDesc.getLayout() == InferenceEngine::Layout::BLOCKED &&
-                            InferenceEngine::TensorDesc(tensorDesc.getPrecision(), tensorDesc.getDims(), tensorDesc.getBlockingDesc()).getLayout() ==
-                                expectedTensorDesc.getLayout())) {
-                                IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs" <<
-                                                               " with different layouts.";
+                        data = make_blob_with_precision(desc);
+                        data->allocate();
+                    } else {
+                        const auto &expectedTensorDesc = isDynamic ? InferenceEngine::TensorDesc(desc.getPrecision(),
+                                                                                                 InferenceEngine::TensorDesc::getLayoutByRank(
+                                                                                                         desc.getShape().getRank()))
+                                                                   : MemoryDescUtils::convertToTensorDesc(desc);
+                        const auto &tensorDesc = data->getTensorDesc();
+                        if (expectedTensorDesc.getPrecision() != tensorDesc.getPrecision()) {
+                            IE_THROW(ParameterMismatch)
+                                    << "Network input and output use the same name: " << name << " but expect blobs with different precision: "
+                                    << tensorDesc.getPrecision() << " for input and " << expectedTensorDesc.getPrecision()
+                                    << " for output.";
                         }
 
-                        if (expectedTensorDesc.getBlockingDesc() != tensorDesc.getBlockingDesc())
-                            IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
-                                                        << " but expect blobs with different blocking descriptors.";
+                        if (expectedTensorDesc.getDims() != tensorDesc.getDims()) {
+                            IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs with different shapes.";
+                        }
+
+                        if (tensorDesc.getLayout() != InferenceEngine::Layout::ANY && expectedTensorDesc.getLayout() != InferenceEngine::Layout::ANY) {
+                            if (tensorDesc.getLayout() != expectedTensorDesc.getLayout() &&
+                                !(tensorDesc.getLayout() == InferenceEngine::Layout::BLOCKED &&
+                                    InferenceEngine::TensorDesc(tensorDesc.getPrecision(),
+                                                                tensorDesc.getDims(),
+                                                                tensorDesc.getBlockingDesc()).getLayout() == expectedTensorDesc.getLayout())) {
+                                IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name << " but expect blobs" <<
+                                                            " with different layouts.";
+                            }
+
+                            if (expectedTensorDesc.getBlockingDesc() != tensorDesc.getBlockingDesc())
+                                IE_THROW(ParameterMismatch) << "Network input and output use the same name: " << name
+                                                            << " but expect blobs with different blocking descriptors.";
+                        }
                     }
-                }
 
-                _outputs[name] = data;
-                if (!isDynamic && !externalPtr.count(name) && data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(desc) &&
+                    _outputs[name] = data;
+                    if (!isDynamic && !externalPtr.count(name) && data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(desc) &&
                         !graph->getProperty().batchLimit) {
-                    externalPtr[name] = data->buffer();
+                        externalPtr[name] = data->buffer();
+                    }
+                } else {
+                    IE_THROW() << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network outputs";
                 }
-            } else {
-                IE_THROW() << "Blob with name: " << name << " exists in MKLDNN graph, but absents in network outputs";
             }
-        }
 
-        data = _outputs[name];
-        if (!outNode->isDynamicNode())
-            checkBlob(data, name, false);
+            data = _outputs[name];
+            if (!outNode->isDynamicNode())
+                checkBlob(data, name, false);
+        } else {
+            IE_THROW() << "Output node with name: " << name << " has not been created";
+        }
     }
     if (!data) {
         IE_THROW() << "Cannot find blob with name: " << name;
@@ -342,20 +363,31 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
 
     if (!data)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
+    InferenceEngine::InputInfo::Ptr foundInput;
+    InferenceEngine::DataPtr foundOutput;
+    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
+
+    MKLDNNNodePtr inputNode, outputNode;
+    if (isInput) {
+        inputNode = graph->getInputNodeByName(name);
+    } else if (foundOutput) {
+        outputNode = graph->getOutputNodeByName(name);
+    } else {
+        IE_THROW() << "Failed to set blob, can't find blob with name: " << name;
+    }
+
     const bool compoundBlobPassed = data->is<InferenceEngine::CompoundBlob>();
     if (!compoundBlobPassed && data->buffer() == nullptr)
         IE_THROW(NotAllocated) << "Input data was not allocated. Input name: \'" << name << "\'";
-    if (data->size() == 0) {
+    if (data->size() == 0 &&
+        !((inputNode && inputNode->isDynamicNode()) || (outputNode && outputNode->isDynamicNode()))) {
         IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
     }
 
-    InferenceEngine::InputInfo::Ptr foundInput;
-    InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
-    findInputAndOutputBlobByName(name, foundInput, foundOutput);
     const auto &blobDesc = data->getTensorDesc();
 
-    if (foundInput) {
+    if (isInput) {
         if (foundInput->getPrecision() != blobDesc.getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set input blob with precision: "
                                << blobDesc.getPrecision() << ", if CNNNetwork input blob precision is: " << foundInput->getPrecision();
@@ -380,7 +412,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                 ? InferenceEngine::details::product(foundInput->getTensorDesc().getDims())
                 : 1;
 
-            const bool isDynamic = foundInput->getInputData()->isDynamic();
+            const bool isDynamic = inputNode->isDynamicNode();
             if (!isDynamic && dataSize != inputSize) {
                 IE_THROW() << "Input blob size is not equal network input size ("
                                    << dataSize << "!=" << inputSize << ").";
@@ -423,7 +455,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
             ? InferenceEngine::details::product(foundOutput->getDims())
             : 1;
 
-        const bool isDynamic = foundOutput->isDynamic();
+        const bool isDynamic = outputNode->isDynamicNode();
         if (!isDynamic && dataSize != outputSize) {
             IE_THROW() << "Output blob size is not equal network output size ("
                                << dataSize << "!=" << outputSize << ").";

@@ -22,9 +22,7 @@ using namespace testing;
 using namespace ngraph;
 
 
-TEST(TransformationTests, ReluFakeQuantizeFusion) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-
+TEST_F(TransformationTestsF, ReluFakeQuantizeFusion) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -36,12 +34,8 @@ TEST(TransformationTests, ReluFakeQuantizeFusion) {
         auto fq = std::make_shared<opset5::FakeQuantize>(relu, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
-        f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ReluFakeQuantizeFusion>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        manager.register_pass<pass::ReluFakeQuantizeFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -52,16 +46,11 @@ TEST(TransformationTests, ReluFakeQuantizeFusion) {
         auto fq = std::make_shared<opset5::FakeQuantize>(data, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
-        f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ReluFakeQuantizeFusionNegativeInputLow) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-
+TEST_F(TransformationTestsF, ReluFakeQuantizeFusionNegativeInputLow) {
     Shape data_shape{1, 3, 14, 14};
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -73,12 +62,8 @@ TEST(TransformationTests, ReluFakeQuantizeFusionNegativeInputLow) {
         auto fq = std::make_shared<opset5::FakeQuantize>(relu, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
-        f = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::ReluFakeQuantizeFusion>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        function = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        manager.register_pass<pass::ReluFakeQuantizeFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -90,9 +75,6 @@ TEST(TransformationTests, ReluFakeQuantizeFusionNegativeInputLow) {
         auto fq = std::make_shared<opset5::FakeQuantize>(relu, input_low,
                                                          input_high, output_low,
                                                          output_high, 11);
-        f_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{fq}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

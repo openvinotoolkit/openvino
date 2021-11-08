@@ -6,6 +6,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/preprocess/input_info.hpp"
+#include "openvino/core/preprocess/output_info.hpp"
 
 namespace ov {
 
@@ -42,21 +43,33 @@ public:
     /// \brief Default destructor
     ~PrePostProcessor();
 
-    /// \brief Adds pre-processing information and steps to input of model. This method can be used only if ov::Function
-    /// passed on `build` has only one input
+    /// \brief Adds pre-processing information and steps to input of model.
     ///
     /// \param builder Pre-processing data for input tensor of model.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
     PrePostProcessor& input(InputInfo&& builder) &;
 
-    /// \brief Adds pre-processing information and steps to input of model - Rvalue version. This method can be used
-    /// only if ov::Function passed on `build` has only one input.
+    /// \brief Adds pre-processing information and steps to input of model - Rvalue version.
     ///
     /// \param builder Pre-processing data for input tensor of model.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PrePostProcessor&& input(InputInfo&& builder) &&;
+
+    /// \brief Adds post-processing information and steps to output of model.
+    ///
+    /// \param builder Post-processing data for output tensor of model.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PrePostProcessor& output(OutputInfo&& builder) &;
+
+    /// \brief Adds pre-processing information and steps to input of model - Rvalue version.
+    ///
+    /// \param builder Post-processing data for output tensor of model.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    PrePostProcessor&& output(OutputInfo&& builder) &&;
 
     /// \brief Adds pre/post-processing operations to existing function
     ///

@@ -230,6 +230,8 @@ TEST_P(ConcatTransformation, CompareFunctions) {
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false, true, false);
     ASSERT_TRUE(res.first) << res.second;
 
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+
     ConcatTransformationTestValues testValues = std::get<2>(GetParam());
     const auto actualFakeQuantizes = LayerTransformation::get<opset1::FakeQuantize>(actualFunction);
     if (testValues.axis == 1) {

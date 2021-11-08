@@ -23,7 +23,8 @@ namespace ov {
 namespace op {
 namespace v0 {
 class Parameter;
-}
+class Result;
+}  // namespace v0
 }  // namespace op
 }  // namespace ov
 namespace ngraph {
@@ -31,7 +32,8 @@ namespace ngraph {
 namespace op {
 namespace v0 {
 using ov::op::v0::Parameter;
-}
+using ov::op::v0::Result;
+}  // namespace v0
 }  // namespace op
 
 using ov::clone_function;
@@ -129,7 +131,7 @@ std::list<std::shared_ptr<ngraph::Node>> clone_nodes(const std::vector<std::shar
 
 NGRAPH_DEPRECATED("This method is deprecated and will be removed soon")
 NGRAPH_API
-std::pair<std::shared_ptr<op::Result>, std::shared_ptr<op::v0::Parameter>> insert_result_parameter_split(
+std::pair<std::shared_ptr<op::v0::Result>, std::shared_ptr<op::v0::Parameter>> insert_result_parameter_split(
     const std::shared_ptr<Node>& src_node,
     const std::shared_ptr<Node>& dst_node);
 

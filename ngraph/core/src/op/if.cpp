@@ -60,8 +60,6 @@ static ov::PartialShape resolve_shape(const ov::PartialShape& then_pshape, const
 
 bool op::v8::If::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_If_visit_attributes);
-    m_bodies[THEN_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "then_branch");
-    m_bodies[ELSE_BODY_INDEX] = std::make_shared<ngraph::Function>(OutputVector{}, ParameterVector{}, "else_branch");
     visitor.on_attribute("then_body", m_bodies[THEN_BODY_INDEX]);
     visitor.on_attribute("else_body", m_bodies[ELSE_BODY_INDEX]);
     visitor.on_attribute("then_inputs", m_input_descriptions[THEN_BODY_INDEX]);
@@ -220,17 +218,6 @@ op::v8::If::OutputMap op::v8::If::get_mapping_outputs_on_body_description(
     }
 
     return outputs_map;
-}
-
-bool op::v8::If::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v8_If_evaluate);
-    runtime::reference::if_reference(m_bodies, m_output_descriptions, m_input_descriptions, outputs, inputs);
-    return true;
-}
-
-bool op::v8::If::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v8_If_has_evaluate);
-    return true;
 }
 
 void op::v8::If::set_input(const Output<Node>& value,

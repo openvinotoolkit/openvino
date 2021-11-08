@@ -80,11 +80,11 @@ public:
 
     static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch);
 
-    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::vector<std::shared_ptr<Node>>& targets);
+    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::vector<std::shared_ptr<Node>>& targets, bool overrideName = true);
 
-    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target);
+    static void copyInfo(const std::vector<std::shared_ptr<Node>>& sources, const std::shared_ptr<Node>& target, bool overrideName = true);
 
-    static void copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target);
+    static void copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target, bool overrideName = true);
 
     static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
 
