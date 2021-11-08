@@ -332,21 +332,12 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
     _ksizes.clear();
     _strides.clear();
     _rates.clear();
-    for (const auto& x :  ksizes) {
-        if (x < 0)
-            IE_THROW() << "Kernel sizes must be non-negative, got '" << x << "'.";
-        _ksizes.push_back(static_cast<size_t>(x));
-    }
-    for (const auto& x :  strides) {
-        if (x < 0)
-            IE_THROW() << "Strides must be non-negative, got '" << x << "'.";
-        _strides.push_back(static_cast<size_t>(x));
-    }
-    for (const auto& x :  rates) {
-        if (x < 0)
-            IE_THROW() << "Rates must be non-negative, got '" << x << "'.";
-        _rates.push_back(static_cast<size_t>(x));
-    }
+    for (const auto& x : ksizes)
+        _ksizes.push_back(x);
+    for (const auto& x : strides)
+        _strides.push_back(x);
+    for (const auto& x : rates)
+        _rates.push_back(x);
 
     SizeVector in_dims = op->get_input_shape(0);
     _pad_left = 0;
