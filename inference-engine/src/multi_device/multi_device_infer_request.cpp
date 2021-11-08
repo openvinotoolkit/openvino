@@ -99,8 +99,13 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         if (req->GetBlob(name) != blob) {
             auto exeNetwork = _exeNetwork.get();
             if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_alreadyActualNetwork && !blob->is<RemoteBlob>()) {
-                CopyBlob(blob, req->GetBlob(name));
-                SetBlob(name, req->GetBlob(name));
+                auto it = _preProcData.find(name);
+                if (it != _preProcData.end()) {
+                    req->SetBlob(name, blob);
+                } else {
+                    CopyBlob(blob, req->GetBlob(name));
+                    SetBlob(name, req->GetBlob(name));
+                }
             } else {
                 req->SetBlob(name, blob);
             }
