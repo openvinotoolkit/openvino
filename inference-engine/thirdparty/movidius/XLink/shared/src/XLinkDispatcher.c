@@ -1128,7 +1128,10 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
                     dispatcherFreeEvents(&curr->lQueue, EVENT_PENDING);
                     dispatcherFreeEvents(&curr->lQueue, EVENT_BLOCKED);
                     XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
-                    mvLog(MVLOG_ERROR, "Event sending failed");
+                    mvLog(MVLOG_ERROR, "Event sending failed. "
+                                       "Event: id=%d, type=%s, streamId=%u, streamName=%s",
+                                       toSend->header.id,  TypeToStr(toSend->header.type),
+                                       toSend->header.streamId, toSend->header.streamName);
                 }
             } else {
                 XLINK_RET_ERR_IF(pthread_mutex_unlock(&(curr->queueMutex)) != 0, X_LINK_ERROR);
