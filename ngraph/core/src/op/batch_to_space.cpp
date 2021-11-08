@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <batch_to_space_shape_inference.hpp>
 #include <memory>
 #include <ngraph/ops.hpp>
 #include <ngraph/validation_util.hpp>
@@ -34,6 +35,7 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
 }
 
 void op::v1::BatchToSpace::validate_and_infer_types() {
+#if 0
     NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
 
     const auto& data_et = get_input_element_type(0);
@@ -154,6 +156,38 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
     } else {
         set_output_type(0, data_et, ov::PartialShape::dynamic(data_rank));
     }
+#endif
+    NGRAPH_OP_SCOPE(v1_BatchToSpace_validate_and_infer_types);
+
+    const auto& data_et = get_input_element_type(0);
+    const auto& block_shape_et = get_input_element_type(1);
+    const auto& crops_begin_et = get_input_element_type(2);
+    const auto& crops_end_et = get_input_element_type(3);
+
+    element::Type inputs_integer_et{};
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(inputs_integer_et, crops_begin_et, crops_end_et) &&
+                              element::Type::merge(inputs_integer_et, inputs_integer_et, block_shape_et),
+                          "block_shape, crops_begin and crops_end inputs must have same element type. Got: ",
+                          block_shape_et,
+                          ", ",
+                          crops_begin_et,
+                          " and ",
+                          crops_end_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          inputs_integer_et.is_integral_number(),
+                          "block_shape and crops inputs must have integer element type. Got: ",
+                          inputs_integer_et);
+
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                        get_input_partial_shape(1),
+                                                        get_input_partial_shape(2),
+                                                        get_input_partial_shape(3)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_size(1);
+    set_output_type(0, data_et, output_shapes[0]);
 }
 
 std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
