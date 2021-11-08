@@ -69,7 +69,7 @@ struct OPENVINO_API DiscreteTypeInfo {
     size_t hash() const;
 
 private:
-    mutable size_t hash_value;
+    size_t hash_value;
 };
 
 OPENVINO_API

@@ -20,8 +20,10 @@ size_t DiscreteTypeInfo::hash() const {
     size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
     size_t version_hash = std::hash<decltype(version)>()(version);
     size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
-    // don't use parent for hash calculation, it is not a part of type (yet)
-    hash_value = ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
+
+    // FIXME: Use const_cast instead of mutable to avoid an issue with GCC 4.8 with consexpr variables
+    const_cast<ov::DiscreteTypeInfo*>(this)->hash_value =
+        ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
     return hash_value;
 }
 
