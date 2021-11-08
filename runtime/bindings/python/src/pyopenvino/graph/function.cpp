@@ -104,11 +104,12 @@ void regclass_graph_Function(py::module m) {
                     get_output_size : int
                         Number of outputs.
                  )");
-    function.def("get_ops",
-                 [](std::shared_ptr<ov::Function>& function) {
-                     return function->get_ops();
-                 },
-                 R"(
+    function.def(
+        "get_ops",
+        [](std::shared_ptr<ov::Function>& function) {
+            return function->get_ops();
+        },
+        R"(
                     Return ops used in the function.
 
                     Returns
@@ -116,11 +117,12 @@ void regclass_graph_Function(py::module m) {
                     get_ops : List[Node]
                         List of Nodes representing ops used in function.
                  )");
-    function.def("get_ordered_ops",
-                 [](std::shared_ptr<ov::Function>& function) {
-                     return function->get_ordered_ops();
-                 },
-                 R"(
+    function.def(
+        "get_ordered_ops",
+        [](std::shared_ptr<ov::Function>& function) {
+            return function->get_ordered_ops();
+        },
+        R"(
                     Return ops used in the function in topological order.
 
                     Returns
@@ -128,11 +130,12 @@ void regclass_graph_Function(py::module m) {
                     get_ordered_ops : List[Node]
                         List of sorted Nodes representing ops used in function.
                  )");
-    function.def("get_output_op",
-                 [](std::shared_ptr<ov::Function>& function, size_t i) {
-                     return function->get_output_op(i);
-                 },
-                 R"(
+    function.def(
+        "get_output_op",
+        [](std::shared_ptr<ov::Function>& function, size_t i) {
+            return function->get_output_op(i);
+        },
+        R"(
                     Return the op that generates output i
 
                     Parameters
@@ -193,11 +196,12 @@ void regclass_graph_Function(py::module m) {
                     get_output_partial_shape : PartialShape
                         PartialShape object of element i
                  )");
-    function.def("get_parameters",
-                 [](std::shared_ptr<ov::Function>& function) {
-                     return function->get_parameters();
-                 },
-                 R"(
+    function.def(
+        "get_parameters",
+        [](std::shared_ptr<ov::Function>& function) {
+            return function->get_parameters();
+        },
+        R"(
                     Return the function parameters.
 
                     Returns
@@ -205,11 +209,12 @@ void regclass_graph_Function(py::module m) {
                     get_parameters : ParameterVector
                         ParameterVector containing function parameters.
                  )");
-    function.def("get_results",
-                 [](std::shared_ptr<ov::Function>& function) {
-                     return function->get_results();
-                 },
-                 R"(
+    function.def(
+        "get_results",
+        [](std::shared_ptr<ov::Function>& function) {
+            return function->get_results();
+        },
+        R"(
                     Return a list of function outputs.
 
                     Returns
@@ -217,11 +222,12 @@ void regclass_graph_Function(py::module m) {
                     get_results : ResultVector
                         ResultVector containing function parameters.
                  )");
-    function.def("get_result",
-                 [](std::shared_ptr<ov::Function>& function) {
-                     return function->get_result();
-                 },
-                 R"(
+    function.def(
+        "get_result",
+        [](std::shared_ptr<ov::Function>& function) {
+            return function->get_result();
+        },
+        R"(
                     Return single result.
 
                     Returns

@@ -1754,36 +1754,36 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         return result;
     };
 
-    const auto isInternalConstLayer = [](const std::shared_ptr<::ngraph::op::Constant> &constLayer,
-                                         const std::shared_ptr<::ngraph::Node> &consumerLayer,
+    const auto isInternalConstLayer = [](const std::shared_ptr<const ::ngraph::op::Constant> &constLayer,
+                                         const std::shared_ptr<const ::ngraph::Node> &consumerLayer,
                                          bool keep_constants) -> bool {
-        if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) && !keep_constants) ||
-            ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::Elu>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::NormalizeIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::PRelu>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::v1::Split>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::VariadicSplit>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::ScaleShiftIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::Transpose>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::LSTMSequenceIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::RNNSequenceIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::GRUSequenceIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer)) {
+        if (((::ngraph::as_type_ptr<const ::ngraph::op::ConvolutionIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::FullyConnected>(consumerLayer)) && !keep_constants) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::DeconvolutionIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::Elu>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::NormalizeIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::PRelu>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::v1::Split>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::VariadicSplit>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::ScaleShiftIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::Transpose>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::LSTMSequenceIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::RNNSequenceIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::GRUSequenceIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::RNNCellIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<const ::ngraph::op::GRUCellIE>(consumerLayer)) {
             // Check that all input nodes except zero input are Constants for all ops except DeformableConvolutions
             // for which the input with index 1 is also dynamic
             size_t inputID = 1;
-            if (::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
-                             ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer) ||
-                             ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer) ||
-                    ::ngraph::as_type_ptr<::ngraph::op::GRUSequenceIE>(consumerLayer) ||
-                    ::ngraph::as_type_ptr<::ngraph::op::RNNSequenceIE>(consumerLayer)) {
+            if (::ngraph::as_type_ptr<const ::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
+                             ::ngraph::as_type_ptr<const ::ngraph::op::GRUCellIE>(consumerLayer) ||
+                             ::ngraph::as_type_ptr<const ::ngraph::op::RNNCellIE>(consumerLayer) ||
+                    ::ngraph::as_type_ptr<const ::ngraph::op::GRUSequenceIE>(consumerLayer) ||
+                    ::ngraph::as_type_ptr<const ::ngraph::op::RNNSequenceIE>(consumerLayer)) {
                 inputID = 2;
-            } else if (::ngraph::as_type_ptr<::ngraph::op::LSTMSequenceIE>(consumerLayer)) {
+            } else if (::ngraph::as_type_ptr<const ::ngraph::op::LSTMSequenceIE>(consumerLayer)) {
                 inputID = 3;
             }
 
@@ -1793,7 +1793,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                     return true;
                 }
             }
-        } else if (::ngraph::as_type_ptr<::ngraph::op::LSTMCellIE>(consumerLayer)) {
+        } else if (::ngraph::as_type_ptr<const ::ngraph::op::LSTMCellIE>(consumerLayer)) {
             for (size_t inputID = 3; inputID < consumerLayer->inputs().size(); ++inputID) {
                 auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node_shared_ptr();
                 if (inputLayer == constLayer) {
@@ -1805,9 +1805,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     };
 
     // Checks that node is internal layer for all layers from specific function
-    const auto isInternalLayer = [=](const std::shared_ptr<::ngraph::Node> &node,
+    const auto isInternalLayer = [=](const std::shared_ptr<const ::ngraph::Node> &node,
                                      bool keep_constant) -> bool {
-        if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
+        if (auto constantNode = ::ngraph::as_type_ptr<const ::ngraph::op::Constant>(node)) {
             for (const auto &consumerInputPort : constantNode->output(0).get_target_inputs()) {
                 const auto &consumerLayer = consumerInputPort.get_node()->shared_from_this();
                 if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
@@ -1816,7 +1816,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             return true;
         }
 
-        return ::ngraph::as_type_ptr<::ngraph::op::Result>(node) != nullptr;
+        return ::ngraph::as_type_ptr<const ::ngraph::op::Result>(node) != nullptr;
     };
 
     const auto keep_input_info = [](CNNNetworkImpl *network, const DataPtr &inData) {
@@ -1859,7 +1859,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     // Construct network
     cnnNetworkImpl->setName(graph->get_friendly_name());
 
-    const ngraph::NodeVector& nodes = graph->get_ops();
+    const ov::ConstNodeVector& nodes = graph->get_ops();
     bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
     std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
@@ -1887,7 +1887,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     };
 
     // normalize nodes names to be unique
-    for (auto & node : nodes) {
+    for (auto & const_node : nodes) {
+        auto node = std::const_pointer_cast<ov::Node>(const_node);
         // skip Result operations as they have the same friendly name as their parent
         if (ngraph::is_type<ngraph::op::Result>(node.get())) {
             continue;
@@ -1911,7 +1912,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     }
 
     // Create layers and output data
-    for (const auto &layer : nodes) {
+    for (const auto &const_layer : nodes) {
+        auto layer = std::const_pointer_cast<ov::Node>(const_layer);
         if (isInternalLayer(layer, keep_constants)) continue;
 
         // TODO: remove this rt info when all blobs will be inputs
@@ -1963,7 +1965,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             // For proper conversion, we must cut off all the layers and data nodes above ReadValue,
             // if they are connected only with this layer.
             // Now MO generates only constants or constant sub-graphs as input to ReadValue op.
-            if (std::dynamic_pointer_cast<::ngraph::op::Constant>(layer)) {
+            if (std::dynamic_pointer_cast<const ::ngraph::op::Constant>(layer)) {
                 bool all_to_read_value = !layer->output(i).get_target_inputs().empty();
                 for (const auto &output_input : layer->output(i).get_target_inputs()) {
                     all_to_read_value
@@ -2016,7 +2018,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
             getCreatorLayer(ptr) = cnnLayer;
             cnnLayer->outData.push_back(ptr);
-            if (std::dynamic_pointer_cast<::ngraph::op::Parameter>(layer)) {
+            if (std::dynamic_pointer_cast<const ::ngraph::op::Parameter>(layer)) {
                 keep_input_info(cnnNetworkImpl, ptr);
             }
         }
@@ -2025,9 +2027,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
     // Set input data
     for (const auto &layer : graph->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<::ngraph::op::ReadValueBase>(layer))
+        if (std::dynamic_pointer_cast<const ::ngraph::op::ReadValueBase>(layer))
             continue;
-        if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
+        if (std::dynamic_pointer_cast<const ::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
             cnnNetworkImpl->addOutput(ngraph::op::util::get_ie_output_name(input));
@@ -2039,7 +2041,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             const auto &output_port = layer->input_value(i);
             const auto &input = output_port.get_node_shared_ptr();
 
-            if (auto const_node = std::dynamic_pointer_cast<::ngraph::op::Constant>(input)) {
+            if (auto const_node = std::dynamic_pointer_cast<const ::ngraph::op::Constant>(input)) {
                 if (isInternalConstLayer(const_node, layer, keep_constants)) {
                     count_of_skipped++;
                     continue;
