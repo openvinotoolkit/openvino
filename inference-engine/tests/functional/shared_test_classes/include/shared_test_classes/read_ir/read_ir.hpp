@@ -7,10 +7,15 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsDefinitions {
-class ReadIRTest : public testing::WithParamInterface<std::tuple<std::string, std::string>>,
+
                    virtual public ov::test::SubgraphBaseTest {
+        std::string,                         // IR path
+        std::string,                         // Target Device
+        std::map<std::string, std::string>>; // Plugin Config
+
+class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, std::string>> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
 
 protected:
     void SetUp() override;

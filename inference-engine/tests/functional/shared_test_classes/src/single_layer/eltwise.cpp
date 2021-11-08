@@ -92,6 +92,10 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
         for (auto& staticShape : targetStaticShapes) {
             staticShape[1] = secondInputShape.get_shape();
         }
+        inputDynamicShapes[1] = secondInputShape;
+        for (auto& staticShape : targetStaticShapes) {
+            staticShape[1] = secondInputShape.get_shape();
+        }
     }
 }
 
@@ -107,7 +111,6 @@ void EltwiseLayerTest::SetUp() {
     Config additional_config;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
         this->GetParam();
-
     init_input_shapes(shapes);
 
     auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
@@ -142,6 +145,12 @@ void EltwiseLayerTest::SetUp() {
                 std::vector<float> data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape), 10, 2);
                 secondaryInput = ngraph::builder::makeConstant(netType, shape, data);
                 break;
+            }
+            case ngraph::helpers::EltwiseTypes::POWER:
+                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);
+                break;
+            default:
+                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
             }
             case ngraph::helpers::EltwiseTypes::POWER:
                 secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);

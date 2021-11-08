@@ -23,6 +23,12 @@ void compare(const std::shared_ptr<ngraph::Node> node,
 //    auto outputs = node->outputs();
 //    LayerTestsUtils::LayerTestsCommon::Compare(expected, actual, threshold);
     ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+        IE_THROW() << "expected.size(): " << expected.size() << " actual.front()->byteSize(): " << actual.front()->byteSize()
+                   << " failed";
+    }
+        IE_THROW() << "expSize: " << expSize << " actSize: " << actSize
+                   << " failed";
+    }
 }
 
 //void compare(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,

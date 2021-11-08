@@ -10,7 +10,7 @@ from openvino.impl import AxisSet, Function, Shape, Type
 from openvino.impl.op import Constant, Parameter
 from tests.runtime import get_runtime
 
-from tests import xfail_issue_67415
+from tests import xfail_issue_54663
 
 
 def binary_op(op_str, a, b):
@@ -522,7 +522,6 @@ def test_axisset():
     assert set(tuple_axisset) == set(set_axisset)
 
 
-@xfail_issue_67415
 def test_select():
     element_type = Type.f32
     A = Parameter(Type.boolean, Shape([1, 2]))
@@ -543,7 +542,7 @@ def test_select():
     expected = np.array([[5, 8]])
     assert np.allclose(result, expected)
 
-
+@xfail_issue_54663
 def test_max_pool():
     # test 1d
     element_type = Type.f32
