@@ -42,10 +42,10 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
     const auto &dataShape = getInputShapeAtPort(CUM_SUM_DATA);
-    if (dataShape.getRank() < 1) {
-        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << dataShape.getRank();
-    }
     numOfDims = dataShape.getRank();
+    if (numOfDims < 1) {
+        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << numOfDims;
+    }
 
     const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
     if (cumsum == nullptr)
