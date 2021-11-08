@@ -67,7 +67,6 @@ protected:
 };
 }  // namespace v0
 }  // namespace op
-using ParameterVector = std::vector<std::shared_ptr<op::v0::Parameter>>;
 
 template <>
 class OPENVINO_API AttributeAdapter<ParameterVector> : public VisitorAdapter {

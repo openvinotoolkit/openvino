@@ -85,8 +85,8 @@ size_t runtime::Executable::get_preferred_pipeline_depth() const {
 }
 
 void runtime::Executable::set_parameters_and_results(const Function& func) {
-    m_parameters = func.get_parameters();
-    m_results = func.get_results();
+    m_parameters = const_cast<Function&>(func).get_parameters();
+    m_results = const_cast<Function&>(func).get_results();
 }
 
 vector<runtime::PerformanceCounter> runtime::Executable::get_performance_data() const {

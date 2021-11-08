@@ -136,12 +136,13 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
     std::shared_ptr<ov::Function> function;
     InferenceEngine::CNNNetwork network = orig_network;
     if (orig_function) {
-        function = std::make_shared<ov::Function>(orig_function->get_results(),
-                                                  orig_function->get_sinks(),
-                                                  orig_function->get_parameters(),
-                                                  orig_function->get_variables(),
-                                                  orig_function->get_friendly_name());
-        function->get_rt_info() = orig_function->get_rt_info();
+        auto non_const_orig_function = std::const_pointer_cast<ov::Function>(orig_function);
+        function = std::make_shared<ov::Function>(non_const_orig_function->get_results(),
+                                                  non_const_orig_function->get_sinks(),
+                                                  non_const_orig_function->get_parameters(),
+                                                  non_const_orig_function->get_variables(),
+                                                  non_const_orig_function->get_friendly_name());
+        function->get_rt_info() = non_const_orig_function->get_rt_info();
     }
     if (function && GetCore() && !GetCore()->isNewAPI()) {
         auto& rt_info = function->get_rt_info();

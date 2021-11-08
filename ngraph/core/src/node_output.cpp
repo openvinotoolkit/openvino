@@ -134,6 +134,10 @@ Output<const Node> Output<const Node>::for_node(const std::shared_ptr<const Node
     return Output(node, m_index);
 }
 
+Output<Node> Output<const Node>::for_node(const std::shared_ptr<Node>& node) {
+    return Output<Node>(node, m_index);
+}
+
 const Node* Output<const Node>::get_node() const {
     return m_node.get();
 }

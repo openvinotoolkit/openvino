@@ -90,7 +90,8 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
 ov::Function::Function(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
       m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ngraph::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
+      m_topological_sorter(ngraph::topological_sort<ov::Node>),
+      m_const_topological_sorter(ngraph::topological_sort<const ov::Node>),
       m_results(results),
       m_parameters(parameters) {
     prerequirements(true, false);
@@ -99,7 +100,8 @@ ov::Function::Function(const ResultVector& results, const ngraph::ParameterVecto
 ov::Function::Function(const OutputVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
       m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ngraph::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
+      m_topological_sorter(ngraph::topological_sort<ov::Node>),
+      m_const_topological_sorter(ngraph::topological_sort<const ov::Node>),
       m_results(as_result_vector(results)),
       m_parameters(parameters) {
     prerequirements(true, false);
@@ -108,7 +110,8 @@ ov::Function::Function(const OutputVector& results, const ngraph::ParameterVecto
 ov::Function::Function(const NodeVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
       m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ngraph::topological_sort<std::vector<std::shared_ptr<ov::Node>>>),
+      m_topological_sorter(ngraph::topological_sort<ov::Node>),
+      m_const_topological_sorter(ngraph::topological_sort<const ov::Node>),
       m_results(as_result_vector(as_output_vector(results))),
       m_parameters(parameters) {
     prerequirements(true, false);
@@ -125,7 +128,8 @@ ov::Function::Function(const ngraph::ResultVector& results,
                        const std::string& name)
     : m_name(name),
       m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ngraph::topological_sort<std::vector<std::shared_ptr<Node>>>),
+      m_topological_sorter(ngraph::topological_sort<Node>),
+      m_const_topological_sorter(ngraph::topological_sort<const ov::Node>),
       m_results(results),
       m_sinks(sinks),
       m_parameters(parameters) {
@@ -145,7 +149,8 @@ ov::Function::Function(const ngraph::ResultVector& results,
                        const std::string& name)
     : m_name(name),
       m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ngraph::topological_sort<std::vector<std::shared_ptr<Node>>>),
+      m_topological_sorter(ngraph::topological_sort<Node>),
+      m_const_topological_sorter(ngraph::topological_sort<const ov::Node>),
       m_results(results),
       m_sinks(sinks),
       m_parameters(parameters),
@@ -175,7 +180,8 @@ ov::Function::Function(const ngraph::ResultVector& results,
 ov::Function::Function(const ngraph::OutputVector& results, const ngraph::SinkVector& sinks, const string& name)
     : m_name(name),
       m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1))),
-      m_topological_sorter(ngraph::topological_sort<std::vector<std::shared_ptr<Node>>>),
+      m_topological_sorter(ngraph::topological_sort<Node>),
+      m_const_topological_sorter(ngraph::topological_sort<const ov::Node>),
       m_results(as_result_vector(results)),
       m_sinks(sinks) {
     prerequirements(true, true);
@@ -199,7 +205,7 @@ void ov::Function::prerequirements(bool detect_variables, bool detect_parameters
         check_all_variables_registered(ordered_ops, m_variables);
 }
 
-void ov::Function::validate_nodes_and_infer_types() const {
+void ov::Function::validate_nodes_and_infer_types() {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
 
     struct Counter {
@@ -248,7 +254,7 @@ void ov::Function::validate_nodes_and_infer_types() const {
                             "network.");
 }
 
-std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
+std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::get_ordered_ops");
 
     vector<shared_ptr<Node>> nodes;
@@ -265,32 +271,21 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
     return m_topological_sorter(nodes);
 }
 
-void ov::Function::map_unordered_ops(std::function<void(Node*)> f) const {
-    std::unordered_set<Node*> unordered_ops;
-    std::stack<Node*, std::vector<Node*>> remaining_ops;
+std::vector<shared_ptr<const ov::Node>> ov::Function::get_ordered_ops() const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::get_ordered_ops");
+
+    vector<shared_ptr<const Node>> nodes;
     for (auto& r : get_results()) {
-        remaining_ops.push(r.get());
+        nodes.push_back(r);
     }
     for (auto& r : get_sinks()) {
-        remaining_ops.push(r.get());
+        nodes.emplace_back(r);
+    }
+    for (auto& param : get_parameters()) {
+        nodes.push_back(param);
     }
 
-    for (auto& param : get_parameters()) {
-        remaining_ops.push(param.get());
-    }
-    while (!remaining_ops.empty()) {
-        Node* op = remaining_ops.top();
-        remaining_ops.pop();
-        if (unordered_ops.insert(op).second) {
-            f(op);
-            for (size_t i = 0; i < op->get_input_size(); ++i) {
-                remaining_ops.push(op->get_input_node_ptr(i));
-            }
-            for (auto& cdep : op->get_control_dependencies()) {
-                remaining_ops.push(cdep.get());
-            }
-        }
-    }
+    return m_const_topological_sorter(nodes);
 }
 
 const std::string& ov::Function::get_friendly_name() const {
@@ -329,20 +324,39 @@ const ov::PartialShape& ov::Function::get_output_partial_shape(size_t i) const {
     return m_results.at(i)->get_output_partial_shape(0);
 }
 
-shared_ptr<ov::Node> ov::Function::get_output_op(size_t i) const {
+shared_ptr<ov::Node> ov::Function::get_output_op(size_t i) {
     return m_results.at(i);
 }
 
-shared_ptr<ov::Node> ov::Function::get_result() const {
+shared_ptr<const ov::Node> ov::Function::get_output_op(size_t i) const {
+    return m_results.at(i);
+}
+
+shared_ptr<ov::Node> ov::Function::get_result() {
     if (m_results.size() != 1) {
         throw ov::Exception("get_result() must be called on a function with exactly one result.");
     }
     return m_results.at(0);
 }
 
-std::vector<shared_ptr<ov::Node>> ov::Function::get_ops() const {
+shared_ptr<const ov::Node> ov::Function::get_result() const {
+    if (m_results.size() != 1) {
+        throw ov::Exception("get_result() must be called on a function with exactly one result.");
+    }
+    return m_results.at(0);
+}
+
+std::vector<shared_ptr<ov::Node>> ov::Function::get_ops() {
     std::vector<std::shared_ptr<Node>> ops;
-    ngraph::traverse_nodes(this, [&](shared_ptr<Node> node) {
+    ov::traverse_nodes(this, [&](shared_ptr<Node> node) {
+        ops.push_back(node);
+    });
+    return ops;
+}
+
+std::vector<shared_ptr<const ov::Node>> ov::Function::get_ops() const {
+    std::vector<std::shared_ptr<const Node>> ops;
+    ov::traverse_nodes(this, [&](shared_ptr<const Node> node) {
         ops.push_back(node);
     });
     return ops;
@@ -405,6 +419,17 @@ int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Para
     return -1;
 }
 
+int64_t ov::Function::get_parameter_index(const std::shared_ptr<const ngraph::op::Parameter>& parameter) const {
+    int64_t pos = 0;
+    for (auto p : get_parameters()) {
+        if (p == parameter) {
+            return pos;
+        }
+        pos++;
+    }
+    return -1;
+}
+
 int64_t ov::Function::get_result_index(const Output<Node>& value) const {
     int64_t pos = 0;
     if (is_type<ngraph::op::Result>(value.get_node_shared_ptr())) {
@@ -418,6 +443,28 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
     } else {
         for (auto r : get_results()) {
             if (r->input_value(0) == value) {
+                return pos;
+            }
+            pos++;
+        }
+    }
+    return -1;
+}
+
+int64_t ov::Function::get_result_index(const Output<const Node>& value) const {
+    int64_t pos = 0;
+    if (is_type<const ngraph::op::Result>(value.get_node_shared_ptr())) {
+        auto result = value.get_node_shared_ptr();
+        for (auto r : get_results()) {
+            if (r == result) {
+                return pos;
+            }
+            pos++;
+        }
+    } else {
+        for (auto r : get_results()) {
+            Output<const Node> out(r->input_value(0).get_node(), r->input_value(0).get_index());
+            if (out == value) {
                 return pos;
             }
             pos++;
@@ -613,7 +660,7 @@ void ov::Function::remove_variable(const op::util::Variable::Ptr& variable) {
                       m_variables.end());
 }
 
-ov::op::util::Variable::Ptr ov::Function::get_variable_by_id(const string& variable_id) const {
+ov::op::util::Variable::Ptr ov::Function::get_variable_by_id(const string& variable_id) {
     auto variable =
         std::find_if(m_variables.begin(), m_variables.end(), [&variable_id](const ov::op::util::Variable::Ptr& cur) {
             return cur->get_info().variable_id == variable_id;
@@ -622,6 +669,17 @@ ov::op::util::Variable::Ptr ov::Function::get_variable_by_id(const string& varia
         return *variable;
     else
         return ov::op::util::Variable::Ptr();
+}
+
+ov::op::util::Variable::CPtr ov::Function::get_variable_by_id(const string& variable_id) const {
+    auto variable =
+        std::find_if(m_variables.begin(), m_variables.end(), [&variable_id](const ov::op::util::Variable::Ptr& cur) {
+            return cur->get_info().variable_id == variable_id;
+        });
+    if (variable != m_variables.end())
+        return *variable;
+    else
+        return ov::op::util::Variable::CPtr();
 }
 
 /// Output functions
@@ -865,4 +923,42 @@ void ov::Function::add_output(const ov::Output<ov::Node>& port) {
     }
     auto result = std::make_shared<ov::op::v0::Result>(port);
     add_results({result});
+}
+
+const ov::ParameterVector& ov::Function::get_parameters() {
+    return m_parameters;
+}
+
+const ov::ConstParameterVector ov::Function::get_parameters() const {
+    ov::ConstParameterVector params;
+    params.reserve(m_parameters.size());
+    for (const auto& param : m_parameters) {
+        params.emplace_back(param);
+    }
+    return params;
+}
+
+const ov::ResultVector& ov::Function::get_results() {
+    return m_results;
+}
+
+const ov::ConstResultVector ov::Function::get_results() const {
+    ov::ConstResultVector results;
+    results.reserve(m_results.size());
+    for (const auto& result : m_results) {
+        results.emplace_back(result);
+    }
+    return results;
+}
+
+const ov::op::util::VariableVector& ov::Function::get_variables() {
+    return m_variables;
+}
+const ov::op::util::ConstVariableVector ov::Function::get_variables() const {
+    ov::op::util::ConstVariableVector vars;
+    vars.reserve(m_parameters.size());
+    for (const auto& variable : m_variables) {
+        vars.emplace_back(variable);
+    }
+    return vars;
 }

@@ -134,6 +134,7 @@ public:
 
     /// This output position for a different node
     Output<const Node> for_node(const std::shared_ptr<const Node>& node);
+    Output<Node> for_node(const std::shared_ptr<Node>& node);
 
     /// \return A pointer to the node referred to by this output handle.
     const Node* get_node() const;

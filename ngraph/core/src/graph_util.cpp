@@ -31,15 +31,92 @@
 using namespace std;
 using namespace ngraph;
 
+namespace {
+
+using ConstNodeMap = std::unordered_map<const ov::Node*, std::shared_ptr<ov::Node>>;
+
+std::vector<std::shared_ptr<const ov::Node>> clone_nodes(const std::vector<std::shared_ptr<const ov::Node>>& nodes,
+                                                         ConstNodeMap& node_map) {
+    // for each node in topological order
+    auto sorted_nodes = topological_sort(nodes);
+    for (const auto& node : sorted_nodes) {
+        if (node_map.count(node.get()) == 0) {
+            // get (already) cloned arguments and clone the node
+            ov::OutputVector cloned_args;
+            for (auto input : node->inputs()) {
+                Output<Node> output = input.get_source_output();
+                cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
+            }
+            std::vector<std::shared_ptr<ov::Node>> cloned_dependencies;
+            for (auto& dependency : node->get_control_dependencies()) {
+                shared_ptr<ov::Node>& dependent = node_map.at(dependency.get());
+                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                    cloned_dependencies.end()) {
+                    cloned_dependencies.push_back(dependent);
+                }
+            }
+            auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
+
+            for (auto output : node->outputs()) {
+                const auto& output_rt_info = output.get_rt_info();
+                auto new_output = output.for_node(cloned_node);
+                new_output.get_rt_info() = output_rt_info;
+            }
+
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            cloned_node->set_op_annotations(node->get_op_annotations());
+            OPENVINO_SUPPRESS_DEPRECATED_END
+
+            node_map[node.get()] = cloned_node;
+        }
+    }
+
+    // create and return vector of cloned nodes
+    // order matches input vector (not necessarily topological)
+    std::vector<std::shared_ptr<const ov::Node>> cloned_nodes;
+    for (const auto& node : nodes) {
+        cloned_nodes.push_back(node_map.at(node.get()));
+    }
+    return cloned_nodes;
+}
+
+}  // namespace
+
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-void ov::traverse_nodes(const std::shared_ptr<const Function>& p,
+void ov::traverse_nodes(const std::shared_ptr<Function>& p,
                         const std::function<void(const std::shared_ptr<Node>&)>& f) {
     traverse_nodes(p.get(), f);
 }
 
-void ov::traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f) {
+void ov::traverse_nodes(const std::shared_ptr<const Function>& p,
+                        const std::function<void(const std::shared_ptr<const Node>&)>& f) {
+    traverse_nodes(p.get(), f);
+}
+
+void ov::traverse_nodes(Function* p, const std::function<void(const std::shared_ptr<Node>&)>& f) {
     NodeVector nodes;
+
+    for (const auto& r : p->get_results()) {
+        nodes.push_back(r);
+    }
+    for (auto s : p->get_sinks()) {
+        nodes.emplace_back(s);
+    }
+
+    for (const auto& param : p->get_parameters()) {
+        nodes.push_back(param);
+    }
+
+    traverse_nodes(nodes, f);
+}
+
+void ov::traverse_nodes(const Function* p, const std::function<void(const std::shared_ptr<const Node>&)>& f) {
+    ConstNodeVector nodes;
 
     for (const auto& r : p->get_results()) {
         nodes.push_back(r);
@@ -69,6 +146,34 @@ void ov::traverse_nodes(const NodeVector& subgraph_results,
 
     while (!stack.empty()) {
         Node* n = stack.top();
+        stack.pop();
+        if (instances_seen.insert(n).second) {
+            f(n->shared_from_this());
+            for (size_t i = 0; i < n->inputs().size(); i++) {
+                stack.push(n->get_input_node_ptr(i));
+            }
+
+            for (auto& cdep : n->get_control_dependencies()) {
+                stack.push(cdep.get());
+            }
+        }
+    }
+}
+
+void ov::traverse_nodes(const ConstNodeVector& subgraph_results,
+                        const std::function<void(const std::shared_ptr<const Node>&)>& f,
+                        const ConstNodeVector& subgraph_params) {
+    std::unordered_set<const Node*> instances_seen;
+    std::stack<const Node*, std::vector<const Node*>> stack;
+    for (auto& node_ptr : subgraph_params) {
+        instances_seen.insert(node_ptr.get());
+    }
+    for (auto& node_ptr : subgraph_results) {
+        stack.push(node_ptr.get());
+    }
+
+    while (!stack.empty()) {
+        const Node* n = stack.top();
         stack.pop();
         if (instances_seen.insert(n).second) {
             f(n->shared_from_this());
@@ -307,13 +412,13 @@ std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<s
 }
 
 std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& func) {
-    NodeMap nm;
+    ConstNodeMap nm;
     return clone_function(func, nm);
 }
 
-std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& func, NodeMap& node_map) {
+std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& func, ConstNodeMap& node_map) {
     // clone function operations
-    clone_nodes(func.get_ops(), node_map);
+    ::clone_nodes(func.get_ops(), node_map);
 
     // clone variables
     auto variables = func.get_variables();
@@ -336,7 +441,7 @@ std::shared_ptr<ngraph::Function> ov::clone_function(const ngraph::Function& fun
 
     // get cloned function results and sinks and parameters
     ResultVector cloned_results;
-    for (shared_ptr<Node> node : func.get_results()) {
+    for (const auto& node : func.get_results()) {
         auto result = ov::as_type_ptr<op::v0::Result>(node_map.at(node.get()));
         if (!result) {
             throw ngraph_error("Results should be of type op::Result");
@@ -712,7 +817,8 @@ static bool check_for_cycles_fwd(const std::shared_ptr<ngraph::Node>& node,
     return false;
 }
 
-bool ngraph::check_for_cycles(const ngraph::Function* func, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle) {
+bool ngraph::check_for_cycles(const ngraph::Function* f, ngraph::NodeVector& cycle_nodes, bool& is_bkwd_cycle) {
+    ngraph::Function* func = const_cast<ngraph::Function*>(f);
     for (const auto& res : func->get_results()) {
         std::deque<std::shared_ptr<Node>> path;
         // mirror of path stack for faster cycle check

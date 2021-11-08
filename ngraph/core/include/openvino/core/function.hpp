@@ -86,7 +86,8 @@ public:
     size_t get_output_size() const;
 
     /// Return the op that generates output i
-    std::shared_ptr<ov::Node> get_output_op(size_t i) const;
+    std::shared_ptr<const ov::Node> get_output_op(size_t i) const;
+    std::shared_ptr<ov::Node> get_output_op(size_t i);
 
     /// Output functions
     std::vector<ov::Output<ov::Node>> outputs();
@@ -124,7 +125,8 @@ public:
     const PartialShape& get_output_partial_shape(size_t i) const;
 
     /// Check that there is a single result and return it.
-    std::shared_ptr<ov::Node> get_result() const;
+    std::shared_ptr<ov::Node> get_result();
+    std::shared_ptr<const ov::Node> get_result() const;
 
     /// \brief Get the unique name of the function.
     /// \returns A const reference to the function's unique name.
@@ -141,14 +143,15 @@ public:
     /// \returns A const reference to the function's friendly name.
     const std::string& get_friendly_name() const;
 
-    std::vector<std::shared_ptr<ov::Node>> get_ops() const;
-    std::vector<std::shared_ptr<ov::Node>> get_ordered_ops() const;
-    void map_unordered_ops(std::function<void(ov::Node*)> f) const;
+    std::vector<std::shared_ptr<ov::Node>> get_ops();
+    std::vector<std::shared_ptr<const ov::Node>> get_ops() const;
+    std::vector<std::shared_ptr<ov::Node>> get_ordered_ops();
+    std::vector<std::shared_ptr<const ov::Node>> get_ordered_ops() const;
 
     // updates graph and m_results list
     void replace_node(std::shared_ptr<ov::Node> old, std::shared_ptr<ov::Node> repl);
 
-    void validate_nodes_and_infer_types() const;
+    void validate_nodes_and_infer_types();
 
     /// \brief Returns the sum of the size of all nodes in the graph plus the size of
     /// all constant data. This has little value beyond comparing the relative size of
@@ -169,23 +172,26 @@ public:
 
     using topological_sort_t =
         std::function<std::vector<std::shared_ptr<ov::Node>>(const std::vector<std::shared_ptr<ov::Node>>& root_nodes)>;
+    using const_topological_sort_t = std::function<std::vector<std::shared_ptr<const ov::Node>>(
+        const std::vector<std::shared_ptr<const ov::Node>>& root_nodes)>;
     void set_topological_sort(topological_sort_t);
+    void set_const_topological_sort(const_topological_sort_t);
 
     virtual bool visit_attributes(ov::AttributeVisitor& visitor);
 
     /// Return the function parameters
-    const ov::ParameterVector& get_parameters() const {
-        return m_parameters;
-    };
+    const ov::ParameterVector& get_parameters();
+    const ov::ConstParameterVector get_parameters() const;
     /// Return a list of function's outputs
-    const ov::ResultVector& get_results() const {
-        return m_results;
-    };
+    const ov::ResultVector& get_results();
+    const ov::ConstResultVector get_results() const;
     /// Index for parameter, or -1
     int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
+    int64_t get_parameter_index(const std::shared_ptr<const ov::op::v0::Parameter>& parameter) const;
 
     /// Index for value or result referencing it, or -1
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
+    int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
 
     /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluate the function on inputs, putting results in outputs.
@@ -269,12 +275,12 @@ public:
     void remove_variable(const ov::op::util::Variable::Ptr& variable);
 
     /// \brief Return a list of function's variables.
-    const ov::op::util::VariableVector& get_variables() const {
-        return m_variables;
-    }
+    const ov::op::util::VariableVector& get_variables();
+    const ov::op::util::ConstVariableVector get_variables() const;
 
     /// \brief Return a variable by specified variable_id.
-    ov::op::util::Variable::Ptr get_variable_by_id(const std::string& variable_id) const;
+    ov::op::util::Variable::Ptr get_variable_by_id(const std::string& variable_id);
+    ov::op::util::Variable::CPtr get_variable_by_id(const std::string& variable_id) const;
     RTMap& get_rt_info() {
         return m_rt_info;
     }
@@ -302,6 +308,7 @@ private:
     const std::string m_unique_name;
     size_t m_placement{0};
     topological_sort_t m_topological_sorter;
+    const_topological_sort_t m_const_topological_sorter;
 
     ov::ResultVector m_results;
     // List of the nodes with side effect in graph.

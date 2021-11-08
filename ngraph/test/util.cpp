@@ -163,6 +163,7 @@ TEST(util, all_close) {
     EXPECT_TRUE(ngraph::test::all_close<float>(c, a, .11f, 0));
 }
 
+using ConstNodeMap = std::unordered_map<const ov::Node*, std::shared_ptr<ov::Node>>;
 class CloneTest : public ::testing::Test {
 public:
     // (A + B) * C
@@ -173,6 +174,7 @@ public:
     std::shared_ptr<Node> AplusB = make_shared<op::v1::Add>(A, B);
     std::shared_ptr<Node> AplusBtimesC = make_shared<op::v1::Multiply>(AplusB, C);
 
+    ConstNodeMap const_node_map;
     NodeMap node_map;
     std::vector<std::shared_ptr<ngraph::Node>> nodes;
     std::shared_ptr<Function> func = make_shared<Function>(AplusBtimesC, ParameterVector{A, B, C}, "f");
@@ -189,6 +191,24 @@ public:
     bool CompareNodeVector(const std::vector<std::shared_ptr<ngraph::Node>>& orig,
                            const std::vector<std::shared_ptr<ngraph::Node>>& clone,
                            const NodeMap& nm) {
+        if (orig.size() != clone.size()) {
+            return false;
+        }
+        auto origit = orig.begin();
+        auto cloneit = clone.begin();
+        while (origit != orig.end() && cloneit != clone.end()) {
+            if (*cloneit != nm.at((*origit).get())) {
+                return false;
+            }
+            ++origit;
+            ++cloneit;
+        }
+        return true;
+    }
+
+    bool CompareNodeVector(const std::vector<std::shared_ptr<ngraph::Node>>& orig,
+                           const std::vector<std::shared_ptr<ngraph::Node>>& clone,
+                           const ConstNodeMap& nm) {
         if (orig.size() != clone.size()) {
             return false;
         }
@@ -233,8 +253,8 @@ TEST_F(CloneTest, clone_nodes_partial) {
 }
 
 TEST_F(CloneTest, clone_function_full) {
-    auto cloned_func = clone_function(*func, node_map);
-    ASSERT_TRUE(CompareNodeVector(func->get_ops(), cloned_func->get_ops(), node_map));
+    auto cloned_func = clone_function(*func, const_node_map);
+    ASSERT_TRUE(CompareNodeVector(func->get_ops(), cloned_func->get_ops(), const_node_map));
     ASSERT_EQ(cloned_func->get_rt_info().size(), func->get_rt_info().size());
     ASSERT_TRUE(cloned_func->get_rt_info().count("version"));
     auto ver = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(cloned_func->get_rt_info().at("version"));
@@ -280,7 +300,7 @@ TEST(graph_util, clone_function_variables_validate_partially) {
     auto res = make_shared<opset3::Result>(read_value);
     auto f = make_shared<Function>(ResultVector{res}, SinkVector{assign}, ParameterVector{});
     f->validate_nodes_and_infer_types();
-    NodeMap nm;
+    ConstNodeMap nm;
     auto copy = clone_function(*f, nm);
     nm[assign.get()]->validate_and_infer_types();
 }

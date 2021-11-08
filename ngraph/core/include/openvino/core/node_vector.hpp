@@ -19,14 +19,20 @@ class Node;
 namespace op {
 namespace v0 {
 
+class Parameter;
 class Result;
 
 }  // namespace v0
 }  // namespace op
 
 using NodeVector = std::vector<std::shared_ptr<Node>>;
+using ConstNodeVector = std::vector<std::shared_ptr<const Node>>;
 using OutputVector = std::vector<Output<Node>>;
+using ConstOutputVector = std::vector<Output<const Node>>;
+using ParameterVector = std::vector<std::shared_ptr<op::v0::Parameter>>;
+using ConstParameterVector = std::vector<std::shared_ptr<const op::v0::Parameter>>;
 using ResultVector = std::vector<std::shared_ptr<ov::op::v0::Result>>;
+using ConstResultVector = std::vector<std::shared_ptr<const ov::op::v0::Result>>;
 
 OPENVINO_API
 OutputVector as_output_vector(const NodeVector& args);

@@ -43,7 +43,7 @@ bool normalize_single_value(std::vector<T> vec, float & value) {
 template <class T>
 bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
     for (const auto & op : function->get_ops()) {
-        if (std::dynamic_pointer_cast<T>(op)) {
+        if (std::dynamic_pointer_cast<const T>(op)) {
             return true;
         }
     }
