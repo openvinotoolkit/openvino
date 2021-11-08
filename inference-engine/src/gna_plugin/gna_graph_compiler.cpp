@@ -2349,6 +2349,9 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
     if (LayerInfo(layer).isOutput() || !nextLayer) {
         mem_region = REGION_OUTPUTS;
     }
+    if (LayerInfo(layer).isConst()) {
+        mem_region = REGION_RO;
+    }
     gnamem->getQueue(mem_region)->reserve_ptr(layer, ptr, ALIGN64(num_data_bytes_out), 64);
 }
 

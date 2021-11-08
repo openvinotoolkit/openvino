@@ -107,7 +107,9 @@ class GNAMemory : public GNAMemoryInterface {
                 queue.second->_basePtr = allocate(ALIGN(queue.second->getSize(), _page_alignment));
                 gnalog() << rRegionToStr(queue.second->_region_type) << "(" << static_cast<void*>(queue.second->_basePtr.get()) << ")"
                          << " allocated: " << ALIGN(queue.second->getSize(), _page_alignment) << std::endl;
-                // 4th stage -- store data and updates pointers
+                // 4th stage -- setting proper GNA memory region tag for embedded TLV export
+                _allocator.setTag(queue.second->getBasePtr(), queue.first);
+                // 5th stage -- store data and updates pointers
                 allocateRegion(queue.second.get());
             }
         }
