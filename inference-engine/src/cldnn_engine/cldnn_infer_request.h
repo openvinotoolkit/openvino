@@ -49,6 +49,7 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
+    void setup_stream_graph();
     void preprocess_notify();
     void enqueue_notify();
     void wait_notify();
@@ -95,8 +96,6 @@ private:
     void allocate_outputs();
     void allocate_inputs_dynamic();
     void allocate_outputs_dynamic();
-
-    void setStreamGraph();
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;
