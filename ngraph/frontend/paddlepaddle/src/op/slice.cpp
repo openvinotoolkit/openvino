@@ -87,7 +87,7 @@ NamedOutputs slice(const NodeContext& node) {
         auto squeeze_index_node = Constant::create(element::i32, {decrease_axis.size()}, decrease_axis);
         auto decreased_node = std::make_shared<Squeeze>(stride_slice_node, squeeze_index_node);
 
-        int32_t input_rank = input_shape.rank().get_length();
+        auto input_rank = input_shape.rank().get_length();
         if (input_rank == decrease_axis.size()) {
             auto restore_node = std::make_shared<Reshape>(decreased_node,
                                                           std::make_shared<Constant>(element::i64, Shape{1}, 1),
