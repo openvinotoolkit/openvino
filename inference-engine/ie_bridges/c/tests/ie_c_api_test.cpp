@@ -324,12 +324,17 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     ie_core_free(&core);
 }
 
-#ifdef ENABLE_GNA
-// The following tests should be performed on CPU when it supports import/export
 TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
+
+    // Test should be performed on CPU when it supports import/export
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
@@ -353,6 +358,13 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
+
+    // Test should be performed on CPU when it supports import/export
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
 
     ie_config_t conf1 = {"GNA_DEVICE_MODE", "GNA_SW_EXACT", nullptr};
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "327.67", &conf1};
@@ -386,6 +398,13 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
+    // Test should be performed on CPU when it supports import/export
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
+
     ie_config_t conf1 = {"GNA_DEVICE_MODE", "GNA_SW_EXACT", nullptr};
     ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "32767", &conf1};
 
@@ -410,6 +429,13 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
+
+    // Test should be performed on CPU when it supports import/export
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
@@ -437,7 +463,6 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
 
     ie_core_free(&core);
 }
-#endif
 
 TEST(ie_core_load_network, loadNetwork) {
     ie_core_t *core = nullptr;
