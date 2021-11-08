@@ -8,13 +8,15 @@
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ov;
+using namespace test;
 
 namespace CPULayerTestsDefinitions {
 
 using PadInputShapes = std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape>>;
 using PadLayerCPUTestParamSet = std::tuple<
         PadInputShapes,                                 // Input shape
-        InferenceEngine::Precision,                     // Input precision
+        ElementType,                                    // Input element type
         std::vector<int64_t>,                           // padsBegin
         std::vector<int64_t>,                           // padsEnd
         float,                                          // argPadValue
@@ -23,16 +25,16 @@ using PadLayerCPUTestParamSet = std::tuple<
 >;
 
 class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamSet>,
-                        virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
+                        virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PadLayerCPUTestParamSet> obj) {
         PadInputShapes inputShapes;
-        InferenceEngine::Precision inPrc;
+        ElementType elementType;
         std::vector<int64_t> padsBegin, padsEnd;
         ngraph::helpers::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, inPrc, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = obj.param;
+        std::tie(inputShapes, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = obj.param;
 
         std::ostringstream results;
         if (!inputShapes.first.empty()) {
@@ -43,7 +45,7 @@ public:
         for (const auto& shape : inputShapes.second) {
             results << CommonTestUtils::vec2str(shape) << "_";
         }
-        results << "Prc=" << inPrc << "_";
+        results << "Prc=" << elementType << "_";
         results << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
         results << "padsEnd=" << CommonTestUtils::vec2str(padsEnd) << "_";
         if (padMode == ngraph::helpers::PadMode::CONSTANT) {
@@ -58,21 +60,20 @@ public:
 protected:
     void SetUp() override {
         PadInputShapes inputShapes;
-        InferenceEngine::Precision inPrc;
+        ElementType elementType;
         std::vector<int64_t> padsBegin, padsEnd;
         ngraph::helpers::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, inPrc, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
+        std::tie(inputShapes, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = selectedType + "_" + inPrc.name();
+        // selectedType = selectedType + "_" + elementType;
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
         if (!inputShapes.first.empty()) {
             inputDynamicShapes = inputShapes.first;
         } else {
@@ -82,7 +83,7 @@ protected:
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{inputShapes.second[i]});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(elementType, inputDynamicShapes);
         auto pad = ngraph::builder::makePad(params[0], padsBegin, padsEnd, argPadValue, padMode);
         pad->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pad)};
@@ -114,10 +115,10 @@ const auto cpuParams_ndhwc = CPUSpecificParams {{ndhwc}, {ndhwc}, {}, {}};
 const auto cpuParams_nchw = CPUSpecificParams {{nchw}, {nchw}, {}, {}};
 const auto cpuParams_ncdhw = CPUSpecificParams {{ncdhw}, {ncdhw}, {}, {}};
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::BF16,
-        InferenceEngine::Precision::I8
+const std::vector<ElementType> inputPrecisions = {
+        ElementType::f32,
+        ElementType::bf16,
+        ElementType::i8
 };
 
 const std::vector<float> argPadValue = {0.f, 1.f, 2.5f, -1.f};

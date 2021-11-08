@@ -34,44 +34,58 @@ private:
         SYMMETRIC = 3
     };
 
-    void padConstant();
-    template<typename T> void padConstantCommon();
-    void padConstantZero();
-    void padEdge();
-    void padReflectOrSymmetric(const bool isSymmetric = false);
+    struct PadAttrs {
+        PadMode padMode = CONSTANT;
+        float padValue = 0.f;
+        std::vector<unsigned int> padsBegin;
+        std::vector<unsigned int> padsEnd;
+        size_t dataSize = 1;
+        int beginPadIdx = 0;
+        int endPadIdx = 0;
+        InferenceEngine::Precision prc;
+    } attrs;
 
-    inline void getDstIdx(const InferenceEngine::SizeVector& indexes, size_t& dstIdx) const;
-
-    PadMode padMode = CONSTANT;
-    float padValue = 0.f;
-    std::vector<unsigned int> padsBegin;
-    std::vector<unsigned int> padsEnd;
-
-    struct {
+    struct PadParams {
+        PadAttrs attrs;
         InferenceEngine::SizeVector srcDims;
         InferenceEngine::SizeVector dstDims;
         InferenceEngine::SizeVector srcODims;
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
         InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
-        std::vector<unsigned int> padsBegin;
-        std::vector<unsigned int> padsEnd;
         int nThreads = 0;
         size_t nDimsForWork = 0lu;
         size_t workAmount = 0lu;
         size_t lastDstDim = 1lu;
         size_t shift = 0lu;
-        uint8_t sizeData = 1;
-        int defBeginIdx;
-        int beginIdx;
-        int endIdx;
-    } params;
+        PadMode padMode;
 
-    template<typename T>
-    struct PadConstantEmitter {
-        void operator()(MKLDNNPadNode* node) {
-            node->padConstantCommon<T>();
-        }
+        MKLDNNMemoryPtr srcMemPtr;
+        MKLDNNMemoryPtr dstMemPtr;
+    };
+
+    struct PadExecutor {
+        PadExecutor(const PadAttrs& params, const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& dstMemPtr);
+        void exec();
+        ~PadExecutor() = default;
+
+    private:
+        void padConstant();
+        template<typename T> void padConstantCommon();
+        void padConstantZero();
+        void padEdge();
+        void padReflectOrSymmetric(const bool isSymmetric = false);
+
+        inline void getDstIdx(const InferenceEngine::SizeVector& indexes, size_t& dstIdx) const;
+
+        template<typename T>
+        struct PadConstantEmitter {
+            void operator()(PadExecutor* executor) {
+                executor->padConstantCommon<T>();
+            }
+        };
+
+        PadParams params;
     };
 
     static constexpr size_t DATA_ID = 0lu;
@@ -80,10 +94,9 @@ private:
     static constexpr size_t PAD_VALUE_ID = 3lu;
 
     bool isPadValueSpecified = false;
-    bool arePadsInitForCollapse = false;
 
-    MKLDNNMemoryPtr srcMemPtr;
-    MKLDNNMemoryPtr dstMemPtr;
+    using executorPtr = std::shared_ptr<PadExecutor>;
+    executorPtr execPtr = nullptr;
 };
 
 }  // namespace MKLDNNPlugin
