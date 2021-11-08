@@ -43,26 +43,26 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (op->get_input_size() != 1 || op->get_output_size() != 1)
+    if (inputShapes.size() != 1 || outputShapes.size() != 1)
         THROW_ERROR << "has incorrect number of input/output edges!";
 
     const auto depthToSpace = ov::as_type_ptr<const ngraph::opset1::DepthToSpace>(op);
 
     const auto modeNgraph = depthToSpace->get_mode();
     if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
-        mode = Mode::BLOCKS_FIRST;
+        attrs.mode = Mode::BLOCKS_FIRST;
     } else if (modeNgraph == ngraph::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
-        mode = Mode::DEPTH_FIRST;
+        attrs.mode = Mode::DEPTH_FIRST;
     } else {
         THROW_ERROR << "doesn't support mode: " << ngraph::as_string(modeNgraph);
     }
 
-    blockSize = depthToSpace->get_block_size();
-    if (blockSize == 0)
+    attrs.blockSize = depthToSpace->get_block_size();
+    if (attrs.blockSize == 0)
         THROW_ERROR << "has incorrect block_size parameter is zero!";
 
-    const int srcRank = inputShapes[0].getRank();
-    const int dstRank = outputShapes[0].getRank();
+    const int srcRank = getInputShapeAtPort(0).getRank();
+    const int dstRank = getOutputShapeAtPort(0).getRank();
 
     if (srcRank < 3)
         THROW_ERROR << "has incorrect number of input dimensions";
@@ -72,7 +72,7 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
         THROW_ERROR << "has incorrect number of input/output dimensions";
 
     size_t nSpatialDims = srcRank - 2;
-    blockStep = static_cast<size_t>(std::pow(blockSize, nSpatialDims));
+    attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, nSpatialDims));
 }
 
 void MKLDNNDepthToSpaceNode::getSupportedDescriptors() {}
@@ -110,8 +110,8 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
     if (inputDataShape.getRank() > 2) {
         const auto& srcDims = inputDataShape.getDims();
         auto canUseBlocked = [=](const size_t block) {
-            return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % block == 0 && (srcDims[1] / block) % blockStep == 0 &&
-                   (mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true);
+            return srcDims[1] != Shape::UNDEFINED_DIM && srcDims[1] % block == 0 && (srcDims[1] / block) % attrs.blockStep == 0 &&
+                   (attrs.mode == Mode::DEPTH_FIRST ? block % attrs.blockStep == 0 : true);
         };
 
         supportedTypes.push_back(LayoutType::nspc);
@@ -140,6 +140,7 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
         THROW_ERROR << "has not allocated input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor";
+    attrs.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
 
     if (inputShapesDefined()) {
         if (needPrepareParams())
@@ -149,27 +150,25 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
 }
 
 void MKLDNNDepthToSpaceNode::prepareParams() {
+    execPtr = std::make_shared<DepthToSpaceExecutor>(attrs, getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
+}
+
+MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs,
+                                                                   const MKLDNNMemoryPtr& srcMemPtr,
+                                                                   const MKLDNNMemoryPtr& dstMemPtr) {
     VectorDims srcDims = srcMemPtr->getStaticDims();
     VectorDims dstDims = dstMemPtr->getStaticDims();
     size_t nDims = srcDims.size();
     const size_t nSpatialDims = nDims - 2;
-    if (srcDims[1] % blockStep)
-        THROW_ERROR << "has block_size parameter which is incompatible with input tensor channels dimension size";
-    if (srcDims[1] / blockStep != dstDims[1])
-        THROW_ERROR << "has incompatible input/output channels";
-    for (size_t i = 0; i < srcDims.size() - 2; ++i) {
-        if (srcDims[i + 2] * blockSize != dstDims[i + 2])
-            THROW_ERROR << "has incompatible spatial dims";
-    }
 
     const bool isBlocked = srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c) ||
                            srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c);
-    const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && mode == Mode::DEPTH_FIRST);
+    const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked) + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
 
     PermuteParams params;
-    params.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
+    params.data_size = attrs.dataSize;
     params.order.resize(reshapedRank, 0);
     params.src_block_order.resize(reshapedRank);
     params.dst_block_order.resize(reshapedRank);
@@ -190,7 +189,7 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
             params.order[i * 2 + shift + 1] = i + idx2;
 
             params.src_block_dims[params.order[i * 2 + shift]] = dims[i + shift];
-            params.src_block_dims[params.order[i * 2 + shift + 1]] = blockSize;
+            params.src_block_dims[params.order[i * 2 + shift + 1]] = attrs.blockSize;
         }
     };
 
@@ -198,11 +197,11 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
         VectorDims srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
         size_t orderShiftForBlocks, orderShiftForDims;
-        if (mode == Mode::BLOCKS_FIRST) {
+        if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = 1;
             orderShiftForDims = nSpatialDims + 2;
 
-            params.src_block_dims[nSpatialDims + 1] = srcBlockedDims[1] / blockStep;
+            params.src_block_dims[nSpatialDims + 1] = srcBlockedDims[1] / attrs.blockStep;
             params.src_block_dims[lastIdx] = srcBlockedDims.back();
 
             params.order[1] = nSpatialDims + 1;
@@ -211,8 +210,8 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
             orderShiftForBlocks = nSpatialDims + 4;
             orderShiftForDims = 3;
 
-            size_t newBlockSize = srcBlockedDims.back() / blockStep;
-            size_t newBlocksCount = srcBlockedDims[1] / blockStep;
+            size_t newBlockSize = srcBlockedDims.back() / attrs.blockStep;
+            size_t newBlocksCount = srcBlockedDims[1] / attrs.blockStep;
             params.src_block_dims[1] = newBlocksCount;
             params.src_block_dims[2] = srcBlockedDims[1] / newBlocksCount;
             params.src_block_dims[lastIdx - nSpatialDims] = newBlockSize;
@@ -229,15 +228,15 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
         srcDims.erase(srcDims.begin() + 1);
         firstSpatialOrder = 1;
 
-        size_t shift = static_cast<size_t>(mode == DEPTH_FIRST) + nSpatialDims + 1;
-        params.order[lastIdx] = mode == Mode::DEPTH_FIRST ? nSpatialDims + 1 : lastIdx;
-        params.src_block_dims[params.order[lastIdx]] = srcDims.back() / blockStep;
+        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + nSpatialDims + 1;
+        params.order[lastIdx] = attrs.mode == Mode::DEPTH_FIRST ? nSpatialDims + 1 : lastIdx;
+        params.src_block_dims[params.order[lastIdx]] = srcDims.back() / attrs.blockStep;
 
         reshapeAndSetPermOrder(firstSpatialOrder, shift, firstSpatialOrder, srcDims);
     } else {
-        size_t shift = static_cast<size_t>(mode == DEPTH_FIRST) + 1;
-        params.order[1] = mode == DEPTH_FIRST ? 1 : nSpatialDims + 1;
-        params.src_block_dims[params.order[1]] = srcDims[1] / blockStep;
+        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + 1;
+        params.order[1] = attrs.mode == DEPTH_FIRST ? 1 : nSpatialDims + 1;
+        params.src_block_dims[params.order[1]] = srcDims[1] / attrs.blockStep;
 
         reshapeAndSetPermOrder(nSpatialDims + firstSpatialOrder, shift, firstSpatialOrder, srcDims);
     }
@@ -250,16 +249,23 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
     permuteKernel = std::unique_ptr<PermuteKernel>(new PermuteKernel(params));
 }
 
-void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
-    if (!permuteKernel) {
-        THROW_ERROR << "could not be executed, because primitive was not created.";
-    }
+void MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB) {
+    if (!permuteKernel)
+        IE_THROW() << "Could not execute. Kernel for Transpose node was not compiled.";
 
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
-    int MB = isDynamicNode() ? srcMemPtr->getStaticDims()[0] : batchToProcess();
     permuteKernel->execute(srcData, dstData, MB);
+}
+
+void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
+    if (!execPtr) {
+        IE_THROW() << "Could not execute Transpose node. Primitive was not created.";
+    }
+
+    int MB = isDynamicNode() ? srcMemPtr->getStaticDims()[0] : batchToProcess();
+    execPtr->exec(srcMemPtr, dstMemPtr, MB);
 }
 
 void MKLDNNDepthToSpaceNode::executeDynamicImpl(mkldnn::stream strm) {

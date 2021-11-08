@@ -33,14 +33,26 @@ private:
         DEPTH_FIRST = 1
     };
 
-    Mode mode;
-    size_t blockSize;
-    size_t blockStep;
+    struct DepthToSpaceAttrs {
+        Mode mode;
+        size_t blockSize = 0lu;
+        size_t blockStep = 0lu;
+        size_t dataSize = 1lu;
+    } attrs;
 
-    MKLDNNMemoryPtr srcMemPtr;
-    MKLDNNMemoryPtr dstMemPtr;
+    MKLDNNMemoryPtr srcMemPtr = nullptr;
+    MKLDNNMemoryPtr dstMemPtr = nullptr;
 
-    std::unique_ptr<PermuteKernel> permuteKernel;
+    struct DepthToSpaceExecutor {
+        DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs, const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& dstMemPtr);
+        void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB);
+        ~DepthToSpaceExecutor() = default;
+
+    private:
+        std::unique_ptr<PermuteKernel> permuteKernel;
+    };
+    using executorPtr = std::shared_ptr<DepthToSpaceExecutor>;
+    executorPtr execPtr = nullptr;
 };
 
 }  // namespace MKLDNNPlugin
