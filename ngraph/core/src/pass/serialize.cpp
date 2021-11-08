@@ -287,7 +287,6 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         const std::vector<std::string>& result_mapping,
         pugi::xml_node& port_map,
         const std::string& portmap_name) {
-
         if (!m_xml_node.parent().child(portmap_name.c_str())) {
             port_map = m_xml_node.parent().insert_child_before(portmap_name.c_str(), m_xml_node.parent().first_child());
         }
