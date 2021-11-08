@@ -4,9 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/reverse.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset3.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -64,9 +63,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
-        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto f = std::make_shared<Function>(
-            std::make_shared<op::v1::Broadcast>(A, op::v0::Constant::create(params.targetShapeTensor.type,
+            std::make_shared<opset1::Broadcast>(A, opset1::Constant::create(params.targetShapeTensor.type,
                                                                             params.targetShapeTensor.shape,
                                                                             params.targetShapeTensor.data.data())),
             ParameterVector{A});
@@ -77,9 +76,9 @@ private:
 class ReferenceBroadcastTestV3 : public ReferenceBroadcastTest {
 private:
     static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
-        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto f = std::make_shared<Function>(
-            std::make_shared<op::v3::Broadcast>(A, op::v0::Constant::create(params.targetShapeTensor.type,
+            std::make_shared<opset3::Broadcast>(A, opset1::Constant::create(params.targetShapeTensor.type,
                                                                             params.targetShapeTensor.shape,
                                                                             params.targetShapeTensor.data.data())),
             ParameterVector{A});
@@ -117,13 +116,13 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const BroadcastParamsExplicitAxis& params) {
-        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
         const auto f = std::make_shared<Function>(
-            std::make_shared<op::v1::Broadcast>(A,
-                                                op::v0::Constant::create(params.targetShapeTensor.type,
+            std::make_shared<opset1::Broadcast>(A,
+                                                opset1::Constant::create(params.targetShapeTensor.type,
                                                                          params.targetShapeTensor.shape,
                                                                          params.targetShapeTensor.data.data()),
-                                                op::v0::Constant::create(params.axesMappingTensor.type,
+                                                opset1::Constant::create(params.axesMappingTensor.type,
                                                                          params.axesMappingTensor.shape,
                                                                          params.axesMappingTensor.data.data())),
             ParameterVector{A});
@@ -134,18 +133,18 @@ private:
 class ReferenceBroadcastTestExplicitAxisReversed : public ReferenceBroadcastTestExplicitAxis {
 private:
     static std::shared_ptr<Function> CreateFunction(const BroadcastParamsExplicitAxis& params) {
-        const auto A = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        auto broadcast = std::make_shared<op::v1::Broadcast>(
+        const auto A = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        auto broadcast = std::make_shared<opset1::Broadcast>(
             A,
-            op::v0::Constant::create(params.targetShapeTensor.type,
+            opset1::Constant::create(params.targetShapeTensor.type,
                                      params.targetShapeTensor.shape,
                                      params.targetShapeTensor.data.data()),
-            op::v0::Constant::create(params.axesMappingTensor.type,
+            opset1::Constant::create(params.axesMappingTensor.type,
                                      params.axesMappingTensor.shape,
                                      params.axesMappingTensor.data.data()));
-        auto reverse = std::make_shared<op::v1::Reverse>(broadcast,
-                                                         op::v0::Constant::create(element::i64, {1}, {1}),
-                                                         op::v1::Reverse::Mode::INDEX);
+        auto reverse = std::make_shared<opset1::Reverse>(broadcast,
+                                                         opset1::Constant::create(element::i64, {1}, {1}),
+                                                         opset1::Reverse::Mode::INDEX);
         auto f = std::make_shared<Function>(NodeVector{reverse}, ParameterVector{A});
         return f;
     }
