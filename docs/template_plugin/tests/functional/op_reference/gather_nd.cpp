@@ -203,9 +203,8 @@ std::vector<GatherNDParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_With_Hardcoded_Refs, ReferenceGatherNDTest,
-    testing::ValuesIn(generateCombinedParams()), ReferenceGatherNDTest::getTestCaseName);
-} // namespace
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND_With_Hardcoded_Refs, ReferenceGatherND5Test,
+    testing::ValuesIn(generateCombinedParams()), ReferenceGatherND5Test::getTestCaseName);
 
 
 class ReferenceGatherND8Test : public testing::TestWithParam<GatherNDParams>, public CommonReferenceTest {
@@ -258,7 +257,7 @@ TEST_P(ReferenceGatherND8Test, CompareWithRefs) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<GatherNDParams> generateParams() {
+std::vector<GatherNDParams> generateParams_v8() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<GatherNDParams> params {
             GatherNDParams(
@@ -266,80 +265,80 @@ std::vector<GatherNDParams> generateParams() {
                     Tensor(element::i32, {2}, std::vector<int32_t>{1, 2}),
                     0,
                     Tensor(IN_ET, {}, std::vector<T>{15}),
-                    "gather_8_nd_single_indices"),
+                    "gather_nd_8_single_indices"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
                     Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 0, 1, 1}),
                     0,
                     Tensor(IN_ET, {2}, std::vector<T>{10, 13}),
-                    "gather_8_nd_scalar_from_2d"),
+                    "gather_nd_8_scalar_from_2d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
                     Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
                     0,
                     Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 10, 11}),
-                    "gather_8_nd_1d_from_2d"),
+                    "gather_nd_8_1d_from_2d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
                     Tensor(element::i32, {2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1}),
                     0,
                     Tensor(IN_ET, {2}, std::vector<T>{11, 21}),
-                    "gather_8_nd_scalar_from_3d"),
+                    "gather_nd_8_scalar_from_3d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
                     Tensor(element::i32, {2, 2}, std::vector<int32_t>{0, 1, 1, 0}),
                     0,
                     Tensor(IN_ET, {2, 2}, std::vector<T>{12, 13, 20, 21}),
-                    "gather_8_nd_1d_from_3d"),
+                    "gather_nd_8_1d_from_3d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
                     Tensor(element::i32, {1, 1}, std::vector<int32_t>{1}),
                     0,
                     Tensor(IN_ET, {1, 2, 2}, std::vector<T>{20, 21, 22, 23}),
-                    "gather_8_nd_2d_from_3d"),
+                    "gather_nd_8_2d_from_3d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
                     Tensor(element::i32, {2, 1, 2}, std::vector<int32_t>{0, 0, 0, 1}),
                     0,
                     Tensor(IN_ET, {2, 1}, std::vector<T>{10, 11}),
-                    "gather_8_nd_batch_scalar_from_2d"),
+                    "gather_nd_8_batch_scalar_from_2d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2}, std::vector<T>{10, 11, 12, 13}),
                     Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
                     0,
                     Tensor(IN_ET, {2, 1, 2}, std::vector<T>{12, 13, 10, 11}),
-                    "gather_8_nd_batch_1d_from_2d"),
+                    "gather_nd_8_batch_1d_from_2d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
                     Tensor(element::i32, {2, 2, 3}, std::vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0}),
                     0,
                     Tensor(IN_ET, {2, 2}, std::vector<T>{11, 21, 13, 22}),
-                    "gather_8_nd_batch_scalar_from_3d"),
+                    "gather_nd_8_batch_scalar_from_3d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
                     Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, 1, 1, 0, 0, 0, 1, 1}),
                     0,
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
-                    "gather_8_nd_batch_1d_from_3d"),
+                    "gather_nd_8_batch_1d_from_3d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
                     Tensor(element::i32, {2, 2, 2}, std::vector<int32_t>{0, -1, -1, 0, 0, 0, 1, 1}),
                     0,
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{12, 13, 20, 21, 10, 11, 22, 23}),
-                    "gather_8_nd_batch_1d_from_3d_negative"),
+                    "gather_nd_8_batch_1d_from_3d_negative"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 2, 2}, std::vector<T>{10, 11, 12, 13, 20, 21, 22, 23}),
                     Tensor(element::i32, {2, 1, 1}, std::vector<int32_t>{1, 0}),
                     0,
                     Tensor(IN_ET, {2, 1, 2, 2}, std::vector<T>{20, 21, 22, 23, 10, 11, 12, 13}),
-                    "gather_8_nd_batch_2d_from_3d"),
+                    "gather_nd_8_batch_2d_from_3d"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 3, 4}, std::vector<T>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                             13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}),
                     Tensor(element::i32, {2, 1}, std::vector<int32_t>{1, 0}),
                     1,
                     Tensor(IN_ET, {2, 4}, std::vector<T>{5, 6, 7, 8, 13, 14, 15, 16}),
-                    "gather_8_nd_batch_dims1"),
+                    "gather_nd_8_batch_dims1"),
             GatherNDParams(
                     Tensor(IN_ET, {2, 3, 4, 2}, std::vector<T>{
                             1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
@@ -363,20 +362,20 @@ std::vector<GatherNDParams> generateParams() {
     return params;
 }
 
-std::vector<GatherNDParams> generateCombinedParams() {
+std::vector<GatherNDParams> generateCombinedParams_v8() {
     const std::vector<std::vector<GatherNDParams>> generatedParams {
-            generateParams<element::Type_t::i8>(),
-            generateParams<element::Type_t::i16>(),
-            generateParams<element::Type_t::i32>(),
-            generateParams<element::Type_t::i64>(),
-            generateParams<element::Type_t::u8>(),
-            generateParams<element::Type_t::u16>(),
-            generateParams<element::Type_t::u32>(),
-            generateParams<element::Type_t::u64>(),
-            generateParams<element::Type_t::bf16>(),
-            generateParams<element::Type_t::f16>(),
-            generateParams<element::Type_t::f32>(),
-            generateParams<element::Type_t::f64>(),
+            generateParams_v8<element::Type_t::i8>(),
+            generateParams_v8<element::Type_t::i16>(),
+            generateParams_v8<element::Type_t::i32>(),
+            generateParams_v8<element::Type_t::i64>(),
+            generateParams_v8<element::Type_t::u8>(),
+            generateParams_v8<element::Type_t::u16>(),
+            generateParams_v8<element::Type_t::u32>(),
+            generateParams_v8<element::Type_t::u64>(),
+            generateParams_v8<element::Type_t::bf16>(),
+            generateParams_v8<element::Type_t::f16>(),
+            generateParams_v8<element::Type_t::f32>(),
+            generateParams_v8<element::Type_t::f64>(),
     };
     std::vector<GatherNDParams> combinedParams;
 
@@ -386,7 +385,6 @@ std::vector<GatherNDParams> generateCombinedParams() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_With_Hardcoded_Refs, ReferenceGatherNDTest,
-        testing::ValuesIn(generateCombinedParams()), ReferenceGatherNDTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND_With_Hardcoded_Refs, ReferenceGatherND8Test,
+        testing::ValuesIn(generateCombinedParams_v8()), ReferenceGatherND8Test::getTestCaseName);
 } // namespace
-
