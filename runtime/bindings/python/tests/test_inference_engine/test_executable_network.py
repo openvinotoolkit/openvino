@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from numpy.core.fromnumeric import argmax
 import pytest
 import numpy as np
 
@@ -244,7 +243,7 @@ def test_infer_new_request_numpy(device):
     func = ie.read_model(model=test_net_xml, weights=test_net_bin)
     img = read_image()
     exec_net = ie.compile_model(func, device)
-    res = exec_net.infer_new_request({'data': img})
+    res = exec_net.infer_new_request({"data": img})
     assert np.argmax(res) == 2
 
 
@@ -254,8 +253,8 @@ def test_infer_new_request_tensor_numpy_copy(device):
     img = read_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
-    res_tensor = exec_net.infer_new_request({'data': tensor})
-    res_img = exec_net.infer_new_request({'data': tensor})
+    res_tensor = exec_net.infer_new_request({"data": tensor})
+    res_img = exec_net.infer_new_request({"data": tensor})
     assert np.argmax(res_tensor) == 2
     assert np.argmax(res_tensor) == np.argmax(res_img)
 
@@ -267,8 +266,8 @@ def test_infer_tensor_numpy_shared_memory(device):
     img = np.ascontiguousarray(img)
     tensor = Tensor(img, shared_memory=True)
     exec_net = ie.compile_model(func, device)
-    res_tensor = exec_net.infer_new_request({'data': tensor})
-    res_img = exec_net.infer_new_request({'data': tensor})
+    res_tensor = exec_net.infer_new_request({"data": tensor})
+    res_img = exec_net.infer_new_request({"data": tensor})
     assert np.argmax(res_tensor) == 2
     assert np.argmax(res_tensor) == np.argmax(res_img)
 
@@ -280,7 +279,7 @@ def test_infer_new_request_wrong_port_name(device):
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
     with pytest.raises(RuntimeError) as e:
-        exec_net.infer_new_request({'_data_': tensor})
+        exec_net.infer_new_request({"_data_": tensor})
     assert "Port for tensor name _data_ was not found." in str(e.value)
 
 

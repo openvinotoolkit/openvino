@@ -328,7 +328,8 @@ def test_add_extension(device):
     # n, c, h, w = network.input_info[input_blob].input_data.shape
 
     # input_values = np.ndarray(buffer=np.array([1, 2, 3, 4, 5, 6, 7, 8]), shape = (n, c, h, w), dtype=int)
-    # expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]), shape = (n, c, h, w), dtype=int)
+    # expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]),
+    # shape = (n, c, h, w), dtype=int)
     #
     # exec_network = core.compile_model(func, device)
     # computed = exec_network.infer_new_request(inputs={input_blob : input_values})
