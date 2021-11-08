@@ -4,9 +4,10 @@
 import numpy as np
 import os
 import pytest
+import datetime
 
 from ..conftest import image_path, model_path
-from openvino import Core, Tensor
+from openvino import Core, Tensor, ProfilingInfo
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -25,7 +26,6 @@ def read_image():
     return image
 
 
-@pytest.mark.skip(reason="ProfilingInfo has to be bound")
 def test_get_profiling_info(device):
     core = Core()
     func = core.read_model(test_net_xml, test_net_bin)
@@ -34,12 +34,13 @@ def test_get_profiling_info(device):
     img = read_image()
     request = exec_net.create_infer_request()
     request.infer({0: img})
-    pc = request.get_profiling_info()
-
-    assert pc["29"]["status"] == "EXECUTED"
-    assert pc["29"]["layer_type"] == "FullyConnected"
-    del exec_net
-    del core
+    prof_info = request.get_profiling_info()
+    soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
+    assert soft_max_node.node_type == "Softmax"
+    assert soft_max_node.status == ProfilingInfo.Status.OPTIMIZED_OUT
+    assert isinstance(soft_max_node.real_time, datetime.timedelta)
+    assert isinstance(soft_max_node.cpu_time, datetime.timedelta)
+    assert isinstance(soft_max_node.exec_type, str)
 
 
 def test_tensor_setter(device):

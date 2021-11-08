@@ -254,6 +254,10 @@ void regclass_InferRequest(py::module m) {
         },
         py::arg("tensor"));
 
+    cls.def("get_profiling_info", [](InferRequestWrapper& self) {
+        return self._request.get_profiling_info();
+    });
+
     cls.def_property_readonly("inputs", [](InferRequestWrapper& self) {
         return self._inputs;
     });
@@ -281,4 +285,9 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly("latency", [](InferRequestWrapper& self) {
         return self.get_latency();
     });
+
+    cls.def_property_readonly("profiling_info", [](InferRequestWrapper& self) {
+        return self._request.get_profiling_info();
+    });
+
 }
