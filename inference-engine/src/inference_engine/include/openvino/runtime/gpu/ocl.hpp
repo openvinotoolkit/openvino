@@ -123,7 +123,12 @@ public:
  * ExecutableNetwork::get_context() or Core::create_context() calls.
  */
 class ClContext : public RemoteContext {
+protected:
     using RemoteContext::create_tensor;
+
+    /**
+     * @brief GPU device name
+     */
     static constexpr const char* device_name = "GPU";
 
 public:
