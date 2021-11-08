@@ -96,7 +96,7 @@ class CustomBuild(build):
                     req.marker = None
                     return str(req)
 
-                distributions = pkg_resources.find_distributions(Path(egg_info[0]).parent)
+                distributions = pkg_resources.find_distributions(str(Path(egg_info[0]).parent))
                 for dist in distributions:
                     self.announce(f'Distribution: {dist.egg_name()}', level=log.INFO)
 
