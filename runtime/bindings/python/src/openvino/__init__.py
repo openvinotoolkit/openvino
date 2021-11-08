@@ -55,6 +55,8 @@ from openvino import opset6
 from openvino import opset7
 from openvino import opset8
 
+from openvino.helpers import function_to_cnn
+
 # Extend Node class to support binary operators
 Node.__add__ = opset8.add
 Node.__sub__ = opset8.subtract
