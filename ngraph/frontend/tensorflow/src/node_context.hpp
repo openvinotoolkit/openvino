@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include <openvino/core/variant.hpp>
 #include <tensorflow_frontend/utility.hpp>
 
 #include "exceptions.hpp"
+#include "openvino/core/variant.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
 #include "types.pb.h"
@@ -80,7 +80,7 @@ public:
     }
 
     /// Detects if there is at least one input attached with a given name
-    bool has_ng_input(const size_t& port_index) const {
+    bool has_input(const size_t& port_index) const {
         auto found = m_name_map.find(port_index);
         if (found != m_name_map.end())
             return !found->second.empty();
@@ -89,19 +89,19 @@ public:
 
     /// Returns exactly one input with a given name; throws if there is no inputs or
     /// there are more than one input
-    Output<Node> get_ng_input(const size_t& port_index) const {
+    Output<Node> get_input(const size_t& port_index) const {
         FRONT_END_GENERAL_CHECK(m_name_map.at(port_index).size() == 1);
         return m_name_map.at(port_index).at(0);
     }
 
     /// Returns all inputs with a given name
-    OutputVector get_ng_inputs(const size_t& port_index) const {
+    OutputVector get_inputs(const size_t& port_index) const {
         return m_name_map.at(port_index);
     }
 
     /// Returns all inputs in order they appear in map. This is used for FrameworkNode
     /// creation
-    OutputVector get_all_ng_inputs() const {
+    OutputVector get_all_inputs() const {
         OutputVector res;
         for (const auto& entry : m_name_map) {
             res.insert(res.end(), entry.second.begin(), entry.second.end());
@@ -110,7 +110,7 @@ public:
     }
 
     /// Get a number of inputs
-    size_t get_ng_input_size() const {
+    size_t get_input_size() const {
         return m_name_map.size();
     }
 
