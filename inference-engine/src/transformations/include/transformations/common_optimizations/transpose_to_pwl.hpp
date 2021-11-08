@@ -36,6 +36,10 @@ struct Function;
 
 template<>
 struct Function<opset1::Sigmoid> {
+    static const char* name() {
+        return "Sigmoid";
+    }
+
     static double get_value(double x) {
         return 0.5 * (1.0 + tanh(x / 2.0));
     }
@@ -65,6 +69,10 @@ struct Function<opset1::Sigmoid> {
 
 template<>
 struct Function<opset1::Tanh> {
+    static const char* name() {
+        return "Tanh";
+    }
+
     static double get_value(double x) {
         return tanh(x);
     }
@@ -94,6 +102,10 @@ struct Function<opset1::Tanh> {
 
 template<>
 struct Function<opset1::Exp> {
+    static const char* name() {
+        return "Exp";
+    }
+
     static double get_value(double x) {
         return exp(x);
     }
@@ -121,6 +133,10 @@ struct Function<opset1::Exp> {
 
 template<>
 struct Function<opset1::Abs> {
+    static const char* name() {
+        return "Abs";
+    }
+
     static double lower_bound() {
         return -1;
     }
@@ -136,6 +152,10 @@ struct Function<opset1::Abs> {
 
 template<>
 struct Function<opset1::Sign> {
+    static const char* name() {
+        return "Sign";
+    }
+
     static double lower_bound() {
         return -1;
     }
@@ -258,6 +278,24 @@ int samples(std::false_type) {
 template<typename T>
 int samples() {
     return samples<T>(std::integral_constant<bool,
+        std::is_same<T, opset1::Exp>::value ||
+        std::is_same<T, opset1::Tanh>::value ||
+        std::is_same<T, opset1::Sigmoid>::value>());
+}
+
+template<typename T>
+const char* name(std::true_type) {
+    return Function<T>::name();
+}
+
+template<typename T>
+const char* name(std::false_type) {
+    throw std::runtime_error("Not supported");
+}
+
+template<typename T>
+const char* name() {
+    return name<T>(std::integral_constant<bool,
         std::is_same<T, opset1::Exp>::value ||
         std::is_same<T, opset1::Tanh>::value ||
         std::is_same<T, opset1::Sigmoid>::value>());

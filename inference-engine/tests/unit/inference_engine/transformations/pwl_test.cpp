@@ -11,7 +11,9 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/serialize.hpp>
 #include <transformations/init_node_info.hpp>
+#include <frontend_manager/frontend_manager.hpp>
 
 namespace pwl_test {
 std::shared_ptr<ngraph::Function> CreateSigmoid(const ngraph::Shape& input_shape) {
@@ -66,10 +68,14 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
     auto shape = func->input().get_node_shared_ptr()->get_output_shape(0);
 
     ov::HostTensorVector output_tensors;
-    ov::HostTensorVector input_tensors;
     output_tensors.emplace_back(std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::f32, shape));
     std::vector<float> data = CommonTestUtils::generate_float_numbers(ov::shape_size(shape), lower_bound, upper_bound);
-    input_tensors.emplace_back(std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::f32, shape, data.data()));
+    ov::HostTensorVector input_tensors;
+    input_tensors.emplace_back(
+        std::make_shared<ngraph::runtime::HostTensor>(
+            ngraph::element::f32,
+            shape,
+            data.data()));
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_NO_THROW(func->evaluate(output_tensors, input_tensors));
@@ -84,18 +90,39 @@ void RunTest(const std::shared_ptr<ngraph::Function>& func,
 
     for (size_t i = 0; i < ov::shape_size(shape); i++) {
         double delta = std::abs(
-            output_tensors[0]->get_data_ptr<float>()[i] - output_tensors_ref[0]->get_data_ptr<float>()[i]);
-        std::cout << "delta: " << delta << " " << output_tensors[0]->get_data_ptr<float>()[i] << " "
-            << output_tensors_ref[0]->get_data_ptr<float>()[i] << '\n';
+            output_tensors[0]->get_data_ptr<double>()[i] - output_tensors_ref[0]->get_data_ptr<double>()[i]);
+        std::cout << "delta: " << delta << " " << output_tensors[0]->get_data_ptr<double>()[i] << " "
+            << output_tensors_ref[0]->get_data_ptr<double>()[i] << '\n';
         ASSERT_TRUE(delta <= 0.005);
     }
 }
 } // namespace
 
+/*TEST(PwlTest, Experiment) {
+    ngraph::frontend::FrontEndManager frontend_manager;
+    ov::VariantVector params{ov::make_variant("/home/khurtin/rm_cnn4a/new/rm_cnn4a.xml")};
+    params.emplace_back(ov::make_variant("/home/khurtin/rm_cnn4a/new/rm_cnn4a.bin"));
+    auto frontend = frontend_manager.load_by_model(params);
+    ASSERT_TRUE(frontend);
+    auto inputModel = frontend->load(params);
+    ASSERT_TRUE(inputModel);
+    auto function = frontend->convert(inputModel);
+    {
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::TransposeToPwl>();
+        manager.run_passes(function);
+        ASSERT_NO_THROW(check_rt_info(function));
+    }
+
+    ov::pass::Serialize serialize("/home/khurtin/rm_cnn4a/new/gen/rm_cnn4a.xml", "/home/khurtin/rm_cnn4a/new/gen/rm_cnn4a.bin");
+    serialize.run_on_function(function);
+}*/
+
 TEST(PwlTest, Sigmoid) {
     RunTest(
-        pwl_test::CreateSigmoid({1, 32}),
-        pwl_test::CreateSigmoid({1, 32}),
+        pwl_test::CreateSigmoid({1, 100}),
+        pwl_test::CreateSigmoid({1, 100}),
         -10,
         10);
 }

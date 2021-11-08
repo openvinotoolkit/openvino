@@ -29,6 +29,52 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     bool has_evaluate() const override;
+
+private:
+    template<typename T1, typename ...Types1, typename ...Types2>
+    bool evaluate_pwl(const std::tuple<T1, Types1...>&,
+                      const std::tuple<Types2...>& args2,
+                      const HostTensorVector& outputs,
+                      const HostTensorVector& inputs) const {
+        if (evaluate_pwl<T1, Types2...>(args2, outputs, inputs)) {
+            return true;
+        }
+
+        return evaluate_pwl<Types1..., Types2...>(std::tuple<Types1...>(), args2, outputs, inputs);
+    }
+
+    template<typename T1, typename ...Types2>
+    bool evaluate_pwl(const std::tuple<T1>&,
+                      const std::tuple<Types2...>& args2,
+                      const HostTensorVector& outputs,
+                      const HostTensorVector& inputs) const {
+        return evaluate_pwl<T1, Types2...>(args2, outputs, inputs);
+    }
+
+    template<typename T1, typename T2, typename ...Types2>
+    bool evaluate_pwl(const std::tuple<T2, Types2...>& args2,
+                      const HostTensorVector& outputs,
+                      const HostTensorVector& inputs) const {
+        return inputs[0]->get_element_type() == T1::value &&
+               inputs[1]->get_element_type() == T2::value &&
+               evaluate<T1, T2>(outputs, inputs, shape_size(get_input_shape(0)), shape_size(get_input_shape(1))) ||
+               evaluate_pwl<T1, Types2...>(std::tuple<Types2...>(), outputs, inputs);
+    }
+
+    template<typename T1, typename T2>
+    bool evaluate_pwl(const std::tuple<T2>& args2,
+                      const HostTensorVector& outputs,
+                      const HostTensorVector& inputs) const {
+        return inputs[0]->get_element_type() == T1::value &&
+               inputs[1]->get_element_type() == T2::value &&
+               evaluate<T1, T2>(outputs, inputs, shape_size(get_input_shape(0)), shape_size(get_input_shape(1)));
+    }
+
+    template <typename T1, typename T2>
+    bool evaluate(const HostTensorVector& outputs,
+                  const HostTensorVector& inputs,
+                  size_t count,
+                  size_t segments_number) const;
 };
 }  // namespace v0
 }  // namespace op

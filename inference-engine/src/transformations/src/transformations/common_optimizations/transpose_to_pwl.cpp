@@ -277,17 +277,32 @@ std::vector<Pwl> pwl_search(
                 //negative = (fmod(activation_type.args.pow.exponent, 1.0) == 0) ? true : false;
             }
 
-            double err = 0;
-            int n_segments = 1;
-            err = pivot_search<T>(pwl, n_segments, lower_bound, upper_bound, threshold, negative);
-            err_pct = calculate_error_pct<T>(lower_bound, upper_bound, err);
-            while (n_segments < PWL_MAX_ITERATIONS && allowed_err_pct < err_pct) {
-                n_segments += 1;
-                err = pivot_search<T>(pwl, n_segments, lower_bound, upper_bound, threshold, negative);
+            int n_segments_lower = 1;
+            int n_segments_upper = 1;
+            do {
+                n_segments_lower = n_segments_upper;
+                n_segments_upper *= 2;
+                auto err = pivot_search<T>(pwl, n_segments_upper, lower_bound, upper_bound, threshold, negative);
                 err_pct = calculate_error_pct<T>(lower_bound, upper_bound, err);
+            } while (n_segments_upper < PWL_MAX_ITERATIONS && allowed_err_pct < err_pct);
+
+            int n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower) / 2;
+            while (std::abs(n_segments_lower - n_segments_upper) > 1) {
+                auto err = pivot_search<T>(pwl, n_segments_mid, lower_bound, upper_bound, threshold, negative);
+                err_pct = calculate_error_pct<T>(lower_bound, upper_bound, err);
+                if (allowed_err_pct == err_pct) {
+                    n_segments_lower = n_segments_mid;
+                    break;
+                } else if (allowed_err_pct < err_pct) {
+                    n_segments_lower = n_segments_mid;
+                } else {
+                    n_segments_upper = n_segments_mid;
+                }
+
+                n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower) / 2;
             }
 
-            if (n_segments >= PWL_MAX_ITERATIONS) {
+            if (n_segments_lower >= PWL_MAX_ITERATIONS) {
                 std::runtime_error("Failed to converge in pwl_search!");
             }
         }

@@ -11,8 +11,8 @@
 namespace ngraph {
 namespace runtime {
 namespace reference {
-template <typename T>
-size_t range_search(const T& arg, const double* knots, size_t knots_number) {
+template <typename T, typename A>
+size_t range_search(const T& arg, const A* knots, size_t knots_number) {
     OPENVINO_ASSERT(knots_number >= 2, "The number of knots is less than 2.");
     size_t left = 0;
     size_t right = knots_number - 1;
@@ -30,11 +30,15 @@ size_t range_search(const T& arg, const double* knots, size_t knots_number) {
     return mid;
 }
 
-
-template <typename T>
-void pwl(const T* args, T* out, size_t count, const double* m, const double* b, size_t segments_number,
-    const double* knots, size_t knots_number) {
-    OPENVINO_ASSERT(segments_number + 1 == knots_number, "The number of knots have to be equal the number of segments plus one.");
+template <typename T, typename A>
+void pwl(const T* args,
+         T* out,
+         size_t count,
+         const A* m,
+         const A* b,
+         size_t segments_number,
+         const A* knots) {
+    size_t knots_number = segments_number + 1;
     for (size_t i = 0; i < count; i++) {
         size_t segment_index = 0;
         if (args[i] < knots[0]) {
@@ -45,7 +49,7 @@ void pwl(const T* args, T* out, size_t count, const double* m, const double* b, 
             auto index = range_search(args[i], knots, knots_number);
             segment_index = index == knots_number - 1 ? index - 1 : index;
         }
-            
+
         out[i] = m[segment_index] * args[i] + b[segment_index];
     }
 }

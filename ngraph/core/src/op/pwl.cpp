@@ -30,58 +30,54 @@ shared_ptr<Node> op::v0::Pwl::clone_with_new_inputs(const OutputVector& new_args
 }
 
 void op::v0::Pwl::validate_and_infer_types() {
-    // TODO
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-namespace pwlop {
-template <element::Type_t ET>
-inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count,
-    const HostTensorPtr& arg1, const HostTensorPtr& arg2, const size_t segments_number,
-    const HostTensorPtr& arg3, const size_t knots_number) {
-    using T = typename element_type_traits<ET>::value_type;
-    runtime::reference::pwl<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count,
-        arg1->get_data_ptr<double>(), arg2->get_data_ptr<double>(), segments_number,
-        arg3->get_data_ptr<double>(), knots_number);
-    return true;
-}
-
-bool evaluate_pwl(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count,
-    const HostTensorPtr& arg1, const HostTensorPtr& arg2, const size_t segments_number,
-    const HostTensorPtr& arg3, const size_t knots_number) {
-    bool rc = true;
-    out->set_unary(arg0);
-
-    switch (arg0->get_element_type()) {
-        NGRAPH_TYPE_CASE(evaluate_pwl, i32, arg0, out, count, arg1, arg2, segments_number, arg3, knots_number);
-        NGRAPH_TYPE_CASE(evaluate_pwl, i64, arg0, out, count, arg1, arg2, segments_number, arg3, knots_number);
-        NGRAPH_TYPE_CASE(evaluate_pwl, u32, arg0, out, count, arg1, arg2, segments_number, arg3, knots_number);
-        NGRAPH_TYPE_CASE(evaluate_pwl, u64, arg0, out, count, arg1, arg2, segments_number, arg3, knots_number);
-        NGRAPH_TYPE_CASE(evaluate_pwl, f16, arg0, out, count, arg1, arg2, segments_number, arg3, knots_number);
-        NGRAPH_TYPE_CASE(evaluate_pwl, f32, arg0, out, count, arg1, arg2, segments_number, arg3, knots_number);
-    default:
-        rc = false;
-        break;
+template <typename T1, typename T2>
+bool op::v0::Pwl::evaluate(const HostTensorVector& outputs,
+                           const HostTensorVector& inputs,
+                           size_t count,
+                           size_t segments_number) const {
+    outputs[0]->set_unary(inputs[0]);
+    OV_SCOPE(ngraph_op, OV_PP_CAT4(region, _, T1, T2)) {
+        using A1 = typename element_type_traits<T1::value>::value_type;
+        using A2 = typename element_type_traits<T2::value>::value_type;
+        ngraph::runtime::reference::pwl(inputs[0]->get_data_ptr<A2>(),
+                                        outputs[0]->get_data_ptr<A2>(),
+                                        count,
+                                        inputs[1]->get_data_ptr<A1>(),
+                                        inputs[2]->get_data_ptr<A1>(),
+                                        segments_number,
+                                        inputs[3]->get_data_ptr<A1>());
+        return true;
     }
-    return rc;
+    return false;
 }
-}  // namespace pwlop
 
 bool op::v0::Pwl::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_Pwl_evaluate);
-    return pwlop::evaluate_pwl(inputs[0], outputs[0], shape_size(get_input_shape(0)),
-        inputs[1], inputs[2], shape_size(get_input_shape(1)),
-        inputs[3], shape_size(get_input_shape(3)));
+    return evaluate_pwl(std::tuple<std::integral_constant<element::Type_t, element::f32>,
+                                   std::integral_constant<element::Type_t, element::f64>>(),
+                        std::tuple<std::integral_constant<element::Type_t, element::i32>,
+                                   std::integral_constant<element::Type_t, element::i64>,
+                                   std::integral_constant<element::Type_t, element::u32>,
+                                   std::integral_constant<element::Type_t, element::u64>,
+                                   std::integral_constant<element::Type_t, element::f16>,
+                                   std::integral_constant<element::Type_t, element::f32>,
+                                   std::integral_constant<element::Type_t, element::f64>>(),
+                        outputs,
+                        inputs);
 }
 
 bool op::v0::Pwl::has_evaluate() const {
     NGRAPH_OP_SCOPE(v0_Pwl_has_evaluate);
     switch (get_input_element_type(0)) {
-    case ngraph::element::i32:
-    case ngraph::element::i64:
-    case ngraph::element::u32:
-    case ngraph::element::u64:
-    case ngraph::element::f16:
-    case ngraph::element::f32:
+    case element::i32:
+    case element::i64:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
         return true;
     default:
         break;
