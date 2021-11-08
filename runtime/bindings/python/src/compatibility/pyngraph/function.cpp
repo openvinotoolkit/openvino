@@ -105,7 +105,9 @@ void regclass_pyngraph_Function(py::module m) {
                         Number of outputs.
                  )");
     function.def("get_ops",
-                 &ngraph::Function::get_ops,
+                 [](std::shared_ptr<ov::Function>& function) {
+                     return function->get_ops();
+                 },
                  R"(
                     Return ops used in the function.
 
@@ -115,7 +117,9 @@ void regclass_pyngraph_Function(py::module m) {
                         List of Nodes representing ops used in function.
                  )");
     function.def("get_ordered_ops",
-                 &ngraph::Function::get_ordered_ops,
+                 [](std::shared_ptr<ov::Function>& function) {
+                     return function->get_ordered_ops();
+                 },
                  R"(
                     Return ops used in the function in topological order.
 
@@ -125,8 +129,9 @@ void regclass_pyngraph_Function(py::module m) {
                         List of sorted Nodes representing ops used in function.
                  )");
     function.def("get_output_op",
-                 &ngraph::Function::get_output_op,
-                 py::arg("i"),
+                 [](std::shared_ptr<ov::Function>& function, size_t i) {
+                     return function->get_output_op(i);
+                 },
                  R"(
                     Return the op that generates output i
 
@@ -189,7 +194,9 @@ void regclass_pyngraph_Function(py::module m) {
                         PartialShape object of element i
                  )");
     function.def("get_parameters",
-                 &ngraph::Function::get_parameters,
+                 [](std::shared_ptr<ov::Function>& function) {
+                     return function->get_parameters();
+                 },
                  R"(
                     Return the function parameters.
 
@@ -199,7 +206,9 @@ void regclass_pyngraph_Function(py::module m) {
                         ParameterVector containing function parameters.
                  )");
     function.def("get_results",
-                 &ngraph::Function::get_results,
+                 [](std::shared_ptr<ov::Function>& function) {
+                     return function->get_results();
+                 },
                  R"(
                     Return a list of function outputs.
 
@@ -209,7 +218,9 @@ void regclass_pyngraph_Function(py::module m) {
                         ResultVector containing function parameters.
                  )");
     function.def("get_result",
-                 &ngraph::Function::get_result,
+                 [](std::shared_ptr<ov::Function>& function) {
+                     return function->get_result();
+                 },
                  R"(
                     Return single result.
 
