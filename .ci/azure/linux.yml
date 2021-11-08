@@ -5,8 +5,7 @@ trigger:
     - releases/*
   paths:
     exclude:
-    - docs
-    - *.md
+    - docs/*
 
 resources:
   repositories:
