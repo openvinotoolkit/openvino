@@ -71,7 +71,7 @@ static mkldnn::algorithm ie2dnnl(const std::shared_ptr<const ngraph::Node>& op) 
     }
 }
 
-size_t gatesCount(mkldnn::algorithm alg) {
+inline size_t gatesCount(mkldnn::algorithm alg) {
     switch (alg) {
         case mkldnn::algorithm::vanilla_rnn:     return 1;
         case mkldnn::algorithm::vanilla_gru:
@@ -83,7 +83,7 @@ size_t gatesCount(mkldnn::algorithm alg) {
     }
 }
 
-size_t statesCount(mkldnn::algorithm alg) {
+inline size_t statesCount(mkldnn::algorithm alg) {
     switch (alg) {
         case mkldnn::algorithm::vanilla_rnn:
         case mkldnn::algorithm::vanilla_gru:
@@ -95,7 +95,7 @@ size_t statesCount(mkldnn::algorithm alg) {
     }
 }
 
-bool haveCellState(mkldnn::algorithm alg) {
+inline bool haveCellState(mkldnn::algorithm alg) {
     return alg == mkldnn::algorithm::vanilla_lstm;
 }
 
@@ -794,6 +794,7 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
     (*prim).execute(strm, args);
 }
 
+}  // namespace MKLDNNPlugin
+
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
-}  // namespace MKLDNNPlugin

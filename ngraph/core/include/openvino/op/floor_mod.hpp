@@ -17,7 +17,7 @@ public:
     BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs an uninitialized addition operation
-    FloorMod() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY){};
+    FloorMod() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 
     /// \brief Constructs an Floor Mod operation.
     ///

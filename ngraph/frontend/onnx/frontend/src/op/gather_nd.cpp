@@ -5,6 +5,8 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
+#include "op/gather_nd.hpp"
+
 #include "default_opset.hpp"
 #include "utils/common.hpp"
 

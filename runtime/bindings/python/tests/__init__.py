@@ -23,6 +23,9 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+xfail_accuracy = xfail_test(reason="Accuracy")
+xfail_issue_69444 = xfail_test(reason="failed with accuracy issue")
+skip_issue_69443 = pytest.mark.skip(reason="Segmentation fault due to empty pads_begin, pads_end")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -80,7 +83,6 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
-xfail_issue_44848 = xfail_test(reason="Expected: Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="Expected: Unsupported dynamic op: Broadcast")
 xfail_issue_44854 = xfail_test(reason="Expected: Unsupported dynamic op: VariadicSplit")
 xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsqueeze")
@@ -108,7 +110,6 @@ xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form t
                                       " z should be converted to TileIE operation.")
 xfail_issue_39659 = xfail_test(reason="RuntimeError: Broadcast operation has a form that is not supported."
                                       " y should be converted to Tile operation.")
-xfail_issue_45344 = xfail_test(reason="Unsupported dynamic ops: v3::NonMaxSuppressionIE3")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 
@@ -144,3 +145,4 @@ xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")
+xfail_issue_54663 = xfail_test(reason="Disabled until MaxPool-8 is supported on CPU")
