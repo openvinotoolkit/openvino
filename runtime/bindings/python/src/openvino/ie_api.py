@@ -3,6 +3,7 @@
 
 import numpy as np
 import copy
+from typing import List
 
 from openvino.pyopenvino import TBlobFloat32
 from openvino.pyopenvino import TBlobFloat64
@@ -16,6 +17,7 @@ from openvino.pyopenvino import TBlobInt8
 from openvino.pyopenvino import TBlobUint8
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import InferRequest
+from openvino.pyopenvino import ExecutableNetwork
 from openvino.pyopenvino import Tensor
 
 
@@ -43,6 +45,13 @@ def normalize_inputs(py_dict: dict) -> dict:
 # flake8: noqa: D102
 def infer(request: InferRequest, inputs: dict = None) -> np.ndarray:
     res = request._infer(inputs=normalize_inputs(inputs if inputs is not None else {}))
+    # Required to return list since np.ndarray forces all of tensors data to match in
+    # dimensions. This results in errors when running ops like variadic split.
+    return [copy.deepcopy(tensor.data) for tensor in res]
+
+
+def infer_new_request(exec_net: ExecutableNetwork, inputs: dict = None) -> List[np.ndarray]:
+    res = exec_net._infer_new_request(inputs=normalize_inputs(inputs if inputs is not None else {}))
     # Required to return list since np.ndarray forces all of tensors data to match in
     # dimensions. This results in errors when running ops like variadic split.
     return [copy.deepcopy(tensor.data) for tensor in res]

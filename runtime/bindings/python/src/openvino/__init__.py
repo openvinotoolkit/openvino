@@ -18,6 +18,7 @@ from openvino.ie_api import infer
 from openvino.ie_api import start_async
 from openvino.ie_api import blob_from_file
 from openvino.ie_api import tensor_from_file
+from openvino.ie_api import infer_new_request
 
 from openvino.impl import Dimension
 from openvino.impl import Function
@@ -79,7 +80,7 @@ Node.__ge__ = opset8.greater_equal
 # this class will be removed
 Blob = BlobWrapper
 # Patching ExecutableNetwork
-ExecutableNetwork.infer = infer
+ExecutableNetwork.infer_new_request = infer_new_request
 # Patching InferRequest
 InferRequest.infer = infer
 InferRequest.start_async = start_async
