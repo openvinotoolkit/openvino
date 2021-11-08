@@ -140,7 +140,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("dst_format"));
     steps.def(
         "resize",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, ov::preprocess::ResizeAlgorithm alg, size_t dst_height, size_t dst_width) {
+        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me,
+           ov::preprocess::ResizeAlgorithm alg,
+           size_t dst_height,
+           size_t dst_width) {
             me->resize(alg, dst_height, dst_width);
             return me;
         },
@@ -168,12 +171,10 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             return me;
         },
         py::arg("dims"));
-    steps.def(
-        "reverse_channels",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me) {
-            me->reverse_channels();
-            return me;
-        });
+    steps.def("reverse_channels", [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me) {
+        me->reverse_channels();
+        return me;
+    });
 }
 
 static void regclass_graph_PostProcessSteps(py::module m) {
@@ -271,14 +272,18 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         me->set_spatial_dynamic_shape();
         return me;
     });
-    info.def("set_spatial_static_shape", [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, size_t height, size_t width) {
-        me->set_spatial_static_shape(height, width);
-        return me;
-    });
-    info.def("set_color_format", [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, const ov::preprocess::ColorFormat& format, const std::vector<std::string>& sub_names = {}) {
-        me->set_color_format(format, sub_names);
-        return me;
-    });
+    info.def("set_spatial_static_shape",
+             [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, size_t height, size_t width) {
+                 me->set_spatial_static_shape(height, width);
+                 return me;
+             });
+    info.def("set_color_format",
+             [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me,
+                const ov::preprocess::ColorFormat& format,
+                const std::vector<std::string>& sub_names = {}) {
+                 me->set_color_format(format, sub_names);
+                 return me;
+             });
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
