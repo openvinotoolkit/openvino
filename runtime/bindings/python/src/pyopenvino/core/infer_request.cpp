@@ -289,5 +289,4 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly("profiling_info", [](InferRequestWrapper& self) {
         return self._request.get_profiling_info();
     });
-
 }
