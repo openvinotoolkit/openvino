@@ -43,11 +43,11 @@ void shape_infer(const CTCGreedyDecoder* op, const std::vector<T>& input_shapes,
     if (logits_pshape.rank().is_static()) {
         if (logits_pshape[0].is_static()) {
             time_size = logits_pshape[0];
-            is_batch_static = true;
+            is_time_static = true;
         }
         if (logits_pshape[1].is_static()) {
             batch_size = logits_pshape[1];
-            is_time_static = true;
+            is_batch_static = true;
         }
     }
     if (seq_mask_pshape.rank().is_static()) {
