@@ -12,214 +12,235 @@ namespace ov {
 namespace frontend {
 namespace tf {
 namespace op {
-#define OP_CONVERTER(op) ov::OutputVector op(const NodeContext& node)
+#define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 #define OP_T_CONVERTER(op) \
     template <class T>     \
-    ov::OutputVector op(const NodeContext& node)
+    OutputVector op(const NodeContext& node)
 
-OP_T_CONVERTER(TranslateUnaryOp);
-OP_T_CONVERTER(TranslateBinaryOp);
-OP_T_CONVERTER(TranslateDirectReduceOp);
+OP_T_CONVERTER(translate_unary_op);
+OP_T_CONVERTER(translate_binary_op);
+OP_T_CONVERTER(translate_direct_reduce_op);
 
-OP_CONVERTER(TranslateAddNOp);
-OP_CONVERTER(TranslateArgMaxOp);
-OP_CONVERTER(TranslateArgMinOp);
-OP_CONVERTER(TranslateAvgPoolOp);
-OP_CONVERTER(TranslateBiasAddOp);
-OP_CONVERTER(TranslateCastOp);
-OP_CONVERTER(TranslateConcatV2Op);
-OP_CONVERTER(TranslateConstOp);
-OP_CONVERTER(TranslateConv2DOp);
-OP_CONVERTER(TranslateConv2DBackpropInputOp);
-OP_CONVERTER(TranslateConv3DOp);
-OP_CONVERTER(TranslateCumsumOp);
-OP_CONVERTER(TranslateDepthToSpaceOp);
-OP_CONVERTER(TranslateDepthwiseConv2dNativeOp);
-OP_CONVERTER(TranslateEluOp);
-OP_CONVERTER(TranslateExpandDimsOp);
-OP_CONVERTER(TranslateFillOp);
-OP_CONVERTER(TranslateFloorDivOp);
-OP_CONVERTER(TranslateFusedBatchNormOp);
-OP_CONVERTER(TranslateGatherOp);
-OP_CONVERTER(TranslateGatherV2Op);
-OP_CONVERTER(TranslateFusedConv2DOp);
-OP_CONVERTER(TranslateFusedMatMulOp);
-OP_CONVERTER(TranslateIdentityOp);
-// OP_CONVERTER(TranslateIsFiniteOp);
-// OP_CONVERTER(TranslateL2LossOp);
-OP_CONVERTER(TranslateLogSoftmaxOp);
-// OP_CONVERTER(TranslateLog1pOp);
-// OP_CONVERTER(TranslateLRNOp);
-// OP_CONVERTER(TranslateMatMulOp);
-OP_CONVERTER(TranslateMaxPoolOp);
-OP_CONVERTER(TranslateNonMaxSuppressionV2Op);
-OP_CONVERTER(TranslatePadOp);
-OP_CONVERTER(PlaceholderOp);
-OP_CONVERTER(NoOp);
-OP_CONVERTER(TranslateOneHotOp);
-// OP_CONVERTER(TranslatePackOp);
-OP_CONVERTER(TranslateRangeOp);
-OP_CONVERTER(TranslateRankOp);
-OP_CONVERTER(TranslateRandomUniformOp);
-OP_CONVERTER(TranslateRelu6Op);
-// OP_CONVERTER(TranslateReciprocalOp);
-// OP_CONVERTER(TranslateReshapeOp);
-OP_CONVERTER(RetvalOp);
-OP_CONVERTER(TranslateRollOp);
-OP_CONVERTER(TranslateRsqrtOp);
-OP_CONVERTER(TranslateSelectOp);
-// OP_CONVERTER(TranslateShapeOp);
-// OP_CONVERTER(TranslateSizeOp);
-// OP_CONVERTER(TranslateSliceOp);
-// OP_CONVERTER(transpose2);
-OP_CONVERTER(TranslateSoftmaxOp);
-// OP_CONVERTER(TranslateSpaceToDepthOp);
-// OP_CONVERTER(TranslateSplitOp);
-// OP_CONVERTER(TranslateSplitOp);
-OP_CONVERTER(TranslateSqueezeOp);
-// OP_CONVERTER(TranslateStridedSliceOp);
-OP_CONVERTER(TranslateSqrtOp);
-// OP_CONVERTER(TranslateTileOp);
-// OP_CONVERTER(TranslateTopKV2Op);
-// OP_CONVERTER(TranslateTransposeOp);
-// OP_CONVERTER(TranslateUnpackOp);
-// OP_CONVERTER(TranslateWhereOp);
-// OP_CONVERTER(TranslateXdivyOp);
-// OP_CONVERTER(TranslateZerosLikeOp);
+OP_CONVERTER(translate_add_n_op);
+OP_CONVERTER(translate_arg_max_op);
+OP_CONVERTER(translate_arg_min_op);
+OP_CONVERTER(translate_avg_pool_op);
+OP_CONVERTER(translate_bias_add_op);
+OP_CONVERTER(translate_batch_nd_and_space_nd_op);
+OP_CONVERTER(translate_cast_op);
+OP_CONVERTER(translate_concat_op);
+OP_CONVERTER(translate_const_op);
+OP_CONVERTER(translate_conv_2d_op);
+OP_CONVERTER(translate_conv_2d_backprop_input_op);
+OP_CONVERTER(translate_conv_3d_op);
+OP_CONVERTER(translate_cumsum_op);
+OP_CONVERTER(translate_crop_and_resize_op);
+OP_CONVERTER(translate_depth_to_space_op);
+OP_CONVERTER(translate_depthwise_conv_2d_native_op);
+OP_CONVERTER(translate_elu_op);
+OP_CONVERTER(translate_expand_dims_op);
+OP_CONVERTER(translate_fake_quant_op);
+OP_CONVERTER(translate_fill_op);
+OP_CONVERTER(translate_floor_div_op);
+OP_CONVERTER(translate_fused_batch_norm_op);
+OP_CONVERTER(translate_gather_op);
+OP_CONVERTER(translate_gather_v2_op);
+OP_CONVERTER(translate_gather_nd_op);
+OP_CONVERTER(translate_identity_op);
+OP_CONVERTER(translate_interpolate_op);
+OP_CONVERTER(translate_is_finite_op);
+OP_CONVERTER(translate_l2_loss_op);
+OP_CONVERTER(translate_leaky_relu_op);
+OP_CONVERTER(translate_log_softmax_op);
+OP_CONVERTER(translate_log_1p_op);
+OP_CONVERTER(translate_lrn_op);
+OP_CONVERTER(translate_mat_mul_op);
+OP_CONVERTER(translate_max_pool_op);
+OP_CONVERTER(translate_non_max_suppression_op);
+OP_CONVERTER(translate_pad_op);
+OP_CONVERTER(translate_placeholder_op);
+OP_CONVERTER(translate_no_op);
+OP_CONVERTER(translate_one_hot_op);
+OP_CONVERTER(translate_pack_op);
+OP_CONVERTER(translate_range_op);
+OP_CONVERTER(translate_rank_op);
+OP_CONVERTER(translate_random_uniform_op);
+OP_CONVERTER(translate_random_uniform_int_op);
+OP_CONVERTER(translate_relu_6_op);
+OP_CONVERTER(translate_reciprocal_op);
+OP_CONVERTER(translate_reshape_op);
+OP_CONVERTER(translate_reverse_op);
+OP_CONVERTER(translate_roll_op);
+OP_CONVERTER(translate_round_op);
+OP_CONVERTER(translate_rsqrt_op);
+OP_CONVERTER(translate_select_op);
+OP_CONVERTER(translate_shape_op);
+OP_CONVERTER(translate_size_op);
+OP_CONVERTER(translate_slice_op);
+OP_CONVERTER(translate_softmax_op);
+OP_CONVERTER(translate_space_to_depth_op);
+OP_CONVERTER(translate_split_op);
+OP_CONVERTER(translate_split_v_op);
+OP_CONVERTER(translate_square_op);
+OP_CONVERTER(translate_squeeze_op);
+OP_CONVERTER(translate_strided_slice_op);
+OP_CONVERTER(translate_sqrt_op);
+OP_CONVERTER(translate_tile_op);
+OP_CONVERTER(translate_top_k_v2_op);
+OP_CONVERTER(translate_transpose_op);
+OP_CONVERTER(translate_unpack_op);
+OP_CONVERTER(translate_where_op);
+OP_CONVERTER(translate_x_div_y_op);
+OP_CONVERTER(translate_zeros_like_op);
 
 const std::map<const std::string, const CreatorFunction> get_supported_ops() {
     return {
         // note: UnaryOp translator declaration for each op must to be added in unary_op.cpp file
-        {"Abs", TranslateUnaryOp<opset8::Abs>},
-        {"Acos", TranslateUnaryOp<opset8::Acos>},
-        {"Acosh", TranslateUnaryOp<opset8::Acosh>},
-        {"Asin", TranslateUnaryOp<opset8::Asin>},
-        {"Asinh", TranslateUnaryOp<opset8::Asinh>},
-        {"Atan", TranslateUnaryOp<opset8::Atan>},
-        {"Atanh", TranslateUnaryOp<opset8::Atanh>},
-        {"Ceil", TranslateUnaryOp<opset8::Ceiling>},
-        {"Cos", TranslateUnaryOp<opset8::Cos>},
-        {"Cosh", TranslateUnaryOp<opset8::Cosh>},
-        {"Exp", TranslateUnaryOp<opset8::Exp>},
-        {"Floor", TranslateUnaryOp<opset8::Floor>},
-        {"Log", TranslateUnaryOp<opset8::Log>},
-        {"LogicalNot", TranslateUnaryOp<opset8::LogicalNot>},
-        {"Neg", TranslateUnaryOp<opset8::Negative>},
-        {"Relu", TranslateUnaryOp<opset8::Relu>},
-        {"Sigmoid", TranslateUnaryOp<opset8::Sigmoid>},
-        {"Sin", TranslateUnaryOp<opset8::Sin>},
-        {"Sinh", TranslateUnaryOp<opset8::Sinh>},
-        {"Sign", TranslateUnaryOp<opset8::Sign>},
-        {"Softplus", TranslateUnaryOp<opset8::SoftPlus>},
-        {"Tan", TranslateUnaryOp<opset8::Tan>},
-        {"Tanh", TranslateUnaryOp<opset8::Tanh>},
+        {"Abs", translate_unary_op<opset8::Abs>},
+        {"Acos", translate_unary_op<opset8::Acos>},
+        {"Acosh", translate_unary_op<opset8::Acosh>},
+        {"Asin", translate_unary_op<opset8::Asin>},
+        {"Asinh", translate_unary_op<opset8::Asinh>},
+        {"Atan", translate_unary_op<opset8::Atan>},
+        {"Atanh", translate_unary_op<opset8::Atanh>},
+        {"Ceil", translate_unary_op<opset8::Ceiling>},
+        {"Cos", translate_unary_op<opset8::Cos>},
+        {"Cosh", translate_unary_op<opset8::Cosh>},
+        {"Exp", translate_unary_op<opset8::Exp>},
+        {"Floor", translate_unary_op<opset8::Floor>},
+        {"Log", translate_unary_op<opset8::Log>},
+        {"LogicalNot", translate_unary_op<opset8::LogicalNot>},
+        {"Neg", translate_unary_op<opset8::Negative>},
+        {"Relu", translate_unary_op<opset8::Relu>},
+        {"Sigmoid", translate_unary_op<opset8::Sigmoid>},
+        {"Sin", translate_unary_op<opset8::Sin>},
+        {"Sinh", translate_unary_op<opset8::Sinh>},
+        {"Sign", translate_unary_op<opset8::Sign>},
+        {"Softplus", translate_unary_op<opset8::SoftPlus>},
+        {"Tan", translate_unary_op<opset8::Tan>},
+        {"Tanh", translate_unary_op<opset8::Tanh>},
+        {"Swish", translate_unary_op<opset8::Swish>},
 
-        // note: BinaryOp translator declaration for each op  must to be added in binary_op.cpp file
-        {"Add", TranslateBinaryOp<opset8::Add>},
-        {"AddV2", TranslateBinaryOp<opset8::Add>},
-        {"Equal", TranslateBinaryOp<opset8::Equal>},
-        {"FloorMod", TranslateBinaryOp<opset8::FloorMod>},
-        {"Greater", TranslateBinaryOp<opset8::Greater>},
-        {"GreaterEqual", TranslateBinaryOp<opset8::GreaterEqual>},
-        {"Less", TranslateBinaryOp<opset8::Less>},
-        {"LessEqual", TranslateBinaryOp<opset8::LessEqual>},
-        {"LogicalAnd", TranslateBinaryOp<opset8::LogicalAnd>},
-        {"LogicalOr", TranslateBinaryOp<opset8::LogicalOr>},
-        {"Maximum", TranslateBinaryOp<opset8::Maximum>},
-        {"Minimum", TranslateBinaryOp<opset8::Minimum>},
-        {"Mul", TranslateBinaryOp<opset8::Multiply>},
-        {"Mod", TranslateBinaryOp<opset8::Mod>},
-        {"NotEqual", TranslateBinaryOp<opset8::NotEqual>},
-        {"Pow", TranslateBinaryOp<opset8::Power>},
-        {"RealDiv", TranslateBinaryOp<opset8::Divide>},
-        {"SquaredDifference", TranslateBinaryOp<opset8::SquaredDifference>},
-        {"Sub", TranslateBinaryOp<opset8::Subtract>},
+        // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
+        {"Add", translate_binary_op<opset8::Add>},
+        {"AddV2", translate_binary_op<opset8::Add>},
+        {"Equal", translate_binary_op<opset8::Equal>},
+        {"FloorMod", translate_binary_op<opset8::FloorMod>},
+        {"Greater", translate_binary_op<opset8::Greater>},
+        {"GreaterEqual", translate_binary_op<opset8::GreaterEqual>},
+        {"Less", translate_binary_op<opset8::Less>},
+        {"LessEqual", translate_binary_op<opset8::LessEqual>},
+        {"LogicalAnd", translate_binary_op<opset8::LogicalAnd>},
+        {"LogicalOr", translate_binary_op<opset8::LogicalOr>},
+        {"LogicalXor", translate_binary_op<opset8::LogicalXor>},
+        {"Maximum", translate_binary_op<opset8::Maximum>},
+        {"Minimum", translate_binary_op<opset8::Minimum>},
+        {"Mul", translate_binary_op<opset8::Multiply>},
+        {"Mod", translate_binary_op<opset8::Mod>},
+        {"NotEqual", translate_binary_op<opset8::NotEqual>},
+        {"Pow", translate_binary_op<opset8::Power>},
+        {"RealDiv", translate_binary_op<opset8::Divide>},
+        {"SquaredDifference", translate_binary_op<opset8::SquaredDifference>},
+        {"Sub", translate_binary_op<opset8::Subtract>},
 
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
-        {"Any", TranslateDirectReduceOp<opset8::ReduceLogicalOr>},
-        {"All", TranslateDirectReduceOp<opset8::ReduceLogicalAnd>},
-        {"Max", TranslateDirectReduceOp<opset8::ReduceMax>},
-        {"Mean", TranslateDirectReduceOp<opset8::ReduceMean>},
-        {"Min", TranslateDirectReduceOp<opset8::ReduceMin>},
-        {"Prod", TranslateDirectReduceOp<opset8::ReduceProd>},
-        {"Sum", TranslateDirectReduceOp<opset8::ReduceSum>},
+        {"Any", translate_direct_reduce_op<opset8::ReduceLogicalOr>},
+        {"All", translate_direct_reduce_op<opset8::ReduceLogicalAnd>},
+        {"Max", translate_direct_reduce_op<opset8::ReduceMax>},
+        {"Mean", translate_direct_reduce_op<opset8::ReduceMean>},
+        {"Min", translate_direct_reduce_op<opset8::ReduceMin>},
+        {"Prod", translate_direct_reduce_op<opset8::ReduceProd>},
+        {"Sum", translate_direct_reduce_op<opset8::ReduceSum>},
 
         // Separate translators:
-        {"AddN", TranslateAddNOp},
-        {"ArgMax", TranslateArgMaxOp},
-        {"ArgMin", TranslateArgMinOp},
-        {"AvgPool", TranslateAvgPoolOp},
-        {"BiasAdd", TranslateBiasAddOp},
-        {"Cast", TranslateCastOp},
-        {"ConcatV2", TranslateConcatV2Op},
-        {"Const", TranslateConstOp},
-        {"Conv2D", TranslateConv2DOp},
-        {"Conv2DBackpropInput", TranslateConv2DBackpropInputOp},
-        {"Conv3D", TranslateConv3DOp},
-        {"Cumsum", TranslateCumsumOp},
-        {"DepthToSpace", TranslateDepthToSpaceOp},
-        {"DepthwiseConv2dNative", TranslateDepthwiseConv2dNativeOp},
-        {"Elu", TranslateEluOp},
-        {"ExpandDims", TranslateExpandDimsOp},
-        {"Fill", TranslateFillOp},
-        {"FloorDiv", TranslateFloorDivOp},
-        {"FusedBatchNorm", TranslateFusedBatchNormOp},
-        {"FusedBatchNormV2", TranslateFusedBatchNormOp},
-        {"FusedBatchNormV3", TranslateFusedBatchNormOp},
-        {"Gather", TranslateGatherOp},
-        {"GatherV2", TranslateGatherV2Op},
-        {"_FusedConv2D", TranslateFusedConv2DOp},
-        {"_FusedMatMul", TranslateFusedMatMulOp},
-        {"Identity", TranslateIdentityOp},
-        //{"IsFinite", TranslateIsFiniteOp},
-        //{"L2Loss", TranslateL2LossOp},
-        {"LogSoftmax", TranslateLogSoftmaxOp},
-        //{"Log1p", TranslateLog1pOp},
-        //{"LRN", TranslateLRNOp},
-        //{"MatMul", TranslateMatMulOp},
-        {"MaxPool", TranslateMaxPoolOp},
-        {"MaxPool3D", TranslateMaxPoolOp},
-        //{"NonMaxSuppressionV2", TranslateNonMaxSuppressionV2Op},
-        {"MirrorPad", TranslatePadOp},
-        {"NoOp", NoOp},  // do nothing
-        {"OneHot", TranslateOneHotOp},
-        //{"Pack", TranslatePackOp},
-        {"Pad", TranslatePadOp},
-        {"PadV2", TranslatePadOp},
-        //{"_Arg", ArgOp}, // should be registered as an extension in OVTF
-        {"Placeholder", PlaceholderOp},
-        // PreventGradient is just Identity in dataflow terms, so reuse that.
-        {"PreventGradient", TranslateIdentityOp},
-        //{"Range", TranslateRangeOp},
-        //{"Rank", TranslateRankOp},
-        {"RandomUniform", TranslateRandomUniformOp},
-        //{"Reciprocal", TranslateReciprocalOp},
-        {"Relu6", TranslateRelu6Op},
-        //{"Reshape", TranslateReshapeOp},
-        {"_Retval", RetvalOp},
-        {"Roll", TranslateRollOp},
-        {"Rsqrt", TranslateRsqrtOp},
-        {"Select", TranslateSelectOp},
-        {"SelectV2", TranslateSelectOp},
-        //{"Shape", TranslateShapeOp},
-        //{"Size", TranslateSizeOp},
-        //{"Slice", TranslateSliceOp},
-        //{"Snapshot", TranslateIdentityOp},
-        {"Softmax", TranslateSoftmaxOp},
-        //{"SpaceToDepth", TranslateSpaceToDepthOp},
-        //{"Split", TranslateSplitOp},
-        //{"SplitV", TranslateSplitVOp},
-        {"Sqrt", TranslateSqrtOp},
-        //{"Square", TranslateSquareOp},
-        {"Squeeze", TranslateSqueezeOp},
-        //{"StridedSlice", TranslateStridedSliceOp},
-        //{"Tile", TranslateTileOp},
-        //{"TopKV2", TranslateTopKV2Op},
-        //{"Transpose", TranslateTransposeOp},
-        //{"Unpack", TranslateUnpackOp},
-        //{"Where", TranslateWhereOp},
-        //{"Xdivy", TranslateXdivyOp},
-        //{"ZerosLike", TranslateZerosLikeOp},
+        {"AddN", translate_add_n_op},
+        {"ArgMax", translate_arg_max_op},
+        {"ArgMin", translate_arg_min_op},
+        {"AvgPool", translate_avg_pool_op},
+        {"BatchToSpaceND", translate_batch_nd_and_space_nd_op},
+        {"BiasAdd", translate_bias_add_op},
+        {"Cast", translate_cast_op},
+        {"Concat", translate_concat_op},
+        {"ConcatV2", translate_concat_op},
+        {"Const", translate_const_op},
+        {"Conv2D", translate_conv_2d_op},
+        {"Conv2DBackpropInput", translate_conv_2d_backprop_input_op},
+        {"Conv3D", translate_conv_3d_op},
+        {"CropAndResize", translate_crop_and_resize_op},
+        {"Cumsum", translate_cumsum_op},
+        {"DepthToSpace", translate_depth_to_space_op},
+        {"DepthwiseConv2dNative", translate_depthwise_conv_2d_native_op},
+        {"Elu", translate_elu_op},
+        {"ExpandDims", translate_expand_dims_op},
+        {"FakeQuantWithMinMaxVars", translate_fake_quant_op},
+        {"Fill", translate_fill_op},
+        {"FloorDiv", translate_floor_div_op},
+        {"FusedBatchNorm", translate_fused_batch_norm_op},
+        {"FusedBatchNormV2", translate_fused_batch_norm_op},
+        {"FusedBatchNormV3", translate_fused_batch_norm_op},
+        {"Gather", translate_gather_op},
+        {"GatherV2", translate_gather_v2_op},
+        {"GatherNd", translate_gather_nd_op},
+        {"Identity", translate_identity_op},
+        {"IdentityN", translate_identity_op},
+        {"IsFinite", translate_is_finite_op},
+        {"L2Loss", translate_l2_loss_op},
+        {"LeakyRelu", translate_leaky_relu_op},
+        {"LogSoftmax", translate_log_softmax_op},
+        {"Log1p", translate_log_1p_op},
+        {"LRN", translate_lrn_op},
+        {"MatMul", translate_mat_mul_op},
+        {"MaxPool", translate_max_pool_op},
+        {"MaxPool3D", translate_max_pool_op},
+        {"MirrorPad", translate_pad_op},
+        {"NonMaxSuppression", translate_non_max_suppression_op},
+        {"NonMaxSuppressionV2", translate_non_max_suppression_op},
+        {"NonMaxSuppressionV3", translate_non_max_suppression_op},
+        {"NonMaxSuppressionV4", translate_non_max_suppression_op},
+        {"NonMaxSuppressionV5", translate_non_max_suppression_op},
+        {"NoOp", translate_no_op},  // do nothing
+        {"OneHot", translate_one_hot_op},
+        {"Pack", translate_pack_op},
+        {"Pad", translate_pad_op},
+        {"PadV2", translate_pad_op},
+        {"Placeholder", translate_placeholder_op},
+        {"PreventGradient", translate_identity_op},
+        {"Range", translate_range_op},
+        {"Rank", translate_rank_op},
+        {"RandomUniform", translate_random_uniform_op},
+        {"RandomUniformInt", translate_random_uniform_int_op},
+        {"Reciprocal", translate_reciprocal_op},
+        {"Relu6", translate_relu_6_op},
+        {"Reshape", translate_reshape_op},
+        {"Reverse", translate_reverse_op},
+        {"ReverseV2", translate_reverse_op},
+        {"ResizeBilinear", translate_interpolate_op},
+        {"ResizeNearestNeighbor", translate_interpolate_op},
+        {"Roll", translate_roll_op},
+        {"Round", translate_round_op},
+        {"Rsqrt", translate_rsqrt_op},
+        {"Select", translate_select_op},
+        {"SelectV2", translate_select_op},
+        {"Shape", translate_shape_op},
+        {"Size", translate_size_op},
+        {"Slice", translate_slice_op},
+        {"Snapshot", translate_identity_op},
+        {"Softmax", translate_softmax_op},
+        {"SpaceToDepth", translate_space_to_depth_op},
+        {"Split", translate_split_op},
+        {"SplitV", translate_split_v_op},
+        {"Sqrt", translate_sqrt_op},
+        {"Square", translate_square_op},
+        {"Squeeze", translate_squeeze_op},
+        {"SpaceToBatchND", translate_batch_nd_and_space_nd_op},
+        {"StridedSlice", translate_strided_slice_op},
+        {"Tile", translate_tile_op},
+        {"TopKV2", translate_top_k_v2_op},
+        {"Transpose", translate_transpose_op},
+        {"Unpack", translate_unpack_op},
+        {"Where", translate_where_op},
+        {"Xdivy", translate_x_div_y_op},
+        {"ZerosLike", translate_zeros_like_op},
     };
 };
 }  // namespace op
