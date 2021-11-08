@@ -16,7 +16,7 @@ using PoolingInputShapes = std::pair<std::vector<ov::PartialShape>, std::vector<
 
 using poolLayerCpuTestParamsSet = std::tuple<LayerTestsDefinitions::poolSpecificParams,
                                              PoolingInputShapes,
-                                             InferenceEngine::Precision,
+                                             ov::test::ElementType,
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
@@ -26,7 +26,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
         LayerTestsDefinitions::poolSpecificParams basicParamsSet;
         PoolingInputShapes inputShapes;
-        InferenceEngine::Precision inPrc;
+        ov::test::ElementType inPrc;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, fusingParams) = obj.param;
@@ -78,7 +78,7 @@ protected:
 
         LayerTestsDefinitions::poolSpecificParams basicParamsSet;
         PoolingInputShapes inputShapes;
-        InferenceEngine::Precision inPrc;
+        ov::test::ElementType inPrc;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, fusingParams) = this->GetParam();
@@ -97,9 +97,7 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = selectedType + "_" + inPrc.name();
-
-        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inPrc).name();
 
         if (!inputShapes.first.empty()) {
             inputDynamicShapes = inputShapes.first;
@@ -110,7 +108,7 @@ protected:
             targetStaticShapes.push_back(std::vector<ngraph::Shape>{inputShapes.second[i]});
         }
 
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, inputDynamicShapes);
+        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
 
         std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(params[0],
                                                                              stride,
@@ -142,7 +140,7 @@ const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
 const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 
 const std::vector<CPUSpecificParams> vecCpuConfigs = {ref, sse42, avx, avx512};
-const std::vector<InferenceEngine::Precision> inpOutPrecision = {InferenceEngine::Precision::FP32/*, InferenceEngine::Precision::BF16*/};
+const std::vector<ov::test::ElementType> inpOutPrecision = {ov::test::ElementType::f32/*, ov::test::ElementType::bf16*/};
 
 const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape>>> inputShapes4D = {
         { {}, {{3, 4, 64, 64}} },

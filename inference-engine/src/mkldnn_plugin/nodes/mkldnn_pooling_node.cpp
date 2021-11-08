@@ -151,8 +151,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if ((inputRank < 4) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
-    initEffectivePad(MemoryDescUtils::makeDummyShape(parentShape, shapeDymmyVal),
-                     MemoryDescUtils::makeDummyShape(childShape, shapeDymmyVal));
+    initEffectivePad(MemoryDescUtils::makeDummyShape(parentShape),
+                     MemoryDescUtils::makeDummyShape(childShape));
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
@@ -190,38 +190,45 @@ void MKLDNNPoolingNode::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW()  << "Pooling node with name '" << getName() << "' did not set preferable primitive descriptor";
 
-    if (!pAttr) {
-        pAttr = initPrimitiveAttr();
+    AttrPtr attr;
+    if (isDynamicNode()) {
+        if (!pAttr) {
+            pAttr = initPrimitiveAttr();
+        }
+        attr = pAttr;
+    } else {
+        attr = initPrimitiveAttr();
     }
-    AttrPtr attr = pAttr;
 
     auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
     const auto& in_candidate = inDesc->getDnnlDesc();
     auto outDesc = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<DnnlMemoryDesc>();
     const auto& out_candidate = outDesc->getDnnlDesc();
 
-    if (auto_pad && isDynamicNode()) {
-        const auto initPadding = [](const VectorDims &newPads, std::vector<ptrdiff_t> &pads) {
-            pads.resize(newPads.size());
-            for (int i = 0; i < newPads.size(); i++) {
-                pads[i] = static_cast<ptrdiff_t>(newPads[i]);
-            }
-        };
+    if (isDynamicNode()) {
+        if (auto_pad) {
+            const auto initPadding = [](const VectorDims &newPads, std::vector<ptrdiff_t> &pads) {
+                pads.resize(newPads.size());
+                for (int i = 0; i < newPads.size(); i++) {
+                    pads[i] = static_cast<ptrdiff_t>(newPads[i]);
+                }
+            };
 
-        VectorDims padsBegin, padsEnd;
-        if (getAlgorithm() == PoolingMax) {
-            const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(opToShapeInfer);
-            padsBegin = pool->get_pads_begin();
-            padsEnd = pool->get_pads_end();
-        } else if (getAlgorithm() == PoolingAvg) {
-            const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(opToShapeInfer);
-            padsBegin = pool->get_pads_begin();
-            padsEnd = pool->get_pads_end();
+            VectorDims padsBegin, padsEnd;
+            if (getAlgorithm() == PoolingMax) {
+                const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(opToShapeInfer);
+                padsBegin = pool->get_pads_begin();
+                padsEnd = pool->get_pads_end();
+            } else if (getAlgorithm() == PoolingAvg) {
+                const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(opToShapeInfer);
+                padsBegin = pool->get_pads_begin();
+                padsEnd = pool->get_pads_end();
+            }
+            initPadding(padsBegin, data_pad_begin);
+            initPadding(padsEnd, data_pad_end);
         }
-        initPadding(padsBegin, data_pad_begin);
-        initPadding(padsEnd, data_pad_end);
+        initEffectivePad(inDesc->getShape(), outDesc->getShape());
     }
-    initEffectivePad(inDesc->getShape(), outDesc->getShape());
 
     mkldnn::algorithm alg = getPoolingAlgorithm();
     MKLDNNDescriptor desc{createDescriptorInternal(in_candidate, out_candidate, alg)};
@@ -321,11 +328,11 @@ std::shared_ptr<pooling_forward::desc> MKLDNNPoolingNode::createDescriptorIntern
 
 void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                          const std::vector<MemoryDescPtr> &outputDesc) {
-    auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0], shapeDymmyVal);
+    auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     auto dnnlInDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDesc);
     auto in_candidate = dnnlInDesc->getDnnlDesc();
 
-    auto outDesc = outputDesc[0]->isDefined() ? outputDesc[0] : MemoryDescUtils::makeDummyDesc(*outputDesc[0], shapeDymmyVal);
+    auto outDesc = outputDesc[0]->isDefined() ? outputDesc[0] : MemoryDescUtils::makeDummyDesc(*outputDesc[0]);
     auto dnnlOutDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outDesc);
     auto out_candidate = dnnlOutDesc->getDnnlDesc();
 

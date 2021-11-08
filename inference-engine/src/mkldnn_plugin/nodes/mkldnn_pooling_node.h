@@ -39,7 +39,6 @@ protected:
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const;
 
-    static constexpr Dim shapeDymmyVal = 64;
     void initEffectivePad(const Shape &inDims, const Shape &outDims);
     mkldnn::algorithm getPoolingAlgorithm() const;
     std::shared_ptr<mkldnn::pooling_forward::desc> createDescriptorInternal(const mkldnn::memory::desc& in_candidate,
