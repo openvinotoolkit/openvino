@@ -12,7 +12,7 @@
 
 namespace CLDNNPlugin {
 
-void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBoxClustered>& op) {
+static void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBoxClustered>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -61,7 +61,7 @@ void CreatePriorBoxClusteredOp(Program& p, const std::shared_ptr<ngraph::op::v0:
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBox>& op) {
+static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v0::PriorBox>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

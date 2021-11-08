@@ -38,6 +38,8 @@ FuseConvertTransformation::FuseConvertTransformation(const Params& params) : Lay
     this->register_matcher(matcher, callback);
 }
 
+namespace {
+
 std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
     const std::shared_ptr<opset1::Convert>& convert,
     const std::shared_ptr<opset1::Subtract>& subtract) {
@@ -55,6 +57,8 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
 
     return newSubtract;
 }
+
+} // namespace
 
 bool FuseConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
     const auto op = m.get_match_root();

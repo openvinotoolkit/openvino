@@ -12,9 +12,11 @@
 #include "shared_test_classes/read_ir/generate_inputs.hpp"
 
 namespace LayerTestsDefinitions {
-std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, std::string>> &obj) {
+std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
+    using namespace CommonTestUtils;
     std::string pathToModel, deviceName;
-    std::tie(pathToModel, deviceName) = obj.param;
+    std::map<std::string, std::string> config;
+    std::tie(pathToModel, deviceName, config) = obj.param;
 
     std::ostringstream result;
     auto splittedFilename = CommonTestUtils::splitStringByDelimiter(pathToModel, CommonTestUtils::FileSeparator);
@@ -22,12 +24,13 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<std::tuple<
         result << "PRC=" << *std::next(splittedFilename.rbegin()) << "_";
     }
     result << "IR_name=" << splittedFilename.back() << "_";
-    result << "TargetDevice=" << deviceName;
+    result << "TargetDevice=" << deviceName << "_";
+    result << "Config=" << config;
     return result.str();
 }
 
 void ReadIRTest::SetUp() {
-    std::tie(pathToModel, targetDevice) = this->GetParam();
+    std::tie(pathToModel, targetDevice, configuration) = this->GetParam();
     auto net = getCore()->ReadNetwork(pathToModel);
     function = net.getFunction();
     const auto metaFile = CommonTestUtils::replaceExt(pathToModel, "meta");

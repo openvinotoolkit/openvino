@@ -247,8 +247,8 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 255.f } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { }, { 1e-32f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { }, { 1e-32f }} }
+            { ngraph::element::f32, {{ngraph::element::f32}, { 127.5 }, { 1e-32f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, { 127.5 }, { 1e-32f }} }
         }
     },
     // U16
