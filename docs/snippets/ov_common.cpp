@@ -27,9 +27,21 @@ int main() {
     //! [ov_api_2_0:create_infer_request]
 
     //! [ov_api_2_0:get_input_tensor]
-    ov::runtime::Tensor input_tensor = infer_request.get_input_tensor();
-    auto data = input_tensor.data<ov::element_type_traits<ov::element::u8>::value_type>();
-    // Fill data ...
+    // Get input tensor by index
+    ov::runtime::Tensor input_tensor1 = infer_request.get_input_tensor(0);
+    // IR v11 works with original precisions
+    auto data1 = input_tensor1.data<int64_t>();
+    // IR v10 works with converted precisions (i64 -> i32)
+    auto data1_v10 = input_tensor1.data<int32_t>();
+    // Fill first data ...
+
+    // Get input tensor by tensor name
+    ov::runtime::Tensor input_tensor2 = infer_request.get_tensor("data2_t");
+    // IR v11 works with original precisions
+    auto data2 = input_tensor1.data<int64_t>();
+    // IR v10 works with converted precisions (i64 -> i32)
+    auto data2_v10 = input_tensor1.data<int32_t>();
+    // Fill first data ...
     //! [ov_api_2_0:get_input_tensor]
 
     //! [ov_api_2_0:inference]
@@ -37,7 +49,14 @@ int main() {
     //! [ov_api_2_0:inference]
 
     //! [ov_api_2_0:get_output_tensor]
-    ov::runtime::Tensor output_tensor = infer_request.get_tensor(*outputs.begin());
+    // model has only one output
+    ov::runtime::Tensor output_tensor = infer_request.get_output_tensor();
+    // Get output tensor by port
+    output_tensor = infer_request.get_tensor(outputs.at(0));
+    // IR v11 works with original precisions
+    auto out_data = output_tensor.data<int64_t>();
+    // IR v10 works with converted precisions (i64 -> i32)
+    auto out_data_v10 = output_tensor.data<int32_t>();
     // process output data
     //! [ov_api_2_0:get_output_tensor]
     return 0;
