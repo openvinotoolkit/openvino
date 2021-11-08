@@ -13,7 +13,7 @@ const char *ExternalNetworkTool::modelsPath = "";
 const char *ExternalNetworkTool::modelsNamePrefix = "network_";
 
 void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
-                                                const std::string &hash) {
+                                         const std::string &shorted_name) {
     std::ofstream hash_map_file;
     std::string file_path;
     if (*modelsPath != '\0') {
@@ -25,7 +25,7 @@ void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
     hash_map_file.open(file_path,  std::ios::out | std::ios::app);
     hash_map_file << "{\n";
     hash_map_file << "  \"test\": \"" << network_name << "\",\n";
-    hash_map_file << "  \"hash\": \"" << hash         << "\",\n";
+    hash_map_file << "  \"short\": \"" << shorted_name << "\",\n";
     hash_map_file << "},\n";
     hash_map_file.close();
 }
@@ -44,6 +44,108 @@ std::vector<std::shared_ptr<ov::Node>> ExternalNetworkTool::topological_name_sor
 
     std::sort(results.begin(), results.end(), node_comaparator);
     return results;
+}
+
+std::string ExternalNetworkTool::replaceInName(const std::string &network_name, const std::map<std::string, std::string> replace_map) {
+    auto new_network_name { network_name };
+
+    for (auto &pair : replace_map) {
+        auto &old_str = pair.first;
+        auto &new_str = pair.second;
+        auto index = new_network_name.find(old_str);
+        while (index != std::string::npos) {
+            new_network_name.replace(index,  old_str.length(), new_str);
+            index = new_network_name.find(old_str, index + new_str.length());
+        }
+    }
+
+    return new_network_name;
+}
+
+std::string ExternalNetworkTool::eraseInName(const std::string &network_name, const std::vector<std::string> patterns) {
+    auto new_network_name { network_name };
+
+    for (auto &pattern : patterns) {
+        auto index = new_network_name.find(pattern);
+        while (index != std::string::npos) {
+            new_network_name.erase(index,  pattern.length());
+            index = new_network_name.find(pattern, index);
+        }
+    }
+
+    return new_network_name;
+}
+
+std::string ExternalNetworkTool::eraseRepeatedInName(const std::string &network_name, const std::vector<char> target_symbols) {
+    if (!network_name.length()) {
+        return network_name;
+    }
+    char *buffer = new char[network_name.length()]();
+    const char *data = network_name.c_str();
+    size_t new_name_size = 1;
+    char last_symbol = data[0];
+    buffer[0] = data[0];
+
+    auto check_symbol = [&target_symbols](const char symbol) {
+        for (auto c : target_symbols) {
+            if (c == symbol)
+                return true;
+        }
+        return false;
+    };
+
+    for (size_t i = 1; i < network_name.length(); i++) {
+        if (last_symbol == data[i] && check_symbol(last_symbol))
+            continue;
+        last_symbol = data[i];
+        buffer[new_name_size] = last_symbol;
+        ++new_name_size;
+    }
+
+    return std::string(buffer, new_name_size);
+}
+
+std::string ExternalNetworkTool::processTestName(const std::string &network_name, const size_t extension_len) {
+    std::vector<std::string> erase_patterns = {
+        "netPRC",
+        "netPrecision",
+        "targetDevice",
+        "trgDev",
+        "configItem",
+        "targetConfig",
+        "exportConfigItem",
+        "importConfigItem",
+        "inPRC",
+        "outPRC",
+        "GNA_DEVICE_MODE",
+        "GNA_EXEC_TARGET",
+        "inputShape",
+        "oututShape",
+    };
+    std::map<std::string, std::string> replace_map = {
+        { "GNA_SCALE_FACTOR", "gna_sf" },
+        { "GNA_TARGET_1_0", "gna_10" },
+        { "GNA_TARGET_2_0", "gna_20" },
+        { "GNA_TARGET_3_0", "gna_30" },
+        // unification patterns
+        { "GNA_SW_EXACT", "mode" },
+        { "GNA_SW_FP32", "mode" },
+        { "sw_exact", "mode" },
+        { "sw_fp32", "mode" },
+    };
+
+    auto new_network_name { network_name };
+    new_network_name = eraseInName(new_network_name, erase_patterns);
+    new_network_name = replaceInName(new_network_name, replace_map);
+    new_network_name = eraseRepeatedInName(new_network_name, {'_'});
+
+    auto max_name_len = MAX_FILE_NAME_SIZE - extension_len - 1;
+    if (new_network_name.length() > max_name_len) {
+        auto hashed_network_name = generateHashName(network_name);
+        auto fitted_size = max_name_len - SHORT_HASH_SIZE;
+        new_network_name = new_network_name.substr(0, fitted_size) + hashed_network_name.substr(0, SHORT_HASH_SIZE);
+    }
+    return new_network_name;
 }
 
 void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> network) {
@@ -90,8 +192,8 @@ void ExternalNetworkTool::saveInputFile(const std::string &network_name,
             CommonTestUtils::createDirectory(inputs_path);
         }
 
-        const std::string hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
-        const std::string model_inputs_path = inputs_path + path_delimiter + hashed_network_name;
+        const std::string new_network_name = processTestName(network_name);
+        const std::string model_inputs_path = inputs_path + path_delimiter + new_network_name;
         if (!CommonTestUtils::directoryExists(model_inputs_path)) {
             CommonTestUtils::createDirectory(model_inputs_path);
         }
@@ -122,7 +224,7 @@ void ExternalNetworkTool::saveInputFile(const std::string &network_name,
             break;
         // TODO: add FP16, I16, I8 precisions support
         default:
-            printf("%s precision not supported", precision.name());
+            printf("%s precision not supported\n", precision.name());
             return;
         }
     }
@@ -130,14 +232,14 @@ void ExternalNetworkTool::saveInputFile(const std::string &network_name,
 void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
                                             const std::string &network_name) {
     auto exportPathString = std::string(modelsPath);
-    auto hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
+    auto new_network_name = processTestName(network_name);
 
     std::string out_xml_path = exportPathString
                                 + (exportPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".xml";
+                                + new_network_name + ".xml";
     std::string out_bin_path = exportPathString
                                 + (exportPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".bin";
+                                + new_network_name + ".bin";
 
     auto network_copy = ngraph::clone_function(*network);
     unifyFunctionNames(network_copy);
@@ -146,7 +248,7 @@ void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Functi
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path, ngraph::pass::Serialize::Version::IR_V10);
     manager.run_passes(network_copy);
     printf("Network dumped to %s\n", out_xml_path.c_str());
-    writeToHashMap(network_name, hashed_network_name);
+    writeToHashMap(network_name, new_network_name);
 }
 
 static ngraph::frontend::FrontEndManager& get_frontend_manager() {
@@ -156,14 +258,14 @@ static ngraph::frontend::FrontEndManager& get_frontend_manager() {
 
 std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) {
     auto importPathString = std::string(modelsPath);
-    auto hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
+    auto new_network_name = processTestName(network_name);
 
     std::string out_xml_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".xml";
+                                + new_network_name + ".xml";
     std::string out_bin_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".bin";
+                                + new_network_name + ".bin";
 
     auto& manager = get_frontend_manager();
     ngraph::frontend::FrontEnd::Ptr FE;
