@@ -8,80 +8,77 @@
 #include <onnx_import/onnx_utils.hpp>
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
-#include <functional_test_utils/test_model/test_model.hpp>
 #include <onnx_custom_op.hpp>
 
 
 class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
-    public:
-        explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
+public:
+    explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
 
-        InferenceEngine::StatusCode
-        init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            return InferenceEngine::StatusCode::OK;
+    InferenceEngine::StatusCode
+    init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+        return InferenceEngine::StatusCode::OK;
+    }
+
+    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
+                                                            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+        InferenceEngine::LayerConfig layerConfig;
+        layerConfig.dynBatchSupport = true;
+
+        if (node->outputs().size() != 1 && node->inputs().size() != 1)
+            return InferenceEngine::GENERAL_ERROR;
+
+        InferenceEngine::DataConfig cfg;
+        cfg.constant = false;
+        cfg.inPlace = 0;
+
+        InferenceEngine::SizeVector order;
+        auto partialShape = node->get_output_partial_shape(0);
+        if (partialShape.is_dynamic())
+            return InferenceEngine::GENERAL_ERROR;
+
+        auto shape = node->get_output_shape(0);
+        for (size_t i = 0; i < shape.size(); i++) {
+            order.push_back(i);
         }
+        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                                                shape, {shape, order});
+        layerConfig.outConfs.push_back(cfg);
+        layerConfig.inConfs.push_back(cfg);
+        conf.push_back(layerConfig);
+        return InferenceEngine::OK;
+    }
 
-        InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
-                                                               InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            InferenceEngine::LayerConfig layerConfig;
-            layerConfig.dynBatchSupport = true;
-
-            if (node->outputs().size() != 1 && node->inputs().size() != 1)
-                return InferenceEngine::GENERAL_ERROR;
-
-            InferenceEngine::DataConfig cfg;
-            cfg.constant = false;
-            cfg.inPlace = 0;
-
-            InferenceEngine::SizeVector order;
-            auto partialShape = node->get_output_partial_shape(0);
-            if (partialShape.is_dynamic())
-                return InferenceEngine::GENERAL_ERROR;
-
-            auto shape = node->get_output_shape(0);
-            for (size_t i = 0; i < shape.size(); i++) {
-                order.push_back(i);
+    InferenceEngine::StatusCode
+    execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
+            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
+            InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
+            if (!moutput || !minput) {
+                return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
             }
-            cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
-                                                   shape, {shape, order});
-            layerConfig.outConfs.push_back(cfg);
-            layerConfig.inConfs.push_back(cfg);
-            conf.push_back(layerConfig);
-            return InferenceEngine::OK;
-        }
+            // locked memory holder should be alive all time while access to its buffer happens
+            auto minputHolder = minput->rmap();
+            auto moutputHolder = moutput->wmap();
 
-        InferenceEngine::StatusCode
-        execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-                InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
-            for (size_t i = 0; i < inputs.size(); i++) {
-                InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
-                InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
-                if (!moutput || !minput) {
-                    return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
-                }
-                // locked memory holder should be alive all time while access to its buffer happens
-                auto minputHolder = minput->rmap();
-                auto moutputHolder = moutput->wmap();
-
-                auto inputData = minputHolder.as<const float *>();
-                auto outputData = moutputHolder.as<float  *>();
-                for (size_t j = 0; j < minput->size(); j++) {
-                    outputData[j] = inputData[j] < 0 ? (-inputData[j] * 2) : inputData[j];
-                }
+            auto inputData = minputHolder.as<const float *>();
+            auto outputData = moutputHolder.as<float  *>();
+            for (size_t j = 0; j < minput->size(); j++) {
+                outputData[j] = inputData[j] < 0 ? (-inputData[j] * 2) : inputData[j];
             }
-            return InferenceEngine::StatusCode::OK;
         }
+        return InferenceEngine::StatusCode::OK;
+    }
 
-
-
-    private:
-        const std::shared_ptr<ngraph::Node> node;
+private:
+    const std::shared_ptr<ngraph::Node> node;
 };
 
 class CustomAbs : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"CustomAbs", 100500};
-    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
+    OPENVINO_RTTI("CustomAbs", "custom_opset");
+
     CustomAbs() = default;
     CustomAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
         constructor_validate_and_infer_types();
@@ -92,45 +89,38 @@ public:
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         return std::make_shared<CustomAbs>(new_args.at(0));
     }
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+    bool visit_attributes(ngraph::AttributeVisitor&) override {
         return true;
     }
 };
 
-constexpr ngraph::NodeTypeInfo CustomAbs::type_info;
-
 class CustomAbsExtension : public InferenceEngine::IExtension {
-    public:
-        CustomAbsExtension() {
-        }
+public:
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-        void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
+    void Unload() noexcept override {}
 
-        void Unload() noexcept override {}
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<CustomAbs>();
+        opsets["custom_opset"] = opset;
+        return opsets;
+    }
 
-        std::map<std::string, ngraph::OpSet> getOpSets() override {
-            std::map<std::string, ngraph::OpSet> opsets;
-            ngraph::OpSet opset;
-            opset.insert<CustomAbs>();
-            opsets["custom_opset"] = opset;
-            return opsets;
-        }
+    std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
+        if (node->description() != CustomAbs::get_type_info_static().name)
+            return {};
+        return {"CPU"};
+    }
 
-        std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-            if (node->description() != CustomAbs::type_info.name)
-                return {};
-            return {"CPU"};
-        }
-
-        InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-            return std::make_shared<CustomAbsKernel>(node);
-        }
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+        return std::make_shared<CustomAbsKernel>(node);
+    }
 };
 
-void infer_model(InferenceEngine::Core& ie, const std::string& model,
+static void infer_model(InferenceEngine::Core& ie, InferenceEngine::CNNNetwork& network,
                  const std::vector<float>& input_values, const std::vector<float>& expected) {
-    InferenceEngine::Blob::CPtr weights;
-    auto network = ie.ReadNetwork(model, weights);
     auto function = network.getFunction();
 
     auto network_inputs = network.getInputsInfo();
@@ -158,65 +148,24 @@ void infer_model(InferenceEngine::Core& ie, const std::string& model,
     ASSERT_EQ(expected, computed_values);
 }
 
+static std::string model_full_path(const char* path) {
+    return FileUtils::makePath<char>(TEST_MODELS, path);
+}
 
 TEST(Extension, OnnxModelWithCustomAbs) {
-    std::string model = R"V0G0N(
-ir_version: 3
-producer_name: "nGraph ONNX Importer"
-graph {
-  node {
-    input: "A"
-    output: "Y"
-    name: "customrelu"
-    op_type: "CustomAbs"
-    domain: "custom_domain"
-  }
-  name: "test_graph"
-  input {
-    name: "A"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 10
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "Y"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 10
-          }
-        }
-      }
-    }
-  }
-}
-opset_import {
-  version: 1
-  domain: "custom_domain"
-}
-)V0G0N";
-
     std::vector<float> input_values{1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
     std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAbsExtension>());
     ngraph::onnx_import::register_operator(
-        CustomAbs::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+        CustomAbs::get_type_info_static().name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
             return {std::make_shared<CustomAbs>(ng_inputs.at(0))};
     });
 
-    infer_model(ie, model, input_values, expected);
-    ngraph::onnx_import::unregister_operator(CustomAbs::type_info.name, 1, "custom_domain");
+    auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_abs_op.onnx"));
+    infer_model(ie, network, input_values, expected);
+    ngraph::onnx_import::unregister_operator(CustomAbs::get_type_info_static().name, 1, "custom_domain");
 }
 
 
@@ -263,7 +212,9 @@ TEST(Extension, XmlModelWithCustomAbs) {
     std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<CustomAbsExtension>());
-    infer_model(ie, model, input_values, expected);
+    InferenceEngine::Blob::CPtr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    infer_model(ie, network, input_values, expected);
 }
 
 
@@ -328,84 +279,19 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
-    infer_model(ie, model, input_values, expected);
+    InferenceEngine::Blob::CPtr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    infer_model(ie, network, input_values, expected);
 }
 
 
 TEST(Extension, OnnxModelWithExtensionFromDSO) {
-    std::string model = R"V0G0N(
-ir_version: 3
-producer_name: "nGraph ONNX Importer"
-graph {
-  node {
-    input: "A"
-    output: "Y"
-    name: "operation"
-    op_type: "Template"
-    domain: "custom_domain"
-    attribute {
-        name: "add"
-        type: INT
-        i: 11
-    }
-  }
-  name: "test_graph"
-  input {
-    name: "A"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "Y"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 2
-          }
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-}
-opset_import {
-  version: 1
-  domain: "com.example"
-}
-)V0G0N";
-
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     InferenceEngine::Core ie;
     ie.AddExtension(std::make_shared<InferenceEngine::Extension>(get_extension_path()));
-    infer_model(ie, model, input_values, expected);
+    auto network = ie.ReadNetwork(model_full_path("func_tests/models/custom_template_op.onnx"));
+    infer_model(ie, network, input_values, expected);
 }
 
 
@@ -415,6 +301,7 @@ TEST(Extension, OnnxModelWithCustomReluDocsExample) {
 
     register_custom_relu_operator();
     InferenceEngine::Core ie;
-    infer_model(ie, custom_relu_model(), input_values, expected);
+    auto network = ie.ReadNetwork(model_full_path("docs/models/custom_relu_model.onnx"));
+    infer_model(ie, network, input_values, expected);
     unregister_custom_relu_operator();
 }

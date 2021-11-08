@@ -12,8 +12,7 @@ using namespace ngraph;
 
 using ExperimentalTopKROIs = op::v6::ExperimentalDetectronTopKROIs;
 
-TEST(type_prop, detectron_topk_rois)
-{
+TEST(type_prop, detectron_topk_rois) {
     auto input_rois = std::make_shared<op::Parameter>(element::f32, Shape{5000, 4});
     auto rois_probs = std::make_shared<op::Parameter>(element::f32, Shape{5000});
     size_t max_rois = 1000;
@@ -23,10 +22,8 @@ TEST(type_prop, detectron_topk_rois)
     EXPECT_EQ(topk_rois->get_output_shape(0), (Shape{max_rois, 4}));
 }
 
-TEST(type_prop, detectron_topk_rois_dynamic)
-{
-    struct ShapesAndMaxROIs
-    {
+TEST(type_prop, detectron_topk_rois_dynamic) {
+    struct ShapesAndMaxROIs {
         PartialShape input_rois_shape;
         PartialShape rois_probs_shape;
         size_t max_rois;
@@ -43,8 +40,7 @@ TEST(type_prop, detectron_topk_rois_dynamic)
                                                       {dyn_shape, dyn_shape, 500},
                                                       {{dyn_dim, 4}, {dyn_dim}, 700}};
 
-    for (const auto& s : shapes_and_attrs)
-    {
+    for (const auto& s : shapes_and_attrs) {
         auto input_rois = std::make_shared<op::Parameter>(element::f32, s.input_rois_shape);
         auto rois_probs = std::make_shared<op::Parameter>(element::f32, s.rois_probs_shape);
         size_t max_rois = s.max_rois;

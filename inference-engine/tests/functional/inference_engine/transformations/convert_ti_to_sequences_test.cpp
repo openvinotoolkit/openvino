@@ -12,7 +12,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>

@@ -4,8 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/space_to_batch.hpp"
+
+#include "cldnn/primitives/space_to_batch.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -30,7 +32,7 @@ public:
     static std::string to_string(space_to_batch_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, space_to_batch_node const& desc);
+    typed_primitive_inst(network& network, space_to_batch_node const& desc);
 };
 
 using space_to_batch_inst = typed_primitive_inst<space_to_batch>;

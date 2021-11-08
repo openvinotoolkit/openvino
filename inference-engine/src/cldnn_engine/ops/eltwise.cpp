@@ -25,10 +25,10 @@
 #include "ngraph/op/power.hpp"
 #include "ngraph/op/floor_mod.hpp"
 
-#include "api/activation.hpp"
-#include "api/eltwise.hpp"
-#include "api/reorder.hpp"
-#include "api/reshape.hpp"
+#include "cldnn/primitives/activation.hpp"
+#include "cldnn/primitives/eltwise.hpp"
+#include "cldnn/primitives/reorder.hpp"
+#include "cldnn/primitives/reshape.hpp"
 
 namespace CLDNNPlugin {
 
@@ -46,7 +46,13 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
             if (targetFormat.value != DefaultFormatForDims(inputRank).value) {
                 auto reorderName = layerName + "_cldnn_in" + std::to_string(i) + "_reorder";
                 auto targetDatatype = DataTypeFromPrecision(op->get_input_element_type(i));
-                auto reorderPrim = cldnn::reorder(reorderName, inputPrimitives[i], targetFormat, targetDatatype);
+                auto reorderPrim = cldnn::reorder(reorderName,
+                                                  inputPrimitives[i],
+                                                  targetFormat,
+                                                  targetDatatype,
+                                                  std::vector<float>(),
+                                                  cldnn::reorder_mean_mode::subtract,
+                                                  op->get_friendly_name());
 
                 p.AddPrimitive(reorderPrim);
                 p.AddInnerPrimitiveToProfiler(reorderName, layerName, op);
@@ -61,7 +67,7 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
 
             auto targetShape = CldnnTensorFromIEDims(inputShape);
 
-            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+            auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeName, layerName, op);
 
@@ -74,77 +80,78 @@ void CreateElementwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op, cl
                                       inputPrimitives,
                                       mode,
                                       {},
-                                      out_dt);
+                                      out_dt,
+                                      op->get_friendly_name());
 
     p.AddPrimitive(eltwisePrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateAddOp(Program& p, const std::shared_ptr<ngraph::op::v1::Add>& op) {
+static void CreateAddOp(Program& p, const std::shared_ptr<ngraph::op::v1::Add>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::sum);
 }
 
-void CreateMultiplyOp(Program& p, const std::shared_ptr<ngraph::op::v1::Multiply>& op) {
+static void CreateMultiplyOp(Program& p, const std::shared_ptr<ngraph::op::v1::Multiply>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::prod);
 }
 
-void CreateMaximumOp(Program& p, const std::shared_ptr<ngraph::op::v1::Maximum>& op) {
+static void CreateMaximumOp(Program& p, const std::shared_ptr<ngraph::op::v1::Maximum>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::max);
 }
 
-void CreateMinimumOp(Program& p, const std::shared_ptr<ngraph::op::v1::Minimum>& op) {
+static void CreateMinimumOp(Program& p, const std::shared_ptr<ngraph::op::v1::Minimum>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::min);
 }
 
-void CreateSubtractOp(Program& p, const std::shared_ptr<ngraph::op::v1::Subtract>& op) {
+static void CreateSubtractOp(Program& p, const std::shared_ptr<ngraph::op::v1::Subtract>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::sub);
 }
 
-void CreateDivideOp(Program& p, const std::shared_ptr<ngraph::op::v1::Divide>& op) {
+static void CreateDivideOp(Program& p, const std::shared_ptr<ngraph::op::v1::Divide>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::div);
 }
 
-void CreateSquaredDifferenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::SquaredDifference>& op) {
+static void CreateSquaredDifferenceOp(Program& p, const std::shared_ptr<ngraph::op::v0::SquaredDifference>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::squared_diff);
 }
 
-void CreateEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::Equal>& op) {
+static void CreateEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::Equal>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::eq);
 }
 
-void CreateNotEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::NotEqual>& op) {
+static void CreateNotEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::NotEqual>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::ne);
 }
 
-void CreateLessOp(Program& p, const std::shared_ptr<ngraph::op::v1::Less>& op) {
+static void CreateLessOp(Program& p, const std::shared_ptr<ngraph::op::v1::Less>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::lt);
 }
 
-void CreateLessEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::LessEqual>& op) {
+static void CreateLessEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::LessEqual>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::le);
 }
 
-void CreateGreaterOp(Program& p, const std::shared_ptr<ngraph::op::v1::Greater>& op) {
+static void CreateGreaterOp(Program& p, const std::shared_ptr<ngraph::op::v1::Greater>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::gt);
 }
 
-void CreateGreaterEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::GreaterEqual>& op) {
+static void CreateGreaterEqualOp(Program& p, const std::shared_ptr<ngraph::op::v1::GreaterEqual>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::ge);
 }
 
-void CreateLogicalAndOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalAnd>& op) {
+static void CreateLogicalAndOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalAnd>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::logic_and);
 }
 
-void CreateLogicalOrOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalOr>& op) {
+static void CreateLogicalOrOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalOr>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::logic_or);
 }
 
-void CreateLogicalXorOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalXor>& op) {
+static void CreateLogicalXorOp(Program& p, const std::shared_ptr<ngraph::op::v1::LogicalXor>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::logic_xor);
 }
 
-void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op) {
+static void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op) {
     p.ValidateInputs(op, {2});
     auto power_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     if (power_node) {
@@ -159,11 +166,11 @@ void CreatePowerOp(Program& p, const std::shared_ptr<ngraph::op::v1::Power>& op)
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::pow);
 }
 
-void CreateFloorModOp(Program& p, const std::shared_ptr<ngraph::op::v1::FloorMod>& op) {
+static void CreateFloorModOp(Program& p, const std::shared_ptr<ngraph::op::v1::FloorMod>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::floor_mod);
 }
 
-void CreateModOp(Program& p, const std::shared_ptr<ngraph::op::v1::Mod>& op) {
+static void CreateModOp(Program& p, const std::shared_ptr<ngraph::op::v1::Mod>& op) {
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::mod);
 }
 

@@ -16,7 +16,7 @@ class UnsqueezeTransformationParam {
 public:
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> unsqueezeAxes;
-    ngraph::Shape shape;
+    ngraph::PartialShape shape;
 };
 
 typedef std::tuple<
@@ -31,13 +31,10 @@ class UnsqueezeTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
-    static std::string getTestCaseName(testing::TestParamInfo<UnsqueezeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<UnsqueezeTransformationParams>& obj);
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

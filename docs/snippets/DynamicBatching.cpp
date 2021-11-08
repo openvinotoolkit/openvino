@@ -1,5 +1,4 @@
-#include <inference_engine.hpp>
-#include <vector>
+#include <ie_core.hpp>
 
 int main() {
 int FLAGS_bl = 1;

@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/binary_convolution.hpp"
+#include "cldnn/primitives/binary_convolution.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -18,7 +18,7 @@ struct typed_program_node<binary_convolution> : public typed_program_node_base<b
     using parent = typed_program_node_base<binary_convolution>;
 
 public:
-    typed_program_node(std::shared_ptr<primitive> prim, program_impl& prog)
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog), split(this->get_primitive()->split()), depthwise_sep_opt(false) {}
 
     void set_split(int32_t node_split) { split = node_split; }
@@ -60,13 +60,13 @@ public:
     static std::string to_string(binary_convolution_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, binary_convolution_node const& node);
+    typed_primitive_inst(network& network, binary_convolution_node const& node);
 
-    memory_impl& weights_memory(size_t index) const {
+    memory::ptr weights_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("weights offset too big");
 
-        return dep_memory(1 + index);
+        return dep_memory_ptr(1 + index);
     }
 };
 

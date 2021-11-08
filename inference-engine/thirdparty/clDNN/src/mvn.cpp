@@ -50,5 +50,5 @@ std::string mvn_inst::to_string(mvn_node const& node) {
     return primitive_description.str();
 }
 
-mvn_inst::typed_primitive_inst(network_impl& network, mvn_node const& node) : parent(network, node) {}
+mvn_inst::typed_primitive_inst(network& network, mvn_node const& node) : parent(network, node) {}
 }  // namespace cldnn

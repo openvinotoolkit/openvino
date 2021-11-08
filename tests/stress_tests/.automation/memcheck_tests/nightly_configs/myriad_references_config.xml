@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<attributes>
+    <models>
+        # References were collected from DB with next query: {"commit_id": "aa2ae13c1ee6d700dd287ab809403e7de8c7c5e3", "commit_date": "2021-06-05 14:30:47+00:00"}
+        # and modified on FACTOR = 1.3
+        <!--Models with FP32 precision-->
+        <model path="public/alexnet/FP32/alexnet.xml" precision="FP32" test="create_exenetwork" device="MYRIAD" vmsize="2219614" vmpeak="2807734" vmrss="522615" vmhwm="959597" />
+        <model path="public/efficientnet-b0/FP32/efficientnet-b0.xml" precision="FP32" test="infer_request_inference" device="MYRIAD" vmsize="1939886" vmpeak="1939886" vmrss="138392" vmhwm="145381" />
+        <model path="public/mobilenet-v2-1.4-224/FP32/mobilenet-v2-1.4-224.xml" precision="FP32" test="create_exenetwork" device="MYRIAD" vmsize="1750569" vmpeak="1771416" vmrss="131944" vmhwm="144471" />
+        <model path="public/se-resnet-50/FP32/se-resnet-50.xml" precision="FP32" test="infer_request_inference" device="MYRIAD" vmsize="2239920" vmpeak="2325117" vmrss="434096" vmhwm="471562" />
+        <model path="public/Sphereface/FP32/Sphereface.xml" precision="FP32" test="create_exenetwork" device="MYRIAD" vmsize="1890917" vmpeak="2115952" vmrss="192202" vmhwm="362102" />
+        <model path="public/yolo-v1-tiny-tf/FP32/yolo-v1-tiny-tf.xml" precision="FP32" test="infer_request_inference" device="MYRIAD" vmsize="1935247" vmpeak="2020444" vmrss="142324" vmhwm="258949" />
+        <!--Models with FP16 precision-->
+        <model path="public/ctdet_coco_dlav0_384/FP16/ctdet_coco_dlav0_384.xml" precision="FP16" test="create_exenetwork" device="MYRIAD" vmsize="1904879" vmpeak="1904879" vmrss="207604" vmhwm="207604" />
+        <model path="public/i3d-rgb-tf/FP16/i3d-rgb-tf.xml" precision="FP16" test="create_exenetwork" device="MYRIAD" vmsize="3860984" vmpeak="3860984" vmrss="2147116" vmhwm="2147116" />
+        <model path="public/mobilenet-ssd/FP16/mobilenet-ssd.xml" precision="FP16" test="infer_request_inference" device="MYRIAD" vmsize="1886658" vmpeak="1886658" vmrss="94010" vmhwm="94010" />
+        <model path="public/se-inception/FP16/se-inception.xml" precision="FP16" test="create_exenetwork" device="MYRIAD" vmsize="1839182" vmpeak="1839182" vmrss="142168" vmhwm="142168" />
+        <model path="public/ssd_mobilenet_v2_coco/FP16/ssd_mobilenet_v2_coco.xml" precision="FP16" test="infer_request_inference" device="MYRIAD" vmsize="2013221" vmpeak="2098418" vmrss="219991" vmhwm="219991" />
+    </models>
+</attributes>

@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
+namespace {
+
 bool check_shapes(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
                   const ngraph::AxisVector& transpose_constant_values, const ngraph::Shape& shape_reshape_after) {
     // x: [N, C, H, W]
@@ -51,11 +53,17 @@ bool check_shapes(const ngraph::Shape& shape_input, const ngraph::Shape& shape_r
     return is_transformation_valid;
 }
 
+} // namespace
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ShuffleChannelsFusion, "ShuffleChannelsFusion", 0);
 
 ngraph::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_constants_check) {
     MATCHER_SCOPE(ShuffleChannelsFusion);
-    auto input = ngraph::pattern::any_input(pattern::has_static_shape());
+    auto has_static_4d_shape = [](const Output<Node>& output) {
+        return pattern::has_static_shape()(output) && pattern::rank_equals(4)(output);
+    };
+
+    auto input = ngraph::pattern::any_input(has_static_4d_shape);
     auto reshape_before_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     auto transpose_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     auto reshape_after_const_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();

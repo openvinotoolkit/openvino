@@ -1,9 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
-import tempfile
-import unittest
+import unittest.mock
 
 from mo.utils.error import Error
 from mo.utils.pipeline_config import PipelineConfig
@@ -15,6 +13,7 @@ file_content = """model {
       keep_aspect_ratio_resizer {
         min_dimension: 600
         max_dimension: 1024
+        pad_to_max_dimension: true
       }
     }
     feature_extractor {
@@ -71,8 +70,6 @@ file_content = """model {
               mode: FAN_AVG
             }
           }
-            }
-          }
         }
         use_dropout: false
         dropout_keep_probability: 1.0
@@ -83,7 +80,7 @@ file_content = """model {
         score_threshold: 0.300000011921
         iou_threshold: 0.600000023842
         max_detections_per_class: 100
-        max_total_detections: 100
+        max_total_detections: 200
       }
       score_converter: SOFTMAX
     }
@@ -99,20 +96,12 @@ class TestingSimpleProtoParser(unittest.TestCase):
         self.assertRaises(Error, PipelineConfig, "/abc/def")
 
     def test_pipeline_config_non_model_file(self):
-        file = tempfile.NamedTemporaryFile('wt', delete=False)
-        file.write("non_model {}")
-        file_name = file.name
-        file.close()
-
-        self.assertRaises(Error, PipelineConfig, file_name)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data="non_model {}")):
+            self.assertRaises(Error, PipelineConfig, __file__)
 
     def test_pipeline_config_existing_file(self):
-        file = tempfile.NamedTemporaryFile('wt', delete=False)
-        file.write(file_content)
-        file_name = file.name
-        file.close()
-
-        pipeline_config = PipelineConfig(file_name)
+        with unittest.mock.patch('builtins.open', unittest.mock.mock_open(read_data=file_content)):
+            pipeline_config = PipelineConfig(__file__)
         expected_result = {'resizer_min_dimension': 600,
                            'first_stage_nms_score_threshold': 0.0,
                            'anchor_generator_aspect_ratios': [0.5, 1.0, 2.0],
@@ -138,7 +127,11 @@ class TestingSimpleProtoParser(unittest.TestCase):
                            'use_matmul_crop_and_resize': False,
                            'add_background_class': True,
                            'share_box_across_classes': False,
-                           'pad_to_max_dimension': False,
+                           'pad_to_max_dimension': True,
+                           'postprocessing_score_threshold': 0.300000011921,
+                           'postprocessing_score_converter': 'SOFTMAX',
+                           'postprocessing_iou_threshold': 0.600000023842,
+                           'postprocessing_max_detections_per_class': 100,
+                           'postprocessing_max_total_detections': 200,
                            }
-        os.unlink(file_name)
         self.assertDictEqual(pipeline_config._model_params, expected_result)

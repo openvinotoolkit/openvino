@@ -19,9 +19,9 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
+std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj) {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     std::string targetDevice;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
@@ -60,7 +60,7 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
 
 void MatMulTransformation::SetUp() {
     ngraph::element::Type precision;
-    ngraph::Shape inputShape;
+    ngraph::PartialShape inputShape;
     MatMulTransformationTestValues testValues;
     std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
@@ -72,26 +72,11 @@ void MatMulTransformation::SetUp() {
         testValues.fqOnData2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
-}
-
-void MatMulTransformation::validate() {
-    ngraph::element::Type precision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    MatMulTransformationTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
-
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
-    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
-
-    const auto output = transformed->get_output_op(0);
-    const auto scaleShift = output->get_input_node_shared_ptr(0);
-    const std::string typeName = scaleShift->get_type_name();
-    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 void MatMulTransformation::Run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     LayerTestsCommon::Run();
 
     const auto params = std::get<3>(GetParam());

@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
+#include "engines_util/random.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
-#include "util/random.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -18,8 +18,7 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 
 // This tests a backend's implementation of the two parameter version of create_tensor
-NGRAPH_TEST(${BACKEND_NAME}, create_tensor_1)
-{
+NGRAPH_TEST(${BACKEND_NAME}, create_tensor_1) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
@@ -43,8 +42,7 @@ NGRAPH_TEST(${BACKEND_NAME}, create_tensor_1)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, get_parameters_and_results)
-{
+NGRAPH_TEST(${BACKEND_NAME}, get_parameters_and_results) {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);

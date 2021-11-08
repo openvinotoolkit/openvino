@@ -18,7 +18,7 @@ IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtension
     }
 }
 
-std::shared_ptr<ICNNNetwork> IRParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
+CNNNetwork IRParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
     return parser->parse(root, weights);
 }
 
@@ -35,7 +35,7 @@ public:
         originBlob(weights) { }
 };
 
-std::shared_ptr<ICNNNetwork> CNNParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
+CNNNetwork CNNParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
     details::CNNNetReaderImpl reader(std::make_shared<details::V2FormatParserCreator>());
     ResponseDesc resp;
     StatusCode ret = reader.ReadNetwork(root, &resp);

@@ -30,7 +30,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
         }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         smoke_crop4d_gna, Crop4dTest,
         ::testing::Combine(
         ::testing::ValuesIn(ss_only_test_cases),

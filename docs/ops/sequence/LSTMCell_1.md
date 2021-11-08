@@ -30,7 +30,6 @@ tanh - (e^{2x} - 1)/(e^{2x} + 1)
   * **Description**: *hidden_size* specifies hidden state size.
   * **Range of values**: a positive integer
   * **Type**: `int`
-  * **Default value**: None
   * **Required**: *yes*
 
 * *activations*
@@ -80,7 +79,7 @@ tanh - (e^{2x} - 1)/(e^{2x} + 1)
 
 **Types**
 
-* *T*: any supported floating point type.
+* *T*: any supported floating-point type.
 
 **Example**
 ```xml

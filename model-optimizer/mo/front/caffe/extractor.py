@@ -87,7 +87,7 @@ def register_caffe_python_extractor(op: Op, name: str = None):
     if not name and hasattr(op, 'op'):
         name = op.op
     if not name:
-        raise Error("Can not register Op {}. Please, call function 'register_caffe_python_extractor'"
+        raise Error("Can not register Op {}. Please, call function 'register_caffe_python_extractor' "
                     "with parameter 'name' .".format(op),
                     refer_to_faq_msg(87))
     CaffePythonFrontExtractorOp.registered_ops[name] = lambda node: extension_op_extractor(node, op)

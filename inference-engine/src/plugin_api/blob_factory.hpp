@@ -13,9 +13,9 @@
 #include <utility>
 #include <vector>
 
-#include "ie_memcpy.h"
 #include "ie_blob.h"
 #include "ie_data.h"
+#include "ie_memcpy.h"
 #include "ie_preprocess.hpp"
 
 /**
@@ -31,6 +31,9 @@ public:
     }
     static InferenceEngine::Blob::Ptr make(const InferenceEngine::TensorDesc& desc, void* ptr) {
         return InferenceEngine::make_shared_blob<BlobType>(desc, reinterpret_cast<BlobType*>(ptr));
+    }
+    static InferenceEngine::Blob::Ptr make(const InferenceEngine::TensorDesc& desc, void* ptr, const std::size_t size) {
+        return InferenceEngine::make_shared_blob<BlobType>(desc, reinterpret_cast<BlobType*>(ptr), size);
     }
     static InferenceEngine::Blob::Ptr make(const InferenceEngine::TensorDesc& desc,
                                            const std::shared_ptr<InferenceEngine::IAllocator>& alloc) {
@@ -101,9 +104,9 @@ make_plain_blob(InferenceEngine::Precision prec, const InferenceEngine::SizeVect
  */
 template <class... Args>
 InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision precision, Args&&... args) {
-    #define USE_FACTORY(precision)                  \
-        case InferenceEngine::Precision::precision: \
-            return make_shared_blob2<InferenceEngine::Precision::precision>(std::forward<Args>(args)...);
+#define USE_FACTORY(precision)                  \
+    case InferenceEngine::Precision::precision: \
+        return make_shared_blob2<InferenceEngine::Precision::precision>(std::forward<Args>(args)...);
 
     switch (precision) {
         USE_FACTORY(FP32);
@@ -126,7 +129,7 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
     default:
         IE_THROW() << "cannot locate blob for precision: " << precision;
     }
-    #undef USE_FACTORY
+#undef USE_FACTORY
 }
 
 /**
@@ -138,7 +141,9 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
  */
 template <typename T>
 void CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::vector<T>& inputVector) {
-    if (outputBlob->size() != inputVector.size()) IE_THROW() << "Size mismatch between dims and vector";
-    if (outputBlob->element_size() != sizeof(T)) IE_THROW() << "Element size mismatch between blob and vector";
+    if (outputBlob->size() != inputVector.size())
+        IE_THROW() << "Size mismatch between dims and vector";
+    if (outputBlob->element_size() != sizeof(T))
+        IE_THROW() << "Element size mismatch between blob and vector";
     ie_memcpy(outputBlob->buffer().as<T*>(), outputBlob->byteSize(), &inputVector[0], inputVector.size() * sizeof(T));
 }

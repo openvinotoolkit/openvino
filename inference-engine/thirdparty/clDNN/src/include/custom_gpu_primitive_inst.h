@@ -4,8 +4,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/custom_gpu_primitive.hpp"
+#include "cldnn/primitives/custom_gpu_primitive.hpp"
 #include "primitive_inst.h"
+
 #include <string>
 
 namespace cldnn {
@@ -44,7 +45,7 @@ public:
     static std::string to_string(custom_gpu_primitive_node const& node);
 
 public:
-    typed_primitive_inst(network_impl& network, custom_gpu_primitive_node const& node);
+    typed_primitive_inst(network& network, custom_gpu_primitive_node const& node);
 };
 
 using custom_gpu_primitive_inst = typed_primitive_inst<custom_gpu_primitive>;

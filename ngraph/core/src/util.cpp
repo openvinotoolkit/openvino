@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/util.hpp"
+
 #include <algorithm>
 #include <deque>
 #include <forward_list>
 #include <iomanip>
+#include <iostream>
 #include <map>
 #include <numeric>
 #include <unordered_set>
@@ -18,50 +21,36 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
-#include <iostream>
-
+NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-void ngraph::dump(ostream& out, const void* _data, size_t _size)
-{
+void ngraph::dump(ostream& out, const void* _data, size_t _size) {
     auto flags = out.flags();
     const uint8_t* data = reinterpret_cast<const uint8_t*>(_data);
     size_t len = _size;
     size_t index = 0;
-    while (index < len)
-    {
+    while (index < len) {
         out << std::hex << std::setw(8) << std::setfill('0') << index;
-        for (int i = 0; i < 8; i++)
-        {
-            if (index + i < len)
-            {
-                out << " " << std::hex << std::setw(2) << std::setfill('0')
-                    << static_cast<uint32_t>(data[i]);
-            }
-            else
-            {
+        for (int i = 0; i < 8; i++) {
+            if (index + i < len) {
+                out << " " << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint32_t>(data[i]);
+            } else {
                 out << "   ";
             }
         }
         out << "  ";
-        for (int i = 8; i < 16; i++)
-        {
-            if (index + i < len)
-            {
-                out << " " << std::hex << std::setw(2) << std::setfill('0')
-                    << static_cast<uint32_t>(data[i]);
-            }
-            else
-            {
+        for (int i = 8; i < 16; i++) {
+            if (index + i < len) {
+                out << " " << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint32_t>(data[i]);
+            } else {
                 out << "   ";
             }
         }
         out << "  ";
-        for (int i = 0; i < 16; i++)
-        {
+        for (int i = 0; i < 16; i++) {
             char ch = (index + i < len ? data[i] : ' ');
             out << ((ch < 32) ? '.' : ch);
         }
@@ -72,265 +61,180 @@ void ngraph::dump(ostream& out, const void* _data, size_t _size)
     out.flags(flags);
 }
 
-std::string ngraph::to_lower(const std::string& s)
-{
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
-    return rc;
+std::string ngraph::to_lower(const std::string& s) {
+    return ov::util::to_lower(s);
 }
 
-std::string ngraph::to_upper(const std::string& s)
-{
-    std::string rc = s;
-    std::transform(rc.begin(), rc.end(), rc.begin(), ::toupper);
-    return rc;
+std::string ngraph::to_upper(const std::string& s) {
+    return ov::util::to_upper(s);
 }
 
-string ngraph::trim(const string& s)
-{
-    string rc = s;
-    // trim trailing spaces
-    size_t pos = rc.find_last_not_of(" \t");
-    if (string::npos != pos)
-    {
-        rc = rc.substr(0, pos + 1);
-    }
-
-    // trim leading spaces
-    pos = rc.find_first_not_of(" \t");
-    if (string::npos != pos)
-    {
-        rc = rc.substr(pos);
-    }
-    return rc;
+string ngraph::trim(const string& s) {
+    return ov::util::trim(s);
 }
 
-vector<string> ngraph::split(const string& src, char delimiter, bool do_trim)
-{
-    size_t pos;
-    string token;
-    size_t start = 0;
-    vector<string> rc;
-    while ((pos = src.find(delimiter, start)) != std::string::npos)
-    {
-        token = src.substr(start, pos - start);
-        start = pos + 1;
-        if (do_trim)
-        {
-            token = trim(token);
-        }
-        rc.push_back(token);
-    }
-    if (start <= src.size())
-    {
-        token = src.substr(start);
-        if (do_trim)
-        {
-            token = trim(token);
-        }
-        rc.push_back(token);
-    }
-    return rc;
+vector<string> ngraph::split(const string& src, char delimiter, bool do_trim) {
+    return ov::util::split(src, delimiter, do_trim);
 }
 
-size_t ngraph::hash_combine(const std::vector<size_t>& list)
-{
+size_t ngraph::hash_combine(const std::vector<size_t>& list) {
     size_t seed = 0;
-    for (size_t v : list)
-    {
+    for (size_t v : list) {
         seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
     return seed;
 }
 
-void* ngraph::ngraph_malloc(size_t size)
-{
+void* ngraph::ngraph_malloc(size_t size) {
     auto ptr = malloc(size);
-    if (size != 0 && !ptr)
-    {
+    if (size != 0 && !ptr) {
         NGRAPH_ERR << "malloc failed to allocate memory of size " << size;
         throw std::bad_alloc();
     }
     return ptr;
 }
 
-void ngraph::ngraph_free(void* ptr)
-{
-    if (ptr)
-    {
+void ngraph::ngraph_free(void* ptr) {
+    if (ptr) {
         free(ptr);
     }
 }
 
-size_t ngraph::round_up(size_t size, size_t alignment)
-{
-    if (alignment == 0)
-    {
+size_t ngraph::round_up(size_t size, size_t alignment) {
+    if (alignment == 0) {
         return size;
     }
 
     size_t remainder = size % alignment;
-    if (remainder == 0)
-    {
+    if (remainder == 0) {
         return size;
     }
 
     return size + alignment - remainder;
 }
 
-size_t stopwatch::get_call_count() const
-{
+size_t stopwatch::get_call_count() const {
     return m_total_count;
 }
 
-size_t stopwatch::get_seconds() const
-{
+size_t stopwatch::get_seconds() const {
     return chrono::duration_cast<chrono::seconds>(get_timer_value()).count();
 }
 
-size_t stopwatch::get_milliseconds() const
-{
+size_t stopwatch::get_milliseconds() const {
     return chrono::duration_cast<chrono::milliseconds>(get_timer_value()).count();
 }
 
-size_t stopwatch::get_microseconds() const
-{
+size_t stopwatch::get_microseconds() const {
     return chrono::duration_cast<chrono::microseconds>(get_timer_value()).count();
 }
 
-size_t stopwatch::get_nanoseconds() const
-{
+size_t stopwatch::get_nanoseconds() const {
     return get_timer_value().count();
 }
 
-chrono::nanoseconds stopwatch::get_timer_value() const
-{
-    if (m_active)
-    {
+chrono::nanoseconds stopwatch::get_timer_value() const {
+    if (m_active) {
         return (m_clock.now() - m_start_time);
-    }
-    else
-    {
+    } else {
         return m_last_time;
     }
 }
 
-size_t stopwatch::get_total_seconds() const
-{
+size_t stopwatch::get_total_seconds() const {
     return chrono::duration_cast<chrono::seconds>(m_total_time).count();
 }
 
-size_t stopwatch::get_total_milliseconds() const
-{
+size_t stopwatch::get_total_milliseconds() const {
     return chrono::duration_cast<chrono::milliseconds>(m_total_time).count();
 }
 
-size_t stopwatch::get_total_microseconds() const
-{
+size_t stopwatch::get_total_microseconds() const {
     return chrono::duration_cast<chrono::microseconds>(m_total_time).count();
 }
 
-size_t stopwatch::get_total_nanoseconds() const
-{
+size_t stopwatch::get_total_nanoseconds() const {
     return m_total_time.count();
 }
 
-namespace ngraph
-{
-    template <>
-    float parse_string<float>(const std::string& s)
-    {
-        const char* tmp = s.c_str();
-        char* end;
-        float result = strtof(tmp, &end);
-        if (*end != 0)
-        {
-            throw std::runtime_error("Could not parse literal '" + s + "'");
-        }
-        return result;
+namespace ngraph {
+template <>
+float parse_string<float>(const std::string& s) {
+    const char* tmp = s.c_str();
+    char* end;
+    float result = strtof(tmp, &end);
+    if (*end != 0) {
+        throw std::runtime_error("Could not parse literal '" + s + "'");
+    }
+    return result;
+}
+
+template <>
+double parse_string<double>(const std::string& s) {
+    const char* tmp = s.c_str();
+    char* end;
+    double result = strtod(tmp, &end);
+    if (*end != 0) {
+        throw std::runtime_error("Could not parse literal '" + s + "'");
+    }
+    return result;
+}
+
+template <>
+int8_t parse_string<int8_t>(const std::string& s) {
+    char* err;
+    int8_t result = strtol(s.c_str(), &err, 10);
+
+    // Check that (1) parsing succeeded and (2) the entire string was used.
+    if (*err != 0) {
+        throw std::runtime_error("Could not parse literal '" + s + "'");
     }
 
-    template <>
-    double parse_string<double>(const std::string& s)
-    {
-        const char* tmp = s.c_str();
-        char* end;
-        double result = strtod(tmp, &end);
-        if (*end != 0)
-        {
-            throw std::runtime_error("Could not parse literal '" + s + "'");
-        }
-        return result;
+    return result;
+}
+
+template <>
+uint8_t parse_string<uint8_t>(const std::string& s) {
+    char* err;
+    uint8_t result = strtol(s.c_str(), &err, 10);
+
+    // Check that (1) parsing succeeded and (2) the entire string was used.
+    if (*err != 0) {
+        throw std::runtime_error("Could not parse literal '" + s + "'");
     }
 
-    template <>
-    int8_t parse_string<int8_t>(const std::string& s)
-    {
-        char* err;
-        int8_t result = strtol(s.c_str(), &err, 10);
+    return result;
+}
+}  // namespace ngraph
 
-        // Check that (1) parsing succeeded and (2) the entire string was used.
-        if (*err != 0)
-        {
-            throw std::runtime_error("Could not parse literal '" + s + "'");
-        }
-
-        return result;
-    }
-
-    template <>
-    uint8_t parse_string<uint8_t>(const std::string& s)
-    {
-        char* err;
-        uint8_t result = strtol(s.c_str(), &err, 10);
-
-        // Check that (1) parsing succeeded and (2) the entire string was used.
-        if (*err != 0)
-        {
-            throw std::runtime_error("Could not parse literal '" + s + "'");
-        }
-
-        return result;
-    }
-} // namespace ngraph
-
-std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv)
-{
+std::ostream& operator<<(std::ostream& os, const ngraph::NodeVector& nv) {
     std::vector<std::string> names;
-    for (auto n : nv)
-    {
+    for (auto n : nv) {
         names.push_back(n->get_name());
     }
     os << vector_to_string(names);
     return os;
 }
 
-bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank)
-{
+bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank rank) {
     std::vector<bool> axis_occurs(permutation.size(), false);
 
     // Check bounds if rank is static
-    if (rank.is_static())
-    {
+    if (rank.is_static()) {
         auto bound = rank.get_length();
-        for (auto axis : permutation)
-        {
-            if (static_cast<decltype(bound)>(axis) >= bound)
-            {
+        for (auto axis : permutation) {
+            if (static_cast<decltype(bound)>(axis) >= bound) {
                 return false;
             }
         }
     }
 
-    for (auto& axis : permutation)
-    {
+    for (auto& axis : permutation) {
         axis_occurs[axis] = true;
     }
 
-    for (size_t axis = 0; axis < permutation.size(); axis++)
-    {
-        if (!axis_occurs[axis])
-        {
+    for (size_t axis = 0; axis < permutation.size(); axis++) {
+        if (!axis_occurs[axis]) {
             return false;
         }
     }
@@ -339,18 +243,12 @@ bool ngraph::is_valid_permutation(ngraph::AxisVector permutation, ngraph::Rank r
 }
 
 template <typename T>
-T ngraph::apply_permutation(T input, AxisVector order)
-{
-    NGRAPH_CHECK(is_valid_permutation(order, input.size()),
-                 "Permutation ",
-                 order,
-                 " is not valid for ",
-                 input);
+T ngraph::apply_permutation(T input, AxisVector order) {
+    NGRAPH_CHECK(is_valid_permutation(order, input.size()), "Permutation ", order, " is not valid for ", input);
 
     T output(input.size());
 
-    for (size_t i = 0; i < order.size(); i++)
-    {
+    for (size_t i = 0; i < order.size(); i++) {
         output[i] = input.at(order.at(i));
     }
 
@@ -361,60 +259,46 @@ template AxisVector ngraph::apply_permutation<AxisVector>(AxisVector input, Axis
 template Shape ngraph::apply_permutation<Shape>(Shape input, AxisVector order);
 template ngraph::Coordinate ngraph::apply_permutation<ngraph::Coordinate>(ngraph::Coordinate input,
                                                                           ngraph::AxisVector order);
-template ngraph::CoordinateDiff
-    ngraph::apply_permutation<ngraph::CoordinateDiff>(ngraph::CoordinateDiff input,
-                                                      ngraph::AxisVector order);
-template ngraph::Strides ngraph::apply_permutation<ngraph::Strides>(ngraph::Strides input,
-                                                                    ngraph::AxisVector order);
+template ngraph::CoordinateDiff ngraph::apply_permutation<ngraph::CoordinateDiff>(ngraph::CoordinateDiff input,
+                                                                                  ngraph::AxisVector order);
+template ngraph::Strides ngraph::apply_permutation<ngraph::Strides>(ngraph::Strides input, ngraph::AxisVector order);
 
-namespace ngraph
-{
-    template <>
-    PartialShape apply_permutation(PartialShape input, AxisVector order)
-    {
-        NGRAPH_CHECK(is_valid_permutation(order, input.rank()),
-                     "Permutation ",
-                     order,
-                     " is not valid for ",
-                     input);
+namespace ngraph {
+template <>
+PartialShape apply_permutation(PartialShape input, AxisVector order) {
+    NGRAPH_CHECK(is_valid_permutation(order, input.rank()), "Permutation ", order, " is not valid for ", input);
 
-        // Here's the special part: if AxisVector is a viable permutation of _some_ rank, and input
-        // has dynamic rank, we just stick with dynamic rank.
-        if (input.rank().is_dynamic())
-        {
-            return input;
-        }
-
-        PartialShape output{PartialShape::dynamic(order.size())};
-
-        for (size_t i = 0; i < order.size(); i++)
-        {
-            output[i] = input[order.at(i)];
-        }
-
-        return output;
+    // Here's the special part: if AxisVector is a viable permutation of _some_ rank, and input
+    // has dynamic rank, we just stick with dynamic rank.
+    if (input.rank().is_dynamic()) {
+        return input;
     }
-} // namespace ngraph
 
-AxisVector ngraph::get_default_order(const Shape& shape)
-{
+    PartialShape output{PartialShape::dynamic(order.size())};
+
+    for (size_t i = 0; i < order.size(); i++) {
+        output[i] = input[order.at(i)];
+    }
+
+    return output;
+}
+}  // namespace ngraph
+
+AxisVector ngraph::get_default_order(const Shape& shape) {
     return get_default_order(shape.size());
 }
 
-AxisVector ngraph::get_default_order(const PartialShape& shape)
-{
+AxisVector ngraph::get_default_order(const PartialShape& shape) {
     return get_default_order(shape.rank());
 }
 
-AxisVector ngraph::get_default_order(size_t rank)
-{
+AxisVector ngraph::get_default_order(size_t rank) {
     AxisVector default_order(rank);
     std::iota(begin(default_order), end(default_order), 0);
     return default_order;
 }
 
-AxisVector ngraph::get_default_order(const Rank& rank)
-{
+AxisVector ngraph::get_default_order(const Rank& rank) {
     NGRAPH_CHECK(rank.is_static(), "Can not calculate default order for dynamic rank");
 
     AxisVector default_order(rank.get_length());
@@ -422,9 +306,7 @@ AxisVector ngraph::get_default_order(const Rank& rank)
     return default_order;
 }
 
-void ngraph::parse_version_string(
-    std::string version, size_t& major, size_t& minor, size_t& patch, string& extra)
-{
+void ngraph::parse_version_string(std::string version, size_t& major, size_t& minor, size_t& patch, string& extra) {
     // Since regex is broken in gcc 4.8 I will just manually parse the version string
     // Version strings look like `0.25.0-rc.0+7c32240` or `v0.25.0-rc.0+7c32240`
     size_t start;
@@ -443,267 +325,179 @@ void ngraph::parse_version_string(
     string patch_str = version.substr(start, end - start);
     start = end;
 
-    if (start != string::npos)
-    {
+    if (start != string::npos) {
         extra = version.substr(start);
     }
 
     size_t err;
     bool error = false;
-    try
-    {
+    try {
         major = stoi(major_str, &err);
-        if (err != major_str.size())
-        {
+        if (err != major_str.size()) {
             error = true;
         }
         minor = stoi(minor_str, &err);
-        if (err != minor_str.size())
-        {
+        if (err != minor_str.size()) {
             error = true;
         }
         patch = stoi(patch_str, &err);
-        if (err != patch_str.size())
-        {
+        if (err != patch_str.size()) {
             error = true;
         }
-    }
-    catch (...)
-    {
+    } catch (...) {
         error = true;
     }
-    if (error)
-    {
+    if (error) {
         throw runtime_error("Error parsing version string '" + version + "'");
     }
 }
 
-vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv)
-{
+vector<float> read_float_vector(shared_ptr<runtime::Tensor> tv) {
     vector<float> float_vec;
     element::Type element_type = tv->get_element_type();
 
-    if (element_type == element::boolean)
-    {
+    if (element_type == element::boolean) {
         vector<char> vec = read_vector<char>(tv);
         // Changed from vector ctor to explicit for loop to add static_cast
         // This silences MSVC warnings
-        for (char value : vec)
-        {
+        for (char value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::bf16)
-    {
+    } else if (element_type == element::bf16) {
         vector<bfloat16> vec = read_vector<bfloat16>(tv);
         float_vec = bfloat16::to_float_vector(vec);
-    }
-    else if (element_type == element::f16)
-    {
+    } else if (element_type == element::f16) {
         vector<float16> vec = read_vector<float16>(tv);
-        for (float16 value : vec)
-        {
+        for (float16 value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::f32)
-    {
+    } else if (element_type == element::f32) {
         vector<float> vec = read_vector<float>(tv);
-        for (float value : vec)
-        {
+        for (float value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::f64)
-    {
+    } else if (element_type == element::f64) {
         vector<double> vec = read_vector<double>(tv);
-        for (double value : vec)
-        {
+        for (double value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::i8)
-    {
+    } else if (element_type == element::i8) {
         vector<int8_t> vec = read_vector<int8_t>(tv);
-        for (int8_t value : vec)
-        {
+        for (int8_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::i16)
-    {
+    } else if (element_type == element::i16) {
         vector<int16_t> vec = read_vector<int16_t>(tv);
-        for (int16_t value : vec)
-        {
+        for (int16_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::i32)
-    {
+    } else if (element_type == element::i32) {
         vector<int32_t> vec = read_vector<int32_t>(tv);
-        for (int32_t value : vec)
-        {
+        for (int32_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::i64)
-    {
+    } else if (element_type == element::i64) {
         vector<int64_t> vec = read_vector<int64_t>(tv);
-        for (int64_t value : vec)
-        {
+        for (int64_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::u8)
-    {
+    } else if (element_type == element::u8) {
         vector<uint8_t> vec = read_vector<uint8_t>(tv);
-        for (uint8_t value : vec)
-        {
+        for (uint8_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::u16)
-    {
+    } else if (element_type == element::u16) {
         vector<uint16_t> vec = read_vector<uint16_t>(tv);
-        for (uint16_t value : vec)
-        {
+        for (uint16_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::u32)
-    {
+    } else if (element_type == element::u32) {
         vector<uint32_t> vec = read_vector<uint32_t>(tv);
-        for (uint32_t value : vec)
-        {
+        for (uint32_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else if (element_type == element::u64)
-    {
+    } else if (element_type == element::u64) {
         vector<uint64_t> vec = read_vector<uint64_t>(tv);
-        for (uint64_t value : vec)
-        {
+        for (uint64_t value : vec) {
             float_vec.push_back(static_cast<float>(value));
         }
-    }
-    else
-    {
+    } else {
         throw ngraph_error("Unsupported nGraph element type.");
     }
 
     return float_vec;
 }
 
-vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv)
-{
+vector<int64_t> read_index_vector(shared_ptr<runtime::Tensor> tv) {
     vector<int64_t> index_vec;
     element::Type element_type = tv->get_element_type();
 
-    if (element_type == element::boolean)
-    {
+    if (element_type == element::boolean) {
         vector<char> vec = read_vector<char>(tv);
         // Changed from vector ctor to explicit for loop to add static_cast
         // This silences MSVC warnings
-        for (char value : vec)
-        {
+        for (char value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::bf16)
-    {
+    } else if (element_type == element::bf16) {
         vector<bfloat16> vec = read_vector<bfloat16>(tv);
         vector<float> float_vec = bfloat16::to_float_vector(vec);
-        for (float value : float_vec)
-        {
+        for (float value : float_vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::f16)
-    {
+    } else if (element_type == element::f16) {
         vector<float16> vec = read_vector<float16>(tv);
-        for (float16 value : vec)
-        {
+        for (float16 value : vec) {
             index_vec.push_back(static_cast<int64_t>(static_cast<float>(value)));
         }
-    }
-    else if (element_type == element::f32)
-    {
+    } else if (element_type == element::f32) {
         vector<float> vec = read_vector<float>(tv);
-        for (float value : vec)
-        {
+        for (float value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::f64)
-    {
+    } else if (element_type == element::f64) {
         vector<double> vec = read_vector<double>(tv);
-        for (double value : vec)
-        {
+        for (double value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::i8)
-    {
+    } else if (element_type == element::i8) {
         vector<int8_t> vec = read_vector<int8_t>(tv);
-        for (int8_t value : vec)
-        {
+        for (int8_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::i16)
-    {
+    } else if (element_type == element::i16) {
         vector<int16_t> vec = read_vector<int16_t>(tv);
-        for (int16_t value : vec)
-        {
+        for (int16_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::i32)
-    {
+    } else if (element_type == element::i32) {
         vector<int32_t> vec = read_vector<int32_t>(tv);
-        for (int32_t value : vec)
-        {
+        for (int32_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::i64)
-    {
+    } else if (element_type == element::i64) {
         index_vec = read_vector<int64_t>(tv);
-    }
-    else if (element_type == element::u8)
-    {
+    } else if (element_type == element::u8) {
         vector<uint8_t> vec = read_vector<uint8_t>(tv);
-        for (uint8_t value : vec)
-        {
+        for (uint8_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::u16)
-    {
+    } else if (element_type == element::u16) {
         vector<uint16_t> vec = read_vector<uint16_t>(tv);
-        for (uint16_t value : vec)
-        {
+        for (uint16_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::u32)
-    {
+    } else if (element_type == element::u32) {
         vector<uint32_t> vec = read_vector<uint32_t>(tv);
-        for (uint32_t value : vec)
-        {
+        for (uint32_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else if (element_type == element::u64)
-    {
+    } else if (element_type == element::u64) {
         vector<uint64_t> vec = read_vector<uint64_t>(tv);
-        for (uint64_t value : vec)
-        {
+        for (uint64_t value : vec) {
             index_vec.push_back(static_cast<int64_t>(value));
         }
-    }
-    else
-    {
+    } else {
         throw ngraph_error("Unsupported nGraph element type.");
     }
 

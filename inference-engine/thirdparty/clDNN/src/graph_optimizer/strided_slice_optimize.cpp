@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <src/include/error_handler.h>
+#include "cldnn/runtime/error_handler.hpp"
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "strided_slice_inst.h"
@@ -15,7 +15,7 @@
 
 using namespace cldnn;
 
-void strided_slice_optimize::run(program_impl& p) {
+void strided_slice_optimize::run(program& p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);

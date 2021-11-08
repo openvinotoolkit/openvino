@@ -15,6 +15,7 @@ from mo.front.onnx.extractor import onnx_op_extractor, onnx_op_extractors
 from mo.front.onnx.loader import load_onnx_model, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils.error import Error
+from mo.utils.telemetry_utils import send_shapes_info, send_op_names_info
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -59,3 +60,5 @@ class ONNXLoader(Loader):
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
+        send_op_names_info('onnx', graph)
+        send_shapes_info('onnx', graph)

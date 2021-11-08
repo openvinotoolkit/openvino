@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConcatMultiInput::getTestCaseName(testing::TestParamInfo<concatMultiParams> obj) {
+std::string ConcatMultiInput::getTestCaseName(const testing::TestParamInfo<concatMultiParams>& obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -70,7 +70,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
     ngraph::OutputVector concatInputs;
 
     const int seed = 0;
-    std::mt19937 gen(static_cast<float>(seed));
+    std::mt19937 gen(seed);
 
     auto generateFloatNumbers = [gen](std::size_t vec_len, float min, float max) mutable {
         std::vector<float> res;
@@ -103,6 +103,25 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
     function = std::make_shared<ngraph::Function>(results, input_vector, "ConcatConstOnly");
+}
+
+void ConcatMultiInput::GenerateMemoryModel() {
+    int axis = 1;
+    auto input = ngraph::builder::makeParams(ngPrc, { inputShapes[0] });
+
+    auto variable = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{ngraph::PartialShape::dynamic(), ngraph::element::dynamic, "concat_input_memory"});
+    auto mem_i = std::make_shared<ngraph::opset8::Constant>(ngPrc, inputShapes[0]);
+    auto mem_r = std::make_shared<ngraph::opset8::ReadValue>(mem_i, variable);
+
+    ngraph::OutputVector concat_input;
+    concat_input.push_back(mem_r);
+    concat_input.push_back(input.at(0));
+    auto concat = std::make_shared<ngraph::opset8::Concat>(concat_input, axis);
+
+    auto mem_w = std::make_shared<ngraph::opset8::Assign>(input.at(0), variable);
+
+    auto res = std::make_shared<ngraph::opset8::Result>(concat);
+    function = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::SinkVector{mem_w}, input, "ConcatMemory");
 }
 
 }  // namespace SubgraphTestsDefinitions

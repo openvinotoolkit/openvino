@@ -36,7 +36,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ngraph::Shape,
@@ -46,7 +46,7 @@ class PullReshapeThroughDequantizationTransformation :
     public testing::WithParamInterface<PullReshapeThroughDequantizationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PullReshapeThroughDequantizationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj);
 
 protected:
     void SetUp() override;

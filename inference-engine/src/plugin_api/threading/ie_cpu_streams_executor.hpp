@@ -30,9 +30,9 @@ public:
     using Ptr = std::shared_ptr<CPUStreamsExecutor>;
 
     /**
-    * @brief Constructor
-    * @param config Stream executor parameters
-    */
+     * @brief Constructor
+     * @param config Stream executor parameters
+     */
     explicit CPUStreamsExecutor(const Config& config = {});
 
     /**

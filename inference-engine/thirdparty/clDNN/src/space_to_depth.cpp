@@ -5,7 +5,7 @@
 #include "space_to_depth_inst.h"
 
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -97,7 +97,7 @@ std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {
     return primitive_description.str();
 }
 
-space_to_depth_inst::typed_primitive_inst(network_impl& network, space_to_depth_node const& node)
+space_to_depth_inst::typed_primitive_inst(network& network, space_to_depth_node const& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

@@ -14,18 +14,15 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        namespace dynamic
-        {
-            class DynamicBackend;
-            class DynamicExecutable;
-            class DynamicTensor;
-        }
-    }
-}
+namespace ngraph {
+namespace runtime {
+namespace dynamic {
+class DynamicBackend;
+class DynamicExecutable;
+class DynamicTensor;
+}  // namespace dynamic
+}  // namespace runtime
+}  // namespace ngraph
 
 ///
 /// \brief Wrapper class used to provide dynamic tensor support on backends
@@ -42,22 +39,21 @@ namespace ngraph
 ///
 /// This class is instantiated by `ngraph::runtime::Backend::create`.
 ///
-class ngraph::runtime::dynamic::DynamicBackend : public Backend
-{
+class ngraph::runtime::dynamic::DynamicBackend : public Backend {
 public:
     DynamicBackend(std::shared_ptr<ngraph::runtime::Backend> wrapped_backend);
 
     std::shared_ptr<Tensor> create_tensor() override;
 
-    std::shared_ptr<Tensor>
-        create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
+    std::shared_ptr<Tensor> create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
 
     std::shared_ptr<Tensor> create_tensor(const element::Type& type, const Shape& shape) override;
 
-    std::shared_ptr<Tensor> create_dynamic_tensor(const element::Type& type,
-                                                  const PartialShape& shape) override;
+    std::shared_ptr<Tensor> create_dynamic_tensor(const element::Type& type, const PartialShape& shape) override;
 
-    bool supports_dynamic_tensors() override { return true; }
+    bool supports_dynamic_tensors() override {
+        return true;
+    }
     std::shared_ptr<Executable> compile(std::shared_ptr<Function> function,
                                         bool enable_performance_data = false) override;
 
@@ -79,20 +75,18 @@ private:
 ///
 /// `DynamicExecutable` objects are produced by `DynamicBackend::compile()`.
 ///
-class ngraph::runtime::dynamic::DynamicExecutable : public ngraph::runtime::Executable
-{
+class ngraph::runtime::dynamic::DynamicExecutable : public ngraph::runtime::Executable {
 public:
     DynamicExecutable(std::shared_ptr<Function> wrapped_function,
                       std::shared_ptr<ngraph::runtime::Backend> wrapped_backend,
                       bool enable_performance_collection = false);
-    virtual bool call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
-                      const std::vector<std::shared_ptr<runtime::Tensor>>& inputs) override;
+    bool call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
+              const std::vector<std::shared_ptr<runtime::Tensor>>& inputs) override;
 
 private:
     std::shared_ptr<ngraph::Function> m_wrapped_function;
     std::shared_ptr<ngraph::runtime::Backend> m_wrapped_backend;
-    std::shared_ptr<ngraph::runtime::LRUCache> m_lru =
-        std::make_shared<ngraph::runtime::LRUCache>();
+    std::shared_ptr<ngraph::runtime::LRUCache> m_lru = std::make_shared<ngraph::runtime::LRUCache>();
     bool m_enable_performance_collection;
 };
 
@@ -114,8 +108,7 @@ private:
 ///    called until the storage has been released via `release_storage()`.
 /// 4. `release_storage()` unassigns previously assigned storage.
 ///
-class ngraph::runtime::dynamic::DynamicTensor : public ngraph::runtime::Tensor
-{
+class ngraph::runtime::dynamic::DynamicTensor : public ngraph::runtime::Tensor {
 public:
     DynamicTensor(const element::Type& element_type,
                   const PartialShape& shape,

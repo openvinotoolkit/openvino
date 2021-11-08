@@ -21,15 +21,20 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace ngraph;
 using namespace std;
 
 TEST(nop_elimination, eliminate_convert) {
-    Shape shape{};
-    auto type = element::f32;
-    auto A = make_shared<op::Parameter>(type, shape);
-    auto c = make_shared<op::v0::Convert>(A, element::f32);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(c), ParameterVector{A});
+    std::shared_ptr<Function> f;
+    {
+        Shape shape{};
+        auto type = element::f32;
+        auto A = make_shared<op::Parameter>(type, shape);
+        auto c = make_shared<op::v0::Convert>(A, element::f32);
+        f = make_shared<Function>(make_shared<op::v0::Abs>(c), ParameterVector{A});
+    }
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::NopElimination>();
@@ -40,12 +45,15 @@ TEST(nop_elimination, eliminate_convert) {
 
 TEST(nop_elimination, convert_type_agnostic) {
     Shape shape{};
-    auto type = element::from<char>();
-    auto A = make_shared<op::Parameter>(type, shape);
-    auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
-    auto c = make_shared<op::v0::Convert>(c1, element::f32);
-    auto z = make_shared<op::v3::NonZero>(c);
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(z), ParameterVector{A});
+    std::shared_ptr<Function> f;
+    {
+        auto type = element::from<int8_t>();
+        auto A = make_shared<op::Parameter>(type, shape);
+        auto c1 = make_shared<op::v0::Convert>(A, element::from<uint8_t>());
+        auto c = make_shared<op::v0::Convert>(c1, element::f32);
+        auto z = make_shared<op::v3::NonZero>(c);
+        f = make_shared<Function>(make_shared<op::v0::Abs>(z), ParameterVector{A});
+    }
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::Validate>();
@@ -56,11 +64,14 @@ TEST(nop_elimination, convert_type_agnostic) {
 }
 
 TEST(nop_elimination, eliminate_broadcast) {
-    Shape shape{1};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto b = make_shared<op::v1::Broadcast>(A,
-                                            op::Constant::create(element::u64, Shape{1}, {1}));
-    auto f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
+    std::shared_ptr<Function> f;
+    {
+        Shape shape{1};
+        auto A = make_shared<op::Parameter>(element::f32, shape);
+        auto b = make_shared<op::v1::Broadcast>(A,
+                                                op::Constant::create(element::u64, Shape{1}, {1}));
+        f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
+    }
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::NopElimination>();
@@ -131,7 +142,7 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
         if (node->get_friendly_name() == "reshape") {
             reshape_is_missing = false;
             ASSERT_TRUE(std::dynamic_pointer_cast<opset4::Reshape>(node));
-            auto original_names = getFusedNamesVector(node);
+            auto original_names = ngraph::getFusedNamesVector(node);
             sort(original_names.begin(), original_names.end());
             ASSERT_EQ(original_names, std::vector<std::string>({"reshape", "squeeze"}));
         }
@@ -550,7 +561,9 @@ TEST(nop_elimination, unsqueeze_squeeze_elimination) {
     auto check_usecase = [&](const Shape& shape, const std::vector<int64_t>& axes_val) {
         auto baseline_f = generate_func(shape, axes_val);
         auto optimized_f = generate_func(shape, axes_val);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(baseline_f), 1);
@@ -580,7 +593,9 @@ TEST(nop_elimination, reshape_unsqueeze_elimination) {
         auto B1 = make_shared<op::v0::Unsqueeze>(B, axes);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(baseline_f), 1);
@@ -609,7 +624,9 @@ TEST(nop_elimination, reshape_squeeze_elimination) {
         auto B1 = make_shared<op::v0::Squeeze>(B, axes);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
@@ -635,7 +652,9 @@ TEST(nop_elimination, reshape_reshape_elimination) {
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, true);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 2);
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(optimized_f), 1);
@@ -660,7 +679,9 @@ TEST(nop_elimination, squeeze_reshape_elimination) {
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
@@ -686,7 +707,9 @@ TEST(nop_elimination, unsqueeze_reshape_elimination) {
         auto B1 = make_shared<op::v1::Reshape>(B, pat2, false);
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(baseline_f), 1);
@@ -707,8 +730,9 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_negative) {
         auto squeeze = make_shared<ngraph::opset1::Squeeze>(input, indices);
         auto baseline_f = make_shared<Function>(squeeze, ParameterVector{input});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
-
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(optimized_f), 1);
     };
@@ -724,11 +748,73 @@ TEST(nop_elimination, topk_convert_elimination) {
         auto C = make_shared<op::Convert>(B->output(0), B->output(0).get_element_type());
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
-        pass::NopElimination().run_on_function(optimized_f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::Convert>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<op::Convert>(optimized_f), 0);
     };
 
     check_usecase();
+}
+
+TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
+    auto check_usecase = [](const PartialShape& pshape,
+                            bool i32,
+                            bool multiout,
+                            const std::vector<int64_t>& indices_val,
+                            int64_t axis_val,
+                            size_t num) {
+        static size_t id = 0;
+        auto casename = string("usecase #") + to_string(++id);
+
+        shared_ptr<Node> indices;
+        shared_ptr<Node> axis;
+        if (i32) {
+            std::vector<int32_t> indices_val_i32(indices_val.begin(), indices_val.end());
+            indices = op::Constant::create<int32_t>(
+                    element::i32, Shape{indices_val.size()}, indices_val_i32);
+            axis = op::Constant::create<int32_t>(element::i32, Shape{}, {(int32_t)axis_val});
+        } else {
+            indices =
+                    op::Constant::create<int64_t>(element::i64, Shape{indices_val.size()}, indices_val);
+            axis = op::Constant::create<int64_t>(element::i64, Shape{}, {axis_val});
+        }
+
+        auto A = make_shared<op::Parameter>(element::f32, pshape);
+        shared_ptr<Node> A1;
+        if (multiout) {
+            auto last_dim = pshape.rank().get_length() - 1;
+            A1 = make_shared<op::v1::TopK>(A, op::Constant::create(element::i64, {}, {1}), last_dim, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::NONE);
+        } else {
+            A1 = make_shared<op::v0::Abs>(A);
+        }
+        auto G = make_shared<op::v1::Gather>((multiout ? A1->output(0) : A1), indices, axis);
+
+        auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(G), ParameterVector{A});
+        auto optimized_f = clone_function(*baseline_f);
+
+        pass::Manager pass_manager;
+        pass_manager.register_pass<pass::Validate>();
+        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.run_passes(optimized_f);
+
+        auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
+        auto ps_r = optimized_f->get_results()[0]->get_output_partial_shape(0);
+        EXPECT_TRUE(ps.rank().is_static() && ps_r.rank().is_static()) << casename;
+        ASSERT_EQ(ps.rank().get_length(), ps_r.rank().get_length()) << casename;
+
+        ASSERT_EQ(count_ops_of_type<op::v1::Gather>(baseline_f), 1) << casename;
+        // the pass should short cut the Gather i/p with the gather users
+        // since we are fetching the whole tensor using gather op
+        ASSERT_EQ(count_ops_of_type<op::v1::Gather>(optimized_f), num) << casename;
+    };
+    for (auto& i32 : {true, false})
+        for (auto& multiout : {true, false}) {
+            check_usecase(PartialShape{1, 3, 2}, i32, multiout, std::vector<int64_t>{1}, 0, 0);
+            check_usecase(PartialShape{3, 2, 1}, i32, multiout, std::vector<int64_t>{0, 1}, 1, 0);
+            check_usecase(PartialShape{3, 2, 1}, i32, multiout, std::vector<int64_t>{1}, 2, 0);
+            check_usecase(PartialShape{1, 16}, i32, multiout, std::vector<int64_t>{0, 0}, 0, 1);
+        }
 }

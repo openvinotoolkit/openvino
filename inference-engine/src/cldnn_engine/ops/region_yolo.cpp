@@ -7,11 +7,11 @@
 
 #include "ngraph/op/region_yolo.hpp"
 
-#include "api/region_yolo.hpp"
+#include "cldnn/primitives/region_yolo.hpp"
 
 namespace CLDNNPlugin {
 
-void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::RegionYolo>& op) {
+static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::RegionYolo>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -28,7 +28,8 @@ void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::Region
                                          classes,
                                          num,
                                          mask_size,
-                                         do_softmax);
+                                         do_softmax,
+                                         op->get_friendly_name());
 
     p.AddPrimitive(regionPrim);
     p.AddPrimitiveToProfiler(op);

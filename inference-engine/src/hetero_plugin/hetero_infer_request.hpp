@@ -11,9 +11,7 @@
 #include <unordered_map>
 #include <ie_common.h>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
-#include <cpp/ie_infer_request.hpp>
-#include <cpp/ie_executable_network.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <openvino/itt.hpp>
 
 namespace HeteroPlugin {
@@ -23,27 +21,42 @@ public:
     typedef std::shared_ptr<HeteroInferRequest> Ptr;
 
     struct SubRequestDesc {
-        InferenceEngine::ExecutableNetwork  _network;
-        InferenceEngine::InferRequest       _request;
-        openvino::itt::handle_t             _profilingTask;
+        InferenceEngine::SoExecutableNetworkInternal  _network;
+        InferenceEngine::SoIInferRequestInternal      _request;
+        openvino::itt::handle_t                       _profilingTask;
     };
     using SubRequestsList = std::vector<SubRequestDesc>;
 
-    explicit HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                                InferenceEngine::OutputsDataMap networkOutputs,
-                                const SubRequestsList &inferRequests,
-                                const std::unordered_map<std::string, std::string>& blobNameMap);
+    HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
+                       InferenceEngine::OutputsDataMap networkOutputs,
+                       const SubRequestsList &inferRequests,
+                       const std::unordered_map<std::string, std::string>& blobNameMap);
+
+    HeteroInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& networkInputs,
+                       const std::vector<std::shared_ptr<const ov::Node>>& networkOutputs,
+                       const SubRequestsList &inferRequests,
+                       const std::unordered_map<std::string, std::string>& blobNameMap);
 
     void InferImpl() override;
 
-    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) override;
+
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
+
+    void SetBlob(const std::string& name,
+                 const InferenceEngine::Blob::Ptr& blob,
+                 const InferenceEngine::PreProcessInfo& info) override;
+
+    const InferenceEngine::PreProcessInfo& GetPreProcess(const std::string& name) const override;
 
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
-    void updateInOutIfNeeded();
-
     SubRequestsList _inferRequests;
-    std::map<std::string, InferenceEngine::Blob::Ptr>   _blobs;
+    std::map<std::string, InferenceEngine::Blob::Ptr>               _blobs;
+    std::map<std::string, InferenceEngine::IInferRequestInternal*>  _subRequestFromBlobName;
+
+private:
+    void CreateInferRequest(const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames);
 };
 
 }  // namespace HeteroPlugin

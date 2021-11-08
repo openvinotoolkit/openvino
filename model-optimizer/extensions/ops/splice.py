@@ -11,16 +11,17 @@ class Splice(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'const_dim': 0,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': __class__.infer,
+            'infer': self.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     @staticmethod
     def infer(node: Node):
-        out_node = node.out_node()
-        out_node.shape = node.in_node().shape.copy()
-        out_node.shape[1] = node.const_dim + (node.in_node().shape[1] - node.const_dim) * len(node.context)
+        input_shape = node.in_port(0).data.get_shape()
+        output_shape = input_shape.copy()
+        output_shape[1] = node.const_dim + (input_shape[1] - node.const_dim) * len(node.context)
+        node.out_port(0).data.set_shape(output_shape)

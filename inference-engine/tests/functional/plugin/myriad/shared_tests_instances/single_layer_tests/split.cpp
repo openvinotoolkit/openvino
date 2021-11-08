@@ -14,7 +14,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(5),
                                 // TODO: 0-axis excluded
@@ -32,7 +32,7 @@ INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         SplitLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_splitWithUnusedOutputsTest, SplitLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_splitWithUnusedOutputsTest, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(5),
                                 // TODO: 0-axis excluded

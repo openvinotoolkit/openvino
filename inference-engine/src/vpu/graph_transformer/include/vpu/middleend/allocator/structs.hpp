@@ -18,7 +18,6 @@ namespace vpu {
 // Common allocation constants
 //
 
-const int DDR_MAX_SIZE = 512 * 1024 * 1024;
 const int CMX_SLICE_SIZE = 128 * 1024;
 const int DATA_ALIGNMENT = 64;
 const int CMX_SHAVE_BUFFER_SIZE = 100 * 1024;

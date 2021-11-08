@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (ENABLE_CLANG_FORMAT)
+if(ENABLE_CLANG_FORMAT)
     set(CLANG_FORMAT_FILENAME clang-format-9 clang-format)
-    find_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
-    if (CLANG_FORMAT)
+    find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
+    if(CLANG_FORMAT)
         execute_process(COMMAND ${CLANG_FORMAT} ${CMAKE_CURRENT_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE CLANG_VERSION)
-        if (NOT CLANG_VERSION OR CLANG_VERSION STREQUAL "")
+        if(NOT CLANG_VERSION OR CLANG_VERSION STREQUAL "")
             message(WARNING "Supported clang-format version is 9!")
             set(ENABLE_CLANG_FORMAT OFF)
         else()
             string(REGEX REPLACE "[^0-9]+([0-9]+)\\..*" "\\1" CLANG_FORMAT_MAJOR_VERSION ${CLANG_VERSION})
-            if (NOT ${CLANG_FORMAT_MAJOR_VERSION} EQUAL "9")
+            if(NOT ${CLANG_FORMAT_MAJOR_VERSION} EQUAL "9")
                 message(WARNING "Supported clang-format version is 9!")
                 set(ENABLE_CLANG_FORMAT OFF)
             endif()
@@ -23,7 +23,7 @@ if (ENABLE_CLANG_FORMAT)
     endif()
 endif()
 
-if(ENABLE_CLANG_FORMAT)
+if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
     add_custom_target(clang_format_check_all)
     add_custom_target(clang_format_fix_all)
     set_target_properties(clang_format_check_all clang_format_fix_all

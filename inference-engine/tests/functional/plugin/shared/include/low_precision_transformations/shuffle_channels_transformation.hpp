@@ -23,7 +23,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    ngraph::PartialShape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ShuffleChannelsTransformationParam
@@ -33,7 +33,7 @@ class ShuffleChannelsTransformation :
     public testing::WithParamInterface<ShuffleChannelsTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ShuffleChannelsTransformationParams>& obj);
 
 protected:
     void SetUp() override;

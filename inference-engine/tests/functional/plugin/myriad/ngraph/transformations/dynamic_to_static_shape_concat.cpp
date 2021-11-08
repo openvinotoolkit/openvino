@@ -77,7 +77,7 @@ protected:
                                 ngraph::PartialShape::dynamic(concat->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{
-            {ngraph::opset3::Concat::type_info, vpu::dynamicToStaticShapeConcat}};
+            {ngraph::opset3::Concat::get_type_info_static(), vpu::dynamicToStaticShapeConcat}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -134,7 +134,7 @@ std::vector<ConcatParam> concatParams = {
         {DataShapes{DataShape{3, 64, 128}, DataShape{3, 64, 256}, DataShape{3, 64, 512}}, -1},
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeConcatTests, testing::Combine(
+INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeConcatTests, testing::Combine(
         testing::ValuesIn(dataTypes),
         testing::ValuesIn(concatParams)));
 

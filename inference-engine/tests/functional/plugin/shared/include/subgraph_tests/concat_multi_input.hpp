@@ -18,4 +18,11 @@ TEST_P(ConcatMultiInput, CompareWithRefConstOnly) {
     Run();
 };
 
+TEST_P(ConcatMultiInput, CompareWithRefMemory) {
+    GenerateMemoryModel();
+    LoadNetwork();
+    GenerateInputs();
+    Infer();
+};
+
 }  // namespace SubgraphTestsDefinitions

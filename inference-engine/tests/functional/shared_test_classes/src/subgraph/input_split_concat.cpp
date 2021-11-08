@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string InputSplitConcatTest::getTestCaseName(testing::TestParamInfo<InputSplitConcatParams> obj) {
+std::string InputSplitConcatTest::getTestCaseName(const testing::TestParamInfo<InputSplitConcatParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

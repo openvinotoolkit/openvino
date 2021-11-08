@@ -25,3 +25,4 @@ class ReverseTransposeNormalization(MiddleReplacementPattern):
         const = Const(graph, {'value': order, 'name': node.soft_get('name', node.id) + '/Order'}).create_node()
         node.add_input_port(1, skip_if_exist=True)
         const.out_port(0).connect(node.in_port(1))
+        node['reverse_order'] = False

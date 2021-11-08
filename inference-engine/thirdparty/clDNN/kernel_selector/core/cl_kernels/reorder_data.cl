@@ -3,9 +3,10 @@
 //
 
 #include "include/reshape_dims.cl"
-#include "include/fetch.cl"
+#include "include/batch_headers/fetch_data.cl"
 
-#include "include/data_types.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/image_data.cl"
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
 #define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_REORDER_TYPE, 4)
@@ -165,9 +166,7 @@ KERNEL (reorder_data)(
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
 #if INPUT0_IS_FP && !OUTPUT_IS_FP
-    // TODO: check if this round really needed. Right now it's added to have the same behavior as CPU plugin
-    // becuase CPU's convert instruction performs round
-    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(round(res)), ACTIVATION_PARAMS_TYPED);
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
 #else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif

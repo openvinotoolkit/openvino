@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "arg_max_min_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <limits>
@@ -167,5 +166,5 @@ std::string arg_max_min_inst::to_string(arg_max_min_node const& node) {
     return primitive_description.str();
 }
 
-arg_max_min_inst::typed_primitive_inst(network_impl& network, arg_max_min_node const& node) : parent(network, node) {}
+arg_max_min_inst::typed_primitive_inst(network& network, arg_max_min_node const& node) : parent(network, node) {}
 }  // namespace cldnn

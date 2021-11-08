@@ -24,7 +24,7 @@ typedef std::tuple<
 class LowPrecisionTest : public testing::WithParamInterface<lowPrecisionTestParamsSet>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<lowPrecisionTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<lowPrecisionTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

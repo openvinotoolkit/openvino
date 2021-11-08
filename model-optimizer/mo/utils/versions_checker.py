@@ -30,6 +30,26 @@ def check_python_version():
         return 1
 
 
+def get_imported_module_version(imported_module):
+    """
+    Get imported module version
+    :return: version(str) or raise AttributeError exception
+    """
+    version_attrs = ("__version__", "VERSION", "version")
+    installed_version = None
+    for attr in version_attrs:
+        installed_version = getattr(imported_module, attr, None)
+        if isinstance(installed_version, str):
+           return installed_version
+        else: 
+            installed_version = None
+
+    if installed_version is None:
+        raise AttributeError("{} module doesn't have version attribute".format(imported_module))
+    else:
+        return installed_version
+
+
 def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup):
     """
     Please do not add parameter type annotations (param:type).
@@ -56,22 +76,26 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
     line = line.strip(' ')
     if line == '':
         return version_list
-    splited_requirement = line.split(";")
+    split_requirement = line.split(";")
 
     # check environment marker
-    if len(splited_requirement) > 1:
-        env_req = splited_requirement[1]
-        splited_env_req = re.split(r"==|>=|<=|>|<", env_req)
-        splited_env_req = [l.strip(',') for l in splited_env_req]
-        env_marker = splited_env_req[0].strip(' ')
+    if len(split_requirement) > 1:
+        env_req = split_requirement[1]
+        if any([x in split_requirement[1] for x in [' and ', ' or ']]):
+            log.error("The version checker doesn't support environment marker combination and it will be ignored: {}"
+                      "".format(split_requirement[1]), extra={'is_warning': True})
+            return version_list
+        split_env_req = re.split(r"==|>=|<=|>|<|~=|!=", env_req)
+        split_env_req = [l.strip(',') for l in split_env_req]
+        env_marker = split_env_req[0].strip(' ')
         if env_marker == 'python_version' and env_marker in env_setup:
             installed_python_version = env_setup['python_version']
             env_req_version_list = []
-            splited_required_versions = re.split(r",", env_req)
-            for i, l in enumerate(splited_required_versions):
-                for comparison in ['==', '>=', '<=', '<', '>']:
+            split_required_versions = re.split(r",", env_req)
+            for i, l in enumerate(split_required_versions):
+                for comparison in ['==', '>=', '<=', '<', '>', '~=']:
                     if comparison in l:
-                        required_version = splited_env_req[i + 1].strip(' ').replace('"', '')
+                        required_version = split_env_req[i + 1].strip(' ').replace("'", "").replace('"', '')
                         env_req_version_list.append((env_marker, comparison, required_version))
                         break
             not_satisfied_list = []
@@ -82,25 +106,39 @@ def parse_and_filter_versions_list(required_fw_versions, version_list, env_setup
                 # this python_version requirement is not satisfied to required environment
                 # and requirement for a dependency will be skipped
                 return version_list
+        elif env_marker == 'sys_platform' and env_marker in env_setup:
+            split_env_req[1] = split_env_req[1].strip(' ').replace("'", "").replace('"', '')
+            if '==' in env_req:
+                if env_setup['sys_platform'] != split_env_req[1]:
+                    # this sys_platform requirement is not satisfied to required environment
+                    # and requirement for a dependency will be skipped
+                    return version_list
+            elif '!=' in env_req:
+                if env_setup['sys_platform'] == split_env_req[1]:
+                    # this sys_platform requirement is not satisfied to required environment
+                    # and requirement for a dependency will be skipped
+                    return version_list
+            else:
+                log.error("Error during platform version check, line: {}".format(line))
         else:
             log.error("{} is unsupported environment marker and it will be ignored".format(env_marker),
                       extra={'is_warning': True})
 
     # parse a requirement for a dependency
-    requirement = splited_requirement[0]
-    splited_versions_by_conditions = re.split(r"==|>=|<=|>|<", requirement)
-    splited_versions_by_conditions = [l.strip(',') for l in splited_versions_by_conditions]
+    requirement = split_requirement[0]
+    split_versions_by_conditions = re.split(r"==|>=|<=|>|<|~=", requirement)
+    split_versions_by_conditions = [l.strip(',').strip(' ') for l in split_versions_by_conditions]
 
-    if len(splited_versions_by_conditions) == 0:
+    if len(split_versions_by_conditions) == 0:
         return version_list
-    if len(splited_versions_by_conditions) == 1:
-        version_list.append((splited_versions_by_conditions[0], None, None))
+    if len(split_versions_by_conditions) == 1:
+        version_list.append((split_versions_by_conditions[0], None, None))
     else:
-        splited_required_versions= re.split(r",", requirement)
-        for i, l in enumerate(splited_required_versions):
-            for comparison in ['==', '>=', '<=', '<', '>']:
+        split_required_versions= re.split(r",", requirement)
+        for i, l in enumerate(split_required_versions):
+            for comparison in ['==', '>=', '<=', '<', '>', '~=']:
                 if comparison in l:
-                    version_list.append((splited_versions_by_conditions[0], comparison, splited_versions_by_conditions[i + 1]))
+                    version_list.append((split_versions_by_conditions[0], comparison, split_versions_by_conditions[i + 1]))
                     break
     return version_list
 
@@ -124,9 +162,12 @@ def get_module_version_list_from_file(file_name, env_setup):
     Returned object is:
     [('tensorflow', '>=', '1.2.0'), ('networkx', '==', '2.1'), ('numpy', None, None)]
     """
-    req_dict = list()
+    req_dict = []
     with open(file_name) as f:
         for line in f:
+            # handle comments
+            line = line.split('#')[0]
+
             req_dict = parse_and_filter_versions_list(line, req_dict, env_setup)
     return req_dict
 
@@ -158,6 +199,15 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v):
             satisfied = installed_v < req_ver
         elif sign == '==':
             satisfied = installed_v == req_ver
+        elif sign == '~=':
+            req_ver_list = req_ver.vstring.split('.')
+            if 'post' in req_ver_list[-1]:
+                assert len(req_ver_list) >= 3, 'Error during {} module version checking: {} {} {}, please check ' \
+                                               'required version of this module in requirements_*.txt file!'\
+                    .format(name, installed_v, sign, required_v)
+                req_ver_list.pop(-1)
+            idx = len(req_ver_list) - 1
+            satisfied = installed_v >= req_ver and (installed_v.split('.')[:idx] == req_ver_list[:idx])
         else:
             log.error("Error during version comparison")
     else:
@@ -166,9 +216,10 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v):
         not_satisfied_v.append((name, 'installed: {}'.format(installed_v), 'required: {} {}'.format(sign, required_v)))
 
 
-def get_environment_setup():
+def get_environment_setup(framework):
     """
     Get environment setup such as Python version, TensorFlow version
+    :param framework: framework name
     :return: a dictionary of environment variables
     """
     env_setup = dict()
@@ -177,11 +228,13 @@ def get_environment_setup():
                                        sys.version_info.micro)
     env_setup['python_version'] = python_version
     try:
-        exec("import tensorflow")
-        env_setup['tensorflow'] = sys.modules["tensorflow"].__version__
-        exec("del tensorflow")
+        if framework == 'tf':
+            exec("import tensorflow")
+            env_setup['tensorflow'] = get_imported_module_version(sys.modules["tensorflow"])
+            exec("del tensorflow")
     except (AttributeError, ImportError):
         pass
+    env_setup['sys_platform'] = sys.platform
     return env_setup
 
 
@@ -197,7 +250,7 @@ def check_requirements(framework=None):
     :param framework: framework name
     :return: exit code (0 - execution successful, 1 - error)
     """
-    env_setup = get_environment_setup()
+    env_setup = get_environment_setup(framework)
     if framework is None:
         framework_suffix = ""
     elif framework == "tf":
@@ -217,7 +270,7 @@ def check_requirements(framework=None):
         try:
             importable_name = modules.get(name, name)
             exec("import {}".format(importable_name))
-            installed_version = sys.modules[importable_name].__version__
+            installed_version = get_imported_module_version(sys.modules[importable_name])
             version_check(name, installed_version, required_version, key, not_satisfied_versions)
             exec("del {}".format(importable_name))
         except (AttributeError, ImportError):

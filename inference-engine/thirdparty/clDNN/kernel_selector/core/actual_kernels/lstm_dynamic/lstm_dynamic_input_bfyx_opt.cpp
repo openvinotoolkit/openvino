@@ -68,11 +68,17 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     KernelData kd = KernelData::Default<lstm_dynamic_input_params>(params);
     lstm_dynamic_input_params& dlstm_params = *static_cast<lstm_dynamic_input_params*>(kd.params.get());
 
+    auto in_layout = dlstm_params.inputs[0].GetLayout();
+    auto out_layout = dlstm_params.output.GetLayout();
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::BATCH },
+                                                                     { Tensor::DataChannelName::FEATURE }};
+
     const auto& out = dlstm_params.output;
     auto hidden_size = out.X().v;
 
     dispatchData.gws = { hidden_size / simd_size, out.Batch().v * out.Y().v, out.Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     bool succeed = UpdateWeightsParams(dlstm_params,
         options,
@@ -85,13 +91,13 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     }
 
     auto cldnn_jit = GetJitConstants(dlstm_params);
-    auto entry_point = GetEntryPoint(kernelName, dlstm_params.layerID, options);
+    auto entry_point = GetEntryPoint(kernelName, dlstm_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    kernel.workGroups.global = dispatchData.gws;
-    kernel.workGroups.local = dispatchData.lws;
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
+    kernel.params.workGroups.global = dispatchData.gws;
+    kernel.params.workGroups.local = dispatchData.lws;
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(dlstm_params, kernel);
 
     return { kd };

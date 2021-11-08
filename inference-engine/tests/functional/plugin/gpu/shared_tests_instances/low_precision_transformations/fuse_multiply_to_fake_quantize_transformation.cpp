@@ -13,7 +13,7 @@ using namespace ngraph;
 namespace {
     const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {
         {
-            Shape{1, 3, 16, 16},
+            {1, 3, 16, 16},
             LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
             {
                 { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
@@ -21,7 +21,7 @@ namespace {
             }
         },
         {
-            Shape{1, 3, 16, 16},
+            {1, 3, 16, 16},
             LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
             {
                 { 256ul, {}, { -1.28f }, { 1.27f }, { 10.f }, { 2.55f } },
@@ -30,7 +30,7 @@ namespace {
         },
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseMultiplyToFakeQuantizeTransformation,
+    INSTANTIATE_TEST_SUITE_P(smoke_LPT, FuseMultiplyToFakeQuantizeTransformation,
         ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
             ::testing::ValuesIn(testValues)),

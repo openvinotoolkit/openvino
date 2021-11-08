@@ -29,12 +29,11 @@ class MvncCloseUSBDevice : public MvncOpenUSBDevice {
 //------------------------------------------------------------------------------
 //      class MvncDevicePlatform
 //------------------------------------------------------------------------------
-class MvncDevicePlatform : public MvncOpenUSBDevice,
-                           public testing::WithParamInterface<ncDevicePlatform_t>{
+class MvncDevicePlatform : public MvncOpenUSBDevice
+                        {
 public:
     long available_myriadX_ = 0;
     long available_myriad2_ = 0;
-    ncDevicePlatform_t devicePlatform_;
 
     ~MvncDevicePlatform() override = default;
 

@@ -8,8 +8,8 @@
 #include "ngraph/op/softmax.hpp"
 #include "ngraph/op/log_softmax.hpp"
 
-#include "api/softmax.hpp"
-#include "api/activation.hpp"
+#include "cldnn/primitives/softmax.hpp"
+#include "cldnn/primitives/activation.hpp"
 
 namespace CLDNNPlugin {
 
@@ -35,18 +35,19 @@ static cldnn::softmax::dimension_t GetSoftmaxAxis(int64_t axis, size_t rank) {
     return cldnn::softmax::normalize_fyx;
 }
 
-void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::Softmax>& op) {
+static void CreateSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v1::Softmax>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
     auto softmaxPrim = cldnn::softmax(layerName,
                                       inputPrimitives[0],
-                                      GetSoftmaxAxis(op->get_axis(), op->get_input_shape(0).size()));
+                                      GetSoftmaxAxis(op->get_axis(), op->get_input_shape(0).size()),
+                                      op->get_friendly_name());
     p.AddPrimitive(softmaxPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5::LogSoftmax>& op) {
+static void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5::LogSoftmax>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -58,9 +59,10 @@ void CreateLogSoftmaxOp(Program& p, const std::shared_ptr<ngraph::op::v5::LogSof
 
     auto softmaxPrim = cldnn::softmax(layerNameSoftmax,
                                       inputPrimitives[0],
-                                      GetSoftmaxAxis(static_cast<size_t>(axis), op->get_input_shape(0).size()));
+                                      GetSoftmaxAxis(static_cast<size_t>(axis), op->get_input_shape(0).size()),
+                                      op->get_friendly_name());
 
-    auto logPrim = cldnn::activation(layerName, layerNameSoftmax, cldnn::activation_func::log);
+    auto logPrim = cldnn::activation(layerName, layerNameSoftmax, cldnn::activation_func::log, {(0.0F), (0.0F)}, op->get_friendly_name());
 
     p.AddPrimitive(softmaxPrim);
     p.AddPrimitive(logPrim);

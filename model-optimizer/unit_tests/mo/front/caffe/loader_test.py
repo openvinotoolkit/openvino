@@ -32,7 +32,7 @@ proto_str_old_styled_multi_input = 'name: "network" ' \
                                    'input_dim: 3 ' \
                                    'input_dim: 224 ' \
                                    'input_dim: 224 ' \
-                                   'input: "data"' \
+                                   'input: "data" ' \
                                    'input_dim: 1 ' \
                                    'input_dim: 3 '
 
@@ -55,7 +55,7 @@ proto_str_multi_input = 'name: "network" ' \
                         'dim: 224 ' \
                         'dim: 224 ' \
                         '} ' \
-                        'input: "data1"' \
+                        'input: "data1" ' \
                         'input_shape ' \
                         '{ ' \
                         'dim: 1 ' \
@@ -81,7 +81,7 @@ proto_same_name_layers = 'layer { ' \
                          'type: "Convolution" ' \
                          'bottom: "data" ' \
                          'top: "conv1" ' \
-                         '}' \
+                         '} ' \
                          'layer { ' \
                          'name: "conv1" ' \
                          'type: "Convolution" ' \

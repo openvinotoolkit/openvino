@@ -44,7 +44,7 @@ std::vector<size_t> outputChannels = {
     64
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ConstConvConcatTest, ConstConvConcatTest,
+INSTANTIATE_TEST_SUITE_P(smoke_ConstConvConcatTest, ConstConvConcatTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

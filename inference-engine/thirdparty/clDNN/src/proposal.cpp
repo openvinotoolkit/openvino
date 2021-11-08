@@ -108,7 +108,7 @@ std::string proposal_inst::to_string(proposal_node const& node) {
     return primitive_description.str();
 }
 
-proposal_inst::typed_primitive_inst(network_impl& network, proposal_node const& node) : parent(network, node) {
+proposal_inst::typed_primitive_inst(network& network, proposal_node const& node) : parent(network, node) {
     generate_anchors(argument.base_bbox_size,
                      argument.ratios,
                      argument.scales,

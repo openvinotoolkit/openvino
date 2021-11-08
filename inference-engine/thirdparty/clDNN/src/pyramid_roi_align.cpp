@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "pyramid_roi_align_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -44,6 +44,6 @@ std::string pyramid_roi_align_inst::to_string(pyramid_roi_align_node const& node
     return primitive_description.str();
 }
 
-pyramid_roi_align_inst::typed_primitive_inst(network_impl& network, pyramid_roi_align_node const& node)
+pyramid_roi_align_inst::typed_primitive_inst(network& network, pyramid_roi_align_node const& node)
     : parent(network, node) {}
 }  // namespace cldnn

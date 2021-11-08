@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include "unicode_utils.hpp"
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 namespace CommonTestUtils {
 
@@ -22,4 +22,4 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {
 
 }  // namespace CommonTestUtils
 
-#endif  // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT

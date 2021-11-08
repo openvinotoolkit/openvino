@@ -7,12 +7,12 @@
 #include <mkldnn_selective_build.h>
 
 #include <ie_iextension.h>
-#include <legacy/ie_layers.h>
 
 #include <string>
 #include <map>
 #include <memory>
 #include <algorithm>
+#include <ngraph/node.hpp>
 
 namespace InferenceEngine {
 
@@ -43,38 +43,20 @@ public:
 namespace Extensions {
 namespace Cpu {
 
-using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer*)>;
-
-struct ExtensionsHolder {
-    std::map<std::string, ext_factory> list;
-};
-
+// TODO: remove this
 class MKLDNNExtensions : public IExtension {
 public:
     MKLDNNExtensions();
 
     virtual StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
-        collectTypes(types, size);
-        return OK;
-    }
-
-    virtual StatusCode
-    getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept {
-        using namespace MKLDNNPlugin;
-        factory = layersFactory.createNodeIfRegistered(MKLDNNPlugin, cnnLayer->type, cnnLayer);
-        if (!factory) {
-            std::string errorMsg = std::string("Factory for ") + cnnLayer->type + " wasn't found!";
-            errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            return NOT_FOUND;
-        }
-        return OK;
+    getFactoryFor(ILayerImplFactory*& factory, const std::shared_ptr<ngraph::Node>& op, ResponseDesc* resp) noexcept {
+        return NOT_FOUND;
     }
 
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
         static Version ExtensionDescription = {
-            { 2, 0 },    // extension API version
-            "2.0",
+            { 2, 1 },    // extension API version
+            "2.1",
             "ie-cpu-ext"  // extension description message
         };
 
@@ -82,24 +64,6 @@ public:
     }
 
     void Unload() noexcept override {}
-
-    using LayersFactory = openvino::cc::Factory<
-                                std::string,
-                                InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer*)>;
-
-    LayersFactory layersFactory;
-
-private:
-    void collectTypes(char**& types, unsigned int& size) const {
-        types = new char *[layersFactory.size()];
-        unsigned count = 0;
-        layersFactory.foreach([&](std::pair<std::string, LayersFactory::builder_t> const &builder) {
-            types[count] = new char[builder.first.size() + 1];
-            std::copy(builder.first.begin(), builder.first.end(), types[count]);
-            types[count][builder.first.size() ] = '\0';
-        });
-        size = count;
-    }
 };
 
 }  // namespace Cpu

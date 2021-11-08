@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "gemm_inst.h"
 #include "primitive_type_base.h"
-#include "error_handler.h"
+#include "cldnn/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <utility>
@@ -73,7 +73,7 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     return primitive_description.str();
 }
 
-gemm_inst::typed_primitive_inst(network_impl& network, gemm_node const& node) : parent(network, node) {
+gemm_inst::typed_primitive_inst(network& network, gemm_node const& node) : parent(network, node) {
     auto input0_layout = node.input(0).get_output_layout();
     auto input1_layout = node.input(1).get_output_layout();
     bool transpose_input0 = node.get_primitive()->transpose_input0;

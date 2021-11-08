@@ -18,4 +18,4 @@
 
 using Type = ::testing::Types<ngraph::op::v1::Subtract>;
 
-INSTANTIATE_TYPED_TEST_CASE_P(type_prop_subtract, ArithmeticOperator, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_subtract, ArithmeticOperator, Type);

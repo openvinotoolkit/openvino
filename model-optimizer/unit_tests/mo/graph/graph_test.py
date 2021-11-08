@@ -11,7 +11,7 @@ from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attr
 from mo.ops.const import Const
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from unit_tests.utils.graph import build_graph
+from unit_tests.utils.graph import build_graph, build_graph_with_edge_attrs
 
 nodes = {
     '0': {'name': 'input1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
@@ -341,7 +341,7 @@ class TestGraphShapeChecker(unittest.TestCase):
 
         del graph.node['2_data']['shape']
 
-        with self.assertRaisesRegex(Error, "Graph contains data nodes \(1\) with inconsistent shapes:.*"):
+        with self.assertRaisesRegex(Error, r"Graph contains data nodes \(1\) with inconsistent shapes:.*"):
             graph.check_shapes_consistency()
 
     def test_check_shape_consistency_2(self):
@@ -358,7 +358,7 @@ class TestGraphShapeChecker(unittest.TestCase):
         graph.node['1_data']['shape'] = (1, 2, 3)
         graph.node['2_data']['shape'] = (1, 2, 3)
 
-        with self.assertRaisesRegex(Error, "Graph contains data nodes \(2\) with inconsistent shapes:.*"):
+        with self.assertRaisesRegex(Error, r"Graph contains data nodes \(2\) with inconsistent shapes:.*"):
             graph.check_shapes_consistency()
 
 
@@ -428,6 +428,20 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
         'const_1': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
         'const_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     }
+
+    nodes_10_in_10_out = {
+        'op_concat': {'type': 'Concat', 'value': None, 'kind': 'op', 'op': 'Concat'},
+        'op_concat_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+        'op_split': {'type': 'Split', 'value': None, 'kind': 'op', 'op': 'Split'},
+    }
+
+    # Filling nodes list
+    for idx in range(11):
+        nodes_10_in_10_out.update({'in_{}'.format(idx): {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'}})
+        nodes_10_in_10_out.update({'in_{}_data'.format(idx): {'value': None, 'shape': None, 'kind': 'data'}})
+        nodes_10_in_10_out.update({'out_{}'.format(idx): {'type': 'Parameter', 'value': None, 'kind': 'op', 'op': 'Parameter'}})
+        nodes_10_in_10_out.update({'op_split_{}_data'.format(idx): {'value': None, 'shape': None, 'kind': 'data'}})
 
       ###########################################
      ###### TESTS FOR PORT CLASS METHODS #######
@@ -1082,6 +1096,113 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
                 self.assertEqual(node.in_port(idx), node.in_ports()[idx])
             for idx in range(len(node.out_ports())):
                 self.assertEqual(node.out_port(idx), node.out_ports()[idx])
+
+    def test_node_in_ports_order_10_inputs(self):
+        edges = [('op_concat', 'op_concat_data'),
+                 ('op_concat_data', 'op_split'),
+                 ]
+
+        # Filling edges list
+        for idx in range(11):
+            edges.append(('in_{}'.format(idx), 'in_{}_data'.format(idx)))
+            edges.append(('in_{}_data'.format(idx), 'op_concat', {'in': idx}))
+            edges.append(('op_split', 'op_split_{}_data'.format(idx), {'out': idx}))
+            edges.append(('op_split_{}_data'.format(idx), 'out_{}'.format(idx)))
+
+        graph = build_graph(self.nodes_10_in_10_out, edges)
+
+        node_concat = Node(graph, 'op_concat')
+        node_split = Node(graph, 'op_split')
+
+        self.assertEqual(len(node_concat.in_ports()), len(node_concat.in_nodes()))
+
+        l1 = [node_concat.in_port(idx).get_source().node.name for idx in node_concat.in_ports()]
+        l2 = [node_concat.in_node(idx).in_node(0).name for idx in node_concat.in_nodes()]
+
+        self.assertEqual(l1, l2)
+
+        l1 = [node_split.out_port(idx).get_destination().node.name for idx in node_split.out_ports()]
+        l2 = [node_split.out_node(idx).out_node(0).name for idx in node_split.out_nodes()]
+
+        self.assertEqual(l1, l2)
+
+    def test_node_in_ports_order_10_inputs_control_flow(self):
+        edges = [('op_concat', 'op_concat_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                 ('op_concat_data', 'op_split', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                 ]
+
+        # Filling edges list
+        for idx in range(11):
+            edges.append(('in_{}'.format(idx), 'in_{}_data'.format(idx),
+                          {'out': 'control_flow_0', 'control_flow_edge': True}))
+            edges.append(('in_{}_data'.format(idx), 'op_concat',
+                          {'in': 'control_flow_{}'.format(idx), 'control_flow_edge': True}))
+            edges.append(('op_split', 'op_split_{}_data'.format(idx),
+                          {'out': 'control_flow_{}'.format(idx), 'control_flow_edge': True}))
+            edges.append(('op_split_{}_data'.format(idx), 'out_{}'.format(idx),
+                          {'in': 'control_flow_0', 'control_flow_edge': True}))
+
+        graph = build_graph(self.nodes_10_in_10_out, edges)
+
+        node_concat = Node(graph, 'op_concat')
+        node_split = Node(graph, 'op_split')
+
+        self.assertEqual(len(node_concat.in_ports()), len(node_concat.in_nodes()))
+
+        l1 = [node_concat.in_port(idx, control_flow=True).get_source().node.name
+              for idx in node_concat.in_ports(control_flow=True)]
+        l2 = [node_concat.in_node(idx, control_flow=True).in_node(0, control_flow=True).name
+              for idx in node_concat.in_nodes(control_flow=True)]
+
+        self.assertEqual(l1, l2)
+
+        l1 = [node_split.out_port(idx, control_flow=True).get_destination().node.name
+              for idx in node_split.out_ports(control_flow=True)]
+        l2 = [node_split.out_node(idx, control_flow=True).out_node(0, control_flow=True).name for idx in
+              node_split.out_nodes(control_flow=True)]
+
+        self.assertEqual(l1, l2)
+
+    def test_node_in_ports_order_10_inputs_mixed(self):
+        edges = [('op_concat', 'op_concat_data', {'out': 'control_flow_0', 'control_flow_edge': True}),
+                 ('op_concat_data', 'op_split', {'in': 'control_flow_0', 'control_flow_edge': True}),
+                 ]
+        graph = build_graph(self.nodes_10_in_10_out, edges)
+
+        # Filling edges list
+        for idx in range(5):
+            edges.append(('in_{}'.format(idx), 'in_{}_data'.format(idx)))
+            edges.append(('in_{}_data'.format(idx), 'op_concat'))
+            edges.append(('op_split', 'op_split_{}_data'.format(idx)))
+            edges.append(('op_split_{}_data'.format(idx), 'out_{}'.format(idx)))
+        for idx in range(5, 11):
+            edges.append(('in_{}'.format(idx), 'in_{}_data'.format(idx),
+                          {'out': 'control_flow_0', 'control_flow_edge': True}))
+            edges.append(('in_{}_data'.format(idx), 'op_concat',
+                          {'in': 'control_flow_{}', 'control_flow_edge': True}))
+            edges.append(('op_split', 'op_split_{}_data'.format(idx),
+                          {'out': 'control_flow_{}', 'control_flow_edge': True}))
+            edges.append(('op_split_{}_data'.format(idx), 'out_{}'.format(idx),
+                          {'in': 'control_flow_0', 'control_flow_edge': True}))
+
+        node_concat = Node(graph, 'op_concat')
+        node_split = Node(graph, 'op_split')
+
+        self.assertEqual(len(node_concat.in_ports()), len(node_concat.in_nodes()))
+
+        l1 = [node_concat.in_port(idx, control_flow=True).get_source().node.name
+              for idx in node_concat.in_ports(control_flow=True)]
+        l2 = [node_concat.in_node(idx, control_flow=True).in_node(0, control_flow=True).name
+              for idx in node_concat.in_nodes(control_flow=True)]
+
+        self.assertEqual(l1, l2)
+
+        l1 = [node_split.out_port(idx, control_flow=True).get_destination().node.name
+              for idx in node_split.out_ports(control_flow=True)]
+        l2 = [node_split.out_node(idx, control_flow=True).out_node(0, control_flow=True).name for idx in
+              node_split.out_nodes(control_flow=True)]
+
+        self.assertEqual(l1, l2)
 
 
 class TestNewGraphAPIFront(unittest.TestCase):

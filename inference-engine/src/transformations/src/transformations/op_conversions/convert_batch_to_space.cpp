@@ -150,9 +150,9 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         auto crops_begin = batch_to_space->input_value(2);
         auto crops_end = batch_to_space->input_value(3);
 
-        const auto block_const = as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
-        const auto crops_begin_const = as_type_ptr<opset3::Constant>(crops_begin.get_node_shared_ptr());
-        const auto crops_end_const = as_type_ptr<opset3::Constant>(crops_end.get_node_shared_ptr());
+        const auto block_const = ov::as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
+        const auto crops_begin_const = ov::as_type_ptr<opset3::Constant>(crops_begin.get_node_shared_ptr());
+        const auto crops_end_const = ov::as_type_ptr<opset3::Constant>(crops_end.get_node_shared_ptr());
 
         const std::vector<int64_t> &block_values = block_const->cast_vector<int64_t>();
         const std::vector<int64_t> &crops_end_values = crops_end_const->cast_vector<int64_t>();

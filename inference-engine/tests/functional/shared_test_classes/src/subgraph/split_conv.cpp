@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string SplitConvTest::getTestCaseName(testing::TestParamInfo<SplitConvParams> obj) {
+std::string SplitConvTest::getTestCaseName(const testing::TestParamInfo<SplitConvParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;

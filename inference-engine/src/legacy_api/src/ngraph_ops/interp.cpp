@@ -12,7 +12,8 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Interp::type_info;
+BWDCMP_RTTI_DEFINITION(op::Interp);
+BWDCMP_RTTI_DEFINITION(op::ResampleV2);
 
 op::Interp::Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs)
     : Op({image}), m_attrs(attrs) {
@@ -75,8 +76,6 @@ bool op::Interp::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("pad_end", m_attrs.pad_end);
     return true;
 }
-
-constexpr NodeTypeInfo op::ResampleV2::type_info;
 
 op::ResampleV2::ResampleV2(const Output<Node>& image, const Output<Node>& output_shape,
                            const ResampleIEAttrs& attrs)

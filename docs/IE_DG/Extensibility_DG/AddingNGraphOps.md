@@ -1,10 +1,10 @@
 # Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
-Inference Engine Extension API enables you to register operation sets (opsets) with custom nGraph operations to support models with operations which OpenVINO™ does not support out-of-the-box.
+The Inference Engine Extension API allows you to register operation sets (opsets) with custom nGraph operations to support models with operations that OpenVINO™ does not support out-of-the-box.
 
 ## Operation Class
 
-To add your custom nGraph operation, create a new class that extends `ngraph::Op`, which is in turn derived from `ngraph::Node`, the base class for all graph operations in nGraph. Follow the steps below:
+To add your custom nGraph operation, create a new class that extends `ngraph::Op`, which is in turn derived from `ngraph::Node`, the base class for all graph operations in nGraph. Follow the steps below to add a custom nGraph operation:
 
 1. Add the `NGRAPH_RTTI_DECLARATION` and `NGRAPH_RTTI_DEFINITION` macros which define a `NodeTypeInfo` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an nGraph operation currently consists of a string identifier and a version number, but this may change in the future.
 
@@ -16,11 +16,11 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 5. Override the `visit_attributes` method, which enables serialization and deserialization of operation attributes. An `AttributeVisitor` is passed to the method, and the implementation is expected to walk over all the attributes in the op using the type-aware `on_attribute` helper. Helpers are already implemented for standard C++ types like `int64_t`, `float`, `bool`, `vector`, and for existing nGraph defined types.
 
-6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch.
+6. Override `evaluate`, which is an optional method that enables the application of constant folding if there is a custom operation on the constant branch. If your operation contains `evaluate` method you also need to override the `has_evaluate` method, this method allow to get information about availability of `evaluate` method for the operation.
 
 Based on that, declaration of an operation class can look as follows:
 
-@snippet template_extension/op.hpp op:header
+@snippet template_extension/old/op.hpp op:header
 
 ### Class Fields
 
@@ -35,37 +35,37 @@ nGraph operation contains two constructors:
 * Default constructor, which enables you to create an operation without attributes 
 * Constructor that creates and validates an operation with specified inputs and attributes
 
-@snippet template_extension/op.cpp op:ctor
+@snippet template_extension/old/op.cpp op:ctor
 
 ### `validate_and_infer_types()`
 
 `ngraph::Node::validate_and_infer_types` method validates operation attributes and calculates output shapes using attributes of the operation.
 
-@snippet template_extension/op.cpp op:validate
+@snippet template_extension/old/op.cpp op:validate
 
 ### `clone_with_new_inputs()`
 
 `ngraph::Node::clone_with_new_inputs` method creates a copy of the nGraph operation with new inputs.
 
-@snippet template_extension/op.cpp op:copy
+@snippet template_extension/old/op.cpp op:copy
 
 ### `visit_attributes()`
 
 `ngraph::Node::visit_attributes` method enables you to visit all operation attributes.
 
-@snippet template_extension/op.cpp op:visit_attributes
+@snippet template_extension/old/op.cpp op:visit_attributes
 
-### `evaluate()`
+### `evaluate()` and `has_evaluate()`
 
 `ngraph::Node::evaluate` method enables you to apply constant folding to an operation.
 
-@snippet template_extension/op.cpp op:evaluate
+@snippet template_extension/old/op.cpp op:evaluate
 
 ## Register Custom Operations in Extension Class
 
 To add custom operations to the [Extension](Extension.md) class, create an operation set with custom operations and implement the `InferenceEngine::IExtension::getOpSets` method:
 
-@snippet template_extension/extension.cpp extension:getOpSets
+@snippet template_extension/old/extension.cpp extension:getOpSets
 
 This method returns a map of opsets that exist in the extension library.
 

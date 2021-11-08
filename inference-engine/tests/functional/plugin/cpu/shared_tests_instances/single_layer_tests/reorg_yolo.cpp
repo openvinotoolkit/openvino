@@ -67,9 +67,9 @@ const auto testCase_batch_2 = ::testing::Combine(
     ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_CASE_P(smoke_TestsReorgYolo_caffe_YoloV2, ReorgYoloLayerTest, testCase_caffe_yolov2, ReorgYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsReorgYolo_stride_2_smallest, ReorgYoloLayerTest, testCase_smallest, ReorgYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsReorgYolo_stride_2, ReorgYoloLayerTest, testCase_stride_2, ReorgYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsReorgYolo_stride_3, ReorgYoloLayerTest, testCase_stride_3, ReorgYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsReorgYolo_smaller_h, ReorgYoloLayerTest, testCase_smaller_h, ReorgYoloLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(smoke_TestsReorgYolo_batch_2, ReorgYoloLayerTest, testCase_batch_2, ReorgYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_caffe_YoloV2, ReorgYoloLayerTest, testCase_caffe_yolov2, ReorgYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride_2_smallest, ReorgYoloLayerTest, testCase_smallest, ReorgYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride_2, ReorgYoloLayerTest, testCase_stride_2, ReorgYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride_3, ReorgYoloLayerTest, testCase_stride_3, ReorgYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_smaller_h, ReorgYoloLayerTest, testCase_smaller_h, ReorgYoloLayerTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_batch_2, ReorgYoloLayerTest, testCase_batch_2, ReorgYoloLayerTest::getTestCaseName);
