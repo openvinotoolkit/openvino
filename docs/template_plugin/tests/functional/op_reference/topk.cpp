@@ -441,6 +441,46 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
                 return expected_index;
             }({128, 5})),
             "topk_min_sort_index"),
+
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MAX,
+            op::v1::TopK::SortType::SORT_VALUES,
+            Tensor(ET, {3}, std::vector<T>{5, 4, 3}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{3, 4, 0}),
+            "topk_mode_sort_order"),
+
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MAX,
+            op::v1::TopK::SortType::SORT_INDICES,
+            Tensor(ET, {3}, std::vector<T>{3, 5, 4}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 3, 4}),
+            "topk_mode_sort_order_1"),
+
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MIN,
+            op::v1::TopK::SortType::SORT_VALUES,
+            Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{1, 2, 0}),
+            "topk_mode_sort_order_2"),
+
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MIN,
+            op::v1::TopK::SortType::SORT_INDICES,
+            Tensor(ET, {3}, std::vector<T>{3, 1, 2}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 1, 2}),
+            "topk_mode_sort_order_3"),
     };
     return params;
 }
@@ -459,6 +499,96 @@ std::vector<TopKParams> generateCombinedParamsMaxMinSort() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestMaxMinSort,
     testing::ValuesIn(generateCombinedParamsMaxMinSort()), ReferenceTopKTest::getTestCaseName);
+
+class ReferenceTopKTestV3 : public ReferenceTopKTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        inputData = {params.A.data};
+        refOutData = {params.result0.data, params.result1.data};
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const TopKParams& params) {
+        const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
+                                                           params.A.shape);
+        const auto k = op::v0::Constant::create(params.k.type,
+                                                params.k.shape,
+                                                params.k.data.data());
+        const auto B = std::make_shared<op::v3::TopK>(A, k, params.axis, params.mode, params.sort);
+        const auto f = std::make_shared<Function>(B->outputs(), ParameterVector{A});
+        return f;
+    }
+};
+
+TEST_P(ReferenceTopKTestV3, CompareWithRefs) {
+    Exec();
+}
+
+template <element::Type_t ET, element::Type_t ET2, element::Type_t ET_OUT>
+std::vector<TopKParams> generateParamsV3() {
+    using T = typename element_type_traits<ET>::value_type;
+    using T2 = typename element_type_traits<ET2>::value_type;
+    using T_OUT = typename element_type_traits<ET_OUT>::value_type;
+    std::vector<TopKParams> params {
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MAX,
+            op::v1::TopK::SortType::SORT_VALUES,
+            Tensor(ET, {3}, std::vector<T>{5, 4, 3}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{3, 4, 0}),
+            "topk_mode_sort_order"),
+
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MAX,
+            op::v1::TopK::SortType::SORT_INDICES,
+            Tensor(ET, {3}, std::vector<T>{3, 5, 4}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 3, 4}),
+            "topk_mode_sort_order_1"),
+
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MIN,
+            op::v1::TopK::SortType::SORT_VALUES,
+            Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{1, 2, 0}),
+            "topk_mode_sort_order_2"),
+
+        TopKParams(
+            Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
+            Tensor(ET2, {}, std::vector<T2>{3}),
+            0,
+            op::v1::TopK::Mode::MIN,
+            op::v1::TopK::SortType::SORT_INDICES,
+            Tensor(ET, {3}, std::vector<T>{3, 1, 2}),
+            Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 1, 2}),
+            "topk_mode_sort_order_3"),
+    };
+    return params;
+}
+
+std::vector<TopKParams> generateCombinedParamsV3() {
+    const std::vector<std::vector<TopKParams>> generatedParams {
+        generateParamsMaxMinSort<element::Type_t::f32, element::Type_t::i64, element::Type_t::i32>(),
+    };
+    std::vector<TopKParams> combinedParams;
+
+    for (const auto& params : generatedParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestV3,
+    testing::ValuesIn(generateCombinedParamsV3()), ReferenceTopKTest::getTestCaseName);
 
 class ReferenceTopKTest1d : public ReferenceTopKTest {
 public:
