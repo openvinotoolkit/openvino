@@ -4,17 +4,18 @@
 import numpy as np
 from save_model import saveModel
 import paddle as pdpd
+import paddle.fluid as fluid
 import sys
 
 data_type = 'float32'
 
 
-def expand(name:str, x, repeat_times:list):
+def expand(name:str, x, expand_times:list):
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_x = pdpd.static.data(name='x', shape=x.shape, dtype=data_type)
-        out = pdpd.tile(node_x, repeat_times=repeat_times, name='expand')
+        out = fluid.layers.expand(node_x, expand_times=expand_times, name='expand')
 
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
@@ -31,18 +32,18 @@ def expand(name:str, x, repeat_times:list):
     return outs[0]
 
 
-def expand_tensor(name:str, x, repeat_times, use_tensor_in_list):
+def expand_tensor(name:str, x, expand_times, use_tensor_in_list):
     pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_x = pdpd.static.data(name='x', shape=x.shape, dtype=data_type)
         if use_tensor_in_list:
-            repeat_times[0] = pdpd.assign(np.array((repeat_times[0],)).astype('int32'))
-            out = pdpd.expand(node_x, shape=repeat_times, name='expand')
+            expand_times[0] = pdpd.assign(np.array((expand_times[0],)).astype('int32'))
+            out = fluid.layers.expand(node_x, expand_times=expand_times, name='expand')
         else:
-            repeat_times = np.array(repeat_times).astype('int32')
-            node_shape = pdpd.assign(repeat_times, output=None)
-            out = pdpd.expand(node_x, shape=node_shape, name='expand')
+            expand_times = np.array(expand_times).astype('int32')
+            node_shape = pdpd.assign(expand_times, output=None)
+            out = fluid.layers.expand(node_x, expand_times=node_shape, name='expand')
 
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
