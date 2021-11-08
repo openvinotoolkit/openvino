@@ -4,8 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/space_to_depth.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -51,11 +50,11 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const SpaceToDepthParams& params) {
-        op::v0::SpaceToDepth::SpaceToDepthMode mode = params.mode == "DEPTH_FIRST" ?
-            op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST : op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto SpaceToDepth = std::make_shared<op::v0::SpaceToDepth>(data, mode, params.blockSize);
-        return std::make_shared<ov::Function>(NodeVector {SpaceToDepth}, ParameterVector {data});
+        opset1::SpaceToDepth::SpaceToDepthMode mode = params.mode == "DEPTH_FIRST" ?
+            opset1::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST : opset1::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
+        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto SpaceToDepth = std::make_shared<opset1::SpaceToDepth>(data, mode, params.blockSize);
+        return std::make_shared<Function>(NodeVector {SpaceToDepth}, ParameterVector {data});
     }
 };
 

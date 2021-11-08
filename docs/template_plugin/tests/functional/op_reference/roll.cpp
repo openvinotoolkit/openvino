@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/roll.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -55,15 +55,15 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const RollParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto shift = std::make_shared<op::v0::Constant>(params.shiftTensor.type,
+        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto shift = std::make_shared<opset1::Constant>(params.shiftTensor.type,
                                                               params.shiftTensor.shape,
                                                               params.shiftTensor.data.data());
-        const auto axes = std::make_shared<op::v0::Constant>(params.axesTensor.type,
+        const auto axes = std::make_shared<opset1::Constant>(params.axesTensor.type,
                                                              params.axesTensor.shape,
                                                              params.axesTensor.data.data());
-        const auto roll = std::make_shared<op::v7::Roll>(data, shift, axes);
-        return std::make_shared<ov::Function>(NodeVector {roll}, ParameterVector {data});
+        const auto roll = std::make_shared<opset7::Roll>(data, shift, axes);
+        return std::make_shared<Function>(NodeVector {roll}, ParameterVector {data});
     }
 };
 
@@ -185,10 +185,12 @@ std::vector<RollParams> generateRollFloatingPointParams() {
 
 std::vector<RollParams> generateRollCombinedParams() {
     const std::vector<std::vector<RollParams>> rollTypeParams {
+        generateRollParams<element::Type_t::i4>(),
         generateRollParams<element::Type_t::i8>(),
         generateRollParams<element::Type_t::i16>(),
         generateRollParams<element::Type_t::i32>(),
         generateRollParams<element::Type_t::i64>(),
+        generateRollParams<element::Type_t::u4>(),
         generateRollParams<element::Type_t::u8>(),
         generateRollParams<element::Type_t::u16>(),
         generateRollParams<element::Type_t::u32>(),

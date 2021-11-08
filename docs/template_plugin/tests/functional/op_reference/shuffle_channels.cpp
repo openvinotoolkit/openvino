@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -52,9 +52,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const ShuffleChannelsParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto function = std::make_shared<op::v0::ShuffleChannels>(data, params.axis, params.group);
-        return std::make_shared<ov::Function>(NodeVector {function}, ParameterVector {data});
+        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto function = std::make_shared<opset1::ShuffleChannels>(data, params.axis, params.group);
+        return std::make_shared<Function>(NodeVector {function}, ParameterVector {data});
     }
 };
 
@@ -66,7 +66,7 @@ template <element::Type_t IN_ET>
 std::vector<ShuffleChannelsParams> generateParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
     std::vector<ShuffleChannelsParams> params {
-        // shuffleChannels_repeated_axes
+        // shuffle_channels_simple
         ShuffleChannelsParams(
             Tensor({1, 15, 2, 2}, IN_ET, std::vector<T>{
                 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
@@ -78,7 +78,7 @@ std::vector<ShuffleChannelsParams> generateParams() {
                 0, 1, 2,  3,  12, 13, 14, 15, 24, 25, 26, 27, 36, 37, 38, 39, 48, 49, 50, 51,
                 4, 5, 6,  7,  16, 17, 18, 19, 28, 29, 30, 31, 40, 41, 42, 43, 52, 53, 54, 55,
                 8, 9, 10, 11, 20, 21, 22, 23, 32, 33, 34, 35, 44, 45, 46, 47, 56, 57, 58, 59}),
-            "shuffleChannels_repeated_axes"),
+            "shuffle_channels_simple"),
 
         // shuffle_channels_negative_axis
         ShuffleChannelsParams(

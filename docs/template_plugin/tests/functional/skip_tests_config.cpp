@@ -78,11 +78,14 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-70975
         R"(.*ReferencePadTestParamsTooLarge.*)",
         // CVS-64006
-        R"(.*ReferenceBatchToSpaceLayerTest.*_input_with_shape_with_crop_4x1x2x3)",
-        R"(.*ReferenceBatchToSpaceLayerTest.*_input_with_shape_with_crop_4x1x2x3_1)",
+        R"(.*ReferenceBatchToSpaceLayerTest.*dType=i4.*)",
+        R"(.*ReferenceBatchToSpaceLayerTest.*dType=u4.*)",
+        // CVS-64113
+        R"(.*ReferenceRollLayerTest.*dType=i4.*)",
+        R"(.*ReferenceRollLayerTest.*dType=u4.*)",
         // CVS-64050
-        R"(.*ReferenceSpaceToBatchLayerTest.*_space_to_batch_5D)",
-        R"(.*ReferenceSpaceToBatchLayerTest.*_space_to_batch_4x4)",
+        R"(.*ReferenceSpaceToBatchLayerTest.*dType=i4.*)",
+        R"(.*ReferenceSpaceToBatchLayerTest.*dType=u4.*)",
     };
 
 #ifdef _WIN32

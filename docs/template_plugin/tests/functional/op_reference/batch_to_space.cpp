@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/batch_to_space.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset2.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -60,12 +60,12 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const BatchToSpaceParams& params) {
-        const auto data = std::make_shared<op::v0::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto blockShape = std::make_shared<op::v0::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
-        const auto cropsBegin = std::make_shared<op::v0::Constant>(element::i64, params.cropsBeginTensor.shape, params.cropsBeginTensor.data.data());
-        const auto cropsEnd = std::make_shared<op::v0::Constant>(element::i64, params.cropsEndTensor.shape, params.cropsEndTensor.data.data());
-        const auto batchToSpace = std::make_shared<op::v1::BatchToSpace>(data, blockShape, cropsBegin, cropsEnd);
-        return std::make_shared<ov::Function>(NodeVector {batchToSpace}, ParameterVector {data});
+        const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
+        const auto blockShape = std::make_shared<opset1::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
+        const auto cropsBegin = std::make_shared<opset1::Constant>(element::i64, params.cropsBeginTensor.shape, params.cropsBeginTensor.data.data());
+        const auto cropsEnd = std::make_shared<opset1::Constant>(element::i64, params.cropsEndTensor.shape, params.cropsEndTensor.data.data());
+        const auto batchToSpace = std::make_shared<opset2::BatchToSpace>(data, blockShape, cropsBegin, cropsEnd);
+        return std::make_shared<Function>(NodeVector {batchToSpace}, ParameterVector {data});
     }
 };
 
@@ -83,7 +83,7 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
             Tensor({2}, element::i64, std::vector<int64_t>{1, 2}),
             Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
             Tensor({2}, element::i64, std::vector<int64_t>{0, 0}),
-            Tensor({6, 2}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
+            Tensor({2, 6}, IN_ET, std::vector<T>{1, 7, 2, 8, 3, 9, 4, 10, 5, 11, 6, 12}),
             "input_with_shape_4x3"),
 
         // input_with_shape_4x1x1x3
@@ -100,7 +100,7 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
             Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 2, 1}),
             Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
             Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({2, 1, 1, 6}, IN_ET, std::vector<T>{1, 2, 3, 7, 8, 9, 4, 5, 6, 10, 11, 12}),
+            Tensor({2, 1, 2, 3}, IN_ET, std::vector<T>{1, 2, 3, 7, 8, 9, 4, 5, 6, 10, 11, 12}),
             "input_with_shape_4x1x1x3_1"),
         // input_with_shape_4x1x1x3_2
         BatchToSpaceParams(
@@ -120,7 +120,7 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
             Tensor({4}, element::i64, std::vector<int64_t>{1, 1, 1, 2}),
             Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
             Tensor({4}, element::i64, std::vector<int64_t>{0, 0, 0, 0}),
-            Tensor({1, 1, 2, 6}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15,
+            Tensor({2, 1, 2, 6}, IN_ET, std::vector<T>{1, 13, 2, 14, 3, 15,
                                                        4, 16, 5, 17, 6, 18,
                                                        7, 19, 8, 20, 9, 21,
                                                        10, 22, 11, 23, 12, 24}),
@@ -196,14 +196,17 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
 
 std::vector<BatchToSpaceParams> generateBatchToSpaceCombinedParams() {
     const std::vector<std::vector<BatchToSpaceParams>> batchToSpaceTypeParams {
+        generateBatchToSpaceParams<element::Type_t::i4>(),
         generateBatchToSpaceParams<element::Type_t::i8>(),
         generateBatchToSpaceParams<element::Type_t::i16>(),
         generateBatchToSpaceParams<element::Type_t::i32>(),
         generateBatchToSpaceParams<element::Type_t::i64>(),
+        generateBatchToSpaceParams<element::Type_t::u4>(),
         generateBatchToSpaceParams<element::Type_t::u8>(),
         generateBatchToSpaceParams<element::Type_t::u16>(),
         generateBatchToSpaceParams<element::Type_t::u32>(),
         generateBatchToSpaceParams<element::Type_t::u64>(),
+        generateBatchToSpaceParams<element::Type_t::bf16>(),
         generateBatchToSpaceParams<element::Type_t::f16>(),
         generateBatchToSpaceParams<element::Type_t::f32>(),
         generateBatchToSpaceParams<element::Type_t::f64>(),
