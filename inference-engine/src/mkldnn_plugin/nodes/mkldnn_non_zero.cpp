@@ -46,13 +46,10 @@ void MKLDNNNonZeroNode::getSupportedDescriptors() {
 void MKLDNNNonZeroNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    const Precision precs[6] = { Precision::FP32, Precision::BF16, Precision::I32,
-                                     Precision::U32, Precision::I8,  Precision::U8 };
-    for (const auto prec : precs) {
-        addSupportedPrimDesc({{LayoutType::ncsp, prec}},
-                             {{LayoutType::ncsp, Precision::I32}},
-                             impl_desc_type::ref);
-    }
+
+    addSupportedPrimDesc({{LayoutType::ncsp}},
+                         {{LayoutType::ncsp, Precision::I32}},
+                         impl_desc_type::ref);
 }
 
 template <typename T>
