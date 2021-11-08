@@ -27,7 +27,12 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     const ngraph::PartialShape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weights,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
+    const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights,
+    const bool transposeOnData,
+    const bool transposeOnInputLow,
+    const bool transposeOnInputHigh,
+    const bool transposeOnOutputLow,
+    const bool transposeOnOutputHigh) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
     auto dequantizationStructure = dequantizationBefore;
     dequantizationStructure.multiply.outPrecision = netPrecision;
@@ -53,15 +58,32 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
     const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
 
-    const auto onWeights = fakeQuantizeOnWeights.empty() ? convertedWeights :
-        ngraph::builder::makeFakeQuantize(
-            convertedWeights, netPrecision,
-            fakeQuantizeOnWeights.quantizationLevel,
-            fakeQuantizeOnWeights.constantShape,
-            fakeQuantizeOnWeights.inputLowValues,
-            fakeQuantizeOnWeights.inputHighValues,
-            fakeQuantizeOnWeights.outputLowValues,
-            fakeQuantizeOnWeights.outputHighValues);
+    const std::shared_ptr<ngraph::Node> constant = ngraph::opset1::Constant::create(ngraph::element::u64, ngraph::Shape{4}, {0, 1, 2, 3});
+    const std::shared_ptr<Node> onWeights = fqOnWeights.empty() ?
+        convertedWeights :
+        std::make_shared<opset1::FakeQuantize>(
+            transposeOnData ? std::make_shared<opset1::Transpose>(convertedWeights, constant) : convertedWeights,
+            transposeOnInputLow ?
+                std::make_shared<opset1::Transpose>(
+                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
+                    constant->clone_with_new_inputs({})) :
+                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
+            transposeOnInputHigh ?
+                std::make_shared<opset1::Transpose>(
+                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
+                    constant->clone_with_new_inputs({})) :
+                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
+            transposeOnOutputLow ?
+                std::make_shared<opset1::Transpose>(
+                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
+                    constant->clone_with_new_inputs({})) :
+                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
+            transposeOnOutputHigh ?
+                std::make_shared<opset1::Transpose>(
+                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
+                    constant->clone_with_new_inputs({})) :
+                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
+            fqOnWeights.quantizationLevel);
 
     auto convolutionOriginal = ngraph::opset1::Convolution(
         ngraph::op::TemporaryReplaceOutputType(dequantization, netPrecision).get(),
