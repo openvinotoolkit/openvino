@@ -24,7 +24,12 @@ public:
         const ngraph::PartialShape& inputShape,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         std::shared_ptr<ngraph::opset1::Constant> weights,
-        const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
+        const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights,
+        const bool fqOnWeightsTransposeOnData = false,
+        const bool fqOnWeightsTransposeOnInputLow = false,
+        const bool fqOnWeightsTransposeOnInputHigh = false,
+        const bool fqOnWeightsTransposeOnOutputLow = false,
+        const bool fqOnWeightsTransposeOnOutputHigh = false);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIncorrectWeights(
         const ngraph::Shape& inputShape,
