@@ -47,7 +47,6 @@ jobs:
     MODELS_PATH: $(REPO_DIR)/../testdata
     WORK_DIR: $(Pipeline.Workspace)/_w
     BUILD_DIR: $(WORK_DIR)/build
-    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
     BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
     BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
     BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
@@ -215,12 +214,12 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh -i $(INSTALL_DIR)/samples_app
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
     continueOnError: false
 
-  - script: $(INSTALL_DIR)/samples/c/build_samples.sh
+  - script: $(INSTALL_DIR)/samples/c/build_samples.sh -i $(INSTALL_DIR)/samples_app
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
     continueOnError: false
@@ -329,7 +328,7 @@ jobs:
 
   - script: |
       . $(SETUPVARS)
-      export IE_APP_PATH=$(INSTALL_DIR)/tests
+      export IE_APP_PATH=$(INSTALL_DIR)/samples_app/samples_bin
       export IE_APP_PYTHON_PATH=$(INSTALL_DIR)/samples/python/
       export SHARE=$(INSTALL_DIR)/tests/smoke_tests/samples_smoke_tests_data/
       export WORKSPACE=$(INSTALL_DIR)
