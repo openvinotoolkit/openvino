@@ -143,7 +143,8 @@ NUM_LEVELS_PARAMS = [
     (np.random.randint, (0, 2, (3, 100, 100)), 1, 1),
     (np.random.randint, (-32, 32, (3, 100, 100)), 64, 1),
     (np.random.randint, (-32, 32, (3, 100, 100)), 64, 1/512),
-    (np.random.rand, (3, 100, 100), -1, 1)
+    (np.random.rand, (3, 100, 100), -1, 1),
+    (np.random.randint, (0, 1, (3, 100, 100)), 0, 1)
 ]
 
 
