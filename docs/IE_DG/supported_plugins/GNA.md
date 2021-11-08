@@ -32,6 +32,7 @@ Devices with Intel® GNA support:
 	- Intel® Pentium® Silver N5000 Processor
 	- Intel® Celeron® J4005 Processor
 	- Intel® Celeron® J4105 Processor
+    - Intel® Celeron® J4125 Processor
 	- Intel® Celeron® Processor N4100
 	- Intel® Celeron® Processor N4000
 
