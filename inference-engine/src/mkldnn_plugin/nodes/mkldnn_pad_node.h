@@ -39,7 +39,6 @@ private:
         float padValue = 0.f;
         std::vector<unsigned int> padsBegin;
         std::vector<unsigned int> padsEnd;
-        size_t dataSize = 1;
         int beginPadIdx = 0;
         int endPadIdx = 0;
         InferenceEngine::Precision prc;
@@ -58,6 +57,7 @@ private:
         size_t workAmount = 0lu;
         size_t lastDstDim = 1lu;
         size_t shift = 0lu;
+        size_t dataSize = 1lu;
         PadMode padMode;
     };
 

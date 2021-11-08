@@ -173,9 +173,6 @@ void MKLDNNPadNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor for Pad " << getName() << " is not set.";
 
-    attrs.prc = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision();
-    attrs.dataSize = attrs.prc.size();
-
     // pads are constant, so we can calculate new collapsing pads for first target dimensions and use it for the next dimensions
     // to avoid permanent identical pad calculations
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)) {
@@ -222,6 +219,8 @@ void MKLDNNPadNode::createPrimitive() {
         attrs.padsEnd.erase(attrs.padsEnd.begin() + 1, attrs.padsEnd.begin() + attrs.beginPadIdx + 1);
     }
 
+    attrs.prc = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision();
+
     if (inputShapesDefined()) {
         prepareParams();
         updateLastInputDims();
@@ -229,19 +228,6 @@ void MKLDNNPadNode::createPrimitive() {
 }
 
 void MKLDNNPadNode::prepareParams() {
-    const auto& plnSrcDims = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    if (attrs.padMode == REFLECT) {
-        for (size_t i = 0; i < plnSrcDims.size(); i++) {
-            if ((plnSrcDims[i] - 1) < attrs.padsBegin[i] || (plnSrcDims[i] - 1) < attrs.padsEnd[i])
-                THROW_ERROR <<  "has incorrect padsBegin or padsEnd for 'reflect' pad mode";
-        }
-    } else if (attrs.padMode == SYMMETRIC) {
-        for (size_t i = 0; i < plnSrcDims.size(); i++) {
-            if (plnSrcDims[i] < attrs.padsBegin[i] || plnSrcDims[i] < attrs.padsEnd[i])
-                THROW_ERROR <<  "has incorrect padsBegin or padsEnd for 'symmetric' pad mode";
-        }
-    }
-
     execPtr = std::make_shared<PadExecutor>(attrs,
                                             srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),
                                             dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims());
@@ -253,6 +239,7 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
     params.attrs = attrs;
     params.srcDims = srcDims;
     params.dstDims = dstDims;
+    params.dataSize = attrs.prc.size();
 
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
@@ -285,8 +272,8 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
     params.workAmount = params.workAmount * params.dstStrides[0] / params.lastDstDim;
     params.shift = params.dstStrides[params.nDimsForWork];
     if (params.attrs.padMode != CONSTANT || (params.attrs.padMode == CONSTANT && params.attrs.padValue == 0)) {
-        params.lastDstDim *= attrs.dataSize;
-        params.shift *= attrs.dataSize;
+        params.lastDstDim *= params.dataSize;
+        params.shift *= params.dataSize;
     }
 
     params.srcODims.clear();
@@ -396,7 +383,7 @@ void MKLDNNPadNode::PadExecutor::padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, M
                 srcIdx += (indexes[idx] - params.attrs.padsBegin[idx]) * params.srcStrides[idx];
 
             std::fill_n(&dstData[dstIdx], beginShift, value);
-            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize * params.attrs.dataSize);
+            cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize * params.dataSize);
             std::fill_n(&dstData[dstIdx + beginShift + copySize], endShift, value);
 
             parallel_step(params.nDimsForWork, params.dstDims, indexes);
@@ -420,7 +407,7 @@ void MKLDNNPadNode::PadExecutor::padConstantZero(MKLDNNMemoryPtr& srcMemPtr, MKL
         parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
         size_t dstIdx = 0;
         getDstIdx(indexes, dstIdx);
-        dstIdx *= params.attrs.dataSize;
+        dstIdx *= params.dataSize;
 
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t j = 0;
@@ -438,7 +425,7 @@ void MKLDNNPadNode::PadExecutor::padConstantZero(MKLDNNMemoryPtr& srcMemPtr, MKL
             size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx)
                 srcIdx += (indexes[idx] - params.attrs.padsBegin[idx]) * params.srcStrides[idx];
-            srcIdx *= params.attrs.dataSize;
+            srcIdx *= params.dataSize;
 
             memset(&dstData[dstIdx], 0, beginShift);
             cpu_memcpy(&dstData[dstIdx + beginShift], &srcData[srcIdx], copySize);
@@ -464,7 +451,7 @@ void MKLDNNPadNode::PadExecutor::padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemor
         parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
         size_t dstIdx = 0;
         getDstIdx(indexes, dstIdx);
-        dstIdx *= params.attrs.dataSize;
+        dstIdx *= params.dataSize;
 
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
@@ -473,7 +460,7 @@ void MKLDNNPadNode::PadExecutor::padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemor
                                ((indexes[idx] >= params.srcODims[idx]) ? (params.srcDims[idx] - 1) : (indexes[idx] - params.attrs.padsBegin[idx]));
                 srcIdx += shift * params.srcStrides[idx];
             }
-            srcIdx *= params.attrs.dataSize;
+            srcIdx *= params.dataSize;
 
             for (size_t i = 0; i < params.attrs.padsBegin[params.nDimsForWork]; ++i)
                 cpu_memcpy(&dstData[dstIdx + i * params.shift], &srcData[srcIdx], params.shift);
@@ -502,7 +489,7 @@ void MKLDNNPadNode::PadExecutor::padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPt
         parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
         size_t dstIdx = 0;
         getDstIdx(indexes, dstIdx);
-        dstIdx *= params.attrs.dataSize;
+        dstIdx *= params.dataSize;
 
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
             size_t srcIdx = 0;
@@ -512,7 +499,7 @@ void MKLDNNPadNode::PadExecutor::padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPt
                              (indexes[i] - params.attrs.padsBegin[i]));
                 srcIdx += idx * params.srcStrides[i];
             }
-            srcIdx *= params.attrs.dataSize;
+            srcIdx *= params.dataSize;
 
             for (size_t i = 0; i < params.attrs.padsBegin[params.nDimsForWork]; ++i)
                 cpu_memcpy(&dstData[dstIdx + i * params.shift],
