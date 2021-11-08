@@ -245,7 +245,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DConstBlocked),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ngraph::helpers::PadMode::CONSTANT),
-                ::testing::Values(cpuParams_nChw8c)),
+                ::testing::ValuesIn(CPUParams4DBlocked)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -273,7 +273,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd4DBlocked),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::Values(cpuParams_nChw8c)),
+                ::testing::ValuesIn(CPUParams4DBlocked)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -395,7 +395,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DConstBlocked),
                 ::testing::ValuesIn(argPadValue),
                 ::testing::Values(ngraph::helpers::PadMode::CONSTANT),
-                ::testing::Values(cpuParams_nCdhw8c)),
+                ::testing::ValuesIn(CPUParams5DBlocked)),
         PadLayerCPUTest::getTestCaseName
 );
 
@@ -423,7 +423,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(padsEnd5DBlocked),
                 ::testing::Values(0),
                 ::testing::ValuesIn(padMode),
-                ::testing::Values(cpuParams_nCdhw8c)),
+                ::testing::ValuesIn(CPUParams5DBlocked)),
         PadLayerCPUTest::getTestCaseName
 );
 

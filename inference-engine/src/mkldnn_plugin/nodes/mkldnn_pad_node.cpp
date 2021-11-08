@@ -37,8 +37,8 @@ bool MKLDNNPadNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
 
         if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static() ||
             op->get_input_node_shared_ptr(PADS_END_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static() ||
-            pad->get_input_size() == 4 && pad->get_pad_mode() == ngraph::op::PadMode::CONSTANT &&
-            op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+            (pad->get_input_size() == 4 && pad->get_pad_mode() == ngraph::op::PadMode::CONSTANT &&
+            op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() != ov::op::v0::Constant::get_type_info_static())) {
             // TODO: Support pads_begin, pads_end, pad_value inputs for dynamic shapes.
             errorMessage = "Only Constant 'pads_begin', 'pads_end' and 'pad_value' inputs are supported.";
             return false;
@@ -164,8 +164,8 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNPadNode::createPrimitive() {
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         IE_THROW() << "Destination memory for Pad " << getName() << " didn't allocate.";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
@@ -229,17 +229,17 @@ void MKLDNNPadNode::createPrimitive() {
 }
 
 void MKLDNNPadNode::prepareParams() {
-    execPtr = std::make_shared<PadExecutor>(attrs, getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
+    execPtr = std::make_shared<PadExecutor>(attrs,
+                                            srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),
+                                            dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims());
 }
 
 MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
-                                        const MKLDNNMemoryPtr& srcMemPtr,
-                                        const MKLDNNMemoryPtr& dstMemPtr) {
+                                        const InferenceEngine::SizeVector& srcDims,
+                                        const InferenceEngine::SizeVector& dstDims) {
     params.attrs = attrs;
-    params.srcMemPtr = srcMemPtr;
-    params.dstMemPtr = dstMemPtr;
-    params.srcDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    params.dstDims = dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    params.srcDims = srcDims;
+    params.dstDims = dstDims;
 
     size_t nDims = params.srcDims.size();
     params.srcStrides.resize(nDims, 1);
@@ -288,25 +288,25 @@ MKLDNNPadNode::PadExecutor::PadExecutor(const PadAttrs& attrs,
     }
 }
 
-void MKLDNNPadNode::PadExecutor::exec() {
+void MKLDNNPadNode::PadExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
     switch (params.attrs.padMode) {
         case CONSTANT:
-            padConstant();
+            padConstant(srcMemPtr, dstMemPtr);
             break;
         case EDGE:
-            padEdge();
+            padEdge(srcMemPtr, dstMemPtr);
             break;
         case REFLECT:
-            padReflectOrSymmetric();
+            padReflectOrSymmetric(srcMemPtr, dstMemPtr);
             break;
         case SYMMETRIC:
-            padReflectOrSymmetric(true);
+            padReflectOrSymmetric(srcMemPtr, dstMemPtr, true);
             break;
     }
 }
 
 void MKLDNNPadNode::execute(mkldnn::stream strm) {
-    execPtr->exec();
+    execPtr->exec(srcMemPtr, dstMemPtr);
 }
 
 void MKLDNNPadNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -331,13 +331,14 @@ static inline void parallel_step(size_t nDims, const SizeVector& dims, SizeVecto
     }
 }
 
-void MKLDNNPadNode::PadExecutor::padConstant() {
+void MKLDNNPadNode::PadExecutor::padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
     if (params.attrs.padValue == 0) {
-        padConstantZero();
+        padConstantZero(srcMemPtr, dstMemPtr);
         return;
     }
 
-    OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, this, params.attrs.prc,
+    PadContext ctx { this, srcMemPtr, dstMemPtr };
+    OV_SWITCH(MKLDNNPlugin, PadConstantEmitter, ctx, params.attrs.prc,
               OV_CASE(InferenceEngine::Precision::FP32, float),
               OV_CASE(InferenceEngine::Precision::I32, int32_t),
               OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
@@ -346,9 +347,9 @@ void MKLDNNPadNode::PadExecutor::padConstant() {
 }
 
 template<typename T>
-void MKLDNNPadNode::PadExecutor::padConstantCommon() {
-    const T* srcData = reinterpret_cast<const T*>(params.srcMemPtr->GetPtr());
-    T* dstData = reinterpret_cast<T*>(params.dstMemPtr->GetPtr());
+void MKLDNNPadNode::PadExecutor::padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->GetPtr());
+    T* dstData = reinterpret_cast<T*>(dstMemPtr->GetPtr());
     const T value = static_cast<T>(params.attrs.padValue);
 
     const size_t beginShift = params.attrs.padsBegin[params.nDimsForWork] * params.shift;
@@ -390,9 +391,9 @@ void MKLDNNPadNode::PadExecutor::padConstantCommon() {
     });
 }
 
-void MKLDNNPadNode::PadExecutor::padConstantZero() {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(params.srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(params.dstMemPtr->GetPtr());
+void MKLDNNPadNode::PadExecutor::padConstantZero(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
     const size_t beginShift = params.attrs.padsBegin[params.nDimsForWork] * params.shift;
     const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
@@ -435,9 +436,9 @@ void MKLDNNPadNode::PadExecutor::padConstantZero() {
     });
 }
 
-void MKLDNNPadNode::PadExecutor::padEdge() {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(params.srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(params.dstMemPtr->GetPtr());
+void MKLDNNPadNode::PadExecutor::padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
     const size_t beginShift = params.attrs.padsBegin[params.nDimsForWork] * params.shift;
     const size_t copySize = params.srcDims[params.nDimsForWork] * params.shift;
@@ -475,9 +476,9 @@ void MKLDNNPadNode::PadExecutor::padEdge() {
     });
 }
 
-void MKLDNNPadNode::PadExecutor::padReflectOrSymmetric(const bool isSymmetric) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(params.srcMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(params.dstMemPtr->GetPtr());
+void MKLDNNPadNode::PadExecutor::padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const bool isSymmetric) {
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
     size_t shift = isSymmetric ? 1 : 0;
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {

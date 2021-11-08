@@ -59,29 +59,32 @@ private:
         size_t lastDstDim = 1lu;
         size_t shift = 0lu;
         PadMode padMode;
-
-        MKLDNNMemoryPtr srcMemPtr;
-        MKLDNNMemoryPtr dstMemPtr;
     };
 
     struct PadExecutor {
-        PadExecutor(const PadAttrs& params, const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& dstMemPtr);
-        void exec();
+        PadExecutor(const PadAttrs& params, const InferenceEngine::SizeVector& srcDims, const InferenceEngine::SizeVector& dstDims);
+        void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
     private:
-        void padConstant();
-        template<typename T> void padConstantCommon();
-        void padConstantZero();
-        void padEdge();
-        void padReflectOrSymmetric(const bool isSymmetric = false);
+        void padConstant(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        template<typename T> void padConstantCommon(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        void padConstantZero(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        void padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        void padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const bool isSymmetric = false);
 
         inline void getDstIdx(const InferenceEngine::SizeVector& indexes, size_t& dstIdx) const;
 
+        struct PadContext {
+            PadExecutor* executor;
+            MKLDNNMemoryPtr srcMemPtr;
+            MKLDNNMemoryPtr dstMemPtr;
+        };
+
         template<typename T>
         struct PadConstantEmitter {
-            void operator()(PadExecutor* executor) {
-                executor->padConstantCommon<T>();
+            void operator()(PadContext& ctx) {
+                ctx.executor->padConstantCommon<T>(ctx.srcMemPtr, ctx.dstMemPtr);
             }
         };
 
@@ -94,6 +97,9 @@ private:
     static constexpr size_t PAD_VALUE_ID = 3lu;
 
     bool isPadValueSpecified = false;
+
+    MKLDNNMemoryPtr srcMemPtr = nullptr;
+    MKLDNNMemoryPtr dstMemPtr = nullptr;
 
     using executorPtr = std::shared_ptr<PadExecutor>;
     executorPtr execPtr = nullptr;
