@@ -24,7 +24,7 @@ protected:
     void validate(const ngraph::Function& function) const {
         const auto& k = GetParam();
 
-        ngraph::ResultVector processedResults;
+        ov::ConstResultVector processedResults;
         ASSERT_NO_THROW(processedResults = function.get_results());
         EXPECT_EQ(processedResults.size(), 2);
 
