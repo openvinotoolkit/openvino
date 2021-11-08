@@ -245,7 +245,7 @@ void MKLDNNSplitNode::prepareParams() {
             const auto outputPortsCount = outputShapes.size();
             std::vector<BlockedMemoryDescCPtr> outDescs(outputPortsCount);
             for (size_t i = 0; i < outputPortsCount; i++) {
-                outDescs[i] = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
+                outDescs[i] = getChildEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
             }
             execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis);
         }
@@ -271,8 +271,9 @@ void MKLDNNSplitNode::createPrimitive() {
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {
-    if (isOptimized())
+    if (isOptimized()) {
         return;
+    }
 
     if (dstMemPtrs.empty())
         THROW_ERROR << "Output data pointers have not been initialized.";
