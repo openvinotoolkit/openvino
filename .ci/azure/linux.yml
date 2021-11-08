@@ -1,3 +1,9 @@
+trigger:
+  paths:
+    exclude:
+    - docs
+    - *.md
+
 resources:
   repositories:
   - repository: openvino_contrib
