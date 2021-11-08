@@ -102,9 +102,9 @@ ExecutableNetwork::ExecutableNetwork(
         const auto& sortedLayers = nGraphFunc->get_ordered_ops();
         for (const auto& layer : sortedLayers) {
             if (strcmp(layer->get_type_info().name, "Constant") == 0) {
-                const auto& constOp = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(layer);
+                const auto& constOp = std::dynamic_pointer_cast<const ngraph::op::v0::Constant>(layer);
                 auto name = constOp->get_friendly_name();
-                _constDatas[name] = ie::details::shareWeights(constOp);
+                _constDatas[name] = ie::details::shareWeights(std::const_pointer_cast<ngraph::op::v0::Constant>(constOp));
             }
         }
         return;

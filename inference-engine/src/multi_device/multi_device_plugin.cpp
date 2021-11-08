@@ -33,10 +33,10 @@ namespace {
             return METRIC_VALUE(INT8);
         }
         for (auto & node : nGraphFunc->get_ordered_ops()) {
-            if (std::dynamic_pointer_cast<ngraph::opset1::Convolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData>(node) ||
-                std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData>(node)) {
+            if (std::dynamic_pointer_cast<const ngraph::opset1::Convolution>(node) ||
+                std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolution>(node) ||
+                std::dynamic_pointer_cast<const ngraph::opset1::GroupConvolutionBackpropData>(node) ||
+                std::dynamic_pointer_cast<const ngraph::opset1::ConvolutionBackpropData>(node)) {
                 auto layerType = node->input(1).get_element_type().get_type_name();
                 if (layerType == "f32")
                     return METRIC_VALUE(FP32);
