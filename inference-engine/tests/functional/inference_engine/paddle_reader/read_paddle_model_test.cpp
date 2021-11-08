@@ -30,8 +30,14 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCore) {
     const auto relu = std::make_shared<ngraph::opset8::Relu>(data->output(0));
     relu->set_friendly_name("relu_0.tmp_0");
     relu->output(0).get_tensor().add_names({ "relu_0.tmp_0" });
-    const auto result = std::make_shared<ngraph::opset8::Result>(relu->output(0));
-    result->set_friendly_name("relu_0.tmp_0/Result");
+    const auto scale = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{1});
+    const auto bias = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{0});
+    const auto node_multiply = std::make_shared<ngraph::opset8::Multiply>(relu->output(0), scale);
+    const auto node_add = std::make_shared<ngraph::opset8::Add>(node_multiply, bias);
+    node_add->set_friendly_name("save_infer_model/scale_0.tmp_1");
+    node_add->output(0).get_tensor().add_names({ "save_infer_model/scale_0.tmp_1" });
+    const auto result = std::make_shared<ngraph::opset8::Result>(node_add->output(0));
+    result->set_friendly_name("save_infer_model/scale_0.tmp_1/Result");
     const auto reference = std::make_shared<ngraph::Function>(
         ngraph::NodeVector{ result },
         ngraph::ParameterVector{ data },
@@ -65,8 +71,14 @@ TEST(PDPD_Reader_Tests, ImportBasicModelToCoreWstring) {
     const auto relu = std::make_shared<ngraph::opset8::Relu>(data->output(0));
     relu->set_friendly_name("relu_0.tmp_0");
     relu->output(0).get_tensor().add_names({ "relu_0.tmp_0" });
-    const auto result = std::make_shared<ngraph::opset8::Result>(relu->output(0));
-    result->set_friendly_name("relu_0.tmp_0/Result");
+    const auto scale = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{1});
+    const auto bias = std::make_shared<ngraph::opset8::Constant>(ngraph::element::f32, ngraph::Shape{ 1 }, std::vector<float>{0});
+    const auto node_multiply = std::make_shared<ngraph::opset8::Multiply>(relu->output(0), scale);
+    const auto node_add = std::make_shared<ngraph::opset8::Add>(node_multiply, bias);
+    node_add->set_friendly_name("save_infer_model/scale_0.tmp_1");
+    node_add->output(0).get_tensor().add_names({ "save_infer_model/scale_0.tmp_1" });
+    const auto result = std::make_shared<ngraph::opset8::Result>(node_add->output(0));
+    result->set_friendly_name("save_infer_model/scale_0.tmp_1/Result");
     const auto reference = std::make_shared<ngraph::Function>(
         ngraph::NodeVector{ result },
         ngraph::ParameterVector{ data },
