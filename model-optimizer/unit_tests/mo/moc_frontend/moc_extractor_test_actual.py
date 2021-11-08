@@ -75,19 +75,6 @@ class TestMainFrontend(unittest.TestCase):
         assert model_stat.get_place_by_tensor_name == 1
         assert model_stat.get_place_by_operation_name == 1
 
-    # Mock model has both tensor and operation with same name and non-equal data
-    # Collision is expected
-    @mock_needed
-    def test_decode_name_with_port_collision_op_tensor(self):
-        with self.assertRaisesRegex(Error, 'Name\\ collision.*tensorAndOp*'):
-            decode_name_with_port(self.model, 'tensorAndOp')
-        model_stat = get_model_statistic()
-        place_stat = get_place_statistic()
-
-        assert model_stat.get_place_by_tensor_name == 1
-        assert model_stat.get_place_by_operation_name == 1
-        assert place_stat.is_equal_data > 0
-
     # Mock model has 'operation' and output port up to 10
     @mock_needed
     def test_decode_name_with_port_delim_op_out(self):
@@ -125,7 +112,7 @@ class TestMainFrontend(unittest.TestCase):
         assert model_stat.get_place_by_tensor_name == 1
         assert model_stat.get_place_by_operation_name == 2
         assert place_stat.is_equal_data > 0
-        assert place_stat.get_output_port == 1
+        assert place_stat.get_output_port == 2
         assert place_stat.lastArgInt == 0
 
     # Mock model has 'operation' and '0:operation' op places, collision is expected
@@ -240,7 +227,7 @@ class TestMainFrontend(unittest.TestCase):
         assert model_stat.get_place_by_tensor_name == 1
         assert model_stat.get_place_by_operation_name == 3
         assert place_stat.get_input_port == 1
-        assert place_stat.get_output_port == 1
+        assert place_stat.get_output_port == 2
         # At least 3 comparisons of places are expected
         assert place_stat.is_equal_data > 2
         assert node

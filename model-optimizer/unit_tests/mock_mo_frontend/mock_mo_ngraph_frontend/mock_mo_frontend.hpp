@@ -165,7 +165,7 @@ public:
         m_stat.m_get_output_port++;
         m_stat.m_lastArgInt = -1;
         m_stat.m_lastArgString = outputName;
-        return std::make_shared<PlaceMockPy>();
+        return std::make_shared<PlaceMockPy>(outputName);
     }
 
     Place::Ptr get_output_port(const std::string& outputName, int outputPortIndex) const override
@@ -199,6 +199,8 @@ public:
 
     bool is_equal_data(Ptr another) const override
     {
+        if (m_is_op)
+            throw "Not implemented";
         m_stat.m_is_equal_data++;
         m_stat.m_lastArgPlace = another;
         std::shared_ptr<PlaceMockPy> mock = std::dynamic_pointer_cast<PlaceMockPy>(another);
@@ -212,7 +214,7 @@ public:
                 return true;
             }
         }
-        return mock->m_is_op == m_is_op;
+        return !mock->m_is_op && m_name == mock->m_name;
     }
 
     //---------------Stat--------------------
