@@ -409,22 +409,22 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 case kActSigmoid:
                     if (u_bound == 0) negative = true;  // make left half convex
                     err = pivot_search(pwl, sigmoid, first_deriv_sigmoid, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS);
+                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                     break;
                 case kActTanh:
                     if (u_bound == 0) negative = true;  // make left half convex
                     err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS);
+                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                     break;
                 case kActSoftSign:
                     if (u_bound == 0) negative = true;  // make left half convex
                     err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS);
+                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                     break;
                 case kActExp:
                     negative = true;  // make function convex
                     err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS);
+                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                     break;
                 case kActLog:
                     err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound,
@@ -448,7 +448,7 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                     auto fun = [&args](double x) -> double { return power(x, args); };
                     auto first_deriv = [&args](double x) -> double { return first_deriv_power(x, args); };
                     err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound,
-                        threshold, negative, PWL_MAX_ITERATIONS);
+                        threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                     break;
                 }
                 default:
@@ -461,19 +461,19 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 switch (activation_type) {
                     case kActSigmoid:
                         err = pivot_search(pwl, sigmoid, first_deriv_sigmoid, n_segments, l_bound, u_bound,
-                            threshold, negative, PWL_MAX_ITERATIONS);
+                            threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                         break;
                     case kActTanh:
                         err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound,
-                            threshold, negative, PWL_MAX_ITERATIONS);
+                            threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                         break;
                     case kActSoftSign:
                         err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound,
-                            threshold, negative, PWL_MAX_ITERATIONS);
+                            threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                             break;
                     case kActExp:
                         err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound,
-                            threshold, negative, PWL_MAX_ITERATIONS);
+                            threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                         break;
                     case kActLog:
                         err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound,
@@ -494,7 +494,7 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                         auto fun = [&args](double x) { return power(x, args); };
                         auto first_deriv = [&args](double x) { return first_deriv_power(x, args); };
                         err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound,
-                            threshold, negative, PWL_MAX_ITERATIONS);
+                            threshold, negative, PWL_MAX_ITERATIONS_DEFAULT);
                         break;
                     }
                     default:
@@ -503,7 +503,7 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
             }
 
-            if (n_segments >= PWL_MAX_ITERATIONS) {
+            if (n_segments >= PWL_MAX_ITERATIONS_DEFAULT) {
                 THROW_GNA_EXCEPTION << "Failed to converge in pwl_search!";
             }
         }
