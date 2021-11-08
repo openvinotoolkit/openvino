@@ -53,11 +53,11 @@ ConvolutionBackpropDataTransformation::ConvolutionBackpropDataTransformation(con
     this->register_matcher(m, callback);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool ConvolutionBackpropDataTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return ConvolutionBackpropDataTransformation::isQuantizedStatic(layer);
 }
 
-bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool ConvolutionBackpropDataTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, false);
 }
 
