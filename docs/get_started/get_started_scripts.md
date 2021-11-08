@@ -5,7 +5,7 @@
 A set of demo scripts in the `openvino_2021/deployment_tools/demo` directory give you a starting point for learning the OpenVINO™ workflow. These scripts automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios. The demo steps let you see how to: 
 * Compile several samples from the source files delivered as part of the OpenVINO™ toolkit.
 * Download trained models.
-* Convert the models to IR (Intermediated Representation format used by OpenVINO™) with Model Optimizer.
+* Convert the models to IR (Intermediate Representation format used by OpenVINO™) with Model Optimizer.
 * Perform pipeline steps and see the output on the console.
 
 This guide assumes you completed all installation and configuration steps. If you have not yet installed and configured the toolkit:

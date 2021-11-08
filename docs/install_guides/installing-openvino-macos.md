@@ -81,7 +81,6 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
    The default installation directory path depends on the privileges you choose for the installation.
 
 5. Follow the instructions on your screen. Watch for informational messages such as the following in case you must complete additional steps:
-
    ![](../img/openvino-install-macos-02.png)
 
 6. The **Installation summary** screen shows you the default component set to install. By default, the Intel® Distribution of OpenVINO™ is installed in the following directory, referred to as `<INSTALL_DIR>` elsewhere in the documentation:
@@ -97,7 +96,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 8. The **Finish** screen indicates that the core components have been installed:
    ![](../img/openvino-install-macos-05.png)
 
-> **NOTE**: Once you click **Finish** to close the installation wizard, a new browser window opens with the document you’re reading now (in case you installed without it) and jumps to the section with the next installation steps.
+   Once you click **Finish** to close the installation wizard, a new browser window opens with the document you’re reading now (in case you installed without it) and jumps to the section with the next installation steps.
 
 The core components are now installed. If you received a message that you were missing external software dependencies (list available under Software Requirements at the top of this guide), you need to install them now before continuing to the next section.
 
@@ -160,18 +159,7 @@ If you see error messages, verify that you installed all dependencies listed und
    sudo ./install_prerequisites.sh
    ```
 
-**Optional:** You can choose to configure each framework separately instead, to save disk space. If you see error messages, make sure you installed all dependencies.
-
-Configure individual frameworks separately **ONLY** if you did not select **Option 1** above.
-
-1. Go to the Model Optimizer prerequisites directory:
-   ```sh
-   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
-   ```
-
-2. Run the script for your model framework. You can run more than one script.
-
-> **NOTE**: You can choose to install Model Optimizer support for only certain frameworks. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi*, and ONNX (install_prerequisites_caffe.sh, etc.).
+3. **Optional:** You can choose to configure each framework separately instead, to save disk space. In the same directory are individual scripts for Caffe, TensorFlow 1.x, TensorFlow 2.x, MXNet, Kaldi, and ONNX: install_prerequisites_caffe.sh, etc. You can run more than one script. If you see error messages, make sure you installed all dependencies. Configure individual frameworks separately **ONLY** if you did not select **Option 1** above.
 
 The Model Optimizer is configured for one or more frameworks.
 
