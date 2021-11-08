@@ -98,6 +98,8 @@ public:
 
     static void updateFunctionNames(std::shared_ptr<ngraph::Function> network);
 
+    static void unifyFunctionNames(std::shared_ptr<ngraph::Function> network);
+
     static void saveInputFile(const std::string &network_name,
                               const InferenceEngine::InputInfo::CPtr &input_info,
                               const InferenceEngine::Blob::Ptr &blob,

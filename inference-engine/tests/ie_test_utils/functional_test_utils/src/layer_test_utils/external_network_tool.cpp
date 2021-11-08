@@ -51,13 +51,30 @@ void ExternalNetworkTool::updateFunctionNames(std::shared_ptr<ngraph::Function> 
         std::string id   {std::to_string(node->get_instance_id())};
         std::string type {node->get_type_name()};
 
-        std::string new_name = type + "_" + id;
+        std::string new_name = id + "_" + type;
 
         node->set_friendly_name(new_name);
     };
 
     for (auto node : network->get_ordered_ops()) {
         rename(node);
+    }
+}
+
+void ExternalNetworkTool::unifyFunctionNames(std::shared_ptr<ngraph::Function> network) {
+    auto rename = [](std::shared_ptr<ov::Node> node, size_t index) {
+        std::string id   {std::to_string(index)};
+        std::string type {node->get_type_name()};
+
+        std::string new_name = type + "_" + id;
+
+        node->set_friendly_name(new_name);
+    };
+
+    size_t index = 0;
+    for (auto node : network->get_ordered_ops()) {
+        rename(node, index);
+        ++index;
     }
 }
 
@@ -122,9 +139,12 @@ void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Functi
                                 + (exportPathString.empty() ? "" : path_delimiter)
                                 + hashed_network_name + ".bin";
 
+    auto network_copy = ngraph::clone_function(*network);
+    unifyFunctionNames(network_copy);
+
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path, ngraph::pass::Serialize::Version::IR_V10);
-    manager.run_passes(network);
+    manager.run_passes(network_copy);
     printf("Network dumped to %s\n", out_xml_path.c_str());
     writeToHashMap(network_name, hashed_network_name);
 }
