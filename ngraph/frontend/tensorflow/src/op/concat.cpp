@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "op_table.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov;
@@ -16,27 +16,33 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateConcatV2Op(const NodeContext& node) {
-    ValidateInputCountMin(node, 2);
-
-    std::vector<int64_t> tf_concat_axis_vec;
-    GetStaticInputVector(node, node.get_ng_input_size() - 1, &tf_concat_axis_vec);
-
-    int64_t concat_axis = tf_concat_axis_vec[0];
-
-    if (concat_axis < 0) {
-        auto ng_first_arg = node.get_ng_input(0);
-        concat_axis += int64_t(ng_first_arg.get_shape().size());
+OutputVector translate_concat_op(const NodeContext& node) {
+    size_t axis_idx, concat_idx_start, concat_idx_stop;
+    if (node.get_op_type() == "ConcatV2") {
+        axis_idx = node.get_input_size() - 1;
+        concat_idx_start = 0;
+        concat_idx_stop = node.get_input_size() - 1;
+    } else if (node.get_op_type() == "Concat") {
+        axis_idx = 0;
+        concat_idx_start = 1;
+        concat_idx_stop = node.get_input_size();
+    } else {
+        TF_OP_VALIDATION_CHECK(node, false, "Incorrect operation type.");
     }
 
-    OutputVector ng_args;
+    std::vector<int64_t> tf_concat_axis_vec;
+    get_static_input_vec(node, axis_idx, &tf_concat_axis_vec);
+    int64_t concat_axis = tf_concat_axis_vec[0];
 
-    for (int i = 0; i < node.get_ng_input_size() - 1; i++) {
-        Output<Node> ng_arg = node.get_ng_input(i);
+    OutputVector ng_args;
+    for (int i = concat_idx_start; i < concat_idx_stop; i++) {
+        Output<Node> ng_arg = node.get_input(i);
         ng_args.push_back(ng_arg);
     }
 
-    return {ConstructNgNode<Concat>(node.get_name(), ng_args, size_t(concat_axis))};
+    auto res = make_shared<Concat>(ng_args, size_t(concat_axis));
+    set_node_name(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf

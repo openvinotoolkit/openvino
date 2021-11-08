@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "op_table.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -14,24 +14,25 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateDepthToSpaceOp(const NodeContext& node) {
-    Output<Node> ng_input = node.get_ng_input(0);
+OutputVector translate_depth_to_space_op(const NodeContext& node) {
+    Output<Node> ng_input = node.get_input(0);
 
     // Get the attributes
     auto block_size = node.get_attribute<int64_t>("block_size");
     std::string tf_data_format = node.get_attribute<std::string>("data_format");
 
-    if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
-        throw errors::InvalidArgument("DepthToSpace data format is neither NHWC nor NCHW");
-    }
+    TF_OP_VALIDATION_CHECK(node,
+                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                           "DepthToSpace data format is neither NHWC nor NCHW");
 
     bool is_nhwc = (tf_data_format == "NHWC");
 
-    NHWCtoNCHW(node.get_name(), is_nhwc, ng_input);
+    convert_nhwc_to_nchw(node.get_name(), is_nhwc, ng_input);
     auto ng_mode = DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
-    Output<Node> depth_to_space = ConstructNgNode<DepthToSpace>(node.get_name(), ng_input, ng_mode, block_size);
-    NCHWtoNHWC(node.get_name(), is_nhwc, depth_to_space);
-    return {depth_to_space};
+    Output<Node> res = make_shared<DepthToSpace>(ng_input, ng_mode, block_size)->output(0);
+    convert_nchw_to_nhwc(node.get_name(), is_nhwc, res);
+    set_node_name(node.get_name(), res.get_node_shared_ptr());
+    return {res};
 }
 }  // namespace op
 }  // namespace tf

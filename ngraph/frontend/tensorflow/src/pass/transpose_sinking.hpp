@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/pass/pass.hpp>
+#pragma once
 
+#include "openvino/pass/pass.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {

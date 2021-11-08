@@ -10,7 +10,7 @@ namespace ov {
 namespace frontend {
 namespace tf {
 
-void NHWCtoNCHW(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
+void convert_nhwc_to_nchw(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
@@ -18,11 +18,10 @@ void NHWCtoNCHW(const std::string& op_name, bool need_convert, ov::Output<ov::No
         } else if (rank == 5) {
             Transpose3D<0, 4, 1, 2, 3>(node);
         }
-        SetTracingInfo(op_name, node);
     }
 }
 
-void NCHWtoNHWC(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
+void convert_nchw_to_nhwc(const std::string& op_name, bool need_convert, ov::Output<ov::Node>& node) {
     if (need_convert) {
         auto rank = node.get_shape().size();
         if (rank == 4) {
@@ -30,7 +29,6 @@ void NCHWtoNHWC(const std::string& op_name, bool need_convert, ov::Output<ov::No
         } else if (rank == 5) {
             Transpose3D<0, 2, 3, 4, 1>(node);
         }
-        SetTracingInfo(op_name, node);
     }
 }
 

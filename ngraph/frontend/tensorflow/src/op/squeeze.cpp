@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "op_table.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -13,20 +13,13 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateSqueezeOp(const NodeContext& node) {
-    Output<Node> ng_input = node.get_ng_input(0);
-    size_t input_dims = ng_input.get_shape().size();
-
-    auto tf_axis = node.get_attribute<std::vector<int32_t>>("squeeze_dims");
-
-    // If input dimension is negative, make it positive
-    for (size_t i = 0; i < tf_axis.size(); i++) {
-        tf_axis[i] = tf_axis[i] < 0 ? (int32_t)(input_dims) + tf_axis[i] : tf_axis[i];
-    }
-
-    auto ng_const = ConstructNgNode<Constant>(node.get_name(), element::i32, Shape{tf_axis.size()}, tf_axis);
-
-    return {ConstructNgNode<Squeeze>(node.get_name(), ng_input, ng_const)};
+OutputVector translate_squeeze_op(const NodeContext& node) {
+    auto input = node.get_input(0);
+    auto axes = node.get_attribute<std::vector<int32_t>>("squeeze_dims");
+    auto axes_const = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);
+    auto res = make_shared<Squeeze>(input, axes_const);
+    set_node_name(node.get_name(), res);
+    return res->outputs();
 }
 
 }  // namespace op
