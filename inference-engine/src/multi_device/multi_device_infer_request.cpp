@@ -79,10 +79,16 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         //TODO: check the current hw ready status, and update the input to reuse the hw input if applicable
             auto exeNetwork = _exeNetwork.get();
             if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_alreadyActualNetwork && !blob->is<RemoteBlob>()) {
-                CopyBlob(blob, req->GetBlob(name));
-                _inputs[name] = req->GetBlob(name);
+                auto it = _preProcData.find(name);
+                if (it != _preProcData.end()) {
+                    req->SetBlob(name, blob);
+                } else {
+                    CopyBlob(blob, req->GetBlob(name));
+                    //Fix for pre-process info keeping
+                    SetBlob(name, req->GetBlob(name));
+                }
             } else {
-                req->SetBlob(name, blob);
+            req->SetBlob(name, blob);
             }
         }
     }
@@ -94,7 +100,7 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
             auto exeNetwork = _exeNetwork.get();
             if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_alreadyActualNetwork && !blob->is<RemoteBlob>()) {
                 CopyBlob(blob, req->GetBlob(name));
-                _outputs[name] = req->GetBlob(name);
+                SetBlob(name, req->GetBlob(name));
             } else {
                 req->SetBlob(name, blob);
             }
@@ -109,5 +115,4 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceIn
 void MultiDeviceInferRequest::InferImpl() {
     IE_THROW(NotImplemented);
 }
-
 }  // namespace MultiDevicePlugin
