@@ -229,6 +229,19 @@ void MKLDNNPadNode::createPrimitive() {
 }
 
 void MKLDNNPadNode::prepareParams() {
+    const auto& plnSrcDims = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    if (attrs.padMode == REFLECT) {
+        for (size_t i = 0; i < plnSrcDims.size(); i++) {
+            if ((plnSrcDims[i] - 1) < attrs.padsBegin[i] || (plnSrcDims[i] - 1) < attrs.padsEnd[i])
+                THROW_ERROR <<  "has incorrect padsBegin or padsEnd for 'reflect' pad mode";
+        }
+    } else if (attrs.padMode == SYMMETRIC) {
+        for (size_t i = 0; i < plnSrcDims.size(); i++) {
+            if (plnSrcDims[i] < attrs.padsBegin[i] || plnSrcDims[i] < attrs.padsEnd[i])
+                THROW_ERROR <<  "has incorrect padsBegin or padsEnd for 'symmetric' pad mode";
+        }
+    }
+
     execPtr = std::make_shared<PadExecutor>(attrs,
                                             srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims(),
                                             dstMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims());
