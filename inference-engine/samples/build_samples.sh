@@ -3,6 +3,44 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+usage() {
+    echo "Build inference engine samples"
+    echo
+    echo "Options:"
+    echo "  -h                       Print the help message"
+    echo "  -b SAMPLE_BUILD_DIR      Specify the sample build directory"
+    echo "  -i SAMPLE_INSTALL_DIR    Specify the sample install directory"
+    echo
+    exit 1
+}
+
+samples_type=$(basename "$PWD")
+build_dir="$HOME/inference_engine_${samples_type}_samples_build"
+sample_install_dir=""
+
+# parse command line options
+while [[ $# -gt 0 ]]
+do
+case "$1" in
+    -b | --build_dir)
+    build_dir="$2"
+    shift
+    ;;
+    -i | --install_dir)
+    sample_install_dir="$2"
+    shift
+    ;;
+    -h | --help)
+    usage
+    ;;
+    *)
+    echo "Unrecognized option specified $1"
+    usage
+    ;;
+esac
+shift
+done
+
 error() {
     local code="${3:-1}"
     if [[ -n "$2" ]];then
@@ -39,9 +77,6 @@ if ! command -v cmake &>/dev/null; then
     exit 1
 fi
 
-samples_type=$(basename "$PWD")
-build_dir="$HOME/inference_engine_${samples_type}_samples_build"
-
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
 
@@ -53,9 +88,16 @@ fi
 if [ -e "$build_dir/CMakeCache.txt" ]; then
   rm -rf "$build_dir/CMakeCache.txt"
 fi
+
 mkdir -p "$build_dir"
 cd "$build_dir"
 cmake -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"
 make $NUM_THREADS
 
-printf "\nBuild completed, you can find binaries for all samples in the $build_dir/%s/Release subfolder.\n\n" "$OS_PATH"
+if [ "$sample_install_dir" != "" ]; then
+    cmake -DCMAKE_INSTALL_PREFIX="$sample_install_dir" -DCOMPONENT=samples_bin -P cmake_install.cmake
+    printf "\nBuild completed, you can find binaries for all samples in the %s/samples_bin subfolder.\n\n" "$sample_install_dir"
+else
+    printf "\nBuild completed, you can find binaries for all samples in the $build_dir/%s/Release subfolder.\n\n" "$OS_PATH"
+fi
+
