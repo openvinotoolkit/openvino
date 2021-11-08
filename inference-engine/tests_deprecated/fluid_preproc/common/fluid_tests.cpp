@@ -974,7 +974,7 @@ TEST_P(ColorConvertYUV420TestIE, AccuracyTest)
     const auto in_layout = Layout::NCHW;
     auto out_layout = Layout::ANY;
     cv::Size size;
-    double tolerance = 1.0;
+    double tolerance = 0.0;
     std::tie(in_fmt, out_layout, size, tolerance) = GetParam();
 
     cv::Mat in_mat_y(size, CV_MAKE_TYPE(depth, 1));
