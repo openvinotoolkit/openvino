@@ -53,9 +53,13 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 # install
 
 # TODO: uncomment once snippets are integrated into CPU plugin
-# install(TARGETS ${TARGET_NAME}
-#         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-#         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+# if(BUILD_SHARED_LIBS)
+#     install(TARGETS ${TARGET_NAME}
+#             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+#             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+# else()
+#     ov_install_static_lib(${TARGET_NAME} core)
+# endif()
 
 # TODO: remove once install commands above are commented out
 install(TARGETS ${TARGET_NAME}

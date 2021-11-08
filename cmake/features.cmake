@@ -118,7 +118,7 @@ set(IE_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include i
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
 
-ie_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
+ie_dependent_option (ENABLE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF "BUILD_SHARED_LIBS" OFF)
 
 ie_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 

@@ -53,6 +53,7 @@ function(ie_add_mkldnn)
 
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
+    ov_install_static_lib(dnnl openvino_common)
 endfunction()
 
 if(ENABLE_MKL_DNN)

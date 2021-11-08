@@ -178,6 +178,6 @@ function(set_ie_threading_interface_for TARGET_NAME)
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
-        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${CMAKE_THREAD_LIBS_INIT})
+        ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
 endfunction(set_ie_threading_interface_for)

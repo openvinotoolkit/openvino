@@ -19,7 +19,11 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${SHAPE_INFER_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+
+ov_install_static_lib(${TARGET_NAME} ngraph)
 
 # developer package
 openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})
