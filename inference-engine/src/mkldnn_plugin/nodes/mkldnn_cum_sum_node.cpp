@@ -41,11 +41,11 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
     if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    const auto &dataShape = op->get_input_partial_shape(CUM_SUM_DATA);
-    if (dataShape.size() < 1) {
-        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << dataShape.size();
+    const auto &dataShape = getInputShapeAtPort(CUM_SUM_DATA);
+    if (dataShape.getRank() < 1) {
+        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << dataShape.getRank();
     }
-    numOfDims = dataShape.size();
+    numOfDims = dataShape.getRank();
 
     const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
     if (cumsum == nullptr)
@@ -61,7 +61,7 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
             IE_THROW() << errorPrefix << " doesn't support 'axis' input tensor with non scalar rank";
     }
 
-    if (dataShape != cumsum->get_output_partial_shape(0))
+    if (dataShape != getOutputShapeAtPort(0))
         IE_THROW() << errorPrefix << " has different 'data' input and output dimensions";
 }
 
@@ -157,7 +157,7 @@ template <bool reverse, bool exclusive, typename dataType>
 void MKLDNNCumSumNode::cumSum(const dataType *input, dataType *output, const VectorDims &strides) {
     SizeVector iterationRange(numOfDims - 1);
     size_t j = 0;
-    SizeVector shape = getParentEdgesAtPort(CUM_SUM_DATA)[0]->getMemory().getStaticDims();
+    const auto &shape = getParentEdgesAtPort(CUM_SUM_DATA)[0]->getMemory().getStaticDims();
     for (size_t i = 0; i < shape.size(); i++) {
         if (i == axis)
             continue;

@@ -12,9 +12,10 @@ using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
+using cumSumShape = std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>;
 using cumSumParams = std::tuple<
     ngraph::element::Type, // data precision
-    std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>, // input shape
+    cumSumShape, // input shape
     std::int64_t, // axis
     bool, // exclusive
     bool>; // reverse
@@ -89,9 +90,7 @@ const std::vector<int64_t> negativeAxes = { -1, -2, -3, -4, -5, -6 };
 const std::vector<bool> exclusive = { true, false };
 const std::vector<bool> reverse = { true, false };
 
-using shapesSuite = std::vector<std::pair<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>>>;
-
-shapesSuite inShapes = {
+const std::vector<cumSumShape> inShapes = {
     {
         // dynamic
         {
@@ -172,6 +171,16 @@ shapesSuite inShapes = {
             {{2, 4, 6, 5, 4, 3, 1}, {3, 5, 6, 6, 5, 3, 1}, {5, 7, 4, 6, 3, 7, 2}}
         }
     },
+    {
+        // dynamic
+        {
+            {{2, 5}, -1, {4, 8}, -1, -1, {3, 7}, -1}
+        },
+        // target
+        {
+            {{2, 4, 6, 5, 4, 3, 1}, {3, 5, 6, 6, 5, 3, 1}, {5, 7, 4, 6, 3, 7, 2}}
+        }
+    },
 };
 
 const auto testCasesAxis_0 = ::testing::Combine(
@@ -184,7 +193,7 @@ const auto testCasesAxis_0 = ::testing::Combine(
 
 const auto testCasesAxis_1 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(shapesSuite(inShapes.begin() + 1, inShapes.end())),
+    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 1, inShapes.end())),
     ::testing::Values(axes[1]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -192,7 +201,7 @@ const auto testCasesAxis_1 = ::testing::Combine(
 
 const auto testCasesAxis_2 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(shapesSuite(inShapes.begin() + 2, inShapes.end())),
+    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 2, inShapes.end())),
     ::testing::Values(axes[2]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -200,7 +209,7 @@ const auto testCasesAxis_2 = ::testing::Combine(
 
 const auto testCasesAxis_3 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(shapesSuite(inShapes.begin() + 3, inShapes.end())),
+    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 3, inShapes.end())),
     ::testing::Values(axes[3]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -208,7 +217,7 @@ const auto testCasesAxis_3 = ::testing::Combine(
 
 const auto testCasesAxis_4 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(shapesSuite(inShapes.begin() + 4, inShapes.end())),
+    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 4, inShapes.end())),
     ::testing::Values(axes[4]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -216,7 +225,7 @@ const auto testCasesAxis_4 = ::testing::Combine(
 
 const auto testCasesAxis_5 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(shapesSuite(inShapes.begin() + 5, inShapes.end())),
+    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 5, inShapes.end())),
     ::testing::Values(axes[5]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -224,7 +233,7 @@ const auto testCasesAxis_5 = ::testing::Combine(
 
 const auto testCasesAxis_6 = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(shapesSuite(inShapes.begin() + 6, inShapes.end())),
+    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 6, inShapes.end())),
     ::testing::Values(axes[6]),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
@@ -232,7 +241,7 @@ const auto testCasesAxis_6 = ::testing::Combine(
 
 const auto testCasesAxis_negative = ::testing::Combine(
     ::testing::ValuesIn(inputPrecision),
-    ::testing::ValuesIn(shapesSuite(inShapes.begin() + 6, inShapes.end())),
+    ::testing::ValuesIn(std::vector<cumSumShape>(inShapes.begin() + 6, inShapes.end())),
     ::testing::ValuesIn(negativeAxes),
     ::testing::ValuesIn(exclusive),
     ::testing::ValuesIn(reverse)
