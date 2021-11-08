@@ -64,12 +64,14 @@ std::vector<int64_t> get_interpolated_axes(const std::shared_ptr<opset8::Interpo
 }
 
 bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
-//    for (const auto& output : fst->outputs()) {
-//        for (const auto& consumer : output.get_target_inputs()) {
-//            if (consumer.get_node() != snd.get()) return false;
-//        }
-//    }
-//
+    // The first Interpolate (fst) must have only one consumer.
+    for (const auto& output : fst->outputs()) {
+        for (const auto& consumer : output.get_target_inputs()) {
+            if (consumer.get_node() != snd.get()) return false;
+        }
+    }
+    std::cout << "fst has only one consumer.\n";
+
     return compatible_attrs(fst->get_attrs(), snd->get_attrs()) && is_candidate_for_fusion(fst) && is_candidate_for_fusion(snd) &&
            compatible_axes(get_interpolated_axes(fst), get_interpolated_axes(snd));
 }
@@ -167,30 +169,17 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
     auto interpolate_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Interpolate>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        std::cout << "The transformation InterpolateSequenceFusion\n";
-        auto fst_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
-        if (!fst_interpolate) return false;
-        std::cout << "The first Interpolate was found.\n";
-
-        auto fst_interpolate_outputs = fst_interpolate->output(0).get_target_inputs();
-        if (fst_interpolate_outputs.size() != 1) return false;
-        std::cout << "This Interpolate has only one consumer\n";
-        const auto snd_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(fst_interpolate_outputs.begin()->get_node()->shared_from_this());
+        std::cout << "It is the transformation InterpolateSequenceFusion.\n";
+        auto snd_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
         if (!snd_interpolate) return false;
-//    for (const auto& output : fst->outputs()) {
-//        for (const auto& consumer : output.get_target_inputs()) {
-//            if (consumer.get_node() != snd.get()) return false;
-//        }
-//    }
+        std::cout << "Interpolate was found.\n";
 
-//        auto snd_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
-//        if (!snd_interpolate) return false;
-//
-//        auto fst_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
-//        if (!fst_interpolate) return false;
-        std::cout << "There is a subgraph Interpolate -> Interpolate\n";
+        auto fst_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(snd_interpolate->input_value(0).get_node_shared_ptr());
+        if (!fst_interpolate) return false;
+        std::cout << "The subgraph Interpolate -> Interpolate was found.\n";
 
-        if (!can_be_fused(snd_interpolate, snd_interpolate)) return false;
+        if (!can_be_fused(fst_interpolate, snd_interpolate)) return false;
+        std::cout << "Two Interpolates can be fused.\n";
 
         NodeVector new_subgraph;
         if (fst_interpolate->get_attrs().shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {

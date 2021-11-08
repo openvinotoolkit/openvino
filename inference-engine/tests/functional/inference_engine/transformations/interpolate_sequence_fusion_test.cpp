@@ -55,10 +55,12 @@ TEST_F(TransformationTestsF, InterpolateSequenceFusion4D1) {
         auto snd_sizes_node = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{sizes_vector[1].size()}, sizes_vector[1]);
         auto snd_scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{scales_vector[1].size()}, scales_vector[1]);
         auto snd_axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{axes_vector[1].size()}, axes_vector[1]);
-        auto snd_interpolate = std::make_shared<ngraph::opset8::Interpolate>(input, snd_sizes_node, snd_scales_node, snd_axis_node, attributes[1]);
+        auto snd_interpolate = std::make_shared<ngraph::opset8::Interpolate>(fst_interpolate, snd_sizes_node, snd_scales_node, snd_axis_node, attributes[1]);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ snd_interpolate }, ngraph::ParameterVector{ input });
+        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/before-fusing.svg");
         manager.register_pass<ngraph::pass::InterpolateSequenceFusion>();
+        // manager.register_pass<ngraph::pass::VisualizeTree>("/home/gavrilov-vs/after-fusing.svg");
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
