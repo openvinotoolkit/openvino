@@ -7,63 +7,20 @@
 #include <cstdint>
 #include <openvino/core/validation_util.hpp>
 #include <openvino/op/batch_to_space.hpp>
-#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset2.hpp>
 
-namespace ov {
-namespace op {
-namespace v1 {
+#include "utils.hpp"
 
 template <class T>
-void set_output_partial(const Rank& rank, T& output_shape) {
-    OPENVINO_UNREACHABLE("Shape Infer can't set partial shape");
-}
-
-template <>
-void set_output_partial<ov::PartialShape>(const Rank& rank, ov::PartialShape& output_shape) {
-    output_shape = ov::PartialShape::dynamic(rank);
-}
-
-template <class T>
-bool get_data_as_int64(size_t idx,
-                       const ov::Node* op,
-                       std::vector<int64_t>& data_vec,
-                       const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    if (constant_data.count(idx)) {
-        data_vec = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
-    } else {
-        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
-        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
-        data_vec = constant->cast_vector<int64_t>();
-    }
-    return true;
-}
-
-template <>
-bool get_data_as_int64<ov::PartialShape>(
-    size_t idx,
-    const ov::Node* op,
-    std::vector<int64_t>& data_vec,
-    const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
-    if (constant_data.count(idx)) {
-        data_vec = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
-    } else if (const auto& constant = ov::get_constant_from_source(op->input_value(idx))) {
-        data_vec = constant->cast_vector<int64_t>();
-    } else {
-        return false;
-    }
-    return true;
-}
-
-template <class T>
-void shape_infer(const BatchToSpace* op,
+void shape_infer(const ov::opset2::BatchToSpace* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
-    const ov::PartialShape& block_shape = input_shapes[1];
-    const ov::PartialShape& crops_begin_shape = input_shapes[2];
-    const ov::PartialShape& crops_end_shape = input_shapes[3];
+    const auto& block_shape = input_shapes[1];
+    const auto& crops_begin_shape = input_shapes[2];
+    const auto& crops_end_shape = input_shapes[3];
 
     auto inputs_same_ps = crops_begin_shape;
     NODE_VALIDATION_CHECK(op,
@@ -75,13 +32,13 @@ void shape_infer(const BatchToSpace* op,
                           " and ",
                           crops_end_shape);
 
-    const Rank inputs_rank_one = inputs_same_ps.rank();
+    const ov::Rank inputs_rank_one = inputs_same_ps.rank();
     NODE_VALIDATION_CHECK(op,
                           inputs_rank_one.compatible(1),
                           "block_shape and crops inputs must have rank 1. Got: ",
                           inputs_rank_one);
 
-    const Rank data_rank = data_shape.rank();
+    const ov::Rank data_rank = data_shape.rank();
     if (data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               (data_rank.get_length() >= 2),
@@ -148,10 +105,6 @@ void shape_infer(const BatchToSpace* op,
 
         output_shapes[0] = T{output_sshape};
     } else {
-        set_output_partial(data_rank, output_shapes[0]);
+        set_output_to_be_partial(data_rank, output_shapes[0]);
     }
 }
-
-}  // namespace v1
-}  // namespace op
-}  // namespace ov
