@@ -77,3 +77,8 @@ def no_outliers_estimator(base_estimator, x, alpha=0.01):
         x_ch = x_ch[(x_ch >= low_value[i]) & (x_ch <= high_value[i])]
         result[i] = base_estimator(x_ch)
     return result
+
+
+@aggregator.register()
+def power_of_2(x, eps=1e-5):
+    return np.array(2 ** np.ceil(np.log2(np.max(np.abs(x)) + eps)))
