@@ -383,12 +383,18 @@ class TensorIterator(Op):
             else:
                 in_rec_end = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
                 in_rec_start = 0
-            # in case of dynamic itreations count don't continue any calculations on this iteration
+
+            if check_field(in_rec, 'stride'):
+                in_rec_stride = in_rec['stride']
+            else:
+                in_rec_stride = 1
+
+            # in case of dynamic iterations count don't continue any calculations on this iteration
             if not is_fully_defined(in_rec_end) or not is_fully_defined(in_rec_start):
                 iterations_count = dynamic_dimension_value
                 continue
-            if (in_rec_end - in_rec_start) / in_rec['stride'] > iterations_count:
-                iterations_count = (in_rec_end - in_rec_start) / in_rec['stride']
+            if (in_rec_end - in_rec_start) / in_rec_stride > iterations_count:
+                iterations_count = (in_rec_end - in_rec_start) / in_rec_stride
 
         return iterations_count
 

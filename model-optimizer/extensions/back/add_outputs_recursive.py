@@ -13,7 +13,7 @@ from mo.ops.result import Result
 from mo.ops.unsqueeze import Unsqueeze
 
 
-def set_shape_to_port_for_internal_node(cycle_node, internal_id, port_num, iterations_count, axis, need_adjust_port=True):
+def ti_set_output_port_shape(cycle_node, internal_id, port_num, iterations_count, axis):
     int_node_name = TensorIterator.find_internal_layer_id(cycle_node.body, internal_id)
     int_node = Node(cycle_node.body, int_node_name)
     assert int_node.op == 'Result'
@@ -23,8 +23,7 @@ def set_shape_to_port_for_internal_node(cycle_node, internal_id, port_num, itera
     if axis is not None:
         out_shape[axis] = iterations_count
 
-    if need_adjust_port:
-        port_num = port_num - len(cycle_node.in_ports())
+    assert port_num in cycle_node.out_ports()
     cycle_node.out_port(port_num).data.set_shape(out_shape)
 
 
@@ -35,18 +34,21 @@ def ti_infer(step_node, port_num):
     port_num = port_num + len(step_node.in_ports())
     # find out which internal layer maps to port_num
     found_rec = None
-    for om in out_port_map:
-        if om['external_port_id'] == port_num:
-            found_rec = om
+    for record in out_port_map:
+        if record['external_port_id'] == port_num:
+            found_rec = record
             break
     assert found_rec is not None, \
         "External port {} is not connected with body in node {}".format(port_num,
                                                                         step_node.soft_get('name', step_node.id))
 
+    port_num = port_num - len(step_node.in_ports())
+
     # find out iterations count for TensorIterator to set output shape correctly
     iterations_count = TensorIterator.find_iterations_count_for_output(step_node, found_rec)
 
-    set_shape_to_port_for_internal_node(step_node, found_rec['internal_layer_id'], port_num, iterations_count, found_rec['axis'])
+    ti_set_output_port_shape(step_node, found_rec['internal_layer_id'], port_num, iterations_count,
+                             found_rec['axis'])
 
 
 # shape inference for Loop
@@ -56,11 +58,11 @@ def loop_infer(step_node, port_num):
     out_port_map = step_node.output_port_map
     int_layer_id = None
     iterations_count = Loop.iterations_count(step_node)
-    for om in out_port_map:
-        if om['external_port_id'] == port_num:
-            int_layer_id = om['internal_layer_id']
+    for record in out_port_map:
+        if record['external_port_id'] == port_num:
+            int_layer_id = record['internal_layer_id']
 
-    set_shape_to_port_for_internal_node(step_node, int_layer_id, port_num, iterations_count, 0, False)
+    ti_set_output_port_shape(step_node, int_layer_id, port_num, iterations_count, 0)
 
 
 def max_internal_layer_id(graph):
