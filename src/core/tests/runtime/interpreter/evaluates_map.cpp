@@ -2742,7 +2742,7 @@ bool evaluate_node(std::shared_ptr<Node> node, const HostTensorVector& outputs, 
     auto element_type = node->get_output_element_type(0);
     if (ov::is_type<op::v1::Select>(node)) {
         element_type = node->get_input_element_type(1);
-    } else if (ov::is_type<op::v0::PriorBox>(node)) {
+    } else if ((ov::is_type<op::v0::PriorBox>(node)) || (ov::is_type<op::v8::PriorBox>(node))) {
         element_type = node->get_input_element_type(0);
     }
 

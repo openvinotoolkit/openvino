@@ -8,8 +8,8 @@
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/prior_box.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -133,14 +133,14 @@ bool op::v0::PriorBox::visit_attributes(AttributeVisitor& visitor) {
 namespace prior_box {
 namespace {
 template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
+bool evaluate(const ov::runtime::Tensor& arg0,
+              const ov::runtime::Tensor& arg1,
+              const ov::runtime::Tensor& out,
               op::v0::PriorBox::Attributes attrs) {
-    runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
-                                  arg1->get_data_ptr<ET>(),
-                                  out->get_data_ptr<float>(),
-                                  out->get_shape(),
+    runtime::reference::prior_box(arg0.data<typename element_type_traits<ET>::value_type>(),
+                                  arg1.data<typename element_type_traits<ET>::value_type>(),
+                                  out.data<float>(),
+                                  out.get_shape(),
                                   attrs.min_size,
                                   attrs.max_size,
                                   attrs.aspect_ratio,
@@ -156,12 +156,12 @@ bool evaluate(const HostTensorPtr& arg0,
     return true;
 }
 
-bool evaluate_prior_box(const HostTensorPtr& arg0,
-                        const HostTensorPtr& arg1,
-                        const HostTensorPtr& out,
+bool evaluate_prior_box(const ov::runtime::Tensor& arg0,
+                        const ov::runtime::Tensor& arg1,
+                        const ov::runtime::Tensor& out,
                         const op::v0::PriorBox::Attributes& attrs) {
     bool rc = true;
-    switch (arg0->get_element_type()) {
+    switch (arg0.get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
         NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
         NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
@@ -179,7 +179,7 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
 }  // namespace
 }  // namespace prior_box
 
-bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v0::PriorBox::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_PriorBox_evaluate);
     return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
@@ -324,14 +324,14 @@ bool op::v8::PriorBox::visit_attributes(AttributeVisitor& visitor) {
 namespace prior_box_v8 {
 namespace {
 template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0,
-              const HostTensorPtr& arg1,
-              const HostTensorPtr& out,
+bool evaluate(const ov::runtime::Tensor& arg0,
+              const ov::runtime::Tensor& arg1,
+              const ov::runtime::Tensor& out,
               op::v8::PriorBox::Attributes attrs) {
-    runtime::reference::prior_box(arg0->get_data_ptr<ET>(),
-                                  arg1->get_data_ptr<ET>(),
-                                  out->get_data_ptr<float>(),
-                                  out->get_shape(),
+    runtime::reference::prior_box(arg0.data<typename element_type_traits<ET>::value_type>(),
+                                  arg1.data<typename element_type_traits<ET>::value_type>(),
+                                  out.data<float>(),
+                                  out.get_shape(),
                                   attrs.min_size,
                                   attrs.max_size,
                                   attrs.aspect_ratio,
@@ -348,12 +348,12 @@ bool evaluate(const HostTensorPtr& arg0,
     return true;
 }
 
-bool evaluate_prior_box(const HostTensorPtr& arg0,
-                        const HostTensorPtr& arg1,
-                        const HostTensorPtr& out,
+bool evaluate_prior_box(const ov::runtime::Tensor& arg0,
+                        const ov::runtime::Tensor& arg1,
+                        const ov::runtime::Tensor& out,
                         const op::v8::PriorBox::Attributes& attrs) {
     bool rc = true;
-    switch (arg0->get_element_type()) {
+    switch (arg0.get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
         NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
         NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
@@ -371,7 +371,7 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
 }  // namespace
 }  // namespace prior_box_v8
 
-bool op::v8::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool op::v8::PriorBox::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_PriorBox_evaluate);
     return prior_box_v8::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }
