@@ -36,6 +36,7 @@ OP_CONVERTER(expand_v2);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
 OP_CONVERTER(fill_constant);
+OP_CONVERTER(fill_zeros_like);
 OP_CONVERTER(flatten_contiguous_range);
 OP_CONVERTER(gelu);
 OP_CONVERTER(hard_sigmoid);
@@ -112,6 +113,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"fill_any_like", op::fill_any_like},
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
             {"fill_constant", op::fill_constant},
+            {"fill_zeros_like", op::fill_zeros_like},
             {"flatten_contiguous_range", op::flatten_contiguous_range},
             {"gelu", op::gelu},
             {"greater_equal", op::elementwise_greater_equal},
