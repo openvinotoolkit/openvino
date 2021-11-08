@@ -4,13 +4,18 @@
 @echo off
 setlocal enabledelayedexpansion
 
+set ROOT_DIR=%~dp0
+
 set TARGET=CPU
 set BUILD_FOLDER=%USERPROFILE%\Documents\Intel\OpenVINO
-set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_cpp_samples_build"
 
 :: command line arguments parsing
 :input_arguments_loop
 if not "%1"=="" (
+    if "%1"=="-b" (
+        set BUILD_FOLDER=%2
+        shift
+    )
     if "%1"=="-d" (
         set TARGET=%2
         echo target = !TARGET!
@@ -26,6 +31,7 @@ if not "%1"=="" (
         echo.
         echo Options:
         echo    -help                      Print help message
+        echo    -b BUILD_FOLDER            Specify the sample build directory
         echo    -d DEVICE                  Specify the target device to infer on; CPU, GPU, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
         echo    -sample-options OPTIONS    Specify command line arguments for the sample
         exit /b
@@ -34,7 +40,7 @@ if not "%1"=="" (
     goto :input_arguments_loop
 )
 
-set ROOT_DIR=%~dp0
+set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_cpp_samples_build"
 
 set TARGET_PRECISION=FP16
 
