@@ -101,5 +101,12 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("config") = py::dict());
 
+    cls.def(
+        "add_extension",
+        [](ov::runtime::Core& self, const std::string& library_path) {
+            return self.add_extension(library_path);
+        },
+        py::arg("library_path"));
+
     cls.def_property_readonly("available_devices", &ov::runtime::Core::get_available_devices);
 }
