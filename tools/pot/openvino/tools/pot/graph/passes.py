@@ -508,7 +508,7 @@ class RemoveFakeQuantize:
     @staticmethod
     def undo_renaming(graph, fq_node):
         if 'orig_fq_name' in fq_node:
-            node = ge.get_node_by_name(graph, '{fq_name}/pre_fq_input'.format(fq_name=fq_node.name))
+            node = ge.get_node_by_name(graph, '{fq_name}/pre_fq_input'.format(fq_name=fq_node.fullname))
             node.name = node['orig_node_name']
             fq_node.name = fq_node['orig_fq_name']
 

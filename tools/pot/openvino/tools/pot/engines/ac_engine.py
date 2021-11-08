@@ -132,9 +132,11 @@ class ACEngine(Engine):
             # If in the original model the subgraph had 1 output,
             # but after adding outputs in the subgraph, the number of output ports increased.
             # For such nodes, it is necessary to add a '.0' to the original output name
-            model_output_names = list(self._model.outputs.keys())
+            model_output_names = []
+            for model_dict in self._model:
+                model_output_names.extend(list(model_dict['model'].outputs.keys()))
             for original_out_name in nodes_name:
-                if original_out_name not in model_output_names:
+                if original_out_name not in model_output_names and (original_out_name, 0) not in stats_layout:
                     out_name_with_port = original_out_name + '.0'
                     assert out_name_with_port in model_output_names
                     update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
