@@ -2,19 +2,42 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "plugin_loader.hpp"
+#ifdef _WIN32
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <Windows.h>
+#    include <direct.h>
+#else  // _WIN32
+#    include <dirent.h>
+#    include <dlfcn.h>
+#    include <unistd.h>
+#endif  // _WIN32
+
+#include <sys/stat.h>
 
 #include <string>
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
-#include "openvino/util/shared_object.hpp"
+#include "plugin_loader.hpp"
 
 using namespace ov;
 using namespace ov::frontend;
 
+#ifdef WIN32
+#    define DLOPEN(file_str) LoadLibrary(TEXT(file_str.c_str()))
+#    define DLSYM(obj, func) GetProcAddress(obj, func)
+#    define DLCLOSE(obj)     FreeLibrary(obj)
+#else
+#    define DLOPEN(file_str) dlopen(file_str.c_str(), RTLD_LAZY)
+#    define DLSYM(obj, func) dlsym(obj, func)
+#    define DLCLOSE(obj)     dlclose(obj)
+#endif
+
 // TODO: change to std::filesystem for C++17
 static std::vector<std::string> list_files(const std::string& path) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
         ov::util::iterate_files(
@@ -44,18 +67,23 @@ static std::vector<std::string> list_files(const std::string& path) {
         // Ignore exceptions
     }
     return res;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) {
     auto files = list_files(dir_name);
     std::vector<PluginData> res;
     for (const auto& file : files) {
-        auto shared_object = ov::util::load_shared_object(file.c_str());
+        auto shared_object = DLOPEN(file);
         if (!shared_object) {
             continue;
         }
 
-        auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(shared_object, "GetAPIVersion"));
+        PluginHandle guard([shared_object, file]() {
+            DLCLOSE(shared_object);
+        });
+
+        auto info_addr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetAPIVersion"));
         if (!info_addr) {
             continue;
         }
@@ -66,14 +94,14 @@ std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) 
             continue;
         }
 
-        auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(shared_object, "GetFrontEndData"));
+        auto creator_addr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetFrontEndData"));
         if (!creator_addr) {
             continue;
         }
 
         std::unique_ptr<FrontEndPluginInfo> fact{reinterpret_cast<FrontEndPluginInfo*>(creator_addr())};
 
-        res.push_back(PluginData(shared_object, std::move(*fact)));
+        res.push_back(PluginData(std::move(guard), std::move(*fact)));
     }
     return res;
 }

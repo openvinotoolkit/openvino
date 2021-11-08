@@ -17,7 +17,7 @@ using namespace ov::frontend;
 
 //----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl {
-    std::vector<std::shared_ptr<void>> m_loaded_libs;  // must be a first class member (destroyed last)
+    std::vector<PluginHandle> m_loaded_libs;  // must be a first class member (destroyed last)
     std::map<std::string, FrontEndFactory> m_factories;
 
 public:
