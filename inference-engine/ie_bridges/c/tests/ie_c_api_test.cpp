@@ -324,6 +324,8 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     ie_core_free(&core);
 }
 
+#ifdef ENABLE_GNA
+// The following tests should be performed on CPU when it supports import/export
 TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -337,9 +339,9 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    const char* file_name = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(exe_network, file_name));
-    std::ifstream file(file_name);
+    std::string export_path = TestDataHelpers::generate_gna_model_path("exported_model.blob");
+    IE_EXPECT_OK(ie_core_export_network(exe_network, export_path.c_str()));
+    std::ifstream file(export_path.c_str());
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 
     EXPECT_NE(nullptr, exe_network);
@@ -393,12 +395,12 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    const char* exported_model = "exported_model.blob";
-    IE_EXPECT_OK(ie_core_export_network(exe_network, exported_model));
+    std::string exported_model = TestDataHelpers::generate_gna_model_path("exported_model.blob");
+    IE_EXPECT_OK(ie_core_export_network(exe_network, exported_model.c_str()));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 
-    IE_EXPECT_OK(ie_core_import_network(core, exported_model, "GNA", &conf2, &exe_network));
+    IE_EXPECT_OK(ie_core_import_network(core, exported_model.c_str(), "GNA", &conf2, &exe_network));
     EXPECT_NE(nullptr, exe_network);
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
@@ -435,6 +437,7 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
 
     ie_core_free(&core);
 }
+#endif
 
 TEST(ie_core_load_network, loadNetwork) {
     ie_core_t *core = nullptr;
