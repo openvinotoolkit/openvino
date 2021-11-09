@@ -210,9 +210,9 @@ private:
     }
 
     void roi_pool_bilinear(int c_blocks) {
-        uni_vmovq(xmm_yf, reg_yf);
+        movq(xmm_yf, reg_yf);
         uni_vbroadcastss(vmm_yf, xmm_yf);
-        uni_vmovq(xmm_xf, reg_xf);
+        movq(xmm_xf, reg_xf);
         uni_vbroadcastss(vmm_xf, xmm_xf);
 
         Vmm vmm_src00 = get_src_reg(0);

@@ -115,6 +115,17 @@ int XLink_sem_timedwait(XLink_sem_t* sem, const struct timespec* abstime)
     return ret;
 }
 
+int XLink_sem_trywait(XLink_sem_t* sem)
+{
+    XLINK_RET_ERR_IF(sem == NULL, -1);
+
+    XLINK_RET_IF_FAIL(XLink_sem_inc(sem));
+    int ret = sem_trywait(&sem->psem);
+    XLINK_RET_IF_FAIL(XLink_sem_dec(sem));
+
+    return ret;
+}
+
 int XLink_sem_set_refs(XLink_sem_t* sem, int refs)
 {
     XLINK_RET_ERR_IF(sem == NULL, -1);

@@ -48,7 +48,7 @@ struct CompilationConfig final {
     bool hwOptimization = true;
     bool hwExtraSplit = false;
 
-    std::string irWithVpuScalesDir;
+    std::string VPUScalesOption;
 
     std::string customLayers;
 

@@ -13,8 +13,6 @@
 	float: left;
 	margin: 20px 1% 35px 1%;
 	width: 32%;
-	
-	font-family: Intel Clear;
 	color: #fff;
 	text-align: center;
 }
@@ -49,7 +47,6 @@
 #GSG_nextstepchoice a h4 {
 	display: inline-block;
     height: 30px;	
-	font-family: Intel Clear;
     color: #0068B5;
     font-size: 1.1em;
     line-height: 2em;
@@ -66,7 +63,6 @@
 	
 }
 #GSG_nextstepchoice a p {
-	font-family: Intel Clear;
 	color: #0068B5;
 	text-align: left;
 	line-height:1.3em;

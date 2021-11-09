@@ -12,8 +12,10 @@
 #
 import os
 import sys
+import json
 import shutil
 from sphinx.util import logging
+from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
 
@@ -106,7 +108,14 @@ repositories = {
     }
 }
 
-doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+try:
+    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+    with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
+        doxygen_mapping_file = json.load(f)
+except JSONDecodeError:
+    doxygen_mapping_file = dict()
+except FileNotFoundError:
+    doxygen_mapping_file = dict()
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -128,6 +137,8 @@ ClassDocumenter.add_line = add_line_no_base_object
 
 def setup(app):
     logger = logging.getLogger(__name__)
+    app.add_config_value('doxygen_mapping_file', doxygen_mapping_file, rebuild=True)
+    app.add_config_value('repositories', repositories, rebuild=True)
     app.add_css_file('css/viewer.min.css')
     app.add_css_file('css/custom.css')
     app.add_js_file('js/viewer.min.js')

@@ -417,3 +417,59 @@ html .tab-set > label:hover {
 .download-docs .sst-btn::before {
     content: none;
 }
+
+/* Doc navigation mobile devices */
+
+#collapse-nav {
+    width: 100%;
+}
+
+#collapse-nav .fa-chevron-down {
+    position: absolute;
+    right: 15%;
+}
+
+#collapse-nav[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate( 180deg);
+}
+
+@media (min-width: 720px) {
+    #collapse-nav {
+        display: none;
+    }
+    #collapse-nav-wrapper {
+        display: none;
+    }
+    #nav-tree:not(.show) {
+        display: block;
+    }
+}
+
+@media (max-width: 720px) {
+    #nav-tree {
+        position: sticky;
+        top:92px;
+        z-index: 1000;
+        background: #fff;
+        max-height: 300px;
+        overflow-y: auto;
+        border-bottom:1px solid var(--bttn-prm-color);
+    }
+
+    #nav-tree {
+        display: none;
+    }
+
+    #nav-tree.show {
+        display: block;
+    }
+
+    .bd-sidebar .nav .active > a,
+    .bd-sidebar .nav .active > a:hover {
+        background: #76c3ff;
+    }
+
+    #collapse-nav {
+        display: block;
+    }
+}
