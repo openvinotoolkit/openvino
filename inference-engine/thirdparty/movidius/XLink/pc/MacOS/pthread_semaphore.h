@@ -36,6 +36,7 @@ int sem_init(sem_t *psem, int pshared, unsigned int value);
 int sem_destroy(sem_t *psem);
 int sem_post(sem_t *psem);
 int sem_wait(sem_t *psem);
+int sem_trywait(sem_t *psem);
 int sem_timedwait(sem_t *psem, const struct timespec *abstime);
 
 #  ifdef __cplusplus
