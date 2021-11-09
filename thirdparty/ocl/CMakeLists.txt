@@ -43,6 +43,8 @@ set(CMAKE_C_FLAGS "")
 set(CMAKE_CXX_FLAGS "")
 set(CMAKE_C_FLAGS_RELEASE "")
 set(CMAKE_CXX_FLAGS_RELEASE "")
+# OpenCL has absolute paths to include directories
+set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
 
 add_subdirectory(icd_loader)
 
@@ -58,3 +60,5 @@ get_lib_path("${OUTPUT_ROOT}/${BIN_FOLDER}" OPENCL_LIB_DIR)
 get_lib_name("OpenCL" OPENCL_LIB_NAME)
 
 set(OpenCL_LIBRARY "${OPENCL_LIB_DIR}/${OPENCL_LIB_NAME}" CACHE PATH "" FORCE)
+
+ov_install_static_lib(OpenCL gpu)
