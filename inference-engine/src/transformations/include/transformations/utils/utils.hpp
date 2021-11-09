@@ -122,7 +122,7 @@ TRANSFORMATIONS_API bool check_for_broadcast(const ngraph::Shape &ref_shape, con
 TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> activation(const std::string& activation_name,
                                                              const ngraph::Output<ngraph::Node>& apply_to);
 
-TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len);
+TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<const Node> &seq_len_input, int64_t max_seq_len);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
 

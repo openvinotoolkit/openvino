@@ -22,7 +22,7 @@ std::map<std::string, OutputVector> PDPDFrameworkNode::get_named_inputs() const 
     return m_decoder.map_for_each_input([&](const std::string& name, size_t) {
         auto it = std::find(m_inputs_names.begin(), m_inputs_names.end(), name);
         if (it != m_inputs_names.end()) {
-            return input(it - m_inputs_names.begin()).get_source_output();
+            return const_cast<PDPDFrameworkNode*>(this)->input(it - m_inputs_names.begin()).get_source_output();
         } else {
             return Output<Node>();
         }

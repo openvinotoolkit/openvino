@@ -17,7 +17,7 @@ class StaticShapeNonMaxSuppression : public ngraph::op::NonMaxSuppressionIE3 {
 public:
     OPENVINO_OP("StaticShapeNonMaxSuppression", "VPUOpset", ngraph::op::NonMaxSuppressionIE3);
 
-    explicit StaticShapeNonMaxSuppression(const ngraph::opset5::NonMaxSuppression& nms);
+    explicit StaticShapeNonMaxSuppression(ngraph::opset5::NonMaxSuppression& nms);
 
     StaticShapeNonMaxSuppression(const Output<Node>& boxes,
                                  const Output<Node>& scores,

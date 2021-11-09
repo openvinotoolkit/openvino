@@ -79,7 +79,7 @@ private:
         return std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(inDataParam, inDataDimsParam);
     }
 
-    static std::shared_ptr<ngraph::Function> generateFunction(std::shared_ptr<ngraph::op::Op> result, const ngraph::op::Op& input, const std::string& name) {
+    static std::shared_ptr<ngraph::Function> generateFunction(std::shared_ptr<ngraph::op::Op> result, ngraph::op::Op& input, const std::string& name) {
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{std::move(result)},
             ngraph::ParameterVector{

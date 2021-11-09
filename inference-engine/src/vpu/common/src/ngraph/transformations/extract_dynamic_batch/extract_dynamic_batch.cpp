@@ -111,7 +111,7 @@ void getLeavesLCA(ngraph::Node* source, ngraph::Node*& lca, Nodes& nodes, const 
     Nodes prevNodes;
     bfs(
         source,
-        [getNextBackward, &allBackward, &prevNodes](const ngraph::Node* current) {
+        [getNextBackward, &allBackward, &prevNodes](ngraph::Node* current) {
             prevNodes = getNextBackward(current);
             for (auto it = prevNodes.begin(); it != prevNodes.end();) {
                 it = allBackward.count(*it) ? prevNodes.erase(it) : std::next(it);
@@ -131,7 +131,7 @@ void getLeavesLCA(ngraph::Node* source, ngraph::Node*& lca, Nodes& nodes, const 
             }
             return true;
         },
-        [getNextForward](std::deque<ngraph::Node*>& deque, const ngraph::Node* current) {
+        [getNextForward](std::deque<ngraph::Node*>& deque, ngraph::Node* current) {
             const auto& nextNodes = getNextForward(current);
             std::copy(nextNodes.cbegin(), nextNodes.cend(), std::back_inserter(deque));
         });
@@ -245,7 +245,7 @@ std::shared_ptr<ngraph::opset5::Loop> makeLoop(ngraph::Node* root, ngraph::Node*
             }
         }
     };
-    const auto clone = [getInput](const ngraph::Node* source) {
+    const auto clone = [getInput](ngraph::Node* source) {
         std::vector<ngraph::Output<ngraph::Node>> newInputs;
         newInputs.reserve(source->get_input_size());
         const auto& currentInputs = source->input_values();
@@ -287,10 +287,10 @@ std::shared_ptr<ngraph::opset5::Loop> makeLoop(ngraph::Node* root, ngraph::Node*
     std::shared_ptr<ngraph::Node> bodyNode;
     bfs(
         root,
-        [getNextTop](const ngraph::Node* current) {
+        [getNextTop](ngraph::Node* current) {
             return getNextTop(current).size();
         },
-        [leaf, clone, &bodyNode](const ngraph::Node* current) {
+        [leaf, clone, &bodyNode](ngraph::Node* current) {
             bodyNode = clone(current);
             return current != leaf;
         },
@@ -417,7 +417,7 @@ bool ExtractBatch::run_on_function(std::shared_ptr<ngraph::Function> functionPoi
         }
     }
 
-    auto getNextTop = [](const ngraph::Node* node) {
+    auto getNextTop = [](ngraph::Node* node) {
         Nodes nextNodes;
         for (std::size_t i = 0; i < node->get_input_size(); ++i) {
             const auto next = node->get_input_source_output(i).get_node();
@@ -429,7 +429,7 @@ bool ExtractBatch::run_on_function(std::shared_ptr<ngraph::Function> functionPoi
         return nextNodes;
     };
 
-    auto getNextBottom = [](const ngraph::Node* node) {
+    auto getNextBottom = [](ngraph::Node* node) {
         Nodes nextNodes;
         for (std::size_t i = 0; i < node->get_output_size(); ++i) {
             const auto consumers = node->get_output_target_inputs(i);

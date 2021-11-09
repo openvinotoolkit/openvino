@@ -13,7 +13,7 @@ inline bool get_data_as_int64(
     if (constant_data.count(idx)) {
         axes_value = ov::opset1::Constant(constant_data.at(idx)).cast_vector<int64_t>();
     } else {
-        const auto& constant = ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
+        const auto& constant = ov::as_type_ptr<const ov::opset1::Constant>(op->get_input_node_shared_ptr(idx));
         NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
         axes_value = constant->cast_vector<int64_t>();
     }

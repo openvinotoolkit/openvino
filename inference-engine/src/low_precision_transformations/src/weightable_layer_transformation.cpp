@@ -232,17 +232,17 @@ bool WeightableLayerTransformation::isQuantizedStatic(const std::shared_ptr<cons
         }
 
         if (ov::is_type<opset1::FakeQuantize>(reshape->get_input_node_shared_ptr(0))) {
-            const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(reshape->get_input_node_shared_ptr(0));
+            const std::shared_ptr<const opset1::FakeQuantize> fq = ov::as_type_ptr<const opset1::FakeQuantize>(reshape->get_input_node_shared_ptr(0));
             return NetworkHelper::isQuantizeSupported(fq);
         }
 
         dequantizationOnWeights = NetworkHelper::getDequantization(reshape, 0);
     } else if (ov::is_type<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1))) {
-        const std::shared_ptr<opset1::FakeQuantize> fq = ov::as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
+        const std::shared_ptr<const opset1::FakeQuantize> fq = ov::as_type_ptr<const opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
         return NetworkHelper::isQuantizeSupported(fq);
     } else {
         // TODO: update NetworkHelper API later
-        const std::shared_ptr<ngraph::Node> op = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
+        const std::shared_ptr<ngraph::Node> op = std::const_pointer_cast<ngraph::Node>(layer);
         dequantizationOnWeights = NetworkHelper::getDequantization(op, 1);
     }
 

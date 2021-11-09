@@ -30,13 +30,13 @@ bool MKLDNNSplitNode::isSupportedOperation(const std::shared_ptr<const ngraph::N
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
             return false;
         }
-        auto axisOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+        auto axisOp = ngraph::as_type_ptr<const ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (!axisOp) {
             errorMessage = "Constant expected as the axis input.";
             return false;
         }
         if (op->get_input_size() > 2) {
-            auto splitLengthsOp = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto splitLengthsOp = ngraph::as_type_ptr<const ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!splitLengthsOp) {
                 errorMessage = "Constant expected as the split_lengths input.";
                 return false;

@@ -1289,7 +1289,7 @@ bool NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(const std::shar
     return false;
 }
 
-bool NetworkHelper::isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+bool NetworkHelper::isQuantizeSupported(const std::shared_ptr<const opset1::FakeQuantize>& fakeQuantize) {
     return QuantizationDetails::outputLayoutIsSupported(fakeQuantize) && QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels());
 }
 
@@ -1310,7 +1310,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
         return 1ul;
     };
 
-    Output<Node> dataNode = inPlace ? std::const_pointer_cast<Node>(node)->output(0) : node->input_value(parentIndex);
+    Output<Node> dataNode = inPlace ? std::const_pointer_cast<Node>(node)->output(0) : std::const_pointer_cast<Node>(node)->input_value(parentIndex);
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = ov::as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr());
     std::shared_ptr<opset1::Constant> multiplyConstant;

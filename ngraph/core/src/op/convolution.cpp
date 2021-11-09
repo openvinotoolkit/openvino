@@ -152,7 +152,8 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
 bool op::v1::ConvolutionBackpropData::is_dynamic() const {
     bool is_dynamic = Node::is_dynamic();
     if (inputs().size() == 3 && !is_dynamic) {
-        return !has_and_set_equal_bounds(input_value(2));
+        Output<Node> input(const_cast<Node*>(input_value(2).get_node()), input_value(2).get_index());
+        return !has_and_set_equal_bounds(input);
     }
     return is_dynamic;
 }

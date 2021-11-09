@@ -94,7 +94,7 @@ public:
     /// \return The partial shape of the input referred to by this input handle.
     const PartialShape& get_partial_shape() const;
     /// \return A handle to the output that is connected to this input.
-    Output<Node> get_source_output() const;
+    Output<const Node> get_source_output() const;
     /// \return A reference to the tensor descriptor for this input.
     descriptor::Tensor& get_tensor() const;
     /// \return A shared pointer to the tensor descriptor for this input.

@@ -616,7 +616,7 @@ bool MKLDNNMVNNode::isSupportedOperation(const std::shared_ptr<const ngraph::Nod
         }
 
         if (auto mvnOp = ngraph::as_type_ptr<const ngraph::op::v6::MVN>(op)) {
-            auto axesOp = ngraph::as_type_ptr<ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
+            auto axesOp = ngraph::as_type_ptr<const ngraph::op::Constant>(mvnOp->get_input_node_shared_ptr(1));
             if (!axesOp) {
                 errorMessage = "Constant expected as the second input.";
                 return false;

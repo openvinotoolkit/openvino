@@ -303,7 +303,7 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
 }
 
 op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
-    other.clone_to(*this, other.input_values());
+    other.clone_to(*this, const_cast<op::v5::Loop&>(other).input_values());
 }
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

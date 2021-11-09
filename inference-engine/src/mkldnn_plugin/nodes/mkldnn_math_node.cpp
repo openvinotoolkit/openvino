@@ -26,8 +26,8 @@ bool MKLDNNMathNode::isSupportedOperation(const std::shared_ptr<const ngraph::No
         }
 
         if (MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v0::HardSigmoid::get_type_info_static(), ngraph::op::v0::Selu::get_type_info_static())) {
-            auto firstConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-            auto secondConst = ngraph::as_type_ptr<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
+            auto firstConst = ngraph::as_type_ptr<const ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(1));
+            auto secondConst = ngraph::as_type_ptr<const ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
             if (!firstConst || !secondConst) {
                 errorMessage = "Constant expected as the second and third inputs.";
                 return false;

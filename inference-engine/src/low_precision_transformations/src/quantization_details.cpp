@@ -48,11 +48,11 @@ QuantizationDetails::QuantizationDetails(const size_t levels, const std::vector<
       outputLowValues(outputLowValues),
       outputHighValues(outputHighValues) {}
 
-bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize) {
-    return ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(1)) &&
-        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(2)) &&
-        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(3)) &&
-        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(4));
+bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<const opset1::FakeQuantize> quantize) {
+    return ov::is_type<const opset1::Constant>(quantize->get_input_node_ptr(1)) &&
+        ov::is_type<const opset1::Constant>(quantize->get_input_node_ptr(2)) &&
+        ov::is_type<const opset1::Constant>(quantize->get_input_node_ptr(3)) &&
+        ov::is_type<const opset1::Constant>(quantize->get_input_node_ptr(4));
 }
 
 void QuantizationDetails::getInputIntervals(

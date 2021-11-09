@@ -53,14 +53,14 @@ TEST(node_input_output, input_create_const) {
     EXPECT_EQ(add_in_0.get_element_type(), element::f32);
     EXPECT_EQ(add_in_0.get_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_in_0.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
-    EXPECT_EQ(add_in_0.get_source_output(), Output<Node>(x, 0));
+    EXPECT_EQ(add_in_0.get_source_output(), Output<const Node>(x, 0));
 
     EXPECT_EQ(add_in_1.get_node(), add.get());
     EXPECT_EQ(add_in_1.get_index(), 1);
     EXPECT_EQ(add_in_1.get_element_type(), element::f32);
     EXPECT_EQ(add_in_1.get_shape(), (Shape{1, 2, 3, 4}));
     EXPECT_TRUE(add_in_1.get_partial_shape().same_scheme(PartialShape{1, 2, 3, 4}));
-    EXPECT_EQ(add_in_1.get_source_output(), Output<Node>(y, 0));
+    EXPECT_EQ(add_in_1.get_source_output(), Output<const Node>(y, 0));
 
     EXPECT_THROW(add->input(2), std::out_of_range);
 }

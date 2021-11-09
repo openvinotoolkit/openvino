@@ -125,4 +125,8 @@ OPENVINO_API bool evaluate_as_partial_shape(const Output<Node>& output, PartialS
 /// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
 /// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
 OPENVINO_API std::shared_ptr<op::v0::Constant> get_constant_from_source(const Output<Node>& source);
+
+/// \brief Runs an estimation of source tensor. If it succeeded to calculate both bounds and
+/// they are the same returns Constant operation from the resulting bound, otherwise nullptr.
+OPENVINO_API std::shared_ptr<const op::v0::Constant> get_constant_from_source(const Output<const Node>& source);
 }  // namespace ov

@@ -1374,7 +1374,7 @@ bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<const ngraph::
             errorMessage = "Doesn't support Reduce algorithm: " +  std::string(op->get_type_info().name);
             return false;
         }
-        if (std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
+        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }

@@ -26,7 +26,7 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg, const Outp
     : ReductionBase(arg, reduction_axes) {}
 
 bool op::util::LogicalReduction::reduction_axes_constant() const {
-    return ngraph::has_and_set_equal_bounds(input_value(1));
+    return ngraph::has_and_set_equal_bounds(const_cast<op::util::LogicalReduction*>(this)->input_value(1));
 }
 
 const AxisSet op::util::LogicalReduction::get_reduction_axes() const {

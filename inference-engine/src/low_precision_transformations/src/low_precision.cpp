@@ -271,7 +271,7 @@ bool ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(const std::s
                 continue;
             }
 
-            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
+            const std::shared_ptr<const ngraph::opset1::FakeQuantize> fakeQuantize = ov::as_type_ptr<const ngraph::opset1::FakeQuantize>(parent);
             if ((fakeQuantize != nullptr) &&
                 QuantizationDetails::outputLayoutIsSupported(fakeQuantize) &&
                 QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {

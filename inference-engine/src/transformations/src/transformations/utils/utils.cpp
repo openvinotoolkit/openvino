@@ -121,8 +121,8 @@ std::shared_ptr<ngraph::Node> activation(const std::string& activation_name, con
     }
 }
 
-bool is_seq_len_provided(const std::shared_ptr<Node> &seq_len_input, int64_t max_seq_len) {
-    if (const auto &seq_len_const = std::dynamic_pointer_cast<ngraph::op::Constant>(seq_len_input)) {
+bool is_seq_len_provided(const std::shared_ptr<const Node> &seq_len_input, int64_t max_seq_len) {
+    if (const auto &seq_len_const = std::dynamic_pointer_cast<const ngraph::op::Constant>(seq_len_input)) {
         const auto &seq_len_values = seq_len_const->cast_vector<int64_t>();
         return std::any_of(seq_len_values.begin(), seq_len_values.end(), [max_seq_len](const int64_t val) {
             return val != max_seq_len;

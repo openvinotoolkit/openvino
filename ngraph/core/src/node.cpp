@@ -87,7 +87,7 @@ ov::Node::~Node() {
 }
 
 std::shared_ptr<ov::Node> ov::Node::copy_with_new_inputs(const OutputVector& inputs) const {
-    return copy_with_new_inputs(inputs, get_control_dependencies());
+    return copy_with_new_inputs(inputs, const_cast<ov::Node*>(this)->get_control_dependencies());
 }
 
 ov::Output<const ov::Node> ov::Node::get_default_output() const {
@@ -247,26 +247,58 @@ void ov::Node::set_friendly_name(const string& name) {
     m_friendly_name = name;
 }
 
-ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
+ov::Node* ov::Node::get_input_node_ptr(size_t index) {
     NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
     return m_inputs[index].get_output().get_node().get();
 }
 
-std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
+const ov::Node* ov::Node::get_input_node_ptr(size_t index) const {
+    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+    return m_inputs[index].get_output().get_node().get();
+}
+
+std::shared_ptr<ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) {
     NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
     return m_inputs[index].get_output().get_node();
 }
 
-ov::Output<ov::Node> ov::Node::get_input_source_output(size_t i) const {
+std::shared_ptr<const ov::Node> ov::Node::get_input_node_shared_ptr(size_t index) const {
+    NGRAPH_CHECK(index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
+    return m_inputs[index].get_output().get_node();
+}
+
+ov::Output<ov::Node> ov::Node::get_input_source_output(size_t i) {
     return input(i).get_source_output();
 }
 
-const std::vector<std::shared_ptr<ov::Node>>& ov::Node::get_control_dependencies() const {
+ov::Output<const ov::Node> ov::Node::get_input_source_output(size_t i) const {
+    return input(i).get_source_output();
+}
+
+const std::vector<std::shared_ptr<ov::Node>>& ov::Node::get_control_dependencies() {
     return m_control_dependencies;
 }
 
-const std::vector<ov::Node*>& ov::Node::get_control_dependents() const {
+const std::vector<std::shared_ptr<const ov::Node>> ov::Node::get_control_dependencies() const {
+    ConstNodeVector nodes;
+    nodes.reserve(m_control_dependencies.size());
+    for (const auto& node : m_control_dependencies) {
+        nodes.emplace_back(node);
+    }
+    return nodes;
+}
+
+const std::vector<ov::Node*>& ov::Node::get_control_dependents() {
     return m_control_dependents;
+}
+
+const std::vector<const ov::Node*> ov::Node::get_control_dependents() const {
+    std::vector<const ov::Node*> nodes;
+    nodes.reserve(m_control_dependencies.size());
+    for (const auto& node : m_control_dependencies) {
+        nodes.emplace_back(node.get());
+    }
+    return nodes;
 }
 
 void ov::Node::add_control_dependency(std::shared_ptr<Node> node) {
@@ -393,8 +425,18 @@ const ov::Shape& ov::Node::get_shape() const {
     return get_output_shape(0);
 }
 
-std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) const {
+std::set<ov::Input<ov::Node>> ov::Node::get_output_target_inputs(size_t i) {
     std::set<Input<Node>> result;
+
+    for (auto& input : m_outputs.at(i).get_inputs()) {
+        result.emplace(input->get_raw_pointer_node(), input->get_index());
+    }
+
+    return result;
+}
+
+std::set<ov::Input<const ov::Node>> ov::Node::get_output_target_inputs(size_t i) const {
+    std::set<Input<const Node>> result;
 
     for (auto& input : m_outputs.at(i).get_inputs()) {
         result.emplace(input->get_raw_pointer_node(), input->get_index());
@@ -458,7 +500,20 @@ bool ov::Node::has_same_type(std::shared_ptr<const Node> node) const {
     return true;
 }
 
-ov::NodeVector ov::Node::get_users(bool check_is_used) const {
+ov::ConstNodeVector ov::Node::get_users(bool check_is_used) const {
+    ConstNodeVector result;
+    for (const auto& output : outputs()) {
+        for (auto input : output.get_target_inputs()) {
+            const Node* input_node = input.get_node();
+            if (!check_is_used || ngraph::is_used(input_node)) {
+                result.push_back(input_node->shared_from_this());
+            }
+        }
+    }
+    return result;
+}
+
+ov::NodeVector ov::Node::get_users(bool check_is_used) {
     NodeVector result;
     for (const auto& output : outputs()) {
         for (auto input : output.get_target_inputs()) {
@@ -539,7 +594,11 @@ ov::Input<ov::Node> ov::Node::input(size_t input_index) {
     return {this, input_index};
 }
 
-ov::Output<ov::Node> ov::Node::input_value(size_t input_index) const {
+ov::Output<ov::Node> ov::Node::input_value(size_t input_index) {
+    return input(input_index).get_source_output();
+}
+
+ov::Output<const ov::Node> ov::Node::input_value(size_t input_index) const {
     return input(input_index).get_source_output();
 }
 
@@ -579,8 +638,18 @@ vector<ov::Input<ov::Node>> ov::Node::inputs() {
     return result;
 }
 
-vector<ov::Output<ov::Node>> ov::Node::input_values() const {
+vector<ov::Output<ov::Node>> ov::Node::input_values() {
     vector<Output<Node>> result;
+
+    for (size_t i = 0; i < get_input_size(); i++) {
+        result.emplace_back(input(i).get_source_output());
+    }
+
+    return result;
+}
+
+vector<ov::Output<const ov::Node>> ov::Node::input_values() const {
+    vector<Output<const Node>> result;
 
     for (size_t i = 0; i < get_input_size(); i++) {
         result.emplace_back(input(i).get_source_output());
@@ -736,7 +805,7 @@ OPENVINO_SUPPRESS_DEPRECATED_START
 
 bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
-    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<const Node>& output) {
         return !output.get_tensor().has_and_set_bound();
     });
     if (dyn_inputs)
@@ -746,7 +815,7 @@ bool ov::Node::evaluate_lower(const HostTensorVector& output_values) const {
 
 bool ov::Node::evaluate_upper(const HostTensorVector& output_values) const {
     const auto& inputs = input_values();
-    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<const Node>& output) {
         return !output.get_tensor().has_and_set_bound();
     });
     if (dyn_inputs)

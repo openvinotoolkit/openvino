@@ -237,6 +237,7 @@ public:
     ///
     /// \return A vector of nodes comprising the sub-graph. The order of output
     ///         tensors must match the match output tensors of the FusedOp
+    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon")
     virtual OutputVector decompose_op() const {
         return OutputVector();
     }
@@ -294,10 +295,12 @@ public:
     virtual std::ostream& write_description(std::ostream& os, uint32_t depth = 0) const;
 
     /// Get control dependencies registered on the node
-    const std::vector<std::shared_ptr<Node>>& get_control_dependencies() const;
+    const std::vector<std::shared_ptr<Node>>& get_control_dependencies();
+    const std::vector<std::shared_ptr<const Node>> get_control_dependencies() const;
 
     /// Get nodes dependent on this node
-    const std::vector<Node*>& get_control_dependents() const;
+    const std::vector<Node*>& get_control_dependents();
+    const std::vector<const Node*> get_control_dependents() const;
 
     /// This node cannot execute until node executes
     void add_control_dependency(std::shared_ptr<Node> node);
@@ -362,7 +365,8 @@ public:
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
     const std::string& get_output_tensor_name(size_t i) const;
 
-    std::set<Input<Node>> get_output_target_inputs(size_t i) const;
+    std::set<Input<Node>> get_output_target_inputs(size_t i);
+    std::set<Input<const Node>> get_output_target_inputs(size_t i) const;
 
     /// Returns the number of inputs for the op
     size_t get_input_size() const;
@@ -383,12 +387,12 @@ public:
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
     const std::string& get_input_tensor_name(size_t i) const;
 
-    std::unordered_set<descriptor::Tensor*> liveness_new_list;
-    std::unordered_set<descriptor::Tensor*> liveness_free_list;
-
-    Node* get_input_node_ptr(size_t index) const;
-    std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
-    Output<Node> get_input_source_output(size_t i) const;
+    Node* get_input_node_ptr(size_t index);
+    const Node* get_input_node_ptr(size_t index) const;
+    std::shared_ptr<Node> get_input_node_shared_ptr(size_t index);
+    std::shared_ptr<const Node> get_input_node_shared_ptr(size_t index) const;
+    Output<Node> get_input_source_output(size_t i);
+    Output<const Node> get_input_source_output(size_t i) const;
 
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
@@ -410,7 +414,8 @@ public:
     }
 
     /// Get all the nodes that uses the current node
-    NodeVector get_users(bool check_is_used = false) const;
+    NodeVector get_users(bool check_is_used = false);
+    ConstNodeVector get_users(bool check_is_used = false) const;
 
     /// \return Version of this node
     virtual size_t get_version() const {
@@ -433,10 +438,10 @@ public:
     std::vector<Input<const Node>> inputs() const;
 
     /// \return A vector containing the values for each input
-    std::vector<Output<Node>> input_values() const;
+    std::vector<Output<Node>> input_values();
+    std::vector<Output<const Node>> input_values() const;
 
     /// \return A vector containing a handle for each of this node's outputs, in order.
-    // TODO: Rename to get_outputs()?
     std::vector<Output<Node>> outputs();
 
     /// \return A vector containing a handle for each of this node's outputs, in order.
@@ -450,7 +455,8 @@ public:
     /// \throw std::out_of_range if the node does not have at least `input_index+1` inputs.
     Input<const Node> input(size_t input_index) const;
 
-    Output<Node> input_value(size_t input_index) const;
+    Output<Node> input_value(size_t input_index);
+    Output<const Node> input_value(size_t input_index) const;
 
     /// \return A handle to the `output_index`th output of this node.
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.

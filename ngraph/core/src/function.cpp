@@ -441,8 +441,9 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
             pos++;
         }
     } else {
+        Output<const Node> const_value(value.get_node(), value.get_index());
         for (auto r : get_results()) {
-            if (r->input_value(0) == value) {
+            if (r->input_value(0) == const_value) {
                 return pos;
             }
             pos++;

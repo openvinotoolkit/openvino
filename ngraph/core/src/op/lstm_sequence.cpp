@@ -170,7 +170,7 @@ shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
 
     Output<Node> batch_seq_length =
         builder::opset1::legacy_broadcast_for_binary_operation(curr_time_step_node,
-                                                               input_value(3).get_node_shared_ptr(),
+                                                               std::const_pointer_cast<ov::Node>(input_value(3).get_node_shared_ptr()),
                                                                batch_axis);
 
     // Create mask node deciding whether or not to mask batch data.
@@ -202,15 +202,16 @@ OutputVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const {
     // C_t     - Cell state vector at current time step. [batch_size, num_directions, hidden_size]
     // h_list  - The list of hidden states at all processed time steps.
 
+    auto nonconst_this = const_cast<op::v0::LSTMSequence*>(this);
     NodeVector h_list;
-    shared_ptr<Node> X = input_value(0).get_node_shared_ptr();
-    shared_ptr<Node> H_t = prepare_input(input_value(1), is_reverse, 1);
-    shared_ptr<Node> C_t = prepare_input(input_value(2), is_reverse, 1);
-    shared_ptr<Node> seq_lengths = input_value(3).get_node_shared_ptr();
-    shared_ptr<Node> W = prepare_input(input_value(4), is_reverse);
-    shared_ptr<Node> R = prepare_input(input_value(5), is_reverse);
-    shared_ptr<Node> B = prepare_input(input_value(6), is_reverse);
-    shared_ptr<Node> P = prepare_input(input_value(7), is_reverse);
+    shared_ptr<Node> X = nonconst_this->input_value(0).get_node_shared_ptr();
+    shared_ptr<Node> H_t = prepare_input(nonconst_this->input_value(1), is_reverse, 1);
+    shared_ptr<Node> C_t = prepare_input(nonconst_this->input_value(2), is_reverse, 1);
+    shared_ptr<Node> seq_lengths = nonconst_this->input_value(3).get_node_shared_ptr();
+    shared_ptr<Node> W = prepare_input(nonconst_this->input_value(4), is_reverse);
+    shared_ptr<Node> R = prepare_input(nonconst_this->input_value(5), is_reverse);
+    shared_ptr<Node> B = prepare_input(nonconst_this->input_value(6), is_reverse);
+    shared_ptr<Node> P = prepare_input(nonconst_this->input_value(7), is_reverse);
 
     if (is_reverse) {
         X = make_shared<opset1::ReverseSequence>(X, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);

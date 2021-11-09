@@ -1392,9 +1392,10 @@ HostTensorPtr or_tensor(const HostTensorPtr& lhs, const HostTensorPtr& rhs) {
 
 }  // namespace
 
-bool ngraph::interval_bound_evaluator(const Node* node,
+bool ngraph::interval_bound_evaluator(const Node* const_node,
                                       const HostTensorVector& lower_output_values,
                                       const HostTensorVector& upper_output_values) {
+    auto node = const_cast<Node*>(const_node);
     // TODO: relax for n inputs ?
     NGRAPH_CHECK(lower_output_values.size() == upper_output_values.size());
     NGRAPH_CHECK(node->get_input_size() == 2);
@@ -1528,6 +1529,15 @@ shared_ptr<op::Constant> ov::get_constant_from_source(const Output<Node>& source
     if (const auto& c = ov::as_type_ptr<op::v0::Constant>(source.get_node_shared_ptr()))
         return c;
     return std::make_shared<op::v0::Constant>(source.get_tensor().get_upper_value());
+}
+
+shared_ptr<const op::Constant> ov::get_constant_from_source(const Output<const Node>& source) {
+    Output<Node> out(const_cast<ov::Node*>(source.get_node()), source.get_index());
+    if (!has_and_set_equal_bounds(out))
+        return nullptr;
+    if (const auto& c = ov::as_type_ptr<const op::v0::Constant>(source.get_node_shared_ptr()))
+        return c;
+    return std::make_shared<const op::v0::Constant>(source.get_tensor().get_upper_value());
 }
 
 bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size) {
