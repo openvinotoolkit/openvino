@@ -17,6 +17,7 @@ int pthread_sem_destroy(pthread_sem_t *psem);
 int pthread_sem_post(pthread_sem_t *psem);
 int pthread_sem_post_broadcast(pthread_sem_t *psem);
 int pthread_sem_wait(pthread_sem_t *psem);
+int pthread_sem_trywait(pthread_sem_t *psem);
 int pthread_sem_timedwait(pthread_sem_t *psem, const struct timespec *abstime);
 # ifdef __cplusplus
 }
