@@ -66,13 +66,45 @@ OpenVINO™ 2.0 API:
 
 ## 5. Prepare input
 
+### IR v10
+
 Inference Engine API:
 
 @snippet snippets/ie_common.cpp ie:get_input_tensor
 
 OpenVINO™ 2.0 API:
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor
+@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_v10
+
+### IR v11
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_input_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+
+### ONNX
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_input_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
+
+### From Function
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_input_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
 
 ## 6. Start Inference
 
@@ -85,7 +117,9 @@ OpenVINO™ 2.0 API:
 @snippet snippets/ov_common.cpp ov_api_2_0:inference
 
 
-## 6. Process the Inference Results
+## 7. Process the Inference Results
+
+### IR v10
 
 Inference Engine API:
 
@@ -93,5 +127,35 @@ Inference Engine API:
 
 OpenVINO™ 2.0 API:
 
-@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor
+@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_v10
+
+### IR v11
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_output_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+
+### ONNX
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_output_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
+
+### From Function
+
+Inference Engine API:
+
+@snippet snippets/ie_common.cpp ie:get_output_tensor
+
+OpenVINO™ 2.0 API:
+
+@snippet snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
 

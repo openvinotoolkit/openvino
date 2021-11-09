@@ -35,6 +35,7 @@ int main() {
         // locked memory holder should be alive all time while access to its
         // buffer happens
         auto minputHolder = minput1->wmap();
+        // Original I64 precision was converted to I32
         auto data = minputHolder.as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type*>();
         // Fill data ...
     }
@@ -45,6 +46,7 @@ int main() {
         // locked memory holder should be alive all time while access to its
         // buffer happens
         auto minputHolder = minput2->wmap();
+        // Original I64 precision was converted to I32
         auto data = minputHolder.as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type*>();
         // Fill data ...
     }
@@ -61,6 +63,7 @@ int main() {
         // locked memory holder should be alive all time while access to its
         // buffer happens
         auto minputHolder = moutput->rmap();
+        // Original I64 precision was converted to I32
         auto data =
             minputHolder.as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type*>();
         // process output data

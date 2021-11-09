@@ -6,6 +6,26 @@
 
 int main() {
     //! [ov:graph]
+    // _____________    _____________
+    // | Parameter |    | Parameter |
+    // |   data1   |    |   data2   |
+    // |___________|    |___________|
+    //         |            |
+    // data1_t |            | data2_t
+    //          \          /
+    //           \        /
+    //            \      /
+    //         ____\____/____
+    //         |   Concat   |
+    //         |   concat   |
+    //         |____________|
+    //               |
+    //               | concat_t
+    //               |
+    //        _______|_______
+    //        |    Result   |
+    //        |    result   |
+    //        |_____________|
     auto data1 = std::make_shared<ov::opset8::Parameter>(ov::element::i64, ov::Shape{1, 3, 2, 2});
     data1->set_friendly_name("data1");        // operation name
     data1->output(0).set_names({"data1_t"});  // tensor names
