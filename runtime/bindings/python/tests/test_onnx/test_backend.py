@@ -22,7 +22,6 @@ from tests import (
     xfail_issue_38699,
     xfail_issue_38701,
     xfail_issue_38706,
-    xfail_issue_38708,
     xfail_issue_38710,
     xfail_issue_38713,
     xfail_issue_38724,
@@ -224,9 +223,9 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_batch_uniandbigrams_skip5_cpu",
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_onlybigrams_skip5_cpu",
     ),
-    (xfail_issue_38706, "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (
-        xfail_issue_38708,  # Can not construct DnnlBlockedMemoryDesc from strides: (0.5.1)
+        xfail_issue_38706,
+        "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
         "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (

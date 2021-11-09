@@ -4,10 +4,9 @@
 import logging
 
 import onnx.backend.test
-from tests import (
+from tests_compatibility import (
     BACKEND_NAME,
     skip_rng_tests,
-    xfail_issue_67415,
     xfail_issue_33488,
     xfail_issue_33538,
     xfail_issue_33581,
@@ -22,7 +21,6 @@ from tests import (
     xfail_issue_38699,
     xfail_issue_38701,
     xfail_issue_38706,
-    xfail_issue_38708,
     xfail_issue_38710,
     xfail_issue_38713,
     xfail_issue_38724,
@@ -56,7 +54,7 @@ from tests import (
     skip_issue_69443,
     xfail_issue_69444,
 )
-from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
+from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoTestBackend
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -105,51 +103,6 @@ OnnxBackendPyTorchConvertedModelTest = None
 globals().update(backend_test.enable_report().test_cases)
 
 tests_expected_to_fail = [
-    (
-        xfail_issue_67415,
-        "OnnxBackendNodeModelTest.test_and2d_cpu",
-        "OnnxBackendNodeModelTest.test_and3d_cpu",
-        "OnnxBackendNodeModelTest.test_and4d_cpu",
-        "OnnxBackendNodeModelTest.test_and_bcast3v1d_cpu",
-        "OnnxBackendNodeModelTest.test_and_bcast3v2d_cpu",
-        "OnnxBackendNodeModelTest.test_and_bcast4v2d_cpu",
-        "OnnxBackendNodeModelTest.test_and_bcast4v3d_cpu",
-        "OnnxBackendNodeModelTest.test_and_bcast4v4d_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_DOUBLE_cpu",
-        "OnnxBackendNodeModelTest.test_cast_FLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_DOUBLE_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_if_cpu",
-        "OnnxBackendNodeModelTest.test_max_float16_cpu",
-        "OnnxBackendNodeModelTest.test_min_float16_cpu",
-        "OnnxBackendNodeModelTest.test_mod_mixed_sign_float16_cpu",
-        "OnnxBackendNodeModelTest.test_not_2d_cpu",
-        "OnnxBackendNodeModelTest.test_not_3d_cpu",
-        "OnnxBackendNodeModelTest.test_not_4d_cpu",
-        "OnnxBackendNodeModelTest.test_or2d_cpu",
-        "OnnxBackendNodeModelTest.test_or3d_cpu",
-        "OnnxBackendNodeModelTest.test_or4d_cpu",
-        "OnnxBackendNodeModelTest.test_or_bcast3v1d_cpu",
-        "OnnxBackendNodeModelTest.test_or_bcast3v2d_cpu",
-        "OnnxBackendNodeModelTest.test_or_bcast4v2d_cpu",
-        "OnnxBackendNodeModelTest.test_or_bcast4v3d_cpu",
-        "OnnxBackendNodeModelTest.test_or_bcast4v4d_cpu",
-        "OnnxBackendNodeModelTest.test_where_example_cpu",
-        "OnnxBackendNodeModelTest.test_where_long_example_cpu",
-        "OnnxBackendNodeModelTest.test_xor2d_cpu",
-        "OnnxBackendNodeModelTest.test_xor3d_cpu",
-        "OnnxBackendNodeModelTest.test_xor4d_cpu",
-        "OnnxBackendNodeModelTest.test_xor_bcast3v1d_cpu",
-        "OnnxBackendNodeModelTest.test_xor_bcast3v2d_cpu",
-        "OnnxBackendNodeModelTest.test_xor_bcast4v2d_cpu",
-        "OnnxBackendNodeModelTest.test_xor_bcast4v3d_cpu",
-        "OnnxBackendNodeModelTest.test_xor_bcast4v4d_cpu",
-        "OnnxBackendNodeModelTest.test_compress_0_cpu",
-        "OnnxBackendNodeModelTest.test_compress_1_cpu",
-        "OnnxBackendNodeModelTest.test_compress_default_axis_cpu",
-        "OnnxBackendNodeModelTest.test_compress_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_nonzero_example_cpu",
-    ),
     (
         xfail_issue_49207,
         "OnnxBackendNodeModelTest.test_rnn_seq_length_cpu",
@@ -259,9 +212,9 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_batch_uniandbigrams_skip5_cpu",
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_onlybigrams_skip5_cpu",
     ),
-    (xfail_issue_38706, "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (
-        xfail_issue_38708,  # Can not construct DnnlBlockedMemoryDesc from strides: (0.5.1)
+        xfail_issue_38706,
+        "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
         "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
