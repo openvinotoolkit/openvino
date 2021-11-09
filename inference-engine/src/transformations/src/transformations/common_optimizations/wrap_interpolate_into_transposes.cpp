@@ -29,16 +29,11 @@ std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {
     return result;
 }
 
-std::set<int64_t> create_set_of_all_axes(size_t input_rank) {
-    std::set<int64_t> result;
-    for (size_t i = 0; i < input_rank; ++i) {
-        result.insert(static_cast<int64_t>(i));
-    }
-    return result;
-}
-
 std::vector<int64_t> build_transposition_for_axes(const std::vector<int64_t>& axes, size_t input_rank) {
-    auto non_interpolated_axes_set = create_set_of_all_axes(input_rank);
+    std::set<int64_t> non_interpolated_axes_set;
+    for (size_t i = 0; i < input_rank; ++i) {
+        non_interpolated_axes_set.insert(static_cast<int64_t>(i));
+    }
     for (const auto& axis : axes) {
         non_interpolated_axes_set.erase(axis);
     }
