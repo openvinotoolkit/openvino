@@ -550,6 +550,23 @@ inline std::shared_ptr<ngraph::Function> makeReadConcatSplitAssign(std::vector<s
     fn_ptr->set_friendly_name("ReadConcatSplitAssign");
     return fn_ptr;
 }
+
+inline std::shared_ptr<ngraph::Function> makeMatMulBias(std::vector<size_t> inputShape = { 1, 3, 24, 24 },
+                                                        ngraph::element::Type type = ngraph::element::Type_t::f32) {
+    auto parameter = ngraph::builder::makeParams(type, { inputShape });
+    parameter[0]->set_friendly_name("parameter");
+    auto weights = ngraph::opset1::Constant::create(type, ngraph::Shape{ 24, 24 }, { 1 });
+    auto biases = ngraph::opset1::Constant::create(type, ngraph::Shape{ 1, 24 }, { 1 });
+    auto matmul = std::make_shared<opset1::MatMul>(parameter[0], weights);
+    matmul->set_friendly_name("matmul");
+    auto add = std::make_shared<opset1::Add>(matmul, biases);
+    add->set_friendly_name("add");
+    auto result = std::make_shared<ngraph::opset1::Result>(add);
+    result->set_friendly_name("result");
+    std::shared_ptr<ngraph::Function> fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, ngraph::ParameterVector{ parameter });
+    fn_ptr->set_friendly_name("MatMulBias");
+    return fn_ptr;
+}
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph
