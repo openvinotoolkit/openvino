@@ -71,6 +71,7 @@ OP_CONVERTER(split);
 OP_CONVERTER(squeeze);
 OP_CONVERTER(stack);
 OP_CONVERTER(tanh);
+OP_CONVERTER(top_k);
 OP_CONVERTER(transpose2);
 OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
@@ -155,6 +156,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"stack", op::stack},
             {"sync_batch_norm", op::batch_norm},
             {"tanh", op::tanh},
+            {"top_k", op::top_k},
             {"transpose2", op::transpose2},
             {"trilinear_interp_v2", op::trilinear_interp_v2},
             {"unsqueeze2", op::unsqueeze},
