@@ -6,6 +6,7 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
+#include "mkldnn_extension.h"
 #include "mkldnn_itt.h"
 #include "mkldnn_serialize.h"
 
@@ -115,6 +116,7 @@ using namespace InferenceEngine;
 
 Engine::Engine() {
     _pluginName = "CPU";
+    extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
 }
 
 Engine::~Engine() {
