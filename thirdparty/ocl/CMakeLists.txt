@@ -48,7 +48,12 @@ set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
 
 add_subdirectory(icd_loader)
 
-target_include_directories(OpenCL SYSTEM PUBLIC ${OPENCL_HEADERS_DIR})
+# override INTERFACE_INCLUDE_DIRECTORIES
+set_property(TARGET OpenCL PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+    $<BUILD_INTERFACE:${OPENCL_ICD_LOADER_HEADERS_DIR}>)
+foreach(dir IN LISTS OPENCL_HEADERS_DIR)
+    target_include_directories(OpenCL SYSTEM PUBLIC $<BUILD_INTERFACE:${dir}>)
+endforeach()
 
 # The following varables are needed to make find_package(OpenCL) work
 set(OPENCL_VERSION_2_2 ON CACHE BOOL "" FORCE)
