@@ -56,6 +56,10 @@ public:
             max(max),
             hasZeroPoint(hasZeroPoint) {}
 
+    bool empty() const noexcept {
+        return (precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
+    }
+
     static bool isSupported(const element::Type& precision) {
         static const std::set<element::Type_t> lowPrecision = {
                 element::i8, element::u8,
@@ -273,7 +277,7 @@ protected:
     bool updatePrecisions;
     element::Type deqPrecision;
 
-    static const char originalLayerPostfix[];
+    static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;
 
 protected:

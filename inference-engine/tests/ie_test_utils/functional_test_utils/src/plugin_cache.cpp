@@ -3,6 +3,7 @@
 //
 
 #include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 
 #include <cstdlib>
 #include <unordered_map>
@@ -29,6 +30,9 @@ PluginCache &PluginCache::get() {
 }
 
 std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &deviceToCheck) {
+    // w/a for myriad (cann't store 2 caches simultaneously)
+    ov::test::utils::PluginCache::get().reset();
+
     std::lock_guard<std::mutex> lock(g_mtx);
     if (std::getenv("DISABLE_PLUGIN_CACHE") != nullptr) {
 #ifndef NDEBUG

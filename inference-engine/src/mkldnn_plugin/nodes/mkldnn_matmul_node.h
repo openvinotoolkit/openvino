@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -31,10 +32,13 @@ public:
         return getOriginalInputsNumber();
     }
 
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const override;
+    AttrPtr initPrimitiveAttr() const override;
 
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights) const;
@@ -43,12 +47,10 @@ private:
 
     /* whether to transpose input */
     std::array<bool, 2> transposeIn;
-    /* initial shapes without transpose,
-     * necessary to hide transpose effect from plugin */
-    std::array<Shape, 2> initialInShapes;
 
-    std::array<MemoryDescPtr, 2> inDataDesc;
-    MemoryDescPtr outDataDesc;
+    std::array<DnnlBlockedMemoryDescPtr, 2> inDataDesc;
+    DnnlBlockedMemoryDescPtr outDataDesc;
+    AttrPtr pAttr;
 };
 
 }  // namespace MKLDNNPlugin
