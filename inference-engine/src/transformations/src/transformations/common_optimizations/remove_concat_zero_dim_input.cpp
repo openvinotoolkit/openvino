@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <vector>
+#include <algorithm>
 
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
@@ -25,17 +26,15 @@ ngraph::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
         bool pass_applied = false;
         concat_inputs.erase(std::remove_if(concat_inputs.begin(), concat_inputs.end(),
             [&pass_applied](const Output<Node>& input){
-            const auto& in_shape = input.get_partial_shape();
-                if (in_shape.rank().is_static()) {
-                    for (const auto& dim : in_shape) {
-                        if (dim.is_static() && dim.get_length() == 0) {
-                            pass_applied = true;
-                            return true;
-                        }
+                const auto& in_shapes = input.get_partial_shape();
+                pass_applied = std::any_of(std::begin(in_shapes), std::end(in_shapes), [](const ov::Dimension& dim){
+                    if (dim.is_static() && dim.get_length() == 0) {
+                        return true;
                     }
-                }
-                return false;
-            }), concat_inputs.end());
+                    return false;
+                });
+                return pass_applied;
+                }), concat_inputs.end());
         if (pass_applied) {
             concat->set_arguments(concat_inputs);
         }
