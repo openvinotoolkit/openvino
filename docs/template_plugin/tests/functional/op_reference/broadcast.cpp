@@ -25,16 +25,6 @@ struct BroadcastParams {
     std::string testcaseName;
 };
 
-struct BroadcastParamsExplicitAxis : BroadcastParams {
-    BroadcastParamsExplicitAxis(
-        const Tensor& dataTensor, const Tensor& targetShapeTensor, const Tensor& axesMappingTensor,
-        const Tensor& expectedTensor, const std::string& testcaseName = "") :
-        BroadcastParams(dataTensor, targetShapeTensor, expectedTensor, testcaseName),
-        axesMappingTensor(axesMappingTensor) {}
-
-    Tensor axesMappingTensor;
-};
-
 class ReferenceBroadcastTest : public testing::TestWithParam<BroadcastParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
@@ -73,6 +63,10 @@ private:
     }
 };
 
+TEST_P(ReferenceBroadcastTest, CompareWithRefs) {
+    Exec();
+}
+
 class ReferenceBroadcastTestV3 : public ReferenceBroadcastTest {
 private:
     static std::shared_ptr<Function> CreateFunction(const BroadcastParams& params) {
@@ -84,6 +78,20 @@ private:
             ParameterVector{A});
         return f;
     }
+};
+
+TEST_P(ReferenceBroadcastTestV3, CompareWithRefs) {
+    Exec();
+}
+
+struct BroadcastParamsExplicitAxis : BroadcastParams {
+    BroadcastParamsExplicitAxis(
+        const Tensor& dataTensor, const Tensor& targetShapeTensor, const Tensor& axesMappingTensor,
+        const Tensor& expectedTensor, const std::string& testcaseName = "") :
+        BroadcastParams(dataTensor, targetShapeTensor, expectedTensor, testcaseName),
+        axesMappingTensor(axesMappingTensor) {}
+
+    Tensor axesMappingTensor;
 };
 
 class ReferenceBroadcastTestExplicitAxis : public testing::TestWithParam<BroadcastParamsExplicitAxis>, public CommonReferenceTest {
@@ -130,6 +138,92 @@ private:
     }
 };
 
+TEST_P(ReferenceBroadcastTestExplicitAxis, CompareWithRefs) {
+    Exec();
+}
+
+struct BroadcastParamsTestHelper {
+    BroadcastParamsTestHelper(
+        const Shape& shapeA,
+        const Shape& shapeR,
+        const AxisSet& axes, const std::string& testcaseName = "") :
+        shapeA(shapeA), shapeR(shapeR),
+        axes(axes), testcaseName(testcaseName) {}
+
+    Shape shapeA;
+    Shape shapeR;
+    AxisSet axes;
+    std::string testcaseName;
+};
+
+class ReferenceBroadcastTestTestHelper : public testing::TestWithParam<BroadcastParamsTestHelper>, public CommonReferenceTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        std::vector<float> inpData(shape_size<const Shape>(params.shapeA));
+        iota(inpData.begin(), inpData.end(), 1.f);
+        const auto refA = CreateTensor(params.shapeA, element::f32, inpData);
+        inputData = {refA};
+    }
+
+    void SetUp1() {
+        auto params = GetParam();
+        function = CreateFunction(params);
+        std::vector<float> inpData(shape_size<const Shape>(params.shapeA));
+        iota(inpData.begin(), inpData.end(), 1.f);
+        const auto wrkA = CreateTensor(params.shapeA, element::f32, inpData);
+        inputData = {wrkA};
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<BroadcastParamsTestHelper>& obj) {
+        auto param = obj.param;
+        std::ostringstream result;
+        result << "aShape=" << param.shapeA;
+        result << "_rShape=" << param.shapeR;
+        if (param.testcaseName != "") {
+            result << "_axes=" << param.axes;
+            result << "_=" << param.testcaseName;
+        } else {
+            result << "_axes=" << param.axes;
+        }
+        return result.str();
+    }
+
+private:
+    static std::shared_ptr<Function> CreateFunction(const BroadcastParamsTestHelper& params) {
+        const auto A = std::make_shared<opset1::Parameter>(element::f32, params.shapeA);
+        const auto shape_const = opset1::Constant::create(element::u64, Shape{params.shapeR.size()}, params.shapeR);
+        std::shared_ptr<Node> broadcast;
+        if (params.axes.size() > 0) {
+            auto axes_const = opset1::Constant::create(element::i64, Shape{params.axes.size()}, params.axes.to_vector());
+            broadcast = std::make_shared<opset1::Broadcast>(A, shape_const, axes_const);
+        } else {
+            broadcast = std::make_shared<opset1::Broadcast>(A, shape_const);
+        }
+        auto f = std::make_shared<Function>(broadcast, ParameterVector{A});
+        return f;
+    }
+
+protected:
+    void GenerateRefOutData() {
+        actualOutData.clear();
+        for (const auto &output : executableNetwork.outputs()) {
+            actualOutData.emplace_back(inferRequest.get_tensor(output));
+        }
+        refOutData = actualOutData;
+    }
+};
+
+TEST_P(ReferenceBroadcastTestTestHelper, CompareWithRefs) {
+    LoadNetwork();
+    FillInputs();
+    Infer();
+    GenerateRefOutData();
+    SetUp1();
+    Exec();
+}
+
 class ReferenceBroadcastTestExplicitAxisReversed : public ReferenceBroadcastTestExplicitAxis {
 private:
     static std::shared_ptr<Function> CreateFunction(const BroadcastParamsExplicitAxis& params) {
@@ -149,18 +243,6 @@ private:
         return f;
     }
 };
-
-TEST_P(ReferenceBroadcastTest, CompareWithRefs) {
-    Exec();
-}
-
-TEST_P(ReferenceBroadcastTestV3, CompareWithRefs) {
-    Exec();
-}
-
-TEST_P(ReferenceBroadcastTestExplicitAxis, CompareWithRefs) {
-    Exec();
-}
 
 TEST_P(ReferenceBroadcastTestExplicitAxisReversed, CompareWithRefs) {
     Exec();
@@ -221,6 +303,12 @@ std::vector<BroadcastParams> generateCombinedParams() {
     }
     return combinedParams;
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTest,
+    testing::ValuesIn(generateCombinedParams()), ReferenceBroadcastTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestV3,
+    testing::ValuesIn(generateCombinedParams()), ReferenceBroadcastTest::getTestCaseName);
 
 template <element::Type_t ET>
 std::vector<BroadcastParamsExplicitAxis> generateParamsExplicitAxis() {
@@ -289,6 +377,115 @@ std::vector<BroadcastParamsExplicitAxis> generateCombinedParamsExplicitAxis() {
     return combinedParams;
 }
 
+INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestExplicitAxis,
+    testing::ValuesIn(generateCombinedParamsExplicitAxis()), ReferenceBroadcastTestExplicitAxis::getTestCaseName);
+
+std::vector<BroadcastParamsTestHelper> generateParamsTestHelper() {
+    std::vector<BroadcastParamsTestHelper> params {
+        BroadcastParamsTestHelper(
+            {2},
+            {3, 2, 4},
+            {1},
+            "broadcast_algo_vector_middle"),
+        BroadcastParamsTestHelper(
+            {2},
+            {3, 2},
+            {1},
+            "broadcast_algo_vector_forward_2"),
+        BroadcastParamsTestHelper(
+            {2},
+            {4, 3, 2},
+            {2},
+            "broadcast_algo_vector_forward_3"),
+        BroadcastParamsTestHelper(
+            {2},
+            {5, 4, 3, 2},
+            {3},
+            "broadcast_algo_vector_forward_4"),
+        BroadcastParamsTestHelper(
+            {},
+            {5, 4, 3, 2},
+            {},
+            "broadcast_algo_scalar"),
+        BroadcastParamsTestHelper(
+            {2},
+            {2, 3},
+            {0},
+            "broadcast_algo_vector_backward_2"),
+        BroadcastParamsTestHelper(
+            {2},
+            {2, 3, 4},
+            {0},
+            "broadcast_algo_vector_backward_3"),
+        BroadcastParamsTestHelper(
+            {2},
+            {2, 3, 4, 5},
+            {0},
+            "broadcast_algo_vector_backward_4"),
+        BroadcastParamsTestHelper(
+            {4, 5},
+            {2, 3, 4, 5},
+            {2, 3},
+            "broadcast_algo_matrix_backward_4"),
+        BroadcastParamsTestHelper(
+            {3, 5},
+            {2, 3, 4, 5},
+            {1, 3},
+            "broadcast_algo_matrix_stride_1"),
+        BroadcastParamsTestHelper(
+            {3, 4},
+            {2, 3, 4, 5},
+            {1, 2},
+            "broadcast_algo_matrix_stride_2"),
+        BroadcastParamsTestHelper(
+            {2, 4},
+            {2, 3, 4, 5},
+            {0, 2},
+            "broadcast_algo_matrix_stride_3"),
+        BroadcastParamsTestHelper(
+            {2, 3, 4},
+            {5, 2, 3, 4},
+            {1, 2, 3},
+            "broadcast_algo_3d_backward"),
+        BroadcastParamsTestHelper(
+            {2, 3, 4},
+            {2, 5, 3, 4},
+            {0, 2, 3},
+            "broadcast_algo_3d_stride_1"),
+        BroadcastParamsTestHelper(
+            {2, 3, 4},
+            {2, 3, 5, 4},
+            {0, 1, 3},
+            "broadcast_algo_3d_stride_2"),
+        BroadcastParamsTestHelper(
+            {3, 1},
+            {2, 3, 3},
+            {1, 2},
+            "broadcast_algo_3d_diffrent_rank"),
+        BroadcastParamsTestHelper(
+            {2, 3, 1, 1},
+            {2, 3, 4, 5},
+            {0, 1, 2, 3},
+            "broadcast_algo_4d_same_rank"),
+    };
+    return params;
+}
+
+std::vector<BroadcastParamsTestHelper> generateCombinedParamsTestHelper() {
+    const std::vector<std::vector<BroadcastParamsTestHelper>> generatedParams {
+        generateParamsTestHelper(),
+    };
+    std::vector<BroadcastParamsTestHelper> combinedParams;
+
+    for (const auto& params : generatedParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestTestHelper,
+    testing::ValuesIn(generateCombinedParamsTestHelper()), ReferenceBroadcastTestTestHelper::getTestCaseName);
+
 template <element::Type_t ET>
 std::vector<BroadcastParamsExplicitAxis> generateParamsExplicitAxisReversed() {
     using T = typename element_type_traits<ET>::value_type;
@@ -325,15 +522,6 @@ std::vector<BroadcastParamsExplicitAxis> generateCombinedParamsExplicitAxisRever
     }
     return combinedParams;
 }
-
-INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTest,
-    testing::ValuesIn(generateCombinedParams()), ReferenceBroadcastTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestV3,
-    testing::ValuesIn(generateCombinedParams()), ReferenceBroadcastTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestExplicitAxis,
-    testing::ValuesIn(generateCombinedParamsExplicitAxis()), ReferenceBroadcastTestExplicitAxis::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Broadcast_With_Hardcoded_Refs, ReferenceBroadcastTestExplicitAxisReversed,
     testing::ValuesIn(generateCombinedParamsExplicitAxisReversed()), ReferenceBroadcastTestExplicitAxis::getTestCaseName);

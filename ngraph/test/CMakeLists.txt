@@ -499,7 +499,6 @@ set(MULTI_TEST_SRC
     backend/non_max_suppression.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
-    backend/tile.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
