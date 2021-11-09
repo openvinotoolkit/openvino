@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import compatible_shapes
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -57,8 +58,8 @@ class SparseSegmentSum(Op):
             "SparseSegmentSum supports only 1D indices tensor"
         assert segment_ids_shape is not None and segment_ids_shape.size == 1, \
             "SparseSegmentSum supports only 1D segment IDs tensor"
-        assert segment_ids_shape == indices_shape, \
-            "Indices and segment IDs tensors must have the same shape"
+        assert compatible_shapes(segment_ids_shape, indices_shape), \
+            "Indices and segment IDs tensors must have compatible shapes"
 
         # computes output shape
         output_shape = data_shape

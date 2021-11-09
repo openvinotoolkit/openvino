@@ -4,47 +4,69 @@
 import unittest
 
 import numpy as np
-
+import numpy.testing as npt
 from extensions.ops.sparse_reshape import SparseReshape
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, compatible_shapes, dynamic_dimension
 from mo.graph.graph import Node
-from unit_tests.utils.graph import build_graph
+from mo.middle.passes.infer import partial_infer
+from mo.utils.error import Error
+from unit_tests.utils.graph import valued_const_with_data, result, regular_op_with_empty_data, connect, \
+    shaped_parameter, build_graph, empty_data
 
-nodes_attributes = {'input_indices': {'shape': None, 'value': None, 'kind': 'data'},
-                    'input_shape': {'shape': None, 'value': None, 'kind': 'data'},
-                    'new_shape': {'shape': None, 'value': None, 'kind': 'data'},
-                    'sparse_reshape_node': {'op': 'SparseReshape', 'kind': 'op'},
-                    'output_indices': {'shape': None, 'value': None, 'kind': 'data'},
-                    'output_shape': {'shape': None, 'value': None, 'kind': 'data'}}
-
-# graph 1
-edges1 = [('input_indices', 'sparse_reshape_node', {'in': 0}),
-          ('input_shape', 'sparse_reshape_node', {'in': 1}),
-          ('new_shape', 'sparse_reshape_node', {'in': 2}),
-          ('sparse_reshape_node', 'output_indices', {'out': 0}),
-          ('sparse_reshape_node', 'output_shape', {'out': 1})]
-
-inputs1 = {'input_indices': {'shape': int64_array([5, 2]), 'value': None},
-           'input_shape': {'shape': int64_array([2]), 'value': int64_array([4, 5])},
-           'new_shape': {'shape': int64_array([3]), 'value': int64_array([5, -1, 2])}}
-
+dyn = dynamic_dimension
 
 class TestSparseReshape(unittest.TestCase):
-    def test_partial_infer1(self):
-        graph = build_graph(nodes_attributes, edges1, inputs1)
-        sparse_reshape_node = Node(graph, 'sparse_reshape_node')
-        SparseReshape.infer(sparse_reshape_node)
 
-        # prepare reference results
-        ref_output_indices_shape = np.array([5, 3], dtype=np.int32)
-        ref_output_shape_value = np.array([5, 2, 2], dtype=np.int32)
+    @staticmethod
+    def build_and_test_shape_inference(input_indices_sparse_shape, input_shape, new_shape, ref_out_shape):
+        nodes = {
+            **shaped_parameter('input_indices', shape_array(input_indices_sparse_shape)),
+            **valued_const_with_data('input_shape', shape_array(input_shape)),
+            **valued_const_with_data('new_shape', shape_array(new_shape)),
+            **regular_op_with_empty_data('sparse_reshape_node', {'op': 'SparseReshape',
+                                                                 'special_zero': True,
+                                                                 'infer': SparseReshape.infer}),
+            **empty_data('sparse_reshape_node_d:out_port_1'),
 
-        # get the result
-        res_output_indices_shape = graph.node['output_indices']['shape']
-        res_output_shape_value = graph.node['output_shape']['value']
+            **result('output_indices'),
+            **result('output_shape'),
+        }
 
-        self.assertTrue(np.array_equal(ref_output_indices_shape, res_output_indices_shape),
-                        'shapes do not match expected: {} and given: {}'.format(ref_output_indices_shape, res_output_indices_shape))
-        self.assertTrue(np.array_equal(ref_output_shape_value, res_output_shape_value),
-                        'values do not match expected: {} and given: {}'.format(ref_output_shape_value, res_output_shape_value))
+        edges = [
+            *connect('input_indices', '0:sparse_reshape_node'),
+            *connect('input_shape', '1:sparse_reshape_node'),
+            *connect('new_shape', '2:sparse_reshape_node'),
+            *connect('sparse_reshape_node:0', 'output_indices'),
+            ('sparse_reshape_node', 'sparse_reshape_node_d:out_port_1', {'out': 1}),
+            ('sparse_reshape_node_d:out_port_1', 'output_shape', {'in': 0}),
+        ]
 
+        graph = build_graph(nodes, edges)
+        graph.stage = 'middle'
+        partial_infer(graph)
+
+        node = Node(graph, 'sparse_reshape_node')
+        output_indices = node.out_port(0).data.get_value()
+        actual_output_shape = node.out_port(1).data.get_value()
+        npt.assert_equal(actual_output_shape, ref_out_shape)
+
+    def test_static_shape_1(self):
+        # ref_output_indices_shape = np.array([5, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[5, 2],
+                                            input_shape=[4, 5],
+                                            new_shape=[5, -1, 2],
+                                            ref_out_shape=[5, 2, 2])
+
+    def test_static_shape_2(self):
+        # ref_output_indices_shape = np.array([5, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[5, 2],
+                                            input_shape=[dyn, 5, 6],
+                                            new_shape=[0, -1],
+                                            ref_out_shape=[dyn, 30])
+
+    def test_static_shape_3(self):
+        # ref_output_indices_shape = np.array([5, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[5, 2],
+                                            input_shape=[5, 3, 8],
+                                            new_shape=[4, dyn],
+                                            ref_out_shape=[4, 30])
