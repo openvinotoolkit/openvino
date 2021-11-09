@@ -3,27 +3,17 @@ producer_name: "onnx-importer-test"
 graph {
   node {
     input: "X"
-    input: "MIN"
-    input: "MAX"
+    input: ""
+    input: ""
     output: "Y"
     op_type: "Clip"
   }
   name: "test-model-clip"
-  initializer {
-    data_type: 1
-    float_data: -1.590000033378601
-    name: "MIN"
-  }
-  initializer {
-    data_type: 1
-    float_data: 2.009999990463257
-    name: "MAX"
-  }
   input {
     name: "X"
     type {
       tensor_type {
-        elem_type: 1
+        elem_type: 7
         shape {
           dim {
             dim_value: 2
@@ -39,7 +29,7 @@ graph {
     name: "Y"
     type {
       tensor_type {
-        elem_type: 1
+        elem_type: 7
         shape {
           dim {
             dim_value: 2

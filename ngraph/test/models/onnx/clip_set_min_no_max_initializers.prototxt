@@ -4,7 +4,7 @@ graph {
   node {
     input: "X"
     input: "MIN"
-    input: "MAX"
+    input: ""
     output: "Y"
     op_type: "Clip"
   }
@@ -13,11 +13,6 @@ graph {
     data_type: 1
     float_data: -1.590000033378601
     name: "MIN"
-  }
-  initializer {
-    data_type: 1
-    float_data: 2.009999990463257
-    name: "MAX"
   }
   input {
     name: "X"
