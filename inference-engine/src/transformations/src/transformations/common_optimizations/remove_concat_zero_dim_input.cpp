@@ -9,15 +9,15 @@
 #include <vector>
 #include <algorithm>
 
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveConcatZeroDimInput, "RemoveConcatZeroDimInput", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::RemoveConcatZeroDimInput, "RemoveConcatZeroDimInput", 0);
 
-ngraph::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
+ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {

@@ -8,16 +8,15 @@
 #include <memory>
 
 #include <transformations_visibility.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API RemoveLoopDanglingParameters;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /*
  * @ingroup ie_transformation_common_api
@@ -26,7 +25,7 @@ class TRANSFORMATIONS_API RemoveLoopDanglingParameters;
  * in the body of a Loop
  */
 
-class ngraph::pass::RemoveLoopDanglingParameters: public ngraph::pass::MatcherPass {
+class ov::pass::RemoveLoopDanglingParameters: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     RemoveLoopDanglingParameters();

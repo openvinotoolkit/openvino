@@ -8,19 +8,19 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset8.hpp>
-#include <ngraph/op/util/multi_subgraph_base.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <openvino/op/util/multi_subgraph_base.hpp>
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveLoopDanglingParameters, "RemoveLoopDanglingParameters", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::RemoveLoopDanglingParameters, "RemoveLoopDanglingParameters", 0);
 
-ngraph::pass::RemoveLoopDanglingParameters::RemoveLoopDanglingParameters() {
+ov::pass::RemoveLoopDanglingParameters::RemoveLoopDanglingParameters() {
     MATCHER_SCOPE(RemoveLoopDanglingParameters);
     auto loop_pattern = pattern::wrap_type<opset8::Loop>();
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto loop = std::dynamic_pointer_cast<opset8::Loop>(m.get_match_root());
         auto& body_func = loop->get_function();
         auto loop_inputs = loop->input_values();

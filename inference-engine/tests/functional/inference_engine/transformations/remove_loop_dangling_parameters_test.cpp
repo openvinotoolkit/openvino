@@ -7,8 +7,8 @@
 #include <string>
 #include <memory>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/core/function.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/remove_loop_dangling_parameters.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
@@ -17,13 +17,13 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
-using namespace ngraph;
-using namespace opset8;
+using namespace ov;
+using namespace ov::opset8;
 
 TEST(TransformationTests, RemoveLoopDanglingParameters) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
-    auto condition = std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+    auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
 
     auto a = std::make_shared<Parameter>(element::f32, Shape{2, 2});
     auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 2});
@@ -43,7 +43,7 @@ TEST(TransformationTests, RemoveLoopDanglingParameters) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
         f = std::make_shared<Function>(OutputVector{loop_res}, ParameterVector{a, b});
 
-        pass::Manager manager;
+        ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<pass::RemoveLoopDanglingParameters>();
         manager.run_passes(f);
@@ -66,9 +66,9 @@ TEST(TransformationTests, RemoveLoopDanglingParameters) {
 }
 
 TEST(TransformationTests, Remove2LoopDanglingParameters) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
-    auto condition = std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+    auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
 
     auto a = std::make_shared<Parameter>(element::f32, Shape{2, 2});
     auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 2});
@@ -114,9 +114,9 @@ TEST(TransformationTests, Remove2LoopDanglingParameters) {
 }
 
 TEST(TransformationTests, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    auto trip_count = std::make_shared<ngraph::opset6::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
-    auto condition = std::make_shared<ngraph::opset6::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+    auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
 
     auto a = std::make_shared<Parameter>(element::f32, Shape{2, 2});
     auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 2});
