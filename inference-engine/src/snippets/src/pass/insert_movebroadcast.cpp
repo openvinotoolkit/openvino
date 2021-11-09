@@ -15,7 +15,9 @@
 
 using namespace ngraph;
 
-static std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::Node>& value,
+namespace {
+
+std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<ngraph::Node>& value,
     const ngraph::Shape& output_shape, const ngraph::Shape& source_shape) {
     std::shared_ptr<ngraph::Node> broadcasted_node = value.get_node_shared_ptr();
 
@@ -69,7 +71,7 @@ static std::shared_ptr<ngraph::Node> numpy_broadcast_node(const ngraph::Output<n
     return broadcasted_node;
 }
 
-static ngraph::Shape calculate_broadcast_shape(ngraph::Shape lhs_shape, ngraph::Shape rhs_shape) {
+ngraph::Shape calculate_broadcast_shape(ngraph::Shape lhs_shape, ngraph::Shape rhs_shape) {
     ngraph::Shape result;
     auto lhs_rank = lhs_shape.size();
     auto rhs_rank = rhs_shape.size();
@@ -126,6 +128,8 @@ auto reset_broacast_config(const std::shared_ptr<ngraph::Node>& op) -> void {
         }
     }
 }
+
+} // namespace
 
 // adds explicit broadcasts if needed
 // ToDO: this indeed make model not reshapable, need to come up with more clever way to insert fake broadcast,

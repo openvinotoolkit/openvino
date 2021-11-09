@@ -32,9 +32,11 @@
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/ie_preprocess_info.hpp"
 #include "pyopenvino/core/ie_version.hpp"
+#include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/tensor_description.hpp"
 #include "pyopenvino/graph/dimension.hpp"
+#include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
@@ -85,6 +87,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
     regclass_graph_Dimension(m);  // Dimension must be registered before PartialShape
+    regclass_graph_Layout(m);
     regclass_graph_Shape(m);
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
@@ -147,4 +150,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InputInfo(m);
     regclass_InferQueue(m);
     regclass_PreProcessInfo(m);
+
+    regmodule_offline_transformations(m);
 }

@@ -88,7 +88,7 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadcast>& op) {
+static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadcast>& op) {
     p.ValidateInputs(op, {2, 3});
     if (op->get_broadcast_spec().m_type == ngraph::op::AutoBroadcastType::NONE && op->get_input_size() == 3) {
         auto axis_mapping_node = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(op->get_input_node_shared_ptr(2));
@@ -103,7 +103,7 @@ void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v1::Broadca
     }
 }
 
-void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadcast>& op) {
+static void CreateBroadcastOp(Program& p, const std::shared_ptr<ngraph::op::v3::Broadcast>& op) {
     p.ValidateInputs(op, {2, 3});
     ngraph::AxisSet axis_mapping;
     if (op->get_input_size() == 3) {

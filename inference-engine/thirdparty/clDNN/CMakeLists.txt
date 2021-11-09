@@ -12,15 +12,6 @@ project("${CLDNN__PROJ_NAME}")
 # ====================================== HELPER CONSTANT VARIABLES =====================================
 # ======================================================================================================
 # ======================================================================================================
-if(CLDNN_THREADING MATCHES "SEQ")
-    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_SEQ)
-elseif(CLDNN_THREADING MATCHES "TBB")
-    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_TBB)
-else()
-    add_definitions(-DCLDNN_THREADING=CLDNN_THREADING_THREADPOOL)
-endif()
-
-
 if (ENABLE_ONEDNN_FOR_GPU)
     ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
     ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
@@ -94,6 +85,7 @@ include_directories(
     ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
     "${CLDNN__CODEGEN_INCDIR}"
     "${CLDNN__API_DIR}"
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
   )
 
 # =================================== Link targets and dependencies ====================================
@@ -105,3 +97,5 @@ if(CLDNN__INCLUDE_TESTS)
 endif()
 
 add_subdirectory(kernel_selector)
+
+target_link_libraries(${CLDNN_BUILD__PROJ__clDNN} PRIVATE inference_engine)

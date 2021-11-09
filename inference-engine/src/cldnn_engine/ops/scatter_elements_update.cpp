@@ -41,7 +41,7 @@ static inline cldnn::scatter_elements_update::scatter_elements_update_axis GetSc
     return cldnn::scatter_elements_update::scatter_elements_update_axis::along_f;  // shouldn't get here
 }
 
-void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterElementsUpdate>& op) {
+static void CreateScatterElementsUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterElementsUpdate>& op) {
     p.ValidateInputs(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
