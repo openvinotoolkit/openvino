@@ -27,7 +27,7 @@ class Extension;
 /**
  * @brief The class provides the base interface for OpenVINO extensions
  */
-class OPENVINO_API Extension : public std::enable_shared_from_this<Extension> {
+class OPENVINO_API Extension {
 public:
     using Ptr = std::shared_ptr<Extension>;
 
