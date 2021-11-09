@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "model.hpp"
+
 #include <fstream>
 #include <queue>
 
 #include "frontend_manager/frontend_exceptions.hpp"
-#include "tensorflow_frontend/graph_iterator.hpp"
-#include "model.hpp"
 #include "node_context.hpp"
-#include "place.hpp"
 #include "openvino/opsets/opset7.hpp"
+#include "place.hpp"
+#include "tensorflow_frontend/graph_iterator.hpp"
 #include "utils.hpp"
 
 using namespace google;

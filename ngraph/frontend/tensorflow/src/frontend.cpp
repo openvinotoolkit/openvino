@@ -3,12 +3,12 @@
 //
 
 #include "tensorflow_frontend/frontend.hpp"
-#include "tensorflow_frontend/graph_iterator.hpp"
 
 #include "model.hpp"
 #include "op_table.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
+#include "tensorflow_frontend/graph_iterator.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 

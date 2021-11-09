@@ -6,9 +6,9 @@
 
 #include <string>
 
-#include "tensorflow_frontend/utility.hpp"
 #include "graph.pb.h"
 #include "openvino/opsets/opset8.hpp"
+#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
 
 namespace ov {

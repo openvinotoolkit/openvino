@@ -5,7 +5,6 @@
 #include "place.hpp"
 
 #include "frontend_manager/frontend_exceptions.hpp"
-
 #include "node_context.hpp"
 #include "op_def.pb.h"
 #include "tensor.pb.h"

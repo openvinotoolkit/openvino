@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "tensorflow_frontend/utility.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/variant.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
+#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
 
 #define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \

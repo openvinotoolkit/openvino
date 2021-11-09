@@ -7,11 +7,11 @@
 #include <string>
 #include <vector>
 
-#include "ngraph/ngraph.hpp"
 #include "attr_value.pb.h"
+#include "ngraph/ngraph.hpp"
 #include "node_def.pb.h"
-#include "types.pb.h"
 #include "tensorflow_frontend/decoder.hpp"
+#include "types.pb.h"
 
 namespace ov {
 namespace frontend {
