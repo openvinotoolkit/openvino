@@ -10,13 +10,11 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 
-#ifdef OPENVINO_OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 #    include <iostream>
 #    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #    include <codecvt>
 #    include <functional_test_utils/skip_tests_config.hpp>
-
-
 #endif
 
 namespace ov {
