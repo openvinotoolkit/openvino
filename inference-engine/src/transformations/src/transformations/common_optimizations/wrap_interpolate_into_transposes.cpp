@@ -18,22 +18,6 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 
 namespace {
-bool transformation_is_applicable(const std::shared_ptr<ov::opset8::Interpolate>& interpolate) {
-    if (interpolate->get_input_partial_shape(0).rank().is_dynamic() || interpolate->inputs().size() != 4) return false;
-
-    int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
-    // If the input rank is equal to 1 or 2, then such Interpolate is supportedby MKLDNN.
-    if (input_rank < 3) return false;
-
-    auto axes_node = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
-    if (!axes_node) return false;
-
-    const auto axes = axes_node->cast_vector<int64_t>();
-    if (static_cast<int64_t>(axes.size()) > input_rank - 2) return false;
-
-    return std::any_of(axes.begin(), axes.end(), [](int64_t axis){ return axis == 0 || axis == 1; });
-}
-
 std::vector<int64_t> reverse_permutation(const std::vector<int64_t>& perm) {
     if (perm.empty()) return {};
 
@@ -84,11 +68,19 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::opset8::Interpolate>();
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ov::opset8::Interpolate>(m.get_match_root());
-        if (!interpolate || !transformation_is_applicable(interpolate)) return false;
+        if (!interpolate || interpolate->get_input_partial_shape(0).rank().is_dynamic() || interpolate->inputs().size() != 4) return false;
 
-        const auto axes = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr())->cast_vector<int64_t>();
+        int64_t input_rank = interpolate->get_input_partial_shape(0).rank().get_length();
+        // If the input rank is equal to 1 or 2, then such Interpolate is supported by MKLDNN.
+        if (input_rank < 3) return false;
 
-        const size_t input_rank = static_cast<size_t>(interpolate->get_input_partial_shape(0).rank().get_length());
+        auto axes_node = std::dynamic_pointer_cast<ov::opset8::Constant>(interpolate->input_value(3).get_node_shared_ptr());
+        if (!axes_node) return false;
+
+        const auto axes = axes_node->cast_vector<int64_t>();
+        if (static_cast<int64_t>(axes.size()) > input_rank - 2 ||
+            std::all_of(axes.begin(), axes.end(), [](int64_t axis){ return axis != 0 && axis != 1; })) return false;
+
         const auto first_perm = build_transposition_for_axes(axes, input_rank);
         const auto last_perm = reverse_permutation(first_perm);
 
