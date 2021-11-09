@@ -15,7 +15,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.reshape import Reshape
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, \
-    result, connect, connect_data
+    shaped_const_with_data, result, connect, connect_data
 from unit_tests.utils.graph import regular_op_with_empty_data as op_with_empty_data
 
 
@@ -101,9 +101,8 @@ class SmartReshape_HC_Reshape_MatMulTest(unittest.TestCase):
 
 
 class FQTransposePullerTest(unittest.TestCase):
-    def nodes(self, input_shape, transpose_shape, fq_shape):
-        return {
-            **regular_op_with_shaped_data('input', input_shape, dict(type='Parameter', op='Parameter')),
+    def nodes(self, input_shape, transpose_shape, fq_shape, is_input_const):
+        nodes = {
             **valued_const_with_data('il', np.array([[[[0]]]])),
             **valued_const_with_data('ih', np.array([[[[255]]]])),
             **valued_const_with_data('ol', np.array([[[[0]]]])),
@@ -116,8 +115,16 @@ class FQTransposePullerTest(unittest.TestCase):
             **result(),
         }
 
+        if is_input_const:
+            input_node = shaped_const_with_data('input', input_shape)
+        else:
+            input_node = regular_op_with_shaped_data('input', input_shape, dict(type='Parameter', op='Parameter'))
+
+        nodes.update(input_node)
+        return nodes
+
     def test_positive(self):
-        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 3, 224, 224])
+        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 3, 224, 224], True)
         edges = [
             *connect('input', '0:FQ'),
             *connect('il', '1:FQ'),
@@ -132,7 +139,7 @@ class FQTransposePullerTest(unittest.TestCase):
         PullTransposeThroughFQUp().find_and_replace_pattern(graph)
         graph.clean_up()
 
-        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 224, 224, 3])
+        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 224, 224, 3], True)
         edges = [
             *connect('input', '0:transpose'),
             *connect('order:0', '1:transpose'),
@@ -148,8 +155,8 @@ class FQTransposePullerTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
-    def test_negative(self):
-        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 3, 224, 224])
+    def test_negative_1(self):
+        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 3, 224, 224], True)
         edges = [
             *connect('input', '0:FQ'),
             *connect('il', '1:FQ'),
@@ -168,3 +175,21 @@ class FQTransposePullerTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
+    def test_negative_2(self):
+        nodes = self.nodes([1, 3, 224, 224], [1, 224, 224, 3], [1, 3, 224, 224], False)
+        edges = [
+            *connect('input', '0:FQ'),
+            *connect('il', '1:FQ'),
+            *connect('ih', '2:FQ'),
+            *connect('ol', '3:FQ'),
+            *connect('oh', '4:FQ'),
+            *connect('FQ:0', '0:transpose'),
+            *connect('order:0', '1:transpose'),
+            *connect('transpose:0', 'output'),
+        ]
+        graph = build_graph(nodes_attrs=nodes, edges=edges, nodes_with_edges_only=True)
+        graph_ref = graph.copy()
+        PullTransposeThroughFQUp().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)

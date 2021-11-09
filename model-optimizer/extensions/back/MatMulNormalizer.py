@@ -73,14 +73,13 @@ class MatMulConstTransposesExtraction(BackReplacementPattern):
 class PullTransposeThroughFQUp(BackReplacementPattern):
     r"""
         BEFORE                                      AFTER
-                                                        T  T T  T  T
-         \ \ | / /                                       \ \ | / /
-        FakeQuantize                                    FakeQuantize
+    Const                                             Const
+        \ \ | / /                                       |
+        FakeQuantize                                    T  T T  T  T
+            |                                            \ \ | / /
+        Transpose                                       FakeQuantize
             |                                                |
-        Transpose                                         next_op
-            |
-         next_op
-
+         next_op                                          next_op
         `T` is Transpose for short
     """
     enabled = True
@@ -94,13 +93,17 @@ class PullTransposeThroughFQUp(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
+                ('fq_const_input', dict(kind='op', type='Const')),
+                ('fq_const_input_d', dict()),
                 ('fq', dict(kind='op', type='FakeQuantize')),
-                ('data', dict()),
+                ('fq_d', dict()),
                 ('transpose', dict(kind='op', type='Transpose')),
             ],
             edges=[
-                ('fq', 'data'),
-                ('data', 'transpose'),
+                ('fq_const_input', 'fq_const_input_d'),
+                ('fq_const_input_d', 'fq', {'in': 0}),
+                ('fq', 'fq_d'),
+                ('fq_d', 'transpose'),
             ]
         )
 
