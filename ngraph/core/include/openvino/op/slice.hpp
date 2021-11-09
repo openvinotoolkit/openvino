@@ -33,6 +33,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool has_evaluate() const override;
+    // TODO: Update to use new evaluate with TensorVector
     bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
 

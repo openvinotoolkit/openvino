@@ -4,7 +4,6 @@
 
 #include "op/slice.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -38,7 +37,7 @@ OutputVector slice(const Node& node) {
     }
 
     if (axes_input_provided) {
-        const auto& axes = inputs.at(3);
+        const auto axes = inputs.at(3);
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps, axes)};
     } else {
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps)};
@@ -52,14 +51,14 @@ OutputVector slice(const Node& node) {
     const auto starts_atr = node.get_attribute_value<std::vector<int64_t>>("starts");
     const auto ends_atr = node.get_attribute_value<std::vector<int64_t>>("ends");
 
-    const auto& starts = std::make_shared<default_opset::Constant>(element::i64, Shape{starts_atr.size()}, starts_atr);
-    const auto& ends = std::make_shared<default_opset::Constant>(element::i64, Shape{ends_atr.size()}, ends_atr);
+    const auto starts = std::make_shared<default_opset::Constant>(element::i64, Shape{starts_atr.size()}, starts_atr);
+    const auto ends = std::make_shared<default_opset::Constant>(element::i64, Shape{ends_atr.size()}, ends_atr);
 
     auto axes_atr = node.get_attribute_value<std::vector<int64_t>>("axes", std::vector<int64_t>());
 
-    const auto& steps = default_opset::Constant::create(element::i64,
-                                                        Shape{starts_atr.size()},
-                                                        std::vector<int64_t>(starts_atr.size(), 1));
+    const auto steps = default_opset::Constant::create(element::i64,
+                                                       Shape{starts_atr.size()},
+                                                       std::vector<int64_t>(starts_atr.size(), 1));
 
     if (axes_atr.empty()) {
         return {std::make_shared<ov::opset8::Slice>(data, starts, ends, steps)};
