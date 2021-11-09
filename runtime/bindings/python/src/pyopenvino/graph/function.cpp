@@ -316,6 +316,42 @@ void regclass_graph_Function(py::module m) {
                     ----------
                     is_dynamic : bool
                  )");
+    function.def("input", (ov::Output<ov::Node>(ov::Function::*)()) & ov::Function::input);
+
+    function.def("input", (ov::Output<ov::Node>(ov::Function::*)(size_t)) & ov::Function::input, py::arg("i"));
+
+    function.def("input",
+                 (ov::Output<ov::Node>(ov::Function::*)(const std::string&)) & ov::Function::input,
+                 py::arg("tensor_name"));
+
+    function.def("input", (ov::Output<const ov::Node>(ov::Function::*)() const) & ov::Function::input);
+
+    function.def("input",
+                 (ov::Output<const ov::Node>(ov::Function::*)(size_t) const) & ov::Function::input,
+                 py::arg("i"));
+
+    function.def("input",
+                 (ov::Output<const ov::Node>(ov::Function::*)(const std::string&) const) & ov::Function::input,
+                 py::arg("tensor_name"));
+
+    function.def("output", (ov::Output<ov::Node>(ov::Function::*)()) & ov::Function::output);
+
+    function.def("output", (ov::Output<ov::Node>(ov::Function::*)(size_t)) & ov::Function::output, py::arg("i"));
+
+    function.def("output",
+                 (ov::Output<ov::Node>(ov::Function::*)(const std::string&)) & ov::Function::output,
+                 py::arg("tensor_name"));
+
+    function.def("output", (ov::Output<const ov::Node>(ov::Function::*)() const) & ov::Function::output);
+
+    function.def("output",
+                 (ov::Output<const ov::Node>(ov::Function::*)(size_t) const) & ov::Function::output,
+                 py::arg("i"));
+
+    function.def("output",
+                 (ov::Output<const ov::Node>(ov::Function::*)(const std::string&) const) & ov::Function::output,
+                 py::arg("tensor_name"));
+
     function.def("__repr__", [](const ov::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::stringstream shapes_ss;
@@ -361,6 +397,16 @@ void regclass_graph_Function(py::module m) {
         return pybind_capsule;
     });
 
+    function.def_property_readonly("inputs",
+                                   (std::vector<ov::Output<ov::Node>>(ov::Function::*)()) & ov::Function::inputs);
+    function.def_property_readonly(
+        "inputs",
+        (std::vector<ov::Output<const ov::Node>>(ov::Function::*)() const) & ov::Function::inputs);
+    function.def_property_readonly("outputs",
+                                   (std::vector<ov::Output<ov::Node>>(ov::Function::*)()) & ov::Function::outputs);
+    function.def_property_readonly(
+        "outputs",
+        (std::vector<ov::Output<const ov::Node>>(ov::Function::*)() const) & ov::Function::outputs);
     function.def_property_readonly("name", &ov::Function::get_name);
     function.def_property("friendly_name", &ov::Function::get_friendly_name, &ov::Function::set_friendly_name);
 }
