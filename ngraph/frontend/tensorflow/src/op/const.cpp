@@ -43,16 +43,8 @@ OutputVector translate_const_op(const NodeContext& node) {
     auto dt = node.get_attribute<ov::element::Type>("dtype");
     Output<Node> res;
 
-    // For some reason the following do not work (no specialization of
-    // tensorflow::checkpoint::SavedTypeTraits...)
-    // case DataType::DT_UINT32:
-    //   TF_RETURN_IF_ERROR(make_const_op<uint32>(op, element::u32,
-    //   &ng_node));
-    //   break;
-    // case DataType::DT_UINT64:
-    //   TF_RETURN_IF_ERROR(make_const_op<uint64>(op, element::u64,
-    //   &ng_node));
-    //   break;
+    // TODO: fix DT_UINT32 and DT_UINT64 support
+    // no specialization of tensorflow::checkpoint::SavedTypeTraits...)
     try {
         const auto& func_param = TF_NGRAPH_CONST_MAP().at(dt);
         func_param.first(node, func_param.second, res);

@@ -5,9 +5,9 @@
 #pragma once
 
 #include <fstream>
-#include <tensorflow_frontend/decoder.hpp>
-#include <tensorflow_frontend/graph_iterator.hpp>
 
+#include "tensorflow_frontend/decoder.hpp"
+#include "tensorflow_frontend/graph_iterator.hpp"
 #include "decoder_proto.hpp"
 #include "graph.pb.h"
 #include "node_def.pb.h"

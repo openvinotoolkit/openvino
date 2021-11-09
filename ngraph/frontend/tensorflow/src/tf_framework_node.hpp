@@ -5,8 +5,8 @@
 #pragma once
 
 #include <algorithm>
-#include <tensorflow_frontend/decoder.hpp>
 
+#include "tensorflow_frontend/decoder.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
 namespace ov {

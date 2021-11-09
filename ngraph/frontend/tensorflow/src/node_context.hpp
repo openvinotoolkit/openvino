@@ -3,8 +3,8 @@
 //
 
 #pragma once
-#include <tensorflow_frontend/utility.hpp>
 
+#include "tensorflow_frontend/utility.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/variant.hpp"
 #include "place.hpp"

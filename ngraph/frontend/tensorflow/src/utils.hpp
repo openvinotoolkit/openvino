@@ -72,7 +72,7 @@ void make_padding(const std::string& tf_padding_type,
 void tf_shape_to_ngraph_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
 
 template <typename T>
-void get_static_input_vec(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
+void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
     auto ng_input = node.get_input(input_index);
     if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
         *vector = constant->cast_vector<T>();
