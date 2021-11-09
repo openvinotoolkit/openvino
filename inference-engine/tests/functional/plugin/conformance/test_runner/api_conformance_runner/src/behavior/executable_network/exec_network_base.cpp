@@ -29,7 +29,7 @@ namespace {
                                     ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                             ExecutableNetworkBaseTest::getTestCaseName);
 
-    const std::vector<InferenceEngine::Precision> execGraphInfoElemTypes = {
+    const std::vector<InferenceEngine::Precision> execNetBaseElemTypes = {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::U8,
             InferenceEngine::Precision::I16,
@@ -38,28 +38,28 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(execGraphInfoElemTypes),
+                                    ::testing::ValuesIn(execNetBaseElemTypes),
                                     ::testing::Values(ConformanceTests::targetDevice),
                                     ::testing::ValuesIn(emptyConfig)),
                             ExecNetSetPrecision::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(execGraphInfoElemTypes),
+                                    ::testing::ValuesIn(execNetBaseElemTypes),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                             ExecNetSetPrecision::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, ExecNetSetPrecision,
                             ::testing::Combine(
-                                    ::testing::ValuesIn(execGraphInfoElemTypes),
+                                    ::testing::ValuesIn(execNetBaseElemTypes),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                     ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
                             ExecNetSetPrecision::getTestCaseName);
 
     INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, ExecNetSetPrecision,
                              ::testing::Combine(
-                                     ::testing::ValuesIn(execGraphInfoElemTypes),
+                                     ::testing::ValuesIn(execNetBaseElemTypes),
                                      ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                      ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                              ExecNetSetPrecision::getTestCaseName);
