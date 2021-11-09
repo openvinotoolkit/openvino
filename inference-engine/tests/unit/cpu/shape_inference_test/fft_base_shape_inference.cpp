@@ -14,88 +14,114 @@
 
 using namespace ov;
 
-TEST(StaticShapeInferenceTest, DFTTest) {
+static std::shared_ptr<op::v7::DFT> build_dft() {
     auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
-    auto signal = op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {512, 100});
-    auto DFT = std::make_shared<ov::op::v7::DFT>(input_shape, axes_shape);
-    auto DFT_signal = std::make_shared<ov::op::v7::DFT>(input_shape, axes_shape, signal);
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto DFT = std::make_shared<ov::op::v7::DFT>(input_shape, axes);
+    return DFT;
+}
 
-    // DFT StaticShape
+static std::shared_ptr<op::v7::DFT> build_dft_signal() {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto DFT_signal = std::make_shared<ov::op::v7::DFT>(input_shape, axes, signal);
+    return DFT_signal;
+}
+
+static std::shared_ptr<op::v7::IDFT> build_idft() {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto IDFT = std::make_shared<ov::op::v7::IDFT>(input_shape, axes);
+    return IDFT;
+}
+
+static std::shared_ptr<op::v7::IDFT> build_idft_signal() {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto IDFT_signal = std::make_shared<ov::op::v7::IDFT>(input_shape, axes, signal);
+    return IDFT_signal;
+}
+
+TEST(StaticShapeInferenceTest, DFTTest) {
+    auto DFT = build_dft();
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {1, 2};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
-    shape_infer(DFT.get(), static_input_shapes, static_output_shapes);
+
+    shape_infer(DFT.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 320, 320, 2}));
+}
 
-    // DFT PartialShape
-    std::vector<PartialShape> input_shapes = {PartialShape{1, 320, 320, 2}, PartialShape{2}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(DFT.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], PartialShape({1, 320, 320, 2}));
+TEST(StaticShapeInferenceTest, DFTSignalTest) {
+    auto DFT = build_dft_signal();
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {1, 2};
+    int32_t signal_val[] = {512, 100};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+    constant_data[2] =
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
 
-    // DFT StaticShape with signal
-    static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}};
-    static_output_shapes = {StaticShape{}};
-    shape_infer(DFT_signal.get(), static_input_shapes, static_output_shapes);
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_infer(DFT.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 512, 100, 2}));
+}
 
-    // DFT PartialShape with signal
-    input_shapes = {PartialShape{1, 320, 320, 2}, PartialShape{2}, PartialShape{2}};
-    output_shapes = {PartialShape{}};
-    shape_infer(DFT_signal.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], PartialShape({1, 512, 100, 2}));
+TEST(StaticShapeInferenceTest, DFTSignalMissingConstDataTest) {
+    auto DFT = build_dft_signal();
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {1, 2};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
-    // DFT StaticShape with one constData
-    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constData;
-    int32_t ptr[2] = {1, 2};
-    constData[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, ptr);
-    static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}};
-    static_output_shapes = {StaticShape{}};
-    shape_infer(DFT_signal.get(), static_input_shapes, static_output_shapes, constData);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 512, 100, 2}));
-
-    // DFT StaticShape with one constData
-    int32_t ptr1[1] = {2};
-    constData[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, ptr1);
-    static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}};
-    static_output_shapes = {StaticShape{}};
-    shape_infer(DFT_signal.get(), static_input_shapes, static_output_shapes, constData);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 320, 512, 2}));
-
-    // DFT StaticShape with two constData
-    int32_t ptr2[4] = {1, 2, 3, 4};
-    constData[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, ptr2);
-    constData[2] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, ptr2 + 2);
-    static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}};
-    static_output_shapes = {StaticShape{}};
-    shape_infer(DFT_signal.get(), static_input_shapes, static_output_shapes, constData);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 3, 4, 2}));
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+    EXPECT_THROW(shape_infer(DFT.get(), static_input_shapes, static_output_shapes, constant_data),
+                 NodeValidationFailure);
 }
 
 TEST(StaticShapeInferenceTest, IDFTTest) {
-    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto axes_shape = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {1, 2});
-    auto signal = op::v0::Constant::create<int64_t>(element::Type_t::i64, Shape{2}, {512, 100});
-    auto IDFT = std::make_shared<ov::op::v7::IDFT>(input_shape, axes_shape);
-    auto IDFT_signal = std::make_shared<ov::op::v7::IDFT>(input_shape, axes_shape, signal);
+    auto IDFT = build_idft();
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {1, 2};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
 
     std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}},
                              static_output_shapes = {StaticShape{}};
-    shape_infer(IDFT.get(), static_input_shapes, static_output_shapes);
+
+    shape_infer(IDFT.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 320, 320, 2}));
+}
 
-    std::vector<PartialShape> input_shapes = {PartialShape{1, 320, 320, 2}, PartialShape{2}},
-                              output_shapes = {PartialShape{}};
-    shape_infer(IDFT.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], PartialShape({1, 320, 320, 2}));
+TEST(StaticShapeInferenceTest, IDFTSignalTest) {
+    auto IDFT = build_idft_signal();
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {1, 2};
+    int32_t signal_val[] = {512, 100};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+    constant_data[2] =
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
 
-    static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}};
-    static_output_shapes = {StaticShape{}};
-    shape_infer(IDFT_signal.get(), static_input_shapes, static_output_shapes);
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_infer(IDFT.get(), static_input_shapes, static_output_shapes, constant_data);
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 512, 100, 2}));
+}
 
-    input_shapes = {PartialShape{1, 320, 320, 2}, PartialShape{2}, PartialShape{2}};
-    output_shapes = {PartialShape{}};
-    shape_infer(IDFT_signal.get(), input_shapes, output_shapes);
-    ASSERT_EQ(output_shapes[0], PartialShape({1, 512, 100, 2}));
+TEST(StaticShapeInferenceTest, IDFTSignalMissingConstDataTest) {
+    auto IDFT = build_idft_signal();
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {1, 2};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 320, 320, 2}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+    EXPECT_THROW(shape_infer(IDFT.get(), static_input_shapes, static_output_shapes, constant_data),
+                 NodeValidationFailure);
 }
