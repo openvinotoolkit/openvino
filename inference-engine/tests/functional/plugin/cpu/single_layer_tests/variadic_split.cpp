@@ -127,15 +127,15 @@ const std::vector<ElementType> netPrecisions = {
 };
 
 const std::vector<VarSplitInputShapes> inputShapes4D_Nspc2NcspSpecial = {
-        { {}, {{3, 28, 24, 9}} },
+        { {}, {{3, 5, 24, 9}} },
         {
             // dynamic
             {{-1, -1, -1, -1}},
             // target
             {
-                {1, 16, 5, 7},
-                {3, 28, 24, 9},
-                {5, 12, 1, 8}
+                {1, 8, 5, 7},
+                {3, 9, 7, 9},
+                {5, 6, 1, 8}
             }
         },
         {
@@ -143,9 +143,9 @@ const std::vector<VarSplitInputShapes> inputShapes4D_Nspc2NcspSpecial = {
             {{{1, 5}, {1, 64}, {1, 25}, {2, 10}}},
             // target
             {
-                {2, 64, 5, 7},
-                {1, 8, 10, 2},
-                {3, 28, 24, 9}
+                {2, 7, 5, 7},
+                {1, 10, 10, 2},
+                {3, 5, 6, 9}
             }
         },
 };
@@ -154,21 +154,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_Nspc2NcspSpecial, VariadicSpl
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes4D_Nspc2NcspSpecial),
                                 ::testing::Values(1),
-                                ::testing::Values(std::vector<int>{2, 3, -1, 1}),
+                                ::testing::Values(std::vector<int>{1, 2, -1, 1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(perChannelsToPlanar_4D)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<VarSplitInputShapes> inputShapes5D_Nspc2NcspSpecial = {
-        { {}, {{3, 21, 24, 9, 15}} },
+        { {}, {{3, 4, 7, 9, 3}} },
         {
             // dynamic
             {{-1, -1, -1, -1, -1}},
             // target
             {
-                {1, 12, 5, 7, 5},
-                {3, 27, 24, 9, 1},
-                {5, 12, 1, 8, 2}
+                {1, 6, 5, 7, 5},
+                {3, 8, 6, 9, 1},
+                {5, 9, 1, 8, 2}
             }
         },
         {
@@ -176,9 +176,9 @@ const std::vector<VarSplitInputShapes> inputShapes5D_Nspc2NcspSpecial = {
             {{{1, 5}, {1, 64}, {1, 25}, {2, 10}, {1, 64}}},
             // target
             {
-                {2, 60, 5, 7, 7},
-                {1, 7, 10, 2, 11},
-                {3, 27, 24, 9, 8}
+                {2, 5, 5, 7, 7},
+                {1, 4, 10, 2, 11},
+                {3, 7, 5, 9, 8}
             }
         },
 };
@@ -187,21 +187,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit5D_CPU_Nspc2NcspSpecial, VariadicSpl
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes5D_Nspc2NcspSpecial),
                                 ::testing::Values(1),
-                                ::testing::Values(std::vector<int>{3, 3, -1}),
+                                ::testing::Values(std::vector<int>{2, 1, -1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(perChannelsToPlanar_5D)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<VarSplitInputShapes> inputShapes4D_planar = {
-        { {}, {{3, 24, 15, 11}} },
+        { {}, {{3, 6, 5, 6}} },
         {
             // dynamic
             {{-1, -1, -1, -1}},
             // target
             {
-                {1, 48, 12, 15},
-                {3, 12, 24, 11},
-                {5, 24, 24, 23}
+                {1, 9, 8, 7},
+                {3, 8, 6, 5},
+                {5, 3, 7, 6}
             }
         },
         {
@@ -209,9 +209,9 @@ const std::vector<VarSplitInputShapes> inputShapes4D_planar = {
             {{{1, 5}, {1, 64}, {1, 48}, {2, 48}}},
             // target
             {
-                {2, 9, 12, 48},
-                {1, 6, 12, 12},
-                {3, 1, 48, 11}
+                {2, 9, 5, 6},
+                {1, 6, 9, 8},
+                {3, 1, 6, 7}
             }
         },
 };
@@ -220,31 +220,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_planar, VariadicSplitLayerCPU
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes4D_planar),
                                 ::testing::Values(2, 3),
-                                ::testing::Values(std::vector<int>{5, 5, -1}),
+                                ::testing::Values(std::vector<int>{1, 3, -1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(planar_4D, planar_4D_ref, perChannels_4D)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<VarSplitInputShapes> inputShapes4D_block = {
-        { {}, {{3, 32, 24, 12}} },
+        { {}, {{3, 16, 6, 7}} },
         {
             // dynamic
-            {{-1, 48, -1, -1}},
+            {{-1, 16, -1, -1}},
             // target
             {
-                {1, 48, 12, 48},
-                {3, 48, 24, 12},
-                {5, 48, 24, 12}
+                {1, 16, 8, 7},
+                {3, 16, 7, 8},
+                {5, 16, 9, 8}
             }
         },
         {
             // dynamic
-            {{{1, 5}, 48, {1, 48}, {2, 24}}},
+            {{{1, 5}, 16, {1, 48}, {2, 24}}},
             // target
             {
-                {2, 48, 12, 12},
-                {1, 48, 12, 24},
-                {3, 48, 48, 24}
+                {2, 16, 12, 6},
+                {1, 16, 6, 9},
+                {3, 16, 7, 6}
             }
         },
 };
@@ -253,7 +253,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_Block8, VariadicSplitLayerCPU
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes4D_block),
                                 ::testing::Values(2, 3),
-                                ::testing::Values(std::vector<int>{5, 5, -1}),
+                                ::testing::Values(std::vector<int>{2, 2, -1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked8_4D_ref)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
@@ -262,31 +262,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit4D_CPU_Block16, VariadicSplitLayerCP
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes4D_block),
                                 ::testing::Values(2, 3),
-                                ::testing::Values(std::vector<int>{5, 5, -1, 1}),
+                                ::testing::Values(std::vector<int>{2, 2, -1, 1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked16_4D_ref)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<VarSplitInputShapes> inputShapes5D_planar = {
-        { {}, {{3, 24, 24, 11, 15}} },
+        { {}, {{3, 24, 4, 5, 6}} },
         {
             // dynamic
             {{-1, -1, -1, -1, -1}},
             // target
             {
-                {1, 15, 12, 48, 15},
-                {3, 1, 24, 12, 30},
-                {5, 23, 24, 24, 24}
+                {1, 2, 4, 6, 5},
+                {3, 1, 6, 4, 5},
+                {5, 6, 5, 7, 4}
             }
         },
         {
             // dynamic
-            {{{1, 5}, {1, 64}, {1, 48}, {2, 48}, {10, 40}}},
+            {{{1, 5}, {1, 64}, {1, 48}, {2, 48}, {2, 40}}},
             // target
             {
-                {2, 5, 12, 48, 24},
-                {1, 7, 12, 11, 15},
-                {3, 11, 48, 11, 30}
+                {2, 5, 4, 5, 6},
+                {1, 7, 5, 4, 7},
+                {3, 3, 5, 6, 4}
             }
         },
 };
@@ -295,31 +295,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit5D_CPU_planar, VariadicSplitLayerCPU
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes5D_planar),
                                 ::testing::Values(2, 3, 4),
-                                ::testing::Values(std::vector<int>{5, 5, -1}),
+                                ::testing::Values(std::vector<int>{2, 1, -1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(planar_5D, planar_5D_ref, perChannels_5D)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<VarSplitInputShapes> inputShapes5D_block = {
-        { {}, {{3, 32, 24, 12, 36}} },
+        { {}, {{3, 16, 8, 5, 6}} },
         {
             // dynamic
-            {{-1, 48, -1, -1, -1}},
+            {{-1, 16, -1, -1, -1}},
             // target
             {
-                {1, 48, 12, 48, 36},
-                {3, 48, 24, 12, 12},
-                {5, 48, 24, 12, 24}
+                {1, 16, 5, 6, 7},
+                {3, 16, 24, 5, 8},
+                {5, 16, 6, 7, 5}
             }
         },
         {
             // dynamic
-            {{{1, 5}, 48, {1, 48}, {2, 24}, {12, 64}}},
+            {{{1, 5}, 16, {1, 48}, {2, 24}, {2, 64}}},
             // target
             {
-                {2, 48, 12, 12, 24},
-                {1, 48, 12, 24, 36},
-                {3, 48, 48, 24, 12}
+                {2, 16, 7, 6, 5},
+                {1, 16, 6, 5, 7},
+                {3, 16, 5, 7, 6}
             }
         },
 };
@@ -328,7 +328,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit5D_CPU_Block8, VariadicSplitLayerCPU
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes5D_block),
                                 ::testing::Values(2, 3, 4),
-                                ::testing::Values(std::vector<int>{5, 5, -1}),
+                                ::testing::Values(std::vector<int>{1, 2, -1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked8_5D_ref)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
@@ -337,13 +337,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_VariadicSplit5D_CPU_Block16, VariadicSplitLayerCP
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputShapes5D_block),
                                 ::testing::Values(2, 3, 4),
-                                ::testing::Values(std::vector<int>{5, 5, -1, 1}),
+                                ::testing::Values(std::vector<int>{2, 1, -1, 1}),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(blocked16_5D_ref)),
                         VariadicSplitLayerCPUTest::getTestCaseName);
 
 const std::vector<VarSplitInputShapes> inputShapes3D = {
-        { {}, {{14, 42, 21}} },
+        { {}, {{14, 7, 21}} },
         {
             // dynamic
             {{-1, -1, -1}},
