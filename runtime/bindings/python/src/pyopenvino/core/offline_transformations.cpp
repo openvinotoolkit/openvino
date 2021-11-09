@@ -6,6 +6,7 @@
 
 #include <pybind11/stl.h>
 
+#include <compress_quantize_weights.hpp>
 #include <generate_mapping_file.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <pot_transformations.hpp>
@@ -26,6 +27,9 @@ void regmodule_offline_transformations(py::module m) {
         "apply_moc_transformations",
         [](std::shared_ptr<ov::Function> function, bool cf) {
             ov::pass::Manager manager;
+            auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
+            gr->add_matcher<ngraph::pass::CompressQuantizeWeights>();
+            gr->add_matcher<ngraph::pass::ZeroPointOptimizer>();
             manager.register_pass<ngraph::pass::MOCTransformations>(cf);
             manager.run_passes(function);
         },
