@@ -183,13 +183,13 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  # - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
-  #   workingDirectory: $(BUILD_SAMPLES_DIR)
-  #   displayName: 'Build cpp samples'
+  - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build cpp samples'
 
-  # - script: $(INSTALL_DIR)/samples/c/build_samples.sh
-  #   workingDirectory: $(BUILD_SAMPLES_DIR)
-  #   displayName: 'Build c samples'
+  - script: $(INSTALL_DIR)/samples/c/build_samples.sh
+    workingDirectory: $(BUILD_SAMPLES_DIR)
+    displayName: 'Build c samples'
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
@@ -235,9 +235,9 @@ jobs:
     displayName: 'CPU UT'
     continueOnError: true
 
-  - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
-    displayName: 'GNA UT'
-    continueOnError: true
+  # - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
+  #   displayName: 'GNA UT'
+  #   continueOnError: true
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
