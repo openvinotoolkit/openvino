@@ -17,7 +17,7 @@ template <typename T>
 void shape_infer(const Split* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
-                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) {
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 2));
 
@@ -33,6 +33,7 @@ void shape_infer(const Split* op,
     NODE_VALIDATION_CHECK(op, axis_ps.rank().compatible(0), "'axis' input must be a scalar. Got: ", axis_ps);
 
     std::vector<int64_t> axes_values;
+    auto num_splits = op->get_num_splits();
     if (get_data_as_int64<T>(1, op, axes_values, constant_data) && data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               axes_values.size() == 1,
@@ -46,29 +47,29 @@ void shape_infer(const Split* op,
             const auto dimension_at_axis = data_ps[axis].get_length();
 
             NODE_VALIDATION_CHECK(op,
-                                  dimension_at_axis % op->m_num_splits == 0,
+                                  dimension_at_axis % num_splits == 0,
                                   "Dimension of data input shape along 'axis': ",
                                   dimension_at_axis,
                                   " must be evenly divisible by 'num_splits' attribute value: ",
-                                  op->m_num_splits);
+                                  num_splits);
 
-            each_output_shape[axis] = dimension_at_axis / op->m_num_splits;
+            each_output_shape[axis] = dimension_at_axis / num_splits;
         } else {
             const auto dim_interval_at_axis = data_ps[axis].get_interval();
             NODE_VALIDATION_CHECK(op,
-                                  dim_interval_at_axis.get_max_val() >= static_cast<int64_t>(op->m_num_splits),
+                                  dim_interval_at_axis.get_max_val() >= static_cast<int64_t>(num_splits),
                                   "The interval maximum of the dimension for data "
                                   "input shape along 'axis' must be "
                                   "greater or equal to 'num_splits' attribute. Got: ",
                                   dim_interval_at_axis,
                                   " and ",
-                                  op->m_num_splits);
+                                  num_splits);
 
             auto dim_interval_at_axis_min =
-                static_cast<int64_t>(dim_interval_at_axis.get_min_val() * (1.0f / op->m_num_splits));
+                static_cast<int64_t>(dim_interval_at_axis.get_min_val() * (1.0f / num_splits));
             auto dim_interval_at_axis_max = dim_interval_at_axis.get_max_val();
             if (dim_interval_at_axis.has_upper_bound()) {
-                dim_interval_at_axis_max = static_cast<int64_t>(dim_interval_at_axis_max * (1.0f / op->m_num_splits));
+                dim_interval_at_axis_max = static_cast<int64_t>(dim_interval_at_axis_max * (1.0f / num_splits));
             }
             each_output_shape[axis] = Dimension(dim_interval_at_axis_min, dim_interval_at_axis_max);
         }
@@ -76,7 +77,7 @@ void shape_infer(const Split* op,
         each_output_shape = ov::PartialShape::dynamic(data_ps.rank());
     }
 
-    for (size_t i = 0; i < op->m_num_splits; ++i)
+    for (size_t i = 0; i < num_splits; ++i)
         output_shapes.push_back(each_output_shape);
 }
 

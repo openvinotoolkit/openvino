@@ -12,6 +12,7 @@
 namespace ov {
 namespace op {
 namespace v1 {
+
 /// \brief Splits the input tensor into a list of equal sized tensors
 class OPENVINO_API Split : public Op {
 public:
@@ -45,12 +46,6 @@ public:
 
 protected:
     size_t m_num_splits;
-
-    template <typename T>
-    friend void shape_infer(const Split* op,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes,
-                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {});
 };
 }  // namespace v1
 }  // namespace op

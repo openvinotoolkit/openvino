@@ -20,9 +20,10 @@ void shape_infer(const Pad* op, const std::vector<T>& input_shapes, std::vector<
     NODE_VALIDATION_CHECK(op, (input_shapes.size() == 3 || input_shapes.size() == 4) && output_shapes.size() == 1);
 
     auto& output_shape = output_shapes[0];
+    auto pad_mode = op->get_pad_mode();
 
     // Check the shape of pad_value
-    if (op->m_pad_mode == PadMode::CONSTANT && input_shapes.size() == 4) {
+    if (pad_mode == PadMode::CONSTANT && input_shapes.size() == 4) {
         const auto& pad_value_shape = input_shapes[3];
         NODE_VALIDATION_CHECK(op,
                               pad_value_shape.rank().compatible(0),
@@ -89,7 +90,7 @@ void shape_infer(const Pad* op, const std::vector<T>& input_shapes, std::vector<
                 if (arg_shape[i].is_static()) {
                     const auto& dim = arg_shape[i].get_length();
 
-                    if (op->m_pad_mode == op::PadMode::EDGE) {
+                    if (pad_mode == op::PadMode::EDGE) {
                         NODE_VALIDATION_CHECK(
                             op,
                             begin == 0 || dim > 0,
@@ -103,7 +104,7 @@ void shape_infer(const Pad* op, const std::vector<T>& input_shapes, std::vector<
                             end,
                             ")");
                     }
-                    if (op->m_pad_mode == op::PadMode::REFLECT) {
+                    if (pad_mode == op::PadMode::REFLECT) {
                         NODE_VALIDATION_CHECK(
                             op,
                             begin < dim,
@@ -126,7 +127,7 @@ void shape_infer(const Pad* op, const std::vector<T>& input_shapes, std::vector<
                             ")");
                     }
 
-                    if (op->m_pad_mode == op::PadMode::SYMMETRIC) {
+                    if (pad_mode == op::PadMode::SYMMETRIC) {
                         NODE_VALIDATION_CHECK(op,
                                               begin <= dim,
                                               "SYMMETRIC padding mode requires pad-begin to be no greater than "
