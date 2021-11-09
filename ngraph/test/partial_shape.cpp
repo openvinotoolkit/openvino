@@ -9,6 +9,44 @@
 
 using namespace ngraph;
 
+TEST(partial_shape, interators) {
+    const PartialShape ps({1, 2, 3});
+    ASSERT_TRUE(ps.is_static());
+    {
+        auto p = ps;
+        for (auto& d : p) {
+            d = Dimension::dynamic();
+        }
+        ASSERT_TRUE(p.is_dynamic());
+    }
+    {
+        auto p = ps;
+        auto it = p.begin();
+        *it = Dimension::dynamic();
+        ASSERT_TRUE(p.is_dynamic());
+    }
+    {
+        auto p = ps;
+        auto it = p.rbegin();
+        *it = Dimension::dynamic();
+        ASSERT_TRUE(p.is_dynamic());
+    }
+    {
+        auto p = ps;
+        auto it = p.end();
+        --it;
+        *it = Dimension::dynamic();
+        ASSERT_TRUE(p.is_dynamic());
+    }
+    {
+        auto p = ps;
+        auto it = p.rend();
+        --it;
+        *it = Dimension::dynamic();
+        ASSERT_TRUE(p.is_dynamic());
+    }
+}
+
 TEST(partial_shape, ps_construction_empty) {
     auto ps = PartialShape{};
     ASSERT_TRUE(ps.rank().is_static());
