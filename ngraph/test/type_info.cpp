@@ -47,7 +47,7 @@ TEST(type_info, compare_new_type) {
 TEST(type_info, compare_new_with_old_type) {
     ov::DiscreteTypeInfo type1("type1", 0, "version1");
     ov::DiscreteTypeInfo type1_o("type1", 0);
-    ASSERT_TRUE(type1 != type1_o);
+    ASSERT_TRUE(type1 == type1_o);
 }
 
 TEST(type_info, check_hash_value) {

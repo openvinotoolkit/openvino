@@ -13,7 +13,8 @@
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION(TYPE_NAME, VERSION_NAME)                  \
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {                  \
-        static const ::ov::DiscreteTypeInfo type_info{TYPE_NAME, 0, VERSION_NAME}; \
+        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME, 0, VERSION_NAME}; \
+        type_info.hash(); \
         return type_info;                                                          \
     }                                                                              \
     const ::ov::DiscreteTypeInfo& get_type_info() const override {                 \
@@ -25,10 +26,11 @@
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS, OLD_VERSION) \
     static const ::ov::DiscreteTypeInfo& get_type_info_static() {                                    \
-        static const ::ov::DiscreteTypeInfo type_info{TYPE_NAME,                                     \
+        static ::ov::DiscreteTypeInfo type_info{TYPE_NAME,                                     \
                                                       OLD_VERSION,                                   \
                                                       VERSION_NAME,                                  \
                                                       &PARENT_CLASS::get_type_info_static()};        \
+        type_info.hash(); \
         return type_info;                                                                            \
     }                                                                                                \
     const ::ov::DiscreteTypeInfo& get_type_info() const override {                                   \

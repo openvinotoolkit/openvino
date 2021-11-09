@@ -21,9 +21,12 @@ size_t DiscreteTypeInfo::hash() const {
     size_t version_hash = std::hash<decltype(version)>()(version);
     size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
 
-    // FIXME: Use const_cast instead of mutable to avoid an issue with GCC 4.8 with consexpr variables
-    const_cast<ov::DiscreteTypeInfo*>(this)->hash_value =
-        ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
+    return ov::util::hash_combine(std::vector<size_t>{name_hash, version_hash, version_id_hash});
+}
+
+size_t DiscreteTypeInfo::hash() {
+    if (hash_value == 0)
+        hash_value = static_cast<const DiscreteTypeInfo*>(this)->hash();
     return hash_value;
 }
 
@@ -74,7 +77,9 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
     return false;
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
-    return hash() == b.hash();
+    if (hash_value != 0 && b.hash_value != 0)
+        return hash() == b.hash();
+    return version == b.version && strcmp(name, b.name) == 0;
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;

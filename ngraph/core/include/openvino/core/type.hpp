@@ -67,6 +67,7 @@ struct OPENVINO_API DiscreteTypeInfo {
     operator std::string() const;
 
     size_t hash() const;
+    size_t hash();
 
 private:
     size_t hash_value;
