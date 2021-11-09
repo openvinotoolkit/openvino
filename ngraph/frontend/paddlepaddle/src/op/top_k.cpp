@@ -29,8 +29,8 @@ NamedOutputs top_k(const NodeContext& node) {
     auto node_topk = std::make_shared<ngraph::opset6::TopK>(x, k_expected_node, axis, "max", "value", index_element_type);
 
     NamedOutputs named_outputs;
-    named_outputs["Out"] = {std::make_shared<ngraph::opset6::Convert>(node_topk->output(0), element::f32)};
-    named_outputs["Indices"] = {std::make_shared<ngraph::opset6::Convert>(node_topk->output(1), element::i64)};
+    named_outputs["Out"] = {node_topk->output(0)};
+    named_outputs["Indices"] = {node_topk->output(1)};
     
     return named_outputs;
 
