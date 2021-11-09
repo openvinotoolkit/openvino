@@ -116,6 +116,8 @@
 #include "op/qlinear_conv.hpp"
 #include "op/qlinear_matmul.hpp"
 #include "op/quantize_linear.hpp"
+#include "op/random_normal.hpp"
+#include "op/random_normal_like.hpp"
 #include "op/random_uniform.hpp"
 #include "op/random_uniform_like.hpp"
 #include "op/range.hpp"
@@ -161,7 +163,7 @@
 
 namespace ngraph {
 namespace onnx_import {
-namespace detail {
+namespace {
 const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version,
                                                             const std::map<std::int64_t, Operator>& map) {
     // Get the latest version.
@@ -176,7 +178,7 @@ const std::map<std::int64_t, Operator>::const_iterator find(std::int64_t version
     }
     return std::end(map);
 }
-}  // namespace detail
+}  // namespace
 
 void OperatorsBridge::_register_operator(const std::string& name,
                                          std::int64_t version,
@@ -237,7 +239,7 @@ OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain, std::i
                     << " is unsupported. Falling back to: " << OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION;
     }
     for (const auto& op : dm->second) {
-        const auto& it = detail::find(version, op.second);
+        const auto& it = find(version, op.second);
         if (it == std::end(op.second)) {
             throw error::UnsupportedVersion{op.first, version, domain};
         }
@@ -261,7 +263,7 @@ bool OperatorsBridge::_is_operator_registered(const std::string& name,
         return false;
     }
 
-    if (detail::find(version, op_map->second) != std::end(op_map->second)) {
+    if (find(version, op_map->second) != std::end(op_map->second)) {
         return true;
     } else {
         return false;
@@ -384,6 +386,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
     REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
     REGISTER_OPERATOR("Range", 1, range);
+    REGISTER_OPERATOR("RandomNormal", 1, random_normal);
+    REGISTER_OPERATOR("RandomNormalLike", 1, random_normal_like);
     REGISTER_OPERATOR("RandomUniform", 1, random_uniform);
     REGISTER_OPERATOR("RandomUniformLike", 1, random_uniform_like);
     REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
