@@ -306,12 +306,6 @@ SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node) {
 }
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType nodeType) {
     auto &rt = node->get_rt_info();
-    // Todo: Remove the check from DEBUG also as soon as the PR is merged
-    #ifdef DEBUG
-    if (nodeType == SnippetsNodeType::NotSet) {
-        throw ngraph_error("Attempt to set an invalid value of a SnippetsNodeType.");
-    }
-    #endif
     rt["MayBeFusedInPlugin"] = std::make_shared<VariantWrapper<int64_t>>(static_cast<int64_t>(nodeType));
 }
 

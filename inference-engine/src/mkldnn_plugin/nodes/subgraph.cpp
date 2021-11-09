@@ -121,9 +121,6 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
                 }
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
-                // TODO: need investigate
-                // bad accuracy for shape {1, 1, 4, 11}, {2, 5, 1, 1}
-                // same for disabled collapse dims
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
                 size_t blockSize = mayiuse(dnnl::impl::cpu::x64::avx512_common) ? 16 : 8;
 
@@ -145,13 +142,9 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             }
         };
 
-        // Todo: inhereted from eltwise node. Why offset is max for non-dynamic nodes?
-        //  size_t offset = isDynamicNode() ? 0 : std::numeric_limits<size_t>::max();
         size_t offset = std::numeric_limits<size_t>::max();
         NodeConfig config;
         config.dynBatchSupport = outputShapes[0].getRank() > 1 && inputShapes[0] == outputShapes[0];
-//        config.inConfs.resize(getParentEdges().size());
-//        for (size_t i = 0; i < getParentEdges().size(); i++) {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             PortConfig portConfig;
@@ -169,14 +162,11 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             config.outConfs[i] = portConfig;
         }
 
-        impl_desc_type impl_type;
+        impl_desc_type impl_type = impl_desc_type::unknown;
         if (mayiuse(x64::avx512_common)) {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
-        } else {
-            // Should never hit here: currently only avx512 and avx2 are supported
-            impl_type = impl_desc_type::unknown;
         }
         return {config, impl_type};
     };
@@ -205,26 +195,6 @@ void MKLDNNSnippetNode::createPrimitive() {
     generate();
 }
 
-void MKLDNNSnippetNode::initOptimalPrimitiveDescriptor() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
-    auto config = selected_pd->getConfig();
-    if (!isConfigDefined(config)) {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].desc = getDefinedInputDesc(config, i);
-        }
-
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].desc = getDefinedOutputDesc(config, i);
-        }
-
-        initDescriptor(config);
-    } else {
-        initDescriptor(config);
-    }
-}
-
 void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     if (schedule.ptr == nullptr) {
         interpret();
@@ -234,14 +204,14 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     for (size_t i = 0; i < inputShapes.size(); i++) {
         auto & parents = getParentEdgesAtPort(i);
         auto &mem = parents[0]->getMemory();
-        inputs[i] = reinterpret_cast<const uint8_t*>(mem.GetData()) + start_offset_in[i];
+        inputs[i] = reinterpret_cast<const uint8_t*>(mem.GetPtr());
     }
 
     std::vector<uint8_t *> outputs(outputShapes.size(), nullptr);
     for (size_t i = 0; i < outputShapes.size(); i++) {
         auto & child = getChildEdgesAtPort(i);
         auto &mem = child[0]->getMemory();
-        outputs[i] = reinterpret_cast<uint8_t*>(mem.GetData()) + start_offset_out[i];
+        outputs[i] = reinterpret_cast<uint8_t*>(mem.GetPtr());
     }
 
     if (isDynBatchEnabled) {
@@ -254,9 +224,9 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
     if (tensorRank == rank6D) {
         shedule_6d(outputs, inputs);
         return;
+    } else {
+         IE_THROW() << "The node can't be scheduled as a 6d tensor";
     }
-
-    shedule_nt(outputs, inputs);
 }
 
 bool MKLDNNSnippetNode::created() const {
@@ -267,7 +237,11 @@ bool MKLDNNSnippetNode::created() const {
 
 static size_t argmax_rank(const std::vector<MKLDNNEdgeWeakPtr> &childEdges) {
     auto getOutBlockedDims = [childEdges](int i) {
-        return (childEdges[i].lock()->getMemory().GetDescWithType<BlockedMemoryDesc>())->getBlockDims();
+            if ( auto childEdge =  childEdges[i].lock() )
+                return childEdge->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+            else
+                IE_THROW() << "Unable to lock childEdge weak_ptr";
+            return VectorDims{};
     };
     auto getOutRank = [getOutBlockedDims](int i) {
         return getOutBlockedDims(i).size();
@@ -294,19 +268,11 @@ static size_t argmax_rank(const std::vector<MKLDNNEdgeWeakPtr> &childEdges) {
     return max_rank_idx;
 }
 
-static auto offset_in_calc(std::vector<int64_t>& offset, const std::vector<int64_t>& dims_in, const std::vector<int64_t>& dims_out) -> void {
+static auto offset_calculation(std::vector<int64_t>& offset, const std::vector<int64_t>& dims_in, const std::vector<int64_t>& dims_out) -> void {
     int k = 1;
     for (int i = offset.size() - 1; i >= 0; i--) {
         offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
         k *= dims_in[i];
-    }
-}
-
-static auto offset_out_calc(std::vector<int64_t>& offset, const std::vector<int64_t>& dims) -> void {
-    int k = 1;
-    for (int i = offset.size() - 1; i >= 0; i--) {
-        offset[i] = k;
-        k *= dims[i];
     }
 }
 
@@ -376,32 +342,22 @@ void MKLDNNSnippetNode::define_shedule() {
     };
 
     auto initOffsets = [this, config, dataSize](size_t tensorRank) {
-        // inputs
         // find max rank input among all outputs
         const size_t inputNum = getParentEdges().size();
         offsets_in.resize(inputNum);
         for (size_t i = 0; i < inputNum; i++) {
             offsets_in[i].resize(tensorRank, 1);
-            offset_in_calc(offsets_in[i], dims_in[i], dims_out[max_rank_out_desc_idx]);
+            offset_calculation(offsets_in[i], dims_in[i], dims_out[max_rank_out_desc_idx]);
             for (size_t j = 0; j < tensorRank; j++) {
                 offsets_in[i][j] *= dataSize;
             }
         }
 
-        start_offset_in.resize(inputNum);
-        for (size_t i = 0; i < inputNum; i++) {
-            const auto desc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-            start_offset_in[i] =  desc->getOffsetPadding() * dataSize;
-        }
-
-        // outputs
         const size_t outputNum = config.outConfs.size();
         offsets_out.resize(outputNum);
         for (size_t i = 0; i < outputNum; i++) {
             offsets_out[i].resize(tensorRank, 1);
-            //offset_out_calc(offsets_out[i], dims_out[i]);
-            //Todo NB! Calc in and out offsets in a similar way for test purposes
-            offset_in_calc(offsets_out[i], dims_out[i], dims_out[max_rank_out_desc_idx]);
+            offset_calculation(offsets_out[i], dims_out[i], dims_out[max_rank_out_desc_idx]);
             for (size_t j = 0; j < tensorRank; j++) {
                 offsets_out[i][j] *= dataSize;
             }
@@ -577,65 +533,6 @@ void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const 
 
             schedule.get_callable<kernel>()(ca.raw(), sch.raw(), off.raw());
         });
-}
-
-void MKLDNNSnippetNode::shedule_nt(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
-    size_t inputNum = inputs.size();
-    size_t outputsNum = outputs.size();
-
-    IE_THROW() << "Fix shedule_nt for a new calling convention";
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        splitter(schedulerWorkAmount, nthr, ithr, start, end);
-
-        auto work_size = dims_out[max_rank_out_desc_idx];
-        std::vector<size_t> counters(work_size.size(), 0);
-
-        for (size_t iwork = start; iwork < end; ++iwork) {
-            size_t tmp = iwork;
-            for (ptrdiff_t j = work_size.size() - 2; j >= 0; j--) {
-                counters[j] = tmp % work_size[j];
-                tmp /= work_size[j];
-            }
-
-            size_t index_in[7] = {0};
-            for (int i = 0; i < inputNum; i++) {
-                index_in[i] = 0;
-                for (int j = 0; j < counters.size(); j++) {
-                    index_in[i] += counters[j] * offsets_in[i][j];
-                }
-            }
-
-            size_t index_out[7] = {0};
-            for (int i = 0; i < outputsNum; i++) {
-                for (int j = 0; j < counters.size(); j++) {
-                    index_out[i] += counters[j] * offsets_out[i][j];
-                }
-            }
-
-            union param {
-                const float* ptr;
-                size_t len;
-            };
-
-            std::array<param, 8> args;
-
-            for (size_t i = 0; i < inputNum; i++) {
-                args[i].ptr = reinterpret_cast<const float*>(inputs[i] + index_in[i]);
-            }
-
-            for (size_t i = 0; i < outputsNum; i++) {
-                args[inputNum+i].ptr = reinterpret_cast<const float*>(outputs[i] + index_out[i]);
-            }
-
-            args[inputNum+outputsNum].len = static_cast<size_t>(work_size[work_size.size() - 1]);
-
-            typedef void (*ker)(const void *);
-            ker k = reinterpret_cast<ker>(const_cast<unsigned char*>(schedule.ptr));
-            k(&args[0]);
-        }
-    });
 }
 
 void MKLDNNSnippetNode::interpret() const {

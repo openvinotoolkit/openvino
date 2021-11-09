@@ -28,7 +28,6 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
-    void initOptimalPrimitiveDescriptor() override;
 
     // Here we convert to canonical for & jit everything
     void createPrimitive() override;
@@ -51,7 +50,6 @@ private:
     void generate();
 
     // Evaluates generated snippet using parallel backend
-    void shedule_nt(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const;
     void shedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const;
 
     // Local copy of subgraph node for canonization & code generation
