@@ -118,7 +118,7 @@ private:
 
     bool isWino = false;
     AttrPtr pAttr;
-    ov::op::PadType padType;
+    bool autoPadding = false;
 };
 
 }  // namespace MKLDNNPlugin

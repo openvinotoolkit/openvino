@@ -82,7 +82,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         }
         paddingL = convolutionOp->get_pads_begin();
         paddingR = convolutionOp->get_pads_end();
-        padType = convolutionOp->get_auto_pad();
+        autoPadding = one_of(convolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     } else if (groupConvolutionOp) {
         algorithm = ConvolutionGrouped;
 
@@ -105,7 +105,7 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const std::shared_ptr<ngraph::Node>
         }
         paddingL = groupConvolutionOp->get_pads_begin();
         paddingR = groupConvolutionOp->get_pads_end();
-        padType = groupConvolutionOp->get_auto_pad();
+        autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
 }
 
@@ -1007,7 +1007,7 @@ void MKLDNNConvolutionNode::executeDynamicImpl(dnnl::stream strm) {
 
 void MKLDNNConvolutionNode::updatePadding() {
     //update padding. TODO [DS] : rewrite when the final shape inference interface is available
-    if (isDynamicNode() && one_of(padType, ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER)) {
+    if (isDynamicNode() && autoPadding) {
         if (auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(opToShapeInfer)) {
             paddingL = convolutionOp->get_pads_begin();
             paddingR = convolutionOp->get_pads_end();
