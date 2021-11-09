@@ -32,9 +32,9 @@ TEST(StaticShapeInferenceTest, SpaceToBatchTest) {
     int32_t block_val[] = {1, 6, 5, 1, 16};
     int32_t pads_begin_val[] = {0, 2, 0, 0, 0};
     int32_t pads_end_val[] = {0, 2, 1, 0, 0};
-    auto block = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{5}, block_val);
-    auto pads_begin = std::make_shared<ngraph::runtime::HostTensor>(element::i32, Shape{5}, pads_begin_val);
-    auto pads_end = std::make_shared<ngraph::runtime::HostTensor>(element::i32, Shape{5}, pads_end_val);
+    auto block = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{5}, block_val);
+    auto pads_begin = std::make_shared<ngraph::runtime::HostTensor>(element::i32, ov::Shape{5}, pads_begin_val);
+    auto pads_end = std::make_shared<ngraph::runtime::HostTensor>(element::i32, ov::Shape{5}, pads_end_val);
 
     const std::vector<StaticShape> input_shapes = {{2, 32, 64, 128, 256}, {5}, {5}, {5}};
     std::vector<StaticShape> output_shapes = {{}};
@@ -62,7 +62,7 @@ TEST(StaticShapeInferenceTest, SpaceToBatchThrowExceptionWithMissingPadsHostTens
     auto space_to_batch = build_space_to_batch();
 
     int32_t block_val[] = {1, 6, 5, 1, 16};
-    auto block = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{5}, block_val);
+    auto block = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, ov::Shape{5}, block_val);
 
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
     constant_data[1] = block;
