@@ -83,6 +83,9 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 
+#include "transformations/utils/transformation_helper.hpp"
+#include "transformations/transpose_nchw.hpp"
+
 #include <ngraph/opsets/opset7.hpp>
 
 #include <gna2-model-api.h>
@@ -698,6 +701,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
+        manager.register_pass<TransposeNCHW>(); // DEBUG
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -780,6 +784,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<RemoveSingleInputConcatPass>();
             passes->registerPass<BroadcastConstPass>();
             passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+            //passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>(); // DEBUG
         }
 
         if (fake_quantized)
@@ -789,7 +794,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
-        passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
+        //passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>(); // DEBUG
 
         passes->registerPass<SubstitutePReluPass>();
 
