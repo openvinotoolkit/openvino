@@ -359,6 +359,9 @@ int usb_read(libusb_device_handle *f, void *data, size_t size)
             return rc;
         data = ((char *)data) + bt;
         size -= bt;
+#if !(defined(_WIN32) || defined(_WIN64))
+        usleep(10);
+#endif
     }
     return 0;
 }
@@ -380,6 +383,9 @@ int usb_write(libusb_device_handle *f, const void *data, size_t size)
             return rc;
         data = (char *)data + bt;
         size -= bt;
+#if !(defined(_WIN32) || defined(_WIN64))
+        usleep(10);
+#endif
     }
     return 0;
 }
