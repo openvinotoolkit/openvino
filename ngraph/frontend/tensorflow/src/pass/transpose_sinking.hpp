@@ -12,7 +12,7 @@ namespace frontend {
 namespace tf {
 namespace pass {
 
-class TF_API TransposeSinkingOVTF : public ov::pass::FunctionPass {
+class TransposeSinkingOVTF : public ov::pass::FunctionPass {
 public:
     OPENVINO_RTTI("ov::frontend::tf::pass::TransposeSinkingOVTF");
     TransposeSinkingOVTF() {
