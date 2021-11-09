@@ -1,10 +1,8 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include <ie_common.h>
 #include <pybind11/pybind11.h>
 
-#include <ie_iinfer_request.hpp>
 #include <openvino/core/node.hpp>
 #include <openvino/core/version.hpp>
 #include <string>
@@ -65,26 +63,6 @@ std::string get_version() {
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     m.def("get_version", &get_version);
-    py::enum_<InferenceEngine::StatusCode>(m, "StatusCode")
-        .value("OK", InferenceEngine::StatusCode::OK)
-        .value("GENERAL_ERROR", InferenceEngine::StatusCode::GENERAL_ERROR)
-        .value("NOT_IMPLEMENTED", InferenceEngine::StatusCode::NOT_IMPLEMENTED)
-        .value("NETWORK_NOT_LOADED", InferenceEngine::StatusCode::NETWORK_NOT_LOADED)
-        .value("PARAMETER_MISMATCH", InferenceEngine::StatusCode::PARAMETER_MISMATCH)
-        .value("NOT_FOUND", InferenceEngine::StatusCode::NOT_FOUND)
-        .value("OUT_OF_BOUNDS", InferenceEngine::StatusCode::OUT_OF_BOUNDS)
-        .value("UNEXPECTED", InferenceEngine::StatusCode::UNEXPECTED)
-        .value("REQUEST_BUSY", InferenceEngine::StatusCode::REQUEST_BUSY)
-        .value("RESULT_NOT_READY", InferenceEngine::StatusCode::RESULT_NOT_READY)
-        .value("NOT_ALLOCATED", InferenceEngine::StatusCode::NOT_ALLOCATED)
-        .value("INFER_NOT_STARTED", InferenceEngine::StatusCode::INFER_NOT_STARTED)
-        .value("NETWORK_NOT_READ", InferenceEngine::StatusCode::NETWORK_NOT_READ)
-        .export_values();
-
-    py::enum_<InferenceEngine::IInferRequest::WaitMode>(m, "WaitMode")
-        .value("RESULT_READY", InferenceEngine::IInferRequest::WaitMode::RESULT_READY)
-        .value("STATUS_ONLY", InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY)
-        .export_values();
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
