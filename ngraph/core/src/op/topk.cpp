@@ -199,6 +199,8 @@ void op::v1::TopK::validate_and_infer_types() {
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
     shape_infer(this, input_shapes, output_shapes);
 
+    set_axis(input_shapes[0].rank(), get_provided_axis());
+
     set_output_size(2);
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
     set_output_type(1, m_index_element_type, output_shapes[1]);

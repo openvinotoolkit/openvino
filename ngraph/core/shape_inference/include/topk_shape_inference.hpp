@@ -58,16 +58,15 @@ void shape_infer(const TopK* op,
                                   " (got ",
                                   k_as_shape.size(),
                                   " elements).");
-
-            NODE_VALIDATION_CHECK(op,
-                                  k_as_shape[0].get_max_length() > 0,
-                                  "The value of 'K' must be a positive number.",
-                                  " (got ",
-                                  k_as_shape[0].get_max_length(),
-                                  ").");
-            if (k_as_shape.is_static())
+            if (k_as_shape[0].is_static()) {
+                NODE_VALIDATION_CHECK(op,
+                                      k_as_shape[0].get_max_length() > 0,
+                                      "The value of 'K' must be a positive number.",
+                                      " (got ",
+                                      k_as_shape[0].get_max_length(),
+                                      ").");
                 dim_axis = k_as_shape[0].get_length();
-            else {
+            } else {
                 // in this dynamic branch we are sure of dim_axis's type
                 const auto in_min = dim_axis.get_min_length();
                 const auto in_max = dim_axis.get_max_length();
