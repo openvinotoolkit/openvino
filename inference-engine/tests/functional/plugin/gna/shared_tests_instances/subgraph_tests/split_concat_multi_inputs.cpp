@@ -27,8 +27,8 @@ std::vector<std::map<std::string, std::string>> additionalConfig = {
 std::vector<std::vector<size_t>> inputShapes = {
         {1, 10},
         {1, 50},
-        {1, 64},
-        {1, 32}
+        {1, 32},
+        {1, 512}
 };
 
 std::vector<size_t> splitsNum = {2, 3, 4, 10};
