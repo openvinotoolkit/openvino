@@ -58,6 +58,14 @@ protected:
     value_type m_value;
 };
 
+template <>
+class VariantImpl<void> : public Variant {
+public:
+    using value_type = void;
+
+    VariantImpl() = default;
+};
+
 extern template class OPENVINO_API VariantImpl<std::string>;
 extern template class OPENVINO_API VariantImpl<int64_t>;
 extern template class OPENVINO_API VariantImpl<bool>;

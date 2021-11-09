@@ -9,6 +9,7 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -22,6 +23,7 @@ op::v1::OneHot::OneHot(const Output<Node>& indices,
                        int64_t axis)
     : Op({indices, depth, on_value, off_value}),
       m_axis(axis) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 

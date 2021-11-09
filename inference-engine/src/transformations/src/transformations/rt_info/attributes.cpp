@@ -8,10 +8,12 @@ ov::pass::Attributes::Attributes() {
     register_factory<VariantWrapper<ngraph::FusedNames>>();
     register_factory<PrimitivesPriority>();
     register_factory<DisableConstantFolding>();
+    register_factory<DisableFP16Compression>();
     register_factory<NmsSelectedIndices>();
     register_factory<StridesPropagation>();
     register_factory<OldApiMap>();
     register_factory<LayoutAttribute>();
+    register_factory<Decompression>();
 }
 
 ov::Variant* ov::pass::Attributes::create_by_type_info(const ov::DiscreteTypeInfo& type_info) {

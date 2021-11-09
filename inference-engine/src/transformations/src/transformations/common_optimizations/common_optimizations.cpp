@@ -49,6 +49,7 @@
 #include "transformations/common_optimizations/strides_optimization.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
+#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -78,6 +79,7 @@
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
+#include "transformations/disable_decompression_convert_constant_folding.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -95,9 +97,13 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
 
+    manager.register_pass<ov::pass::DisableDecompressionConvertConstantFolding>();
+
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     manager.register_pass<ngraph::pass::MOCTransformations>(true, false);
+
+    manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy, false>();
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();

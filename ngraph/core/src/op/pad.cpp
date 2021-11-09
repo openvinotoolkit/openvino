@@ -13,6 +13,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -26,6 +27,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, arg_pad_value}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -35,6 +38,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), ov::Shape{}, {0})}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 

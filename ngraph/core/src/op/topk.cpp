@@ -15,6 +15,7 @@
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -154,6 +155,7 @@ op::v1::TopK::TopK(const Output<Node>& data,
       m_mode{as_enum<Mode>(mode)},
       m_sort{as_enum<SortType>(sort)},
       m_index_element_type{index_element_type} {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
@@ -169,6 +171,7 @@ op::v1::TopK::TopK(const Output<Node>& data,
       m_mode{mode},
       m_sort{sort},
       m_index_element_type{index_element_type} {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 

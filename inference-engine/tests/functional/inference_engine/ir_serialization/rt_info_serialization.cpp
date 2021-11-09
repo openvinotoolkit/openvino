@@ -57,6 +57,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
                 std::make_shared<ov::PrimitivesPriority>("priority");
         info[ov::OldApiMap::get_type_info_static()] = std::make_shared<ov::OldApiMap>(
                 ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
+        info[ov::Decompression::get_type_info_static()] = std::make_shared<ov::Decompression>();
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -100,6 +101,11 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
         auto old_api_map_attr_val = old_api_map_attr->get();
         ASSERT_EQ(old_api_map_attr_val.get_order(), std::vector<uint64_t>({0, 2, 3, 1}));
         ASSERT_EQ(old_api_map_attr_val.get_type(), ngraph::element::Type_t::f32);
+
+        const std::string& dkey = ov::Decompression::get_type_info_static();
+        ASSERT_TRUE(info.count(dkey));
+        auto decompression_attr = std::dynamic_pointer_cast<ov::Decompression>(info.at(dkey));
+        ASSERT_TRUE(decompression_attr);
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);

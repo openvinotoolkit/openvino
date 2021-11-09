@@ -19,6 +19,7 @@
 #include "ngraph/runtime/reference/strided_slice.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/slice_plan.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -30,6 +31,9 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
                                            const ngraph::Output<ngraph::Node>& crops_begin,
                                            const ngraph::Output<ngraph::Node>& crops_end)
     : Op({data, block_shape, crops_begin, crops_end}) {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
+    ov::mark_as_precision_sensitive(input(3));
     constructor_validate_and_infer_types();
 }
 

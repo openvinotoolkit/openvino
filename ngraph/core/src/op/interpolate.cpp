@@ -13,6 +13,7 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -22,6 +23,7 @@ BWDCMP_RTTI_DEFINITION(op::v0::Interpolate);
 op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& output_shape, const Attributes& attrs)
     : Op({image, output_shape}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
@@ -99,6 +101,8 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     : Op({image, output_shape, scales, axes}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
