@@ -728,11 +728,11 @@ public:
             try {
                 const ie::Parameter p = GetMetric(deviceName, propertyName);
                 devicesIDs = p.as<std::vector<std::string>>();
-            } catch (ie::Exception&) {
+            } catch (const ie::Exception&) {
                 // plugin is not created by e.g. invalid env
-            } catch (ov::Exception&) {
+            } catch (const ov::Exception&) {
                 // plugin is not created by e.g. invalid env
-            } catch (std::runtime_error&) {
+            } catch (const std::runtime_error&) {
                 // plugin is not created by e.g. invalid env
             } catch (const std::exception& ex) {
                 IE_THROW() << "An exception is thrown while trying to create the " << deviceName
@@ -854,8 +854,7 @@ public:
                     TryToRegisterLibraryAsExtensionUnsafe(desc.libraryLocation);
                 }
 
-                auto result = plugins.emplace(deviceName, plugin).first->second;
-                return result;
+                return plugins.emplace(deviceName, plugin).first->second;
             } catch (const ie::Exception& ex) {
                 IE_THROW() << "Failed to create plugin " << ov::util::from_file_path(desc.libraryLocation)
                            << " for device " << deviceName << "\n"
