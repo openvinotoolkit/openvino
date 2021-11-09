@@ -1530,22 +1530,25 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::PriorBox>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     op::v0::PriorBox::Attributes attrs = op->get_attrs();
+    op::v8::PriorBox::Attributes attrs_v8;
+    attrs_v8.min_size = attrs.min_size;
+    attrs_v8.max_size = attrs.max_size;
+    attrs_v8.aspect_ratio = attrs.aspect_ratio;
+    attrs_v8.density = attrs.density;
+    attrs_v8.fixed_ratio = attrs.fixed_ratio;
+    attrs_v8.fixed_size = attrs.fixed_size;
+    attrs_v8.clip = attrs.clip;
+    attrs_v8.flip = attrs.flip;
+    attrs_v8.step = attrs.step;
+    attrs_v8.offset = attrs.offset;
+    attrs_v8.variance = attrs.variance;
+    attrs_v8.scale_all_sizes = attrs.scale_all_sizes;
+
     runtime::reference::prior_box<T>(inputs[0]->get_data_ptr<T>(),
                                      inputs[1]->get_data_ptr<T>(),
                                      outputs[0]->get_data_ptr<float>(),
                                      outputs[0]->get_shape(),
-                                     attrs.min_size,
-                                     attrs.max_size,
-                                     attrs.aspect_ratio,
-                                     attrs.density,
-                                     attrs.fixed_ratio,
-                                     attrs.fixed_size,
-                                     attrs.clip,
-                                     attrs.flip,
-                                     attrs.step,
-                                     attrs.offset,
-                                     attrs.variance,
-                                     attrs.scale_all_sizes);
+                                     attrs_v8);
     return true;
 }
 
@@ -1557,19 +1560,7 @@ bool evaluate(const shared_ptr<op::v8::PriorBox>& op, const HostTensorVector& ou
                                      inputs[1]->get_data_ptr<T>(),
                                      outputs[0]->get_data_ptr<float>(),
                                      outputs[0]->get_shape(),
-                                     attrs.min_size,
-                                     attrs.max_size,
-                                     attrs.aspect_ratio,
-                                     attrs.density,
-                                     attrs.fixed_ratio,
-                                     attrs.fixed_size,
-                                     attrs.clip,
-                                     attrs.flip,
-                                     attrs.step,
-                                     attrs.offset,
-                                     attrs.variance,
-                                     attrs.scale_all_sizes,
-                                     attrs.min_max_aspect_ratios_order);
+                                     op->get_attrs());
     return true;
 }
 
