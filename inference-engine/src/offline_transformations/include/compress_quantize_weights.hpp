@@ -67,6 +67,27 @@ public:
     CompressQuantizeWeights();
 };
 
+/*
+   if zero_point == 0 we can eliminate Subtract from following dequantization subgraph:
+
+                                +-----------------+
+                                |    Constant     |
+                                | (low precision) |
+                                +-----------------+
+                                        |
+                                        v
+                                +------------------+
+                                |     Convert      |
+                                |  (to high prec)  |
+                                +------------------+
+                                        |
+                                        v
+                  +----------+    +------------+
+                  |zero point|--->|  Subtract  |
+                  +----------+    +-----+------+
+                                        |
+                                        v
+*/
 class ngraph::pass::ZeroPointOptimizer: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
