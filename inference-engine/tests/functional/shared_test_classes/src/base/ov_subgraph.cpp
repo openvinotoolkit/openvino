@@ -12,6 +12,7 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "ngraph/op/convert.hpp"
 
 #include "graph_comparator.hpp"
@@ -130,6 +131,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
 }
 
 void SubgraphBaseTest::configure_model() {
+    // Caution!!! This parameters work properly only for test cases with static shapes, see issue: CVS-70301
     // configure input precision
     ov::preprocess::PrePostProcessor p(function);
     {
@@ -188,55 +190,45 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
+    using namespace ov::preprocess;
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
-    functionRefs->validate_nodes_and_infer_types();
 
-    auto convertTensorPrc = [](const ov::runtime::Tensor& srcTensor, const ov::runtime::Tensor& dstTensor) {
-        static ngraph::op::Convert convert;
-        auto src = std::make_shared<ov::HostTensor>(srcTensor.get_element_type(), srcTensor.get_shape(), srcTensor.data());
-        auto dst = std::make_shared<ov::HostTensor>(dstTensor.get_element_type(), dstTensor.get_shape(), dstTensor.data());
-        convert.evaluate({dst}, {src});
-    };
+    auto functionToProcess = ov::clone_function(*functionRefs);
+    //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16 precisions
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionToProcess);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionToProcess);
+    functionToProcess->validate_nodes_and_infer_types();
 
-    InputsMap referenceFuncInputs;
-    const auto& inputNodes = functionRefs->inputs();
-    for (const auto& inputNode : inputNodes) {
+    PrePostProcessor prePostProc;
+    const auto& inputNodes = functionToProcess->inputs();
+    for (size_t i = 0; i < inputNodes.size(); ++i) {
         auto itr = std::find_if(inputs.begin(), inputs.end(),
                                 [&](const InputsMap::value_type& item) {
-                                    return item.first->get_friendly_name() == inputNode.get_node_shared_ptr()->get_friendly_name();
+                                    return item.first->get_friendly_name() == inputNodes[i].get_node_shared_ptr()->get_friendly_name();
                                 });
         if (itr != inputs.end()) {
-            if (itr->second.get_element_type() != inputNode.get_element_type()) {
-                auto result = referenceFuncInputs.emplace(inputNode.get_node_shared_ptr(),
-                                                          ov::runtime::Tensor{inputNode.get_element_type(),
-                                                                              inputNode.get_shape()});
-                if (result.second) {
-                    convertTensorPrc(itr->second, result.first->second);
-                } else {
-                    std::stringstream errMsg;
-                    errMsg << "Couldn't add input with with name " << inputNode.get_node_shared_ptr()->get_friendly_name();
-                    errMsg << " to the referenceFuncInputs map";
-                    throw std::runtime_error(errMsg.str());
-                }
-            } else {
-                referenceFuncInputs.emplace(itr->first, itr->second);
+            auto elementType = itr->second.get_element_type();
+            if (inputNodes[i].get_element_type() != elementType) {
+                prePostProc.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(elementType)));
             }
-        }
-    }
-
-    std::vector<ov::runtime::Tensor> interpreterResult = ngraph::helpers::interpretFunction(functionRefs, referenceFuncInputs);
-    std::vector<ov::runtime::Tensor> result;
-    for (const auto& tensor : interpreterResult) {
-        if (outType != ElementType::undefined && outType != tensor.get_element_type()) {
-            result.emplace_back(outType, tensor.get_shape());
-            convertTensorPrc(tensor, result.back());
         } else {
-            result.push_back(tensor);
+            std::stringstream errMsg;
+            errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+            errMsg << " in the inputs map";
+            throw std::runtime_error(errMsg.str());
         }
     }
 
-    return result;
+    const auto& outputs = functionToProcess->outputs();
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
+            prePostProc.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(outType)));
+        }
+    }
+
+    functionToProcess = prePostProc.build(functionToProcess);
+
+    return ngraph::helpers::interpretFunction(functionToProcess, inputs);
 }
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::get_plugin_outputs() {
