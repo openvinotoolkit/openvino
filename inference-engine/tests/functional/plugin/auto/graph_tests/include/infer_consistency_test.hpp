@@ -30,6 +30,8 @@ protected:
     size_t getInferCount() const { return _inferCount;}
     void loadBaseNet();
     void inferBaseNet();
+    void GenerateInputs() override;
+    void Infer() override;
     std::vector<InferenceEngine::Blob::Ptr> getBaseNetOutputs();
     size_t _inferCount;
     InferenceEngine::ExecutableNetwork _baseExecNet;

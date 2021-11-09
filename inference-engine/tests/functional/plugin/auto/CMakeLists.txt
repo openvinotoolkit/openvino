@@ -20,3 +20,6 @@ addIeTargetTest(
             GPU
             CPU
 )
+
+set(TEST_AUTO_MODELS_DIRNAME test_model_zoo/auto_test_models)
+target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_AUTO_MODELS_DIRNAME=\"${TEST_AUTO_MODELS_DIRNAME}/\")

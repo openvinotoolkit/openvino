@@ -33,7 +33,8 @@ void AutoInferConsistency::SetUp() {
     if (modelPath.empty()) {
         function = getDefaultGraph();
     } else {
-        cnnNetwork = core->ReadNetwork(modelPath);
+        std::string actPath = std::string(TEST_AUTO_MODELS_DIRNAME) + "/" + modelPath;
+        cnnNetwork = core->ReadNetwork(actPath);
         function = cnnNetwork.getFunction();
     }
 }
@@ -53,6 +54,7 @@ std::string AutoInferConsistency::getTestCaseName(const testing::TestParamInfo<P
         ovHint = autoConfigure.at(CONFIG_KEY(PERFORMANCE_HINT));
 
     result << "InferCount=" << inferCount << "_";
+    result << "Models=" << modelPath << "_";
     result << "Dev=" << targetDevice << "_";
     result << "BaseDev=" << baseDevice << "_";
     result << "Hint=" << ovHint;
@@ -73,8 +75,6 @@ void AutoInferConsistency::loadBaseNet() {
 }
 
 void AutoInferConsistency::inferBaseNet() {
-    _baseInferRequest = _baseExecNet.CreateInferRequest();
-
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     const auto& functionParams = function->get_parameters();
     for (int i = 0; i < functionParams.size(); ++i) {
@@ -94,12 +94,98 @@ void AutoInferConsistency::inferBaseNet() {
     _baseInferRequest.Infer();
 }
 
-TEST_P(AutoInferConsistency, CompareWithDirectHW) {
+void AutoInferConsistency::GenerateInputs() {
+    inputs.clear();
+    const auto& inputsInfo = executableNetwork.GetInputsInfo();
+    const auto& functionParams = function->get_parameters();
+    std::set<InferenceEngine::Layout> imageLayout = {InferenceEngine::NCHW, InferenceEngine::NHWC,
+                                                     InferenceEngine::CHW, InferenceEngine::HWC};
+    size_t width;
+    size_t height;
+    std::string imageInfoLayerName;
+
+    for (auto& input : inputsInfo) {
+        const auto& layout = input.second->getTensorDesc().getLayout();
+        if (imageLayout.find(layout) != imageLayout.end()) {
+            const auto& dims = input.second->getTensorDesc().getDims();
+            if (layout == InferenceEngine::NCHW || layout == InferenceEngine::CHW) {
+               width =  dims[dims.size() - 1];
+               height = dims[dims.size() - 2];
+            } else {
+                width =  dims[2];
+                height = dims[1];
+            }
+        } else {
+            imageInfoLayerName = input.first;
+        }
+    }
+
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+        InferenceEngine::InputInfo::CPtr info = infoIt->second;
+        InferenceEngine::Blob::Ptr blob = nullptr;
+        if (!inputDynamicShapes.empty()) {
+            if (inputDynamicShapes[i].rank() != 0) {
+                InferenceEngine::DataPtr dataNew(
+                        new InferenceEngine::Data(infoIt->first, info->getTensorDesc().getPrecision(),
+                                                  targetStaticShapes[index][i],
+                                                  info->getTensorDesc().getLayout()));
+                InferenceEngine::InputInfo infoNew;
+                infoNew.setInputData(dataNew);
+                blob = GenerateInput(infoNew);
+            }
+        }
+
+        if (blob == nullptr) {
+            blob = GenerateInput(*info);
+        }
+        //Overwrite with correct data
+        if (param->get_friendly_name() == imageInfoLayerName) {
+            std::vector<float> imageInfo = {static_cast<float>(height),
+                                            static_cast<float>(width), 1.0};
+            if (info->getPrecision() == InferenceEngine::Precision::FP32) {
+                CommonTestUtils::fill_data_float_array<InferenceEngine::Precision::FP32>
+                        (blob, &imageInfo[0], blob->size());
+            } else if (info->getPrecision() == InferenceEngine::Precision::FP16) {
+                CommonTestUtils::fill_data_float_array<InferenceEngine::Precision::FP16>
+                        (blob, &imageInfo[0], blob->size());
+            }
+        }
+        inputs.push_back(blob);
+    }
+}
+
+void AutoInferConsistency::Infer() {
+    const auto& inputsInfo = executableNetwork.GetInputsInfo();
+    const auto& functionParams = function->get_parameters();
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto& info = infoIt->second;
+        auto blob = inputs[i];
+        inferRequest.SetBlob(info->name(), blob);
+    }
+    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
+        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
+        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
+        inferRequest.SetBatch(batchSize);
+    }
+    inferRequest.Infer();
+}
+
+
+    TEST_P(AutoInferConsistency, CompareWithDirectHW) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     //Load function to auto device
     LoadNetwork();
+    inferRequest = executableNetwork.CreateInferRequest();
     //Load function to base device
-        loadBaseNet();
+    loadBaseNet();
+    _baseInferRequest = _baseExecNet.CreateInferRequest();
     for (size_t i = 0; i < getInferCount(); i++) {
         GenerateInputs();
         //Infer in AUTO
@@ -113,47 +199,5 @@ TEST_P(AutoInferConsistency, CompareWithDirectHW) {
         }
     }
 }
-namespace AutoInfer100Throughput {
-    std::map<std::string, std::string>  baseDeviceConfig = {{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(THROUGHPUT)}};
-    std::map<std::string, std::string>  autoDeviceConfig = {baseDeviceConfig.begin(), baseDeviceConfig.end()};
-
-    const auto param100InferThroughputCPU = ::testing::Combine(
-                ::testing::Values(100),
-                ::testing::Values(std::string()),
-                ::testing::Values("AUTO:CPU"),
-                ::testing::Values("CPU"),
-                ::testing::Values(autoDeviceConfig),
-                ::testing::Values(baseDeviceConfig));
-    const auto param100InferThroughputGPU = ::testing::Combine(
-            ::testing::Values(100),
-            ::testing::Values(std::string()),
-            ::testing::Values("AUTO:GPU"),
-            ::testing::Values("GPU"),
-            ::testing::Values(autoDeviceConfig),
-            ::testing::Values(baseDeviceConfig));
-    INSTANTIATE_TEST_SUITE_P(AutoCPUTest, AutoInferConsistency, param100InferThroughputCPU, AutoInferConsistency::getTestCaseName);
-    INSTANTIATE_TEST_SUITE_P(AutoGPUTest, AutoInferConsistency, param100InferThroughputGPU, AutoInferConsistency::getTestCaseName);
-} // namespace AutoInfer100Throughput
-
-namespace AutoInfer100Latency {
-    std::map<std::string, std::string>  baseDeviceConfig = {{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}};
-    std::map<std::string, std::string>  autoDeviceConfig = {baseDeviceConfig.begin(), baseDeviceConfig.end()};
-    const auto param100InferLatencyCPU = ::testing::Combine(
-            ::testing::Values(100),
-            ::testing::Values(std::string()),
-            ::testing::Values("AUTO:CPU"),
-            ::testing::Values("CPU"),
-            ::testing::Values(autoDeviceConfig),
-            ::testing::Values(baseDeviceConfig));
-    const auto param100InferLatencyGPU = ::testing::Combine(
-            ::testing::Values(100),
-            ::testing::Values(std::string()),
-            ::testing::Values("AUTO:GPU"),
-            ::testing::Values("GPU"),
-            ::testing::Values(autoDeviceConfig),
-            ::testing::Values(baseDeviceConfig));
-    INSTANTIATE_TEST_SUITE_P(AutoCPUTest, AutoInferConsistency, param100InferLatencyCPU, AutoInferConsistency::getTestCaseName);
-    INSTANTIATE_TEST_SUITE_P(AutoGPUTest, AutoInferConsistency, param100InferLatencyGPU, AutoInferConsistency::getTestCaseName);
-} // namespace AutoInfer100Latency
 } // namespace SubgraphTestsDefinitions
 
