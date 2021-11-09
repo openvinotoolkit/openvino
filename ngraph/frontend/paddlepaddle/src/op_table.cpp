@@ -33,6 +33,7 @@ OP_CONVERTER(elementwise_pow);
 OP_CONVERTER(elementwise_sub);
 OP_CONVERTER(embedding);
 OP_CONVERTER(exp);
+OP_CONVERTER(expand);
 OP_CONVERTER(expand_v2);
 OP_CONVERTER(fill_any_like);
 OP_CONVERTER(fill_constant_batch_size_like);
@@ -110,6 +111,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"elementwise_sub", op::elementwise_sub},
             {"equal", op::elementwise_equal},
             {"exp", op::exp},
+            {"expand", op::expand},
             {"expand_v2", op::expand_v2},
             {"fill_any_like", op::fill_any_like},
             {"fill_constant_batch_size_like", op::fill_constant_batch_size_like},
