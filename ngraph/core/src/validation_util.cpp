@@ -1372,9 +1372,11 @@ shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
 }
 
 std::shared_ptr<op::Constant> ngraph::get_constant_lowest_of_type(element::Type_t t) {
-#define NGRAPH_TYPE_TO_LOWEST_CONST(t)                                                                                    \
-    case t:                                                                                                            \
-        return op::Constant::create(t, {}, {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
+#define NGRAPH_TYPE_TO_LOWEST_CONST(t)                                                                             \
+    case t:                                                                                                        \
+        return op::Constant::create(t,                                                                             \
+                                    {},                                                                            \
+                                    {std::numeric_limits<typename element_type_traits<t>::value_type>::lowest()}); \
         break
 
     switch (t) {

@@ -9,6 +9,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
+#include "ngraph/validation_util.hpp"
 #include "onnx_import/core/null_node.hpp"
 
 namespace ngraph {
@@ -30,17 +31,30 @@ OutputVector clip(const Node& node) {
 namespace set_11 {
 OutputVector clip(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
-    Output<ngraph::Node> result_node = inputs.at(0);
+    const Output<ngraph::Node> data = inputs.at(0);
+    const element::Type data_type = data.get_element_type();
+    Output<ngraph::Node> min;
+    Output<ngraph::Node> max;
 
+    // If second input is provided, assign to min input, otherwise set lowest
+    // numeric limit of dodata type uble as min input.
     if (inputs.size() > 1 && !ngraph::op::is_null(inputs.at(1))) {
-        result_node = std::make_shared<default_opset::Maximum>(result_node, inputs.at(1));
+        min = inputs.at(1);
+    } else {
+        min = ngraph::get_constant_lowest_of_type(data_type);
     }
 
+    // If third input is provided, assign to max input, otherwise set maximum
+    // numeric limit of data type as max input.
     if (inputs.size() == 3 && !ngraph::op::is_null(inputs.at(2))) {
-        result_node = std::make_shared<default_opset::Minimum>(result_node, inputs.at(2));
+        max = inputs.at(2);
+    } else {
+        max = ngraph::get_constant_max_of_type(data_type);
     }
 
-    return {result_node};
+    const auto max_of_min_and_data = std::make_shared<default_opset::Maximum>(min, data);
+
+    return {std::make_shared<default_opset::Minimum>(max, max_of_min_and_data)};
 }
 
 }  // namespace set_11
