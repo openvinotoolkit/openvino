@@ -113,14 +113,6 @@ InferenceEngine::Blob::Ptr MKLDNNDeconvolutionNode::createWeiBlobAsIO(InferenceE
     auto const blbSize = blb->GetSize();
 
     // WA: In int8 case, we are processing weights using internal blob.
-    // So we disconnect constant node containing weights from the graph and then don't use it.
-    if (getParentEdges().size() == 3) {
-        removeEdge(getParentEdgeAt(2));
-        inputShapes.erase(inputShapes.begin() + 2);
-    }
-    removeEdge(getParentEdgeAt(1));
-    inputShapes.erase(inputShapes.begin() + 1);
-
     InferenceEngine::SizeVector dimsForBlockedDesc{dims};
     std::swap(dimsForBlockedDesc[withGroups + 0], dimsForBlockedDesc[withGroups + 1]);
 
@@ -419,8 +411,12 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<MemoryDescPtr> 
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNDeconvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (idx == 2) {
-        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(2), Shape(getInputShapeAtPort(2).getStaticDims()));
+    if (idx > 0) {
+        if (isInt8) {
+            return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx), Shape(getInputShapeAtPort(idx).getStaticDims()));
+        } else if (idx == 2) {
+            return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(2), Shape(getInputShapeAtPort(2).getStaticDims()));
+        }
     }
 
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : isInt8 ? primitive_desc_it.src_desc(idx) : primitive_desc_it.diff_dst_desc(idx);
