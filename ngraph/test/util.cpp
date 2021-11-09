@@ -19,8 +19,8 @@
 #include "ngraph/opsets/opset8.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
-#include "openvino/core/version.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/version.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 
@@ -867,7 +867,9 @@ TEST(util_host_tensor_2_vector, ht_u64_2_vec_uint64) {
 }
 
 template <typename T, typename U>
-static void test_evaluate_subgraph(const Output<Node>& subgraph, const std::vector<T>& input, const std::vector<U>& expected) {
+static void test_evaluate_subgraph(const Output<Node>& subgraph,
+                                   const std::vector<T>& input,
+                                   const std::vector<U>& expected) {
     auto ret = ov::evaluate_subgraph(subgraph);
     ASSERT_NE(ret, nullptr);
     auto actual = ret->template cast_vector<U>();
@@ -875,7 +877,9 @@ static void test_evaluate_subgraph(const Output<Node>& subgraph, const std::vect
 }
 
 template <typename T, typename U>
-static void test_evaluate_subgraph_with_convert_subtract(const element::Type_t& src_type, const element::Type_t& dst_type, const std::vector<T>& input) {
+static void test_evaluate_subgraph_with_convert_subtract(const element::Type_t& src_type,
+                                                         const element::Type_t& dst_type,
+                                                         const std::vector<T>& input) {
     auto constant = op::Constant::create(src_type, Shape{input.size()}, input);
     auto convert = std::make_shared<opset8::Convert>(constant, dst_type);
     auto two = op::Constant::create(dst_type, Shape{1}, {2});
