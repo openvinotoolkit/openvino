@@ -37,7 +37,7 @@ OutputVector clip(const Node& node) {
     Output<ngraph::Node> max;
 
     // If second input is provided, assign to min input, otherwise set lowest
-    // numeric limit of dodata type uble as min input.
+    // numeric limit of data type as min input.
     if (inputs.size() > 1 && !ngraph::op::is_null(inputs.at(1))) {
         min = inputs.at(1);
     } else {
