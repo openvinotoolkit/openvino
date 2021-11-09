@@ -227,6 +227,13 @@ macro(ie_add_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
     endif()
 
+    install(
+        TARGETS ${IE_SAMPLE_NAME}
+        RUNTIME DESTINATION samples_bin/
+        COMPONENT samples_bin
+        EXCLUDE_FROM_ALL
+    )
+
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)
         add_custom_target(ie_samples ALL)
