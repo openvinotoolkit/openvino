@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tensorflow_frontend/frontend.hpp>
-#include <tensorflow_frontend/graph_iterator.hpp>
+#include "tensorflow_frontend/frontend.hpp"
+#include "tensorflow_frontend/graph_iterator.hpp"
 
 #include "model.hpp"
 #include "op_table.hpp"
