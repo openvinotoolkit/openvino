@@ -355,6 +355,9 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
 }
 
 TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
+    #ifndef GNA2
+        GTEST_SKIP_("GNA v1 doesn't support import");
+    #endif
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -394,6 +397,9 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
 }
 
 TEST(ie_core_import_network_from_file, importNetworkFromFile) {
+    #ifndef GNA2
+        GTEST_SKIP_("GNA v1 doesn't support import");
+    #endif
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -426,6 +432,9 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
 }
 
 TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
+    #ifndef GNA2
+        GTEST_SKIP_("GNA v1 doesn't support import");
+    #endif
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
