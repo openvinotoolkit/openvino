@@ -106,8 +106,6 @@ Dimension::value_type Dimension::get_min_length() const {
     return dimension_length(m_dimension.get_min_val());
 }
 
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::Dimension>);
-
 const int64_t& ov::AttributeAdapter<ov::Dimension>::get() {
     if (!m_buffer_valid) {
         m_buffer = m_ref.is_dynamic() ? -1 : m_ref.get_length();

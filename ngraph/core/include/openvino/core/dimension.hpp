@@ -183,11 +183,10 @@ public:
     }
 
     OPENVINO_RTTI("AttributeAdapter<ov::Dimension>");
-    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::Dimension& m_ref;
-    int64_t m_buffer;
+    int64_t m_buffer{0};
     bool m_buffer_valid{false};
 };
 }  // namespace ov
