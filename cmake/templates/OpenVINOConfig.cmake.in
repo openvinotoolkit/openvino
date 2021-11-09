@@ -172,11 +172,7 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
     endif()
 endif()
 
-if(THREADING STREQUAL "TBB" OR
-   THREADING STREQUAL "TBB_AUTO" OR
-   THREADING STREQUAL "OMP")
-    _ov_find_dependency(Threads)
-endif()
+_ov_find_dependency(Threads)
 
 if(NOT TARGET inference_engine)
     set(_ov_as_external_package ON)
