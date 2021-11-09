@@ -34,7 +34,7 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     multiplyConstant(multiplyConstant) {
 }
 
-bool FakeQuantizeDequantization::empty() const {
+bool FakeQuantizeDequantization::empty() const noexcept {
     return (subtract == nullptr) && (multiply == nullptr);
 }
 
