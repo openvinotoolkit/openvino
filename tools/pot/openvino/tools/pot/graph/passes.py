@@ -216,7 +216,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         jump_split_concat_ops: jump_over_split_concat
     }
 
-    def find_nodes_fq_int(self, graph):
+    def delete_fq_non_quantizable_node_precision(self, graph):
         type_infer(graph)
         fq_removal = RemoveFakeQuantize()
         fq_removal.quantize_agnostic_operations = self.quantize_agnostic_operations
@@ -227,7 +227,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
             fq = fq_queue.popleft()
             if fq.in_port(0).get_source() is not None and fq.in_port(0).get_source().is_data_type_defined():
                 type_node = fq.in_port(0).get_source().get_data_type()
-                if type_node in (np.int32, np.int64):
+                if type_node in (np.int32, np.int64, bool):
                     node_int_fq.append(fq.name)
                     fq_removal.find_and_remove_node(graph, fq.name)
 
