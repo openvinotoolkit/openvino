@@ -219,10 +219,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
-                IE_SUPPRESS_DEPRECATED_START
-                if (inInfo->second->getInputData()->isDynamic())
+                if (node->isDynamicNode()) {
                     graphHasDynamicInput = true;
-                IE_SUPPRESS_DEPRECATED_END
+                }
             }
         }
 
@@ -770,16 +769,19 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
                              std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
         }
 
-        if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
-            if (!node->isDynamicNode())
-                IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
-
+        const auto &outDims = intr_blob.getStaticDims();
+        if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            out[name]->setShape(intr_blob.getStaticDims());
+            out[name]->setShape(outDims);
+        }
+
+        // check for empty output blob
+        if (std::any_of(outDims.begin(), outDims.end(), [](const Dim dim) {return dim == 0;})) {
+            return;
         }
 
         auto srcPrec = actualDesc.getPrecision();
@@ -795,7 +797,6 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        const auto &outDims = intr_blob.getStaticDims();
         size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
         // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
