@@ -2768,7 +2768,7 @@ void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
