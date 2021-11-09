@@ -47,17 +47,16 @@ ngraph::pass::ClampFusion::ClampFusion() {
         auto clamp = register_new_node<ngraph::opset5::Clamp>(data, min_value, max_value);
 
         std::shared_ptr<ov::Node> root_node;
-        ngraph::NodeVector nodes;
+        NodeVector nodes;
         auto min_pattern1_it = pattern_map.find(min_pattern1);
         if (min_pattern1_it != std::end(pattern_map)) {
             root_node = min_pattern1_it->second.get_node_shared_ptr();
-            nodes.push_back(root_node);
             nodes.push_back(pattern_map.at(max_pattern1).get_node_shared_ptr());
         } else {
             root_node = pattern_map.at(max_pattern2).get_node_shared_ptr();
-            nodes.push_back(root_node);
             nodes.push_back(pattern_map.at(min_pattern2).get_node_shared_ptr());
         }
+        nodes.push_back(root_node);
 
         clamp->set_friendly_name(root_node->get_friendly_name());
 
