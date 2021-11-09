@@ -37,18 +37,12 @@ std::set<int64_t> create_set_of_all_axes(size_t input_rank) {
     return result;
 }
 
-std::vector<int64_t> get_non_interpolated_axes(const std::vector<int64_t>& axes, size_t input_rank) {
-    auto non_interpolated_axes = create_set_of_all_axes(input_rank);
-    for (const auto& axis : axes) {
-        non_interpolated_axes.erase(axis);
-    }
-    return std::vector<int64_t>(non_interpolated_axes.begin(), non_interpolated_axes.end());
-}
-
 std::vector<int64_t> build_transposition_for_axes(const std::vector<int64_t>& axes, size_t input_rank) {
-    const auto non_interpolated_axes = get_non_interpolated_axes(axes, input_rank);
-
-    std::vector<int64_t> result(non_interpolated_axes.begin(), non_interpolated_axes.end());
+    auto non_interpolated_axes_set = create_set_of_all_axes(input_rank);
+    for (const auto& axis : axes) {
+        non_interpolated_axes_set.erase(axis);
+    }
+    std::vector<int64_t> result(non_interpolated_axes_set.begin(), non_interpolated_axes_set.end());
     result.insert(result.end(), axes.begin(), axes.end());
 
     return result;
