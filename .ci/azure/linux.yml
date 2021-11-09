@@ -126,6 +126,7 @@ jobs:
         -DVERBOSE_BUILD=ON
         -DBUILD_SHARED_LIBS=OFF
         -DENABLE_CLDNN=OFF
+        -DENABLE_GNA=OFF
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
