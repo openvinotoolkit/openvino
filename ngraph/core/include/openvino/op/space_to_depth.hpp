@@ -57,6 +57,10 @@ public:
 protected:
     std::size_t m_blocksize;
     SpaceToDepthMode m_mode;
+
+private:
+    template <class T>
+    friend void shape_infer(const SpaceToDepth* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes);
 };
 }  // namespace v0
 }  // namespace op

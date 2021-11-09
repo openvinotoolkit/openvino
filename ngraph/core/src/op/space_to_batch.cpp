@@ -56,7 +56,7 @@ void op::v1::SpaceToBatch::validate_and_infer_types() {
                           "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
-     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
                                                         get_input_partial_shape(1),
                                                         get_input_partial_shape(2),
@@ -64,7 +64,6 @@ void op::v1::SpaceToBatch::validate_and_infer_types() {
     shape_infer(this, input_shapes, output_shapes);
     set_output_size(1);
     set_output_type(0, data_type, output_shapes[0]);
-
 }
 
 std::shared_ptr<Node> ngraph::op::v1::SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const {

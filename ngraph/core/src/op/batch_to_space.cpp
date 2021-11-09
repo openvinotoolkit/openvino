@@ -4,9 +4,9 @@
 
 #include "ngraph/op/batch_to_space.hpp"
 
+#include <batch_to_space_shape_inference.hpp>
 #include <cmath>
 #include <cstddef>
-#include <batch_to_space_shape_inference.hpp>
 #include <memory>
 #include <ngraph/ops.hpp>
 #include <ngraph/validation_util.hpp>
