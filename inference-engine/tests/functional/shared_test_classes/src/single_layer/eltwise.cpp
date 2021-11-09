@@ -110,7 +110,8 @@ void EltwiseLayerTest::SetUp() {
     ngraph::helpers::EltwiseTypes eltwiseType;
     Config additional_config;
     std::tie(shapes, eltwiseType, secondaryInputType, opType, netType, inType, outType, targetDevice, configuration) =
-        this->GetParam();
+            this->GetParam();
+
     init_input_shapes(shapes);
 
     auto parameters = ngraph::builder::makeDynamicParams(netType, {inputDynamicShapes.front()});
@@ -151,12 +152,6 @@ void EltwiseLayerTest::SetUp() {
                 break;
             default:
                 secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
-            }
-            case ngraph::helpers::EltwiseTypes::POWER:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true, 3);
-                break;
-            default:
-                secondaryInput = ngraph::builder::makeConstant<float>(netType, shape, {}, true);
         }
     }
 
@@ -166,6 +161,7 @@ void EltwiseLayerTest::SetUp() {
     auto eltwise = ngraph::builder::makeEltwise(parameters[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, parameters, "Eltwise");
 }
-} // namespace subgraph
-} // namespace test
-} // namespace ov
+
+} //  namespace subgraph
+} //  namespace test
+} //  namespace ov

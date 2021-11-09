@@ -22,13 +22,9 @@ void compare(const std::shared_ptr<ngraph::Node> node,
 //    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> types(expected.size());
 //    auto outputs = node->outputs();
 //    LayerTestsUtils::LayerTestsCommon::Compare(expected, actual, threshold);
-    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
-        IE_THROW() << "expected.size(): " << expected.size() << " actual.front()->byteSize(): " << actual.front()->byteSize()
-                   << " failed";
-    }
-        IE_THROW() << "expSize: " << expSize << " actSize: " << actSize
-                   << " failed";
-    }
+//    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+//    IE_THROW() << "expected.size(): " << expected.size() << " actual.front()->byteSize(): " << actual.front()->byteSize()
+//               << " failed";
 }
 
 //void compare(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
@@ -242,12 +238,13 @@ void compare(const std::shared_ptr<ngraph::Node> node,
 template<typename T>
 void compareResults(const std::shared_ptr<ngraph::Node> node,
                     size_t port,
-                    const ov::runtime::Tensor& expected,
-                    const ov::runtime::Tensor& actual,
+                    const ov::runtime::Tensor &expected,
+                    const ov::runtime::Tensor &actual,
                     double absThreshold,
                     double relThreshold) {
     return compare(ngraph::as_type_ptr<T>(node), port, expected, actual, absThreshold, relThreshold);
 }
+
 } // namespace
 
 CompareMap getCompareMap() {

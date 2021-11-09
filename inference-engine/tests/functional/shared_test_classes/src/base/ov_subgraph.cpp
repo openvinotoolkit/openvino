@@ -122,19 +122,19 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
     ASSERT_EQ(expected.size(), actual.size());
 
     auto compareMap = utils::getCompareMap();
-    for (const auto &result : function->get_results()) {
-        for (size_t i = 0; i < result->get_input_size(); i++) {
-            for (const auto &node : param->get_input_node_ptr(i)) {
-                const auto nodePtr = node.get_node()->shared_from_this();
-                auto it = inputMap.find(nodePtr->get_type_info());
-                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
-                    }
-                }
-            }
-        }
-    }
+//    for (const auto &result : function->get_results()) {
+//        for (size_t i = 0; i < result->get_input_size(); i++) {
+//            for (const auto &node : param->get_input_node_ptr(i)) {
+//                const auto nodePtr = node.get_node()->shared_from_this();
+//                auto it = inputMap.find(nodePtr->get_type_info());
+//                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+//                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
+//                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
+//                    }
+//                }
+//            }
+//        }
+//    }
 
 //    for (size_t i = 0; i < expected.size(); i++) {
 //        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
