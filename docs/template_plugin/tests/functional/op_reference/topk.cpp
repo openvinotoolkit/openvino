@@ -189,7 +189,18 @@ std::vector<TopKParamsResnet50> generateParamsResnet50() {
 
 std::vector<TopKParamsResnet50> generateCombinedParamsResnet50() {
     const std::vector<std::vector<TopKParamsResnet50>> generatedParams {
+        generateParamsResnet50<element::Type_t::i8, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::i16, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::i32, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::u8, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::u16, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::u32, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::u64, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::bf16, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::f16, element::Type_t::i32>(),
         generateParamsResnet50<element::Type_t::f32, element::Type_t::i32>(),
+        generateParamsResnet50<element::Type_t::f64, element::Type_t::i32>(),
     };
     std::vector<TopKParamsResnet50> combinedParams;
 
@@ -251,18 +262,22 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
             Tensor(ET, {128, 5}, [](std::vector<size_t> rshape, std::vector<size_t> shape) -> std::vector<T>{
                 std::vector<T> expected_value;
                 for (size_t i = 0; i < rshape[0]; i++) {
-                    for (size_t j = 0; j < rshape[1]; j++) {
-                        expected_value.push_back(shape[1] - j - 1);
-                    }
+                    expected_value.push_back(shape[1] - 3);
+                    expected_value.push_back(shape[1] - 1);
+                    expected_value.push_back(shape[1] - 2);
+                    expected_value.push_back(shape[1] - 5);
+                    expected_value.push_back(shape[1] - 4);
                 }
                 return expected_value;
             }({128, 5}, {128, 1000})),
             Tensor(ET_OUT, {128, 5}, [](std::vector<size_t> rshape, std::vector<size_t> shape) -> std::vector<T_OUT>{
                 std::vector<T_OUT> expected_index;
                 for (size_t i = 0; i < rshape[0]; i++) {
-                    for (size_t j = 0; j < rshape[1]; j++) {
-                        expected_index.push_back(shape[1] - j - 1);
-                    }
+                    expected_index.push_back(shape[1] - 3);
+                    expected_index.push_back(shape[1] - 1);
+                    expected_index.push_back(shape[1] - 2);
+                    expected_index.push_back(shape[1] - 5);
+                    expected_index.push_back(shape[1] - 4);
                 }
                 return expected_index;
             }({128, 5}, {128, 1000})),
@@ -391,18 +406,22 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
             Tensor(ET, {128, 5}, [](std::vector<size_t> rshape, std::vector<size_t> shape) -> std::vector<T>{
                 std::vector<T> expected_value;
                 for (size_t i = 0; i < rshape[0]; i++) {
-                    for (size_t j = 0; j < rshape[1]; j++) {
-                        expected_value.push_back(shape[1] - j - 1);
-                    }
+                    expected_value.push_back(shape[1] - 5);
+                    expected_value.push_back(shape[1] - 4);
+                    expected_value.push_back(shape[1] - 3);
+                    expected_value.push_back(shape[1] - 2);
+                    expected_value.push_back(shape[1] - 1);
                 }
                 return expected_value;
             }({128, 5}, {128, 1000})),
             Tensor(ET_OUT, {128, 5}, [](std::vector<size_t> rshape, std::vector<size_t> shape) -> std::vector<T_OUT>{
                 std::vector<T_OUT> expected_index;
                 for (size_t i = 0; i < rshape[0]; i++) {
-                    for (size_t j = 0; j < rshape[1]; j++) {
-                        expected_index.push_back(shape[1] - j - 1);
-                    }
+                    expected_index.push_back(shape[1] - 5);
+                    expected_index.push_back(shape[1] - 4);
+                    expected_index.push_back(shape[1] - 3);
+                    expected_index.push_back(shape[1] - 2);
+                    expected_index.push_back(shape[1] - 1);
                 }
                 return expected_index;
             }({128, 5}, {128, 1000})),
@@ -487,7 +506,18 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
 
 std::vector<TopKParams> generateCombinedParamsMaxMinSort() {
     const std::vector<std::vector<TopKParams>> generatedParams {
+        generateParamsMaxMinSort<element::Type_t::i8, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::i16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::i32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::i64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u8, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::bf16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::f16, element::Type_t::i64, element::Type_t::i32>(),
         generateParamsMaxMinSort<element::Type_t::f32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::f64, element::Type_t::i64, element::Type_t::i32>(),
     };
     std::vector<TopKParams> combinedParams;
 
@@ -577,7 +607,18 @@ std::vector<TopKParams> generateParamsV3() {
 
 std::vector<TopKParams> generateCombinedParamsV3() {
     const std::vector<std::vector<TopKParams>> generatedParams {
+        generateParamsMaxMinSort<element::Type_t::i8, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::i16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::i32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::i64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u8, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::u64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::bf16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::f16, element::Type_t::i64, element::Type_t::i32>(),
         generateParamsMaxMinSort<element::Type_t::f32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsMaxMinSort<element::Type_t::f64, element::Type_t::i64, element::Type_t::i32>(),
     };
     std::vector<TopKParams> combinedParams;
 
@@ -955,8 +996,16 @@ std::vector<TopKParams> generateParams1d() {
 
 std::vector<TopKParams> generateCombinedParams1d() {
     const std::vector<std::vector<TopKParams>> generatedParams {
+        generateParams1d<element::Type_t::i16, element::Type_t::i64, element::Type_t::i32>(),
         generateParams1d<element::Type_t::i32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1d<element::Type_t::i64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1d<element::Type_t::u16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1d<element::Type_t::u32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1d<element::Type_t::u64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1d<element::Type_t::bf16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1d<element::Type_t::f16, element::Type_t::i64, element::Type_t::i32>(),
         generateParams1d<element::Type_t::f32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1d<element::Type_t::f64, element::Type_t::i64, element::Type_t::i32>(),
     };
     std::vector<TopKParams> combinedParams;
 
@@ -1097,7 +1146,18 @@ std::vector<TopKParams> generateParamsSingleOutput() {
 
 std::vector<TopKParams> generateCombinedParamsSingleOutput() {
     const std::vector<std::vector<TopKParams>> generatedParams {
+        generateParamsSingleOutput<element::Type_t::i8, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::i16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::i32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::i64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::u8, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::u16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::u32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::u64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::bf16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::f16, element::Type_t::i64, element::Type_t::i32>(),
         generateParamsSingleOutput<element::Type_t::f32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParamsSingleOutput<element::Type_t::f64, element::Type_t::i64, element::Type_t::i32>(),
     };
     std::vector<TopKParams> combinedParams;
 
