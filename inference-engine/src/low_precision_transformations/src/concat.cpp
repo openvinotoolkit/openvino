@@ -110,9 +110,12 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         targetShape[1] = concat->get_input_partial_shape(i)[1].get_length();
 
         if (!allDequantizationShiftAreZero) {
+            auto subtractInput = broadcastElementWiseConst(dequantization.subtractConstant, targetShape);
+            if (dequantization.subtractConvert != nullptr)
+                subtractInput = dequantization.subtractConvert->clone_with_new_inputs({ subtractInput });
             subtractNodes.push_back(dequantization.subtract == nullptr ?
                 std::make_shared<ngraph::opset1::Constant>(deqPrecision, targetShape, std::vector<float>({ 0.f })) :
-                broadcastElementWiseConst(dequantization.subtractConstant, targetShape));
+                subtractInput);
         }
 
         if (!allDequantizationMultiplyAreZero) {
