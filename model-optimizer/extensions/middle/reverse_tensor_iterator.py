@@ -12,7 +12,7 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 
 def update_ti(ti, direct_reverse):
-    seq_axis = direct_reverse.seq_axis - 1 if direct_reverse.seq_axis > 0 else direct_reverse.seq_axis
+    seq_axis = direct_reverse.seq_axis
     # Modify stride in TI
     for port_map in [ti.input_port_map, ti.output_port_map]:
         for port in port_map:
@@ -141,8 +141,8 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
 class ReverseTensorIteratorLSTMWithSqueeze(MiddleReplacementPattern):
     """ Fuses Reverse operations around TI: ReverseSequence --> Squeeze --> TI --> UnSqueeze --> ReverseSequence.
 
-        WARNING This transformation is limited to support of very special case of TI but
-        code doesn't check all the cases.
+        WARNING This transformation is limited to support only case described before but code doesn't check all
+        the cases.
     """
 
     enabled = True
@@ -209,11 +209,26 @@ class ReverseTensorIteratorLSTMWithSqueeze(MiddleReplacementPattern):
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        ReverseTensorIteratorLSTM().replace_pattern(graph, match)
-
-        # Remove reverses
+        ti = match['ti']
+        direct_reverse = match['direct_reverse']
+        inverse_reverse = match['inverse_reverse']
         squeeze = match['squeeze']
         unsqueeze = match['unsqueeze']
+
+        assert direct_reverse.seq_axis == inverse_reverse.seq_axis
+        assert direct_reverse.batch_axis is None and inverse_reverse.batch_axis is None or \
+               direct_reverse.batch_axis == inverse_reverse.batch_axis
+
+        if not ReverseTensorIteratorLSTM.is_fusable_reverse_sequence(direct_reverse) or \
+                not ReverseTensorIteratorLSTM.is_fusable_reverse_sequence(inverse_reverse):
+            # we can not merge ReverseSequence without equal sequences
+            return
+
+        direct_reverse.seq_axis = direct_reverse.seq_axis - 1 if direct_reverse.seq_axis > 0 else direct_reverse.seq_axis
+        update_ti(ti, direct_reverse)
+        direct_reverse.seq_axis = direct_reverse.seq_axis + 1 if direct_reverse.seq_axis > 0 else direct_reverse.seq_axis
+
+        # Remove reverses
         unsqueeze.out_port(0).get_destinations()
         in_unsqueeze = unsqueeze.in_port(0).get_source()
         for dest in squeeze.out_port(0).get_destinations():

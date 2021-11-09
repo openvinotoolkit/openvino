@@ -42,7 +42,7 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
 
         assert reverse.in_port(1).disconnected()
 
-        # add new dimension as batch if rank = 1
+        # add new dimension as batch
         unsq_node = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
                                                      {'name': reverse_name+"/Unsqueeze"})
         reverse.in_port(0).get_source().connect(unsq_node.in_port(0))
