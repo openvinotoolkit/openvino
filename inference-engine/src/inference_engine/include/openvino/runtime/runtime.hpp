@@ -7,6 +7,7 @@
  *
  * @file openvino/runtime/runtime.hpp
  */
+
 #pragma once
 
 #include "openvino/runtime/core.hpp"

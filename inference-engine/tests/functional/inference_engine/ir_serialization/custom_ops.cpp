@@ -98,8 +98,8 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     auto expected = ie.ReadNetwork(model);
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(
-        m_out_xml_path, m_out_bin_path,
-        ngraph::pass::Serialize::Version::IR_V10, extension->getOpSets());
+        m_out_xml_path, m_out_bin_path, extension->getOpSets(),
+        ngraph::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected.getFunction());
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
@@ -124,7 +124,13 @@ public:
     }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
-        return {{"framework_node_ext", ngraph::OpSet()}};
+        static std::map<std::string, ngraph::OpSet> opsets;
+        if (opsets.empty()) {
+            ngraph::OpSet opset;
+            opset.insert<ov::op::util::FrameworkNode>();
+            opsets["util"] = opset;
+        }
+        return opsets;
     }
 
     void Unload() noexcept override {}
@@ -140,8 +146,8 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     auto expected = ie.ReadNetwork(model);
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(
-            m_out_xml_path, m_out_bin_path,
-            ngraph::pass::Serialize::Version::IR_V10, extension->getOpSets());
+            m_out_xml_path, m_out_bin_path, extension->getOpSets(),
+            ngraph::pass::Serialize::Version::IR_V10);
     manager.run_passes(expected.getFunction());
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 

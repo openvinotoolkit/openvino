@@ -7,14 +7,14 @@
 
 #include "default_opset.hpp"
 #include "editor.hpp"
+#include "engines_util/interpreter_engine.hpp"
+#include "engines_util/test_case.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "onnx_import/onnx.hpp"
-#include "util/engine/interpreter_engine.hpp"
-#include "util/onnx_test_util.hpp"
-#include "util/test_case.hpp"
+#include "onnx_test_util.hpp"
 #include "util/test_control.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START

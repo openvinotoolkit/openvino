@@ -15,20 +15,17 @@
 #include "ngraph/util.hpp"
 #include "performance_counter.hpp"
 
-namespace ngraph
-{
-    namespace runtime
-    {
-        class Tensor;
-        class Backend;
-    }
-}
+namespace ngraph {
+namespace runtime {
+class Tensor;
+class Backend;
+}  // namespace runtime
+}  // namespace ngraph
 
 /// \brief Interface to a generic backend.
 ///
 /// Backends are responsible for function execution and value allocation.
-class BACKEND_API ngraph::runtime::Backend
-{
+class BACKEND_API ngraph::runtime::Backend {
 public:
     virtual ~Backend();
     /// \brief Create a new Backend object
@@ -41,8 +38,7 @@ public:
     ///    DynamicWrapperBackend. This feature is EXPERIMENTAL.
     /// \returns shared_ptr to a new Backend or nullptr if the named backend
     ///   does not exist.
-    static std::shared_ptr<Backend> create(const std::string& type,
-                                           bool must_support_dynamic = false);
+    static std::shared_ptr<Backend> create(const std::string& type, bool must_support_dynamic = false);
 
     /// \brief Query the list of registered devices
     /// \returns A vector of all registered devices.
@@ -59,8 +55,8 @@ public:
     /// \param element_type The type of the tensor element
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor>
-        create_tensor(const ngraph::element::Type& element_type, const Shape& shape) = 0;
+    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const ngraph::element::Type& element_type,
+                                                                   const Shape& shape) = 0;
 
     /// \brief Create a tensor specific to this backend
     /// \param element_type The type of the tensor element
@@ -69,15 +65,15 @@ public:
     ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
     ///     responsibility of the caller.
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(
-        const ngraph::element::Type& element_type, const Shape& shape, void* memory_pointer) = 0;
+    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const ngraph::element::Type& element_type,
+                                                                   const Shape& shape,
+                                                                   void* memory_pointer) = 0;
 
     /// \brief Create a tensor of C type T specific to this backend
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend specific tensor
     template <typename T>
-    std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const Shape& shape)
-    {
+    std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const Shape& shape) {
         return create_tensor(element::from<T>(), shape);
     }
 
@@ -87,11 +83,13 @@ public:
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend-specific tensor
     /// \throws std::invalid_argument if the backend does not support dynamic tensors
-    virtual std::shared_ptr<ngraph::runtime::Tensor>
-        create_dynamic_tensor(const ngraph::element::Type& element_type, const PartialShape& shape);
+    virtual std::shared_ptr<ngraph::runtime::Tensor> create_dynamic_tensor(const ngraph::element::Type& element_type,
+                                                                           const PartialShape& shape);
 
     /// \returns `true` if this backend supports dynamic tensors, else `false`.
-    virtual bool supports_dynamic_tensors() { return false; }
+    virtual bool supports_dynamic_tensors() {
+        return false;
+    }
     /// \brief Compiles a Function.
     /// \param func The function to compile
     /// \returns compiled function or nullptr on failure
@@ -122,7 +120,9 @@ public:
 
     /// \brief Get the version of the backend
     /// The default value of 0.0.0 is chosen to be a parsable version number
-    virtual std::string get_version() const { return "0.0.0"; }
+    virtual std::string get_version() const {
+        return "0.0.0";
+    }
 
 private:
     // mutex to modify s_backend_shared_library_search_directory thread safe

@@ -13,6 +13,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
+#include <transformations/rt_info/disable_constant_folding.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -228,7 +229,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
             }
 
             if (reshapeFromWeights != nullptr) {
-                reshapeFromWeights = ov::as_type_ptr<opset1::Reshape>(reshapeFromWeights->copy_with_new_inputs({
+                reshapeFromWeights = ov::as_type_ptr<opset1::Reshape>(reshapeFromWeights->clone_with_new_inputs({
                     multiplyFromWeights->input_value(0),
                     reshapeFromWeights->input_value(1) }));
             }
@@ -289,7 +290,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 convolution->input_value(0),
                 childNode.get() == convolution.get() ?
                     convolution->get_input_node_ptr(1)->input_value(0) :
-                    childNode->copy_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
+                    childNode->clone_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
             replace_node(convolution, newConvolution);
             NetworkHelper::copyInfo(convolution, newConvolution);
             convolution = newConvolution;
@@ -321,8 +322,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     }
 
     if (ov::is_type<opset1::Subtract>(onWeights)) {
-        auto& rt = onWeights->get_rt_info();
-        rt["DISABLED_CONSTANT_FOLDING"] = std::make_shared<ngraph::VariantWrapper<std::string>>("");
+        ov::disable_constant_folding(onWeights);
     }
     return true;
 }

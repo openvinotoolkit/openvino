@@ -143,7 +143,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     replace_node(normalize, newMultiply);
     ngraph::copy_runtime_info({ normalize, newMultiply }, newMultiply);
 
-    updateOutput(context, newMultiply, normalize);
+    updateOutput(context, newMultiply, newNormalize);
     return true;
 }
 

@@ -17,6 +17,7 @@ using VectorDims = std::vector<Dim>;
 enum Type {
     Unknown,
     Generic,
+    If,
     Reorder,
     Input,
     Output,
@@ -32,6 +33,8 @@ enum Type {
     Eltwise,
     MatMul,
     Reshape,
+    ShapeOf,
+    NonZero,
     Tile,
     ROIAlign,
     ROIPooling,

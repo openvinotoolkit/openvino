@@ -101,7 +101,6 @@ private:
 private:
     InferenceEngine::Precision precision;
     size_t offsetPadding;
-    mutable VectorDims paddedDims;
 };
 
 using CpuBlockedMemoryDescPtr = std::shared_ptr<CpuBlockedMemoryDesc>;

@@ -62,7 +62,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
-    AutoBroadcastSpec m_autob = AutoBroadcastSpec::NUMPY;
+    AutoBroadcastSpec m_autob = AutoBroadcastType::NUMPY;
 };
 }  // namespace util
 }  // namespace op

@@ -55,10 +55,13 @@ public:
         quantize_params.has_post_shift = arg.get_need_post_shift();
         quantize_params.has_pre_shift = arg.get_need_pre_shift();
         quantize_params.has_clamp = arg.get_need_clamp();
+        quantize_params.has_min_clamp = arg.get_need_min_clamp();
+        quantize_params.has_max_clamp = arg.get_need_max_clamp();
 
         quantize_params.per_tensor_input_range = arg.get_per_tensor_input_range();
         quantize_params.per_tensor_input_scale = arg.get_per_tensor_input_scale();
         quantize_params.per_tensor_input_shift = arg.get_per_tensor_input_shift();
+        quantize_params.per_tensor_output_range = arg.get_per_tensor_output_range();
         quantize_params.per_tensor_output_scale = arg.get_per_tensor_output_scale();
         quantize_params.per_tensor_output_shift = arg.get_per_tensor_output_shift();
 
@@ -66,6 +69,8 @@ public:
         quantize_params.in_hi = arg.get_input_hi_val();
         quantize_params.in_scale = arg.get_input_scale_val();
         quantize_params.in_shift = arg.get_input_shift_val();
+        quantize_params.out_lo = arg.get_output_lo_val();
+        quantize_params.out_hi = arg.get_output_hi_val();
         quantize_params.out_scale = arg.get_output_scale_val();
         quantize_params.out_shift = arg.get_output_shift_val();
 

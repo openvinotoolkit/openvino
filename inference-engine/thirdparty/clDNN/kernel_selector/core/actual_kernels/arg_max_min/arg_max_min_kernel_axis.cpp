@@ -80,6 +80,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     size_t sort_size = orgParams.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(orgParams) : 1;
 
     DispatchData dispatchData;
+
     dispatchData.gws = { Align(getOperationNumber(orgParams), 32), sort_size, 1 };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 

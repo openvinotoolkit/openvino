@@ -31,7 +31,7 @@ public:
     OPENVINO_OP("Equal", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs an equal operation.
-    Equal() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
+    Equal() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs an equal operation.
     ///
     /// \param arg0 Node that produces the first input tensor.
@@ -44,7 +44,9 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 };
 }  // namespace v1

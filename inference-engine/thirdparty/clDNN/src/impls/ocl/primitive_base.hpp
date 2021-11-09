@@ -9,7 +9,6 @@
 #include "primitive_inst.h"
 #include "cldnn/graph/program.hpp"
 #include "cldnn/runtime/error_handler.hpp"
-#include "cldnn/runtime/debug_configuration.hpp"
 #include "kernel_selector_helper.h"
 #include "cldnn/graph/network.hpp"
 #include "register.hpp"

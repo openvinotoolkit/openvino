@@ -4,13 +4,10 @@
 
 #include <gtest/gtest.h>
 
-#include <vector>
-
 #include "base_reference_test.hpp"
-#include "ngraph/opsets/opset8.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/opsets/opset8.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace reference_tests {
 namespace {
@@ -19,7 +16,7 @@ struct RandomUniformParams {
     RandomUniformParams(const std::vector<int64_t>& paramOutShape,
                         const Tensor& paramMinValue,
                         const Tensor& paramMaxValue,
-                        ngraph::element::Type paramOutType,
+                        ov::element::Type paramOutType,
                         int64_t paramGlobalSeed,
                         int64_t paramOpSeed,
                         const Tensor& paramExpected,
@@ -35,7 +32,7 @@ struct RandomUniformParams {
     std::vector<int64_t> out_shape;
     Tensor min_val;
     Tensor max_val;
-    ngraph::element::Type out_type;
+    ov::element::Type out_type;
     int64_t global_seed;
     int64_t op_seed;
     Tensor expected;
@@ -64,14 +61,14 @@ private:
     static std::shared_ptr<Function> CreateFunction(const std::vector<int64_t>& out_shape,
                                                     const Tensor& min_val,
                                                     const Tensor& max_val,
-                                                    const ngraph::element::Type& out_type,
+                                                    const ov::element::Type& out_type,
                                                     int64_t global_seed,
                                                     int64_t op_seed) {
         const auto min_val_param = std::make_shared<opset8::Parameter>(min_val.type, min_val.shape);
         const auto max_val_param = std::make_shared<opset8::Parameter>(max_val.type, max_val.shape);
         auto out_shape_ = std::make_shared<opset8::Constant>(element::i64, Shape{out_shape.size()}, out_shape);
 
-        return std::make_shared<Function>(NodeVector{std::make_shared<opset8::RandomUniform>(out_shape_,
+        return std::make_shared<ov::Function>(NodeVector{std::make_shared<opset8::RandomUniform>(out_shape_,
                                                                                              min_val_param,
                                                                                              max_val_param,
                                                                                              out_type,

@@ -13,15 +13,16 @@
 #include <mkldnn_extension_utils.h>
 #include "emitters/jit_bf16_emitters.hpp"
 #include "mkldnn_extension_utils.h"
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
-#include <cpu/x64/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_depthwise_injector.hpp>
+#include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
 #include "common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 #include <mkldnn_selective_build.h>
 
 #include <ngraph/opsets/opset1.hpp>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -811,7 +812,9 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+            // TODO [DS]: change to shape from memory
+            constexpr int align = 16;
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
             continue;
         }
 
