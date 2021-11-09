@@ -3,9 +3,9 @@
 
 """openvino helper functions."""
 
-
 from openvino import Function
 from openvino.inference_engine import IENetwork
+
 
 # TODO: will be removed after full updating MO with new api
 def function_to_cnn(ng_function: Function) -> Function:
