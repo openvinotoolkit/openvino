@@ -15,6 +15,8 @@
 #    define NOMINMAX
 #endif
 
+#ifdef _WIN32
+
 #include <d3d11.h>
 
 #include <memory>
@@ -191,3 +193,5 @@ public:
 }  // namespace gpu
 }  // namespace runtime
 }  // namespace ov
+
+#endif  // _WIN32

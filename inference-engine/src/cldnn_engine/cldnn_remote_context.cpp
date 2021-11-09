@@ -292,6 +292,19 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
 
 std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
     auto devName = m_plugin.lock()->GetName();
+
+    auto engine_type = cldnn::engine_types::ocl;
+    auto runtime_type = cldnn::runtime_types::ocl;
+    // Use actual runtime and engine types
+    cldnn::device_query device_query(engine_type, runtime_type);
+    auto all_devices = device_query.get_available_devices();
+    auto current_device = m_engine->get_device();
+
+    for (auto& kv : all_devices) {
+        if (current_device->is_same(kv.second))
+            return devName + "." + kv.first;
+    }
+
     if (!m_config.device_id.empty())
         devName += "." + m_config.device_id;
     return devName;
