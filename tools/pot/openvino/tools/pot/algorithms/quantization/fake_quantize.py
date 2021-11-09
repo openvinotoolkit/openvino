@@ -441,7 +441,12 @@ def unify_fq_scales(model, config):
 def create_renamed_layers_mapping(model, stats_layout):
     changed_names_map = {}
     for layer_name in stats_layout:
-        node = get_node_by_name(model, layer_name)
+        node_name = layer_name
+        port_id = None
+        if isinstance(layer_name, tuple):
+            node_name, port_id = layer_name
+        node = get_node_by_name(model, node_name)
         if node is not None and 'orig_node_name' in node:
-            changed_names_map[node.name] = node['orig_node_name']
+            name_change_to = node['orig_node_name'] if port_id is None else (node['orig_node_name'], port_id)
+            changed_names_map[layer_name] = name_change_to
     return changed_names_map
