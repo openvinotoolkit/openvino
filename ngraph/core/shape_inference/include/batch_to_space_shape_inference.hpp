@@ -11,8 +11,12 @@
 
 #include "utils.hpp"
 
+namespace ov {
+namespace op {
+namespace v1 {
+
 template <class T>
-void shape_infer(const ov::opset2::BatchToSpace* op,
+void shape_infer(const ov::op::v1::BatchToSpace* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
@@ -107,4 +111,8 @@ void shape_infer(const ov::opset2::BatchToSpace* op,
     } else {
         set_output_to_be_partial(data_rank, output_shapes[0]);
     }
+}
+
+}
+}
 }
