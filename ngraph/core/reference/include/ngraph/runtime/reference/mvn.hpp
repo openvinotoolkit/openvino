@@ -28,7 +28,7 @@ void mvn(const T* arg,
     auto reduced_shape = reduce(in_shape, reduction_axes, true);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
-    subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastSpec::NUMPY);
+    subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
 
     if (normalize_variance) {
         multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
@@ -40,10 +40,10 @@ void mvn(const T* arg,
             tmp_buffer.data(),
             reduced_shape,
             reduced_shape,
-            op::AutoBroadcastSpec::NUMPY);
+            op::AutoBroadcastType::NUMPY);
         sqrt(tmp_buffer.data(), tmp_buffer.data(), shape_size(reduced_shape));
 
-        divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastSpec::NUMPY, true);
+        divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, true);
     }
 }
 
@@ -58,7 +58,7 @@ void mvn_6(const T* arg,
     auto reduced_shape = reduce(in_shape, reduction_axes, true);
     std::vector<T> tmp_buffer(shape_size(in_shape));
     mean(arg, tmp_buffer.data(), in_shape, reduction_axes);
-    subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastSpec::NUMPY);
+    subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY);
 
     if (normalize_variance) {
         multiply(out, out, tmp_buffer.data(), shape_size(in_shape));
@@ -71,7 +71,7 @@ void mvn_6(const T* arg,
                 tmp_buffer.data(),
                 reduced_shape,
                 reduced_shape,
-                op::AutoBroadcastSpec::NUMPY);
+                op::AutoBroadcastType::NUMPY);
             sqrt(tmp_buffer.data(), tmp_buffer.data(), shape_size(reduced_shape));
         } else {
             sqrt(mean_value.data(), tmp_buffer.data(), shape_size(reduced_shape));
@@ -80,10 +80,10 @@ void mvn_6(const T* arg,
                 tmp_buffer.data(),
                 reduced_shape,
                 reduced_shape,
-                op::AutoBroadcastSpec::NUMPY);
+                op::AutoBroadcastType::NUMPY);
         }
 
-        divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastSpec::NUMPY, true);
+        divide(out, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastType::NUMPY, true);
     }
 }
 }  // namespace reference

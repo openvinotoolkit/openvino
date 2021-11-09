@@ -25,6 +25,8 @@ void ApplyPruningTransformation(InferenceEnginePython::IENetwork network);
 
 void GenerateMappingFile(InferenceEnginePython::IENetwork network, std::string path, bool extract_names);
 
+void Serialize(InferenceEnginePython::IENetwork network, std::string path_to_xml, std::string path_to_bin);
+
 void CheckAPI();
 
 };  // namespace InferenceEnginePython

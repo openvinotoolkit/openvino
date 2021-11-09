@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/util/common_util.hpp>
 #include <tensorflow_frontend/frontend.hpp>
-#include <tensorflow_frontend/model.hpp>
+#include <tensorflow_frontend/graph_iterator.hpp>
 
+#include "model.hpp"
 #include "op_table.hpp"
+#include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
@@ -33,7 +34,6 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 
     NodeContext node_ctx(*node->get_decoder(), named_inputs);
     auto new_node_outputs = translator_it->second(node_ctx);
-    SetTracingInfo(node_ctx.get_name(), new_node_outputs.front());
 
     auto new_output = new_node_outputs.begin();
     auto old_outputs = node->outputs();
@@ -47,7 +47,7 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 
 FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
 
-void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
+void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
                                  const std::string& model_name,
                                  bool fail_fast,
                                  bool no_conversion,
@@ -57,16 +57,17 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
 
     ov::ParameterVector params;
     ov::ResultVector results;
-    const auto& operation_places = model->get_op_places();
-    const auto& model_inputs = model->get_inputs();
-    const auto& model_outputs = model->get_outputs();
-    const auto& model_frozen_inputs = model->get_tensor_values();
-
+    const auto& model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into nGraph function");
+    const auto& operation_places = model_tf->get_op_places();
+    const auto& model_inputs = model_tf->get_inputs();
+    const auto& model_outputs = model_tf->get_outputs();
+    const auto& model_frozen_inputs = model_tf->get_tensor_values();
     std::map<const std::string, const std::function<ov::OutputVector(const NodeContext&)>> translate_map;
 
     const auto& TRANSLATE_OP_MAP = m_op_translators;
     if (no_conversion) {
-        const std::set<std::string> required_types{"Placeholder", "_Retval", "NoOp"};
+        const std::set<std::string> required_types{"Placeholder", "NoOp"};
         for (const auto& name : required_types) {
             translate_map.emplace(name, TRANSLATE_OP_MAP.at(name));
         }
@@ -82,7 +83,6 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
                                 "Input with frozen value has been already met: " + frozen_input_name);
         ng_op_map[frozen_input_name] = {frozen_input_value};
     }
-
     // create parameter nodes for all tensor places corresponding to inputs
     for (const auto& input_place : model_inputs) {
         FRONT_END_GENERAL_CHECK(input_place->get_names().size() == 1, "Input place must have one name.");
@@ -95,17 +95,16 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
 
-        auto input_ng_output = ConstructNgNode<ov::opset8::Parameter>(input_name, input_type, input_shape);
-        auto input_ng_node = std::dynamic_pointer_cast<ov::opset8::Parameter>(input_ng_output.get_node_shared_ptr());
-        params.push_back(input_ng_node);
-        ng_op_map[input_name] = {input_ng_output};
+        auto param = std::make_shared<ov::opset8::Parameter>(input_type, input_shape);
+        set_node_name(input_name, param);
+        params.push_back(param);
+        ng_op_map[input_name] = {param};
     }
 
     // create the nGraph ops from TensorFlow ops
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
-
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -177,7 +176,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
                 auto ng_node = std::make_shared<TFFrameworkNode>(operation_decoder,
                                                                  ng_inputs,
                                                                  operation_place->get_output_ports().size());
-                SetTracingInfo(operation_name, ng_node);
+                set_node_name(operation_name, ng_node);
                 ng_outputs = ng_node->outputs();
             }
         }
@@ -248,7 +247,6 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
             results.push_back(std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]));
         }
     }
-
     // find all terminal nodes in ngraph graph to complete list of results
     if (results.empty()) {
         for (const auto& node_output_vector : ng_op_map) {
@@ -265,8 +263,7 @@ void FrontEndTF::translate_graph(const std::shared_ptr<InputModelTF>& model,
 
     // create the nGraph function
     ng_function = std::make_shared<ov::Function>(results, params, model_name);
-
-    NGRAPH_VLOG(5) << "Done with translations";
+    NGRAPH_DEBUG << "Done with translations";
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
@@ -282,6 +279,8 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>&
         if (ov::util::ends_with(model_path, suffix.c_str())) {
             return true;
         }
+    } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+        return true;
     }
     return false;
 }
@@ -298,6 +297,9 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
                 return std::make_shared<InputModelTF>(
                     std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path));
             }
+        } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
+            auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
+            return std::make_shared<InputModelTF>(graph_iterator);
         }
     }
     return nullptr;
@@ -305,11 +307,9 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
 
 std::shared_ptr<ov::Function> FrontEndTF::convert(ngraph::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     normalize(f);
-
     // TODO: check that nGraph function does not contain operations which are not in the opset
 
     return f;

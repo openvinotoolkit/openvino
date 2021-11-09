@@ -182,7 +182,7 @@ void regclass_pyngraph_InputModel(py::module m) {
                 place : Place
                     Model's place.
 
-                shapeDimIndex : int
+                dimIndex : int
                     Dimension index.
 
                 dimName : str

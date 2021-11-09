@@ -9,8 +9,6 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-constexpr NodeTypeInfo StaticShapeNonZero::type_info;
-
 StaticShapeNonZero::StaticShapeNonZero(const Output<Node>& input, const element::Type& output_type)
         : Op({input}), m_output_type(output_type) {
     constructor_validate_and_infer_types();

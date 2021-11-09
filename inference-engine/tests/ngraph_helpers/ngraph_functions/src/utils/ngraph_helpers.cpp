@@ -144,6 +144,63 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
     return outputs;
 }
 
+std::vector<ov::runtime::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
+                                                   const std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>& inputs) {
+    runtime::Backend::set_backend_shared_library_search_directory("");
+    auto backend = runtime::Backend::create("INTERPRETER");
+
+    const auto &funcInputs = function->inputs();
+    const auto &funcInputsNumber = funcInputs.size();
+    const auto &inputsNumber = inputs.size();
+    NGRAPH_CHECK(funcInputsNumber == inputsNumber,
+                 "Got function (", function->get_friendly_name(), ") with ", funcInputsNumber, " parameters, but ",
+                 inputsNumber, " input blobs");
+
+    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    for (size_t i = 0; i < funcInputsNumber; ++i) {
+        const auto &input = funcInputs[i];
+        const auto &inputShape = input.get_shape();
+        const auto &inputType = input.get_element_type();
+        const auto &inputSize = shape_size(inputShape) * inputType.size();
+
+        auto inputIt = std::find_if(inputs.begin(), inputs.end(),
+                                    [&input](std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> elem) {
+            return elem.first->get_friendly_name() == input.get_node_shared_ptr()->get_friendly_name();
+        });
+        if (inputIt == inputs.end()) {
+            throw std::runtime_error("Parameter: " + input.get_node_shared_ptr()->get_friendly_name() + " was not find in input parameters");
+        }
+        auto inputTensor = inputIt->second;
+
+        const auto &inputTensorSize = inputTensor.get_byte_size();
+        NGRAPH_CHECK(inputSize == inputTensorSize,
+                     "Got parameter (", input.get_node_shared_ptr()->get_friendly_name(), ") of size ", inputSize,
+                     " bytes, but corresponding input ",
+                     " has ", inputTensorSize, " bytes");
+
+        auto tensor = backend->create_tensor(inputType, inputShape);
+        tensor->write(inputTensor.data(), inputSize);
+        inputTensors.push_back(tensor);
+    }
+
+    std::vector<std::shared_ptr<runtime::Tensor>> outputTensors;
+    const auto &results = function->get_results();
+    for (size_t i = 0; i < results.size(); ++i) {
+        outputTensors.push_back(std::make_shared<HostTensor>());
+    }
+
+    auto handle = backend->compile(function);
+    handle->call_with_validate(outputTensors, inputTensors);
+    std::vector<ov::runtime::Tensor> outputs;
+    for (const auto& outTensor : outputTensors) {
+        ov::runtime::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
+        outTensor->read(tmpBuffer.data(), tmpBuffer.get_byte_size());
+        outputs.push_back(tmpBuffer);
+    }
+
+    return outputs;
+}
+
 std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
                                        const std::vector<std::vector<std::uint8_t>> &inputs,
                                        const std::vector<ngraph::element::Type> &inputTypes) {
@@ -844,6 +901,20 @@ std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
             throw std::runtime_error("NOT_SUPPORTED_TYPE");
     }
     return os;
+}
+
+void resize_function(std::shared_ptr<ov::Function> function,
+                     const std::vector<ov::Shape>& targetInputStaticShapes) {
+    auto inputs = function->inputs();
+    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
+    if (inputs.size() > targetInputStaticShapes.size()) {
+        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetInputStaticShapes.size()) + " != inputs.size() = "
+            + std::to_string(inputs.size()));
+    }
+    for (size_t i = 0; i < inputs.size(); i++) {
+        shapes.insert({inputs[i], targetInputStaticShapes[i]});
+    }
+    function->reshape(shapes);
 }
 
 }  // namespace helpers

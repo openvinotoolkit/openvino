@@ -45,13 +45,7 @@ size_t get_onnx_data_size(int32_t onnx_type) {
     case ONNX_NAMESPACE::TensorProto_DataType_BFLOAT16:
         return sizeof(uint16_t);
     }
-#ifdef NGRAPH_USE_PROTOBUF_LITE
     throw ngraph_error("unsupported element type");
-#else
-    throw ngraph_error(
-        "unsupported element type: " +
-        ONNX_NAMESPACE::TensorProto_DataType_Name(static_cast<ONNX_NAMESPACE::TensorProto_DataType>(onnx_type)));
-#endif
 }
 namespace {
 using namespace ONNX_NAMESPACE;

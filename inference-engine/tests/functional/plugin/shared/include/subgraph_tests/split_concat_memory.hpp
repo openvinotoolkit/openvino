@@ -14,7 +14,7 @@ TEST_P(SplitConcatMemory, cyclicBufferCorrectness) {
     auto ie = PluginCache::get().ie();
     cnnNetwork = InferenceEngine::CNNNetwork{function};
 
-    auto exe_net = ie->LoadNetwork(cnnNetwork, "CPU");
+    auto exe_net = ie->LoadNetwork(cnnNetwork, targetDevice);
     auto inf_reg = exe_net.CreateInferRequest();
 
     /*
