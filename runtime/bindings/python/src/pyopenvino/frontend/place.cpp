@@ -14,9 +14,7 @@
 namespace py = pybind11;
 
 void regclass_frontend_Place(py::module m) {
-    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(m,
-                                                                                        "Place",
-                                                                                        py::dynamic_attr());
+    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(m, "Place", py::dynamic_attr());
     place.doc() = "openvino.frontend.Place wraps ngraph::frontend::Place";
 
     place.def("is_input",
