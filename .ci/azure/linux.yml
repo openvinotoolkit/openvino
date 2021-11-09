@@ -212,11 +212,11 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'nGraph UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/paddlepaddle_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-PaddlePaddle.xml
     displayName: 'PaddlePaddle Frontend UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
@@ -225,15 +225,15 @@ jobs:
     # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
-    continueOnError: true
+    continueOnError: false
 
   # - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
   #   displayName: 'GNA UT'
@@ -241,15 +241,15 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
-    continueOnError: true
+    continueOnError: false
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
@@ -257,14 +257,14 @@ jobs:
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
-    continueOnError: true
+    continueOnError: false
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -282,7 +282,7 @@ jobs:
       python3 -m pytest tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=TEST-tf_Roll.xmlTEST
     workingDirectory: $(LAYER_TESTS_DIR)
     displayName: 'Layer Tests'
-    continueOnError: true
+    continueOnError: false
 
   - task: PublishTestResults@2
     condition: always()

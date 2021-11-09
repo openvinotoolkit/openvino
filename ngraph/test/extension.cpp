@@ -22,7 +22,7 @@ TEST(extension, load_extension) {
 
 TEST(extension, load_extension_and_cast) {
     std::vector<ov::Extension::Ptr> so_extensions = ov::detail::load_extensions(get_extension_path());
-    EXPECT_EQ(1, so_extensions.size());
+    ASSERT_EQ(1, so_extensions.size());
     std::vector<ov::Extension::Ptr> extensions;
     std::vector<std::shared_ptr<void>> so;
     for (const auto& ext : so_extensions) {
