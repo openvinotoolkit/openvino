@@ -329,22 +329,13 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    // Test should be performed on CPU when it supports import/export
-    ie_param_t param;
-    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
-        ie_core_free(&core);
-        GTEST_SKIP();
-    }
-
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
-    const char *model_path = model_path_str.c_str();
 
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &config, &exe_network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    std::string export_path = TestDataHelpers::generate_gna_model_path("exported_model.blob");
+    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
     IE_EXPECT_OK(ie_core_export_network(exe_network, export_path.c_str()));
     std::ifstream file(export_path.c_str());
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
@@ -359,30 +350,18 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    // Test should be performed on CPU when it supports import/export
-    ie_param_t param;
-    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
-        ie_core_free(&core);
-        GTEST_SKIP();
-    }
-
-    ie_config_t conf1 = {"GNA_DEVICE_MODE", "GNA_SW_EXACT", nullptr};
-    ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "327.67", &conf1};
-
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
-    const char *model_path = model_path_str.c_str();
 
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", nullptr, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    std::string export_path = TestDataHelpers::generate_gna_model_path("exported_model.blob");
+    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
     IE_EXPECT_OK(ie_core_export_network(exe_network, export_path.c_str()));
 
     std::vector<uchar> buffer(content_from_file(export_path.c_str(), true));
     ie_executable_network_t *network = nullptr;
 
-    IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer.data(), buffer.size(), "GNA", &conf2, &network));
+    IE_EXPECT_OK(ie_core_import_network_from_memory(core, buffer.data(), buffer.size(), "HETERO:CPU", nullptr, &network));
     EXPECT_NE(nullptr, network);
     if (network != nullptr) {
         ie_exec_network_free(&network);
@@ -398,28 +377,18 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    // Test should be performed on CPU when it supports import/export
-    ie_param_t param;
-    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
-        ie_core_free(&core);
-        GTEST_SKIP();
-    }
-
-    ie_config_t conf1 = {"GNA_DEVICE_MODE", "GNA_SW_EXACT", nullptr};
-    ie_config_t conf2 = {"GNA_SCALE_FACTOR_0", "32767", &conf1};
+    ie_config_t conf = {nullptr, nullptr, nullptr};
 
     ie_executable_network_t *exe_network = nullptr;
-    std::string model_path_str = TestDataHelpers::generate_gna_model_path("gna_basic_fp32.xml");
-    const char *model_path = model_path_str.c_str();
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, model_path, "GNA", &conf2, &exe_network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &conf, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    std::string exported_model = TestDataHelpers::generate_gna_model_path("exported_model.blob");
+    std::string exported_model = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
     IE_EXPECT_OK(ie_core_export_network(exe_network, exported_model.c_str()));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
 
-    IE_EXPECT_OK(ie_core_import_network(core, exported_model.c_str(), "GNA", &conf2, &exe_network));
+    IE_EXPECT_OK(ie_core_import_network(core, exported_model.c_str(), "HETERO:CPU", &conf, &exe_network));
     EXPECT_NE(nullptr, exe_network);
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
@@ -430,36 +399,37 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    // Test should be performed on CPU when it supports import/export
-    ie_param_t param;
-    if (ie_core_get_metric(core, "GNA", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
-        ie_core_free(&core);
-        GTEST_SKIP();
-    }
-
     ie_config_t config = {nullptr, nullptr, nullptr};
+
+    ie_executable_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &config, &network));
+    EXPECT_NE(nullptr, network);
+
+    std::string exported_model = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    IE_EXPECT_OK(ie_core_export_network(network, exported_model.c_str()));
+
     ie_executable_network_t *exe_network = nullptr;
-
-    std::string file_name_str = TestDataHelpers::generate_gna_model_path("export2dot1.blob");
-    const char* file_name = file_name_str.c_str();
-
-    IE_EXPECT_NOT_OK(ie_core_import_network(nullptr, file_name, "GNA", &config, &exe_network));
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, nullptr, "HETERO:CPU", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_import_network(core, nullptr, "GNA", &config, &exe_network));
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, exported_model.c_str(), nullptr, &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, nullptr, &config, &exe_network));
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, exported_model.c_str(), "HETERO:CPU", &config, nullptr));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "GNA", &config, nullptr));
+    IE_EXPECT_NOT_OK(ie_core_import_network(core, exported_model.c_str(), "UnregisteredDevice", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_import_network(core, file_name, "UnregisteredDevice", &config, &exe_network));
-    EXPECT_EQ(nullptr, exe_network);
-
-    IE_EXPECT_OK(ie_core_import_network(core, file_name, "GNA", nullptr, &exe_network));
+    IE_EXPECT_OK(ie_core_import_network(core, exported_model.c_str(), "HETERO:CPU", nullptr, &exe_network));
     EXPECT_NE(nullptr, exe_network);
+
+    if (network != nullptr) {
+        ie_exec_network_free(&network);
+    }
+    if (exe_network != nullptr) {
+        ie_exec_network_free(&exe_network);
+    }
 
     ie_core_free(&core);
 }
