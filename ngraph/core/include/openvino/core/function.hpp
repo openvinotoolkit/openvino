@@ -282,11 +282,12 @@ public:
         return m_rt_info;
     }
 
-private:
     Function(const Function&) = delete;
-    Function(const Function&&) = delete;
+    Function(Function&&) = delete;
     Function& operator=(const Function&) = delete;
+    Function& operator=(Function&&) = delete;
 
+private:
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Function
     /// parameters/variables or finds all Parameters/Variables in a function and registers them.

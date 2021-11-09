@@ -43,32 +43,14 @@ public:
 namespace Extensions {
 namespace Cpu {
 
-using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const std::shared_ptr<ngraph::Node>& op)>;
-
-struct ExtensionsHolder {
-    std::map<std::string, ext_factory> list;
-};
-
+// TODO: remove this
 class MKLDNNExtensions : public IExtension {
 public:
     MKLDNNExtensions();
 
     virtual StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
-        collectTypes(types, size);
-        return OK;
-    }
-
-    virtual StatusCode
     getFactoryFor(ILayerImplFactory*& factory, const std::shared_ptr<ngraph::Node>& op, ResponseDesc* resp) noexcept {
-        using namespace MKLDNNPlugin;
-        factory = layersFactory.createNodeIfRegistered(MKLDNNPlugin, op->get_type_name(), op);
-        if (!factory) {
-            std::string errorMsg = std::string("Factory for ") + op->get_type_name() + " wasn't found!";
-            errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            return NOT_FOUND;
-        }
-        return OK;
+        return NOT_FOUND;
     }
 
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
@@ -82,24 +64,6 @@ public:
     }
 
     void Unload() noexcept override {}
-
-    using LayersFactory = openvino::cc::Factory<
-                                std::string,
-                                InferenceEngine::ILayerImplFactory*(const std::shared_ptr<ngraph::Node>& op)>;
-
-    LayersFactory layersFactory;
-
-private:
-    void collectTypes(char**& types, unsigned int& size) const {
-        types = new char *[layersFactory.size()];
-        unsigned count = 0;
-        layersFactory.foreach([&](std::pair<std::string, LayersFactory::builder_t> const &builder) {
-            types[count] = new char[builder.first.size() + 1];
-            std::copy(builder.first.begin(), builder.first.end(), types[count]);
-            types[count][builder.first.size() ] = '\0';
-        });
-        size = count;
-    }
 };
 
 }  // namespace Cpu
