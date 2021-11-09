@@ -15,7 +15,7 @@ set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
+# Create static library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(COMMAND ie_faster_build)
@@ -25,10 +25,13 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-# Defines macro in C++ to load backend plugin
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${BUILDER_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
