@@ -31,7 +31,7 @@ class IteratorGetNextCut(FrontReplacementPattern):
         iter_get_next_shapes = defaultdict(list)
         for iter_get_next in graph.get_op_nodes(op='IteratorGetNext'):
             iter_get_next_name = iter_get_next.soft_get('name', iter_get_next.id)
-            for port in iter_get_next.out_nodes():
+            for port in iter_get_next.out_ports():
                 if not np_data_type_to_precision(iter_get_next.types[port]) in SUPPORTED_DATA_TYPES:
                     raise Error("In IteratorGetNext node '{}' data type '{}' is not supported".format(
                         iter_get_next_name, iter_get_next.types[port]))
