@@ -214,8 +214,8 @@ endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${IE_MAIN_SOURCE_DIR}/src/legacy_api/src>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
