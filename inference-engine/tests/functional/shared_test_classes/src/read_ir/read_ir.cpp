@@ -5,6 +5,7 @@
 #include <pugixml.hpp>
 #include <ngraph_functions/builders.hpp>
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
 #include "functional_test_utils/layer_test_utils/op_info.hpp"
 
@@ -12,7 +13,9 @@
 #include "shared_test_classes/read_ir/compare_results.hpp"
 #include "shared_test_classes/read_ir/generate_inputs.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace CommonTestUtils;
     std::string pathToModel, deviceName;
@@ -26,7 +29,7 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
     }
     result << "IR_name=" << splittedFilename.back() << "_";
     result << "TargetDevice=" << deviceName << "_";
-    result << "Config=" << config;
+//    result << "Config=" << config;
     return result.str();
 }
 
@@ -79,6 +82,18 @@ void ReadIRTest::SetUp() {
             }
         }
     }
+    std::vector<ov::Shape> staticShapes;
+    for (const auto param : function->get_parameters()) {
+        if (param->get_partial_shape().is_static()) {
+            staticShapes.push_back(param->get_shape());
+        } else {
+            staticShapes.push_back(param->get_partial_shape().get_max_shape());
+        }
+    }
+    for (const auto& param : function->get_parameters()) {
+        inputDynamicShapes.push_back(param->get_partial_shape());
+    }
+    targetStaticShapes.push_back(staticShapes);
 }
 
 //void ReadIRTest::GenerateInputs() {
@@ -136,5 +151,7 @@ void ReadIRTest::SetUp() {
 //    }
 //    return outputs;
 //}
-} // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov
 

@@ -120,26 +120,36 @@ void SubgraphBaseTest::query_model() {
 void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
                                const std::vector<ov::runtime::Tensor> &actual) {
     ASSERT_EQ(expected.size(), actual.size());
+    ASSERT_EQ(expected.size(), function->get_results().size());
 
-    auto compareMap = utils::getCompareMap();
+//    auto compareMap = utils::getCompareMap();
 //    for (const auto &result : function->get_results()) {
 //        for (size_t i = 0; i < result->get_input_size(); i++) {
-//            for (const auto &node : param->get_input_node_ptr(i)) {
-//                const auto nodePtr = node.get_node()->shared_from_this();
-//                auto it = inputMap.find(nodePtr->get_type_info());
-//                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
-//                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
-//                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
-//                    }
+//            const auto &node = result->get_input_node_ptr(i);
+//            auto it = compareMap.find(node->get_type_info());
+//            for (size_t port = 0; port < node->get_input_size(); ++port) {
+//                if (node->get_input_node_ptr(port)->shared_from_this() == result->shared_from_this()) {
+//                    inputs.insert({result, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
 //                }
 //            }
 //        }
 //    }
+    auto compareMap = utils::getCompareMap();
+    const auto& results = function->get_results();
+    for (size_t j = 0; j < results.size(); j++) {
+        const auto result = results[j];
+        for (size_t i = 0; i < result->get_input_size(); ++i) {
+            std::shared_ptr<ov::Node> inputNode = result->get_input_node_shared_ptr(i);
+            auto it = compareMap.find(inputNode->get_type_info());
+            it->second(inputNode, i, expected[j], actual[j], abs_threshold, rel_threshold);
+        }
+    }
+}
 
 //    for (size_t i = 0; i < expected.size(); i++) {
 //        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
 //    }
-}
+//}
 
 void SubgraphBaseTest::configure_model() {
     // configure input precision

@@ -6,7 +6,9 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 using ReadIRParams = std::tuple<
         std::string,                         // IR path
@@ -20,6 +22,9 @@ public:
 
 protected:
     void SetUp() override;
+//    void TearDown() override {
+//        ov::test::utils::PluginCache::get().core().reset();
+//    }
 //    void generate_inputs() override;
 //    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
 //                 const std::vector<InferenceEngine::Blob::Ptr> &actual) override;
@@ -30,4 +35,6 @@ private:
     std::string sourceModel;
     std::vector<std::pair<std::string, size_t>> ocuranceInModels;
 };
-} // namespace LayerTestsDefinitions
+} // namespace subgraph
+} // namespace test
+} // namespace ov

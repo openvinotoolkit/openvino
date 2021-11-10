@@ -14,7 +14,7 @@ namespace test {
 namespace utils {
 
 namespace {
-ov::runtime::Tensor generate(const std::shared_ptr<ngraph::Node> node,
+ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
                              size_t port,
                              const ov::element::Type_t& elemType,
                              const ov::Shape& targetShape) {
@@ -564,7 +564,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ngraph::Node> node,
 //}
 
 template<typename T>
-ov::runtime::Tensor generateInput(const std::shared_ptr<ngraph::Node> node,
+ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node> node,
                                          size_t port,
                                          const ov::element::Type_t& elemType,
                                          const ov::Shape& targetShape) {

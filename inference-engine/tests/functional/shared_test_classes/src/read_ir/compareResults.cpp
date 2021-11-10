@@ -13,7 +13,7 @@ namespace test {
 namespace utils {
 
 namespace {
-void compare(const std::shared_ptr<ngraph::Node> node,
+void compare(const std::shared_ptr<ov::Node> node,
              size_t port,
              const ov::runtime::Tensor &expected,
              const ov::runtime::Tensor &actual,
@@ -22,7 +22,7 @@ void compare(const std::shared_ptr<ngraph::Node> node,
 //    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> types(expected.size());
 //    auto outputs = node->outputs();
 //    LayerTestsUtils::LayerTestsCommon::Compare(expected, actual, threshold);
-//    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
+    ov::test::utils::compare(expected, actual, absThreshold, relThreshold);
 //    IE_THROW() << "expected.size(): " << expected.size() << " actual.front()->byteSize(): " << actual.front()->byteSize()
 //               << " failed";
 }
@@ -236,7 +236,7 @@ void compare(const std::shared_ptr<ngraph::Node> node,
 //}
 
 template<typename T>
-void compareResults(const std::shared_ptr<ngraph::Node> node,
+void compareResults(const std::shared_ptr<ov::Node> node,
                     size_t port,
                     const ov::runtime::Tensor &expected,
                     const ov::runtime::Tensor &actual,

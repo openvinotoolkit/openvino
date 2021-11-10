@@ -8,7 +8,7 @@
 #include "conformance.hpp"
 
 namespace ConformanceTests {
-using namespace LayerTestsDefinitions;
+using namespace ov::test::subgraph;
 
 namespace {
 INSTANTIATE_TEST_SUITE_P(conformance,

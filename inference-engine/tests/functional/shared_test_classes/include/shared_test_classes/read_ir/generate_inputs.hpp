@@ -11,8 +11,8 @@ namespace ov {
 namespace test {
 namespace utils {
 
-using InputsMap = std::map<ngraph::NodeTypeInfo, std::function<ov::runtime::Tensor(
-        const std::shared_ptr<ngraph::Node> node,
+using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::runtime::Tensor(
+        const std::shared_ptr<ov::Node> node,
         size_t port,
         const ov::element::Type_t& elemType,
         const ov::Shape& targetShape)>>;
