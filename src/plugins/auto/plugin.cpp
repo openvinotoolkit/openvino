@@ -145,8 +145,11 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         if (parsed.getDeviceID().empty())
             defaultDeviceID = getDefaultDeviceID(deviceName);
 
+        auto fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+        auto uniqueName = fullDeviceName + "_" + defaultDeviceID;
+
         // create meta device
-        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID });
+        metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
     }
 
     return metaDevices;
@@ -411,13 +414,11 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
             continue;
         }
         if (item.deviceName.find("GPU") == 0) {
-            auto gpuFullDeviceName = GetCore()->GetMetric(item.deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
-            DeviceInformation fullNameItem = item;
-            fullNameItem.fullName = gpuFullDeviceName;
-            if (gpuFullDeviceName.find("iGPU") != std::string::npos) {
-                iGPU.push_back(std::move(fullNameItem));
-            } else if (gpuFullDeviceName.find("dGPU") != std::string::npos) {
-                dGPU.push_back(std::move(fullNameItem));
+            auto& gpuUniqueName = item.uniqueName;
+            if (gpuUniqueName.find("iGPU") != std::string::npos) {
+                iGPU.push_back(std::move(item));
+            } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
+                dGPU.push_back(std::move(item));
             }
             continue;
         }
@@ -432,24 +433,24 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
 
     std::list<DeviceInformation> validDevices;
 
- #define SELECT_DEV(CONF) \
-    for (auto iter = devices.begin(); iter != devices.end();) {\
-         std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES)); \
-         auto supportNetwork = std::find(capability.begin(), capability.end(), (CONF)); \
-         if (supportNetwork != capability.end()) { \
-             validDevices.push_back(std::move(*iter)); \
-             devices.erase(iter++); \
-             continue; \
-         } \
-         iter++; \
-    }
-    SELECT_DEV(networkPrecision);
+    auto selectSupportDev = [this, &devices, &validDevices](const std::string& networkPrecision) {
+        for (auto iter = devices.begin(); iter != devices.end();) {
+            std::vector<std::string> capability = GetCore()->GetMetric(iter->deviceName, METRIC_KEY(OPTIMIZATION_CAPABILITIES));
+            auto supportNetwork = std::find(capability.begin(), capability.end(), (networkPrecision));
+            if (supportNetwork != capability.end()) {
+                validDevices.push_back(std::move(*iter));
+                devices.erase(iter++);
+                continue;
+            }
+            iter++;
+        }
+    };
+    selectSupportDev(networkPrecision);
     // If network is FP32, continue to collect the device support FP16 but not support FP32.
     if (networkPrecision == "FP32") {
        const std::string f16 = "FP16";
-       SELECT_DEV(f16);
+       selectSupportDev(f16);
     }
-#undef SELECT_DEV
     // add cpu devices if exist.
     validDevices.splice(validDevices.end(), CPU);
 
@@ -469,8 +470,8 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
             }
             auto& filterDevices = kvp.second;
             auto sd = std::remove_if(validDevices.begin(), validDevices.end(), [&filterDevices](DeviceInformation device) {
-                    auto iter = std::find_if(filterDevices.begin(), filterDevices.end(), [&device](std::string fullName) {
-                            return (fullName == device.deviceName) || (fullName == device.fullName);
+                    auto iter = std::find_if(filterDevices.begin(), filterDevices.end(), [&device](std::string uniqueName) {
+                            return (uniqueName == device.uniqueName);
                             });
                     return iter != filterDevices.end() ? true : false;
                     });
@@ -491,16 +492,12 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         //recode the device priority
         std::lock_guard<std::mutex> lck(_mtx);
         auto& priorityDevices = _priorityMap[priority];
-        if (!ptrSelectDevice->fullName.empty()) {
-            priorityDevices.push_back(ptrSelectDevice->fullName);
-        } else {
-            priorityDevices.push_back(ptrSelectDevice->deviceName);
-        }
+        priorityDevices.push_back(ptrSelectDevice->uniqueName);
     }
     return *ptrSelectDevice;
 }
 
-void MultiDeviceInferencePlugin::DeletePriority(unsigned int priority, std::string deviceName) {
+void MultiDeviceInferencePlugin::UnregisterPriority(unsigned int priority, std::string deviceName) {
     std::lock_guard<std::mutex> lck(_mtx);
     auto& priorityDevices = _priorityMap[priority];
     for (auto iter = priorityDevices.begin(); iter != priorityDevices.end();) {

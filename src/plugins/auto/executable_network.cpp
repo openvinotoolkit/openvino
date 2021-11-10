@@ -469,11 +469,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
         // it's necessary to wait the loading network threads to stop here.
         InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
         _executor.reset();
-        if (_acceleratorDevice.fullName.empty()) {
-            _multiPlugin->DeletePriority(_context.modelPriority, _acceleratorDevice.deviceName);
-        } else {
-            _multiPlugin->DeletePriority(_context.modelPriority, _acceleratorDevice.fullName);
-        }
+        _multiPlugin->UnregisterPriority(_context.modelPriority, _acceleratorDevice.uniqueName);
     }
     {
         std::lock_guard<std::mutex> lock(_mutex);
