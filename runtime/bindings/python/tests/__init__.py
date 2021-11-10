@@ -25,7 +25,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="failed with accuracy issue")
-skip_issue_69443 = pytest.mark.skip(reason="Segmentation fault due to empty pads_begin, pads_end")
+xfail_issue_69443 = xfail_test(reason="Error in ref. implementation due to the empty pads_begin, pads_end")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "

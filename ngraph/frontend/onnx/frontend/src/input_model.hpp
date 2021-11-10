@@ -8,7 +8,7 @@
 #include <frontend_manager/input_model.hpp>
 #include <fstream>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class InputModelONNX : public InputModel {
 public:
@@ -20,7 +20,9 @@ public:
     // The path can be required even if the model is passed as a stream because it is necessary
     // for ONNX external data feature
     InputModelONNX(std::istream& model_stream, const std::string& path);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     InputModelONNX(std::istream& model_stream, const std::wstring& path);
+#endif
 
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
@@ -54,7 +56,7 @@ public:
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
 
 private:
-    std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
