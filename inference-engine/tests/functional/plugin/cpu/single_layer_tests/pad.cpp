@@ -13,9 +13,8 @@ using namespace test;
 
 namespace CPULayerTestsDefinitions {
 
-using PadInputShapes = std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape>>;
 using PadLayerCPUTestParamSet = std::tuple<
-        PadInputShapes,                                 // Input shape
+        InputShape,                                     // Input shape
         ElementType,                                    // Input element type
         std::vector<int64_t>,                           // padsBegin
         std::vector<int64_t>,                           // padsEnd
@@ -28,22 +27,19 @@ class PadLayerCPUTest : public testing::WithParamInterface<PadLayerCPUTestParamS
                         virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PadLayerCPUTestParamSet> obj) {
-        PadInputShapes inputShapes;
+        InputShape shapes;
         ElementType elementType;
         std::vector<int64_t> padsBegin, padsEnd;
         ngraph::helpers::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = obj.param;
+        std::tie(shapes, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = obj.param;
 
         std::ostringstream results;
-        if (!inputShapes.first.empty()) {
-            results << "IS=(";
-            results << CommonTestUtils::partialShape2str(inputShapes.first) << ")_";
-        }
+        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
-        for (const auto& shape : inputShapes.second) {
-            results << CommonTestUtils::vec2str(shape) << "_";
+        for (const auto& item : shapes.second) {
+            results << CommonTestUtils::vec2str(item) << "_";
         }
         results << "Prc=" << elementType << "_";
         results << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
@@ -59,29 +55,21 @@ public:
 
 protected:
     void SetUp() override {
-        PadInputShapes inputShapes;
+        InputShape shapes;
         ElementType elementType;
         std::vector<int64_t> padsBegin, padsEnd;
         ngraph::helpers::PadMode padMode;
         float argPadValue;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
+        std::tie(shapes, elementType, padsBegin, padsEnd, argPadValue, padMode, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        // selectedType = selectedType + "_" + elementType;
+        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
         targetDevice = CommonTestUtils::DEVICE_CPU;
-
-        if (!inputShapes.first.empty()) {
-            inputDynamicShapes = inputShapes.first;
-        } else {
-            inputDynamicShapes = { inputShapes.second.front() };
-        }
-        for (size_t i = 0; i < inputShapes.second.size(); i++) {
-            targetStaticShapes.push_back(std::vector<ngraph::Shape>{inputShapes.second[i]});
-        }
+        init_input_shapes({shapes});
 
         auto params = ngraph::builder::makeDynamicParams(elementType, inputDynamicShapes);
         auto pad = ngraph::builder::makePad(params[0], padsBegin, padsEnd, argPadValue, padMode);
@@ -149,7 +137,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DConstBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 5, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DConstBlocked),
                 ::testing::ValuesIn(padsEnd4DConstBlocked),
@@ -163,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DConst,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 5, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4D),
                 ::testing::ValuesIn(padsEnd4D),
@@ -177,7 +165,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 10, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 10, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked),
                 ::testing::ValuesIn(padsEnd4DBlocked),
@@ -191,7 +179,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4D,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 10, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 10, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked),
                 ::testing::ValuesIn(padsEnd4DBlocked),
@@ -205,7 +193,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /* *======================* Dynamic Shapes Tests 4D *======================* */
 
-const std::vector<PadInputShapes> inputShapesDynamic4D = {
+const std::vector<InputShape> inputShapesDynamic4D = {
         {{{-1, -1, -1, -1}},                                    // dynamic
          {{5, 36, 5, 5}, {3, 16, 10, 5}, {3, 24, 10, 10}}},     // target
 
@@ -299,7 +287,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5DConstBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 5, 5, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DConstBlocked),
                 ::testing::ValuesIn(padsEnd5DConstBlocked),
@@ -313,7 +301,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5DConst,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 5, 5, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5D),
                 ::testing::ValuesIn(padsEnd5D),
@@ -327,7 +315,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5DBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 5, 5, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5DBlocked),
                 ::testing::ValuesIn(padsEnd5DBlocked),
@@ -341,7 +329,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad5D,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::Values(PadInputShapes{{}, {{3, 16, 5, 5, 5}}}),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5, 5}})),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin5D),
                 ::testing::ValuesIn(padsEnd5D),
@@ -355,7 +343,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 /* *======================* Dynamic Shapes Tests 5D *======================* */
 
-const std::vector<PadInputShapes> inputShapesDynamic5D = {
+const std::vector<InputShape> inputShapesDynamic5D = {
         {{{-1, -1, -1, -1, -1}},                                            // dynamic
          {{5, 36, 5, 5, 5}, {3, 16, 8, 5, 7}, {3, 24, 10, 10, 10}}},        // target
 

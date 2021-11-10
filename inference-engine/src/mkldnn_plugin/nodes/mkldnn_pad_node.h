@@ -44,25 +44,8 @@ private:
         InferenceEngine::Precision prc;
     } attrs;
 
-    struct PadParams {
-        PadAttrs attrs;
-        InferenceEngine::SizeVector srcDims;
-        InferenceEngine::SizeVector dstDims;
-        InferenceEngine::SizeVector srcODims;
-        InferenceEngine::SizeVector srcStrides;
-        InferenceEngine::SizeVector dstStrides;
-        InferenceEngine::SizeVector srcDimsForReflectOrSymmetric;
-        int nThreads = 0;
-        size_t nDimsForWork = 0lu;
-        size_t workAmount = 0lu;
-        size_t lastDstDim = 1lu;
-        size_t shift = 0lu;
-        size_t dataSize = 1lu;
-        PadMode padMode;
-    };
-
     struct PadExecutor {
-        PadExecutor(const PadAttrs& params, const InferenceEngine::SizeVector& srcDims, const InferenceEngine::SizeVector& dstDims);
+        PadExecutor(const PadAttrs& params, const VectorDims& srcDims, const VectorDims& dstDims);
         void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
         ~PadExecutor() = default;
 
@@ -73,7 +56,7 @@ private:
         void padEdge(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr);
         void padReflectOrSymmetric(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const bool isSymmetric = false);
 
-        inline void getDstIdx(const InferenceEngine::SizeVector& indexes, size_t& dstIdx) const;
+        inline void getDstIdx(const VectorDims& indexes, size_t& dstIdx) const;
 
         struct PadContext {
             PadExecutor* executor;
@@ -88,7 +71,22 @@ private:
             }
         };
 
-        PadParams params;
+        struct {
+            PadAttrs attrs;
+            VectorDims srcDims;
+            VectorDims dstDims;
+            VectorDims srcODims;
+            VectorDims srcStrides;
+            VectorDims dstStrides;
+            VectorDims srcDimsForReflectOrSymmetric;
+            int nThreads = 0;
+            size_t nDimsForWork = 0lu;
+            size_t workAmount = 0lu;
+            size_t lastDstDim = 1lu;
+            size_t shift = 0lu;
+            size_t dataSize = 1lu;
+            PadMode padMode;
+        } params;
     };
 
     static constexpr size_t DATA_ID = 0lu;
@@ -97,9 +95,6 @@ private:
     static constexpr size_t PAD_VALUE_ID = 3lu;
 
     bool isPadValueSpecified = false;
-
-    MKLDNNMemoryPtr srcMemPtr = nullptr;
-    MKLDNNMemoryPtr dstMemPtr = nullptr;
 
     using executorPtr = std::shared_ptr<PadExecutor>;
     executorPtr execPtr = nullptr;
