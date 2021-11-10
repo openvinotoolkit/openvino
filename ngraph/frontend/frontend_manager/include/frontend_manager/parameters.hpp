@@ -9,10 +9,10 @@
 #include <string>
 
 #include "frontend_manager_defs.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 

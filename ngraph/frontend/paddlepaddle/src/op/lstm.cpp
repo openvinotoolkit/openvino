@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
+#include <openvino/opsets/opset6.hpp>
 
 #include "ngraph/builder/reshape.hpp"
 #include "paddlepaddle_frontend/utility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -28,7 +28,7 @@ enum class LSTMInput {
 
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const NodeContext& node, Output<Node>& prev_output, int layer) {
-        auto input_x = builder::opset1::reorder_axes(prev_output, {1, 0, 2});
+        auto input_x = ngraph::builder::opset1::reorder_axes(prev_output, {1, 0, 2});
         //[begin. end)
         auto weight_list = node.get_ng_inputs("WeightList");
         auto weight_begin = weight_list.begin();
@@ -70,20 +70,20 @@ struct LSTMNgInputMap {
         auto hidden_bias = std::make_shared<opset6::Concat>(layer_hidden_bias, 0);
         auto bias = std::make_shared<opset6::Add>(weight_bias, hidden_bias);
         m_input_map[LSTMInput::LSTM_INPUT_W] =
-            ngraph::op::util::convert_lstm_node_format(input_weight,
-                                                       ngraph::op::util::LSTMWeightsFormat::IFCO,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(input_weight,
+                                                   ov::op::util::LSTMWeightsFormat::IFCO,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
         m_input_map[LSTMInput::LSTM_INPUT_R] =
-            ngraph::op::util::convert_lstm_node_format(hidden_weight,
-                                                       ngraph::op::util::LSTMWeightsFormat::IFCO,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(hidden_weight,
+                                                   ov::op::util::LSTMWeightsFormat::IFCO,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
         m_input_map[LSTMInput::LSTM_INPUT_B] =
-            ngraph::op::util::convert_lstm_node_format(bias,
-                                                       ngraph::op::util::LSTMWeightsFormat::IFCO,
-                                                       ngraph::op::util::LSTMWeightsFormat::FICO,
-                                                       1);
+            ov::op::util::convert_lstm_node_format(bias,
+                                                   ov::op::util::LSTMWeightsFormat::IFCO,
+                                                   ov::op::util::LSTMWeightsFormat::FICO,
+                                                   1);
 
         // Get dimensions needed for default inputs creation
         // Parsing init hidden state
@@ -115,19 +115,19 @@ struct LSTMNgInputMap {
         auto c_end = opset6::Constant::create(element::i64, {1}, {layer * bidirect_len + bidirect_len});
 
         m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
-            builder::opset1::reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[0],
-                                                                                 h_begin,
-                                                                                 h_end,
-                                                                                 std::vector<int64_t>{0},
-                                                                                 std::vector<int64_t>{0}),
-                                          {1, 0, 2});
+            ngraph::builder::opset1::reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[0],
+                                                                                         h_begin,
+                                                                                         h_end,
+                                                                                         std::vector<int64_t>{0},
+                                                                                         std::vector<int64_t>{0}),
+                                                  {1, 0, 2});
         m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
-            builder::opset1::reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[1],
-                                                                                 c_begin,
-                                                                                 c_end,
-                                                                                 std::vector<int64_t>{0},
-                                                                                 std::vector<int64_t>{0}),
-                                          {1, 0, 2});
+            ngraph::builder::opset1::reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[1],
+                                                                                         c_begin,
+                                                                                         c_end,
+                                                                                         std::vector<int64_t>{0},
+                                                                                         std::vector<int64_t>{0}),
+                                                  {1, 0, 2});
     }
 
     Output<ngraph::Node>& at(const LSTMInput& key) {
@@ -172,12 +172,12 @@ NamedOutputs lstm(const NodeContext& node) {
                                                                     input_map.at(LSTMInput::LSTM_INPUT_B),
                                                                     attrs.m_hidden_size,
                                                                     attrs.m_direction);
-        prev_output = builder::opset1::reorder_axes(lstm_sequence->output(0), {2, 0, 1, 3});
+        prev_output = ngraph::builder::opset1::reorder_axes(lstm_sequence->output(0), {2, 0, 1, 3});
         auto out_shape = opset6::Constant::create(element::i64, Shape{3}, {0, 0, -1});
         prev_output = std::make_shared<opset6::Reshape>(prev_output, out_shape, true);
 
-        final_h.push_back(builder::opset1::reorder_axes(lstm_sequence->output(1), {1, 0, 2}));
-        final_c.push_back(builder::opset1::reorder_axes(lstm_sequence->output(2), {1, 0, 2}));
+        final_h.push_back(ngraph::builder::opset1::reorder_axes(lstm_sequence->output(1), {1, 0, 2}));
+        final_c.push_back(ngraph::builder::opset1::reorder_axes(lstm_sequence->output(2), {1, 0, 2}));
     }
 
     NamedOutputs named_outputs;
@@ -190,4 +190,4 @@ NamedOutputs lstm(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
