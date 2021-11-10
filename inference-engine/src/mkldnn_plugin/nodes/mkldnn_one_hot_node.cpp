@@ -23,10 +23,6 @@ bool MKLDNNOneHotNode::isSupportedOperation(const std::shared_ptr<const ngraph::
             errorMessage = "Only opset1 OneHot operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID)) == nullptr) {
-            errorMessage = "Only const 'depth' input is supported";
-            return false;
-        }
         if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(ON_VALUE_ID)) == nullptr) {
             errorMessage = "Only const 'on_value' input is supported";
             return false;
@@ -51,14 +47,16 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
     errorPrefix = "OneHot layer with name '" + op->get_friendly_name() + "'";
     const auto oneHot = std::dynamic_pointer_cast<const ngraph::opset1::OneHot>(op);
     const auto depthNode = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(oneHot->get_input_node_shared_ptr(DEPTH_ID));
-    depth = depthNode->cast_vector<uint32_t>()[0];
+    if (depthNode) {
+        depth = depthNode->cast_vector<uint32_t>()[0];
+    }
     axis = oneHot->get_axis();
 
-    VectorDims srcDims = inputShapes[INDICES_ID].getDims();
+    VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ngraph::is_scalar(srcDims)) {
         srcDims = SizeVector{1};
     }
-    VectorDims dstDims = outputShapes[0].getDims();
+    VectorDims dstDims = getOutputShapeAtPort(0).getDims();
     if (ngraph::is_scalar(dstDims)) {
         dstDims = SizeVector{1};
     }
@@ -71,14 +69,14 @@ MKLDNNOneHotNode::MKLDNNOneHotNode(const std::shared_ptr<ngraph::Node>& op, cons
         IE_THROW() << errorPrefix << " has unsupported 'axis' attribute: " << oneHot->get_axis();
     }
 
-    if (!( ((1 + srcDims.size()) == dstDims.size()) ||
-           (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))
+    if (!(((1 + srcDims.size()) == dstDims.size()) ||
+            (depthNode && (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1))))
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
 }
 
 bool MKLDNNOneHotNode::needShapeInfer() const {
-    const auto depthNodePtr = getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr();
-    if (depth != reinterpret_cast<int32_t *>(depthNodePtr)[0])
+    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    if (depth != depthNodePtr[0])
         return true;
     return MKLDNNNode::needShapeInfer();
 }
@@ -105,6 +103,20 @@ std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
             IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
         newOutputShapes[i] = partShape.get_shape();
     }
+
+    depth = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr())[0];
+    VectorDims srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    if (ngraph::is_scalar(srcDims)) {
+        srcDims = SizeVector{1};
+    }
+    VectorDims dstDims = newOutputShapes[0];
+    if (ngraph::is_scalar(dstDims)) {
+        dstDims = SizeVector{1};
+    }
+    if (!(((1 + srcDims.size()) == dstDims.size()) ||
+           (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))
+        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
+
     return newOutputShapes;
 }
 
