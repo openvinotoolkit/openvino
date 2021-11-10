@@ -41,6 +41,25 @@ void regclass_Core(py::module m) {
 
     cls.def("get_versions", &ov::runtime::Core::get_versions);
 
+    cls.def(
+        "read_model",
+        [](ov::runtime::Core& self, py::bytes model, py::bytes weights) {
+            if (weights) {
+                // works on view in order to omit copying bytes into string
+                py::buffer_info info(py::buffer(weights).request());
+                const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
+                size_t bin_size = static_cast<size_t>(info.size);
+                ov::runtime::Tensor tensor(ov::element::Type_t::u8, {bin_size});
+                std::memcpy(tensor.data(), bin, bin_size);
+                return self.read_model(model, tensor);
+            }
+            // if no weights, create empty tensor with u8
+            ov::runtime::Tensor tensor(ov::element::Type_t::u8, {});
+            return self.read_model(model, tensor);
+        },
+        py::arg("model"),
+        py::arg("weights"));
+
     cls.def("read_model",
             (std::shared_ptr<ov::Function>(ov::runtime::Core::*)(const std::string&, const std::string&) const) &
                 ov::runtime::Core::read_model,
