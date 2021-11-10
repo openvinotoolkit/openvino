@@ -4,9 +4,12 @@
 
 #include "utils.hpp"
 
+#include "ie_ngraph_utils.hpp"
+#include "openvino/util/common_util.hpp"
+
 namespace ov {
-void operator>>(const std::stringstream& in, ngraph::element::Type& type) {
-    type = InferenceEngine::details::convertPrecision(ngraph::trim(in.str()));
+void operator>>(const std::stringstream& in, ov::element::Type& type) {
+    type = InferenceEngine::details::convertPrecision(ov::util::trim(in.str()));
 }
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value) {

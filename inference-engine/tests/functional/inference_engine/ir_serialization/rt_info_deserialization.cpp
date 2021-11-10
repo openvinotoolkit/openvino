@@ -35,8 +35,8 @@ protected:
         std::istringstream modelStringStream(model);
         std::istream& modelStream = modelStringStream;
 
-        ngraph::frontend::FrontEnd::Ptr FE;
-        ngraph::frontend::InputModel::Ptr inputModel;
+        ov::frontend::FrontEnd::Ptr FE;
+        ov::frontend::InputModel::Ptr inputModel;
 
         ov::VariantVector params{ov::make_variant(&modelStream)};
 
@@ -51,7 +51,7 @@ protected:
     }
 
 private:
-    ngraph::frontend::FrontEndManager manager;
+    ov::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoDeserialization, NodeV10) {
@@ -551,6 +551,75 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_TRUE(f_10_core->get_results()[0]->get_layout().empty())
             << f_10_core->get_results()[0]->get_layout().to_string();
     }
+}
+
+TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,22,22,3"/>
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f16"/>
+                <attribute name="old_api_map" version="0" order="0,1,2,3" element_type="f32"/>
+                <attribute name="fused_names" version="0" value="in1"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32" names="input_tensor">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <rt_info>
+                <attribute name="fused_names" version="0" value="Round1,Round2"/>
+            </rt_info>
+            <input>
+                <rt_info>
+                    <attribute name="fused_names" version="0" value="check"/>
+                    <attribute name="fused_names" version="0" value="multiple_keys"/>
+                </rt_info>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="output_tensor">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="f16"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    ASSERT_ANY_THROW(getWithIRFrontend(model));
 }
 
 TEST_F(RTInfoDeserialization, InputAndOutputV11) {
