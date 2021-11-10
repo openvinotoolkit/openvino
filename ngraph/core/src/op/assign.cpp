@@ -43,16 +43,6 @@ void op::v3::Assign::validate_and_infer_types() {
         }
         NODE_VALIDATION_CHECK(this, m_variable != nullptr, "Can't find variable with id = ", m_variable_id);
     }
-
-    auto variable_info = m_variable->get_info();
-    NODE_VALIDATION_CHECK(this, m_variable_id == variable_info.variable_id, "Variables identifiers are inconsistent.");
-    NODE_VALIDATION_CHECK(this, arg_t == variable_info.data_type, "Variables types are inconsistent.");
-
-    if (input_shape.is_static() && variable_info.data_shape.is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              input_shape == variable_info.data_shape,
-                              "Variables output shapes are inconsistent.");
-    }
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {input_shape};
     shape_infer(this, input_shapes, output_shapes);

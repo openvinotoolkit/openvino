@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <openvino/op/tile.hpp>
+
 #include "shape_infer_utils.hpp"
 namespace ov {
 namespace op {
@@ -16,21 +17,17 @@ void shape_infer(const Tile* op, const std::vector<T>& input_shapes, std::vector
     auto& output_shape = output_shapes[0];
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
-    std::vector<DimType> repeats_value(repeats_shape);
-    if (!repeats_value.empty() && arg_shape.rank().is_static()) {
-        std::vector<DimType> data_shape(arg_shape);
-        auto data_rank = data_shape.size();
-        auto repeats_rank = repeats_value.size();
+    if (repeats_shape.is_static() && repeats_shape.rank().get_length() > 0 && arg_shape.rank().is_static()) {
+        auto data_rank = arg_shape.rank().get_length();
+        auto repeats_rank = repeats_shape.rank().get_length();
         auto output_rank = std::max(data_rank, repeats_rank);
-
-        // expand data shape and repeats to output rank
-        data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
-        repeats_value.insert(repeats_value.begin(), output_rank - repeats_rank, 1);
-
         output_shape.resize(output_rank);
-        for (size_t i = 0; i < output_rank; i++)
-            output_shape[i] = data_shape[i] * repeats_value[i];
-
+        for (size_t i = 0; i < output_rank; i++) {
+            auto data_tmp = i < output_rank - data_rank ? DimType(1) : arg_shape[i - (output_rank - data_rank)];
+            auto repeat_tmp =
+                i < output_rank - repeats_rank ? DimType(1) : repeats_shape[i - (output_rank - repeats_rank)];
+            output_shape[i] = data_tmp * repeat_tmp;
+        }
     } else {
         ShapeInfer::default_work(output_shape);
     }
