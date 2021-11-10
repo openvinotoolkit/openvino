@@ -376,11 +376,11 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesNotApplicable)
         auto range_start = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 0 });
         auto range_stop = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 4 });
         auto range_step = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 1 });
-        auto range = std::make_shared<ngraph::opset8::Range>(range_start, range_stop, range_step, ngraph::element::i64)
+        auto range = std::make_shared<ngraph::opset8::Range>(range_start, range_stop, range_step, ngraph::element::i64);
 
-        auto indices = opset8::Constant::create(element::i64, {2}, std::vector<int64_t>{1, 3});
-        auto gather_axis_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{0});
-        auto gather_node = std::make_shared<opset8::Gather>(range, indices, gather_axis_node);
+        auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{1, 3});
+        auto gather_axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{0});
+        auto gather_node = std::make_shared<ngraph::opset8::Gather>(range, indices, gather_axis_node);
 
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
@@ -395,11 +395,11 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesNotApplicable)
         auto range_start = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 0 });
         auto range_stop = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 4 });
         auto range_step = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 1 });
-        auto range = std::make_shared<ngraph::opset8::Range>(range_start, range_stop, range_step, ngraph::element::i64)
+        auto range = std::make_shared<ngraph::opset8::Range>(range_start, range_stop, range_step, ngraph::element::i64);
 
-        auto indices = opset8::Constant::create(element::i64, {2}, std::vector<int64_t>{1, 3});
-        auto gather_axis_node = opset8::Constant::create(element::i64, {1}, std::vector<int64_t>{0});
-        auto gather_node = std::make_shared<opset8::Gather>(range, indices, gather_axis_node);
+        auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{1, 3});
+        auto gather_axis_node = ngraph::opset8::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{0});
+        auto gather_node = std::make_shared<ngraph::opset8::Gather>(range, indices, gather_axis_node);
 
         auto interpolate = std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
