@@ -35,14 +35,14 @@ int main(int argc, char *argv[]) {
             LayerTestsUtils::Summary::setSaveReportTimeout(timeout);
         } else if (std::string(argv[i]).find("--external_network_mode") != std::string::npos) {
             auto mode = std::string(argv[i]).substr(std::string("--external_network_mode").length() + 1);
-            if (mode == "IMPORT") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::IMPORT);
-            } else if (mode == "EXPORT") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::EXPORT);
-            } else if (mode == "EXPORT_MODELS_ONLY") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::EXPORT_MODELS_ONLY);
-            } else if (mode == "EXPORT_INPUTS_ONLY") {
-                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::EXPORT_INPUTS_ONLY);
+            if (mode == "LOAD") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::LOAD);
+            } else if (mode == "DUMP") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::DUMP);
+            } else if (mode == "DUMP_MODELS_ONLY") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::DUMP_MODELS_ONLY);
+            } else if (mode == "DUMP_INPUTS_ONLY") {
+                LayerTestsUtils::ExternalNetworkTool::setMode(LayerTestsUtils::ExternalNetworkMode::DUMP_INPUTS_ONLY);
             } else {
                 throw std::runtime_error("Incorrect value of \"--external_network_mode\" argument");
             }
@@ -70,8 +70,8 @@ int main(int argc, char *argv[]) {
         std::cout << "       Allow to try to save report in cycle using timeout (in seconds). " << std::endl;
         std::cout << "  --external_network_mode" << std::endl;
         std::cout << "       Unlocks functionality to dump network to file or load it from file " << std::endl;
-        std::cout << "       for supported tests. The mode is defined by value of argument [IMPORT, EXPORT, ARKS_ONLY] " << std::endl;
-        std::cout << "       Example is --external_network_mode=EXPORT" << std::endl;
+        std::cout << "       for supported tests. The mode is defined by value of argument [LOAD, DUMP, DUMP_MODELS_ONLY, DUMP_INPUTS_ONLY] " << std::endl;
+        std::cout << "       Example is --external_network_mode=DUMP" << std::endl;
         std::cout << "  --external_network_path" << std::endl;
         std::cout << "       Set up path for dumping or loading (depends on --external_network_mode) network" << std::endl;
         std::cout << "       for supported tests. Example is --external_network_path=/home/user/tests_networks" << std::endl;

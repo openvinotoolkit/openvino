@@ -9,15 +9,24 @@
 using namespace LayerTestsUtils;
 
 ExternalNetworkMode ExternalNetworkTool::mode = ExternalNetworkMode::DISABLED;
-const char *ExternalNetworkTool::modelsPath = "";
-const char *ExternalNetworkTool::modelsNamePrefix = "network_";
+
+std::string &ExternalNetworkTool::modelsPath() {
+    static std::string models_path { "" };
+    return models_path;
+}
+
+void ExternalNetworkTool::setModelsPath(std::string &val) {
+    std::string &ref = modelsPath();
+    ref = val;
+}
 
 void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
                                          const std::string &shorted_name) {
     std::ofstream hash_map_file;
     std::string file_path;
-    if (*modelsPath != '\0') {
-        file_path += std::string(modelsPath) + path_delimiter + "hashMap.txt";
+    const auto models_path = getModelsPath();
+    if (!models_path.empty()) {
+        file_path += models_path + path_delimiter + "hashMap.txt";
     } else {
         file_path += "hashMap.txt";
     }
@@ -139,12 +148,17 @@ std::string ExternalNetworkTool::processTestName(const std::string &network_name
     new_network_name = replaceInName(new_network_name, replace_map);
     new_network_name = eraseRepeatedInName(new_network_name, {'_'});
 
-    auto max_name_len = MAX_FILE_NAME_SIZE - extension_len - 1;
+    auto prefix = std::string(modelsNamePrefix);
+    auto prefix_len = prefix.length();
+    auto max_name_len = MAX_FILE_NAME_SIZE - extension_len - prefix_len - 1;
     if (new_network_name.length() > max_name_len) {
         auto hashed_network_name = generateHashName(network_name);
         auto fitted_size = max_name_len - SHORT_HASH_SIZE;
         new_network_name = new_network_name.substr(0, fitted_size) + hashed_network_name.substr(0, SHORT_HASH_SIZE);
     }
+
+    new_network_name = prefix + new_network_name;
+
     return new_network_name;
 }
 
@@ -186,7 +200,7 @@ void ExternalNetworkTool::saveInputFile(const std::string &network_name,
                                         uint32_t id,
                                         std::string extension) {
         const uint32_t utterance = 1;
-        const auto models_path = std::string{modelsPath};
+        const auto models_path = getModelsPath();
         const std::string inputs_path = models_path.empty() ? "inputs" : models_path + path_delimiter + "inputs";
         if (!CommonTestUtils::directoryExists(inputs_path)) {
             CommonTestUtils::createDirectory(inputs_path);
@@ -231,7 +245,7 @@ void ExternalNetworkTool::saveInputFile(const std::string &network_name,
 
 void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Function> network,
                                             const std::string &network_name) {
-    auto exportPathString = std::string(modelsPath);
+    const auto exportPathString = getModelsPath();
     auto new_network_name = processTestName(network_name);
 
     std::string out_xml_path = exportPathString
@@ -257,7 +271,7 @@ static ngraph::frontend::FrontEndManager& get_frontend_manager() {
 }
 
 std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const std::string &network_name) {
-    auto importPathString = std::string(modelsPath);
+    const auto importPathString = getModelsPath();
     auto new_network_name = processTestName(network_name);
 
     std::string out_xml_path = importPathString
@@ -286,15 +300,15 @@ std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const
 
 InferenceEngine::CNNNetwork ExternalNetworkTool::loadNetworkFromFile(const std::shared_ptr<InferenceEngine::Core> core,
                                                                      const std::string &network_name) {
-    auto importPathString = std::string(modelsPath);
-    auto hashed_network_name = std::string(modelsNamePrefix) + generateHashName(network_name);
+    const auto importPathString = getModelsPath();
+    auto new_network_name = processTestName(network_name);
 
     std::string out_xml_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".xml";
+                                + new_network_name + ".xml";
     std::string out_bin_path = importPathString
                                 + (importPathString.empty() ? "" : path_delimiter)
-                                + hashed_network_name + ".bin";
+                                + new_network_name + ".bin";
 
     auto network = core->ReadNetwork(out_xml_path, out_bin_path);
     printf("Network loaded from %s\n", out_xml_path.c_str());

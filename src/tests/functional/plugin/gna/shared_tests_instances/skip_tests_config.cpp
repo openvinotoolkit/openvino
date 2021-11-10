@@ -87,7 +87,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
     };
 
-    // Only these skip patterns will be used in any EXPORT mode
+    // Only these skip patterns will be used in any DUMP mode
     std::vector<std::string> serializationPatterns = {
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
@@ -99,13 +99,13 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*MultipleInputTest.*)",
     };
 
-    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::EXPORT) ||
-        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::EXPORT_MODELS_ONLY) ||
-        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::EXPORT_INPUTS_ONLY)) {
+    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP) ||
+        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP_MODELS_ONLY) ||
+        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP_INPUTS_ONLY)) {
         return serializationPatterns;
     }
 
-    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::IMPORT)) {
+    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::LOAD)) {
         standardPatterns.insert(std::end(standardPatterns),
                                 std::begin(loadingPatterns),
                                 std::end(loadingPatterns));

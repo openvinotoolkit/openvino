@@ -37,17 +37,19 @@ using ENTMode = ExternalNetworkMode;
 
 enum class ExternalNetworkMode {
     DISABLED,
-    IMPORT,
-    EXPORT,
-    EXPORT_MODELS_ONLY,
-    EXPORT_INPUTS_ONLY
+    LOAD,
+    DUMP,
+    DUMP_MODELS_ONLY,
+    DUMP_INPUTS_ONLY
 };
 
 class ExternalNetworkTool {
 private:
     static ExternalNetworkMode mode;
-    static const char *modelsPath;
-    static const char *modelsNamePrefix;
+
+    static std::string& modelsPath();
+
+    static constexpr const char* modelsNamePrefix = "TestModel_";
 
     template <typename T>
     static std::vector<std::shared_ptr<ov::Node>> topological_name_sort(T root_nodes);
@@ -162,21 +164,13 @@ public:
                               uint32_t id,
                               std::string extension = "ark");
 
-    static std::string getModelsPath() { return std::string(modelsPath); }
-
-    static std::string getModelsNamePrefix() { return std::string(modelsNamePrefix); }
+    static const std::string &getModelsPath() { return modelsPath(); }
 
     static ExternalNetworkMode getMode() { return mode; }
 
     static bool isMode(ExternalNetworkMode val) { return mode == val; }
 
-    static void setModelsPath(std::string &val) {
-        modelsPath = val.c_str();
-    }
-
-    static void setModelsNamePrefix(std::string &val) {
-        modelsNamePrefix = val.c_str();
-    }
+    static void setModelsPath(std::string &val);
 
     static void setMode(ExternalNetworkMode val) { mode = val; }
 
