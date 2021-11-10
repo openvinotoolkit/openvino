@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// Please review the entire file. These changes have been merged without a detailed review.
+// This comment will be removed after that.
+
 #include "ngraph_conversions.hpp"
 
 #include "utils.hpp"
