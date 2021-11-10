@@ -20,13 +20,6 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-using namespace mkldnn;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
-using namespace Xbyak;
-
 bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
@@ -51,7 +44,7 @@ bool MKLDNNNonMaxSuppressionNode::isSupportedOperation(const std::shared_ptr<con
 }
 
 MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
-        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache) {
+        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(op, eng, cache), isSoftSuppressedByIOU(true) {
         std::string errorMessage;
         if (!isSupportedOperation(op, errorMessage)) {
             IE_THROW(NotImplemented) << errorMessage;
@@ -66,12 +59,12 @@ MKLDNNNonMaxSuppressionNode::MKLDNNNonMaxSuppressionNode(const std::shared_ptr<n
             IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
         if (const auto nms5 = std::dynamic_pointer_cast<const ngraph::op::v5::NonMaxSuppression>(op)) {
-            boxEncodingType = static_cast<boxEncoding>(nms5->get_box_encoding());
-            sort_result_descending = nms5->get_sort_result_descending();
+            boxEncodingType = static_cast<NMSBoxEncodeType>(nms5->get_box_encoding());
+            sortResultDescending = nms5->get_sort_result_descending();
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         } else if (const auto nmsIe = std::dynamic_pointer_cast<const ngraph::op::internal::NonMaxSuppressionIEInternal>(op)) {
-            boxEncodingType = nmsIe->m_center_point_box ? boxEncoding::CENTER : boxEncoding::CORNER;
-            sort_result_descending = nmsIe->m_sort_result_descending;
+            boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
+            sortResultDescending = nmsIe->m_sort_result_descending;
         } else {
             const auto &typeInfo = op->get_type_info();
             IE_THROW() << errorPrefix << " doesn't support NMS: " << typeInfo.name << " v" << typeInfo.version;
@@ -146,25 +139,28 @@ void MKLDNNNonMaxSuppressionNode::initSupportedPrimitiveDescriptors() {
     }
 
     addSupportedPrimDesc(inDataConf, outDataConf, impl_type);
+
+    // as only FP32 and ncsp is supported, and kernel is shape agnostic, we can create here. There is no need to recompilation.
+    createJitKernel();
 }
 
 void MKLDNNNonMaxSuppressionNode::prepareParams() {
-    const auto& boxes_dims = isDynamicNode() ? getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims() :
+    const auto& boxesDims = isDynamicNode() ? getParentEdgesAtPort(NMS_BOXES)[0]->getMemory().getStaticDims() :
                                                getInputShapeAtPort(NMS_BOXES).getStaticDims();
-    const auto& scores_dims = isDynamicNode() ? getParentEdgesAtPort(NMS_SCORES)[0]->getMemory().getStaticDims() :
+    const auto& scoresDims = isDynamicNode() ? getParentEdgesAtPort(NMS_SCORES)[0]->getMemory().getStaticDims() :
                                                 getInputShapeAtPort(NMS_SCORES).getStaticDims();
 
-    num_batches = boxes_dims[0];
-    num_boxes = boxes_dims[1];
-    num_classes = scores_dims[1];
-    if (num_batches != scores_dims[0])
-        IE_THROW() << errorPrefix << " num_batches is different in 'boxes' and 'scores' inputs";
-    if (num_boxes != scores_dims[2])
-        IE_THROW() << errorPrefix << " num_boxes is different in 'boxes' and 'scores' inputs";
+    numBatches = boxesDims[0];
+    numBoxes = boxesDims[1];
+    numClasses = scoresDims[1];
+    if (numBatches != scoresDims[0])
+        IE_THROW() << errorPrefix << " numBatches is different in 'boxes' and 'scores' inputs";
+    if (numBoxes != scoresDims[2])
+        IE_THROW() << errorPrefix << " numBoxes is different in 'boxes' and 'scores' inputs";
 
-    numFiltBox.resize(num_batches);
+    numFiltBox.resize(numBatches);
     for (auto & i : numFiltBox)
-        i.resize(num_classes);
+        i.resize(numClasses);
 }
 
 void MKLDNNNonMaxSuppressionNode::createPrimitive() {
@@ -172,6 +168,23 @@ void MKLDNNNonMaxSuppressionNode::createPrimitive() {
         prepareParams();
         updateLastInputDims();
     }
+}
+
+void MKLDNNNonMaxSuppressionNode::createJitKernel() {
+    auto jcp = jit_nms_config_params();
+    jcp.box_encode_type = boxEncodingType;
+    jcp.is_soft_suppressed_by_iou = isSoftSuppressedByIOU;
+
+    if (mayiuse(cpu::x64::avx512_common)) {
+        nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx512_common>(jcp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx2>(jcp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::sse41>(jcp));
+    }
+
+    if (nms_kernel)
+        nms_kernel->create_ker();
 }
 
 void MKLDNNNonMaxSuppressionNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -183,46 +196,44 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
     const float *scores = reinterpret_cast<const float *>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
     if (inputShapes.size() > NMS_MAXOUTPUTBOXESPERCLASS) {
-        max_output_boxes_per_class = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0];
+        maxOutputBoxesPerClass = reinterpret_cast<int *>(getParentEdgeAt(NMS_MAXOUTPUTBOXESPERCLASS)->getMemoryPtr()->GetPtr())[0];
     }
 
-    max_output_boxes_per_class = std::min(max_output_boxes_per_class, num_boxes);
+    maxOutputBoxesPerClass = std::min(maxOutputBoxesPerClass, numBoxes);
 
-    if (max_output_boxes_per_class == 0)
+    if (maxOutputBoxesPerClass == 0)
         return;
 
     if (inputShapes.size() > NMS_IOUTHRESHOLD)
-        iou_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->GetPtr())[0];
+        iouThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->GetPtr())[0];
 
     if (inputShapes.size() > NMS_SCORETHRESHOLD)
-        score_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORETHRESHOLD)->getMemoryPtr()->GetPtr())[0];
+        scoreThreshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_SCORETHRESHOLD)->getMemoryPtr()->GetPtr())[0];
 
     if (inputShapes.size() > NMS_SOFTNMSSIGMA)
-        soft_nms_sigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFTNMSSIGMA)->getMemoryPtr()->GetPtr())[0];
+        softNMSSigma = reinterpret_cast<float *>(getParentEdgeAt(NMS_SOFTNMSSIGMA)->getMemoryPtr()->GetPtr())[0];
     scale = 0.0f;
-    if (soft_nms_sigma > 0.0) {
-        scale = -0.5f / soft_nms_sigma;
+    if (softNMSSigma > 0.0) {
+        scale = -0.5f / softNMSSigma;
     }
 
     auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
-    const auto maxNumberOfBoxes = max_output_boxes_per_class * num_batches * num_classes;
+    const auto maxNumberOfBoxes = maxOutputBoxesPerClass * numBatches * numClasses;
     std::vector<filteredBoxes> filtBoxes(maxNumberOfBoxes);
 
-    if (soft_nms_sigma == 0.0f) {
-        std::cout << "with_out_soft_sigma" << std::endl;
+    if (softNMSSigma == 0.0f) {
         nmsWithoutSoftSigma(boxes, scores, boxesStrides, scoresStrides, filtBoxes);
     } else {
-        std::cout << "with_soft_sigma" << std::endl;
         nmsWithSoftSigma(boxes, scores, boxesStrides, scoresStrides, filtBoxes);
     }
 
     size_t startOffset = numFiltBox[0][0];
     for (size_t b = 0; b < numFiltBox.size(); b++) {
-        size_t batchOffset = b*num_classes*max_output_boxes_per_class;
+        size_t batchOffset = b*numClasses*maxOutputBoxesPerClass;
         for (size_t c = (b == 0 ? 1 : 0); c < numFiltBox[b].size(); c++) {
-            size_t offset = batchOffset + c*max_output_boxes_per_class;
+            size_t offset = batchOffset + c*maxOutputBoxesPerClass;
             for (size_t i = 0; i < numFiltBox[b][c]; i++) {
                 filtBoxes[startOffset + i] = filtBoxes[offset + i];
             }
@@ -233,7 +244,7 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
 
     // need more particular comparator to get deterministic behaviour
     // escape situation when filtred boxes with same score have different position from launch to launch
-    if (sort_result_descending) {
+    if (sortResultDescending) {
         parallel_sort(filtBoxes.begin(), filtBoxes.end(),
                       [](const filteredBoxes& l, const filteredBoxes& r) {
                           return (l.score > r.score) ||
@@ -288,7 +299,7 @@ bool MKLDNNNonMaxSuppressionNode::created() const {
 
 float MKLDNNNonMaxSuppressionNode::intersectionOverUnion(const float *boxesI, const float *boxesJ) {
     float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
-    if (boxEncodingType == boxEncoding::CENTER) {
+    if (boxEncodingType == NMSBoxEncodeType::CENTER) {
         //  box format: x_center, y_center, width, height
         yminI = boxesI[1] - boxesI[3] / 2.f;
         xminI = boxesI[0] - boxesI[2] / 2.f;
@@ -327,72 +338,111 @@ void MKLDNNNonMaxSuppressionNode::nmsWithSoftSigma(const float *boxes, const flo
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
 
+    // update score, if iou is 0, weight is 1, score does not change
+    // if is_soft_suppressed_by_iou is false, apply for all iou, including iou>iou_threshold, soft suppressed when score < score_threshold
+    // if is_soft_suppressed_by_iou is true, hard suppressed by iou_threshold, then soft suppress
     auto coeff = [&](float iou) {
-        const float weight = std::exp(scale * iou * iou);
-        return iou <= iou_threshold ? weight : 0.0f;
+        if (isSoftSuppressedByIOU && iou > iouThreshold)
+            return 0.0f;
+        return std::exp(scale * iou * iou);
     };
 
-    parallel_for2d(num_batches, num_classes, [&](int batch_idx, int class_idx) {
-        std::vector<filteredBoxes> fb;
+    parallel_for2d(numBatches, numClasses, [&](int batch_idx, int class_idx) {
+        std::vector<filteredBoxes> selectedBoxes;
         const float *boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
+        std::vector<float> boxCoord0, boxCoord1, boxCoord2, boxCoord3;
 
-        std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
-        for (int box_idx = 0; box_idx < num_boxes; box_idx++) {
-            if (scoresPtr[box_idx] > score_threshold)
+        std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);  // score, box_id, suppress_begin_index
+        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+            if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace(boxInfo({scoresPtr[box_idx], box_idx, 0}));
         }
 
-        fb.reserve(sorted_boxes.size());
+        selectedBoxes.reserve(sorted_boxes.size());
+        auto arg = jit_nms_args();
+        arg.iou_threshold = static_cast<float*>(&iouThreshold);
+        arg.score_threshold = static_cast<float*>(&scoreThreshold);
+        arg.scale = static_cast<float*>(&scale);
         if (sorted_boxes.size() > 0) {
-            while (fb.size() < max_output_boxes_per_class && !sorted_boxes.empty()) {
-                boxInfo currBox = sorted_boxes.top();
-                float origScore = currBox.score;
+            // include first directly
+            boxInfo candidateBox = sorted_boxes.top();
+            sorted_boxes.pop();
+            selectedBoxes.push_back({ candidateBox.score, batch_idx, class_idx, candidateBox.idx });
+            if (nms_kernel) {
+                boxCoord0.push_back(boxesPtr[candidateBox.idx * 4]);
+                boxCoord1.push_back(boxesPtr[candidateBox.idx * 4 + 1]);
+                boxCoord2.push_back(boxesPtr[candidateBox.idx * 4 + 2]);
+                boxCoord3.push_back(boxesPtr[candidateBox.idx * 4 + 3]);
+            }
+
+            while (selectedBoxes.size() < maxOutputBoxesPerClass && !sorted_boxes.empty()) {
+                boxInfo candidateBox = sorted_boxes.top();
+                float origScore = candidateBox.score;
                 sorted_boxes.pop();
 
-                bool box_is_selected = true;
-                for (int idx = static_cast<int>(fb.size()) - 1; idx >= currBox.suppress_begin_index; idx--) {
-                    float iou = intersectionOverUnion(&boxesPtr[currBox.idx * 4], &boxesPtr[fb[idx].box_index * 4]);
-                    currBox.score *= coeff(iou);
-                    if (iou >= iou_threshold) {
-                        box_is_selected = false;
-                        break;
+                int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected, 2 for updated
+                if (nms_kernel) {
+                    arg.score = static_cast<float*>(&candidateBox.score);
+                    arg.selected_boxes_num = selectedBoxes.size() - candidateBox.suppress_begin_index;
+                    arg.selected_boxes_coord[0] = static_cast<float*>(&boxCoord0[candidateBox.suppress_begin_index]);
+                    arg.selected_boxes_coord[1] = static_cast<float*>(&boxCoord1[candidateBox.suppress_begin_index]);
+                    arg.selected_boxes_coord[2] = static_cast<float*>(&boxCoord2[candidateBox.suppress_begin_index]);
+                    arg.selected_boxes_coord[3] = static_cast<float*>(&boxCoord3[candidateBox.suppress_begin_index]);
+                    arg.candidate_box = static_cast<const float*>(&boxesPtr[candidateBox.idx * 4]);
+                    arg.candidate_status = static_cast<int*>(&candidateStatus);
+                    (*nms_kernel)(&arg);
+                } else {
+                    for (int selected_idx = static_cast<int>(selectedBoxes.size()) - 1; selected_idx >= candidateBox.suppress_begin_index; selected_idx--) {
+                        float iou = intersectionOverUnion(&boxesPtr[candidateBox.idx * 4], &boxesPtr[selectedBoxes[selected_idx].box_index * 4]);
+
+                        // when is_soft_suppressed_by_iou is true, score is decayed to zero and implicitely suppressed if iou > iou_threshold.
+                        candidateBox.score *= coeff(iou);
+                        // soft suppressed
+                        if (candidateBox.score <= scoreThreshold) {
+                            candidateStatus = NMSCandidateStatus::SUPPRESSED;
+                            break;
+                        }
                     }
-                    if (currBox.score <= score_threshold)
-                        break;
                 }
 
-                currBox.suppress_begin_index = fb.size();
-                if (box_is_selected) {
-                    if (currBox.score == origScore) {
-                        fb.push_back({ currBox.score, batch_idx, class_idx, currBox.idx });
-                        continue;
-                    }
-                    if (currBox.score > score_threshold) {
-                        sorted_boxes.push(currBox);
+                if (candidateStatus == NMSCandidateStatus::SUPPRESSED) {
+                    continue;
+                } else {
+                    if (candidateBox.score == origScore) {
+                        selectedBoxes.push_back({ candidateBox.score, batch_idx, class_idx, candidateBox.idx });
+                        if (nms_kernel) {
+                            boxCoord0.push_back(boxesPtr[candidateBox.idx * 4]);
+                            boxCoord1.push_back(boxesPtr[candidateBox.idx * 4 + 1]);
+                            boxCoord2.push_back(boxesPtr[candidateBox.idx * 4 + 2]);
+                            boxCoord3.push_back(boxesPtr[candidateBox.idx * 4 + 3]);
+                        }
+                    } else {
+                        candidateBox.suppress_begin_index = selectedBoxes.size();
+                        sorted_boxes.push(candidateBox);
                     }
                 }
             }
         }
-        numFiltBox[batch_idx][class_idx] = fb.size();
-        size_t offset = batch_idx*num_classes*max_output_boxes_per_class + class_idx*max_output_boxes_per_class;
-        for (size_t i = 0; i < fb.size(); i++) {
-            filtBoxes[offset + i] = fb[i];
+        numFiltBox[batch_idx][class_idx] = selectedBoxes.size();
+        size_t offset = batch_idx*numClasses*maxOutputBoxesPerClass + class_idx*maxOutputBoxesPerClass;
+        for (size_t i = 0; i < selectedBoxes.size(); i++) {
+            filtBoxes[offset + i] = selectedBoxes[i];
         }
     });
 }
 
 void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const float *scores, const VectorDims &boxesStrides,
                                                                 const VectorDims &scoresStrides, std::vector<filteredBoxes> &filtBoxes) {
-    int max_out_box = static_cast<int>(max_output_boxes_per_class);
-    parallel_for2d(num_batches, num_classes, [&](int batch_idx, int class_idx) {
+    int max_out_box = static_cast<int>(maxOutputBoxesPerClass);
+    parallel_for2d(numBatches, numClasses, [&](int batch_idx, int class_idx) {
         const float *boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
         std::vector<float> boxCoord0, boxCoord1, boxCoord2, boxCoord3;
 
         std::vector<std::pair<float, int>> sorted_boxes;  // score, box_idx
-        for (int box_idx = 0; box_idx < num_boxes; box_idx++) {
-            if (scoresPtr[box_idx] > score_threshold)
+        for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
+            if (scoresPtr[box_idx] > scoreThreshold)
                 sorted_boxes.emplace_back(std::make_pair(scoresPtr[box_idx], box_idx));
         }
 
@@ -402,7 +452,7 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
                           [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                               return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                           });
-            int offset = batch_idx*num_classes*max_output_boxes_per_class + class_idx*max_output_boxes_per_class;
+            int offset = batch_idx*numClasses*maxOutputBoxesPerClass + class_idx*maxOutputBoxesPerClass;
             filtBoxes[offset + 0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
             if (nms_kernel) {
                 boxCoord0.push_back(boxesPtr[sorted_boxes[0].second * 4]);
@@ -412,35 +462,32 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
             }
             io_selection_size++;
             auto arg = jit_nms_args();
-            arg.iou_threshold = static_cast<float*>(&iou_threshold);
+            arg.iou_threshold = static_cast<float*>(&iouThreshold);
+            arg.score_threshold = static_cast<float*>(&scoreThreshold);
+            arg.scale = static_cast<float*>(&scale);
             for (size_t candidate_idx = 1; (candidate_idx < sorted_boxes.size()) && (io_selection_size < max_out_box); candidate_idx++) {
-                bool box_is_selected = true;
+                int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected
                 if (nms_kernel) {
-                    // jitted exec
-                    int isValid = 1;
                     arg.selected_boxes_coord[0] = static_cast<float*>(&boxCoord0[0]);
                     arg.selected_boxes_coord[1] = static_cast<float*>(&boxCoord1[0]);
                     arg.selected_boxes_coord[2] = static_cast<float*>(&boxCoord2[0]);
                     arg.selected_boxes_coord[3] = static_cast<float*>(&boxCoord3[0]);
                     arg.selected_boxes_num = io_selection_size;
                     arg.candidate_box = static_cast<const float*>(&boxesPtr[sorted_boxes[candidate_idx].second * 4]);
-                    arg.is_valid = static_cast<int*>(&isValid);
+                    arg.candidate_status = static_cast<int*>(&candidateStatus);
                     (*nms_kernel)(&arg);
-
-                    if (!isValid)
-                        box_is_selected = false;
                 } else {
                     for (int selected_idx = io_selection_size - 1; selected_idx >= 0; selected_idx--) {
                         float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[candidate_idx].second * 4],
                             &boxesPtr[filtBoxes[offset + selected_idx].box_index * 4]);
-                        if (iou >= iou_threshold) {
-                            box_is_selected = false;
+                        if (iou >= iouThreshold) {
+                            candidateStatus = NMSCandidateStatus::SUPPRESSED;
                             break;
                         }
                     }
                 }
 
-                if (box_is_selected) {
+                if (candidateStatus == NMSCandidateStatus::SELECTED) {
                     if (nms_kernel) {
                         boxCoord0.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4]);
                         boxCoord1.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4 + 1]);
@@ -452,7 +499,6 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
                     io_selection_size++;
                 }
             }
-            // std::cout << "io_selection_size:" << io_selection_size << std::endl;
         }
         numFiltBox[batch_idx][class_idx] = io_selection_size;
     });
