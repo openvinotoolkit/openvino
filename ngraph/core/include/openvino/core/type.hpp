@@ -49,7 +49,8 @@ struct OPENVINO_API DiscreteTypeInfo {
         : name(_name),
           version(_version),
           version_id(_version_id),
-          parent(_parent) {
+          parent(_parent),
+          hash_value(0) {
         hash_value = hash();
     }
 
