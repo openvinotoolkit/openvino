@@ -10,10 +10,10 @@
 
 #include "frontend.hpp"
 #include "frontend_manager_defs.hpp"
-#include "ngraph/variant.hpp"
+#include "openvino/core/variant.hpp"
 #include "parameters.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;
@@ -98,4 +98,4 @@ struct FrontEndPluginInfo {
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
