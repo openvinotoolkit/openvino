@@ -69,8 +69,8 @@ ngraph::pass::WrapInterpolateIntoTransposes::WrapInterpolateIntoTransposes() {
         const auto axes = axes_node->cast_vector<int64_t>();
         if (static_cast<int64_t>(axes.size()) > input_rank - 2 ||
             std::all_of(axes.begin(), axes.end(), [](int64_t axis){ return axis != 0 && axis != 1; })) {
-            return false
-        };
+            return false;
+        }
 
         const auto first_perm = build_transposition_for_axes(axes, input_rank);
         const auto last_perm = reverse_permutation(first_perm);
