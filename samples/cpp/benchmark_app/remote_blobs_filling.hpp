@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #if defined(HAVE_GPU_DEVICE_MEM_SUPPORT)
 #    define HAVE_DEVICE_MEM_SUPPORT
 #    include "gpu/gpu_context_api_ocl.hpp"
@@ -10,7 +12,6 @@
 // clang-format off
 #include "inference_engine.hpp"
 
-#include "infer_request_wrap.hpp"
 #include "utils.hpp"
 // clang-format on
 
@@ -61,14 +62,14 @@ struct OpenCL {
 using BufferType = void*;
 #endif
 
-std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
+std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlobs(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
     const InferenceEngine::ExecutableNetwork& exeNetwork,
     std::vector<BufferType>& clBuffer);
 
-void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork,
-                         InferReqWrap::Ptr& request,
-                         std::vector<BufferType>& clBuffer);
+std::map<std::string, InferenceEngine::Blob::Ptr> getRemoteOutputBlobs(
+    const InferenceEngine::ExecutableNetwork& exeNetwork,
+    std::map<std::string, ::gpu::BufferType>& clBuffer);
 
 }  // namespace gpu

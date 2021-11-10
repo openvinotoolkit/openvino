@@ -522,6 +522,7 @@ int main(int argc, char* argv[]) {
                                           {{"read network time (ms)", duration_ms}});
 
             const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
+            const auto& b = inputInfo.at("data")->getTensorDesc();
             if (inputInfo.empty()) {
                 throw std::logic_error("no inputs info is provided");
             }
@@ -552,6 +553,8 @@ int main(int argc, char* argv[]) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
+
+            const auto& c = inputInfo.at("data")->getTensorDesc();
 
             topology_name = cnnNetwork.getName();
             // use batch size according to provided layout and shapes (static case)
@@ -678,8 +681,10 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 niter = ((niter + nireq - 1) / nireq) * nireq;
-                slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
-                           << niter << " using number of requests " << nireq << slog::endl;
+                if (FLAGS_niter != niter) {
+                    slog::warn << "Number of iterations was aligned by request number from " << FLAGS_niter << " to "
+                               << niter << " using number of requests " << nireq << slog::endl;
+                }
             }
         }
 
@@ -728,13 +733,17 @@ int main(int argc, char* argv[]) {
             inputHasName = inputFiles.begin()->first != "";
         }
         bool newInputType = isDynamic || !FLAGS_tensor_shape.empty() || inputHasName;
+
+        // create vector to store remote input blobs buffer
+        std::vector<::gpu::BufferType> clInputsBuffer;
+        bool useGpuMem = false;
+
         std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> inputsData;
-        // create vector to store remote blobs buffer
-        std::vector<::gpu::BufferType> clBuffer;
         if (isFlagSetInCommandLine("use_device_mem")) {
-            if (device_name.find("GPU") == 0)
-                inputsData = ::gpu::getRemoteBlobs(inputFiles, app_inputs_info, exeNetwork, clBuffer);
-            else if (device_name.find("CPU") == 0)
+            if (device_name.find("GPU") == 0) {
+                inputsData = ::gpu::getRemoteInputBlobs(inputFiles, app_inputs_info, exeNetwork, clInputsBuffer);
+                useGpuMem = true;
+            } else if (device_name.find("CPU") == 0) {
                 if (newInputType) {
                     inputsData = getBlobs(inputFiles, app_inputs_info);
                 } else {
@@ -744,8 +753,9 @@ int main(int argc, char* argv[]) {
                                            app_inputs_info[0],
                                            nireq);
                 }
-            else
+            } else {
                 IE_THROW() << "Requested device doesn't support `use_device_mem` option.";
+            }
         } else {
             if (newInputType) {
                 inputsData = getBlobs(inputFiles, app_inputs_info);
@@ -806,12 +816,16 @@ int main(int argc, char* argv[]) {
 
         for (auto& item : input) {
             auto input_name = item.first;
-            auto& data = inputsData.at(input_name)[0];
+            const auto& data = inputsData.at(input_name)[0];
+            // inferRequest->setShape(item.first, data->getTensorDesc().getDims());
             inferRequest->setBlob(input_name, data);
         }
 
-        if (isFlagSetInCommandLine("use_device_mem")) {
-            ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
+        if (useGpuMem) {
+            auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
+            for (auto& output : exeNetwork.GetOutputsInfo()) {
+                inferRequest->setBlob(output.first, outputBlobs[output.first]);
+            }
         }
 
         if (FLAGS_api == "sync") {
@@ -851,8 +865,12 @@ int main(int argc, char* argv[]) {
                 inferRequest->setBlob(input_name, data);
             }
 
-            if (isFlagSetInCommandLine("use_device_mem"))
-                ::gpu::setSharedOutputBlob(exeNetwork, inferRequest, clBuffer);
+            if (useGpuMem) {
+                auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
+                for (auto& output : exeNetwork.GetOutputsInfo()) {
+                    inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                }
+            }
 
             if (FLAGS_api == "sync") {
                 inferRequest->infer();

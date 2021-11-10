@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// clang-format off
 #include <memory>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
+
+// clang-format off
+#include <samples/slog.hpp>
 
 #include "remote_blobs_filling.hpp"
 // clang-format on
@@ -85,7 +88,7 @@ size_t getBytesPerElement(InferenceEngine::Precision precision) {
     }
 }
 
-std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
+std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteInputBlobs(
     const std::map<std::string, std::vector<std::string>>& inputFiles,
     const std::vector<benchmark_app::InputsInfo>& app_inputs_info,
     const InferenceEngine::ExecutableNetwork& exeNetwork,
@@ -144,26 +147,37 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getRemoteBlobs(
 #endif
 }
 
-void setSharedOutputBlob(const InferenceEngine::ExecutableNetwork& exeNetwork,
-                         InferReqWrap::Ptr& request,
-                         std::vector<BufferType>& clBuffer) {
+std::map<std::string, InferenceEngine::Blob::Ptr> getRemoteOutputBlobs(
+    const InferenceEngine::ExecutableNetwork& exeNetwork,
+    std::map<std::string, ::gpu::BufferType>& clBuffer) {
 #ifdef HAVE_DEVICE_MEM_SUPPORT
+    std::map<std::string, InferenceEngine::Blob::Ptr> outputBlobs;
     for (auto& output : exeNetwork.GetOutputsInfo()) {
+        cl_int err;
         auto context = exeNetwork.GetContext();
         auto oclContext = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(context)->get();
         auto oclInstance = std::make_shared<OpenCL>(oclContext);
 
-        cl_int err;
         auto desc = output.second->getTensorDesc();
         auto inputDims = desc.getDims();
         auto elementsNum = std::accumulate(begin(inputDims), end(inputDims), 1, std::multiplies<size_t>());
         auto inputSize = elementsNum * getBytesPerElement(desc.getPrecision());
-        clBuffer.push_back(cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err));
-        InferenceEngine::Blob::Ptr sharedBlob = InferenceEngine::gpu::make_shared_blob(desc, context, clBuffer.back());
 
-        request->setBlob(output.first, sharedBlob);
+        cl::size_type bufferSize = 0;
+        if (clBuffer.find(output.first) == clBuffer.end()) {
+            clBuffer[output.first] =
+                cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
+        } else {
+            auto& buff = clBuffer[output.first];
+            buff.getInfo(CL_MEM_SIZE, &bufferSize);
+            if (inputSize != bufferSize) {
+                buff = cl::Buffer(oclInstance->_context, CL_MEM_READ_WRITE, (cl::size_type)inputSize, NULL, &err);
+            }
+        }
+        outputBlobs[output.first] = InferenceEngine::gpu::make_shared_blob(desc, context, clBuffer[output.first]);
     }
 
+    return outputBlobs;
 #else
     IE_THROW() << "Device memory requested for GPU device, but OpenCL was not linked";
 #endif
