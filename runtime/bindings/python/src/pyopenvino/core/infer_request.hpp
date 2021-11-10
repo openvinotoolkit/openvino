@@ -28,8 +28,8 @@ public:
     }
     // ~InferRequestWrapper() = default;
 
-    // bool user_callback_defined;
-    // py::function user_callback;
+    bool user_callback_defined = false;
+    py::object userdata;
 
     double get_latency() {
         auto execTime = std::chrono::duration_cast<ns>(_end_time - _start_time);

@@ -43,8 +43,8 @@ def normalize_inputs(py_dict: dict) -> dict:
             for k, v in py_dict.items()}
 
 # flake8: noqa: D102
-def infer(request: InferRequest, inputs: dict = None) -> np.ndarray:
-    res = request._infer(inputs=normalize_inputs(inputs if inputs is not None else {}))
+def infer(request: InferRequest, inputs: dict = {}) -> np.ndarray:
+    res = request._infer(inputs=normalize_inputs(inputs))
     # Required to return list since np.ndarray forces all of tensors data to match in
     # dimensions. This results in errors when running ops like variadic split.
     return [copy.deepcopy(tensor.data) for tensor in res]
@@ -57,8 +57,8 @@ def infer_new_request(exec_net: ExecutableNetwork, inputs: dict = None) -> List[
     return [copy.deepcopy(tensor.data) for tensor in res]
 
 # flake8: noqa: D102
-def start_async(request: InferRequest, inputs: dict = None) -> None:  # type: ignore
-    request._start_async(inputs=normalize_inputs(inputs if inputs is not None else {}))
+def start_async(request: InferRequest, inputs: dict = {}, userdata: dict = None) -> None:  # type: ignore
+    request._start_async(inputs=normalize_inputs(inputs), userdata=userdata)
 
 # flake8: noqa: C901
 # Dispatch Blob types on Python side.
