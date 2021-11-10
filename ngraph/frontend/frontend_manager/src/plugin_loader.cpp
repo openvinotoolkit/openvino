@@ -16,6 +16,7 @@
 
 #include <sys/stat.h>
 
+#include <ngraph/log.hpp>
 #include <string>
 #include <vector>
 
@@ -29,10 +30,12 @@ using namespace ngraph::frontend;
 #    define DLOPEN(file_str) LoadLibrary(TEXT(file_str.c_str()))
 #    define DLSYM(obj, func) GetProcAddress(obj, func)
 #    define DLCLOSE(obj)     FreeLibrary(obj)
+#    define DLERROR()        ""
 #else
 #    define DLOPEN(file_str) dlopen(file_str.c_str(), RTLD_LAZY)
 #    define DLSYM(obj, func) dlsym(obj, func)
 #    define DLCLOSE(obj)     dlclose(obj)
+#    define DLERROR()        dlerror()
 #endif
 
 // TODO: change to std::filesystem for C++17
@@ -76,6 +79,7 @@ std::vector<PluginData> ngraph::frontend::load_plugins(const std::string& dir_na
     for (const auto& file : files) {
         auto shared_object = DLOPEN(file);
         if (!shared_object) {
+            NGRAPH_DEBUG << "Error loading FrontEnd " << file << " " << DLERROR() << std::endl;
             continue;
         }
 
