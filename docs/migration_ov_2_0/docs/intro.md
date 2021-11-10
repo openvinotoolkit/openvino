@@ -9,4 +9,5 @@ The list with differences between APIs below:
  - Namespaces were aligned between components.
 
 Please look at next transition guides to understand how transit own application to OpenVINO™ API 2.0.
+ - [OpenVINO™ Graph Construction](@ref ov_graph_construction)
  - [OpenVINO™ Common Inference pipeline](@ref ov_inference_pipeline)
