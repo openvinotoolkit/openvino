@@ -19,7 +19,12 @@ static const char help_message[] = "Print a usage message";
 
 /// @brief message for images argument
 static const char input_message[] =
-    "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
+    "Optional. Path to a folder with images and/or binaries or to specific image or binary file.\n"
+    "                              In case of dynamic shapes networks with several inputs provide the same number"
+    " of files for each input (except cases with 1 file for 1 input):"
+    "\"input1:1.jpg input2:1.bin\", \"input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin \"."
+    " Also you can pass specific keys for inputs: \"random\" - for fillling input with random data,"
+    " \"image_info\" - for filling input with image size.";
 
 /// @brief message for model argument
 static const char model_message[] =
@@ -137,7 +142,7 @@ static const char progress_message[] =
 static const char pc_message[] = "Optional. Report performance counters.";
 
 // @brief message for performance counters for sequence option
-static const char pcseq_message[] = "Optional. Report performance counters for each shape in --tensor_shape sequence.";
+static const char pcseq_message[] = "Optional. Report latencies for each shape in --tensor_shape sequence.";
 
 #ifdef HAVE_DEVICE_MEM_SUPPORT
 // @brief message for switching memory allocation type option
@@ -165,8 +170,11 @@ static const char shape_message[] =
 static const char tensor_shape_message[] =
     "Optional if network shapes are all static (original ones or set by -shape.\n"
     "                              Required if at least one input shape is dynamic."
-    " Set shape for input blobs. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
-    " in case of one input size.";
+    " Set shape for input blobs. For example, \"[1,3,224,224]\" or \"input1[1,3,224,224],input2[1,4]\""
+    " in case of one input size."
+    " In case of several input sizes provide the same number for each input (except cases with 1 shape for 1 input):"
+    " \"[1,3,128,128][3,3,128,128][1,3,320,320]\", \"input1[1,1,128,128][1,1,256,256],input2[80,1]\""
+    " or \"input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]\"";
 
 static const char layout_message[] =
     "Optional. Prompts how network layouts should be treated by application. "
