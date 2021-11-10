@@ -15,7 +15,7 @@ namespace py = pybind11;
 
 void regclass_frontend_Place(py::module m) {
     py::class_<ov::frontend::Place, std::shared_ptr<ov::frontend::Place>> place(m, "Place", py::dynamic_attr());
-    place.doc() = "openvino.frontend.Place wraps ngraph::frontend::Place";
+    place.doc() = "openvino.frontend.Place wraps ov::frontend::Place";
 
     place.def("is_input",
               &ov::frontend::Place::is_input,
