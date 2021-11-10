@@ -9,10 +9,11 @@
 #include <vector>
 #include <set>
 #include <algorithm>
-#include <sstream>
 #include <chrono>
 #include <tuple>
 #include <memory>
+#include <streambuf>
+#include <istream>
 #include <ie_extension.h>
 #include "inference_engine.hpp"
 #include "ie_compound_blob.h"
@@ -58,6 +59,47 @@ struct ie_blob {
  */
 struct ie_network {
     IE::CNNNetwork object;
+};
+
+/**
+ * @struct mem_stringbuf
+ * @brief This struct puts memory buffer to stringbuf.
+ */
+struct mem_stringbuf : std::streambuf {
+    mem_stringbuf(const char *buffer, size_t sz) {
+        char * bptr(const_cast<char *>(buffer));
+        setg(bptr, bptr, bptr + sz);
+    }
+
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which = std::ios_base::in) override {
+        switch (dir) {
+            case std::ios_base::beg:
+                setg(eback(), eback() + off, egptr());
+                break;
+            case std::ios_base::end:
+                setg(eback(), egptr() + off, egptr());
+                break;
+            case std::ios_base::cur:
+                setg(eback(), gptr() + off, egptr());
+                break;
+            default:
+                return pos_type(off_type(-1));
+        }
+        return (gptr() < eback() || gptr() > egptr()) ? pos_type(off_type(-1)) : pos_type(gptr() - eback());
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        return seekoff(pos, std::ios_base::beg, which);
+    }
+};
+
+/**
+ * @struct mem_istream
+ * @brief This struct puts stringbuf buffer to istream.
+ */
+struct mem_istream: virtual mem_stringbuf, std::istream {
+    mem_istream(const char * buffer, size_t sz) : mem_stringbuf(buffer, sz), std::istream(static_cast<std::streambuf *>(this)) {
+    }
 };
 
 std::map<IE::StatusCode, IEStatusCode> status_map = {{IE::StatusCode::GENERAL_ERROR, IEStatusCode::GENERAL_ERROR},
@@ -143,7 +185,6 @@ std::map<IE::ColorFormat, colorformat_e> colorformat_map = {{IE::ColorFormat::RA
 std::map<std::string, std::string> config2Map(const ie_config_t *config) {
     std::map<std::string, std::string> m;
     const ie_config_t *tmp = config;
-
     while (tmp && tmp->name && tmp->value) {
         m[tmp->name] = tmp->value;
         tmp = tmp->next;
@@ -335,18 +376,71 @@ IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xm
     return status;
 }
 
-IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
+IEStatusCode ie_core_import_network(ie_core_t *core, const char *file_name, const char *device_name,
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || network == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
+    if (core == nullptr || file_name == nullptr || device_name == nullptr || exe_network == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
 
     try {
-        std::map<std::string, std::string> conf_map;
-        conf_map = config2Map(config);
+        std::map<std::string, std::string> conf_map = config2Map(config);
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+
+        exe_net->object = core->object.ImportNetwork(file_name, device_name, conf_map);
+        *exe_network = exe_net.release();
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_core_import_network_from_memory(ie_core_t *core, const uint8_t *content, size_t content_size, const char *device_name,
+       const ie_config_t *config, ie_executable_network_t **exe_network) {
+    if (core == nullptr || content == nullptr || device_name == nullptr || exe_network == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    IEStatusCode status = IEStatusCode::OK;
+    try {
+        mem_istream model_stream(reinterpret_cast<const char*>(content), content_size);
+
+        std::map<std::string, std::string> conf_map = config2Map(config);
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+
+        exe_net->object = core->object.ImportNetwork(model_stream, device_name, conf_map);
+        *exe_network = exe_net.release();
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_core_export_network(ie_executable_network_t *exe_network, const char *file_name) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (file_name == nullptr || exe_network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+    try {
+        exe_network->object.Export(file_name);
+    } CATCH_IE_EXCEPTIONS
+
+    return status;
+}
+
+IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
+        const ie_config_t *config, ie_executable_network_t **exe_network) {
+    IEStatusCode status = IEStatusCode::OK;
+
+    if (core == nullptr || network == nullptr || device_name == nullptr || exe_network == nullptr) {
+        status = IEStatusCode::GENERAL_ERROR;
+        return status;
+    }
+
+    try {
+        std::map<std::string, std::string> conf_map = config2Map(config);
         std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
 
         // create plugin in the registery and then create ExecutableNetwork.
@@ -361,14 +455,13 @@ IEStatusCode ie_core_load_network_from_file(ie_core_t *core, const char *xml, co
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
 
-    if (core == nullptr || xml == nullptr || device_name == nullptr || config == nullptr || exe_network == nullptr) {
+    if (core == nullptr || xml == nullptr || device_name == nullptr || exe_network == nullptr) {
         status = IEStatusCode::GENERAL_ERROR;
         return status;
     }
 
     try {
-        std::map<std::string, std::string> conf_map;
-        conf_map = config2Map(config);
+        std::map<std::string, std::string> conf_map = config2Map(config);
         std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
 
         exe_net->object = core->object.LoadNetwork(xml, device_name, conf_map);
