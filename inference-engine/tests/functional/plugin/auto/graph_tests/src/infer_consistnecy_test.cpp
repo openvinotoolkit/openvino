@@ -178,7 +178,7 @@ void AutoInferConsistency::Infer() {
 }
 
 
-    TEST_P(AutoInferConsistency, CompareWithDirectHW) {
+TEST_P(AutoInferConsistency, CompareWithDirectHW) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     //Load function to auto device
     LoadNetwork();

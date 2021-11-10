@@ -70,20 +70,36 @@ namespace AutoInfer50Throughput {
 namespace AutoInfer50Latency {
     std::map<std::string, std::string>  baseDeviceConfig = {{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}};
     std::map<std::string, std::string>  autoDeviceConfig = {baseDeviceConfig.begin(), baseDeviceConfig.end()};
-    const auto param50InferLatencyCPU = ::testing::Combine(
+    const auto param50InferLatencyCPUNightly = ::testing::Combine(
             ::testing::Values(50),
             ::testing::Values(std::string()),
             ::testing::Values("AUTO:CPU"),
             ::testing::Values("CPU"),
             ::testing::Values(autoDeviceConfig),
             ::testing::Values(baseDeviceConfig));
-    const auto param50InferLatencyGPU = ::testing::Combine(
+    const auto param50InferLatencyGPUNightly = ::testing::Combine(
             ::testing::Values(50),
             ::testing::Values(std::string()),
             ::testing::Values("AUTO:GPU"),
             ::testing::Values("GPU"),
             ::testing::Values(autoDeviceConfig),
             ::testing::Values(baseDeviceConfig));
+    const auto param50InferLatencyCPU = ::testing::Combine(
+            ::testing::Values(50),
+            ::testing::ValuesIn(modelPaths),
+            ::testing::Values("AUTO:CPU"),
+            ::testing::Values("CPU"),
+            ::testing::Values(autoDeviceConfig),
+            ::testing::Values(baseDeviceConfig));
+    const auto param50InferLatencyGPU = ::testing::Combine(
+            ::testing::Values(50),
+            ::testing::ValuesIn(modelPaths),
+            ::testing::Values("AUTO:GPU"),
+            ::testing::Values("GPU"),
+            ::testing::Values(autoDeviceConfig),
+            ::testing::Values(baseDeviceConfig));
+    INSTANTIATE_TEST_SUITE_P(AutoCPUTestNightly, AutoInferConsistency, param50InferLatencyCPUNightly, AutoInferConsistency::getTestCaseName);
+    INSTANTIATE_TEST_SUITE_P(AutoGPUTestNightly, AutoInferConsistency, param50InferLatencyGPUNightly, AutoInferConsistency::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(AutoCPUTest, AutoInferConsistency, param50InferLatencyCPU, AutoInferConsistency::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(AutoGPUTest, AutoInferConsistency, param50InferLatencyGPU, AutoInferConsistency::getTestCaseName);
 } // namespace AutoInfer50Latency
