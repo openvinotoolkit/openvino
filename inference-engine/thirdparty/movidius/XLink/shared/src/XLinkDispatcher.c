@@ -24,6 +24,7 @@
 # include "win_semaphore.h"
 #else
 # include <pthread.h>
+# include <unistd.h>
 # ifndef __APPLE__
 #  include <semaphore.h>
 # endif

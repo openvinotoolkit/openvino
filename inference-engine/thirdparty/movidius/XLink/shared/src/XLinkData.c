@@ -132,7 +132,7 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
 
     XLINK_RET_IF(addEventWithPerf(&event, &opTime, XLINK_NO_RW_TIMEOUT));
 
-    if( glHandler->profEnable) {
+    if (glHandler->profEnable) {
         glHandler->profilingData.totalWriteBytes += size;
         glHandler->profilingData.totalWriteTime += opTime;
     }

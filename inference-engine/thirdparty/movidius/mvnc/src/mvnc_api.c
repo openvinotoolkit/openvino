@@ -103,7 +103,11 @@ static int global_lock_fd = -1;
 
 #define STRINGIFY(_text) #_text
 #define CASE(entry) case entry: return STRINGIFY(entry);
-
+#define FREE_AND_NULL(fDynMem, fPointer, sDynMem, sPointer) \
+    free(fDynMem); \
+    fPointer = NULL; \
+    free(sDynMem); \
+    sPointer = NULL
 
 // To suppress warning in the macro below
 #if defined __GNUC__ || defined __clang__
@@ -2204,10 +2208,7 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     CHECK_HANDLE_CORRECT_WINFO(g, MVLOG_ERROR, "Graph handle is corrupt or has been destroyed");
 
     if (g->state == NC_GRAPH_CREATED || g->state == NC_GRAPH_DEALLOCATED) {
-        free(g);
-        gh->private_data = NULL;
-        free(gh);
-        *graphHandle = NULL;
+        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
         return NC_OK;
     }
     GLOBAL_LOCK();
@@ -2225,11 +2226,13 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     cmd.id = g->id;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
     rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
-    if(rc != 0){
+    if (rc != 0) {
+        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         return rc;
     }
     if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
+        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         return NC_ERROR;
     }
@@ -2238,14 +2241,12 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
     if (deallocateGraph(gh->private_data)) {
         mvLog(MVLOG_ERROR, "This graph has already been destroyed");
+        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
         return NC_INVALID_PARAMETERS;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-    free(g);
-    gh->private_data = NULL;
-    free(gh);
-    *graphHandle = NULL;
+    FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
     return NC_OK;
 }
 
@@ -3033,10 +3034,6 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
 
     handle->datasize = handle->host_tensor_desc.totalSize;
 
-    if (d->fifos)
-        handle->next = d->fifos;
-    d->fifos = handle;
-
     bufferAllocateCommand_t cmd;
     cmd.type = GRAPH_BUFFER_ALLOCATE_CMD;
     struct tensorDescriptor_t privateDesc;
@@ -3089,6 +3086,9 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
         mvLog(MVLOG_ERROR, "myriad NACK\n");
         return NC_ERROR;
     }
+    if (d->fifos)
+        handle->next = d->fifos;
+    d->fifos = handle;
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
 
     handle->state = NC_FIFO_ALLOCATED;
@@ -3127,12 +3127,7 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
 
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(fifo_mutex));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(fifo_mutex));
-
-        free(fh->private_data);
-        fh->private_data = NULL;
-
-        free(fh);
-        *fifoHandle = NULL;
+        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
 
         return NC_OK;
     }
@@ -3157,6 +3152,7 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
         int msg = 0xdead;
         if (XLinkWriteData(handle->streamId, (uint8_t *) & msg, sizeof(msg)) !=
             0) {
+            FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
             mvLog(MVLOG_ERROR, "Failed to write to fifo before deleting it!");
             return NC_ERROR;
         }
@@ -3170,13 +3166,15 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     struct _devicePrivate_t *d = handle->dev;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
     rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
-    if(rc != 0){
+    if (rc != 0) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
+        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
         mvLog(MVLOG_WARN, "can't send command\n");
         return rc;
     }
     if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
+        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
         mvLog(MVLOG_WARN, "myriad NACK\n");
         return NC_ERROR;
     }
@@ -3185,14 +3183,12 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
     if (deallocateFifo(handle)) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
+        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
         return NC_INVALID_PARAMETERS;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
+    FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
 
-    free(fh->private_data);
-    fh->private_data = NULL;
-    free(fh);
-    *fifoHandle = NULL;
     return NC_OK;
 
 }
