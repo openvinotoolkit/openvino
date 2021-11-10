@@ -254,3 +254,76 @@ def test_unregister_plugin(device):
     with pytest.raises(RuntimeError) as e:
         ie.load_network(func, device)
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
+
+
+@pytest.mark.xfail("68212")
+@pytest.mark.template_extension
+def test_add_extension(device):
+    model = bytes(b"""<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="2,2,2,1"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="operation" id="1" type="Template" version="custom_opset">
+            <data  add="11"/>
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>""")
+
+    core = Core()
+    if platform == "win32":
+        core.add_extension(extension_path="template_extension.dll")
+    else:
+        core.add_extension(extension_path="libtemplate_extension.so")
+    func = core.read_model(model=model, init_from_buffer=True)
+    assert isinstance(func, Function)
+
+    # input_blob = next(iter(network.input_info))
+    # n, c, h, w = network.input_info[input_blob].input_data.shape
+
+    # input_values = np.ndarray(buffer=np.array([1, 2, 3, 4, 5, 6, 7, 8]), shape = (n, c, h, w), dtype=int)
+    # expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]),
+    # shape = (n, c, h, w), dtype=int)
+    #
+    # exec_network = core.compile_model(func, device)
+    # computed = exec_network.infer_new_request(inputs={input_blob : input_values})
+    # output_blob = next(iter(network.outputs))
+    # assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)

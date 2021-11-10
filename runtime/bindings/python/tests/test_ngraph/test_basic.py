@@ -33,6 +33,12 @@ def test_ngraph_function_api():
     assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
     assert len(function.get_ops()) == 6
     assert function.get_output_size() == 1
+    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in function.inputs]
+    assert ["Result"] == [output.get_node().get_type_name() for output in function.outputs]
+    assert function.input(0).get_node().friendly_name == "A"
+    assert function.output(0).get_node().get_type_name() == "Result"
+    assert function.input(tensor_name="A").get_node().friendly_name == "A"
+    assert function.output().get_node().get_type_name() == "Result"
     assert function.get_output_op(0).get_type_name() == "Result"
     assert function.get_output_element_type(0) == parameter_a.get_element_type()
     assert list(function.get_output_shape(0)) == [2, 2]
