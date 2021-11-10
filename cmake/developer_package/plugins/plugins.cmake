@@ -267,8 +267,6 @@ macro(ie_generate_plugins_hpp)
             list(APPEND device_mapping "${device_name}:${device_name}")
         endif()
 
-        message(WARNING "------ ${device_mapping}")
-
         # register plugin as extension
         if(${device_name}_AS_EXTENSION)
             list(APPEND as_extension -D "${device_name}_AS_EXTENSION=ON")
