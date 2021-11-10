@@ -11,82 +11,53 @@ namespace {
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
 
-    static const std::vector<ngraph::element::Type> cachingElemTypes = {
-            ngraph::element::f32,
-            ngraph::element::f16,
-            ngraph::element::i32,
-            ngraph::element::i64,
-            ngraph::element::i8,
-            ngraph::element::u8,
-            ngraph::element::i16,
-            ngraph::element::u16,
-    };
+static const std::vector<ov::element::Type> precisionsTemplate = {
+        ov::element::f64,
+        ov::element::f32,
+        ov::element::f16,
+        ov::element::i64,
+        ov::element::i32,
+        ov::element::i16,
+        ov::element::i8,
+        ov::element::u64,
+        ov::element::u32,
+        ov::element::u16,
+        ov::element::u8,
+        ov::element::boolean,
+};
 
-    static const std::vector<std::size_t> cachingBatchSizes = {
-            1, 2
-    };
+static const std::vector<std::size_t> batchSizesTemplate = {
+        1, 2
+};
 
-    static const std::vector<ngraph::element::Type> cachingElemTypesInternal = {
-            ngraph::element::f32
-    };
+INSTANTIATE_TEST_SUITE_P(smoke_Behavior_CachingSupportCase, LoadNetworkCacheTestBase,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+                                 ::testing::ValuesIn(precisionsTemplate),
+                                 ::testing::ValuesIn(batchSizesTemplate),
+                                 ::testing::Values(ConformanceTests::targetDevice)),
+                         LoadNetworkCacheTestBase::getTestCaseName);
 
-    static const std::vector<std::size_t> cachingBatchSizesInternal = {
-            1
-    };
-
-    static std::shared_ptr<ngraph::Function> simple_function_non_max_supression_internal(ngraph::element::Type, size_t) {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset1::Constant::create(element::i32, Shape{1}, {10});
-        auto iou_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.75});
-        auto score_threshold = opset1::Constant::create(element::f32, Shape{1}, {0.7});
-        auto nms = std::make_shared<op::internal::NonMaxSuppressionIEInternal>(boxes, scores, max_output_boxes_per_class,
-                iou_threshold, score_threshold, 0, true, element::i32);
-        auto res = std::make_shared<ngraph::opset6::Result>(nms);
-        auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        return func;
-    }
-
-    static std::shared_ptr<ngraph::Function> simple_function_matrix_nms_internal(ngraph::element::Type, size_t) {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>>(boxes, scores, ov::op::v8::MatrixNms::Attributes());
-        auto res = std::make_shared<ngraph::opset6::Result>(nms);
-        auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        return func;
-    }
-
-    static std::shared_ptr<ngraph::Function> simple_function_multiclass_nms_internal(ngraph::element::Type, size_t) {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto nms = std::make_shared<op::internal::NmsStaticShapeIE<ov::op::v8::MulticlassNms>>(boxes, scores, ov::op::v8::MulticlassNms::Attributes());
-        auto res = std::make_shared<ngraph::opset6::Result>(nms);
-        auto func = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
-        return func;
-    }
-
-    static std::vector<nGraphFunctionWithName> internal_functions_cpu() {
-        std::vector<nGraphFunctionWithName> funcs = {
-            nGraphFunctionWithName { simple_function_non_max_supression_internal, "NonMaxSuppressionIEInternal"},
-            nGraphFunctionWithName { simple_function_matrix_nms_internal, "NmsStaticShapeIE_MatrixNms"},
-            nGraphFunctionWithName { simple_function_multiclass_nms_internal, "NmsStaticShapeIE_MulticlassNms"},
-        };
-        return funcs;
-    }
-
-    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU, LoadNetworkCacheTestBase,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
-                                    ::testing::ValuesIn(cachingElemTypes),
-                                    ::testing::ValuesIn(cachingBatchSizes),
-                                    ::testing::Values(ConformanceTests::targetDevice)),
-                            LoadNetworkCacheTestBase::getTestCaseName);
-
-    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_CPU_Internal, LoadNetworkCacheTestBase,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(internal_functions_cpu()),
-                                    ::testing::ValuesIn(cachingElemTypesInternal),
-                                    ::testing::ValuesIn(cachingBatchSizesInternal),
-                                    ::testing::Values(ConformanceTests::targetDevice)),
-                            LoadNetworkCacheTestBase::getTestCaseName);
+//    static const std::vector<ngraph::element::Type> cachingElemTypes = {
+//            ngraph::element::f32,
+////            ngraph::element::f16,
+////            ngraph::element::i32,
+////            ngraph::element::i64,
+////            ngraph::element::i8,
+////            ngraph::element::u8,
+////            ngraph::element::i16,
+////            ngraph::element::u16,
+//    };
+//
+//    static const std::vector<std::size_t> cachingBatchSizes = {
+//            1, 2
+//    };
+//
+//    INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase, LoadNetworkCacheTestBase,
+//                             ::testing::Combine(
+//                                     ::testing::ValuesIn(LoadNetworkCacheTestBase::getStandardFunctions()),
+//                                     ::testing::ValuesIn(cachingElemTypes),
+//                                     ::testing::ValuesIn(cachingBatchSizes),
+//                                     ::testing::Values(ConformanceTests::targetDevice)),
+//                             LoadNetworkCacheTestBase::getTestCaseName);
 } // namespace

@@ -27,23 +27,23 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_NETWORK_NAME,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 //
 // Executable Network GetConfig / SetConfig

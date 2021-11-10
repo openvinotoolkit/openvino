@@ -28,11 +28,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_AVAILABLE_DEVICES,
@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
@@ -56,11 +56,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetMetricTest, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetConfigTest, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::ValuesIn(returnAllPosibleDeviceCombination()));
+        ::testing::ValuesIn(returnAllPossibleDeviceCombination()));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_IEClassGetAvailableDevices, IEClassGetAvailableDevices,

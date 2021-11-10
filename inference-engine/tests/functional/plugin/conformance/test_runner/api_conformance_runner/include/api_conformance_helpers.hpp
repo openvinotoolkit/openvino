@@ -68,7 +68,7 @@ inline const std::string generateComplexDeviceName(const std::string& deviceName
     return deviceName + ":" + ConformanceTests::targetDevice;
 }
 
-inline const std::vector<std::string> returnAllPosibleDeviceCombination() {
+inline const std::vector<std::string> returnAllPossibleDeviceCombination() {
     std::vector<std::string> res{ConformanceTests::targetDevice};
     std::vector<std::string> devices{CommonTestUtils::DEVICE_HETERO, CommonTestUtils::DEVICE_AUTO, CommonTestUtils::DEVICE_MULTI};
     for (const auto& device : devices) {
