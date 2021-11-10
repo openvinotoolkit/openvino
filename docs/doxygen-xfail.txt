@@ -127,3 +127,4 @@ ngraph/core/include/ngraph/op/read_value.hpp
 ngraph/core/include/ngraph/pattern/matcher.hpp
 ngraph/core/include/ngraph/pattern/op/any_output.hpp
 ngraph/core/include/ngraph/op/interpolate.hpp
+ngraph/core/include/ngraph/op/util/binary_elementwise_arithmetic.hpp
