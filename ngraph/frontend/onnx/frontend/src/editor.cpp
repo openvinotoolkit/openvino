@@ -183,8 +183,11 @@ public:
         m_infer_shapes_was_run = true;
     }
     ~InferShapesAutoRelease() {
-        if (m_infer_shapes_was_run) {
-            m_model_proto->mutable_graph()->clear_value_info();
+        try {
+            if (m_infer_shapes_was_run) {
+                m_model_proto->mutable_graph()->clear_value_info();
+            }
+        } catch (...) {
         }
     }
 

@@ -50,8 +50,8 @@ public:
     }
 
 private:
-    bool m_transpose_a;
-    bool m_transpose_b;
+    bool m_transpose_a{false};
+    bool m_transpose_b{false};
 };
 }  // namespace v0
 }  // namespace op

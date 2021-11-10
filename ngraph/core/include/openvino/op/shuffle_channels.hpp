@@ -49,8 +49,8 @@ public:
 private:
     bool evaluate_shuffle_channels(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
 
-    int64_t m_axis;
-    int64_t m_group;
+    int64_t m_axis{1};
+    int64_t m_group{1};
 };
 }  // namespace v0
 }  // namespace op
