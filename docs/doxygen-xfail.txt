@@ -128,3 +128,8 @@ ngraph/core/include/ngraph/pattern/matcher.hpp
 ngraph/core/include/ngraph/pattern/op/any_output.hpp
 ngraph/core/include/ngraph/op/interpolate.hpp
 ngraph/core/include/ngraph/op/util/binary_elementwise_arithmetic.hpp
+gst/docs/index.md
+open_model_zoo/models/public/i3d-rgb-tf/README.md
+open_model_zoo/models/public/index.md
+open_model_zoo/tools/accuracy_checker/accuracy_checker/annotation_converters/README.md
+open_model_zoo/tools/accuracy_checker/README.md
