@@ -24,9 +24,6 @@ NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
 NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
 NGRAPH_VARIANT_DECLARATION(ngraph::element::Type, "Variant::element_type");
 NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
-}  // namespace ov
-
-namespace ov {
 namespace frontend {
 namespace pdpd {
 using InPortName = std::string;

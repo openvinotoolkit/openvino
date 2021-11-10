@@ -73,13 +73,6 @@ OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(yolo_box);
 }  // namespace op
-}  // namespace pdpd
-}  // namespace frontend
-}  // namespace ov
-
-namespace ov {
-namespace frontend {
-namespace pdpd {
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
             {"assign_value", op::assign_value},

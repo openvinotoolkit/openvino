@@ -5,8 +5,8 @@
 #include <fstream>
 #include <map>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/variant.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 #include <paddlepaddle_frontend/frontend.hpp>
 #include <paddlepaddle_frontend/model.hpp>
@@ -21,7 +21,7 @@
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
 
-using namespace ngraph::opset7;
+using namespace ov::opset7;
 using namespace ov;
 using namespace ov::frontend;
 
