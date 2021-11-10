@@ -275,29 +275,25 @@ def evaluate_model(
     engine.set_model(model)
     eu.select_evaluation_dataset(engine)
 
-    if count_metrics:
-        if not subset_indices:
-            subset_indices = range(dataset_size)
+    if not subset_indices:
+        subset_indices = range(dataset_size)
 
-        index_sampler = create_sampler(engine, samples=subset_indices)
-        (metrics_per_sample, metrics), raw_output = engine.predict(stats_layout=stats_layout,
-                                                                sampler=index_sampler,
-                                                                metric_per_sample=True,
-                                                                print_progress=print_progress)
+    index_sampler = create_sampler(engine, samples=subset_indices)
+    (metrics_per_sample, metrics), raw_output = engine.predict(stats_layout=stats_layout,
+                                                            sampler=index_sampler,
+                                                            metric_per_sample=True,
+                                                            print_progress=print_progress)
 
-        raw_output = process_raw_output(raw_output, output_node_name)
-        metrics_per_sample = process_per_sample_metrics(metrics_per_sample,
-                                                        metrics_config,
-                                                        per_sample_subset_indices,
-                                                        raw_output=raw_output)
-        metrics = dict((name, value) for name, value in metrics.items() if name in metrics_config)
-        eu.reset_dataset_to_default(engine)
+    raw_output = process_raw_output(raw_output, output_node_name)
+    metrics_per_sample = process_per_sample_metrics(metrics_per_sample,
+                                                    metrics_config,
+                                                    per_sample_subset_indices,
+                                                    raw_output=raw_output)
+    metrics = dict((name, value) for name, value in metrics.items() if name in metrics_config)
+    eu.reset_dataset_to_default(engine)
 
-        return metrics, metrics_per_sample
-    _, raw_output = engine.predict(stats_layout=stats_layout,
-                                    sampler=sampler)
-    return raw_output
-
+    return metrics, metrics_per_sample
+ 
 
 def process_raw_output(output, output_node_name):
     if not output:
