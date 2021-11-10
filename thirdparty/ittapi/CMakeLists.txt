@@ -18,6 +18,12 @@ if(ENABLE_PROFILING_ITT)
             target_compile_options(ittnotify PRIVATE -Wno-undef)
         endif()
 
+        # override INTERFACE_INCLUDE_DIRECTORIES
+        set_property(TARGET ittnotify PROPERTY INTERFACE_INCLUDE_DIRECTORIES
+                     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ittapi/src/ittnotify>
+                     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ittapi/include>)
+
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittnotify)
+        ov_install_static_lib(ittnotify openvino_common)
     endif()
 endif()

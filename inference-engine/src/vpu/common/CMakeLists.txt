@@ -33,7 +33,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     target_include_directories(${TARGET_NAME}
         PUBLIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/include")
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
             $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -58,6 +58,8 @@ function(add_common_target TARGET_NAME STATIC_IE)
     if(NOT STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_legacy)
     endif()
+
+    ov_install_static_lib(${TARGET_NAME} myriad)
 endfunction()
 
 add_common_target("vpu_common_lib" FALSE)

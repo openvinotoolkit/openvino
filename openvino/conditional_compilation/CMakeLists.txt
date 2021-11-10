@@ -10,7 +10,8 @@ add_library(openvino::conditional_compilation ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::itt)
 
-target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
 if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
@@ -44,6 +45,8 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
 
     ov_force_include(${TARGET_NAME} INTERFACE ${GENERATED_HEADER})
 endif()
+
+ov_install_static_lib(${TARGET_NAME} ngraph)
 
 file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_SOURCES ${hdrs})

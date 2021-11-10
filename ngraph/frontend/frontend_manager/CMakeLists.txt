@@ -27,9 +27,11 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(${TARGET_NAME}_static STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
 target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
-target_include_directories(${TARGET_NAME}_static PUBLIC ${FRONTEND_INCLUDE_DIR})
+target_include_directories(${TARGET_NAME}_static PUBLIC
+    $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
 target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_MANAGER)
+ov_install_static_lib(${TARGET_NAME}_static ngraph)
 
 # Shared library - need to recompile object files to export necessary symbols
 

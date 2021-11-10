@@ -17,5 +17,8 @@ macro(_set_if_not_defined var val)
     endif()
 endmacro()
 
+# for ittapi
+_set_if_not_defined(FORCE_32 ON)
+
 # need libusb 32-bits version
 _set_if_not_defined(ENABLE_VPU OFF)

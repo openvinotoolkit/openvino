@@ -75,6 +75,8 @@ function(ie_add_plugin)
                 target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE
                     IE_CREATE_EXTENSION=CreateExtensionShared${IE_PLUGIN_DEVICE_NAME})
             endif()
+            # install static plugins
+            ov_install_static_lib(${IE_PLUGIN_NAME} core)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}

@@ -15,11 +15,18 @@ set(SHAPE_INFER_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
+# Create static library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-# Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${SHAPE_INFER_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${SHAPE_INFER_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
+endif()
+
+ov_install_static_lib(${TARGET_NAME} ngraph)
 
 # developer package
 openvino_developer_export_targets(COMPONENT ngraph TARGETS ${TARGET_NAME})

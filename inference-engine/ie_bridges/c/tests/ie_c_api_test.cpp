@@ -145,6 +145,9 @@ TEST(ie_core_get_available_devices, getAvailableDevices) {
     ie_core_free(&core);
 }
 
+// TODO: CVS-68982
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST(ie_core_register_plugin, registerPlugin) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -212,6 +215,8 @@ TEST(ie_core_unregister_plugin, unregisterPlugin) {
 
     ie_core_free(&core);
 }
+
+#endif // !OPENVINO_STATIC_LIBRARY
 
 TEST(ie_core_set_config, setConfig) {
     ie_core_t *core = nullptr;

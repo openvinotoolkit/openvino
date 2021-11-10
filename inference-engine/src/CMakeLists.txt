@@ -9,8 +9,6 @@ endif()
 
 add_subdirectory(transformations)
 
-add_subdirectory(legacy_api)
-
 add_subdirectory(low_precision_transformations)
 
 add_subdirectory(offline_transformations)
@@ -42,6 +40,8 @@ if(ENABLE_MULTI)
 endif()
 
 add_subdirectory(inference_engine)
+
+add_subdirectory(legacy_api)
 
 add_subdirectory(readers)
 

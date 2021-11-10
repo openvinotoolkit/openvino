@@ -33,7 +33,10 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::util ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
-target_include_directories(${TARGET_NAME} PUBLIC ${UTIL_INCLUDE_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
+
+ov_install_static_lib(${TARGET_NAME} ngraph)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}

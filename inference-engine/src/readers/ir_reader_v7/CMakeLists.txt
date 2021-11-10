@@ -55,6 +55,8 @@ endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
+# Install rules
+
 # for ieFuncTests
 install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
@@ -67,3 +69,5 @@ else()
     install(TARGETS ${TARGET_NAME}
             LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
+
+ov_install_static_lib(${TARGET_NAME} core)

@@ -16,8 +16,8 @@
 #    define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 #    define OPENVINO_EXTENSION_API   OPENVINO_CORE_EXPORTS
 #else
-#    define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_API
-#    define OPENVINO_EXTENSION_API   OPENVINO_API
+#    define OPENVINO_EXTENSION_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
+#    define OPENVINO_EXTENSION_API   OPENVINO_CORE_EXPORTS
 #endif
 
 namespace ov {
@@ -27,7 +27,7 @@ class Extension;
 /**
  * @brief The class provides the base interface for OpenVINO extensions
  */
-class OPENVINO_API Extension : public std::enable_shared_from_this<Extension> {
+class OPENVINO_API Extension {
 public:
     using Ptr = std::shared_ptr<Extension>;
 
