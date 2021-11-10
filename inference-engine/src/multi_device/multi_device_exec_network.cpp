@@ -161,15 +161,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
 
     std::string profilingTask = "MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork:AutoMode";
 
-    // initialize the flags of load network context
-    for (int i = 0; i < CONTEXTNUM; i++) {
-        _loadContext[i].isEnabled = false;
-        _loadContext[i].isAlready = false;
-        _loadContext[i].isLoadSuccess = false;
-    }
-
-    // get Acutal device, like GPU
-    // enable _loadContext[ACTUALDEVICE]
+    // loadContext[ACTUALDEVICE] is always enabled,
+    // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     _loadContext[ACTUALDEVICE].isEnabled = true;
     _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(network);
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
@@ -190,6 +183,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             _loadContext[CPU].isEnabled = false;
         }
     }
+
 
     // initialize the rest members of load context
     for (int i = 0; i < CONTEXTNUM; i++) {
@@ -226,7 +220,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         _executor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
                 IStreamsExecutor::Config{"AutoDeviceAsyncLoad",
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
-                1 /*single thread per stream*/,
+                0 /*default threads per stream, workaround for ticket 62376*/,
                 IStreamsExecutor::ThreadBindingType::NONE});
         for (auto&& device : metaDevices) {
             // initialize containers before run async task
@@ -285,7 +279,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
-    // if selec device is CPU, do not need to load CPU again, context[CPU] must have load CPU
+    // if selec device is CPU, do not need to load CPU again, context[CPU] must have loaded CPU
     curDevIsCPU = (context.deviceInfo.deviceName.find("CPU") != std::string::npos);
     if (curDevIsCPU) {
         return;
@@ -322,7 +316,8 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
         }
     }
 
-    IE_THROW() << "load all devices failed";
+    // To Do need to print failed error mesage
+    IE_THROW() << "[AUTO] load all devices failed";
 }
 
 void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {

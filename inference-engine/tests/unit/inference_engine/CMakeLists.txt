@@ -18,12 +18,10 @@ addIeTargetTest(
         LINK_LIBRARIES
             inference_engine_lp_transformations
             ${OpenCV_LIBRARIES}
-            ngraphFunctions
         ADD_CPPLINT
         DEPENDENCIES
             template_extension
             mock_engine
-            ngraphFunctions
         LABELS
             IE
 )

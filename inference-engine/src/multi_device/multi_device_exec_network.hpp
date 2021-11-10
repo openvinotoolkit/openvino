@@ -40,9 +40,9 @@ struct DeviceInformation {
 };
 
 struct AutoLoadContext {
-    std::atomic<bool> isEnabled;
-    std::atomic<bool> isAlready;
-    std::atomic<bool> isLoadSuccess;
+    std::atomic<bool> isEnabled = {false};
+    std::atomic<bool> isAlready = {false};
+    std::atomic<bool> isLoadSuccess = {false};
     std::future<void> future;
     std::promise<void> promise;
     InferenceEngine::SoExecutableNetworkInternal executableNetwork;

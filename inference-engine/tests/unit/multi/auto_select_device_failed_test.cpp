@@ -100,6 +100,7 @@ public:
        mockPlugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
        mockExeNetwork = {{}, mockPlugin.LoadNetwork(CNNNetwork{}, {})};
 
+       // prepare mockicore and cnnNetwork for loading
        core  = std::shared_ptr<MockICore>(new MockICore());
        auto* origin_plugin = new MockMultiDeviceInferencePlugin();
        plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
@@ -117,6 +118,7 @@ public:
 };
 
 TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
+    // get Parameter
     unsigned int selectCount;
     unsigned int loadCount;
     std::vector<std::tuple<std::string, bool>> deviceConfigs;
@@ -124,12 +126,14 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     bool thrExcWheSelect;
     std::tie(continueRun, thrExcWheSelect, deviceConfigs, selectCount, loadCount) = this->GetParam();
 
+    // test auto plugin
     config.insert({CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO), InferenceEngine::PluginConfigParams::YES});
     std::string devicesStr = "";
     int selDevsSize = deviceConfigs.size();
     for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
         std::string deviceName = std::get<0>(*iter);
         bool loadSuccess = std::get<1>(*iter);
+        // accoding to device loading config, set if the loading will successful or throw exception.
         if (loadSuccess) {
             ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                         ::testing::Matcher<const std::string&>(StrEq(deviceName)),
@@ -142,13 +146,18 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         }
         DeviceInformation devInfo = {deviceName, {}, 2, ""};
         metaDevices.push_back(std::move(devInfo));
-            ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _))
+        // set the return value of SelectDevice
+        // for example if there are three device, if will return GPU on the first call, and then MYRIAD
+        // at last CPU
+        ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _))
             .WillByDefault(Return(metaDevices[deviceConfigs.size() - selDevsSize]));
         devicesStr += deviceName;
         devicesStr += ((++iter) == deviceConfigs.end()) ? "" : ",";
     }
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , devicesStr});
+    // if set this parameter true, the second selecting call will thrown exception,
+    // if there is only one device, it will thrown exception at the first call
     if (thrExcWheSelect) {
         selDevsSize = deviceConfigs.size();
         if (selDevsSize > 1) {

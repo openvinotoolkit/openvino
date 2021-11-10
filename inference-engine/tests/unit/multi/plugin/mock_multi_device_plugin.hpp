@@ -13,14 +13,6 @@ namespace MockMultiDevice {
 
 class MockMultiDeviceInferencePlugin : public MultiDeviceInferencePlugin {
 public:
-    // MOCK_METHOD2(FilterDevice, std::vector<DeviceInformation>(const std::vector<DeviceInformation>&,
-    //                                            const std::map<std::string, std::string>&));
-    // MOCK_CONST_METHOD2(ParseMetaDevices, std::vector<DeviceInformation>(const std::string&,
-    //                                            const std::map<std::string, std::string>&));
-    //
-    // virtual std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
-    //                                                                    const std::map<std::string, std::string> & config) const;
-    //
     MOCK_METHOD(DeviceInformation, SelectDevice, ((const std::vector<DeviceInformation>&),
                 const std::string&), (override));
     MOCK_METHOD((std::vector<DeviceInformation>), ParseMetaDevices,
