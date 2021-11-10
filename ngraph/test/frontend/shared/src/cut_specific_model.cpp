@@ -8,7 +8,7 @@
 #include "utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 static std::string joinStrings(const std::vector<std::string>& strings) {
     std::ostringstream res;
@@ -39,7 +39,7 @@ void FrontEndCutModelTest::doLoadFromFile() {
         FrontEndTestUtils::load_from_file(m_fem, m_param.m_frontEndName, m_param.m_modelName);
 }
 
-std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewInputs() const {
+std::vector<ov::frontend::Place::Ptr> FrontEndCutModelTest::constructNewInputs() const {
     std::vector<Place::Ptr> newInputs;
     for (const auto& name : m_param.m_newInputs) {
         newInputs.push_back(m_inputModel->get_place_by_tensor_name(name));
@@ -47,7 +47,7 @@ std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewInpu
     return newInputs;
 }
 
-std::vector<ngraph::frontend::Place::Ptr> FrontEndCutModelTest::constructNewOutputs() const {
+std::vector<ov::frontend::Place::Ptr> FrontEndCutModelTest::constructNewOutputs() const {
     std::vector<Place::Ptr> newOutputs;
     for (const auto& name : m_param.m_newOutputs) {
         newOutputs.push_back(m_inputModel->get_place_by_tensor_name(name));

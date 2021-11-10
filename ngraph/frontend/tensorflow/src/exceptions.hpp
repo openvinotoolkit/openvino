@@ -13,7 +13,7 @@ namespace tf {
 
 class NodeContext;
 
-class OpValidationFailureTF : public ngraph::frontend::OpValidationFailure {
+class OpValidationFailureTF : public ov::frontend::OpValidationFailure {
 public:
     OpValidationFailureTF(const CheckLocInfo& check_loc_info, const NodeContext& node, const std::string& explanation)
         : OpValidationFailure(check_loc_info, get_error_msg_prefix_tf(node), explanation) {}
@@ -32,5 +32,5 @@ private:
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::OpValidationFailureTF if `cond` is false.
 #define TF_OP_VALIDATION_CHECK(node_context, ...) \
-    NGRAPH_CHECK_HELPER(::ov::frontend::tf::OpValidationFailureTF, (node_context), __VA_ARGS__)
+    OPENVINO_ASSERT_HELPER(::ov::frontend::tf::OpValidationFailureTF, (node_context), __VA_ARGS__)
 }  // namespace ov

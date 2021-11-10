@@ -8,7 +8,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <node_context.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -185,4 +185,4 @@ NamedOutputs pool2d(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

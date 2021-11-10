@@ -47,7 +47,7 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 
 FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
 
-void FrontEndTF::translate_graph(const ngraph::frontend::InputModel::Ptr& model,
+void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                  const std::string& model_name,
                                  bool fail_fast,
                                  bool no_conversion,
@@ -285,8 +285,7 @@ bool FrontEndTF::supported_impl(const std::vector<std::shared_ptr<ov::Variant>>&
     return false;
 }
 
-ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
-    const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
+ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const {
     // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() == 1) {
         // a case when binary protobuf format is provided
@@ -305,7 +304,7 @@ ngraph::frontend::InputModel::Ptr FrontEndTF::load_impl(
     return nullptr;
 }
 
-std::shared_ptr<ov::Function> FrontEndTF::convert(ngraph::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Function> FrontEndTF::convert(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
@@ -315,7 +314,7 @@ std::shared_ptr<ov::Function> FrontEndTF::convert(ngraph::frontend::InputModel::
     return f;
 }
 
-std::shared_ptr<ov::Function> FrontEndTF::convert_partially(ngraph::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Function> FrontEndTF::convert_partially(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
@@ -323,7 +322,7 @@ std::shared_ptr<ov::Function> FrontEndTF::convert_partially(ngraph::frontend::In
     return f;
 }
 
-std::shared_ptr<ov::Function> FrontEndTF::decode(ngraph::frontend::InputModel::Ptr model) const {
+std::shared_ptr<ov::Function> FrontEndTF::decode(ov::frontend::InputModel::Ptr model) const {
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);

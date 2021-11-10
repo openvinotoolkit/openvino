@@ -12,8 +12,8 @@
 #include "so_extension.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 //----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl {

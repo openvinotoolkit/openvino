@@ -9,7 +9,7 @@
 #include <memory>
 #include <sstream>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class PlaceInputEdgeONNX : public Place {
 public:
@@ -126,4 +126,4 @@ private:
     std::shared_ptr<onnx_editor::ONNXModelEditor> m_editor;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

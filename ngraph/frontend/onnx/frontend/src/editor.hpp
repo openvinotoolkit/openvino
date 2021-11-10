@@ -15,7 +15,7 @@
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/onnx_importer_visibility.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace onnx_editor {
 /// \brief A class representing a set of utilities allowing modification of an ONNX model
 ///
@@ -275,4 +275,4 @@ private:
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
 };
 }  // namespace onnx_editor
-}  // namespace ngraph
+}  // namespace ov

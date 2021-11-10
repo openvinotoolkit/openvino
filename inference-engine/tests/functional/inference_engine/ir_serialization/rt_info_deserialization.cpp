@@ -35,8 +35,8 @@ protected:
         std::istringstream modelStringStream(model);
         std::istream& modelStream = modelStringStream;
 
-        ngraph::frontend::FrontEnd::Ptr FE;
-        ngraph::frontend::InputModel::Ptr inputModel;
+        ov::frontend::FrontEnd::Ptr FE;
+        ov::frontend::InputModel::Ptr inputModel;
 
         ov::VariantVector params{ov::make_variant(&modelStream)};
 
@@ -51,7 +51,7 @@ protected:
     }
 
 private:
-    ngraph::frontend::FrontEndManager manager;
+    ov::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoDeserialization, NodeV10) {

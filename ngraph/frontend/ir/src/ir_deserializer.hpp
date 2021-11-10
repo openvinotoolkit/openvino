@@ -4,25 +4,26 @@
 
 #pragma once
 
-#include <xml_parse_utils.h>
-
-#include <ie_ngraph_utils.hpp>
-#include <ir_frontend/model.hpp>
 #include <istream>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <pugixml.hpp>
-#include <utils.hpp>
 
+#include "ie_ngraph_utils.hpp"
+#include "ir_frontend/model.hpp"
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/op_extension.hpp"
+#include "openvino/op/loop.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+#include "utils.hpp"
+#include "xml_parse_utils.h"
 
 namespace ov {
 
 struct GenericLayerParams {
     struct LayerPortData {
         size_t portId;
-        std::vector<ngraph::Dimension> dims;
-        ngraph::element::Type_t precision;
+        std::vector<ov::Dimension> dims;
+        ov::element::Type_t precision;
         std::unordered_set<std::string> names;
     };
     size_t layerId;
@@ -55,13 +56,13 @@ struct GenericLayerParams {
     }
 };
 
-class XmlDeserializer : public ngraph::AttributeVisitor {
+class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
                              const std::unordered_map<std::string, ngraph::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                             std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables,
+                             std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
         : m_node(node),
           m_weights(weights),
@@ -70,13 +71,13 @@ public:
           m_variables(variables),
           m_version(version) {}
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override {
         std::string val;
         if (!getStrAttribute(m_node.child("data"), name, val))
             return;
         value.set(val);
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& value) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& value) override {
         std::string val;
         if (!getStrAttribute(m_node.child("data"), name, val))
             return;
@@ -93,46 +94,45 @@ public:
             return;
         value.set(is_true);
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         std::string val;
         if (!getStrAttribute(m_node.child("data"), name, val))
             return;
         adapter.set(stringToType<double>(val));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         std::string val;
         if (!getStrAttribute(m_node.child("data"), name, val))
             return;
         adapter.set(stringToType<int64_t>(val));
     }
 
-    void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override;
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override;
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
         std::vector<int32_t> value;
         if (!getParameters<int32_t>(m_node.child("data"), name, value))
             return;
         adapter.set(value);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
         std::vector<int64_t> value;
         if (!getParameters<int64_t>(m_node.child("data"), name, value))
             return;
         adapter.set(value);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
         std::vector<float> value;
         if (!getParameters<float>(m_node.child("data"), name, value))
             return;
         adapter.set(value);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         std::vector<std::string> value;
         if (!getParameters<std::string>(m_node.child("data"), name, value))
             return;
@@ -149,41 +149,41 @@ private:
     /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>
+    std::vector<std::shared_ptr<ov::op::util::SubGraphOp::InputDescription>>
     parseInputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
     /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>
+    std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>
     parseOutputDescription(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
 
     // TODO consider to call only once per layer/TI-Loop node
     IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
 
-    /// \brief Traverses xml node representation in order to create nGraph function for it.
+    /// \brief Traverses xml node representation in order to create ov function for it.
     /// \param node xml node representation
     /// \param weights weights attached to current node
     /// \return shared pointer to function representing input node
-    std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root,
-                                                     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
+    std::shared_ptr<ov::Function> parse_function(const pugi::xml_node& root,
+                                                 const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights);
     /// \brief Traverses xml node representation in order to get the purpose attribute of
     /// inputs/outputs in the body of Loop op. \param node xml node representation \return struct
     /// with value of purpuse attribute
-    ngraph::op::v5::Loop::SpecialBodyPorts parsePurposeAttribute(const pugi::xml_node& node);
+    ov::op::v5::Loop::SpecialBodyPorts parsePurposeAttribute(const pugi::xml_node& node);
 
     GenericLayerParams parseGenericParams(const pugi::xml_node& node);
 
-    std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs,
-                                             const pugi::xml_node& node,
-                                             const ov::Weights& weights,
-                                             const GenericLayerParams& params);
+    std::shared_ptr<ov::Node> createNode(const ov::OutputVector& inputs,
+                                         const pugi::xml_node& node,
+                                         const ov::Weights& weights,
+                                         const GenericLayerParams& params);
 
     // -- DATA --
     const pugi::xml_node m_node;
     const ov::Weights& m_weights;
     const std::unordered_map<std::string, ngraph::OpSet>& m_opsets;
     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& m_extensions;
-    std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& m_variables;
+    std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& m_variables;
 
     ///
     /// store information about parameters/results order during function creation

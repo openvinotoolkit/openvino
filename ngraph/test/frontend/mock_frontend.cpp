@@ -14,7 +14,7 @@
 #endif  // mock1_ngraph_frontend_EXPORTS
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 class FrontEndMock : public FrontEnd {
 public:

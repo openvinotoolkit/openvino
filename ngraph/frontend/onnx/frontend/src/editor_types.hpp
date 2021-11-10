@@ -7,7 +7,7 @@
 #include <string>
 #include <utility>
 
-namespace ngraph {
+namespace ov {
 enum class EdgeType { INPUT, OUTPUT };
 
 template <EdgeType>
@@ -124,4 +124,4 @@ struct EditorNode {
     int m_node_index = -1;
 };
 }  // namespace onnx_editor
-}  // namespace ngraph
+}  // namespace ov

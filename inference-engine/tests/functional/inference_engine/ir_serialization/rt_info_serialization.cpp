@@ -30,8 +30,8 @@ protected:
 
     std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model_path,
                                                         const std::string& weights_path) {
-        ngraph::frontend::FrontEnd::Ptr FE;
-        ngraph::frontend::InputModel::Ptr inputModel;
+        ov::frontend::FrontEnd::Ptr FE;
+        ov::frontend::InputModel::Ptr inputModel;
 
         ov::VariantVector params{ov::make_variant(model_path), ov::make_variant(weights_path)};
 
@@ -46,7 +46,7 @@ protected:
     }
 
 private:
-    ngraph::frontend::FrontEndManager manager;
+    ov::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {

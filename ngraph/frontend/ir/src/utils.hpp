@@ -4,16 +4,13 @@
 
 #pragma once
 
-#include <xml_parse_utils.h>
-
-#include <ie_ngraph_utils.hpp>
-#include <istream>
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <pugixml.hpp>
+
+#include "openvino/core/type/element_type.hpp"
+#include "xml_parse_utils.h"
 
 namespace ov {
-void operator>>(const std::stringstream& in, ngraph::element::Type& type);
+void operator>>(const std::stringstream& in, ov::element::Type& type);
 
 bool getStrAttribute(const pugi::xml_node& node, const std::string& name, std::string& value);
 

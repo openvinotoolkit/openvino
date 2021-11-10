@@ -3,10 +3,10 @@
 //
 
 #pragma once
-#include <ngraph/compatibility.hpp>
-#include <ngraph/variant.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+#include "ngraph/compatibility.hpp"
+#include "openvino/core/variant.hpp"
+#include "paddlepaddle_frontend/exceptions.hpp"
+#include "paddlepaddle_frontend/utility.hpp"
 
 #define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
     template <>                                                                           \
@@ -24,9 +24,6 @@ NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
 NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
 NGRAPH_VARIANT_DECLARATION(ngraph::element::Type, "Variant::element_type");
 NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
-}  // namespace ov
-
-namespace ngraph {
 namespace frontend {
 namespace pdpd {
 using InPortName = std::string;
@@ -202,4 +199,4 @@ inline NamedOutputs NodeContext::default_single_output_mapping(
 
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

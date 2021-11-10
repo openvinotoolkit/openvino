@@ -54,18 +54,18 @@ void extract_operation_name_and_port(const std::string& port_name,
 }  // namespace tf
 class InputModelTF::InputModelTFImpl {
 public:
-    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ngraph::frontend::InputModel& input_model);
-    std::vector<ngraph::frontend::Place::Ptr> getInputs() const;
-    std::vector<ngraph::frontend::Place::Ptr> getOutputs() const;
-    ngraph::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
-    void overrideAllOutputs(const std::vector<ngraph::frontend::Place::Ptr>& outputs);
-    void overrideAllInputs(const std::vector<ngraph::frontend::Place::Ptr>& inputs);
-    void extractSubgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
-                         const std::vector<ngraph::frontend::Place::Ptr>& outputs);
-    void setPartialShape(ngraph::frontend::Place::Ptr place, const ov::PartialShape&);
-    ov::PartialShape getPartialShape(ngraph::frontend::Place::Ptr place) const;
-    void setElementType(ngraph::frontend::Place::Ptr place, const ov::element::Type&);
-    void setTensorValue(ngraph::frontend::Place::Ptr place, const void* value);
+    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model);
+    std::vector<ov::frontend::Place::Ptr> getInputs() const;
+    std::vector<ov::frontend::Place::Ptr> getOutputs() const;
+    ov::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
+    void overrideAllOutputs(const std::vector<ov::frontend::Place::Ptr>& outputs);
+    void overrideAllInputs(const std::vector<ov::frontend::Place::Ptr>& inputs);
+    void extractSubgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                         const std::vector<ov::frontend::Place::Ptr>& outputs);
+    void setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape&);
+    ov::PartialShape getPartialShape(ov::frontend::Place::Ptr place) const;
+    void setElementType(ov::frontend::Place::Ptr place, const ov::element::Type&);
+    void setTensorValue(ov::frontend::Place::Ptr place, const void* value);
 
     std::vector<std::shared_ptr<OpPlaceTF>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_tensor_places() const {
@@ -82,12 +82,12 @@ private:
     std::vector<std::shared_ptr<OpPlaceTF>> m_op_places;
     std::map<std::string, std::shared_ptr<OpPlaceTF>> m_op_places_map;
     mutable std::map<std::string, std::shared_ptr<TensorPlaceTF>> m_tensor_places;
-    std::vector<ngraph::frontend::Place::Ptr> m_inputs;
-    std::vector<ngraph::frontend::Place::Ptr> m_outputs;
+    std::vector<ov::frontend::Place::Ptr> m_inputs;
+    std::vector<ov::frontend::Place::Ptr> m_outputs;
     std::map<std::string, Output<Node>> m_tensor_values;
 
     std::shared_ptr<GraphIterator> m_graph_iterator;
-    const ngraph::frontend::InputModel& m_input_model;
+    const ov::frontend::InputModel& m_input_model;
 
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
@@ -235,22 +235,22 @@ std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::InputModelTFImpl::determin
 }
 
 InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
-                                                 const ngraph::frontend::InputModel& input_model)
+                                                 const ov::frontend::InputModel& input_model)
     : m_input_model(input_model),
       m_graph_iterator(graph_iterator) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     loadPlaces();
 }
 
-std::vector<ngraph::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getInputs() const {
+std::vector<ov::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getInputs() const {
     return m_inputs;
 }
 
-std::vector<ngraph::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getOutputs() const {
+std::vector<ov::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getOutputs() const {
     return m_outputs;
 }
 
-ngraph::frontend::Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::string& tensorName) const {
+ov::frontend::Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorName(const std::string& tensorName) const {
     if (m_tensor_places.find(tensorName) != m_tensor_places.end())
         return m_tensor_places.at(tensorName);
 
@@ -270,7 +270,7 @@ ngraph::frontend::Place::Ptr InputModelTF::InputModelTFImpl::getPlaceByTensorNam
     return nullptr;
 }
 
-std::shared_ptr<TensorPlaceTF> castToTensorPlace(const ngraph::frontend::Place::Ptr& place) {
+std::shared_ptr<TensorPlaceTF> castToTensorPlace(const ov::frontend::Place::Ptr& place) {
     if (auto var_place = std::dynamic_pointer_cast<TensorPlaceTF>(place)) {
         return var_place;
     } else if (auto in_port_place = std::dynamic_pointer_cast<InPortPlaceTF>(place)) {
@@ -281,7 +281,7 @@ std::shared_ptr<TensorPlaceTF> castToTensorPlace(const ngraph::frontend::Place::
     FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlaceTF.");
 }
 
-void InputModelTF::InputModelTFImpl::overrideAllInputs(const std::vector<ngraph::frontend::Place::Ptr>& inputs) {
+void InputModelTF::InputModelTFImpl::overrideAllInputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
     m_graph_changed = true;
     m_inputs.clear();
     for (const auto& input_place : inputs) {
@@ -289,7 +289,7 @@ void InputModelTF::InputModelTFImpl::overrideAllInputs(const std::vector<ngraph:
     }
 }
 
-void InputModelTF::InputModelTFImpl::overrideAllOutputs(const std::vector<ngraph::frontend::Place::Ptr>& outputs) {
+void InputModelTF::InputModelTFImpl::overrideAllOutputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
     m_graph_changed = true;
     m_outputs.clear();
     for (const auto& output_place : outputs) {
@@ -297,27 +297,26 @@ void InputModelTF::InputModelTFImpl::overrideAllOutputs(const std::vector<ngraph
     }
 }
 
-void InputModelTF::InputModelTFImpl::extractSubgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
-                                                     const std::vector<ngraph::frontend::Place::Ptr>& outputs) {
+void InputModelTF::InputModelTFImpl::extractSubgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                                                     const std::vector<ov::frontend::Place::Ptr>& outputs) {
     m_graph_changed = true;
     overrideAllInputs(inputs);
     overrideAllOutputs(outputs);
 }
 
-void InputModelTF::InputModelTFImpl::setPartialShape(ngraph::frontend::Place::Ptr place,
-                                                     const ov::PartialShape& p_shape) {
+void InputModelTF::InputModelTFImpl::setPartialShape(ov::frontend::Place::Ptr place, const ov::PartialShape& p_shape) {
     castToTensorPlace(place)->set_partial_shape(p_shape);
 }
 
-ov::PartialShape InputModelTF::InputModelTFImpl::getPartialShape(ngraph::frontend::Place::Ptr place) const {
+ov::PartialShape InputModelTF::InputModelTFImpl::getPartialShape(ov::frontend::Place::Ptr place) const {
     return castToTensorPlace(place)->get_partial_shape();
 }
 
-void InputModelTF::InputModelTFImpl::setElementType(ngraph::frontend::Place::Ptr place, const ov::element::Type& type) {
+void InputModelTF::InputModelTFImpl::setElementType(ov::frontend::Place::Ptr place, const ov::element::Type& type) {
     castToTensorPlace(place)->set_element_type(type);
 }
 
-void InputModelTF::InputModelTFImpl::setTensorValue(ngraph::frontend::Place::Ptr place, const void* value) {
+void InputModelTF::InputModelTFImpl::setTensorValue(ov::frontend::Place::Ptr place, const void* value) {
     m_graph_changed = true;
     auto tensor_place = castToTensorPlace(place);
     auto p_shape = tensor_place->get_partial_shape();
@@ -343,44 +342,44 @@ std::map<std::string, Output<Node>> InputModelTF::get_tensor_values() const {
     return _impl->get_tensor_values();
 }
 
-std::vector<ngraph::frontend::Place::Ptr> InputModelTF::get_inputs() const {
+std::vector<ov::frontend::Place::Ptr> InputModelTF::get_inputs() const {
     return _impl->getInputs();
 }
 
-std::vector<ngraph::frontend::Place::Ptr> InputModelTF::get_outputs() const {
+std::vector<ov::frontend::Place::Ptr> InputModelTF::get_outputs() const {
     return _impl->getOutputs();
 }
 
-ngraph::frontend::Place::Ptr InputModelTF::get_place_by_tensor_name(const std::string& tensorName) const {
+ov::frontend::Place::Ptr InputModelTF::get_place_by_tensor_name(const std::string& tensorName) const {
     return _impl->getPlaceByTensorName(tensorName);
 }
 
-void InputModelTF::override_all_outputs(const std::vector<ngraph::frontend::Place::Ptr>& outputs) {
+void InputModelTF::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {
     _impl->overrideAllOutputs(outputs);
 }
 
-void InputModelTF::override_all_inputs(const std::vector<ngraph::frontend::Place::Ptr>& inputs) {
+void InputModelTF::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) {
     _impl->overrideAllInputs(inputs);
 }
 
-void InputModelTF::extract_subgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
-                                    const std::vector<ngraph::frontend::Place::Ptr>& outputs) {
+void InputModelTF::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                                    const std::vector<ov::frontend::Place::Ptr>& outputs) {
     _impl->extractSubgraph(inputs, outputs);
 }
 
-void InputModelTF::set_partial_shape(ngraph::frontend::Place::Ptr place, const ov::PartialShape& p_shape) {
+void InputModelTF::set_partial_shape(ov::frontend::Place::Ptr place, const ov::PartialShape& p_shape) {
     _impl->setPartialShape(place, p_shape);
 }
 
-ov::PartialShape InputModelTF::get_partial_shape(ngraph::frontend::Place::Ptr place) const {
+ov::PartialShape InputModelTF::get_partial_shape(ov::frontend::Place::Ptr place) const {
     return _impl->getPartialShape(place);
 }
 
-void InputModelTF::set_element_type(ngraph::frontend::Place::Ptr place, const ov::element::Type& type) {
+void InputModelTF::set_element_type(ov::frontend::Place::Ptr place, const ov::element::Type& type) {
     _impl->setElementType(place, type);
 }
 
-void InputModelTF::set_tensor_value(ngraph::frontend::Place::Ptr place, const void* value) {
+void InputModelTF::set_tensor_value(ov::frontend::Place::Ptr place, const void* value) {
     _impl->setTensorValue(place, value);
 }
 }  // namespace frontend

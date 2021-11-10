@@ -18,7 +18,7 @@
 // OK to have 'using' in mock header
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 ////////////////////////////////
 /// \brief This structure holds number static setup values

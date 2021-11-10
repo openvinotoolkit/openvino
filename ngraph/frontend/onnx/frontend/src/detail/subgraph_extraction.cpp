@@ -11,7 +11,7 @@
 
 #include "ngraph/check.hpp"
 
-using namespace ngraph::onnx_editor;
+using namespace ov::onnx_editor;
 
 enum class PortType { InputPort, OutputPort };
 

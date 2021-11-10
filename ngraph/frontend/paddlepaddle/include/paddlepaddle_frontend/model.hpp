@@ -7,7 +7,7 @@
 #include <frontend_manager/frontend_manager.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class OpPlacePDPD;
 class TensorPlacePDPD;
@@ -32,11 +32,11 @@ public:
     void override_all_outputs(const std::vector<Place::Ptr>& outputs) override;
     void override_all_inputs(const std::vector<Place::Ptr>& inputs) override;
     void extract_subgraph(const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs) override;
-    void set_partial_shape(Place::Ptr place, const ngraph::PartialShape&) override;
-    ngraph::PartialShape get_partial_shape(Place::Ptr place) const override;
-    void set_element_type(Place::Ptr place, const ngraph::element::Type&) override;
+    void set_partial_shape(Place::Ptr place, const ov::PartialShape&) override;
+    ov::PartialShape get_partial_shape(Place::Ptr place) const override;
+    void set_element_type(Place::Ptr place, const ov::element::Type&) override;
     void set_tensor_value(Place::Ptr place, const void* value) override;
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

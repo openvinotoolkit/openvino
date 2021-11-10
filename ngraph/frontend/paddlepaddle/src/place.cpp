@@ -7,7 +7,7 @@
 #include "decoder.hpp"
 #include "framework.pb.h"
 
-using namespace ngraph;
+using namespace ov;
 using namespace frontend;
 
 bool PlacePDPD::is_input() const {

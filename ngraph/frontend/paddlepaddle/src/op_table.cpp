@@ -3,7 +3,7 @@
 //
 #include "op_table.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -73,13 +73,6 @@ OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(yolo_box);
 }  // namespace op
-}  // namespace pdpd
-}  // namespace frontend
-}  // namespace ngraph
-
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
             {"assign_value", op::assign_value},
@@ -157,4 +150,4 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
 
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

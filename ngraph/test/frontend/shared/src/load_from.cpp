@@ -10,7 +10,7 @@
 #include "utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 std::string FrontEndLoadFromTest::getTestCaseName(const testing::TestParamInfo<LoadFromFEParam>& obj) {
     std::string res = obj.param.m_frontEndName;

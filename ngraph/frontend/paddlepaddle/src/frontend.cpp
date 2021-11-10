@@ -5,8 +5,8 @@
 #include <fstream>
 #include <map>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/variant.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 #include <paddlepaddle_frontend/frontend.hpp>
 #include <paddlepaddle_frontend/model.hpp>
@@ -21,11 +21,11 @@
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
 
-using namespace ngraph::opset7;
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::opset7;
+using namespace ov;
+using namespace ov::frontend;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace {
@@ -84,7 +84,7 @@ NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>&
     }
 
     auto node =
-        std::make_shared<ngraph::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
+        std::make_shared<ov::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -326,7 +326,7 @@ std::string FrontEndPDPD::get_name() const {
     return "paddle";
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
 extern "C" PDPD_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;

@@ -6,7 +6,7 @@
 
 #include "node_context.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 std::string OpValidationFailurePDPD::get_error_msg_prefix_pdpd(const pdpd::NodeContext& node) {
@@ -16,4 +16,4 @@ std::string OpValidationFailurePDPD::get_error_msg_prefix_pdpd(const pdpd::NodeC
 }
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

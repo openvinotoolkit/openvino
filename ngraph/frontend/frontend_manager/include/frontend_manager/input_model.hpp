@@ -9,11 +9,11 @@
 #include <vector>
 
 #include "frontend_manager_defs.hpp"
-#include "ngraph/partial_shape.hpp"
-#include "ngraph/type/element_type.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "place.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 /// \brief InputModel class represents an original, not yet converted model graph in a
 /// framework format given services to find places of interest in a graph or specialize/edit
@@ -173,17 +173,17 @@ public:
     /// converted to ngraph.
     /// \param place Model place
     /// \param shape Partial shape for this place
-    virtual void set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape);
+    virtual void set_partial_shape(Place::Ptr place, const ov::PartialShape& shape);
 
     /// \brief Returns current partial shape used for this place
     /// \param place Model place
     /// \return Partial shape for this place
-    virtual ngraph::PartialShape get_partial_shape(Place::Ptr place) const;
+    virtual ov::PartialShape get_partial_shape(Place::Ptr place) const;
 
     /// \brief Sets new element type for a place
     /// \param place Model place
     /// \param type New element type
-    virtual void set_element_type(Place::Ptr place, const ngraph::element::Type& type);
+    virtual void set_element_type(Place::Ptr place, const ov::element::Type& type);
 
     /// \brief Freezes a tensor with statically defined value or replace existing value for
     /// already constant node or tensor
@@ -200,4 +200,4 @@ public:
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -15,7 +15,7 @@
 
 #include "framework.pb.h"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 using namespace paddle::framework;
 
@@ -153,4 +153,4 @@ std::map<std::string, OutputVector> DecoderPDPDProto::map_for_each_output(
 }
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
