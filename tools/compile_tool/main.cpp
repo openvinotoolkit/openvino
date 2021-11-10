@@ -60,11 +60,23 @@ static constexpr char inputs_layout_message[] =
                                              "Optional. Specifies layout for all input layers of the network.";
 
 static constexpr char outputs_layout_message[] =
-                                             "Optional. Specifies layout for all input layers of the network.";
+                                             "Optional. Specifies layout for all output layers of the network.";
 
 static constexpr char iol_message[] =
                                              "Optional. Specifies layout for input and output layers by name.\n"
 "                                             Example: -iol \"input:NCHW, output:NHWC\".\n"
+"                                             Notice that quotes are required.\n"
+"                                             Overwrites layout from il and ol options for specified layers.";
+
+static constexpr char inputs_net_layout_message[] =
+                                             "Optional. Specifies network layout for all input layers of the network.";
+
+static constexpr char outputs_net_layout_message[] =
+                                             "Optional. Specifies network layout for all output layers of the network.";
+
+static constexpr char ionl_message[] =
+                                             "Optional. Specifies network layout for input and output tensors by name.\n"
+"                                             Example: -ionl \"input:NCHW, output:NHWC\".\n"
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites layout from il and ol options for specified layers.";
 
@@ -100,6 +112,9 @@ DEFINE_string(iop, "", iop_message);
 DEFINE_string(il, "", inputs_layout_message);
 DEFINE_string(ol, "", outputs_layout_message);
 DEFINE_string(iol, "", iol_message);
+DEFINE_string(inl, "", inputs_net_layout_message);
+DEFINE_string(onl, "", outputs_net_layout_message);
+DEFINE_string(ionl, "", ionl_message);
 DEFINE_bool(legacy, false, legacy_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
@@ -120,6 +135,9 @@ static void showUsage() {
     std::cout << "    -il                          <value>     "   << inputs_layout_message        << std::endl;
     std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
     std::cout << "    -iol                        \"<value>\"    "   << iol_message                << std::endl;
+    std::cout << "    -inl                         <value>     "   << inputs_net_layout_message    << std::endl;
+    std::cout << "    -onl                         <value>     "   << outputs_net_layout_message   << std::endl;
+    std::cout << "    -ionl                       \"<value>\"    "   << ionl_message               << std::endl;
     std::cout << "    -legacy                     \"<value>\"    "   << legacy_message             << std::endl;
     std::cout                                                                                      << std::endl;
     std::cout << " MYRIAD-specific options:                    "                                   << std::endl;
@@ -348,7 +366,7 @@ int main(int argc, char* argv[]) {
 
             auto network = core.read_model(FLAGS_m);
 
-            configurePrePostProcessing(network, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol);
+            configurePrePostProcessing(network, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_inl, FLAGS_onl, FLAGS_ionl);
             printInputAndOutputs(network);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
             auto executableNetwork = core.compile_model(network, FLAGS_d, configure());
