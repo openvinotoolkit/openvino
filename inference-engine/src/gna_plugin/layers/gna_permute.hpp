@@ -114,6 +114,12 @@ inline std::vector<int> GetPermuteOrder(InferenceEngine::Layout in_layout, Infer
     if (in_layout == InferenceEngine::Layout::NCHW && out_layout == InferenceEngine::Layout::NHWC) {
         return {0, 2, 3, 1};
     }
+    if (in_layout == InferenceEngine::Layout::HWC && out_layout == InferenceEngine::Layout::CHW) {
+        return {2, 0, 1};
+    }
+    if (in_layout == InferenceEngine::Layout::CHW && out_layout == InferenceEngine::Layout::HWC) {
+        return {1, 2, 0};
+    }
     return {0, 1, 2, 3};
 }
 
