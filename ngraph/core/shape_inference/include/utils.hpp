@@ -7,7 +7,7 @@
 #include <openvino/core/validation_util.hpp>
 
 template <class T>
-bool get_data_as_int64(
+inline bool get_data_as_int64(
         size_t idx, const ov::Node* op, std::vector<int64_t>& axes_value,
         const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     if (constant_data.count(idx)) {
