@@ -28,7 +28,6 @@ from tests_compatibility import (
     xfail_issue_38734,
     xfail_issue_38735,
     xfail_issue_39658,
-    xfail_issue_39659,
     xfail_issue_39662,
     xfail_issue_44854,
     xfail_issue_44858,
@@ -53,7 +52,7 @@ from tests_compatibility import (
     xfail_issue_63136,
     xfail_issue_63137,
     xfail_issue_63138,
-    skip_issue_69443,
+    xfail_issue_69443,
     xfail_issue_69444,
 )
 from tests_compatibility.test_onnx.utils.onnx_backend import OpenVinoTestBackend
@@ -118,7 +117,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_lstm_with_peepholes_cpu",
     ),
     (
-        skip_issue_69443,
+        xfail_issue_69443,
         "OnnxBackendNodeModelTest.test_constant_pad_cpu",
         "OnnxBackendNodeModelTest.test_edge_pad_cpu",
         "OnnxBackendNodeModelTest.test_reflect_pad_cpu",
@@ -127,10 +126,6 @@ tests_expected_to_fail = [
         xfail_issue_39658,
         "OnnxBackendNodeModelTest.test_tile_cpu",
         "OnnxBackendNodeModelTest.test_tile_precomputed_cpu",
-    ),
-    (
-        xfail_issue_39659,
-        "OnnxBackendNodeModelTest.test_constantofshape_int_shape_zero_cpu",
     ),
     (
         xfail_issue_39662,
@@ -239,15 +234,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_resize_downsample_scales_cubic_A_n0p5_exclude_outside_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_scales_cubic_A_n0p5_exclude_outside_cpu",
-        "OnnxBackendNodeModelTest.test_resize_downsample_sizes_cubic_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_round_prefer_ceil_asymmetric_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_floor_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_ceil_half_pixel_cpu",
-        "OnnxBackendNodeModelTest.test_resize_upsample_sizes_cubic_cpu",
-        "OnnxBackendNodeModelTest.test_resize_downsample_sizes_linear_pytorch_half_pixel_cpu",
-        "OnnxBackendNodeModelTest.test_resize_downsample_sizes_nearest_cpu",
-        "OnnxBackendNodeModelTest.test_resize_downsample_sizes_nearest_tf_half_pixel_for_nn_cpu",
     ),
     (
         xfail_issue_33581,
