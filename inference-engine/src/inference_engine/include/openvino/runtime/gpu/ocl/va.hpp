@@ -11,6 +11,10 @@
  */
 #pragma once
 
+#ifdef _WIN32
+#    error "OpenCL VA-API interoperability is supported only on Linux-based platforms"
+#endif
+
 #include <memory>
 #include <string>
 

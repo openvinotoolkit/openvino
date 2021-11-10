@@ -69,9 +69,7 @@ TEST_P(OVConcurrencyTest, canInferTwoExecNets) {
             auto tensor = FuncTestUtils::create_and_fill_tensor(input->get_element_type(), input->get_shape());
             inf_req.set_tensor(input, tensor);
 
-            outElementsCount.push_back(
-                    std::accumulate(begin(fn_ptrs[i]->get_output_shape(0)), end(fn_ptrs[i]->get_output_shape(0)), 1,
-                                    std::multiplies<size_t>()));
+            outElementsCount.push_back(ov::shape_size(fn_ptrs[i]->get_output_shape(0)));
             const auto in_tensor = inf_req.get_tensor(input);
             const auto tensorSize = in_tensor.get_byte_size();
             const auto inBlobBuf = static_cast<uint8_t*>(in_tensor.data());

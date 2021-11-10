@@ -15,7 +15,9 @@
 #    define NOMINMAX
 #endif
 
-#ifdef _WIN32
+#ifndef _WIN32
+#    error "OpenCL DirectX interoperability is supported only on Windows platforms"
+#endif
 
 #include <d3d11.h>
 
@@ -193,5 +195,3 @@ public:
 }  // namespace gpu
 }  // namespace runtime
 }  // namespace ov
-
-#endif  // _WIN32
