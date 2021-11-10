@@ -879,6 +879,11 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkHETEROWithBigDeviceIDThrows) {
 //
 // LoadNetwork
 //
+TEST_P(IEClassNetworkTestP, LoadNetworkWithoutDeviceNameNoThrow) {
+  SKIP_IF_CURRENT_TEST_IS_DISABLED()
+  InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
+  ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
+}
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
