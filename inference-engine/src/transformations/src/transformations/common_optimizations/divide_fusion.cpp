@@ -35,7 +35,7 @@ ngraph::pass::DivideFusion::DivideFusion() {
             return false;
         }
 
-        auto div = std::make_shared<opset8::Divide>(minuend_input, subtrahend_input);
+        auto div = register_new_node<opset8::Divide>(minuend_input, subtrahend_input);
         div->set_friendly_name(mul->get_friendly_name());
         copy_runtime_info({mul, pow}, div);
         replace_node(mul, div);

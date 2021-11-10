@@ -48,7 +48,7 @@ ngraph::pass::SubtractFusion::SubtractFusion() {
             nodes_to_replace.emplace_back(pattern_to_output.at(p_neg).get_node_shared_ptr());
         }
 
-        auto sub = std::make_shared<opset8::Subtract>(minuend_input, subtrahend_input);
+        auto sub = register_new_node<opset8::Subtract>(minuend_input, subtrahend_input);
         sub->set_friendly_name(add->get_friendly_name());
         copy_runtime_info(nodes_to_replace, sub);
         replace_node(add, sub);

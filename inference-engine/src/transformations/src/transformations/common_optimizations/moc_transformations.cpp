@@ -79,7 +79,10 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     }
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
+    // FusedFilteringBoxesBySize transformation has the complex pattern
+    // which can be affected by further transformations. So we have to
+    // execute it at the beginning of the pipeline.
+    manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     if (!m_use_shapes) {
