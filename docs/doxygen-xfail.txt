@@ -133,3 +133,9 @@ open_model_zoo/models/public/i3d-rgb-tf/README.md
 open_model_zoo/models/public/index.md
 open_model_zoo/tools/accuracy_checker/accuracy_checker/annotation_converters/README.md
 open_model_zoo/tools/accuracy_checker/README.md
+workbench/configs/README.md
+workbench/docs/CLI.md
+workbench/docs/FrequentlyAskedQuestions.md
+workbench/docs/InstallationGuide.md
+workbench/README.md
+workbench/README_dev.md
