@@ -12,7 +12,7 @@ std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &blockShape,
                                                const std::vector<int64_t> &cropsBegin,
                                                const std::vector<int64_t> &cropsEnd) {
-    ngraph::Shape constShape = {in.get_shape().size()};
+    ngraph::Shape constShape = {in.get_partial_shape().size()};
     auto blockShapeNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape,
                                                                      blockShape.data());
     auto cropsBeginNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, constShape,
