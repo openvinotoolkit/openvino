@@ -33,5 +33,10 @@ public:
 protected:
     void SetUp() override;
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+
+    float inputDataMin        = 0.0;
+    float inputDataMax        = 0.2;
+    float inputDataResolution = 1;
+    int32_t  seed = 1;
 };
 }  // namespace SubgraphTestsDefinitions

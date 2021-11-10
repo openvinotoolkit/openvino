@@ -56,6 +56,7 @@ void SplitConcatMultiInputsTest::SetUp() {
 }
 
 InferenceEngine::Blob::Ptr SplitConcatMultiInputsTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), -0.2f, 0.4f, 100);
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
+                                            seed);
 }
 }  // namespace SubgraphTestsDefinitions
