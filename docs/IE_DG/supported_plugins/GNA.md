@@ -61,7 +61,7 @@ Intel® Core™ i3-8121U Processor
 
 The first and second versions of Intel® GNA found in 10th and 11th generation Intel® Core™ Processors may be considered to be functionally equivalent.  Intel® GNA 2.0 provided performance improvement with respect to Intel® GNA 1.0.  Starting with 12th Generation Intel® Core™ Processors (formerly codenamed Alder Lake), support for Intel® GNA 3.0 features is being added.
 
-In the rest of this documentation, "GNA 2.0" term will be used for GNA HW delivered with  Intel® GNA on 10th and 11th generation Intel® Core™ Processors, and "GNA 3.0" term will be used for GNA HW delivered with  Intel® GNA on 12th generation Intel® Core™ Processors.
+In the rest of this documentation, "GNA 2.0" refers to Intel® GNA hardware delivered on 10th and 11th generation Intel® Core™ processors, and the term "GNA 3.0" will be used to refer to GNA hardware delivered on 12th generation Intel® Core™ processors.
 
 Initially, a limited subset of Intel® GNA 3.0 features are added to the previous feature set including the following:
 
@@ -209,11 +209,11 @@ The following tables provide a more explicit representation of the Intel(R) GNA 
 
 In the general case, there is no guarantee that a model compiled for GNA 2.0 will run on GNA 3.0, or vice versa.
 
-However, in most cases, networks compiled for GNA 2.0 will run as expected on GNA 3.0, although the performance may be worse compared to the case when a network is compiled specifically for the latter.  The exception is networks with convolutions with the number of filters greater than 8192 (see the Models and Layers Limitations section).
+However, in most cases, networks compiled for GNA 2.0 will run as expected on GNA 3.0, although the performance may be worse compared to the case when a network is compiled specifically for the latter.  The exception is networks with convolutions with the number of filters greater than 8192 (see the <a href="#models-and-layers-limitations">Models and Layers Limitations</a> section).
 
 Networks compiled for GNA 3.0 should run on GNA 2.0 with incompatible layers emulated on CPU.
 
-You can use the `KEY_GNA_EXEC_TARGET` and `KEY_GNA_COMPILE_TARGET` options  (see the Supported Configuration Parameters section below) to check interoperability.
+You can use the `KEY_GNA_EXEC_TARGET` and `KEY_GNA_COMPILE_TARGET` options  (see the <a href="#supported-configuration-parameters">Supported Configuration Parameters</a> section below) to check interoperability.
 
 ### Drivers and Dependencies
 
@@ -225,7 +225,7 @@ Intel® GNA hardware requires a driver to be installed on the system.
 * Windows\* OS:
 Intel® GNA driver for Windows is available through Windows Update\*
 
-### Models and Layers Limitations
+### <a name="models-and-layers-limitations">Models and Layers Limitations</a>
 
 Because of specifics of hardware architecture, Intel® GNA supports a limited set of layers, their kinds and combinations.
 For example, you should not expect the GNA Plugin to be able to run computer vision models, except those specifically adapted for the GNA Plugin, because the plugin does not fully support 2D convolutions.
@@ -236,7 +236,7 @@ Limitations include:
 
 - Only 1D convolutions are natively supported.
 - The number of output channels for convolutions must be a multiple of 4.
-- The maximum number of filters is 65532 for GNA 3.0 and 8192 for GNA 2.0.
+- The maximum number of filters is 65532 for GNA 2.0 and 8192 for GNA 3.0.
 - Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
 - Splits and concatenations are supported for continuous portions of memory (e.g., split of 1,2,3,4 to 1,1,3,4 and 1,1,3,4 or concats of 1,2,3,4 and 1,2,3,5 to 2,2,3,4).
 
@@ -269,7 +269,7 @@ Starting with 2021.4 release of OpenVINO, GNA plugin users are encouraged to use
 | `GNA_HW_WITH_SW_FBACK` | Uses Intel® GNA if available, otherwise raises an error. If the HW queue is not empty, automatically falls back to CPU in the bit-exact mode. |
 | `GNA_SW_FP32` | Executes the GNA-compiled graph on CPU but substitutes parameters and calculations from low precision to floating point (`FP32`). |
 
-### Supported Configuration Parameters
+### <a name="supported-configuration-parameters">Supported Configuration Parameters</a>
 
 The plugin supports the configuration parameters listed below.
 The parameters are passed as `std::map<std::string, std::string>` on `InferenceEngine::Core::LoadNetwork` or `InferenceEngine::SetConfig`.
