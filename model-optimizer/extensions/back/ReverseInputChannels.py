@@ -50,10 +50,24 @@ class InsertReverseChannels(BackReplacementPattern):
     """
     enabled = False
 
+    @staticmethod
+    def get_index_for_api_2_0(node: Node, idx: int):
+        if node.has_valid('rt_info'):
+            rt_info = node.rt_info
+            if rt_info.contains('old_api_map'):
+                old_api_map_version = rt_info.get_attribute_version('old_api_map')
+                old_api_map = rt_info.info['old_api_map', old_api_map_version]
+                if 'inverse_order' in old_api_map.info:
+                    order = old_api_map.info['inverse_order']
+                    assert len(order) > idx >= 0, 'Channel index is incompatible with old_api_map: {}.'.format(idx)
+                    return list(order).index(idx)
+        return idx
+
     def find_and_replace_pattern(self, graph: Graph):
         all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
                       for p in graph.get_op_nodes(type='Parameter')]
-        suitable_params = [(name, p, shape) for name, p, shape in all_params if len(shape) == 4 and shape[1] == 3]
+        suitable_params = [(name, p, shape) for name, p, shape in all_params if
+                           len(shape) == 4 and shape[self.get_index_for_api_2_0(p, 1)] == 3]
 
         log.debug('All network inputs: {}'.format({name: shape for name, _, shape in all_params}))
         log.debug('Will reverse input channels for: {}'.format({name: shape for name, _, shape in suitable_params}))
@@ -66,10 +80,25 @@ class InsertReverseChannels(BackReplacementPattern):
                       extra={'is_warning': True})
 
         for name, parameter, _ in suitable_params:
-            reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels'}).create_node()
-            parameter.out_port(0).get_connection().set_source(reverse_channels.out_port(0),
-                                                              attributes_save_mode='source')
-            parameter.out_port(0).connect(reverse_channels.in_port(0))
+            reverse_index = self.get_index_for_api_2_0(parameter, 1)
+
+            # This code is needed to enable channel reversing optimization which fuses reversing to Convolution weights
+            # for case when we insert NHWC->NCHW transpose after Parameter node. Fusion does not propagate
+            # through transposes, so we insert ReverseChannels operation after the Transpose op.
+            if reverse_index != 1 and not parameter.out_port(0).disconnected():
+                out_node = parameter.out_port(0).get_connection().get_destination().node
+                if out_node.soft_get('type') == 'Transpose':
+                    order = out_node.in_port(1).data.get_value()
+                    if order is not None and order[1] == reverse_index:
+                        # At this point layout corresponds to old API (NCHW), so the axis to reverse = 1
+                        reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels',
+                                                                   'axis': 1}).create_node()
+                        out_node.out_port(0).get_connection().insert_node(reverse_channels)
+                        continue
+
+            reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels',
+                                                       'axis': reverse_index}).create_node()
+            parameter.out_port(0).get_connection().insert_node(reverse_channels, attributes_save_mode='source')
 
 
 class ReverseChannelsPropagationDown(BackReplacementPattern):
