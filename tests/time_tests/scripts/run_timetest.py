@@ -60,7 +60,10 @@ def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [str(args["executable"].resolve(strict=True)),
             "-m", str(args["model"].resolve(strict=True)),
-            "-d", args["device"]]
+            "-d", args["device"],
+            "-c" if args["cache"] else "",
+            "-v" if args["vpu"] else ""
+            ]
 
 
 def run_timetest(args: dict, log=None):
@@ -131,6 +134,14 @@ def cli_parser():
                         dest="stats_path",
                         type=Path,
                         help='path to a file to save aggregated statistics')
+    parser.add_argument('-c',
+                        dest="cache",
+                        action='store_true',
+                        help='Enable model cache usage')
+    parser.add_argument('-v',
+                        dest="vpu",
+                        action='store_true',
+                        help='Enable model vpu usage')
 
     args = parser.parse_args()
 

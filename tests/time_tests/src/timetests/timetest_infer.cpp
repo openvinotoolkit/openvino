@@ -16,8 +16,8 @@ using namespace InferenceEngine;
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device) {
-  auto pipeline = [](const std::string &model, const std::string &device) {
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUEnabled) {
+  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUEnabled) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
@@ -29,6 +29,9 @@ int runPipeline(const std::string &model, const std::string &device) {
       {
         SCOPED_TIMER(load_plugin);
         ie.GetVersions(device);
+        if (isCacheEnabled) {
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "models_cache"}});
+        }
       }
       {
         SCOPED_TIMER(create_exenetwork);
@@ -45,7 +48,12 @@ int runPipeline(const std::string &model, const std::string &device) {
 
           {
             SCOPED_TIMER(load_network);
-            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+            if (isVPUEnabled) {
+                exeNetwork = ie.LoadNetwork(cnnNetwork, device, {{"VPUX_COMPILER_TYPE", "MLIR"}});
+            }
+            else {
+                exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+            }
           }
         }
       }
@@ -66,7 +74,7 @@ int runPipeline(const std::string &model, const std::string &device) {
   };
 
   try {
-    pipeline(model, device);
+    pipeline(model, device, isCacheEnabled, isVPUEnabled);
   } catch (const InferenceEngine::Exception &iex) {
     std::cerr
         << "Inference Engine pipeline failed with Inference Engine exception:\n"

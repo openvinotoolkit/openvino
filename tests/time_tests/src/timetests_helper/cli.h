@@ -26,6 +26,14 @@ static const char target_device_message[] =
     "plugin. "
     "The application looks for a suitable plugin for the specified device.";
 
+/// @brief message for cache argument
+static const char cache_message[] =
+    "Not required. Use this key to run timetests with models caching.";
+
+/// @brief message for vpu argument
+static const char vpu_message[] =
+    "Not required. Use this key to run timetests using MLIR VPUX compiler type.";
+
 /// @brief message for statistics path argument
 static const char statistics_path_message[] =
     "Required. Path to a file to write statistics.";
@@ -48,6 +56,14 @@ DEFINE_string(d, "", target_device_message);
 /// It is a required parameter
 DEFINE_string(s, "", statistics_path_message);
 
+/// @brief Define parameter for set key running tests with models caching <br>
+/// It is a non-required parameter
+DEFINE_bool(c, false, cache_message);
+
+/// @brief Define parameter for set key running tests with MLIR VPU compiler <br>
+/// It is a non-required parameter
+DEFINE_bool(v, false, vpu_message);
+
 /**
  * @brief This function show a help message
  */
@@ -56,10 +72,12 @@ static void showUsage() {
   std::cout << "TimeTests [OPTION]" << std::endl;
   std::cout << "Options:" << std::endl;
   std::cout << std::endl;
-  std::cout << "    -h, --help                " << help_message << std::endl;
+  std::cout << "    -h, --help                  " << help_message << std::endl;
   std::cout << "    -m \"<path>\"               " << model_message << std::endl;
   std::cout << "    -d \"<device>\"             " << target_device_message
             << std::endl;
   std::cout << "    -s \"<path>\"               " << statistics_path_message
             << std::endl;
+  std::cout << "    -c                          " << cache_message << std::endl;
+  std::cout << "    -v                          " << vpu_message << std::endl;
 }
