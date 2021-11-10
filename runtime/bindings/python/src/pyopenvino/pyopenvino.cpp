@@ -24,7 +24,7 @@
 #include "pyopenvino/core/executable_network.hpp"
 #include "pyopenvino/core/ie_blob.hpp"
 #include "pyopenvino/core/ie_data.hpp"
-#include "pyopenvino/core/ie_infer_queue.hpp"
+#include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"
 #include "pyopenvino/core/ie_network.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
@@ -127,7 +127,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Version(m);
     regclass_Parameter(m);
     regclass_InputInfo(m);
-    // regclass_InferQueue(m);
+    regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_PreProcessInfo(m);
 

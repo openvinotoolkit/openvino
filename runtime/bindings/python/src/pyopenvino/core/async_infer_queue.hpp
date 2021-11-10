@@ -7,4 +7,4 @@
 
 namespace py = pybind11;
 
-void regclass_InferQueue(py::module m);
+void regclass_AsyncInferQueue(py::module m);

@@ -7,7 +7,7 @@ import pytest
 import datetime
 
 from ..conftest import image_path, model_path
-from openvino import Core, Tensor, ProfilingInfo
+from openvino import Core, AsyncInferQueue, Tensor, ProfilingInfo
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -166,3 +166,22 @@ def test_infer_mixed_keys(device):
     with pytest.raises(TypeError) as e:
         request.infer({0: tensor, "fc_out": tensor2})
     assert "incompatible function arguments!" in str(e.value)
+
+
+def test_infer_queue(device):
+    jobs = 8
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
+    infer_queue = AsyncInferQueue(exec_net, jobs)
+
+    def callback(request, userdata):
+        userdata["finished"] = True
+
+    img = read_image()
+    infer_queue.set_infer_callback(callback)
+    assert infer_queue.is_ready
+    for i in range(jobs):
+        infer_queue.start_async({"data": img}, {"finished": False})
+    infer_queue.wait_all()
+    assert all([data["finished"] for data in infer_queue.userdata])

@@ -57,8 +57,11 @@ def infer_new_request(exec_net: ExecutableNetwork, inputs: dict = None) -> List[
     return [copy.deepcopy(tensor.data) for tensor in res]
 
 # flake8: noqa: D102
-def start_async(request: InferRequest, inputs: dict = None) -> None:  # type: ignore
-    request._start_async(inputs=normalize_inputs(inputs if inputs is not None else {}))
+def start_async(request: InferRequest, inputs: dict = None, userdata = None) -> None:  # type: ignore
+    if userdata:
+        request._start_async(inputs=normalize_inputs(inputs if inputs is not None else {}), userdata=userdata)
+    else:
+        request._start_async(inputs=normalize_inputs(inputs if inputs is not None else {}))
 
 # flake8: noqa: C901
 # Dispatch Blob types on Python side.
