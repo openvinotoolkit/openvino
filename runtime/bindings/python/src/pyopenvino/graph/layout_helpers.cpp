@@ -14,12 +14,12 @@ void regmodule_graph_layout_helpers(py::module m) {
 
     mod.def("has_batch", &ov::layout::has_batch, py::arg("layout"));
     mod.def("batch_idx", &ov::layout::batch_idx, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::has_channels, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::channels_idx, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::has_depth, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::depth_idx, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::has_height, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::height_idx, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::has_width, py::arg("layout"));
-    mod.def("has_batch", &ov::layout::width_idx, py::arg("layout"));
+    mod.def("has_channels", &ov::layout::has_channels, py::arg("layout"));
+    mod.def("channels_idx", &ov::layout::channels_idx, py::arg("layout"));
+    mod.def("has_depth", &ov::layout::has_depth, py::arg("layout"));
+    mod.def("depth_idx", &ov::layout::depth_idx, py::arg("layout"));
+    mod.def("has_height", &ov::layout::has_height, py::arg("layout"));
+    mod.def("height_idx", &ov::layout::height_idx, py::arg("layout"));
+    mod.def("has_width", &ov::layout::has_width, py::arg("layout"));
+    mod.def("width_idx", &ov::layout::width_idx, py::arg("layout"));
 }
