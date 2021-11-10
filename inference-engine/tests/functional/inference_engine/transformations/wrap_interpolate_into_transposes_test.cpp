@@ -373,9 +373,9 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesNotApplicable)
         auto sizes_node = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, { 50, 75 });
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{2}, { 0.5, 0.5 });
 
-        auto range_start = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 0 });
-        auto range_stop = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 4 });
-        auto range_step = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 1 });
+        auto range_start = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
+        auto range_stop = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 4 });
+        auto range_step = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 1 });
         auto range = std::make_shared<ngraph::opset8::Range>(range_start, range_stop, range_step, ngraph::element::i64);
 
         auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{1, 3});
@@ -392,9 +392,9 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesNotApplicable)
         auto sizes_node = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2}, { 50, 75 });
         auto scales_node = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{2}, { 0.5, 0.5 });
 
-        auto range_start = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 0 });
-        auto range_stop = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 4 });
-        auto range_step = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{1}, { 1 });
+        auto range_start = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 0 });
+        auto range_stop = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 4 });
+        auto range_step = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, { 1 });
         auto range = std::make_shared<ngraph::opset8::Range>(range_start, range_stop, range_step, ngraph::element::i64);
 
         auto indices = ngraph::opset8::Constant::create(ngraph::element::i64, {2}, std::vector<int64_t>{1, 3});
