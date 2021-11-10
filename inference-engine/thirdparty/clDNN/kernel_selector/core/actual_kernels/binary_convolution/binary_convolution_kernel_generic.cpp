@@ -238,9 +238,11 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                 if (eltwise_p->mode == EltwiseMode::ADD) {
                     eltwise_fused_ops += data_type + " " + e_add + " = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
                     eltwise_fused_ops += "res = res+" + e_add +";";
-                } else {
+                } else if (eltwise_p->mode == EltwiseMode::MUL) {
                     eltwise_fused_ops += data_type + " " + e_mul + " = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
                     eltwise_fused_ops += "res = res*" + e_mul +";";
+                } else {
+                    throw std::invalid_argument("Not supported eltwise fusing op in binary_convolution_generic kernel: " + params.layerID);
                 }
 
                 break;
