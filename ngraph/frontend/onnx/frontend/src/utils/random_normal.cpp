@@ -4,6 +4,8 @@
 
 #include "random_normal.hpp"
 
+#include <random>
+
 #include "default_opset.hpp"
 #include "ngraph/opsets/opset8.hpp"
 
@@ -16,6 +18,10 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
                                 float mean,
                                 float scale,
                                 float seed) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint64_t> distrib(0, 9999);
+
     // We start by generating two random series from a uniform distribution
     const uint64_t global_seed = 0;
 
@@ -23,8 +29,8 @@ OutputVector make_random_normal(const Output<ngraph::Node>& shape,
     const auto op_seed = static_cast<uint64_t>(seed * 1000);
 
     // We need to use two op_seeds to make sure we get different results for two RandomUniform series
-    const uint64_t seed_1 = (op_seed == 0 ? rand() % 10000 : op_seed);
-    const uint64_t seed_2 = (op_seed == 0 ? rand() % 10000 : op_seed + 10000);
+    const uint64_t seed_1 = (op_seed == 0 ? distrib(gen) : op_seed);
+    const uint64_t seed_2 = (op_seed == 0 ? distrib(gen) : op_seed + 10000);
 
     const auto min_val = default_opset::Constant::create(target_type, Shape{1}, {0});
     const auto max_val = default_opset::Constant::create(target_type, Shape{1}, {1});
