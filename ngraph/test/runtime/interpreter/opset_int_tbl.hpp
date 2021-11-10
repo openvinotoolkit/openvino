@@ -112,4 +112,3 @@ NGRAPH_OP(Sigmoid, op::v0)
 NGRAPH_OP(Tanh, op::v0)
 NGRAPH_OP(Exp, op::v0)
 NGRAPH_OP(Log, op::v0)
-
