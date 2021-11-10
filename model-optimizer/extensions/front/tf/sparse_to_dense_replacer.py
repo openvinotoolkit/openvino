@@ -3,7 +3,6 @@
 
 import numpy as np
 
-from extensions.ops.Cast import Cast
 from extensions.ops.scatternd import ScatterNDUpdate
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph, rename_nodes
