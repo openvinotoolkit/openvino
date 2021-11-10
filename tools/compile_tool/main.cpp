@@ -15,6 +15,7 @@
 #include <gflags/gflags.h>
 
 #include "inference_engine.hpp"
+#include "openvino/openvino.hpp"
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
@@ -67,6 +68,10 @@ static constexpr char iol_message[] =
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites layout from il and ol options for specified layers.";
 
+static constexpr char legacy_message[] =
+                                             "Optional. Compile model to legacy format (layouts, data elements and\n"
+"                                             names of input/outputs can be changed).";
+
 // MYRIAD-specific
 static constexpr char number_of_shaves_message[] =
                                              "Optional. Specifies number of shaves.\n"
@@ -95,6 +100,7 @@ DEFINE_string(iop, "", iop_message);
 DEFINE_string(il, "", inputs_layout_message);
 DEFINE_string(ol, "", outputs_layout_message);
 DEFINE_string(iol, "", iol_message);
+DEFINE_bool(legacy, false, legacy_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
@@ -114,6 +120,7 @@ static void showUsage() {
     std::cout << "    -il                          <value>     "   << inputs_layout_message        << std::endl;
     std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
     std::cout << "    -iol                        \"<value>\"    "   << iol_message                << std::endl;
+    std::cout << "    -legacy                     \"<value>\"    "   << legacy_message             << std::endl;
     std::cout                                                                                      << std::endl;
     std::cout << " MYRIAD-specific options:                    "                                   << std::endl;
     std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
@@ -257,47 +264,107 @@ std::string getFileNameFromPath(const std::string& path,
     }
 }
 
+void printInputAndOutputs(const std::shared_ptr<const ov::Function>& network) {
+    std::cout << "Network inputs:" << std::endl;
+    for (auto&& input : network->inputs()) {
+        std::string layout;
+        if (auto parameter = dynamic_cast<const ov::op::v0::Parameter *>(input.get_node())) {
+            layout = parameter->get_layout().to_string();
+        }
+        std::cout << "    names: {";
+        for (const auto& name : input.get_names()) {
+            if (name != *input.get_names().begin()) {
+                std::cout << ", ";
+            }
+            std::cout << name;
+        }
+        std::cout << "} : " << input.get_element_type() << " / " << layout << std::endl;
+    }
+    std::cout << "Network outputs:" << std::endl;
+    for (auto&& output : network->outputs()) {
+        std::string layout;
+        if (auto result = dynamic_cast<const ov::op::v0::Result *>(output.get_node())) {
+            layout = result->get_layout().to_string();
+        }
+        std::cout << "    names: {";
+        for (const auto& name : output.get_names()) {
+            if (name != *output.get_names().begin()) {
+                std::cout << ", ";
+            }
+            std::cout << name;
+        }
+        std::cout << "} : " << output.get_element_type() << " / " << layout << std::endl;
+    }
+}
+
+
 using TimeDiff = std::chrono::milliseconds;
 
 int main(int argc, char* argv[]) {
     TimeDiff loadNetworkTimeElapsed {0};
 
     try {
-        std::cout << "Inference Engine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
+        std::cout << "OpenVINO: " << ov::get_openvino_version() << std::endl;
         std::cout << std::endl;
 
         if (!parseCommandLine(&argc, &argv)) {
             return EXIT_SUCCESS;
         }
+        if (FLAGS_legacy) {
+            InferenceEngine::Core ie;
+            if (!FLAGS_log_level.empty()) {
+                ie.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
+            }
 
-        InferenceEngine::Core ie;
-        if (!FLAGS_log_level.empty()) {
-            ie.SetConfig({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
-        }
+            auto network = ie.ReadNetwork(FLAGS_m);
 
-        auto network = ie.ReadNetwork(FLAGS_m);
+            setDefaultIO(network);
+            processPrecision(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            processLayout(network, FLAGS_il, FLAGS_ol, FLAGS_iol);
 
-        setDefaultIO(network);
-        processPrecision(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
-        processLayout(network, FLAGS_il, FLAGS_ol, FLAGS_iol);
+            printInputAndOutputsInfo(network);
 
-        printInputAndOutputsInfo(network);
+            auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
+            auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, configure());
+            loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
 
-        auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
-        auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, configure());
-        loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
+            std::string outputName = FLAGS_o;
+            if (outputName.empty()) {
+                outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
+            }
 
-        std::string outputName = FLAGS_o;
-        if (outputName.empty()) {
-            outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
-        }
-
-        std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
-        if (!outputFile.is_open()) {
-            std::cout << "Output file " << outputName << " can't be opened for writing" << std::endl;
-            return EXIT_FAILURE;
+            std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
+            if (!outputFile.is_open()) {
+                std::cout << "Output file " << outputName << " can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                executableNetwork.Export(outputFile);
+            }
         } else {
-            executableNetwork.Export(outputFile);
+            ov::runtime::Core core;
+            if (!FLAGS_log_level.empty()) {
+                core.set_config({{CONFIG_KEY(LOG_LEVEL), FLAGS_log_level}}, FLAGS_d);
+            }
+
+            auto network = core.read_model(FLAGS_m);
+
+            configurePrePostProcessing(network, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol);
+            printInputAndOutputs(network);
+            auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
+            auto executableNetwork = core.compile_model(network, FLAGS_d, configure());
+            loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
+            std::string outputName = FLAGS_o;
+            if (outputName.empty()) {
+                outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
+            }
+
+            std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
+            if (!outputFile.is_open()) {
+                std::cout << "Output file " << outputName << " can't be opened for writing" << std::endl;
+                return EXIT_FAILURE;
+            } else {
+                executableNetwork.export_model(outputFile);
+            }
         }
     } catch (const std::exception& error) {
         std::cerr << error.what() << std::endl;

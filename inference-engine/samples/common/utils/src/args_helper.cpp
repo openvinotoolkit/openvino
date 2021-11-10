@@ -182,6 +182,36 @@ void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string
     }
 }
 
+using supported_type_t = std::unordered_map<std::string, ov::element::Type>;
+ov::element::Type getType(std::string value, const supported_type_t& supported_precisions) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
+    }
+
+    return precision->second;
+}
+ov::element::Type getType(const std::string& value) {
+    static const supported_type_t supported_types = {
+        {"FP32", ov::element::f32},
+        {"FP16", ov::element::f16},
+        {"BF16", ov::element::bf16},
+        {"U64", ov::element::u64},
+        {"I64", ov::element::i64},
+        {"U32", ov::element::u32},
+        {"I32", ov::element::i32},
+        {"U16", ov::element::u16},
+        {"I16", ov::element::i16},
+        {"U8", ov::element::u8},
+        {"I8", ov::element::i8},
+        {"BOOL", ov::element::boolean},
+    };
+
+    return getType(value, supported_types);
+}
+
 }  // namespace
 
 void processPrecision(InferenceEngine::CNNNetwork& network,
@@ -324,5 +354,96 @@ void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
     for (auto&& layer : network.getOutputsInfo()) {
         std::cout << "    " << layer.first << " : " << layer.second->getPrecision() << " / "
                   << layer.second->getLayout() << std::endl;
+    }
+}
+
+void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
+                                const std::string& ip,
+                                const std::string& op,
+                                const std::string& iop,
+                                const std::string& il,
+                                const std::string& ol,
+                                const std::string& iol) {
+    auto preprocessor = ov::preprocess::PrePostProcessor();
+    if (!ip.empty()) {
+        auto type = getType(ip);
+        for (const auto& input : function->inputs()) {
+            preprocessor.input(ov::preprocess::InputInfo(input.get_any_name())
+                                   .tensor(ov::preprocess::InputTensorInfo().set_element_type(type)));
+        }
+    }
+
+    if (!op.empty()) {
+        auto type = getType(op);
+        for (const auto& output : function->outputs()) {
+            preprocessor.output(ov::preprocess::OutputInfo(output.get_any_name())
+                                    .tensor(ov::preprocess::OutputTensorInfo().set_element_type(type)));
+        }
+    }
+
+    if (!iop.empty()) {
+        const auto user_precisions_map = parseArgMap(iop);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+            const auto type = getType(item.second);
+
+            bool isInput = false;
+            for (const auto& input : function->inputs()) {
+                if (input.get_names().count(tensor_name)) {
+                    preprocessor.input(ov::preprocess::InputInfo(input.get_any_name())
+                                           .tensor(ov::preprocess::InputTensorInfo().set_element_type(type)));
+                    isInput = true;
+                    break;
+                }
+            }
+            if (!isInput) {
+                for (const auto& output : function->outputs()) {
+                    if (output.get_names().count(tensor_name)) {
+                        preprocessor.output(ov::preprocess::OutputInfo(output.get_any_name())
+                                                .tensor(ov::preprocess::OutputTensorInfo().set_element_type(type)));
+                    }
+                }
+            }
+        }
+    }
+    if (!il.empty()) {
+        for (auto&& input : function->inputs()) {
+            preprocessor.input(ov::preprocess::InputInfo(input.get_any_name())
+                                   .tensor(ov::preprocess::InputTensorInfo().set_layout(ov::Layout(il))));
+        }
+    }
+
+    if (!ol.empty()) {
+        for (const auto& output : function->outputs()) {
+            preprocessor.output(ov::preprocess::OutputInfo(output.get_any_name())
+                                    .tensor(ov::preprocess::OutputTensorInfo().set_layout(ov::Layout(ol))));
+        }
+    }
+
+    if (!iol.empty()) {
+        const auto user_precisions_map = parseArgMap(iol);
+        for (auto&& item : user_precisions_map) {
+            const auto& tensor_name = item.first;
+
+            bool isInput = false;
+            for (const auto& input : function->inputs()) {
+                if (input.get_names().count(tensor_name)) {
+                    preprocessor.input(
+                        ov::preprocess::InputInfo(input.get_any_name())
+                            .tensor(ov::preprocess::InputTensorInfo().set_layout(ov::Layout(item.second))));
+                    isInput = true;
+                    break;
+                }
+            }
+            if (!isInput) {
+                for (const auto& output : function->outputs()) {
+                    if (output.get_names().count(tensor_name)) {
+                        preprocessor.output(
+                            ov::preprocess::OutputInfo(output.get_any_name())
+                                .tensor(ov::preprocess::OutputTensorInfo().set_layout(ov::Layout(item.second))));
+                    }
+                }
+            }
+        }
     }
 }

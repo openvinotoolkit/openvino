@@ -10,6 +10,7 @@
 #pragma once
 
 #include <inference_engine.hpp>
+#include <openvino/openvino.hpp>
 #include <string>
 #include <vector>
 
@@ -38,3 +39,11 @@ void processLayout(InferenceEngine::CNNNetwork& network,
                    const std::string& iol);
 
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network);
+
+void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
+                                const std::string& ip,
+                                const std::string& op,
+                                const std::string& iop,
+                                const std::string& il,
+                                const std::string& ol,
+                                const std::string& iol);
