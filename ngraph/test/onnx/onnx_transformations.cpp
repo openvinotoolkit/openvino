@@ -13,7 +13,7 @@ static std::string s_manifest = "${MANIFEST}";
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
-using namespace onnx_editor;
+using namespace ov::onnx_editor;
 using namespace ngraph::test;
 
 namespace {

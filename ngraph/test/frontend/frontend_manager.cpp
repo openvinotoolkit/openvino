@@ -18,7 +18,7 @@ const char FrontEndPathSeparator[] = ":";
 #endif  // _WIN32
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 static int set_test_env(const char* name, const char* value) {
 #ifdef _WIN32
@@ -156,7 +156,7 @@ TEST(FrontEndExceptionTest, frontend_general_error_no_throw_info) {
 }
 
 TEST(FrontEndExceptionTest, frontend_general_error_throw_no_info) {
-    EXPECT_THROW(FRONT_END_GENERAL_CHECK(false), ngraph::frontend::GeneralFailure);
+    EXPECT_THROW(FRONT_END_GENERAL_CHECK(false), ov::frontend::GeneralFailure);
 }
 
 TEST(FrontEndExceptionTest, frontend_initialization_error_no_throw) {
@@ -168,7 +168,7 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_no_throw_info) {
 }
 
 TEST(FrontEndExceptionTest, frontend_initialization_error_throw_no_info) {
-    EXPECT_THROW(FRONT_END_INITIALIZATION_CHECK(false), ngraph::frontend::InitializationFailure);
+    EXPECT_THROW(FRONT_END_INITIALIZATION_CHECK(false), ov::frontend::InitializationFailure);
 }
 
 TEST(FrontEndExceptionTest, frontend_op_conversion_error_no_throw) {
@@ -180,14 +180,14 @@ TEST(FrontEndExceptionTest, frontend_op_conversion_error_no_throw_info) {
 }
 
 TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_no_info) {
-    EXPECT_THROW(FRONT_END_OP_CONVERSION_CHECK(false), ngraph::frontend::OpConversionFailure);
+    EXPECT_THROW(FRONT_END_OP_CONVERSION_CHECK(false), ov::frontend::OpConversionFailure);
 }
 
 TEST(FrontEndExceptionTest, frontend_assert_throw_check_info) {
     std::string msg("msg example");
     try {
         FRONT_END_THROW(msg);
-    } catch (const ngraph::frontend::GeneralFailure& ex) {
+    } catch (const ov::frontend::GeneralFailure& ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
@@ -201,7 +201,7 @@ TEST(FrontEndExceptionTest, frontend_not_implemented_throw_check_info) {
     struct TestClass {};
     try {
         FRONT_END_NOT_IMPLEMENTED(TestClass);
-    } catch (const ngraph::frontend::NotImplementedFailure& ex) {
+    } catch (const ov::frontend::NotImplementedFailure& ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find("TestClass"), std::string::npos);
         return;
@@ -215,7 +215,7 @@ TEST(FrontEndExceptionTest, frontend_general_error_throw_info) {
     std::string msg("msg example");
     try {
         FRONT_END_GENERAL_CHECK(false, msg);
-    } catch (const ngraph::frontend::GeneralFailure& ex) {
+    } catch (const ov::frontend::GeneralFailure& ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
@@ -229,7 +229,7 @@ TEST(FrontEndExceptionTest, frontend_op_conversion_error_throw_info) {
     std::string msg("msg example");
     try {
         FRONT_END_OP_CONVERSION_CHECK(false, msg);
-    } catch (const ngraph::frontend::OpConversionFailure& ex) {
+    } catch (const ov::frontend::OpConversionFailure& ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;
@@ -243,7 +243,7 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
     std::string msg("msg example");
     try {
         FRONT_END_INITIALIZATION_CHECK(false, msg);
-    } catch (const ngraph::frontend::InitializationFailure& ex) {
+    } catch (const ov::frontend::InitializationFailure& ex) {
         std::string caught_msg(ex.what());
         EXPECT_NE(caught_msg.find(msg), std::string::npos);
         return;

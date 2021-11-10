@@ -469,6 +469,7 @@ template <typename T>
 static bool test_bitwise_identical(const T* data, const size_t size) {
     bool data_is_constant = true;
     if (size > 0) {
+        OPENVINO_ASSERT(data != nullptr);
         const T compare = data[0];
         for (size_t i = 1; i < size; i++) {
             if (data[i] != compare) {

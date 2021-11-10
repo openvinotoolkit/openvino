@@ -1,13 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-import numpy as np
 import argparse
 from collections import Counter
+
+import numpy as np
 
 from openvino.tools.mo.front.common.partial_infer.utils import is_fully_defined, unmask_shape, int64_array
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from openvino.tools.mo.utils.cli_parser import get_params_with_paths_list
+from openvino.tools.mo.utils.telemetry_params import telemetry_params
 
 try:
     import openvino_telemetry as tm
@@ -89,3 +91,10 @@ def send_framework_info(framework: str):
     """
     t = tm.Telemetry()
     t.send_event('mo', 'framework', framework)
+
+
+def get_tid():
+    """
+    This function returns the ID of the database to send telemetry.
+    """
+    return telemetry_params['TID']

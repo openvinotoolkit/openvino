@@ -8,7 +8,7 @@
 #include "ngraph/visibility.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 FeStat FrontEndMockPy::m_stat = {};
 ModelStat InputModelMockPy::m_stat = {};

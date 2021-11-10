@@ -15,10 +15,12 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations/rt_info/attributes.hpp>
 
 namespace ngraph {
 namespace op {
@@ -49,6 +51,17 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
     }
     return false;
 }
+
+inline bool has_decompression_converts(const std::shared_ptr<const ngraph::Function>& function) {
+    for (const auto& op : function->get_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::opset8::Convert>(op)) {
+            if (ov::is_decompression(op))
+                return true;
+        }
+    }
+    return false;
+}
+
 inline std::string create_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
     const auto& prev_layer = output.get_node_shared_ptr();
     std::string out_name = prev_layer->get_friendly_name();

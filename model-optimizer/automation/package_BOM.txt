@@ -1075,6 +1075,7 @@ openvino/tools/mo/utils/shape.py
 openvino/tools/mo/utils/simple_proto_parser.py
 openvino/tools/mo/utils/str_to.py
 openvino/tools/mo/utils/summarize_graph.py
+openvino/tools/mo/utils/telemetry_params.py
 openvino/tools/mo/utils/telemetry_stub.py
 openvino/tools/mo/utils/telemetry_utils.py
 openvino/tools/mo/utils/tensorboard_util.py
