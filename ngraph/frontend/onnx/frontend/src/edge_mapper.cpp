@@ -150,7 +150,7 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
 }
 
 OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, const EditorOutput& out) const {
-    int node_index = node_index = node.m_node_index;
+    int node_index = node.m_node_index;
     if (node_index == -1) {  // the node index is not provided
         // identification can be both based on node name and output name (if the node index is not provided)
         const auto& node_indexes = find_node_indexes(node.m_node_name, node.m_output_name);
