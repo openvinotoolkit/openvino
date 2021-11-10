@@ -525,7 +525,7 @@ Some TensorFlow\* operations do not match to any Inference Engine layer, but are
 | GRU |  |
 | Gather |  |
 | GatherElements | Doesn't work with negative indices |
-| GatherND |  |
+| GatherND | Doesn't work with negative indices |
 | GatherTree |  |
 | Gemm |  |
 | GlobalAveragePool |  |

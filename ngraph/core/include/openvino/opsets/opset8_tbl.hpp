@@ -144,7 +144,6 @@ _OPENVINO_OP_REG(SoftPlus, ov::op::v4)
 _OPENVINO_OP_REG(Swish, ov::op::v4)
 
 // New operations added in opset5
-_OPENVINO_OP_REG(GatherND, ov::op::v5)
 _OPENVINO_OP_REG(GRUSequence, ov::op::v5)
 _OPENVINO_OP_REG(HSigmoid, ov::op::v5)
 _OPENVINO_OP_REG(LogSoftmax, ov::op::v5)
@@ -175,6 +174,7 @@ _OPENVINO_OP_REG(Roll, ov::op::v7)
 
 // New operations added in opset8
 _OPENVINO_OP_REG(Gather, ov::op::v8)
+_OPENVINO_OP_REG(GatherND, ov::op::v8)
 _OPENVINO_OP_REG(AdaptiveAvgPool, ov::op::v8)
 _OPENVINO_OP_REG(AdaptiveMaxPool, ov::op::v8)
 _OPENVINO_OP_REG(DeformableConvolution, ov::op::v8)
