@@ -72,8 +72,8 @@ class InputsAnalysis(AnalyzeAction):
 
         if len(op_nodes):
             message = 'It looks like there is IteratorGetNext as input\n' \
-                      'Run the Model Optimizer with:\n\t\t--input "{}"\n' \
-                      'And replace all negative values with positive values'.format(params)
+                      'Run the Model Optimizer without --input option \n' \
+                      'Otherwise, try to run the Model Optimizer with:\n\t\t--input "{}"\n'.format(params)
         return message
 
     def analyze(self, graph: Graph):
