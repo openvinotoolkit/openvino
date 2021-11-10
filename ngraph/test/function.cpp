@@ -966,3 +966,13 @@ TEST(function, add_output_port_to_result) {
     EXPECT_NO_THROW(f->add_output(result->output(0)));
     EXPECT_EQ(f->get_results().size(), 1);
 }
+
+
+// TODO: add tests to check that topological sort is correct
+// ReplaceNode, replace_source_output, output.replace, set_argument/arguments
+// Add CF
+// Add/Remove - Parameter/Result/Sink
+// Test multiple components
+// Test shared nodes between Functions
+// + topological sorter change
+// Negative: add consumer,

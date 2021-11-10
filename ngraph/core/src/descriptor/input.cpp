@@ -4,6 +4,7 @@
 
 #include "openvino/core/descriptor/input.hpp"
 
+#include "shared_node_info.hpp"
 #include "ngraph/env_util.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/node.hpp"
@@ -44,6 +45,12 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
         // if a new input violates one of the type checks in the c-tor.
         m_node->clone_with_new_inputs(m_node->input_values());
     }
+
+    // Output replacement may change the topological order of nodes,
+    // so we have to reset cache by setting a flag into shared node info.
+    for_each(m_node->m_shared_rt_info.cbegin(), m_node->m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
+        info->set_use_topological_cache(false);
+    });
 }
 
 void ov::descriptor::Input::replace_output(const std::shared_ptr<ov::Node>& node, size_t i) {

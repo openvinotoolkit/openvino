@@ -11,6 +11,7 @@
 #include <typeinfo>
 
 #include "atomic_guard.hpp"
+#include "shared_node_info.hpp"
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
@@ -26,7 +27,6 @@ atomic<size_t> ov::Node::m_next_instance_id(0);
 ov::Node::Node(const Node& node)
     : m_control_dependents(node.m_control_dependents),
       m_control_dependencies(node.m_control_dependencies)
-      // skip m_node_type -- will be generated automatically
       ,
       m_instance_id(m_next_instance_id.fetch_add(1)),
       m_friendly_name(node.m_friendly_name)
@@ -36,7 +36,8 @@ ov::Node::Node(const Node& node)
       // skip m_outputs -- should be initialized outside
       ,
       m_op_annotations(node.m_op_annotations),
-      m_rt_info(node.m_rt_info) {
+      m_rt_info(node.m_rt_info),
+      m_shared_rt_info(node.m_shared_rt_info) {
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
         input = descriptor::Input(this, input.get_index(), input.get_output());
@@ -52,6 +53,7 @@ ov::Node& ov::Node::operator=(const Node& node) {
     this->m_inputs = node.m_inputs;
     this->m_op_annotations = node.m_op_annotations;
     this->m_rt_info = node.m_rt_info;
+    this->m_shared_rt_info = node.m_shared_rt_info;
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
         input = descriptor::Input(this, input.get_index(), input.get_output());
@@ -70,6 +72,11 @@ ov::Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
 }
 
 ov::Node::~Node() {
+    // raise a flag to reset nodes cache
+    for_each(m_shared_rt_info.cbegin(), m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
+        info->set_use_topological_cache(false);
+    });
+
     for (descriptor::Input& input : m_inputs) {
         if (input.has_output()) {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
@@ -279,6 +286,12 @@ void ov::Node::add_control_dependency(std::shared_ptr<Node> node) {
             node->m_control_dependents.push_back(this);
         }
     }
+
+    // control dependency may change the topological order so we have to reset cache
+    // by setting a flag into shared node info.
+    for_each(node->m_shared_rt_info.cbegin(), node->m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
+       info->set_use_topological_cache(false);
+    });
 }
 
 void ov::Node::add_node_control_dependencies(std::shared_ptr<Node> source_node) {

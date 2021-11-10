@@ -71,6 +71,10 @@ class Output;
 
 class Node;
 
+class Function;
+
+class SharedRTInfo;
+
 /// EvaluationContext stores and manages a context (additional parameters, values and
 /// environment) for evaluating ov::Function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
@@ -115,18 +119,20 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     template <typename NodeType>
     friend class Output;
 
+    friend class Function;
+
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
     descriptor::Output& get_output_descriptor(size_t position);
 
-    /// \brief Construct an unitialized Node
+    /// \brief Construct an uninitialized Node
     Node() = default;
     /// \brief Copying a node
     Node(const Node&);
     /// \brief Assignment operator
     Node& operator=(const Node&);
 
-    /// \brief Construct an unitialized Node
+    /// \brief Construct an uninitialized Node
     /// \param output_size Number of outputs for this node
     Node(size_t output_size);
 
@@ -383,9 +389,6 @@ public:
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
     const std::string& get_input_tensor_name(size_t i) const;
 
-    std::unordered_set<descriptor::Tensor*> liveness_new_list;
-    std::unordered_set<descriptor::Tensor*> liveness_free_list;
-
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
     Output<Node> get_input_source_output(size_t i) const;
@@ -480,7 +483,6 @@ public:
 private:
     std::vector<Node*> m_control_dependents;
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
-    std::string m_node_type;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
     mutable std::string m_unique_name;
@@ -491,7 +493,13 @@ private:
     OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
+    RTMap m_rt_info;
+
+    // The vector of SharedRTInfo attributes associated to Functions
+    // where this node belongs to. SharedRTInfo is private field which
+    // is used for internal purposes. For example: tracking changes
+    // during graph transformations.
+    std::set<std::shared_ptr<SharedRTInfo>> m_shared_rt_info;
 };
 
 using NodeTypeInfo = Node::type_info_t;
