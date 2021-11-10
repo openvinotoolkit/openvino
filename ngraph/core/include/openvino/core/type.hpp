@@ -42,16 +42,15 @@ struct OPENVINO_API DiscreteTypeInfo {
           parent(_parent),
           hash_value(0) {}
 
-    DiscreteTypeInfo(const char* _name,
-                     uint64_t _version,
-                     const char* _version_id,
-                     const DiscreteTypeInfo* _parent = nullptr)
+    constexpr DiscreteTypeInfo(const char* _name,
+                               uint64_t _version,
+                               const char* _version_id,
+                               const DiscreteTypeInfo* _parent = nullptr)
         : name(_name),
           version(_version),
           version_id(_version_id),
-          parent(_parent) {
-        hash_value = hash();
-    }
+          parent(_parent),
+          hash_value(0) {}
 
     bool is_castable(const DiscreteTypeInfo& target_type) const;
 
