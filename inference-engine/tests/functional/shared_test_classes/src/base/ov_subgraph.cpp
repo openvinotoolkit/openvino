@@ -132,11 +132,11 @@ void SubgraphBaseTest::configure_model() {
     // configure input precision
     ov::preprocess::PrePostProcessor p;
     {
-        auto params = function->get_parameters();
-        for (auto& param : params) {
+        auto& params = function->get_parameters();
+        for (size_t i = 0; i < params.size(); i++) {
             if (inType != ov::element::Type_t::undefined) {
-                p.input(ov::preprocess::InputInfo(param->get_output_tensor(0).get_any_name())
-                            .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
+                p.input(ov::preprocess::InputInfo(i)
+                        .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
             }
         }
     }
@@ -144,9 +144,9 @@ void SubgraphBaseTest::configure_model() {
     // configure output precision
     {
         auto results = function->get_results();
-        for (auto& result : results) {
+        for (size_t i = 0; i < results.size(); i++) {
             if (outType != ov::element::Type_t::undefined) {
-                p.output(ov::preprocess::OutputInfo(result->get_output_tensor(0).get_any_name())
+                p.output(ov::preprocess::OutputInfo(i)
                              .tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
             }
         }
