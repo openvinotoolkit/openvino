@@ -14,11 +14,11 @@
 namespace py = pybind11;
 
 void regclass_frontend_Place(py::module m) {
-    py::class_<ngraph::frontend::Place, std::shared_ptr<ngraph::frontend::Place>> place(m, "Place", py::dynamic_attr());
+    py::class_<ov::frontend::Place, std::shared_ptr<ov::frontend::Place>> place(m, "Place", py::dynamic_attr());
     place.doc() = "openvino.frontend.Place wraps ngraph::frontend::Place";
 
     place.def("is_input",
-              &ngraph::frontend::Place::is_input,
+              &ov::frontend::Place::is_input,
               R"(
                 Returns true if this place is input for a model.
 
@@ -29,7 +29,7 @@ void regclass_frontend_Place(py::module m) {
              )");
 
     place.def("is_output",
-              &ngraph::frontend::Place::is_output,
+              &ov::frontend::Place::is_output,
               R"(
                 Returns true if this place is output for a model.
 
@@ -40,7 +40,7 @@ void regclass_frontend_Place(py::module m) {
              )");
 
     place.def("get_names",
-              &ngraph::frontend::Place::get_names,
+              &ov::frontend::Place::get_names,
               R"(
                 All associated names (synonyms) that identify this place in the graph in a framework specific way.
 
@@ -52,7 +52,7 @@ void regclass_frontend_Place(py::module m) {
              )");
 
     place.def("is_equal",
-              &ngraph::frontend::Place::is_equal,
+              &ov::frontend::Place::is_equal,
               py::arg("other"),
               R"(
                 Returns true if another place is the same as this place.
@@ -69,7 +69,7 @@ void regclass_frontend_Place(py::module m) {
              )");
 
     place.def("is_equal_data",
-              &ngraph::frontend::Place::is_equal_data,
+              &ov::frontend::Place::is_equal_data,
               py::arg("other"),
               R"(
                 Returns true if another place points to the same data.
@@ -89,7 +89,7 @@ void regclass_frontend_Place(py::module m) {
 
     place.def(
         "get_consuming_operations",
-        [](const ngraph::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+        [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
             if (outputName == py::none()) {
                 if (outputPortIndex == py::none()) {
                     return self.get_consuming_operations();
@@ -127,7 +127,7 @@ void regclass_frontend_Place(py::module m) {
 
     place.def(
         "get_target_tensor",
-        [](const ngraph::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+        [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
             if (outputName == py::none()) {
                 if (outputPortIndex == py::none()) {
                     return self.get_target_tensor();
@@ -164,7 +164,7 @@ void regclass_frontend_Place(py::module m) {
 
     place.def(
         "get_producing_operation",
-        [](const ngraph::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+        [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
             if (inputName == py::none()) {
                 if (inputPortIndex == py::none()) {
                     return self.get_producing_operation();
@@ -200,7 +200,7 @@ void regclass_frontend_Place(py::module m) {
              )");
 
     place.def("get_producing_port",
-              &ngraph::frontend::Place::get_producing_port,
+              &ov::frontend::Place::get_producing_port,
               R"(
                 Returns a port that produces data for this place.
 
@@ -212,7 +212,7 @@ void regclass_frontend_Place(py::module m) {
 
     place.def(
         "get_input_port",
-        [](const ngraph::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+        [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
             if (inputName == py::none()) {
                 if (inputPortIndex == py::none()) {
                     return self.get_input_port();
@@ -248,7 +248,7 @@ void regclass_frontend_Place(py::module m) {
 
     place.def(
         "get_output_port",
-        [](const ngraph::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
+        [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
             if (outputName == py::none()) {
                 if (outputPortIndex == py::none()) {
                     return self.get_output_port();
@@ -283,7 +283,7 @@ void regclass_frontend_Place(py::module m) {
              )");
 
     place.def("get_consuming_ports",
-              &ngraph::frontend::Place::get_consuming_ports,
+              &ov::frontend::Place::get_consuming_ports,
               R"(
                 Returns all input ports that consume data flows through this place.
 
@@ -295,7 +295,7 @@ void regclass_frontend_Place(py::module m) {
 
     place.def(
         "get_source_tensor",
-        [](const ngraph::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
+        [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
             if (inputName == py::none()) {
                 if (inputPortIndex == py::none()) {
                     return self.get_source_tensor();
