@@ -27,6 +27,7 @@
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
+#include <ngraph/runtime/reference/exp.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
@@ -45,6 +46,7 @@
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/if.hpp>
+#include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
@@ -67,9 +69,11 @@
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
+#include <ngraph/runtime/reference/sigmoid.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
 #include <ngraph/runtime/reference/slice.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
+#include <ngraph/runtime/reference/tanh.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
 #include <ngraph/runtime/reference/utils/nms_common.hpp>
 
@@ -1679,6 +1683,42 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Abs>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::abs<T>(inputs[0]->get_data_ptr<T>(),
+                               outputs[0]->get_data_ptr<T>(),
+                               shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Sigmoid>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::sigmoid<T>(inputs[0]->get_data_ptr<T>(),
+                                   outputs[0]->get_data_ptr<T>(),
+                                   shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Exp>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::exp<T>(inputs[0]->get_data_ptr<T>(),
+                               outputs[0]->get_data_ptr<T>(),
+                               shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Tanh>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::tanh<T>(inputs[0]->get_data_ptr<T>(),
+                                outputs[0]->get_data_ptr<T>(),
+                                shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Log>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::log<T>(inputs[0]->get_data_ptr<T>(),
                                outputs[0]->get_data_ptr<T>(),
                                shape_size(inputs[0]->get_shape()));
     return true;
