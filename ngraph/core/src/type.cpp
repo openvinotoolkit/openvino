@@ -78,7 +78,7 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
 }
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
     if (hash_value != 0 && b.hash_value != 0)
-        return hash_value == b.hash_value;
+        return hash() == b.hash();
     return version == b.version && strcmp(name, b.name) == 0;
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
