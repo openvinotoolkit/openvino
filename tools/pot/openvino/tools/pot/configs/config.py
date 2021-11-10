@@ -184,8 +184,6 @@ class Config(Dict):
                 'range_estimator': range_estimator_parameters,
                 'weights': weights_params,
                 'activations': activations_params,
-                'search_configs': None,
-                'proxy_metric': None
             },
             'FastBiasCorrection': bias_correction_params,
             'BiasCorrection': bias_correction_params,
