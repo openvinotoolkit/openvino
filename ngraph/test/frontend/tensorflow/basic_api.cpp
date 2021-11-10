@@ -7,7 +7,7 @@
 #include "tf_utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 using TFBasicTest = FrontEndBasicTest;
 
