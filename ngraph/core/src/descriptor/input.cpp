@@ -4,11 +4,11 @@
 
 #include "openvino/core/descriptor/input.hpp"
 
-#include "shared_node_info.hpp"
 #include "ngraph/env_util.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "shared_node_info.hpp"
 
 ov::descriptor::Input::Input(ov::Node* node, size_t index, Output& output)
     : m_node(node),
@@ -48,9 +48,11 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
 
     // Output replacement may change the topological order of nodes,
     // so we have to reset cache by setting a flag into shared node info.
-    for_each(m_node->m_shared_rt_info.cbegin(), m_node->m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
-        info->set_use_topological_cache(false);
-    });
+    for_each(m_node->m_shared_rt_info.cbegin(),
+             m_node->m_shared_rt_info.cend(),
+             [](std::shared_ptr<SharedRTInfo> info) {
+                 info->set_use_topological_cache(false);
+             });
 }
 
 void ov::descriptor::Input::replace_output(const std::shared_ptr<ov::Node>& node, size_t i) {

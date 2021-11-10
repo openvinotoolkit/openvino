@@ -5,9 +5,8 @@
 #pragma once
 
 #include <memory>
-
-#include <openvino/core/node.hpp>
 #include <openvino/core/except.hpp>
+#include <openvino/core/node.hpp>
 #include <openvino/core/variant.hpp>
 
 namespace ov {
@@ -17,7 +16,7 @@ public:
         set_use_topological_cache(false);
     }
 
-    const RTMap & get_rt_info() const {
+    const RTMap& get_rt_info() const {
         return m_rt_info;
     }
 
@@ -26,12 +25,12 @@ public:
     }
 
     void set_use_topological_cache(bool status) {
-        auto & info = get_rt_info();
+        auto& info = get_rt_info();
         info["use_topological_cache"] = std::make_shared<VariantWrapper<int64_t>>(status);
     }
 
     bool get_use_topological_cache() const {
-        const auto & info = get_rt_info();
+        const auto& info = get_rt_info();
         if (info.count("use_topological_cache") == 0) {
             throw Exception("use_topological_cache is not set");
         }

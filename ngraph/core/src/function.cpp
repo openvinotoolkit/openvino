@@ -11,7 +11,6 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "shared_node_info.hpp"
 #include "ngraph/evaluator.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
@@ -26,6 +25,7 @@
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
+#include "shared_node_info.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -265,12 +265,11 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
 
     NodeVector nodes;
     if (m_shared_rt_info->get_use_topological_cache()) {
-        for (const auto & node : m_cached_ordered_ops)  {
+        for (const auto& node : m_cached_ordered_ops) {
             if (node.lock()) {
                 nodes.emplace_back(node);
             }
         }
-        std::cout << "cache is used" << std::endl;
         return nodes;
     }
 
@@ -284,7 +283,6 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
         nodes.push_back(param);
     }
 
-    std::cout << "cache miss" << std::endl;
     auto order = m_topological_sorter(nodes);
 
     static mutex cache_mutex;
