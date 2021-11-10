@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "op_table.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -17,19 +17,18 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslatePadOp(const NodeContext& node) {
-    auto ng_input = node.get_ng_input(0), ng_paddings_op = node.get_ng_input(1);
+OutputVector translate_pad_op(const NodeContext& node) {
+    auto ng_input = node.get_input(0), ng_paddings_op = node.get_input(1);
     Output<Node> pad_val_op;
 
     // Set inputs and pad_val_op
     auto op_type = node.get_op_type();
     if (op_type == "Pad" || op_type == "MirrorPad") {
-        pad_val_op =
-            ConstructNgNode<Constant>(node.get_name(), ng_input.get_element_type(), Shape(), std::vector<int>({0}));
+        pad_val_op = make_shared<Constant>(ng_input.get_element_type(), Shape(), std::vector<int>({0}));
     } else if (op_type == "PadV2") {
-        pad_val_op = node.get_ng_input(2);
+        pad_val_op = node.get_input(2);
     } else {
-        throw errors::InvalidArgument("Incorrect TF Pad OpType: " + node.get_op_type());
+        TF_OP_VALIDATION_CHECK(node, false, "Incorrect TF Pad OpType: " + node.get_op_type());
     }
 
     // Set pad_mode
@@ -41,16 +40,18 @@ OutputVector TranslatePadOp(const NodeContext& node) {
         } else if (pad_mode_str == "SYMMETRIC") {
             pad_mode = ov::op::PadMode::SYMMETRIC;
         } else {
-            throw errors::InvalidArgument(pad_mode_str + " is not an allowed padding mode.");
+            TF_OP_VALIDATION_CHECK(node, false, pad_mode_str + " is not an allowed padding mode.");
         }
     }
 
     // Set pads_begin & pads_end (from the pad_val_op)
     std::vector<int64_t> paddings;
-    GetStaticInputVector(node, 1, &paddings);
+    get_static_input_vec(node, 1, &paddings);
     if (paddings.size() % 2 != 0) {
-        throw errors::InvalidArgument("Constant node for paddings does not have an even number of "
-                                      "elements");
+        TF_OP_VALIDATION_CHECK(node,
+                               false,
+                               "Constant node for paddings does not have an even number of "
+                               "elements");
     }
     std::vector<int64_t> pad_begin(paddings.size() / 2);
     std::vector<int64_t> pad_end(paddings.size() / 2);
@@ -58,14 +59,13 @@ OutputVector TranslatePadOp(const NodeContext& node) {
         pad_begin[i] = paddings[2 * i];
         pad_end[i] = paddings[2 * i + 1];
     }
-    auto pads_begin_node = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{pad_begin.size()}, pad_begin);
-    auto pads_end_node = ConstructNgNode<Constant>(node.get_name(), element::i64, Shape{pad_end.size()}, pad_end);
+    auto pads_begin_node = make_shared<Constant>(element::i64, Shape{pad_begin.size()}, pad_begin);
+    auto pads_end_node = make_shared<Constant>(element::i64, Shape{pad_end.size()}, pad_end);
 
     // Create final Op
-    auto result_pad_op =
-        ConstructNgNode<Pad>(node.get_name(), ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
-
-    return {result_pad_op};
+    auto res = make_shared<Pad>(ng_input, pads_begin_node, pads_end_node, pad_val_op, pad_mode);
+    set_node_name(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf
