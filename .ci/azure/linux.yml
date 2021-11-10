@@ -212,7 +212,6 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph Python Bindings Tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
@@ -232,7 +231,6 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
     # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
@@ -287,7 +285,6 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       . $(SETUPVARS)

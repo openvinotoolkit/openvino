@@ -162,14 +162,10 @@ function(ie_add_plugin)
 endfunction()
 
 #
-# ie_register_plugins(MAIN_TARGET <main target name>
-#                     POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
+# ie_register_plugins_dynamic(MAIN_TARGET <main target name>
+#                             POSSIBLE_PLUGINS <list of plugins which can be build by this repo>)
 #
-macro(ie_register_plugins)
-    if(NOT BUILD_SHARED_LIBS)
-        return()
-    endif()
-
+macro(ie_register_plugins_dynamic)
     set(options)
     set(oneValueArgs MAIN_TARGET)
     set(multiValueArgs POSSIBLE_PLUGINS)
@@ -239,6 +235,12 @@ macro(ie_register_plugins)
                       COMMENT
                         "Registering plugins to plugins.xml config file"
                       VERBATIM)
+endmacro()
+
+macro(ie_register_plugins)
+    if(BUILD_SHARED_LIBS)
+        ie_register_plugins_dynamic(${ARGN})
+    endif()
 endmacro()
 
 #
