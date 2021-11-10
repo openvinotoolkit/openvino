@@ -152,6 +152,7 @@ std::vector<std::string> disabledTestPatterns() {
         // bad accuracy
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
+        
         // Issue: 71121
         R"(.*smoke_Proposal*.*TS=\(2.*)",
         // TODO : CVS-69533
@@ -165,6 +166,12 @@ std::vector<std::string> disabledTestPatterns() {
         // Failure happened on win and macos for current seeds.
         R"(.*CTCLossLayerTest.*CMR=1.*)",
         R"(.*CTCLossLayerCPUTest.*ctcMergeRepeated=1.*)",
+        // Issue:
+        R"(.*DeconvolutionLayerCPUTest.*ENFORCE_BF16=YES.*)",
+        R"(.*GroupDeconvolutionLayerCPUTest.*ENFORCE_BF16=YES.*)",
+        R"(.*smoke_Deconv_2D_Blocked_FP32.*PRC=f32_.*_S=\(1.1\)_PB=\(0.0\)_PE=\(0.0\)_D=\(1.1\)_OP=\(\)_O=64_.*\(\(15.15\)\)_\(\(9.10\)\)_\(\(9.9\)\).*=Multiply\(PerChannel\),Add\(PerChannel\).*.*)",
+        R"(.*smoke_Deconv_3D_Blocked_FP32.*PRC=f32_.*_S=\(1.1.1\)_PB=\(0.0.0\)_PE=\(0.0.0\)_D=\(1.1.1\)_OP=\(\)_O=32_.*\(\(7.7.7\)\)_\(\(7.9.7\)\).*=Multiply\(PerChannel\),Add\(PerChannel\).*)",
+        R"(.*smoke_GroupDeconv_2D_Blocked_FP32.*PRC=f32_.*_S=\(1.1\)_PB=\(0.0\)_PE=\(0.0\)_D=\(1.1\)_OP=\(\)_O=64_G=2_.*\(\(15.15\)\)_\(\(9.10\)\)_\(\(9.9\)\).*=Multiply\(PerChannel\),Add\(PerChannel\).*)",
     };
 
 #define FIX_62820 0

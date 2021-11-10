@@ -722,6 +722,8 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
+    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
+
     bool isDynamic = false;
 
     bool inputShapesDefined() const;
@@ -746,7 +748,8 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims = {};
-    std::shared_ptr<ngraph::Node> opToShapeInfer;
+
+    mutable std::shared_ptr<ngraph::Node> opToShapeInfer;
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
@@ -788,7 +791,6 @@ private:
         return PD(*selected_desc_ptr, engine);
     }
 
-    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 

@@ -34,6 +34,8 @@ public:
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
+    const mkldnn::memory& getWeights() const;
+
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
@@ -42,10 +44,23 @@ public:
     const InferenceEngine::SizeVector& getWeightDims() { return weightDims; }
     const std::vector<ptrdiff_t>& getStride() { return stride; }
 
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override {
+        // std::cout << vec2str(getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()) << std::endl
+        //           << vec2str(getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()) << std::endl;
+        execute(strm);
+    }
+    bool needShapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
+    VectorDims deconvShapeInfer(const VectorDims &inDims) const;
+    void initPadding(const std::shared_ptr<ngraph::Node> op);
+
 private:
     bool withGroups = false;
     bool isDW = false;
     bool isInt8 = false;
+    bool autoPad = false;
+    bool withOutputShape = false;
     size_t groupNum = 1;
     size_t IC;
     size_t OC;
@@ -54,12 +69,26 @@ private:
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
-    InferenceEngine::SizeVector weightDims;
-    std::vector<std::shared_ptr<mkldnn::convolution_forward::desc>> descs_fwd;
-    std::vector<std::shared_ptr<mkldnn::convolution_backward_data::desc>> descs_bwd;
+    mutable std::vector<int32_t> outSpatialDims;
+    VectorDims weightDims;
+
+    AttrPtr pAttr;
 
     mkldnn::primitive_attr attr;
-    void setPostOps(mkldnn::primitive_attr &attr);
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
+
+    void initPaddingR(const Shape &inShape, const Shape &outShape);
+
+    using DefaultDeconvDescs = std::pair<std::shared_ptr<mkldnn::convolution_backward_data::desc>,
+                                         std::shared_ptr<mkldnn::convolution_forward::primitive_desc>>;
+    DefaultDeconvDescs createDescriptorInternalDefault(const mkldnn::memory::desc& in_candidate,
+                                                       const mkldnn::memory::desc& wgh_candidate,
+                                                       const mkldnn::memory::desc& out_candidate,
+                                                       mkldnn::algorithm alg) const;
+    std::shared_ptr<mkldnn::deconvolution_forward::desc> createDescriptorInternalInt8(const mkldnn::memory::desc& in_candidate,
+                                                                                      const mkldnn::memory::desc& wgh_candidate,
+                                                                                      const mkldnn::memory::desc& out_candidate,
+                                                                                      mkldnn::algorithm alg) const;
 
     std::string errorPrefix;
 
