@@ -14,9 +14,7 @@
 namespace py = pybind11;
 
 void regclass_frontend_FrontEnd(py::module m) {
-    py::class_<ov::frontend::FrontEnd, std::shared_ptr<ov::frontend::FrontEnd>> fem(m,
-                                                                                            "FrontEnd",
-                                                                                            py::dynamic_attr());
+    py::class_<ov::frontend::FrontEnd, std::shared_ptr<ov::frontend::FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr());
     fem.doc() = "openvino.frontend.FrontEnd wraps ov::frontend::FrontEnd";
 
     fem.def(
