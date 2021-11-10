@@ -792,26 +792,32 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!all_constants)
         return false;
 
-    HostTensorVector input_tensors;
+    ov::runtime::TensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto host_tensor = make_shared<ngraph::runtime::HostTensor>(
-            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr()));
-        input_tensors.push_back(host_tensor);
+        auto constant_node = ov::as_type<ngraph::op::v0::Constant>(input.get_node());
+        if (constant_node) {
+            auto host_tensor = ov::runtime::Tensor(constant_node->get_element_type(),
+                                                   constant_node->get_shape(),
+                                                   const_cast<void*>(constant_node->get_data_ptr()));
+            input_tensors.emplace_back(host_tensor);
+        }
     }
-    HostTensorVector output_tensors;
-    OutputVector output_constants;
+
+    ov::runtime::TensorVector output_tensors;
     for (const auto& output : outputs()) {
-        auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
-        output_tensors.push_back(tensor);
+        auto host_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape());
+        output_tensors.emplace_back(host_tensor);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
+
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
-            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
+            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i].get_element_type(),
+                                                                 output_tensors[i].get_shape(),
+                                                                 output_tensors[i].data());
         }
         return true;
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
     return false;
 }
 

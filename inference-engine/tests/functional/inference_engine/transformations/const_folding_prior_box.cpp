@@ -312,7 +312,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
     {
         auto layer_shape = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, ngraph::Shape {2});
         auto const_prior_box = ngraph::opset8::Constant::create<float>(
-            ngraph::element::f32, ngraph::Shape {2, 16},
+            ngraph::element::f32, ngraph::Shape {2, 48},
             {0.15,     0.15,    0.35,     0.35,     0.127526,  0.16835,  0.372474, 0.33165,   0.0918861, 0.0918861, 0.408114, 0.408114, 0.65,     0.15,
              0.85,     0.35,    0.627526, 0.16835,  0.872474,  0.33165,  0.591886, 0.0918861, 0.908114,  0.408114,  0.15,     0.65,     0.35,     0.85,
              0.127526, 0.66835, 0.372474, 0.83165,  0.0918861, 0.591886, 0.408114, 0.908114,  0.65,      0.65,      0.85,     0.85,     0.627526, 0.66835,
