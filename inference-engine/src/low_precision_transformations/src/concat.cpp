@@ -113,8 +113,10 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             auto subtractInput = dequantization.subtract == nullptr ?
                 std::make_shared<ngraph::opset1::Constant>(deqPrecision, targetShape, std::vector<float>({ 0.f })) :
                 broadcastElementWiseConst(dequantization.subtractConstant, targetShape);
-            if (dequantization.subtractConvert != nullptr)
-                subtractInput = dequantization.subtractConvert->clone_with_new_inputs({ subtractInput });
+            if (dequantization.subtractConvert != nullptr) {
+                subtractInput = foldConvert(subtractInput, dequantization.subtractConvert->get_convert_element_type());
+                NetworkHelper::copyInfo(dequantization.subtractConvert, subtractInput);
+            }
             subtractNodes.push_back(subtractInput);
         }
 
