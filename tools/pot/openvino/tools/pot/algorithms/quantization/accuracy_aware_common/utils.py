@@ -260,8 +260,6 @@ def evaluate_model(
         per_sample_subset_indices=None,
         output_node_name=None,
         stats_layout=None,
-        sampler=None,
-        count_metrics=True,
 ):
     """Evaluates the model and processes metrics values
         :param model: model to evaluate
@@ -280,9 +278,9 @@ def evaluate_model(
 
     index_sampler = create_sampler(engine, samples=subset_indices)
     (metrics_per_sample, metrics), raw_output = engine.predict(stats_layout=stats_layout,
-                                                            sampler=index_sampler,
-                                                            metric_per_sample=True,
-                                                            print_progress=print_progress)
+                                                               sampler=index_sampler,
+                                                               metric_per_sample=True,
+                                                               print_progress=print_progress)
 
     raw_output = process_raw_output(raw_output, output_node_name)
     metrics_per_sample = process_per_sample_metrics(metrics_per_sample,
@@ -293,7 +291,7 @@ def evaluate_model(
     eu.reset_dataset_to_default(engine)
 
     return metrics, metrics_per_sample
- 
+
 
 def process_raw_output(output, output_node_name):
     if not output:
