@@ -49,6 +49,8 @@ typedef enum {
 typedef struct xLinkDeviceHandle_t {
     XLinkProtocol_t protocol;
     void* xLinkFD;
+    char* devicePath;
+    char* devicePath2;
 } xLinkDeviceHandle_t;
 
 /**

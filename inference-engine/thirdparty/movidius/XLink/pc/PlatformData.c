@@ -55,8 +55,8 @@ extern int usbFdRead;
 // Helpers declaration. Begin.
 // ------------------------------------
 #ifdef USE_USB_VSC
-static int usb_write(libusb_device_handle *f, const void *data, size_t size);
-static int usb_read(libusb_device_handle *f, void *data, size_t size);
+static int usb_write(xLinkDeviceHandle_t *dh, const void *data, size_t size);
+static int usb_read(xLinkDeviceHandle_t *dh, void *data, size_t size);
 #endif
 // ------------------------------------
 // Helpers declaration. End.
@@ -91,12 +91,12 @@ int (*read_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*, void*, int) = \
 
 int XLinkPlatformWrite(xLinkDeviceHandle_t *deviceHandle, void *data, int size)
 {
-    return write_fcts[deviceHandle->protocol](deviceHandle->xLinkFD, data, size);
+    return write_fcts[deviceHandle->protocol](deviceHandle, data, size);
 }
 
 int XLinkPlatformRead(xLinkDeviceHandle_t *deviceHandle, void *data, int size)
 {
-    return read_fcts[deviceHandle->protocol](deviceHandle->xLinkFD, data, size);
+    return read_fcts[deviceHandle->protocol](deviceHandle, data, size);
 }
 
 void* XLinkPlatformAllocateData(uint32_t size, uint32_t alignment)
@@ -133,7 +133,7 @@ void XLinkPlatformDeallocateData(void *ptr, uint32_t size, uint32_t alignment)
 // Wrappers implementation. Begin.
 // ------------------------------------
 
-int usbPlatformRead(void* fd, void* data, int size)
+int usbPlatformRead(void* dh, void* data, int size)
 {
     int rc = 0;
 #ifndef USE_USB_VSC
@@ -173,12 +173,12 @@ int usbPlatformRead(void* fd, void* data, int size)
     }
 #endif  /*USE_LINK_JTAG*/
 #else
-    rc = usb_read((libusb_device_handle *) fd, data, size);
+    rc = usb_read((xLinkDeviceHandle_t *) dh, data, size);
 #endif  /*USE_USB_VSC*/
     return rc;
 }
 
-int usbPlatformWrite(void *fd, void *data, int size)
+int usbPlatformWrite(void *dh, void *data, int size)
 {
     int rc = 0;
 #ifndef USE_USB_VSC
@@ -221,7 +221,7 @@ int usbPlatformWrite(void *fd, void *data, int size)
     }
 #endif  /*USE_LINK_JTAG*/
 #else
-    rc = usb_write((libusb_device_handle *) fd, data, size);
+    rc = usb_write((xLinkDeviceHandle_t  *) dh, data, size);
 #endif  /*USE_USB_VSC*/
     return rc;
 }
@@ -342,8 +342,9 @@ int pciePlatformRead(void *f, void *data, int size)
 // Helpers implementation. Begin.
 // ------------------------------------
 #ifdef USE_USB_VSC
-int usb_read(libusb_device_handle *f, void *data, size_t size)
+int usb_read(xLinkDeviceHandle_t *dh, void *data, size_t size)
 {
+    libusb_device_handle *f = dh->xLinkFD;
     const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
@@ -354,20 +355,24 @@ int usb_read(libusb_device_handle *f, void *data, size_t size)
         int rc = usb_bulk_read(f, USB_ENDPOINT_IN, (unsigned char *)data, ss, &bt, XLINK_USB_DATA_TIMEOUT);
 #else
         int rc = libusb_bulk_transfer(f, USB_ENDPOINT_IN,(unsigned char *)data, ss, &bt, XLINK_USB_DATA_TIMEOUT);
+        if (rc == -4) {
+            usleep(1000000);
+            XLinkPlatformConnect(dh->devicePath2, dh->devicePath, dh->protocol, dh->xLinkFD);
+            usleep(100000);
+            continue;
+        }
 #endif
         if(rc)
             return rc;
         data = ((char *)data) + bt;
         size -= bt;
-#if !(defined(_WIN32) || defined(_WIN64))
-        usleep(10);
-#endif
     }
     return 0;
 }
 
-int usb_write(libusb_device_handle *f, const void *data, size_t size)
+int usb_write(xLinkDeviceHandle_t *dh, const void *data, size_t size)
 {
+    libusb_device_handle *f = dh->xLinkFD;
     const int chunk_size = DEFAULT_CHUNKSZ;
     while(size > 0)
     {
@@ -378,14 +383,17 @@ int usb_write(libusb_device_handle *f, const void *data, size_t size)
         int rc = usb_bulk_write(f, USB_ENDPOINT_OUT, (unsigned char *)data, ss, &bt, XLINK_USB_DATA_TIMEOUT);
 #else
         int rc = libusb_bulk_transfer(f, USB_ENDPOINT_OUT, (unsigned char *)data, ss, &bt, XLINK_USB_DATA_TIMEOUT);
+        if (rc == -4) {
+            usleep(1000000);
+            XLinkPlatformConnect(dh->devicePath2, dh->devicePath, dh->protocol, dh->xLinkFD);
+            usleep(100000);
+            continue;
+        }
 #endif
         if(rc)
             return rc;
         data = (char *)data + bt;
         size -= bt;
-#if !(defined(_WIN32) || defined(_WIN64))
-        usleep(10);
-#endif
     }
     return 0;
 }

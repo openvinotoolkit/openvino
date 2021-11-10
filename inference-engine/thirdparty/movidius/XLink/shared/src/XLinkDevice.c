@@ -187,6 +187,8 @@ XLinkError_t XLinkConnect(XLinkHandler_t* handler)
     mvLog(MVLOG_DEBUG,"%s() device name %s glHandler %p protocol %d\n", __func__, handler->devicePath, glHandler, handler->protocol);
 
     link->deviceHandle.protocol = handler->protocol;
+    link->deviceHandle.devicePath = handler->devicePath;
+    link->deviceHandle.devicePath2 = handler->devicePath2;
     int connectStatus = XLinkPlatformConnect(handler->devicePath2, handler->devicePath,
                                              link->deviceHandle.protocol, &link->deviceHandle.xLinkFD);
 
