@@ -545,6 +545,7 @@ public:
 #define CASE_CONV_U8S8_12 {32, 15, 5, 5}, {32, 30, 3, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_13 {32, 16, 4, 5}, {32, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_14 {32, 17, 4, 5}, {32, 17, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_15 {1, 15, 2, 2}, {1, 30, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_CONV_S8S8_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_2 {1, 15, 5, 5}, {1, 30, 3, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -2315,7 +2316,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
                  reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 
@@ -9432,6 +9433,405 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish_onednn,
                                 bc_test_params{CASE_CONV_S8S8_12, 2, 7},
                                 bc_test_params{CASE_CONV_S8S8_13, 2, 7},
                                 bc_test_params{CASE_CONV_S8S8_15, 2, 7},
+                        }));
+
+class conv_int8_eltwise_scale_onednn : public ConvFusingTestOneDNN {};
+TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
+    auto p = GetParam();
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p), -2, 2)),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("sum_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+                 data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation, p.out_shape, data_types::f32, false),
+                 eltwise("sum", {"conv_prim", "sum_data"}, eltwise_mode::sum, data_types::f32),
+                 eltwise("scale", {"sum", "scale_data"}, eltwise_mode::prod, data_types::f32),
+                 crop("crop", "scale", get_output_layout(p).size, {0, 0, 0, 0}),
+                 reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+
+    auto input_prim = get_mem(get_input_layout(p));
+
+    auto forcing_format = p.input_format;
+    implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network_fused.set_input_data("input", input_prim);
+    network_not_fused.set_input_data("input", input_prim);
+
+    // First network.execute() call
+    compare(network_not_fused, network_fused, p);
+    // Second network.execute() call to make sure that scales have not been wrongly overwritten within first iteration
+    // and don't affect final result of second iteration
+    compare(network_not_fused, network_fused, p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_scale_onednn,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_U8S8_15, 2, 5},
+                        }));
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* ------------------------------ OneDNN post-ops cases with optimizations ----------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+
+// Before optimization: eltw_linear + eltw_linear
+// After optimization: eltw_linear
+// Limitations: no
+// DNNL_VERBOSE log without optimization: attr-post-ops:eltwise_linear:12.75:127.5+eltwise_linear:1:-128
+// DNNL_VERBOSE log with optimization:    attr-post-ops:eltwise_linear:12.75:-0.5
+class post_ops_optimizations_onednn_eltw_linear_eltw_linear : public ConvFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_eltw_linear_eltw_linear, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_single_element_layout(p), -10)),
+                 data("in_hi", get_mem(get_single_element_layout(p), 10)),
+                 data("out_lo", get_mem(get_single_element_layout(p), -128)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 quantize("quantize", "conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_linear_eltw_linear,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                // cases with batch = 1
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 3},
+
+                                // cases with batch = 16
+                                bc_test_params{CASE_CONV_U8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_10, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_10, 2, 3},
+
+                                // cases with batch = 32
+                                bc_test_params{CASE_CONV_U8S8_11, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_15, 2, 3},
+                        }));
+
+// Before optimization: eltw_non_linear + eltw_linear
+// After optimization: eltw_non_linear
+// Limitations: beta = 0 in eltw_linear
+// DNNL_VERBOSE log without optimization: attr-post-ops:eltwise_linear:12.75:127.5+eltwise_round+eltwise_linear:2.00784+eltwise_clip:0:512
+// DNNL_VERBOSE log with optimization:    attr-post-ops:eltwise_linear:12.75:127.5+eltwise_round:0:0:2.00784+eltwise_clip:0:512
+class post_ops_optimizations_onednn_eltw_non_linear_eltw_linear : public ConvFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_eltw_non_linear_eltw_linear, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_single_element_layout(p), -10)),
+                 data("in_hi", get_mem(get_single_element_layout(p), 10)),
+                 data("out_lo", get_mem(get_single_element_layout(p), 0)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 512)),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 quantize("quantize", "conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::f32),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_non_linear_eltw_linear,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                // cases with batch = 1
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 3},
+
+                                // cases with batch = 16
+                                bc_test_params{CASE_CONV_U8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_10, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_10, 2, 3},
+
+                                // cases with batch = 32
+                                bc_test_params{CASE_CONV_U8S8_11, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_15, 2, 3},
+                        }));
+
+// Before optimization: binary_add + eltw_linear
+// After optimization: binary_add
+// Limitations: alpha = 1 and scale = 1 in eltw_linear; binary_add is a constant compile-time buffer
+// DNNL_VERBOSE log without optimization: attr-oscale:2 attr-post-ops:binary_add:f32:2+eltwise_linear:1:-127+eltwise_clip:-127:127
+// DNNL_VERBOSE log with optimization:    attr-oscale:2 attr-post-ops:binary_add:f32:2+eltwise_clip:-127:127
+class post_ops_optimizations_onednn_binary_add_eltw_linear : public ConvFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_binary_add_eltw_linear, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+                 data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_lo", get_mem(get_single_element_layout(p), -127)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 quantize("quantize", "conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_add_eltw_linear,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                // cases with batch = 1
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 3},
+
+                                // cases with batch = 16
+                                bc_test_params{CASE_CONV_U8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_10, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_10, 2, 3},
+
+                                // cases with batch = 32
+                                bc_test_params{CASE_CONV_U8S8_11, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_15, 2, 3},
+                        }));
+
+// Before optimization: binary_mul + eltw_linear
+// After optimization: binary_mul
+// Limitations: beta = 0 in eltw_linear; binary_mul is a constant compile-time buffer
+// DNNL_VERBOSE log without optimization: attr-oscale:2 attr-post-ops:binary_mul:f32:2+eltwise_linear:2.01575+eltwise_clip:0:512
+// DNNL_VERBOSE log with optimization:    attr-oscale:2 attr-post-ops:binary_mul:f32:2+eltwise_clip:0:512
+class post_ops_optimizations_onednn_binary_mul_eltw_linear : public ConvFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_binary_mul_eltw_linear, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("eltwise_data", get_mem(get_per_channel_layout(p), -1, 1)),
+                 data("in_lo", get_mem(get_per_channel_layout(p), 0)),
+                 data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_lo", get_mem(get_single_element_layout(p), 0)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 512)),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 eltwise("eltwise", { "conv_prim", "eltwise_data" }, eltwise_mode::prod),
+                 quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_binary_mul_eltw_linear,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                // cases with batch = 1
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 4},
+
+                                // cases with batch = 16
+                                bc_test_params{CASE_CONV_U8S8_9, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_10, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_9, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_10, 2, 4},
+
+                                // cases with batch = 32
+                                bc_test_params{CASE_CONV_U8S8_11, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_12, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_13, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_12, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_13, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_14, 2, 4},
+                        }));
+
+// Before optimization: o_scale + eltw_linear
+// After optimization: o_scale
+// Limitations: beta = 0 in eltw_linear
+// DNNL_VERBOSE log without optimization: attr-oscale:2 attr-post-ops:eltwise_linear:2.01575+eltwise_clip:0:512
+// DNNL_VERBOSE log with optimization:    attr-oscale:2 attr-post-ops:eltwise_clip:0:512
+class post_ops_optimizations_onednn_oscale_eltw_linear : public ConvFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_oscale_eltw_linear, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_per_channel_layout(p), 0)),
+                 data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_lo", get_mem(get_single_element_layout(p), 0)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 512)),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 quantize("quantize", "conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_oscale_eltw_linear,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                // cases with batch = 1
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 3},
+
+                                // cases with batch = 16
+                                bc_test_params{CASE_CONV_U8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_10, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_10, 2, 3},
+
+                                // cases with batch = 32
+                                bc_test_params{CASE_CONV_U8S8_11, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_14, 2, 3},
+                        }));
+
+// Before optimization: eltw_any + sum + eltw_linear
+// After optimization: eltw_any + sum
+// Limitations: beta = 0 in eltw_linear
+// DNNL_VERBOSE log without optimization: attr-post-ops:eltwise_relu+sum:1:0:u8+eltwise_linear:12.7+eltwise_clip:0:127
+// DNNL_VERBOSE log with optimization:    attr-post-ops:eltwise_relu:0:0:12.7+sum:12.7:0:u8+eltwise_clip:0:127
+class post_ops_optimizations_onednn_eltw_any_sum_eltw_linear : public ConvFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_onednn_eltw_any_sum_eltw_linear, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_single_element_layout(p), 0)),
+                 data("in_hi", get_mem(get_single_element_layout(p), 10)),
+                 data("out_lo", get_mem(get_single_element_layout(p), 0)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                 data("eltwise_data", get_mem(get_output_layout(p))),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::relu_negative_slope),
+                 eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum),
+                 quantize("quantize", "sum", "in_lo", "in_hi", "out_lo", "out_hi", 128, data_types::u8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_onednn_eltw_any_sum_eltw_linear,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                // cases with batch = 1
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 5},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 5},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 5},
+
+                                // cases with batch = 16
+                                bc_test_params{CASE_CONV_U8S8_10, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_10, 2, 5},
+
+                                // cases with batch = 32
+                                bc_test_params{CASE_CONV_U8S8_11, 2, 5},
+                                bc_test_params{CASE_CONV_U8S8_12, 2, 5},
+                                bc_test_params{CASE_CONV_U8S8_13, 2, 5},
+                                bc_test_params{CASE_CONV_U8S8_14, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_12, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_13, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_14, 2, 5},
+                                bc_test_params{CASE_CONV_S8S8_15, 2, 5},
+                        }));
+
+// Input range uses in 2 cases: not per-tensor output range or out_lo > out_hi
+// Here's out_lo > out_hi and no optimizations
+// DNNL_VERBOSE log: attr-post-ops:eltwise_linear:12.75:127.5+eltwise_round+eltwise_linear:-1:127
+class post_ops_optimizations_input_range : public ConvFusingTestOneDNN {};
+TEST_P(post_ops_optimizations_input_range, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_single_element_layout(p), -10)),
+                 data("in_hi", get_mem(get_single_element_layout(p), 10)),
+                 data("out_lo", get_mem(get_single_element_layout(p), 127)),
+                 data("out_hi", get_mem(get_single_element_layout(p), -128)),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 quantize("quantize", "conv_prim", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, post_ops_optimizations_input_range,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                // cases with batch = 1
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 3},
+
+                                // cases with batch = 16
+                                bc_test_params{CASE_CONV_U8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_10, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_9, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_10, 2, 3},
+
+                                // cases with batch = 32
+                                bc_test_params{CASE_CONV_U8S8_11, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_12, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_13, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_14, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_15, 2, 3},
                         }));
 #endif
 

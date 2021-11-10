@@ -110,7 +110,7 @@ private:
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
 
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>> initializers;
+    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>> initializers;
 
     std::string errorPrefix;
 };

@@ -11,6 +11,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -44,6 +45,7 @@ BWDCMP_RTTI_DEFINITION(op::v1::Reshape);
 op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& shape_pattern, bool zero_flag)
     : Op({arg, shape_pattern}),
       m_special_zero(zero_flag) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
