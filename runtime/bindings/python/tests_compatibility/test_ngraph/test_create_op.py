@@ -3,7 +3,7 @@
 
 import numpy as np
 import pytest
-from _pyngraph import PartialShape, Dimension
+from _pyngraph import PartialShape
 
 import ngraph as ng
 import ngraph.opset1 as ng_opset1
@@ -24,33 +24,6 @@ integral_np_types = [
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_adaptive_avg_pool(dtype):
-    data = ng.parameter([2, 24, 34, 62], name="input", dtype=dtype)
-    output_shape = ng.constant(np.array([16, 16], dtype=np.int32))
-
-    node = ng.adaptive_avg_pool(data, output_shape)
-
-    assert node.get_type_name() == "AdaptiveAvgPool"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == [2, 24, 16, 16]
-
-
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
-@pytest.mark.parametrize("ind_type", ["i32", "i64"])
-def test_adaptive_max_pool(dtype, ind_type):
-    data = ng.parameter([2, 24, 34, 62], name="input", dtype=dtype)
-    output_shape = ng.constant(np.array([16, 16], dtype=np.int32))
-
-    node = ng.adaptive_max_pool(data, output_shape, ind_type)
-
-    assert node.get_type_name() == "AdaptiveMaxPool"
-    assert node.get_output_size() == 2
-    assert list(node.get_output_shape(0)) == [2, 24, 16, 16]
-    assert list(node.get_output_shape(1)) == [2, 24, 16, 16]
-    assert node.get_output_element_type(1) == Type.i32 if ind_type == "i32" else Type.i64
-
-
-@pytest.mark.parametrize("dtype", [np.float32, np.float64])
 def test_binary_convolution(dtype):
     strides = np.array([1, 1])
     pads_begin = np.array([0, 0])
@@ -67,7 +40,14 @@ def test_binary_convolution(dtype):
     parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
 
     node = ng.binary_convolution(
-        parameter_input0, parameter_input1, strides, pads_begin, pads_end, dilations, mode, pad_value,
+        parameter_input0,
+        parameter_input1,
+        strides,
+        pads_begin,
+        pads_end,
+        dilations,
+        mode,
+        pad_value,
     )
 
     assert node.get_type_name() == "BinaryConvolution"
@@ -91,26 +71,30 @@ def test_ctc_greedy_decoder(dtype):
     assert list(node.get_output_shape(0)) == expected_shape
 
 
-@pytest.mark.parametrize("fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index",
-                         [
-                             (np.float32, np.int32, "i32", "i32", True, True),
-                             (np.float32, np.int32, "i64", "i32", True, True),
-                             (np.float32, np.int32, "i32", "i64", True, True),
-                             (np.float32, np.int32, "i64", "i64", True, True),
-                             (np.float64, np.int64, "i32", "i32", False, True),
-                             (np.float64, np.int64, "i64", "i32", False, True),
-                             (np.float64, np.int64, "i32", "i64", False, True),
-                             (np.float64, np.int64, "i64", "i64", False, True),
-                             (np.float32, np.int32, "i32", "i32", True, False),
-                             (np.float32, np.int32, "i64", "i32", True, False),
-                             (np.float32, np.int32, "i32", "i64", True, False),
-                             (np.float32, np.int32, "i64", "i64", True, False),
-                             (np.float64, np.int64, "i32", "i32", False, False),
-                             (np.float64, np.int64, "i64", "i32", False, False),
-                             (np.float64, np.int64, "i32", "i64", False, False),
-                             (np.float64, np.int64, "i64", "i64", False, False)
-                         ],)
-def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
+@pytest.mark.parametrize(
+    "fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index",
+    [
+        (np.float32, np.int32, "i32", "i32", True, True),
+        (np.float32, np.int32, "i64", "i32", True, True),
+        (np.float32, np.int32, "i32", "i64", True, True),
+        (np.float32, np.int32, "i64", "i64", True, True),
+        (np.float64, np.int64, "i32", "i32", False, True),
+        (np.float64, np.int64, "i64", "i32", False, True),
+        (np.float64, np.int64, "i32", "i64", False, True),
+        (np.float64, np.int64, "i64", "i64", False, True),
+        (np.float32, np.int32, "i32", "i32", True, False),
+        (np.float32, np.int32, "i64", "i32", True, False),
+        (np.float32, np.int32, "i32", "i64", True, False),
+        (np.float32, np.int32, "i64", "i64", True, False),
+        (np.float64, np.int64, "i32", "i32", False, False),
+        (np.float64, np.int64, "i64", "i32", False, False),
+        (np.float64, np.int64, "i32", "i64", False, False),
+        (np.float64, np.int64, "i64", "i64", False, False),
+    ],
+)
+def test_ctc_greedy_decoder_seq_len(
+    fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index
+):
     input0_shape = [8, 20, 128]
     input1_shape = [8]
     input2_shape = [1]
@@ -123,7 +107,12 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
         parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=int_dtype)
 
     node = ng.ctc_greedy_decoder_seq_len(
-        parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl
+        parameter_input0,
+        parameter_input1,
+        parameter_input2,
+        merge_repeated,
+        int_ci,
+        int_sl,
     )
 
     assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
@@ -148,7 +137,13 @@ def test_deformable_convolution_opset1(dtype):
     parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
 
     node = ng_opset1.deformable_convolution(
-        parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
+        parameter_input0,
+        parameter_input1,
+        parameter_input2,
+        strides,
+        pads_begin,
+        pads_end,
+        dilations,
     )
 
     assert node.get_type_name() == "DeformableConvolution"
@@ -173,35 +168,13 @@ def test_deformable_convolution(dtype):
     parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
 
     node = ng.deformable_convolution(
-        parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
-    )
-
-    assert node.get_type_name() == "DeformableConvolution"
-    assert node.get_output_size() == 1
-    assert list(node.get_output_shape(0)) == expected_shape
-
-
-@pytest.mark.parametrize("dtype", np_types)
-def test_deformable_convolution_mask(dtype):
-    strides = np.array([1, 1])
-    pads_begin = np.array([0, 0])
-    pads_end = np.array([0, 0])
-    dilations = np.array([1, 1])
-
-    input0_shape = [1, 1, 9, 9]
-    input1_shape = [1, 18, 7, 7]
-    input2_shape = [1, 1, 3, 3]
-    input3_shape = [1, 9, 7, 7]
-    expected_shape = [1, 1, 7, 7]
-
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
-    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
-    parameter_input3 = ng.parameter(input3_shape, name="Input3", dtype=dtype)
-
-    node = ng.deformable_convolution(
-        parameter_input0, parameter_input1, parameter_input2, strides,
-        pads_begin, pads_end, dilations, parameter_input3
+        parameter_input0,
+        parameter_input1,
+        parameter_input2,
+        strides,
+        pads_begin,
+        pads_end,
+        dilations,
     )
 
     assert node.get_type_name() == "DeformableConvolution"
@@ -277,7 +250,9 @@ def test_gather_tree(dtype):
     parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
     parameter_input3 = ng.parameter(input3_shape, name="Input3", dtype=dtype)
 
-    node = ng.gather_tree(parameter_input0, parameter_input1, parameter_input2, parameter_input3)
+    node = ng.gather_tree(
+        parameter_input0, parameter_input1, parameter_input2, parameter_input3
+    )
 
     assert node.get_type_name() == "GatherTree"
     assert node.get_output_size() == 1
@@ -307,7 +282,13 @@ def test_lstm_cell_operator(dtype):
     expected_shape = [1, 128]
 
     node_default = ng.lstm_cell(
-        parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
@@ -363,7 +344,13 @@ def test_lstm_cell_operator_opset1(dtype):
     expected_shape = [1, 128]
 
     node_default = ng_opset1.lstm_cell(
-        parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
@@ -612,7 +599,9 @@ def test_gru_cell_operator():
 
     expected_shape = [1, 128]
 
-    node_default = ng.gru_cell(parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B, hidden_size)
+    node_default = ng.gru_cell(
+        parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B, hidden_size
+    )
 
     assert node_default.get_type_name() == "GRUCell"
     assert node_default.get_output_size() == 1
@@ -820,8 +809,10 @@ def test_loop():
     ti_inputs = [iter_cnt, data, initial_cma, one]
     body_const_condition = ng.constant(True, dtype=np.bool)
 
-    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
-                           [curr_cma, cma_hist, body_const_condition])
+    graph_body = GraphBody(
+        [body_timestep, body_data_in, body_prev_cma, body_const_one],
+        [curr_cma, cma_hist, body_const_condition],
+    )
     ti_slice_input_desc = [
         # timestep
         # input_idx, body_param_idx, start, stride, part_size, end, axis
@@ -926,7 +917,9 @@ def test_region_yolo():
     end_axis = 3
     do_softmax = False
 
-    node = ng.region_yolo(data, num_coords, num_classes, num_regions, do_softmax, mask, axis, end_axis)
+    node = ng.region_yolo(
+        data, num_coords, num_classes, num_regions, do_softmax, mask, axis, end_axis
+    )
 
     assert node.get_type_name() == "RegionYolo"
     assert node.get_output_size() == 1
@@ -996,7 +989,9 @@ def test_embedding_segments_sum_with_some_opt_inputs():
 def test_embedding_bag_packed_sum():
     emb_table = ng.parameter([5, 2], name="emb_table", dtype=np.float32)
     indices = ng.parameter([3, 3], name="indices", dtype=np.int64)
-    per_sample_weights = ng.parameter([3, 3], name="per_sample_weights", dtype=np.float32)
+    per_sample_weights = ng.parameter(
+        [3, 3], name="per_sample_weights", dtype=np.float32
+    )
 
     # only 1 out of 3 optional inputs
     node = ng.embedding_bag_packed_sum(emb_table, indices, per_sample_weights)
@@ -1048,7 +1043,7 @@ def test_prior_box(int_dtype, fp_dtype):
         "offset": fp_dtype(0),
         "min_size": np.array([2, 3], dtype=fp_dtype),
         "aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
-        "scale_all_sizes": False
+        "scale_all_sizes": False,
     }
 
     layer_shape = ng.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
@@ -1120,7 +1115,9 @@ def test_detection_output(int_dtype, fp_dtype):
     aux_class_preds = ng.parameter([4, 4], fp_dtype, "aux_class_preds")
     aux_box_preds = ng.parameter([4, 8], fp_dtype, "aux_box_preds")
 
-    node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
+    node = ng.detection_output(
+        box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds
+    )
 
     assert node.get_type_name() == "DetectionOutput"
     assert node.get_output_size() == 1
@@ -1158,7 +1155,10 @@ def test_proposal(int_dtype, fp_dtype):
 
     assert node.get_type_name() == "Proposal"
     assert node.get_output_size() == 2
-    assert list(node.get_output_shape(0)) == [batch_size * attributes["post_nms_topn"], 5]
+    assert list(node.get_output_shape(0)) == [
+        batch_size * attributes["post_nms_topn"],
+        5,
+    ]
 
 
 def test_tensor_iterator():
@@ -1193,7 +1193,10 @@ def test_tensor_iterator():
     iter_cnt = ng.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
 
-    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])
+    graph_body = GraphBody(
+        [body_timestep, body_data_in, body_prev_cma, body_const_one],
+        [curr_cma, cma_hist],
+    )
     ti_slice_input_desc = [
         # timestep
         # input_idx, body_param_idx, start, stride, part_size, end, axis
@@ -1551,7 +1554,7 @@ def test_gru_sequence_operator_bidirectional(dtype):
         activation_alpha,
         activation_beta,
         clip,
-        linear_before_reset
+        linear_before_reset,
     )
 
     assert node_param.get_type_name() == "GRUSequence"
@@ -1617,7 +1620,7 @@ def test_gru_sequence_operator_reverse(dtype):
         activation_alpha,
         activation_beta,
         clip,
-        linear_before_reset
+        linear_before_reset,
     )
 
     assert node_param.get_type_name() == "GRUSequence"
@@ -1683,7 +1686,7 @@ def test_gru_sequence_operator_forward(dtype):
         activation_alpha,
         activation_beta,
         clip,
-        linear_before_reset
+        linear_before_reset,
     )
 
     assert node.get_type_name() == "GRUSequence"
@@ -1873,53 +1876,3 @@ def test_rnn_sequence_operator_forward(dtype):
 
     assert node.get_type_name() == "RNNSequence"
     assert node.get_output_size() == 2
-
-
-def test_multiclass_nms():
-    boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
-                           0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
-    boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float)
-    scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
-                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
-    scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float)
-
-    nms_node = ng.multiclass_nms(box, score, output_type="i32", nms_top_k=3,
-                                 iou_threshold=0.5, score_threshold=0.0, sort_result_type="classid",
-                                 nms_eta=1.0)
-
-    assert nms_node.get_type_name() == "MulticlassNms"
-    assert nms_node.get_output_size() == 3
-    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
-    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
-    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
-    assert nms_node.get_output_element_type(0) == Type.f32
-    assert nms_node.get_output_element_type(1) == Type.i32
-    assert nms_node.get_output_element_type(2) == Type.i32
-
-
-def test_matrix_nms():
-    boxes_data = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
-                           0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-                           0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0], dtype="float32")
-    boxes_data = boxes_data.reshape([1, 6, 4])
-    box = ng.constant(boxes_data, dtype=np.float)
-    scores_data = np.array([0.9, 0.75, 0.6, 0.95, 0.5, 0.3,
-                            0.95, 0.75, 0.6, 0.80, 0.5, 0.3], dtype="float32")
-    scores_data = scores_data.reshape([1, 2, 6])
-    score = ng.constant(scores_data, dtype=np.float)
-
-    nms_node = ng.matrix_nms(box, score, output_type="i32", nms_top_k=3,
-                             score_threshold=0.0, sort_result_type="score", background_class=0,
-                             decay_function="linear", gaussian_sigma=2.0, post_threshold=0.0)
-
-    assert nms_node.get_type_name() == "MatrixNms"
-    assert nms_node.get_output_size() == 3
-    assert nms_node.outputs()[0].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(6)])
-    assert nms_node.outputs()[1].get_partial_shape() == PartialShape([Dimension(0, 6), Dimension(1)])
-    assert list(nms_node.outputs()[2].get_shape()) == [1, ]
-    assert nms_node.get_output_element_type(0) == Type.f32
-    assert nms_node.get_output_element_type(1) == Type.i32
-    assert nms_node.get_output_element_type(2) == Type.i32
