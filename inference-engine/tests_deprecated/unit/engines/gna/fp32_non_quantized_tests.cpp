@@ -411,33 +411,6 @@ TEST_F(FP32NonQuantizedTest, TI2PropagateForward) {
             .called_with_input(input_data).equals_to(expected_result1).equals_to(expected_result2);
 }
 
-TEST_F(FP32NonQuantizedTest, EltwiseWithConstInputPropagatedForward) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
-
-    assert_that().onInferModel(eltwiseSumModelWithConstLayer())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input(input_data).equals_to(expected_result);
-}
-
-TEST_F(FP32NonQuantizedTest, EltwiseWithConstInputReorderPropagatedForward) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<float> expected_result = {2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
-
-    assert_that().onInferModel(eltwiseSumModelWithConstLayer2())
-        .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with_input(input_data).equals_to(expected_result);
-}
-
-TEST_F(FP32NonQuantizedTest, EltwiseMulWithConstInputReorderPropagatedForward) {
-    std::vector<float> input_data = {3.0, 1.0, 3.0, 1.0, 3.0, 1.0, 3.0, 1.0, 3.0, 1.0};
-    std::vector<float> expected_result = {6.0, 2.0, 6.0, 2.0, 6.0, 2.0, 6.0, 2.0, 6.0, 2.0};
-
-    assert_that().onInferModel(eltwiseMulModelWithConstLayer())
-        .inNotCompactMode().withWeigthsPattern({2}).gna().propagate_forward().onCPU()
-        .called_with_input(input_data).equals_to(expected_result);
-}
-
 TEST_F(FP32NonQuantizedTest, PowerWithScaleFactorPropagateForward) {
     std::vector<float> input_data(10, 2.f);
     std::vector<float> expected_result(12, 21.f);
