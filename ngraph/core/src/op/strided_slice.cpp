@@ -19,6 +19,7 @@
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -40,6 +41,9 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
       m_new_axis_mask{new_axis_mask},
       m_shrink_axis_mask{shrink_axis_mask},
       m_ellipsis_mask{ellipsis_mask} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
+    ov::mark_as_precision_sensitive(input(3));
     constructor_validate_and_infer_types();
 }
 
