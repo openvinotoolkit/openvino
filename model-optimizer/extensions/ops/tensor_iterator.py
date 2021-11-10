@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
 from copy import copy, deepcopy
+from math import ceil
 
 from extensions.ops.parameter import Parameter
 from mo.front.common.partial_infer.utils import shape_array, is_fully_defined, dynamic_dimension_value
@@ -348,37 +348,29 @@ class TensorIterator(Op):
         ti_graph.remove_nodes_from([node.id for node in fake_input_const_nodes])
 
     @staticmethod
-    def find_iterations_count_for_output(ti_node, output_rec):
+    def find_iterations_count_for_output(ti_node):
         def check_field(record, field):
             return field in record and record[field] is not None
-        iterations_count = 1
-        # 1. check if we need concatenate iteration results for given output
-        if not check_field(output_rec, 'axis'):
-            # in this case we dont concat outputs, so iterations count is not needed really
-            return iterations_count
-
-        # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
-        if check_field(output_rec, 'end') and output_rec['end'] != -1 and \
-                check_field(output_rec, 'start') and output_rec['start'] != -1:
-            # get iterations count from output record
-            iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
-            return iterations_count
-
-        # 3. find out iterations count from inputs.
+        iterations_count = None
+        # find out iterations count from inputs.
         # If no input contains 'axis' attribute then no slicing is in TI and it has only one iteration
         # If several inputs have axis attribute with different iterations count then we use maximum value.
         for in_rec in ti_node.input_port_map:
             if not check_field(in_rec, 'axis'):
                 continue
-            if check_field(in_rec, 'end') and in_rec['end'] != -1 and \
-                    check_field(in_rec, 'start') and in_rec['start'] != -1:
+            assert check_field(in_rec, 'external_port_id'), "external_port_id not set for input of {} node".format(ti_node.id)
+            in_shape = ti_node.in_port(in_rec['external_port_id']).data.get_shape()
+            if check_field(in_rec, 'end') and in_rec['end'] >= 0 and \
+                    check_field(in_rec, 'start') and in_rec['start'] >= 0:
                 in_rec_end = in_rec['end']
                 in_rec_start = in_rec['start']
-            elif check_field(in_rec, 'end') and in_rec['end'] != -1:
+            elif check_field(in_rec, 'end') and in_rec['end'] >= 0:
                 in_rec_end = in_rec['end']
-                in_rec_start = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
-            elif check_field(in_rec, 'start') and in_rec['start'] != -1:
-                in_rec_end = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
+                in_rec_start = in_shape[in_rec['axis']] if not check_field(in_rec, 'start') else \
+                    in_shape[in_rec['axis']] + 1 + in_rec['start']
+            elif check_field(in_rec, 'start') and in_rec['start'] >= 0:
+                in_rec_end = in_shape[in_rec['axis']] if not check_field(in_rec, 'end') else \
+                    in_shape[in_rec['axis']] + 1 + in_rec['end']
                 in_rec_start = in_rec['start']
             else:
                 in_rec_end = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
@@ -393,10 +385,12 @@ class TensorIterator(Op):
             if not is_fully_defined(in_rec_end) or not is_fully_defined(in_rec_start):
                 iterations_count = dynamic_dimension_value
                 continue
-            if (in_rec_end - in_rec_start) / in_rec_stride > iterations_count:
-                iterations_count = (in_rec_end - in_rec_start) / in_rec_stride
 
-        return iterations_count
+            if iterations_count is not None and ceil((in_rec_end - in_rec_start) / in_rec_stride) != iterations_count:
+                raise Error("TensorIterator node {} have inputs with different iterations count".format(ti_node.id))
+            iterations_count = ceil((in_rec_end - in_rec_start) / in_rec_stride)
+
+        return iterations_count if iterations_count is not None else 1
 
 
 def get_internal_node_by_layer_id(ti, internal_layer_id):

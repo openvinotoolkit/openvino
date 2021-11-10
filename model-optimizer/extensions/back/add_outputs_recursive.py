@@ -27,6 +27,26 @@ def ti_set_output_port_shape(cycle_node, internal_id, port_num, iterations_count
     cycle_node.out_port(port_num).data.set_shape(out_shape)
 
 
+def get_iterations_count_from_output_record(output_rec):
+    def check_field(record, field):
+        return field in record and record[field] is not None
+
+    iterations_count = 1
+    # 1. check if we need concatenate iteration results for given output
+    if not check_field(output_rec, 'axis'):
+        # in this case we dont concat outputs, so iterations count is not needed really
+        return iterations_count
+
+    # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
+    if check_field(output_rec, 'end') and output_rec['end'] != -1 and \
+            check_field(output_rec, 'start') and output_rec['start'] != -1:
+        # get iterations count from output record
+        iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
+        return iterations_count
+
+    return None
+
+
 # shape inference for TensorIterator
 # copy shapes from internal nodes + insert correct iterations count where needed
 def ti_infer(step_node, port_num):
@@ -45,7 +65,10 @@ def ti_infer(step_node, port_num):
     port_num = port_num - len(step_node.in_ports())
 
     # find out iterations count for TensorIterator to set output shape correctly
-    iterations_count = TensorIterator.find_iterations_count_for_output(step_node, found_rec)
+
+    iterations_count = get_iterations_count_from_output_record(found_rec)
+    if iterations_count is None:
+        iterations_count = TensorIterator.find_iterations_count_for_output(step_node)
 
     ti_set_output_port_shape(step_node, found_rec['internal_layer_id'], port_num, iterations_count,
                              found_rec['axis'])
