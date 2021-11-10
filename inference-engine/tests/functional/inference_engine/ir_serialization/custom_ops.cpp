@@ -11,6 +11,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ie_core.hpp"
+#include "openvino/runtime/core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
 
@@ -25,6 +26,11 @@
 static std::string get_extension_path() {
     return FileUtils::makePluginLibraryName<char>(
         {}, std::string("template_extension") + IE_BUILD_POSTFIX);
+}
+
+static std::string get_ov_extension_path() {
+    return FileUtils::makePluginLibraryName<char>(
+        {}, std::string("template_ov_extension") + IE_BUILD_POSTFIX);
 }
 
 class CustomOpsSerializationTest : public ::testing::Test {
@@ -155,6 +161,28 @@ TEST_F(CustomOpsSerializationTest, CustomOpNoExtensions) {
     std::string message;
     std::tie(success, message) =
             compare_functions(result.getFunction(), expected.getFunction(), true, false, false, true, true);
+
+    ASSERT_TRUE(success) << message;
+}
+
+TEST_F(CustomOpsSerializationTest, CustomOpOVExtensions) {
+    const std::string model = CommonTestUtils::getModelFromTestModelZoo(
+        IR_SERIALIZATION_MODELS_PATH "custom_identity.xml");
+
+    ov::runtime::Core core;
+    core.add_extension(get_ov_extension_path());
+    auto expected = core.read_model(model);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::Serialize>(
+            m_out_xml_path, m_out_bin_path,
+            ngraph::pass::Serialize::Version::IR_V10);
+    manager.run_passes(expected);
+    auto result = core.read_model(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+            compare_functions(result, expected, true, false, false, true, true);
 
     ASSERT_TRUE(success) << message;
 }
