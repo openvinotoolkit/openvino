@@ -22,13 +22,16 @@ ov::pass::RemoveLoopDanglingParameters::RemoveLoopDanglingParameters() {
     auto loop_pattern = pattern::wrap_type<opset8::Loop>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto loop = std::dynamic_pointer_cast<opset8::Loop>(m.get_match_root());
+        if (loop == nullptr) {
+            return false;
+        }
         auto& body_func = loop->get_function();
         auto loop_inputs = loop->input_values();
         bool pass_applied = false;
 
         auto& body_inputs_descriptors = loop->get_input_descriptions();
         using DescType = decltype(body_inputs_descriptors);
-        auto update_descriptors = [](DescType& descriptors, uint64_t removed_body_idx, uint64_t removed_loop_idx){
+        auto update_descriptors = [](DescType& descriptors, uint64_t removed_body_idx, uint64_t removed_loop_idx) {
         for (auto& desc : descriptors) {
             if (desc->m_body_parameter_index > removed_body_idx) {
                 desc->m_body_parameter_index--;

@@ -21,24 +21,26 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     MATCHER_SCOPE(RemoveConcatZeroDimInput);
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto concat = std::dynamic_pointer_cast<opset8::Concat>(m.get_match_root());
+        auto concat = m.get_match_root();
         auto concat_inputs = concat->input_values();
-        bool pass_applied = false;
         concat_inputs.erase(std::remove_if(concat_inputs.begin(), concat_inputs.end(),
-            [&pass_applied](const Output<Node>& input){
-                const auto& in_shapes = input.get_partial_shape();
-                pass_applied = std::any_of(std::begin(in_shapes), std::end(in_shapes), [](const ov::Dimension& dim){
-                    if (dim.is_static() && dim.get_length() == 0) {
-                        return true;
-                    }
+            [](const Output<Node>& input) {
+                const auto& in_shape = input.get_partial_shape();
+                if (in_shape.rank().is_static()) {
+                    return std::any_of(std::begin(in_shape), std::end(in_shape), [](const ov::Dimension& dim) {
+                        if (dim.is_static() && dim.get_length() == 0) {
+                            return true;
+                        }
+                        return false;
+                    });}
                     return false;
-                });
-                return pass_applied;
                 }), concat_inputs.end());
-        if (pass_applied) {
+
+        bool inputs_removed = concat->get_input_size() > concat_inputs.size();
+        if (inputs_removed) {
             concat->set_arguments(concat_inputs);
         }
-        return pass_applied;
+        return inputs_removed;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);

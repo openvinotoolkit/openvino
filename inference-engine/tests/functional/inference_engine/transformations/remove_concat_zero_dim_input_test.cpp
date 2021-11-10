@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, RemoveCancatZeroDimInputStaticShape) {
+TEST(TransformationTests, RemoveConcatZeroDimInputStaticShape) {
     std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
@@ -46,7 +46,7 @@ TEST(TransformationTests, RemoveCancatZeroDimInputStaticShape) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveCancatZeroDimInputSubgraph) {
+TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph) {
     std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
@@ -75,7 +75,7 @@ TEST(TransformationTests, RemoveCancatZeroDimInputSubgraph) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveCancatZeroDimInputSubgraph2) {
+TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph2) {
     std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, ov::Dimension::dynamic(), 3});
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
@@ -105,7 +105,7 @@ TEST(TransformationTests, RemoveCancatZeroDimInputSubgraph2) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveCancatZeroDimInputPartiallyKnowShape) {
+TEST(TransformationTests, RemoveConcatZeroDimInputPartiallyKnowShape) {
     std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
@@ -134,7 +134,7 @@ TEST(TransformationTests, RemoveCancatZeroDimInputPartiallyKnowShape) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveCancatZeroDimInputDynamicRank) {
+TEST(TransformationTests, RemoveConcatZeroDimInputDynamicRank) {
     std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
@@ -162,7 +162,7 @@ TEST(TransformationTests, RemoveCancatZeroDimInputDynamicRank) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveCancatZeroDimTwoInputs) {
+TEST(TransformationTests, RemoveConcatZeroDimTwoInputs) {
     std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32,
         ov::PartialShape{1, ov::Dimension::dynamic(), ov::Dimension::dynamic()});
