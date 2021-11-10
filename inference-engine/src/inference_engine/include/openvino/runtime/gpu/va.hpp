@@ -75,8 +75,8 @@ public:
      * @param remote_context remote context to check
      */
     static void type_check(const RemoteContext& remote_context) {
-        remote_type_check(
-            remote_context.get_params(),
+        RemoteContext::type_check(
+            remote_context,
             {{GPU_PARAM_KEY(VA_DEVICE), {}}, {GPU_PARAM_KEY(CONTEXT_TYPE), {GPU_PARAM_VALUE(VA_SHARED)}}});
     }
 
@@ -91,13 +91,12 @@ public:
     /**
      * @brief Constructs remote context object from VA display handle
      * @param core OpenVINO Runtime Core object
-     * @param deviceName A device name to create a remote context for
      * @param device A `VADisplay` to create remote context from
      */
-    VAContext(Core& core, std::string deviceName, VADisplay device) {
+    VAContext(Core& core, VADisplay device) : ClContext(core, (cl_context) nullptr) {
         ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
                                    {GPU_PARAM_KEY(VA_DEVICE), static_cast<gpu_handle_param>(device)}};
-        *this = core.create_context(deviceName, context_params);
+        *this = core.create_context(device_name, context_params);
     }
 
     /**

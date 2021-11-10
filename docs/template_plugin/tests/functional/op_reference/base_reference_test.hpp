@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "openvino/core/shape.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -18,10 +20,10 @@ public:
     void LoadNetwork();
     void FillInputs();
     void Infer();
-    void Validate();
+    virtual void Validate();
 
-private:
-    void ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob);
+    static void ValidateBlobs(const ov::runtime::Tensor& refBlob, const ov::runtime::Tensor& outBlob,
+                              float threshold, float abs_threshold);
 
 protected:
     const std::string targetDevice;
@@ -32,6 +34,7 @@ protected:
     ov::runtime::InferRequest inferRequest;
     std::vector<ov::runtime::Tensor> inputData;
     std::vector<ov::runtime::Tensor> refOutData;
+    std::vector<ov::runtime::Tensor> actualOutData;
     float threshold = 1e-2f;    // Relative diff
     float abs_threshold = -1.f; // Absolute diff (not used when negative)
 };

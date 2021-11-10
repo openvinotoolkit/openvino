@@ -75,7 +75,7 @@ public:
     bool created() const override;
     bool canBeInPlace() const override;
     bool canFuse(const MKLDNNNodePtr& node) const override;
-    void appendPostOps(mkldnn::post_ops& ops, bool initAsBinary = false, bool initBinaryMemory = false) override;
+    void appendPostOps(mkldnn::post_ops& ops, const VectorDims &postOpDims, int align = -1, bool initAsBinary = false, bool initBinaryMemory = false) override;
     void fuseInto(MKLDNNNodePtr& parentNode) override;
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -116,7 +116,7 @@ private:
         void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
         const jit_eltwise_params& getJep() const override;
 
-        std::shared_ptr<jit_uni_eltwise_kernel> pKernel;
+        std::unique_ptr<jit_uni_eltwise_kernel> pKernel;
         size_t schedulerWorkAmount = 0;
     };
 
@@ -149,15 +149,17 @@ private:
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
-    size_t scalesSize = 0;
+    std::vector<float> scalesBuffer = {};
+    std::vector<float> shiftsBuffer = {};
 
     std::vector<MKLDNNMemoryPtr> memPtrs = {};
 
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
+    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>;
+    static const std::map<const ngraph::DiscreteTypeInfo, Initializer> initializers;
 
-    void executeOptimized6D(const std::shared_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
+    void executeOptimized6D(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
                             const VectorDims &dims_out) const;
-    void executeOptimizedGeneric(const std::shared_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
+    void executeOptimizedGeneric(const std::unique_ptr<jit_uni_eltwise_kernel> &pKernel, const jit_eltwise_call_args_ptrs &args_ptrs,
                                  const VectorDims &dims_out, const size_t schedulerWorkAmount) const;
     void executeReference(const jit_eltwise_params &jep, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out,
                           const size_t fullWorkAmount) const;

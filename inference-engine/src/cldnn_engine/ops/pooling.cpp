@@ -57,7 +57,7 @@ static PoolingParameters GetPoolingParameters(const ngraph::Shape& kernel,
     return {k, s, pb, pe};
 }
 
-void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>& op) {
+static void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -77,7 +77,7 @@ void CreateAvgPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::AvgPool>&
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>& op) {
+static void CreateMaxPoolOp(Program& p, const std::shared_ptr<ngraph::op::v1::MaxPool>& op) {
     p.ValidateInputs(op, {1});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);

@@ -16,8 +16,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerCase1) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase1) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -32,13 +31,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerCase1) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -50,15 +45,11 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerCase1) {
         auto add = std::make_shared<ngraph::opset8::Add>(broadcast, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerCase2) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase2) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.0});
@@ -73,13 +64,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerCase2) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -91,15 +78,11 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerCase2) {
         auto add = std::make_shared<ngraph::opset8::Add>(broadcast, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerWithConvert) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerWithConvert) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -115,13 +98,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerWithConvert) {
         auto add = std::make_shared<ngraph::opset8::Add>(convert, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -134,16 +113,12 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerWithConvert) {
         auto add = std::make_shared<ngraph::opset8::Add>(convert, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerAddConstNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -158,13 +133,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerAddConstNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -181,16 +152,12 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerAddConstNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerNonFloatRUNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerNonFloatRUNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::i32, ngraph::Shape{}, {0});
@@ -205,13 +172,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerNonFloatRUNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -228,15 +191,11 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerNonFloatRUNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidMinNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMinNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {-2.0});
@@ -251,13 +210,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidMinNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -274,15 +229,11 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidMinNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidMaxNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMaxNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -297,13 +248,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidMaxNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -320,16 +267,12 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidMaxNegative) {
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
 
-TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidAddConstRankNegative) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidAddConstRankNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
         auto min_const = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{}, {0.0});
@@ -344,13 +287,9 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidAddConstRankNeg
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -367,9 +306,6 @@ TEST(TransformationTests, DropoutWithRandomUniformReplacerInvalidAddConstRankNeg
         auto add = std::make_shared<ngraph::opset8::Add>(ru, add_const);
         auto floor = std::make_shared<ngraph::opset8::Floor>(add);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

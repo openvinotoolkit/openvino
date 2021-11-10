@@ -8,13 +8,13 @@
 
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef mock1_ngraph_frontend_EXPORTS
-#    define MOCK_API NGRAPH_HELPER_DLL_EXPORT
+#    define MOCK_API OPENVINO_CORE_EXPORTS
 #else
-#    define MOCK_API NGRAPH_HELPER_DLL_IMPORT
+#    define MOCK_API OPENVINO_CORE_IMPORTS
 #endif  // mock1_ngraph_frontend_EXPORTS
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 class FrontEndMock : public FrontEnd {
 public:

@@ -15,10 +15,12 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations/rt_info/attributes.hpp>
 
 namespace ngraph {
 namespace op {
@@ -49,14 +51,28 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
     }
     return false;
 }
-inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+
+inline bool has_decompression_converts(const std::shared_ptr<const ngraph::Function>& function) {
+    for (const auto& op : function->get_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::opset8::Convert>(op)) {
+            if (ov::is_decompression(op))
+                return true;
+        }
+    }
+    return false;
+}
+
+inline std::string create_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
     const auto& prev_layer = output.get_node_shared_ptr();
     std::string out_name = prev_layer->get_friendly_name();
     if (prev_layer->get_output_size() != 1)
         out_name += "." + std::to_string(output.get_index());
     return out_name;
 }
-inline std::string get_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+    return create_ie_output_name(ov::Output<const ngraph::Node>(output.get_node(), output.get_index()));
+}
+inline std::string get_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto name = output.get_tensor().get_name();
     NGRAPH_SUPPRESS_DEPRECATED_END
@@ -64,6 +80,9 @@ inline std::string get_ie_output_name(const ngraph::Output<ngraph::Node>& output
         name = create_ie_output_name(output);
     }
     return name;
+}
+inline std::string get_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+    return get_ie_output_name(ov::Output<const ngraph::Node>(output.get_node(), output.get_index()));
 }
 
 template <typename T>

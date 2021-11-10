@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <xml_parse_utils.h>
+#include "ir_deserializer.hpp"
 
-#include <ie_ngraph_utils.hpp>
-#include <ir_deserializer.hpp>
-#include <ngraph/op/util/framework_node.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <pugixml.hpp>
-#include <rt_info_deserializer.hpp>
-#include <transformations/rt_info/attributes.hpp>
-#include <utils.hpp>
 
+#include "ie_ngraph_utils.hpp"
 #include "ir_frontend/model.hpp"
+#include "ngraph/op/util/framework_node.hpp"
+#include "ngraph/opsets/opset1.hpp"
+#include "rt_info_deserializer.hpp"
+#include "transformations/rt_info/attributes.hpp"
+#include "utils.hpp"
+#include "xml_parse_utils.h"
 
 using namespace ov;
 
@@ -397,8 +397,9 @@ void XmlDeserializer::on_adapter(const std::string& name,
     adapter.set(ngraph_function);
 }
 
-std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(const pugi::xml_node& root,
-                                                                  const ov::Weights& weights) {
+std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
+    const pugi::xml_node& root,
+    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights) {
     // OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::V10Reader_RT, "V10Parser", "Parse");
 
     struct FunctionNodes {
@@ -615,6 +616,13 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
     }
 
     std::shared_ptr<ngraph::Node> ngraphNode;
+    ov::DiscreteTypeInfo type(params.type.c_str(), 0, params.version.c_str());
+    auto extensionIt = m_extensions.find(type);
+
+    if (extensionIt != m_extensions.end()) {
+        XmlDeserializer visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
+        ngraphNode = (*extensionIt->second).create(inputs, visitor).at(0).get_node_shared_ptr();
+    }
 
     // Find registered opset
     auto opsetIt = m_opsets.find(params.version);
@@ -660,7 +668,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
             constant->alloc_buffer_on_visit_attributes(false);
         }
         ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node, weights, m_opsets, m_variables, m_version);
+        XmlDeserializer visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
 
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
@@ -669,10 +677,9 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
         // To be sure that all default values will be initialized:
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
     }
-
-    if (!ngraphNode && m_use_framework_node) {
-        ngraphNode = std::make_shared<ngraph::op::FrameworkNode>(inputs);
-        XmlDeserializer visitor(node, weights, m_opsets, m_variables, m_version);
+    if (!ngraphNode && m_extensions.count(ov::op::util::FrameworkNode::get_type_info_static())) {
+        ngraphNode = std::make_shared<ov::op::util::FrameworkNode>(inputs);
+        XmlDeserializer visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
         ngraphNode->visit_attributes(visitor);
 
         size_t index{0};
@@ -720,6 +727,9 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(const std::vector<ngra
                 IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field";
             }
             const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
+            if (rt_info.count(type_info)) {
+                IE_THROW() << "multiple rt_info attributes are detected: " << type_info;
+            }
             if (auto attr = attrs_factory.create_by_type_info(type_info)) {
                 RTInfoDeserializer attribute_visitor(item);
                 if (attr->visit_attributes(attribute_visitor)) {

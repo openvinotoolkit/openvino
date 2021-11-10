@@ -25,10 +25,18 @@
  * @def INFERENCE_EXTENSION_API(TYPE)
  * @brief Defines Inference Engine Extension API method
  */
-#if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_EXTENSION_API)
-#    define INFERENCE_EXTENSION_API(TYPE) extern "C" __declspec(dllexport) TYPE
-#else
-#    define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
+#if defined(_WIN32)
+#    ifdef IMPLEMENT_INFERENCE_EXTENSION_API
+#        define INFERENCE_EXTENSION_API(type) extern "C" __declspec(dllexport) type
+#    else
+#        define INFERENCE_EXTENSION_API(type) extern "C" type
+#    endif
+#elif defined(__GNUC__) && (__GNUC__ >= 4)
+#    ifdef IMPLEMENT_INFERENCE_EXTENSION_API
+#        define INFERENCE_EXTENSION_API(type) extern "C" __attribute__((visibility("default"))) type
+#    else
+#        define INFERENCE_EXTENSION_API(type) extern "C" type
+#    endif
 #endif
 
 namespace InferenceEngine {
@@ -201,7 +209,6 @@ using IExtensionPtr = std::shared_ptr<IExtension>;
 
 /**
  * @brief Creates the default instance of the extension
- *
  * @param ext Extension interface
  */
 INFERENCE_EXTENSION_API(void) CreateExtensionShared(IExtensionPtr& ext);
@@ -223,13 +230,23 @@ CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_
     "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
 #endif
 
+}  // namespace InferenceEngine
+
+/**
+ * @def IE_CREATE_EXTENSION
+ * @brief Defines a name of a function creating extension instance
+ */
+#ifndef IE_CREATE_EXTENSION
+#    define IE_CREATE_EXTENSION CreateExtensionShared
+#endif
+
 /**
  * @def IE_DEFINE_EXTENSION_CREATE_FUNCTION
  * @brief Generates extension creation function
  */
-#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                                      \
-    INFERENCE_EXTENSION_API(void)                                                               \
-    InferenceEngine::CreateExtensionShared(std::shared_ptr<InferenceEngine::IExtension>& ext) { \
-        ext = std::make_shared<ExtensionType>();                                                \
+#define IE_DEFINE_EXTENSION_CREATE_FUNCTION(ExtensionType)                        \
+    INFERENCE_EXTENSION_API(void)                                                 \
+    IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext);       \
+    void IE_CREATE_EXTENSION(std::shared_ptr<InferenceEngine::IExtension>& ext) { \
+        ext = std::make_shared<ExtensionType>();                                  \
     }
-}  // namespace InferenceEngine

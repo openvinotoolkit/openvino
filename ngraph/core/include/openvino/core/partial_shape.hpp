@@ -175,7 +175,7 @@ public:
         return m_dimensions;
     }
     friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
-    friend PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
+    friend OPENVINO_API PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
     bool operator==(const PartialShape& partial_shape) const;
     bool operator!=(const PartialShape& partial_shape) const;
     /// Get the max bounding shape
@@ -224,6 +224,7 @@ public:
     ///        element in the shape. Iteration is done in ordinary
     ///        element order.
     iterator begin() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.begin();
     }
     /// \brief Returns a read-only (constant) iterator that points to the
@@ -236,6 +237,7 @@ public:
     ///        element in the shape. Iteration is done in ordinary
     ///        element order.
     iterator end() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.end();
     }
     /// \brief Returns a read-only (constant) iterator that points one past
@@ -248,6 +250,7 @@ public:
     ///        last element in the shape. Iteration is done in reverse
     ///        element order.
     reverse_iterator rbegin() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.rbegin();
     }
     /// \brief Returns a read-only (constant) reverse iterator that points
@@ -260,6 +263,7 @@ public:
     ///        before the first element in the shape. Iteration is done
     ///        in reverse element order.
     reverse_iterator rend() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.rend();
     }
     /// \brief Returns a read-only (constant) reverse iterator that points
@@ -375,7 +379,7 @@ private:
 ///     std::invalid_argument.
 /// \li If `s1` and `s2` both have static rank, and their ranks are equal,
 ///     returns a new shape whose `i`th dimension is `s1[i] + s2[i]`.
-PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
+OPENVINO_API PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
 
 /// \brief Inserts a human-readable representation of a PartialShape into an output stream.
 /// \param str The output stream targeted for insertion.
@@ -419,13 +423,12 @@ public:
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialShape>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
     operator ov::PartialShape&() {
         return m_ref;
     }
+
+    OPENVINO_RTTI("AttributeAdapter<PartialShape>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::PartialShape& m_ref;
