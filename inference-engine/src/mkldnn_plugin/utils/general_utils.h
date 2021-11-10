@@ -75,12 +75,12 @@ inline bool dimsEqualStrong(size_t lhs, size_t rhs) {
  * second shape
  * @return result of comparison
  */
-inline bool dimsEqualStrong(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs) {
+inline bool dimsEqualStrong(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
     if (lhs.size() != rhs.size())
         return false;
 
     for (size_t i = 0; i < lhs.size(); i++) {
-        if (!dimsEqualStrong(lhs[i], rhs[i]))
+        if (i != skipAxis && !dimsEqualStrong(lhs[i], rhs[i]))
             return false;
     }
 

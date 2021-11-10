@@ -179,8 +179,13 @@ static inline bool isPhycicalMemCompatible(const MemoryDesc& lhsMemDesc, const M
              rhsStridesDefault[rhsBlockDims.size() - (i - 1)] * rhsBlockDims[rhsBlockDims.size() - (i - 1)];
     }
 
-    bool isDenseTensor = dimsEqualStrong(lhsStridesDefault, lhsBlockMemDesc->getStrides()) &&
-                         dimsEqualStrong(rhsStridesDefault, rhsBlockMemDesc->getStrides());
+    // this check needed to avoid inserting unnecessary reorders if the memory is used in place and the batch size is equal to 1
+    // in nodes like concate and split
+    size_t lhsSkipAxis = lhsBlockDims.size() > 0 && lhsBlockDims[0] == 1 ? 0 : Shape::UNDEFINED_DIM;
+    size_t rhsSkipAxis = rhsBlockDims.size() > 0 && rhsBlockDims[0] == 1 ? 0 : Shape::UNDEFINED_DIM;
+
+    bool isDenseTensor = dimsEqualStrong(lhsStridesDefault, lhsBlockMemDesc->getStrides(), lhsSkipAxis) &&
+                         dimsEqualStrong(rhsStridesDefault, rhsBlockMemDesc->getStrides(), rhsSkipAxis);
     if (!isDenseTensor)
         return false;
 
