@@ -260,7 +260,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
              for (auto& config : configs) {
                  if (std::find(validConfigKey.begin(), validConfigKey.end(), config.first) != validConfigKey.end()) {
                      deviceConfig.insert({config.first, config.second});
-                     HInfo("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName.c_str(),
+                     LOG_INFO("[AUTOPLUGIN]:device:%s, config:%s=%s", iter->deviceName.c_str(),
                              config.first.c_str(), config.second.c_str());
                  }
              }
@@ -522,12 +522,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
 void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::string>& config,
         bool& needPerfCounters, std::map<std::string, std::string>& filterConfig) {
     // TODO need to optimize this code, too much duplicated code
-    static std::map<std::string, LogLevel> logValueMap = {{CONFIG_VALUE(LOG_NONE), LogLevel::LOG_NONE},
-                                                             {CONFIG_VALUE(LOG_ERROR), LogLevel::LOG_ERROR},
-                                                             {CONFIG_VALUE(LOG_WARNING), LogLevel::LOG_WARNING},
-                                                             {CONFIG_VALUE(LOG_INFO), LogLevel::LOG_INFO},
-                                                             {CONFIG_VALUE(LOG_DEBUG), LogLevel::LOG_DEBUG},
-                                                             {CONFIG_VALUE(LOG_TRACE), LogLevel::LOG_TRACE}};
+
     const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
     for (auto&& kvp : config) {
         if (kvp.first.find("AUTO_") == 0) {
@@ -549,10 +544,8 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                            << " for key: " << kvp.first;
             }
         } else if (kvp.first == PluginConfigParams::KEY_LOG_LEVEL) {
-               auto it = logValueMap.find(kvp.second);
-               if (it != logValueMap.end()) {
-                   MultiDevicePlugin::setLogLevel(it->second);
-               } else {
+               auto success = MultiDevicePlugin::setLogLevel(kvp.second);
+               if (!success) {
                    IE_THROW() << "Unsupported config value: " << kvp.second
                               << " for key: " << kvp.first;
                }

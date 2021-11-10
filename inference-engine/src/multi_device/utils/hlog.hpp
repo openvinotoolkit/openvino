@@ -9,26 +9,38 @@
 #include <cstdarg>
 
 #include "log.hpp"
-
+#include <ie_plugin_config.hpp>
 #define HLogger MultiDevicePlugin::Log::instance()
 
 #define HLogPrint(isOn, isTraceCallStack, logLevel, level, tag, ...) \
     HLogger->doLog(isOn, isTraceCallStack, logLevel, level, __FILE__, __func__, __LINE__, tag, __VA_ARGS__)
 
-#define HFrequent(isOn, tag, ...) HLogPrint(isOn, MultiDevicePlugin::LogLevel::FREQUENT, "FREQ", tag, __VA_ARGS__)
-#define HProcess(isOn, tag, ...) HLogPrint(isOn, false, MultiDevicePlugin::LogLevel::PROCESS, "PROC", tag, __VA_ARGS__)
-#define HDebug(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
-#define HInfo(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::INFO, "INFO", nullptr, __VA_ARGS__)
-#define HWarn(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::WARN, "WARN", nullptr, __VA_ARGS__)
-#define HError(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::ERROR, "ERROR", nullptr, __VA_ARGS__)
-#define HFatal(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::FATAL, "FATAL", nullptr, __VA_ARGS__)
+// #define HFrequent(isOn, tag, ...) HLogPrint(isOn, MultiDevicePlugin::LogLevel::FREQUENT, "FREQ", tag, __VA_ARGS__)
+// #define HFatal(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::FATAL, "FATAL", nullptr, __VA_ARGS__)
+#define LOG_TRACE(isOn, tag, ...) HLogPrint(isOn, false, MultiDevicePlugin::LogLevel::PROCESS, "PROC", tag, __VA_ARGS__)
+#define LOG_DEBUG(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
+#define LOG_INFO(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::INFO, "INFO", nullptr, __VA_ARGS__)
+#define LOG_WARNING(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::WARN, "WARN", nullptr, __VA_ARGS__)
+#define LOG_ERROR(...) HLogPrint(true, false, MultiDevicePlugin::LogLevel::ERROR, "ERROR", nullptr, __VA_ARGS__)
 
 #define TraceCallStacks(...) HLogPrint(true, true, MultiDevicePlugin::LogLevel::DEBUG, "DEBUG", nullptr, __VA_ARGS__)
 #define TraceCallStack() TraceCallStacks(" ")
 
 namespace MultiDevicePlugin {
-inline void setLogLevel(LogLevel logLevel) {
-    HLogger->setLogLevel(logLevel);
+inline bool setLogLevel(std::string logLevel) {
+    static std::map<std::string, LogLevel> logValueMap = {{CONFIG_VALUE(LOG_NONE), LogLevel::LOG_NONE},
+        {CONFIG_VALUE(LOG_ERROR), LogLevel::LOG_ERROR},
+        {CONFIG_VALUE(LOG_WARNING), LogLevel::LOG_WARNING},
+        {CONFIG_VALUE(LOG_INFO), LogLevel::LOG_INFO},
+        {CONFIG_VALUE(LOG_DEBUG), LogLevel::LOG_DEBUG},
+        {CONFIG_VALUE(LOG_TRACE), LogLevel::LOG_TRACE}};
+    auto it = logValueMap.find(logLevel);
+    if (it != logValueMap.end()) {
+        HLogger->setLogLevel(it->second);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 } // namespace MultiDevicePlugin

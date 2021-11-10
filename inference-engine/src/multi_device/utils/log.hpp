@@ -108,7 +108,6 @@ private:
 
 inline Log::Log()
     : logLevel(defaultLogLevel) {
-    setPriority(0);
     switch (debug_level) {
         case 0: {
                     logLevel = static_cast<uint32_t>(LogLevel::LOG_FATAL);
@@ -172,10 +171,6 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     std::stringstream stream;
     stream << colorBegin(level) << prefix << '[' << TimeUtils::getCurrentTime() << ']';
 
-#ifdef VERBOSE_LOG
-    stream << "[" << ThreadUtils::getThreadId() << "][" << levelStr << "]["
-           << getFileName(file) << ':' << func << ':' << line << ']';
-#else
     stream << '[' << ThreadUtils::getThreadId() << ']';
     if (level < LogLevel::ERROR) {
         stream << levelStr[0];
@@ -183,7 +178,6 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
         stream << levelStr;
     }
     stream << '[' << getFileName(file) << ':' << line << ']';
-#endif
 
     if (isTraceCallStack) {
         stream << '[' << func << '(' << ')' << ']';

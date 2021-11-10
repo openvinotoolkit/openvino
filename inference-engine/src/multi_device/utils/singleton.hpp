@@ -13,39 +13,16 @@
 
 #include "non_copyable.hpp"
 
-#define MAX_UTILS_SUPPORTED_PRIORITY 4
-
-class SingleMem {
-public:
-    SingleMem() = default;
-    virtual ~SingleMem() = default;
-    virtual void setPriority(int priority = 3) {
-        std::lock_guard<std::mutex> lockGuard(m_mutex);
-        if (m_hasSetPriority) {
-            return;
-        }
-
-        m_pointers[priority].push_front(std::shared_ptr<SingleMem>(this, [](SingleMem* p) { delete p; }));
-        m_hasSetPriority = true;
-    }
-
-    static void releaseSingltons();
-
-private:
-    static std::mutex m_mutex;
-    static std::list<std::shared_ptr<SingleMem>> m_pointers[MAX_UTILS_SUPPORTED_PRIORITY];
-    bool m_hasSetPriority { false };
-};
-
 template <typename Type>
-class Singleton : public NonCopyable, public SingleMem {
+class Singleton : public NonCopyable {
 public:
-    static Type* instance() {
-        static Type* obj = nullptr;
+    static std::shared_ptr<Type>& instance() {
+        static std::shared_ptr<Type> obj;
         std::call_once(m_onceFlag, [&]() {
-            obj = new Type();
-            assert(obj!= nullptr);
-            obj->setPriority(); });
+            auto* objPtr = new Type();
+            assert(objPtr!= nullptr);
+            obj.reset(objPtr);
+        });
         return obj;
     }
 

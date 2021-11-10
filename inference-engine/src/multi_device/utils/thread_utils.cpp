@@ -21,8 +21,6 @@ std::string getName() {
     return threadName;
 }
 
-
-
 void saveThreadInfo(const std::string& threadName, const std::string& saveFile) {
     static std::mutex mutex;
     static uint32_t threadCount = 0;
