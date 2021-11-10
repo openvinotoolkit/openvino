@@ -67,8 +67,13 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                 return False
             gather_node = broadcast_node.in_port(0).get_source().node
             if gather_node.op != "Gather" or \
-                    (np.all(gather_node.in_port(1).data.get_value() != [0]) or
-                     np.all(gather_node.in_port(2).data.get_value() != [node.seq_axis])):
+                    (np.all(gather_node.in_port(2).data.get_value() != [0]) or
+                     np.all(gather_node.in_port(1).data.get_value() != [node.seq_axis])):
+                return False
+            gather_node_2 = broadcast_node.in_port(1).get_source().node
+            if gather_node_2.op != "Gather" or \
+                    (np.all(gather_node_2.in_port(2).data.get_value() != [0]) or
+                     np.all(gather_node_2.in_port(1).data.get_value() != [node.batch_axis])):
                 return False
             shape_node = gather_node.in_port(0).get_source().node
             if shape_node.op != "ShapeOf":
