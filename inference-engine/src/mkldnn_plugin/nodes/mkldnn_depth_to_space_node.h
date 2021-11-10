@@ -34,17 +34,22 @@ private:
     };
 
     struct DepthToSpaceAttrs {
+        enum LayoutType {
+            Planar,
+            ChannelsFirst,
+            Blocked
+        };
+
         Mode mode;
         size_t blockSize = 0lu;
         size_t blockStep = 0lu;
         size_t dataSize = 1lu;
+        LayoutType layoutType;
+        VectorDims srcBlockedDims;
     } attrs;
 
-    MKLDNNMemoryPtr srcMemPtr = nullptr;
-    MKLDNNMemoryPtr dstMemPtr = nullptr;
-
     struct DepthToSpaceExecutor {
-        DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs, const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& dstMemPtr);
+        DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
         void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB);
         ~DepthToSpaceExecutor() = default;
 
