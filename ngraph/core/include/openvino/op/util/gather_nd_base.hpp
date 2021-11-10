@@ -30,6 +30,10 @@ public:
 
     void validate_inputs_and_infer_shape();
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
 protected:
     size_t m_batch_dims = 0;
 };

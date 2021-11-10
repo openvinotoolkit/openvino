@@ -450,10 +450,7 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 
 CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : IInferRequestInternal(networkInputs, networkOutputs)
-        , m_useProfiling(false)
-        , m_useStreams(false)
-        , m_useExternalQueue(false) {
+        : IInferRequestInternal(networkInputs, networkOutputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
@@ -461,9 +458,7 @@ CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap
 CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : IInferRequestInternal(inputs, outputs)
-        , m_useProfiling(false)
-        , m_useStreams(false) {
+        : IInferRequestInternal(inputs, outputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
@@ -472,7 +467,6 @@ CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov:
 // ---------------------------- internal pipeline stages ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //
 void CLDNNInferRequest::preprocess_notify() {
-    setStreamGraph();
     m_graph->wait(CLDNNGraph::Stage::PREPROC);
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         preprocess_dynamic();
@@ -483,7 +477,6 @@ void CLDNNInferRequest::preprocess_notify() {
 }
 
 void CLDNNInferRequest::preprocess() {
-    setStreamGraph();
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         preprocess_dynamic();
     } else {
@@ -631,7 +624,7 @@ void CLDNNInferRequest::wait_dynamic() {
 // ----------------------------------------------------------------------------------------- //
 // ---------------------------- internal utils --------- ----------------------------------- //
 // ----------------------------------------------------------------------------------------- //
-void CLDNNInferRequest::setStreamGraph() {
+void CLDNNInferRequest::setup_stream_graph() {
     int streamID = 0;
     auto& streamGraphs = static_cast<CLDNNExecNetwork*>(_exeNetwork.get())->m_graphs;
     if (nullptr != streamExecutor) {
@@ -868,7 +861,8 @@ void CLDNNInferRequest::allocate_outputs_dynamic() {
 
 void CLDNNInferRequest::InferImpl() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::InferImpl");
-
+    setup_stream_graph();
+    std::lock_guard<std::mutex> lk(m_graph->get_mutex());
     preprocess();
     enqueue();
     wait();

@@ -545,6 +545,7 @@ public:
 #define CASE_CONV_U8S8_12 {32, 15, 5, 5}, {32, 30, 3, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_13 {32, 16, 4, 5}, {32, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_14 {32, 17, 4, 5}, {32, 17, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_15 {1, 15, 2, 2}, {1, 30, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_CONV_S8S8_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_2 {1, 15, 5, 5}, {1, 30, 3, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -2315,7 +2316,7 @@ TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
                  reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 
@@ -9432,6 +9433,47 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_scale_shift_swish_onednn,
                                 bc_test_params{CASE_CONV_S8S8_12, 2, 7},
                                 bc_test_params{CASE_CONV_S8S8_13, 2, 7},
                                 bc_test_params{CASE_CONV_S8S8_15, 2, 7},
+                        }));
+
+class conv_int8_eltwise_scale_onednn : public ConvFusingTestOneDNN {};
+TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
+    auto p = GetParam();
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p), -2, 2)),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("sum_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+                 data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation, p.out_shape, data_types::f32, false),
+                 eltwise("sum", {"conv_prim", "sum_data"}, eltwise_mode::sum, data_types::f32),
+                 eltwise("scale", {"sum", "scale_data"}, eltwise_mode::prod, data_types::f32),
+                 crop("crop", "scale", get_output_layout(p).size, {0, 0, 0, 0}),
+                 reorder("reorder_bfyx", "crop", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+
+    auto input_prim = get_mem(get_input_layout(p));
+
+    auto forcing_format = p.input_format;
+    implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
+    bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+
+    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network_fused.set_input_data("input", input_prim);
+    network_not_fused.set_input_data("input", input_prim);
+
+    // First network.execute() call
+    compare(network_not_fused, network_fused, p);
+    // Second network.execute() call to make sure that scales have not been wrongly overwritten within first iteration
+    // and don't affect final result of second iteration
+    compare(network_not_fused, network_fused, p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_eltwise_scale_onednn,
+                         ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_U8S8_15, 2, 5},
                         }));
 
 /* ----------------------------------------------------------------------------------------------------- */

@@ -24,9 +24,6 @@ IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8
 # C++ exception with description "Input data precision not supported. Expected float.
 IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 
-# No support yet for RandomUniform
-onnx_model_random_uniform
-onnx_model_random_uniform_like
 
 # Result mismatch
 onnx_model_shape
@@ -1514,23 +1511,6 @@ gather_v7_axis_0_uint64
 gather_v7_axis_0_bool
 gather_v7_3d_indices_axis_1_batch_dims_1_int32
 gather_v7_4d_data_axis_2_batch_dims_1_int32
-
-# not yet implemented on CPU/GPU GatherND_8
-gather_nd_v8_single_indices
-gather_nd_v8_scalar_from_2d
-gather_nd_v8_1d_from_2d
-gather_nd_v8_scalar_from_3d
-gather_nd_v8_1d_from_3d
-gather_nd_v8_2d_from_3d
-gather_nd_v8_batch_scalar_from_2d
-gather_nd_v8_batch_1d_from_2d
-gather_nd_v8_batch_scalar_from_3d
-gather_nd_v8_batch_1d_from_3d
-gather_nd_v8_batch_1d_from_3d_negative
-gather_nd_v8_batch_2d_from_3d
-gather_nd_v8_batch_dims1
-gather_nd_v8_batch_dims2
-gather_nd_v8_batch_dims2_lead_dims
 
 # Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
 bin_convolution_2D_1batch_1channel
