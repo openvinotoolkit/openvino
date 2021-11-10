@@ -17,6 +17,7 @@ from ....graph.special_operations import TRANSPOSED_OPERATIONS
 from ....samplers.creator import create_sampler
 from ....statistics.function_selector import get_aggregation_function
 
+
 # pylint: disable=R0912
 @COMPRESSION_ALGORITHMS.register('MinMaxQuantization')
 class MinMaxQuantization(Algorithm):
