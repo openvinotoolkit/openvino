@@ -12,7 +12,7 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "TEMPLATE"
               SOURCES ${SOURCES} ${HEADERS}
-              SKIP_INSTALL # ATTENTION: uncomment to install component
+            #   SKIP_INSTALL # ATTENTION: uncomment to install component
               VERSION_DEFINES_FOR template_plugin.cpp
               ADD_CLANG_FORMAT)
 
@@ -36,8 +36,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
-# ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-#                     POSSIBLE_PLUGINS ${TARGET_NAME})
+if(NOT BUILD_SHARED_LIBS)
+    ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+                        POSSIBLE_PLUGINS ${TARGET_NAME})
+endif()
 # [cmake:plugin]
 
 ov_install_static_lib(ngraph_backend ngraph)

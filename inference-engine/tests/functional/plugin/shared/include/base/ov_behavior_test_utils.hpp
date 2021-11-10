@@ -71,7 +71,7 @@ inline ov::runtime::Core createCoreWithTemplate() {
     ov::runtime::Core core;
     std::string pluginName = "templatePlugin";
     pluginName += IE_BUILD_POSTFIX;
-    core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+    // core.register_plugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
     return core;
 }
 

@@ -106,7 +106,7 @@ inline InferenceEngine::Core createIECoreWithTemplate() {
     InferenceEngine::Core ie;
     std::string pluginName = "templatePlugin";
     pluginName += IE_BUILD_POSTFIX;
-    ie.RegisterPlugin(pluginName, "TEMPLATE");
+    // ie.RegisterPlugin(pluginName, "TEMPLATE");
     return ie;
 }
 
