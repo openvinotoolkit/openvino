@@ -631,54 +631,43 @@ std::vector<TopKParams> generateCombinedParamsV3() {
 INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestV3,
     testing::ValuesIn(generateCombinedParamsV3()), ReferenceTopKTest::getTestCaseName);
 
-class ReferenceTopKTest1d : public ReferenceTopKTest {
+class ReferenceTopKTest1dMaxMin : public ReferenceTopKTest {
 public:
     void SetUp() override {
         auto params = GetParam();
-        function = CreateFunction(params);
+        function = CreateFunction(params, 0);
         inputData = {params.A.data};
         refOutData = {params.result0.data};
     }
 
-    void SetUp1() {
+    void SetUpSecond() {
         auto params = GetParam();
-        function = CreateFunction1(params);
+        function = CreateFunction(params, 1);
         inputData = {params.A.data};
         refOutData = {params.result1.data};
     }
 
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParams& params) {
+    static std::shared_ptr<Function> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto k = op::v0::Constant::create(params.k.type,
                                                 params.k.shape,
                                                 params.k.data.data());
         const auto B = std::make_shared<op::v1::TopK>(A, k, params.axis, params.mode, params.sort);
-        const auto f = std::make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
-        return f;
-    }
-
-    static std::shared_ptr<Function> CreateFunction1(const TopKParams& params) {
-        const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
-                                                           params.A.shape);
-        const auto k = op::v0::Constant::create(params.k.type,
-                                                params.k.shape,
-                                                params.k.data.data());
-        const auto B = std::make_shared<op::v1::TopK>(A, k, params.axis, params.mode, params.sort);
-        const auto f = std::make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
+        const auto f = std::make_shared<Function>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
     }
 };
 
-TEST_P(ReferenceTopKTest1d, CompareWithRefs) {
+TEST_P(ReferenceTopKTest1dMaxMin, CompareWithRefs) {
     Exec();
-    SetUp1();
+    SetUpSecond();
     Exec();
 }
 
 template <element::Type_t ET, element::Type_t ET2, element::Type_t ET_OUT>
-std::vector<TopKParams> generateParams1d() {
+std::vector<TopKParams> generateParams1dMaxMin() {
     using T = typename element_type_traits<ET>::value_type;
     using T2 = typename element_type_traits<ET2>::value_type;
     using T_OUT = typename element_type_traits<ET_OUT>::value_type;
@@ -994,18 +983,18 @@ std::vector<TopKParams> generateParams1d() {
     return params;
 }
 
-std::vector<TopKParams> generateCombinedParams1d() {
+std::vector<TopKParams> generateCombinedParams1dMaxMin() {
     const std::vector<std::vector<TopKParams>> generatedParams {
-        generateParams1d<element::Type_t::i16, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::i32, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::i64, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::u16, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::u32, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::u64, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::bf16, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::f16, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::f32, element::Type_t::i64, element::Type_t::i32>(),
-        generateParams1d<element::Type_t::f64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::i16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::i32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::i64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::u16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::u32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::u64, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::bf16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::f16, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::f32, element::Type_t::i64, element::Type_t::i32>(),
+        generateParams1dMaxMin<element::Type_t::f64, element::Type_t::i64, element::Type_t::i32>(),
     };
     std::vector<TopKParams> combinedParams;
 
@@ -1015,12 +1004,12 @@ std::vector<TopKParams> generateCombinedParams1d() {
     return combinedParams;
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTest1d,
-    testing::ValuesIn(generateCombinedParams1d()), ReferenceTopKTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTest1dMaxMin,
+    testing::ValuesIn(generateCombinedParams1dMaxMin()), ReferenceTopKTest::getTestCaseName);
 
-class ReferenceTopKTestInt64 : public ReferenceTopKTest1d {
+class ReferenceTopKTestInt64 : public ReferenceTopKTest1dMaxMin {
 private:
-    static std::shared_ptr<Function> CreateFunction(const TopKParams& params) {
+    static std::shared_ptr<Function> CreateFunction(const TopKParams& params, size_t out_idx) {
         const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
                                                            params.A.shape);
         const auto k = op::v0::Constant::create(params.k.type,
@@ -1032,30 +1021,14 @@ private:
                                                       params.mode,
                                                       params.sort,
                                                       element::i64);
-        const auto f = std::make_shared<Function>(OutputVector{B->output(0)}, ParameterVector{A});
-        return f;
-    }
-
-    static std::shared_ptr<Function> CreateFunction1(const TopKParams& params) {
-        const auto A = std::make_shared<op::v0::Parameter>(params.A.type,
-                                                           params.A.shape);
-        const auto k = op::v0::Constant::create(params.k.type,
-                                                params.k.shape,
-                                                params.k.data.data());
-        const auto B = std::make_shared<op::v1::TopK>(A,
-                                                      k,
-                                                      params.axis,
-                                                      params.mode,
-                                                      params.sort,
-                                                      element::i64);
-        const auto f = std::make_shared<Function>(OutputVector{B->output(1)}, ParameterVector{A});
+        const auto f = std::make_shared<Function>(OutputVector{B->output(out_idx)}, ParameterVector{A});
         return f;
     }
 };
 
 TEST_P(ReferenceTopKTestInt64, CompareWithRefs) {
     Exec();
-    SetUp1();
+    SetUpSecond();
     Exec();
 }
 
