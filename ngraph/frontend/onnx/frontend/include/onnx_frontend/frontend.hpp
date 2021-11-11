@@ -12,13 +12,13 @@
 #    define ONNX_FRONTEND_API OPENVINO_CORE_IMPORTS
 #endif
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class ONNX_FRONTEND_API FrontEndONNX : public FrontEnd {
 public:
-    std::shared_ptr<ngraph::Function> convert(InputModel::Ptr model) const override;
-    void convert(std::shared_ptr<ngraph::Function> partially_converted) const override;
-    std::shared_ptr<ngraph::Function> decode(InputModel::Ptr model) const override;
+    std::shared_ptr<ov::Function> convert(InputModel::Ptr model) const override;
+    void convert(std::shared_ptr<ov::Function> partially_converted) const override;
+    std::shared_ptr<ov::Function> decode(InputModel::Ptr model) const override;
     std::string get_name() const override;
     bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
 
@@ -27,5 +27,4 @@ protected:
 };
 
 }  // namespace frontend
-
-}  // namespace ngraph
+}  // namespace ov

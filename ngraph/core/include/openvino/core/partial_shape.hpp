@@ -224,6 +224,7 @@ public:
     ///        element in the shape. Iteration is done in ordinary
     ///        element order.
     iterator begin() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.begin();
     }
     /// \brief Returns a read-only (constant) iterator that points to the
@@ -236,6 +237,7 @@ public:
     ///        element in the shape. Iteration is done in ordinary
     ///        element order.
     iterator end() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.end();
     }
     /// \brief Returns a read-only (constant) iterator that points one past
@@ -248,6 +250,7 @@ public:
     ///        last element in the shape. Iteration is done in reverse
     ///        element order.
     reverse_iterator rbegin() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.rbegin();
     }
     /// \brief Returns a read-only (constant) reverse iterator that points
@@ -260,6 +263,7 @@ public:
     ///        before the first element in the shape. Iteration is done
     ///        in reverse element order.
     reverse_iterator rend() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.rend();
     }
     /// \brief Returns a read-only (constant) reverse iterator that points

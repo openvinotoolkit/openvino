@@ -18,7 +18,7 @@ class NodeProto;
 class ValueInfoProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ngraph {
+namespace ov {
 namespace onnx_editor {
 /// \brief Subgraph extraction helper structure
 struct SubgraphExtractor {
@@ -95,4 +95,4 @@ private:
     void extract_subgraph_from_onnx_model(const SubgraphComponents& subgraph);
 };
 }  // namespace onnx_editor
-}  // namespace ngraph
+}  // namespace ov

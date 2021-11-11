@@ -27,10 +27,15 @@ namespace ov {
 /// A user-defined function.
 class OPENVINO_API Function : public std::enable_shared_from_this<Function> {
 public:
-    static constexpr ov::DiscreteTypeInfo type_info{"Function", 0};
-    const ov::DiscreteTypeInfo& get_type_info() const {
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
         return type_info;
     }
+    const ::ov::DiscreteTypeInfo& get_type_info() const {
+        return get_type_info_static();
+    }
+    OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
+    static const ov::DiscreteTypeInfo type_info;
     Function(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
     Function(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
@@ -282,11 +287,12 @@ public:
         return m_rt_info;
     }
 
-private:
     Function(const Function&) = delete;
-    Function(const Function&&) = delete;
+    Function(Function&&) = delete;
     Function& operator=(const Function&) = delete;
+    Function& operator=(Function&&) = delete;
 
+private:
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Function
     /// parameters/variables or finds all Parameters/Variables in a function and registers them.
