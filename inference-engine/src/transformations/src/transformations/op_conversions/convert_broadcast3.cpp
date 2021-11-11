@@ -16,6 +16,8 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcast3, "ConvertBroadcast3", 0);
 
+namespace {
+
 bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector<size_t> & target_shape) {
     if (input_shape.rank().is_dynamic()) {
         return false;
@@ -54,6 +56,8 @@ bool make_compatible_shape(const ngraph::PartialShape & input_shape, std::vector
     }
     return true;
 }
+
+} // namespace
 
 ngraph::pass::ConvertBroadcast3::ConvertBroadcast3() {
     MATCHER_SCOPE(ConvertBroadcast3);

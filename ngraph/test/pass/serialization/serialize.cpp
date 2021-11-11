@@ -40,9 +40,9 @@ public:
 };
 
 TEST_P(SerializationTest, CompareFunctions) {
-    auto expected = ov::test::readIR(m_model_path, m_binary_path);
+    auto expected = ov::test::readModel(m_model_path, m_binary_path);
     ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_function(expected);
-    auto result = ov::test::readIR(m_out_xml_path, m_out_bin_path);
+    auto result = ov::test::readModel(m_out_xml_path, m_out_bin_path);
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
@@ -74,7 +74,8 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple("conv_with_rt_info.xml", ""),
                     std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
                     std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin"),
-                    std::make_tuple("if_diff_case.xml", "if_diff_case.bin")));
+                    std::make_tuple("if_diff_case.xml", "if_diff_case.bin"),
+                    std::make_tuple("if_body_without_parameters.xml", "if_body_without_parameters.bin")));
 
 #ifdef NGRAPH_ONNX_FRONTEND_ENABLE
 

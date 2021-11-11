@@ -13,10 +13,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNLogSoftmaxNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto logSoftMax = std::dynamic_pointer_cast<const ngraph::opset5::LogSoftmax>(op);
         if (!logSoftMax) {
             errorMessage = "Only opset5 LogSoftmax operation is supported";
@@ -41,30 +37,18 @@ MKLDNNLogSoftmaxNode::MKLDNNLogSoftmaxNode(const std::shared_ptr<ngraph::Node>& 
         IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
             "' is not an instance of LogSoftmax from opset5.";
 
-    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
+    if (inputShapes.size() != 1 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    SizeVector dims = op->get_input_shape(0);
-    if (!dims.size())
-        dims = SizeVector(1, 1);
-    int axis = logSoftMax->get_axis();
+    auto dimsSize = getInputShapeAtPort(0).getDims().size();
+    if (dimsSize == 0)
+        dimsSize += 1;
+    axis = logSoftMax->get_axis();
     if (axis < 0)
-        axis += dims.size();
+        axis += dimsSize;
 
-    if (dims.size() < static_cast<size_t>((size_t)(1) + axis))
+    if (dimsSize < static_cast<size_t>((size_t)(1) + axis))
         IE_THROW() << errorPrefix << " has incorrect input parameters dimensions and axis number!";
-
-    int j;
-    for (j = dims.size() - 1; j >= 0; j--) {
-        if (dims[j] != 1) break;
-    }
-    if (j == axis) isLastDim = true;
-
-    for (int i = 0; i < axis; i++)
-        axisStep *= dims[i];
-    reducedAxisSize = dims[axis];
-    for (size_t i = (axis + 1); i < dims.size(); i++)
-        reducedAxisStride *= dims[i];
 }
 
 void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
@@ -74,6 +58,33 @@ void MKLDNNLogSoftmaxNode::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32}},
                          {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
+}
+
+void MKLDNNLogSoftmaxNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNLogSoftmaxNode::prepareParams() {
+    const auto &dims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    reducedAxisStride = 1;
+    axisStep = 1;
+    isLastDim = false;
+
+    int j = static_cast<int>(dims.size()) - 1;
+    for (; j >= 0; j--) {
+        if (dims[j] != 1) break;
+    }
+    if (j == axis) isLastDim = true;
+
+    for (int i = 0; i < axis; i++)
+        axisStep *= dims[i];
+    reducedAxisSize = dims[axis];
+    for (size_t i = (axis + 1); i < dims.size(); i++)
+        reducedAxisStride *= dims[i];
 }
 
 void MKLDNNLogSoftmaxNode::execute(mkldnn::stream strm) {

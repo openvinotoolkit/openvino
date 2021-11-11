@@ -96,6 +96,12 @@ endif()
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT TBB_DIR)
 
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    endif()
+
     if(WIN32 AND X86_64)
         #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
@@ -103,11 +109,11 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-        RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_WIN "tbbbind_2_4_static_win_v2.zip"
-                TARGET_PATH "${TEMP}/tbbbind_2_4"
-                ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "90dc165652f6ac2ed3014c71e57f797fcc4b11e1498a468e3d2c85deb2a4186a")
+        RESOLVE_DEPENDENCY(TBBBIND_2_5
+                ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                TARGET_PATH "${TEMP}/tbbbind_2_5"
+                ENVIRONMENT "TBBBIND_2_5_ROOT"
+                SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -120,11 +126,11 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-        RESOLVE_DEPENDENCY(TBBBIND_2_4
-                ARCHIVE_LIN "tbbbind_2_4_static_lin_v2.tgz"
-                TARGET_PATH "${TEMP}/tbbbind_2_4"
-                ENVIRONMENT "TBBBIND_2_4_ROOT"
-                SHA256 "6dc926258c6cd3cba0f5c2cc672fd2ad599a1650fe95ab11122e8f361a726cb6")
+        RESOLVE_DEPENDENCY(TBBBIND_2_5
+                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                TARGET_PATH "${TEMP}/tbbbind_2_5"
+                ENVIRONMENT "TBBBIND_2_5_ROOT"
+                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -142,10 +148,19 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
+    if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
+        # oneTBB case
+        update_deps_cache(TBB_DIR "${TBB}/lib/cmake/TBB" "Path to TBB cmake folder")
+    else()
+        update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
+    endif()
 
-    update_deps_cache(TBBBIND_2_4_DIR "${TBBBIND_2_4}/cmake" "Path to TBBBIND_2_4 cmake folder")
+    update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
     debug_message(STATUS "tbb=" ${TBB})
+
+    if(DEFINED IE_PATH_TO_DEPS)
+        unset(IE_PATH_TO_DEPS)
+    endif()
 endif()
 
 ## OpenCV

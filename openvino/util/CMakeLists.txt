@@ -9,6 +9,18 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(UTIL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
+if (WIN32)
+    # Remove linux specific files
+    file(GLOB_RECURSE LIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
+    list(REMOVE_ITEM LIBRARY_SRC ${LIN_FILES})
+else()
+    # Remove windows specific files
+    file(GLOB_RECURSE WIN_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
+    list(REMOVE_ITEM LIBRARY_SRC ${WIN_FILES})
+endif()
+
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -21,7 +33,10 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::util ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
-target_include_directories(${TARGET_NAME} PUBLIC ${UTIL_INCLUDE_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
+
+ov_install_static_lib(${TARGET_NAME} ngraph)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}

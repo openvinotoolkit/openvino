@@ -22,9 +22,15 @@ public:
         const ngraph::element::Type netPrecision,
         const ngraph::element::Type inputPrecision,
         const ngraph::PartialShape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
         std::shared_ptr<ngraph::opset1::Constant> weights,
-        const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
+        const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights = DequantizationOperations(),
+        const bool fqOnWeightsTransposeOnData = false,
+        const bool fqOnWeightsTransposeOnInputLow = false,
+        const bool fqOnWeightsTransposeOnInputHigh = false,
+        const bool fqOnWeightsTransposeOnOutputLow = false,
+        const bool fqOnWeightsTransposeOnOutputHigh = false);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithIncorrectWeights(
         const ngraph::Shape& inputShape,
