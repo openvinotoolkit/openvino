@@ -817,7 +817,7 @@ int main(int argc, char* argv[]) {
                 for (auto& item : input) {
                     auto input_name = item.first;
                     const auto& data = inputsData.at(input_name)[i % inputsData.at(input_name).size()];
-                    //inferRequest->getBlob(input_name);
+                    inferRequest->setBlob(input_name, data);
                 }
 
                 if (useGpuMem) {
@@ -857,7 +857,9 @@ int main(int argc, char* argv[]) {
         } else {
             inferRequest->startAsync();
         }
+
         inferRequestsQueue.waitAll();
+
         auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
 
