@@ -116,7 +116,7 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork compile_model(const std::shared_ptr<const ov::Function>& network,
-                                    const std::string& deviceName,
+                                    const std::string& deviceName = "AUTO",
                                     const ConfigMap& config = {});
 
     /**
@@ -133,7 +133,7 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork compile_model(const std::string& modelPath,
-                                    const std::string& deviceName,
+                                    const std::string& deviceName = "AUTO",
                                     const ConfigMap& config = {});
 
     /**
