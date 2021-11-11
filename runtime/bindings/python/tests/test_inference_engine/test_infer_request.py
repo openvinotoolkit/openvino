@@ -205,4 +205,4 @@ def test_infer_queue(device):
     for _ in range(jobs):
         infer_queue.start_async({"data": img}, {"finished": False})
     infer_queue.wait_all()
-    assert all([data["finished"] for data in infer_queue.userdata])
+    assert all(data["finished"] for data in infer_queue.userdata)
