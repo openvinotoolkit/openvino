@@ -167,7 +167,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 
-    replace_node(matMul, newMultiply);
+    NetworkHelper::insertDequantizationAfter(matMul, newMultiply, newMatMul);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
     updateOutput(context, newMultiply, newMatMul);
