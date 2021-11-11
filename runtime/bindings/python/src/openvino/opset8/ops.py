@@ -368,6 +368,7 @@ def random_uniform(
     }
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
 
+
 @nameable_op
 def if_op(
     condition: NodeInput,
@@ -400,6 +401,7 @@ def if_op(
     }
     return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
                                              attributes)
+
 
 @nameable_op
 def slice(
