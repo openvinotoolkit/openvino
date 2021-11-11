@@ -238,28 +238,19 @@ bool MKLDNNSplitNode::needPrepareParams() const {
 }
 
 void MKLDNNSplitNode::prepareParams() {
-    if (!isOptimized()) {
-        initializeDstMemPtrs();
-        if (!canUseOptimizedNspc2Ncsp) {
-            const auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
-            const auto outputPortsCount = outputShapes.size();
-            std::vector<BlockedMemoryDescCPtr> outDescs(outputPortsCount);
-            for (size_t i = 0; i < outputPortsCount; i++) {
-                outDescs[i] = getChildEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
-            }
-            execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis);
+    initializeDstMemPtrs();
+    if (!canUseOptimizedNspc2Ncsp) {
+        const auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        const auto outputPortsCount = outputShapes.size();
+        std::vector<BlockedMemoryDescCPtr> outDescs(outputPortsCount);
+        for (size_t i = 0; i < outputPortsCount; i++) {
+            outDescs[i] = getChildEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
         }
+        execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis);
     }
 }
 
 void MKLDNNSplitNode::createPrimitive() {
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        THROW_ERROR << "Input memory has not been allocated.";
-    for (size_t i = 0; i < getChildEdges().size(); i++) {
-        if (!getChildEdgeAt(i)->getMemoryPtr() || !getChildEdgeAt(i)->getMemory().GetPrimitivePtr())
-            THROW_ERROR << "Destination memory has not been allocated.";
-    }
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "Preferable primitive descriptor is not set.";
 
