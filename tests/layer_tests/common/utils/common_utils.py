@@ -2,24 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
+import os
 import subprocess
 import sys
-from pathlib import Path
 
-import mo
 import numpy as np
+
 
 logger = logging.getLogger(__name__)
 
 
 def generate_ir(coverage=False, **kwargs):
-    mo_path = Path(mo.__file__).parent
-    mo_runner = mo_path.joinpath('main.py').as_posix()
+    # Get default mo args
+    mo = os.path.join(os.environ.get("MO_ROOT"), "mo.py")
     if coverage:
-        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(mo_path.parent),
-                  '--omit=*_test.py', mo_runner]
+        params = [sys.executable, '-m', 'coverage', 'run', '-p', '--source={}'.format(os.environ.get("MO_ROOT")),
+                  '--omit=*_test.py', mo]
     else:
-        params = [sys.executable, mo_runner]
+        params = [sys.executable, mo]
     for key, value in kwargs.items():
         if key == "batch":
             params.extend(("-b", str(value)))
