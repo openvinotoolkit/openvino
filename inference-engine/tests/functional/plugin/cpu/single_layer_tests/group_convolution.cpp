@@ -412,7 +412,7 @@ std::vector<InputShape> inputShapes2d = {
         {-1, 64, -1, {1, 200}},
         { //target static shapes
             { 2, 64, 7, 7 },
-            { 1, 64, 14, 14 }
+            { 1, 64, 9, 9 }
         }
     }
 };
@@ -472,7 +472,7 @@ std::vector<InputShape> inputShapes3d = {
         {-1, 64, -1, {1, 200}, -1},
         { //target static shapes
             { 2, 64, 7, 7, 7 },
-            { 1, 64, 14, 14, 14 }
+            { 1, 64, 9, 9, 9 }
         }
     }
 };
@@ -533,7 +533,7 @@ std::vector<InputShape> inputShapes2dDW = {
         {-1, 32, -1, {1, 200}},
         { //target static shapes
             { 2, 32, 7, 7 },
-            { 1, 32, 14, 14 }
+            { 1, 32, 9, 9 }
         }
     }
 };
@@ -595,7 +595,7 @@ std::vector<InputShape> inputShapes3dDW = {
         {-1, 32, -1, {1, 200}, -1},
         { //target static shapes
             { 2, 32, 7, 7, 7 },
-            { 1, 32, 14, 14, 14 }
+            { 1, 32, 9, 9, 9 }
         }
     }
 };

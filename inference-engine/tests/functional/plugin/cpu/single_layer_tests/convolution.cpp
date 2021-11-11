@@ -248,7 +248,7 @@ std::vector<InputShape> inputShapes2d = {
             { -1, 64, -1, {1, 200} },
             { //target static shapes
                 { 2, 64, 7, 7 },
-                { 1, 64, 14, 14}
+                { 1, 64, 9, 9}
             }
         },
         {
@@ -256,7 +256,7 @@ std::vector<InputShape> inputShapes2d = {
             { -1, 67, -1, {1, 200} },
             { //target static shapes
                 { 2, 67, 7, 7 },
-                { 1, 67, 14, 14}
+                { 1, 67, 9, 9}
             }
         }
 };
@@ -269,7 +269,7 @@ std::vector<InputShape> inputShapesPlain2Blocked2d = {
             { -1, 1, -1, {1, 200} },
             { //target static shapes
                 { 2, 1, 7, 7 },
-                { 1, 1, 14, 14}
+                { 1, 1, 9, 9}
             }
         },
         {
@@ -277,7 +277,7 @@ std::vector<InputShape> inputShapesPlain2Blocked2d = {
             { -1, 3, -1, {1, 200} },
             { //target static shapes
                 { 2, 3, 7, 7 },
-                { 1, 3, 14, 14}
+                { 1, 3, 9, 9}
             }
         }
 };
@@ -295,16 +295,16 @@ std::vector<InputShape> inputShapes3d = {
             //dynamic shapes
             { -1, 64, -1, {1, 200}, -1 },
             { //target static shapes
-                { 2, 64, 7, 7, 7 },
-                { 1, 64, 14, 14, 14}
+                { 1, 64, 7, 7, 7 },
+                { 1, 64, 9, 9, 9}
             }
         },
         {
             //dynamic shapes
             { -1, 67, -1, {1, 200}, -1 },
             { //target static shapes
-                { 2, 67, 7, 7, 7 },
-                { 1, 67, 14, 14, 14}
+                { 1, 67, 7, 7, 7 },
+                { 1, 67, 9, 9, 9}
             }
         }
 };
@@ -317,7 +317,7 @@ std::vector<InputShape> inputShapesPlain2Blocked3d = {
             { -1, 1, -1, {1, 200}, -1 },
             { //target static shapes
                 { 2, 1, 7, 7, 7 },
-                { 1, 1, 14, 14, 14 }
+                { 1, 1, 9, 9, 9 }
             }
         },
         {
@@ -325,7 +325,7 @@ std::vector<InputShape> inputShapesPlain2Blocked3d = {
             { -1, 3, -1, {1, 200}, -1 },
             { //target static shapes
                 { 2, 3, 7, 7, 7 },
-                { 1, 3, 14, 14, 14 }
+                { 1, 3, 9, 9, 9 }
             }
         }
 };
