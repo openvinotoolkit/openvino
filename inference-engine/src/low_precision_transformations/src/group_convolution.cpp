@@ -32,7 +32,7 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
     this->register_matcher(m, callback);
 }
 
-bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return GroupConvolutionTransformation::isQuantizedStatic(layer);
 }
 
@@ -47,7 +47,7 @@ bool GroupConvolutionTransformation::transform(TransformationContext &context, n
     return true;
 }
 
-bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, true);
 }
 

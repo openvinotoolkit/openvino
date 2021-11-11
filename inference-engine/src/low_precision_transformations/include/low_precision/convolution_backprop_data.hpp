@@ -16,8 +16,8 @@ public:
     ConvolutionBackpropDataTransformation(const Params& params = Params());
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
-    bool isQuantized(const std::shared_ptr<const Node>& layer) const noexcept override;
-    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept;
+    bool isQuantized(const std::shared_ptr<const Node>& layer) const override;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer);
 };
 
 } // namespace low_precision
