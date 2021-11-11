@@ -29,10 +29,10 @@ if(COMMAND ie_add_vs_version_file)
                            FILEDESCRIPTION "Offline Transformatoins Python library")
 endif()
 
-if(TARGET offline_transformations)
-    list(APPEND link_libraries offline_transformations)
-else()
+if(InferenceEngineDeveloperPackage_FOUND)
     list(APPEND link_libraries IE::offline_transformations)
+else()
+    list(APPEND link_libraries offline_transformations)
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../inference_engine")

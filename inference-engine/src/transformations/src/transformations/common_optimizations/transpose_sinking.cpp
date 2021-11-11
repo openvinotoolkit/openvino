@@ -63,7 +63,7 @@ std::shared_ptr<ngraph::opset6::Constant> get_reversed_order_constant(const std:
 ngraph::pass::TransposeReduction::TransposeReduction() {
     MATCHER_SCOPE(TransposeReduction);
 
-    auto transpose_label = pattern::wrap_type<opset6::Transpose>({pattern::any_input(), pattern::wrap_type<opset6::Constant>()});
+    auto transpose_label = pattern::wrap_type<opset6::Transpose>({pattern::any_input(), pattern::wrap_type<opset6::Constant>()}, pattern::consumers_count(1));
     auto reduce_or_squeeze_label = pattern::wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, opset6::Squeeze>(
             {transpose_label, pattern::wrap_type<opset6::Constant>()});
 
