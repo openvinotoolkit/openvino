@@ -55,23 +55,24 @@ double leaky_relu(const double x);
 
 double clipping(const double x, const double lbound, const double ubound);
 
-double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
-                    double(*first_deriv_f)(const double),
-                    const uint32_t N,
-                    const double alpha_0,
-                    const double alpha_N,
-                    const double threshold,
-                    const bool negative);
+bool pivot_search(std::vector<pwl_t>& result,
+                  const DnnActivation& activation_type,
+                  const uint32_t N,
+                  const double alpha_0,
+                  const double alpha_N,
+                  const double threshold,
+                  double& epsilon_final);
 
 inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl);
 
-std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
-                              const double l_bound,
-                              const double u_bound,
-                              const double threshold,
-                              const double allowed_err_pct,
-                              const int samples,
-                              double& err_pct);
+bool pwl_search(const DnnActivation& activation_type,
+                const double l_bound,
+                const double u_bound,
+                const double threshold,
+                const double allowed_err_pct,
+                const int samples,
+                std::vector<pwl_t>& pwl,
+                int pwl_max_num_segments = PWL_MAX_NUM_SEGMENTS);
 
 bool split_search(const DnnActivationType fun,
                   const double l_bound,

@@ -36,7 +36,7 @@ inline double neglog(const double x) { return(-1.0*log(x)); }
 inline double neghalflog(const double x) { return(-0.5*log(x)); }
 inline double first_deriv_neglog(const double x) { return(-1.0 / x); }
 inline double first_deriv_neghalflog(const double x) { return(-0.5 / x); }
-double sigmoid(const double x) { return(0.5 * (1.0 + tanh(x / 2))); }
+double sigmoid(const double x) { return(0.5 * (1.0 + tanh(x / 2.0))); }
 double first_deriv_sigmoid(const double x) { return(sigmoid(x) * (1.0 - sigmoid(x))); }
 double softsign(const double x) { return(x / (1.0 + fabs(x))); }
 double first_deriv_softsign(const double x) { return(1.0 / ((1.0 + fabs(x)) * (1.0 + fabs(x)))); }
@@ -54,38 +54,38 @@ inline double power(const double x, const std::tuple<double, double, double>& ar
 }
 
 template <typename T1, typename T2>
-double pivot_search(std::vector<pwl_t>& result,
-                    T1 f,
-                    T2 first_deriv_f,
-                    const uint32_t N,
-                    const double alpha_0,
-                    const double alpha_N,
-                    const double threshold,
-                    const bool negative) {
+bool pivot_search(std::vector<pwl_t>& result,
+                  T1 f,
+                  T2 first_deriv_f,
+                  const uint32_t N,
+                  const double alpha_0,
+                  const double alpha_N,
+                  const double threshold,
+                  const bool negative,
+                  double& epsilon_final) {
     std::vector<std::vector<double>> t(N + 1);
     std::vector<std::vector<double>> alpha(N + 1);
     std::vector<std::vector<double>> epsilon(N + 1);
     std::vector<std::vector<double>> d(N + 1);
     bool same_epsilon = false;
-    double Delta;
-    double epsilon_final = 0.0;
+    epsilon_final = 0.0;
     double max_epsilon = 0.0;
     double max_epsilon_prev;
     double min_epsilon;
     double sgn = (negative) ? -1.0 : 1.0;
-    int j;
 
     if (threshold < 0) {
-        return epsilon_final;
+        return true;
     }
     // Figure 4:  Box #1
-    j = 0;
-    Delta = 1.0;
+    int j = 0;
+    double delta = 1.0;
 
     for (int i = 0; i < N; i++) {
         t[i].push_back(alpha_0 + (static_cast<double>((i + 1)) / static_cast<double>((N + 1))) * (alpha_N - alpha_0));
     }
 
+    double previous_delta = 0;
     while (true) {
         // Figure 4:  Box #2
         alpha[0].resize(j + 1);
@@ -94,6 +94,10 @@ double pivot_search(std::vector<pwl_t>& result,
             alpha[i].resize(j + 1);
             alpha[i][j] = (f(t[i - 1][j]) - f(t[i][j]) + first_deriv_f(t[i][j]) * t[i][j] - first_deriv_f(t[i - 1][j]) * t[i - 1][j])
                 / (first_deriv_f(t[i][j]) - first_deriv_f(t[i - 1][j]));
+            if (std::isnan(alpha[i][j])) {
+                gnalog() << "Failed to converge in pivot_search!\n";
+                return false;
+            }
         }
         alpha[N].resize(j + 1);
         alpha[N][j] = alpha_N;
@@ -102,19 +106,23 @@ double pivot_search(std::vector<pwl_t>& result,
         for (int i = 0; i < N; i++) {
             epsilon[i].resize(j + 1);
             epsilon[i][j] = sgn * (first_deriv_f(t[i][j]) * (alpha[i][j] - t[i][j]) + f(t[i][j]) - f(alpha[i][j]));
+            if (std::isnan(epsilon[i][j])) {
+                gnalog() << "Failed to converge in pivot_search!\n";
+                return false;
+            }
         }
         epsilon[N].resize(j + 1);
         epsilon[N][j] = sgn * (first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + f(t[N - 1][j]) - f(alpha[N][j]));
 
         // Figure 4:  Test for completion
         max_epsilon_prev = max_epsilon;
-        max_epsilon = fabs(epsilon[0][j]);
-        min_epsilon = fabs(epsilon[0][j]);
+        max_epsilon = std::abs(epsilon[0][j]);
+        min_epsilon = std::abs(epsilon[0][j]);
         for (int i = 1; i < N + 1; i++) {
-            if (fabs(epsilon[i][j]) > max_epsilon) max_epsilon = fabs(epsilon[i][j]);
-            if (fabs(epsilon[i][j]) < min_epsilon) min_epsilon = fabs(epsilon[i][j]);
+            if (std::abs(epsilon[i][j]) > max_epsilon) max_epsilon = std::abs(epsilon[i][j]);
+            if (std::abs(epsilon[i][j]) < min_epsilon) min_epsilon = std::abs(epsilon[i][j]);
         }
-        if ((j == PWL_MAX_ITERATIONS) || (max_epsilon - min_epsilon < threshold * min_epsilon)) {
+        if (max_epsilon - min_epsilon < threshold * min_epsilon) {
             pwl_t value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
@@ -133,22 +141,21 @@ double pivot_search(std::vector<pwl_t>& result,
             value.alpha = alpha[N][j];
             value.beta = sgn * first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + sgn * f(t[N - 1][j]) - epsilon_final;
             result.push_back(value);
-            if (j == PWL_MAX_ITERATIONS) {
-                THROW_GNA_EXCEPTION << "Failed to converge in pivot_search!";
-            }
-            return(epsilon_final);
+            return true;
         }
+
+        previous_delta = std::abs((max_epsilon - min_epsilon) - threshold * min_epsilon);
 
         if (j > 0) {
             if (max_epsilon > max_epsilon_prev) {
-                j = j - 1;
-                Delta = Delta / 2;
+                j--;
+                delta /= 2;
             } else if (max_epsilon == max_epsilon_prev) {
                 if (!same_epsilon) {
                     same_epsilon = true;
                 } else {
-                    j = j - 1;
-                    Delta = Delta / 2;
+                    j--;
+                    delta /= 2;
                     same_epsilon = false;
                 }
             }
@@ -157,7 +164,7 @@ double pivot_search(std::vector<pwl_t>& result,
         // Figure 4:  Box #4
         for (int i = 0; i < N; i++) {
             d[i].resize(j + 1);
-            d[i][j] = Delta * (epsilon[i + 1][j] - epsilon[i][j]) /
+            d[i][j] = delta * (epsilon[i + 1][j] - epsilon[i][j]) /
                 ((epsilon[i + 1][j] / (alpha[i + 1][j] - t[i][j])) + (epsilon[i][j] / (t[i][j] - alpha[i][j])));
         }
 
@@ -168,28 +175,78 @@ double pivot_search(std::vector<pwl_t>& result,
         }
         t[N].resize(j + 2);
 
-        j = j + 1;
+        j++;
     }
 }
 
-double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
-                    double(*first_deriv_f)(const double),
-                    const uint32_t N,
-                    const double alpha_0,
-                    const double alpha_N,
-                    const double threshold,
-                    const bool negative) {
-    double epsilon_final = 0.0;
+bool pivot_search(std::vector<pwl_t>& result,
+                  const DnnActivation& activation_type,
+                  const uint32_t N,
+                  const double alpha_0,
+                  const double alpha_N,
+                  const double threshold,
+                  double& epsilon_final) {
+    bool negative = false;
+    double(*f)(const double) = nullptr;
+    double(*first_deriv_f)(const double) = nullptr;
+    switch (activation_type) {
+        case kActSigmoid:
+            if (alpha_N == 0) negative = true;  // make left half convex
+            f = sigmoid;
+            first_deriv_f = first_deriv_sigmoid;
+            break;
+        case kActTanh:
+            if (alpha_N == 0) negative = true;  // make left half convex
+            f = tanh;
+            first_deriv_f = first_deriv_tanh;
+            break;
+        case kActSoftSign:
+            if (alpha_N == 0) negative = true;  // make left half convex
+            f = softsign;
+            first_deriv_f = first_deriv_softsign;
+            break;
+        case kActExp:
+            negative = true;  // make function convex
+            f = exp;
+            first_deriv_f = first_deriv_exp;
+            break;
+        case kActLog:
+            f = log;
+            first_deriv_f = first_deriv_log;
+            break;
+        case kActNegLog:
+            negative = true;  // make function convex
+            f = neglog;
+            first_deriv_f = first_deriv_neglog;
+            break;
+        case kActNegHalfLog:
+            negative = true;  // make function convex
+            f = neghalflog;
+            first_deriv_f = first_deriv_neghalflog;
+            break;
+        case kActPow: {
+            negative = (fmod(activation_type.args.pow.exponent, 1.0) == 0) ? true : false;
+            auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
+                                                            activation_type.args.pow.scale,
+                                                            activation_type.args.pow.offset };
+            auto fun = [&args](double x) -> double { return power(x, args); };
+            auto first_deriv = [&args](double x) -> double { return first_deriv_power(x, args); };
+            return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative, epsilon_final);
+        }
+        default:
+            break;
+    }
 
     if (f == nullptr ||
         first_deriv_f == nullptr ||
         threshold < 0) {
-        return epsilon_final;
+        epsilon_final = 0.0;
+        return true;
     }
 
     auto fun = [&f](double x) -> double { return f(x); };
     auto first_deriv = [&first_deriv_f](double x) -> double { return first_deriv_f(x); };
-    return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative);
+    return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative, epsilon_final);
 }
 
 double calculate_error_pct(const DnnActivation& activation_type,
@@ -269,7 +326,7 @@ double calculate_error_pct(const DnnActivation& activation_type,
         if (val < min_val) min_val = val;
     }
 
-    return(100.0 * fabs(offset) / (max_val - min_val));
+    return(100.0 * std::abs(offset) / (max_val - min_val));
 }
 
 inline double get_break_bound(const DnnActivation& activation_type) {
@@ -290,70 +347,63 @@ inline double get_break_bound(const DnnActivation& activation_type) {
 inline bool split_search(const DnnActivation& activation_type,
                     const double l_bound,
                     const double u_bound) {
-    bool is_split = false;
     if (l_bound > u_bound) {
-        return is_split;
+        return false;
     }
-    double break_bound = get_break_bound(activation_type);
 
+    double break_bound = get_break_bound(activation_type);
     switch (activation_type) {
         case kActSigmoid:
         case kActTanh:
         case kActSoftSign:
         case kActExp:
         case kActPow:
-            is_split = ((l_bound < break_bound) && (u_bound > break_bound));
-            break;
-        default:
-            is_split = false;
+            return (l_bound < break_bound) && (u_bound > break_bound);
     }
-    return is_split;
+
+    return false;
 }
 
-inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl) {
-    std::vector<pwl_t> new_pwl;
-    new_pwl = pwl;
+inline void negative_pwl(std::vector<pwl_t>& pwl) {
     for (uint32_t i = 0; i < pwl.size(); i++) {
-        new_pwl[i].m = -pwl[i].m;
-        new_pwl[i].b = -pwl[i].b;
-        new_pwl[i].beta = -pwl[i].beta;
+        pwl[i].m = -pwl[i].m;
+        pwl[i].b = -pwl[i].b;
+        pwl[i].beta = -pwl[i].beta;
     }
-
-    return(new_pwl);
 }
 
-std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
-                                const double l_bound,
-                                const double u_bound,
-                                const double threshold,
-                                const double allowed_err_pct,
-                                const int samples,
-                                double& err_pct) {
-    std::vector<pwl_t> pwl;
-    double err = 0.0;
-    int n_segments = 1;
-
+bool pwl_search(const DnnActivation& activation_type,
+                const double l_bound,
+                const double u_bound,
+                const double threshold,
+                const double allowed_err_pct,
+                const int samples,
+                std::vector<pwl_t>& pwl,
+                int pwl_max_num_segments) {
+    pwl.clear();
     if (l_bound > u_bound ||
         threshold < 0) {
-        return pwl;
+        return true;
     }
 
     if (split_search(activation_type, l_bound, u_bound)) {
-        std::vector<pwl_t> pwl2;
-        double err_pct1 = 0.0, err_pct2 = 0.0;
         double break_bound = get_break_bound(activation_type);
+        if (!pwl_search(activation_type, l_bound, break_bound, threshold, allowed_err_pct, samples, pwl, pwl_max_num_segments)) {
+            return false;
+        }
 
-        pwl = pwl_search(activation_type, l_bound, break_bound, threshold, allowed_err_pct, samples, err_pct1);
-        pwl = negative_pwl(pwl);
-        pwl2 = pwl_search(activation_type, break_bound, u_bound, threshold, allowed_err_pct, samples, err_pct2);
+        negative_pwl(pwl);
+        std::vector<pwl_t> pwl2;
+        if (!pwl_search(activation_type, break_bound, u_bound, threshold, allowed_err_pct, samples, pwl2, pwl_max_num_segments)) {
+            return false;
+        }
 
         if (activation_type == kActExp || activation_type == kActPow) {
-            pwl2 = negative_pwl(pwl2);
+            negative_pwl(pwl2);
         }
         // merge
         pwl.pop_back();  // remove final alpha and beta from first half
         pwl.insert(pwl.end(), pwl2.begin(), pwl2.end());  // concatenate the two halves
-        err_pct = (err_pct1 + err_pct2) / 2;  // this is not quite correct but should give an indication
     } else {
         if (activation_type == kActIdentity) {
             pwl.resize(2);
@@ -401,98 +451,62 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 pwl[1].m = 1.0;
                 pwl[1].b = 0.0;
         } else {
-            bool negative = false;
-
-            switch (activation_type) {
-                case kActSigmoid:
-                    if (u_bound == 0) negative = true;  // make left half convex
-                    err = pivot_search(pwl, sigmoid, first_deriv_sigmoid, n_segments, l_bound, u_bound, threshold, negative);
-                    break;
-                case kActTanh:
-                    if (u_bound == 0) negative = true;  // make left half convex
-                    err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound, threshold, negative);
-                    break;
-                case kActSoftSign:
-                    if (u_bound == 0) negative = true;  // make left half convex
-                    err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound, threshold, negative);
-                    break;
-                case kActExp:
-                    negative = true;  // make function convex
-                    err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound, threshold, negative);
-                    break;
-                case kActLog:
-                    err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound, threshold, negative);
-                    break;
-                case kActNegLog:
-                    negative = true;  // make function convex
-                    err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound, threshold, negative);
-                    break;
-                case kActNegHalfLog:
-                    negative = true;  // make function convex
-                    err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound, threshold, negative);
-                    break;
-                case kActPow: {
-                    negative = (fmod(activation_type.args.pow.exponent, 1.0) == 0) ? true : false;
-                    auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
-                                                                    activation_type.args.pow.scale,
-                                                                    activation_type.args.pow.offset };
-                    auto fun = [&args](double x) -> double { return power(x, args); };
-                    auto first_deriv = [&args](double x) -> double { return first_deriv_power(x, args); };
-                    err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound, threshold, negative);
+            double err_pct = 0;
+            double err = 0;
+            int n_segments_lower = 1;
+            int n_segments_upper = 1;
+            do {
+                int n_segments = std::min(n_segments_upper * 2, pwl_max_num_segments);
+                if (!pivot_search(pwl, activation_type, n_segments, l_bound, u_bound, threshold, err)) {
                     break;
                 }
-                default:
-                    break;
-            }
-            err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
-
-            while ((n_segments < PWL_MAX_ITERATIONS) && (allowed_err_pct < err_pct)) {
-                n_segments += 1;
-                switch (activation_type) {
-                    case kActSigmoid:
-                        err = pivot_search(pwl, sigmoid, first_deriv_sigmoid, n_segments, l_bound, u_bound, threshold, negative);
-                        break;
-                    case kActTanh:
-                        err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound, threshold, negative);
-                        break;
-                    case kActSoftSign:
-                        err = pivot_search(pwl, softsign, first_deriv_softsign, n_segments, l_bound, u_bound, threshold, negative);
-                            break;
-                    case kActExp:
-                        err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound, threshold, negative);
-                        break;
-                    case kActLog:
-                        err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound, threshold, negative);
-                        break;
-                    case kActNegLog:
-                        err = pivot_search(pwl, neglog, first_deriv_neglog, n_segments, l_bound, u_bound, threshold, negative);
-                        break;
-                    case kActNegHalfLog:
-                        err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound, threshold, negative);
-                        break;
-                    case kActPow: {
-                        auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
-                                                                        activation_type.args.pow.scale,
-                                                                        activation_type.args.pow.offset };
-                        auto fun = [&args](double x) { return power(x, args); };
-                        auto first_deriv = [&args](double x) { return first_deriv_power(x, args); };
-                        err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound, threshold, negative);
-                        break;
-                    }
-                    default:
-                        break;
-                }
+                n_segments_lower = n_segments_upper;
+                n_segments_upper = n_segments;
                 err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
+            } while (n_segments_upper != pwl_max_num_segments && allowed_err_pct < err_pct);
+
+            int n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower) / 2;
+            std::pair<double, int> previous_good_result(err_pct, n_segments_mid);
+            while (std::abs(n_segments_lower - n_segments_upper) > 1) {
+                if (!pivot_search(pwl, activation_type, n_segments_mid, l_bound, u_bound, threshold, err)) {
+                    n_segments_upper = n_segments_mid;
+                    err_pct = std::numeric_limits<double>::max();
+                } else {
+                    err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
+                    if (allowed_err_pct == err_pct) {
+                        n_segments_lower = n_segments_mid;
+                        break;
+                    } else if (allowed_err_pct < err_pct) {
+                        n_segments_lower = n_segments_mid;
+                    } else {
+                        n_segments_upper = n_segments_mid;
+                    }
+
+                    if ((allowed_err_pct == 0 || allowed_err_pct >= err_pct) &&
+                        std::abs(err_pct - allowed_err_pct) < std::abs(previous_good_result.first - allowed_err_pct)) {
+                        previous_good_result = std::make_pair(err_pct, n_segments_mid);
+                    }
+                }
+
+                n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower) / 2;
             }
 
-            if (n_segments >= PWL_MAX_ITERATIONS) {
-                THROW_GNA_EXCEPTION << "Failed to converge in pwl_search!";
+            if ((allowed_err_pct == 0 || allowed_err_pct < err_pct) && err_pct > previous_good_result.first) {
+                pivot_search(pwl, activation_type, previous_good_result.second, l_bound, u_bound, threshold, err);
+                err_pct = previous_good_result.first;
+                gnalog() << err_pct << " is the best err_pct for range [" << l_bound << ", " << u_bound <<
+                    "] and allowed_err_pct = " << allowed_err_pct << '\n';
+            }
+
+            if (n_segments_lower >= pwl_max_num_segments || (allowed_err_pct > 0 && allowed_err_pct < err_pct)) {
+                gnalog() << "Failed to converge in pwl_search!\n";
+                return false;
             }
         }
     }
-    return(pwl);
-}
 
+    return true;
+}
 
 void PwlDesignOpt(const DnnActivation activation_type,
                     std::vector<gna_pwl_segment_t> &ptr_segment,
@@ -501,7 +515,6 @@ void PwlDesignOpt(const DnnActivation activation_type,
                     const float pwlMaxErrorPercent,
                     const bool low_precision) {
     std::vector<pwl_t> pwl;
-    double err_pct = 0.0;
     auto minInputStats = 0.0f;
     auto maxInputStats = 0.0f;
     if (activation_type.srcFQParams.set) {
@@ -513,7 +526,13 @@ void PwlDesignOpt(const DnnActivation activation_type,
             auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
             auto minInput = (activation_type.srcFQParams.set && absMax < SIGMOID_DOMAIN) ? -absMax : -SIGMOID_DOMAIN;
             auto maxInput = (activation_type.srcFQParams.set && absMax < SIGMOID_DOMAIN) ? absMax : SIGMOID_DOMAIN;
-            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            IE_ASSERT(pwl_search(activation_type,
+                                 minInput,
+                                 maxInput,
+                                 PWL_DESIGN_THRESHOLD,
+                                 pwlMaxErrorPercent,
+                                 PWL_DESIGN_SAMPLES,
+                                 pwl));
             make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -521,7 +540,13 @@ void PwlDesignOpt(const DnnActivation activation_type,
             auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
             auto minInput = (activation_type.srcFQParams.set && absMax < TANH_DOMAIN) ? -absMax : -TANH_DOMAIN;
             auto maxInput = (activation_type.srcFQParams.set && absMax < TANH_DOMAIN) ? absMax : TANH_DOMAIN;
-            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            IE_ASSERT(pwl_search(activation_type,
+                                 minInput,
+                                 maxInput,
+                                 PWL_DESIGN_THRESHOLD,
+                                 pwlMaxErrorPercent,
+                                 PWL_DESIGN_SAMPLES,
+                                 pwl));
             make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -529,7 +554,13 @@ void PwlDesignOpt(const DnnActivation activation_type,
             auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
             auto minInput = (activation_type.srcFQParams.set && absMax < SOFTSIGN_DOMAIN) ? -absMax : -SOFTSIGN_DOMAIN;
             auto maxInput = (activation_type.srcFQParams.set && absMax < SOFTSIGN_DOMAIN) ? absMax : SOFTSIGN_DOMAIN;
-            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            IE_ASSERT(pwl_search(activation_type,
+                                 minInput,
+                                 maxInput,
+                                 PWL_DESIGN_THRESHOLD,
+                                 pwlMaxErrorPercent,
+                                 PWL_DESIGN_SAMPLES,
+                                 pwl));
             make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -550,28 +581,52 @@ void PwlDesignOpt(const DnnActivation activation_type,
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            IE_ASSERT(pwl_search(activation_type,
+                                 x_min,
+                                 x_max,
+                                 PWL_DESIGN_THRESHOLD,
+                                 pwlMaxErrorPercent,
+                                 PWL_DESIGN_SAMPLES,
+                                 pwl));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActNegLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            IE_ASSERT(pwl_search(activation_type,
+                                 x_min,
+                                 x_max,
+                                 PWL_DESIGN_THRESHOLD,
+                                 pwlMaxErrorPercent,
+                                 PWL_DESIGN_SAMPLES,
+                                 pwl));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActNegHalfLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            IE_ASSERT(pwl_search(activation_type,
+                                 x_min,
+                                 x_max,
+                                 PWL_DESIGN_THRESHOLD,
+                                 pwlMaxErrorPercent,
+                                 PWL_DESIGN_SAMPLES,
+                                 pwl));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActExp: {
             double x_min = -log(scale_out);
             double x_max = x_min + log(INT16_MAX);
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            IE_ASSERT(pwl_search(activation_type,
+                                 x_min,
+                                 x_max,
+                                 PWL_DESIGN_THRESHOLD,
+                                 pwlMaxErrorPercent,
+                                 PWL_DESIGN_SAMPLES,
+                                 pwl));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -597,7 +652,13 @@ void PwlDesignOpt(const DnnActivation activation_type,
 
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
                 auto maxError = pwlMaxErrorPercent > 0.015f? 0.015f: pwlMaxErrorPercent;
-                pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, maxError, PWL_DESIGN_SAMPLES, err_pct);
+                IE_ASSERT(pwl_search(activation_type,
+                                     x_min,
+                                     x_max,
+                                     PWL_DESIGN_THRESHOLD,
+                                     maxError,
+                                     PWL_DESIGN_SAMPLES,
+                                     pwl));
             }
 
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
