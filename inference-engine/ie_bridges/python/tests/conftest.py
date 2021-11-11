@@ -46,7 +46,7 @@ def device():
 def pytest_configure(config):
     # register an additional markers
     config.addinivalue_line(
-        "markers", "template_plugin"
+        "markers", "template_plugin", "static_library"
     )
 
 
