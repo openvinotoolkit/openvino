@@ -71,7 +71,7 @@ void getName(char* name, size_t size) {
     }
     CloseHandle(handle);
 }
-#else
+#elif defined(__linux__)
 long getThreadId() {
     return syscall(SYS_gettid);
 }
@@ -86,6 +86,20 @@ void getName(char* name, size_t size) {
     }
 }
 
+#elif defined(__APPLE__)
+long getThreadId() {
+    return (long)pthread_self();
+}
+
+void setName(const char* pname) {
+    pthread_setname_np(pname);
+}
+
+void getName(char* name, size_t size) {
+    pthread_getname_np(pthread_self(), name, size);
+}
+
+#else
 #endif
 } // namespace ThreadUtils
 

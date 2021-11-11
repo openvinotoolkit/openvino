@@ -16,7 +16,7 @@
 namespace ThreadUtils {
 DWORD getThreadId();
 } // namespace ThreadUtils
-#else
+#elif defined(__linux__)
 #include <sys/types.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
@@ -24,12 +24,23 @@ DWORD getThreadId();
 namespace ThreadUtils {
 long getThreadId();
 } // namespace ThreadUtils
+#elif defined(__APPLE__)
+#include <pthread.h>
+#include <sys/proc_info.h>
+namespace ThreadUtils {
+long getThreadId();
+} // namespace ThreadUtils
+#else
+namespace ThreadUtils {
+long getThreadId();
+} // namespace ThreadUtils
 #endif
+
+
 
 namespace ThreadUtils {
 uint64_t getRdtsc();
 std::string getName();
-std::string getHostname();
 
 void setName(const char* name);
 void setName(const std::string& name);
