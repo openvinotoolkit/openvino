@@ -34,17 +34,18 @@ private:
     };
 
     struct DepthToSpaceAttrs {
-        enum LayoutType {
+        enum CommonLayoutType {
             Planar,
-            ChannelsFirst,
+            ChannelsLast,
             Blocked
         };
 
+        CommonLayoutType layoutType;
         Mode mode;
         size_t blockSize = 0lu;
         size_t blockStep = 0lu;
         size_t dataSize = 1lu;
-        LayoutType layoutType;
+        size_t nSpatialDims = 0lu;
         VectorDims srcBlockedDims;
     } attrs;
 

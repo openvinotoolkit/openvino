@@ -141,10 +141,12 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "has unidentified preferable primitive descriptor";
 
-    attrs.dataSize = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
-    attrs.layoutType = srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c) ||
-                       srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c) ? DepthToSpaceAttrs::Blocked :
-                       (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc) ? DepthToSpaceAttrs::ChannelsFirst : DepthToSpaceAttrs::Planar);
+    const auto& memoryDesc = srcMemPtr->getDesc();
+    attrs.dataSize = memoryDesc.getPrecision().size();
+    attrs.nSpatialDims = memoryDesc.getShape().getRank() - 2;
+    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp8c) ||
+                       memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? DepthToSpaceAttrs::Blocked :
+                       (memoryDesc.hasLayoutType(LayoutType::nspc) ? DepthToSpaceAttrs::ChannelsLast : DepthToSpaceAttrs::Planar);
 
     if (inputShapesDefined()) {
         if (needPrepareParams())
@@ -159,11 +161,10 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
 }
 
 MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
-    size_t nDims = attrs.srcBlockedDims.size();
     const bool isBlocked = attrs.layoutType == DepthToSpaceAttrs::Blocked;
-    const bool isChannelsFirst = attrs.layoutType == DepthToSpaceAttrs::ChannelsFirst;
-    const size_t nSpatialDims = nDims - 2 - static_cast<int>(isBlocked);
-    const size_t reshapedRank = nDims + nSpatialDims + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
+    const bool isChannelsFirst = attrs.layoutType == DepthToSpaceAttrs::ChannelsLast;
+    const size_t nDims = attrs.srcBlockedDims.size();
+    const size_t reshapedRank = nDims + attrs.nSpatialDims + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
     size_t firstSpatialOrder = 2;
 
@@ -184,7 +185,7 @@ MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthTo
     // where `k` is number of spatial dimensions
 
     auto reshapeAndSetPermOrder = [&](const size_t idx1, const size_t idx2, const size_t shift, const VectorDims& dims) {
-        for (size_t i = 0; i < nSpatialDims; i++) {
+        for (size_t i = 0; i < attrs.nSpatialDims; i++) {
             params.order[i * 2 + shift] = i + idx1;
             params.order[i * 2 + shift + 1] = i + idx2;
 
@@ -197,44 +198,44 @@ MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthTo
         size_t orderShiftForBlocks, orderShiftForDims;
         if (attrs.mode == Mode::BLOCKS_FIRST) {
             orderShiftForBlocks = 1;
-            orderShiftForDims = nSpatialDims + 2;
+            orderShiftForDims = attrs.nSpatialDims + 2;
 
-            params.src_block_dims[nSpatialDims + 1] = attrs.srcBlockedDims[1] / attrs.blockStep;
+            params.src_block_dims[attrs.nSpatialDims + 1] = attrs.srcBlockedDims[1] / attrs.blockStep;
             params.src_block_dims[lastIdx] = attrs.srcBlockedDims.back();
 
-            params.order[1] = nSpatialDims + 1;
+            params.order[1] = attrs.nSpatialDims + 1;
             params.order[lastIdx] = lastIdx;
         } else {
-            orderShiftForBlocks = nSpatialDims + 4;
+            orderShiftForBlocks = attrs.nSpatialDims + 4;
             orderShiftForDims = 3;
 
             size_t newBlockSize = attrs.srcBlockedDims.back() / attrs.blockStep;
             size_t newBlocksCount = attrs.srcBlockedDims[1] / attrs.blockStep;
             params.src_block_dims[1] = newBlocksCount;
             params.src_block_dims[2] = attrs.srcBlockedDims[1] / newBlocksCount;
-            params.src_block_dims[lastIdx - nSpatialDims] = newBlockSize;
+            params.src_block_dims[lastIdx - attrs.nSpatialDims] = newBlockSize;
 
             params.order[1] = 1;
             params.order[2] = 3;
             params.order[lastIdx - 1] = 2;
-            params.order[lastIdx] = lastIdx - nSpatialDims;
+            params.order[lastIdx] = lastIdx - attrs.nSpatialDims;
         }
 
         reshapeAndSetPermOrder(orderShiftForDims, orderShiftForBlocks, firstSpatialOrder, attrs.srcBlockedDims);
     } else if (isChannelsFirst) {
         firstSpatialOrder = 1;
 
-        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + nSpatialDims + 1;
-        params.order[lastIdx] = attrs.mode == Mode::DEPTH_FIRST ? nSpatialDims + 1 : lastIdx;
+        size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + attrs.nSpatialDims + 1;
+        params.order[lastIdx] = attrs.mode == Mode::DEPTH_FIRST ? attrs.nSpatialDims + 1 : lastIdx;
         params.src_block_dims[params.order[lastIdx]] = attrs.srcBlockedDims.back() / attrs.blockStep;
 
         reshapeAndSetPermOrder(firstSpatialOrder, shift, firstSpatialOrder, attrs.srcBlockedDims);
     } else {
         size_t shift = static_cast<size_t>(attrs.mode == DEPTH_FIRST) + 1;
-        params.order[1] = attrs.mode == DEPTH_FIRST ? 1 : nSpatialDims + 1;
+        params.order[1] = attrs.mode == DEPTH_FIRST ? 1 : attrs.nSpatialDims + 1;
         params.src_block_dims[params.order[1]] = attrs.srcBlockedDims[1] / attrs.blockStep;
 
-        reshapeAndSetPermOrder(nSpatialDims + firstSpatialOrder, shift, firstSpatialOrder, attrs.srcBlockedDims);
+        reshapeAndSetPermOrder(attrs.nSpatialDims + firstSpatialOrder, shift, firstSpatialOrder, attrs.srcBlockedDims);
     }
 
     std::iota(params.src_block_order.begin(), params.src_block_order.end(), 0);
