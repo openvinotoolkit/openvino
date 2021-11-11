@@ -159,7 +159,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
                                        tensors_shape_string + "\" command line parameter");
             } else {
                 throw std::logic_error(
-                    "tensor_shape command line parameter should be set in case of network dynamic shape.");
+                    "tensor_shape command line parameter should be set in case of network with dynamic shapes.");
             }
 
             // Layout

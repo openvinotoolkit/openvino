@@ -164,8 +164,8 @@ static const char dump_config_message[] =
 
 static const char shape_message[] =
     "Optional. Set shape for network input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
-    " in case of one input size. This parameter affect model Parameter shape, can be dynamic. For dynamic dimesions"
-    " use symbol `?` or '-1'.";
+    " in case of one input size. This parameter affect model input shape and can be dynamic. For dynamic dimensions"
+    " use symbol `?` or '-1'. Ex. [?,3,?,?]";
 
 static const char tensor_shape_message[] =
     "Optional if network shapes are all static (original ones or set by -shape.\n"
@@ -404,5 +404,5 @@ static void showUsage() {
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
     std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
     std::cout << "    -imean                     " << input_image_mean_message << std::endl;
-    std::cout << "    -legacy_mode                     " << legacy_mode_message << std::endl;
+    std::cout << "    -legacy_mode              " << legacy_mode_message << std::endl;
 }

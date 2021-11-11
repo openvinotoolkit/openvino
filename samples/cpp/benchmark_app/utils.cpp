@@ -46,7 +46,6 @@ size_t InputInfo::height() const {
 size_t InputInfo::channels() const {
     return getDimentionByLayout('C');
 }
-// implementation changed to not throwing exceptions
 size_t InputInfo::batch() const {
     return getDimentionByLayout('N');
 }
@@ -181,7 +180,7 @@ InferenceEngine::Layout getLayoutFromString(const std::string& string_layout) {
     if (it != layouts.end()) {
         return it->second;
     }
-    IE_THROW(NetworkNotRead) << "Unknown layout with name '" << string_layout << "'.";
+    IE_THROW() << "Unknown layout with name '" << string_layout << "'.";
 }
 
 std::string getShapeString(const InferenceEngine::SizeVector& shape) {

@@ -67,10 +67,6 @@ public:
         return _request.GetPerformanceCounts();
     }
 
-    void setShape(const std::string& name, const InferenceEngine::SizeVector& dims) {
-        _request.GetBlob(name)->setShape(dims);
-    }
-
     InferenceEngine::Blob::Ptr getBlob(const std::string& name) {
         return _request.GetBlob(name);
     }

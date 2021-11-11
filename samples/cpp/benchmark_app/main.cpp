@@ -808,7 +808,7 @@ int main(int argc, char* argv[]) {
         bool legacyMode = FLAGS_legacy_mode;
 
         if (legacyMode) {
-            slog::warn << "Benchmark legacy mode was enabled! Inputs blobs will be filled once before performance "
+            slog::warn << "Benchmark legacy mode was enabled! Input blobs will be filled once before performance "
                           "measurements."
                        << slog::endl;
             if (nireq < inputsData.begin()->second.size())
@@ -951,7 +951,7 @@ int main(int argc, char* argv[]) {
 
         std::vector<std::vector<double>> latency_groups = {};
         if (FLAGS_pcseq) {
-            auto latency_groups = inferRequestsQueue.getLatencyGroups();
+            latency_groups = inferRequestsQueue.getLatencyGroups();
             for (auto& group : latency_groups) {
                 std::sort(group.begin(), group.end());
             }
@@ -1060,12 +1060,12 @@ int main(int argc, char* argv[]) {
                         std::cout << "  " << item.first << " : " << getShapeString(item.second.tensorShape);
                     }
                     std::cout << std::endl;
-                    std::cout << '\t' << "Avg:    "
+                    std::cout << "\tAvg:    "
                               << std::accumulate(latency_groups[i].begin(), latency_groups[i].end(), 0.0) /
                                      latency_groups[i].size()
                               << " ms" << std::endl;
-                    std::cout << '\t' << "Max:    " << latency_groups[i].back() << " ms" << std::endl;
-                    std::cout << '\t' << "Min:    " << latency_groups[i][0] << " ms" << std::endl;
+                    std::cout << "\tMax:    " << latency_groups[i].back() << " ms" << std::endl;
+                    std::cout << "\tMin:    " << latency_groups[i][0] << " ms" << std::endl;
                 }
             }
         }
