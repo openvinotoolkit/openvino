@@ -4,6 +4,8 @@
 
 #include <ngraph_functions/builders.hpp>
 #include <functional_test_utils/ov_tensor_utils.hpp>
+#include <random>
+#include <ctime>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -72,14 +74,8 @@ public:
 
             if (i == 1) {
                 tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-
-                std::mt19937 rand;
-                rand.seed(static_cast<unsigned int>(time(0)));
-
                 auto *dataPtr = tensor.data<int32_t>();
-                for (size_t i = 0; i < tensor.get_size(); i++) {
-                    dataPtr[i] = random() % 9 + 1;
-                }
+                dataPtr[0] = Depth;
             } else {
                 tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             }
@@ -92,13 +88,10 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         OneHotInputShapes inputShape;
-        int axis;
         ngraph::helpers::InputLayerType inputType;
-        size_t depth;
-        float onValue, offValue;
         InferenceEngine::Precision netPrecision, inPrc, outPrc;
         CPUSpecificParams cpuParams;
-        std::tie(inputShape, axis, inputType, depth, onValue, offValue, netPrecision, inPrc, outPrc, cpuParams) = this->GetParam();
+        std::tie(inputShape, Axis, inputType, Depth, OnValue, OffValue, netPrecision, inPrc, outPrc, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = std::string("ref_any_") + inPrc.name();
         inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
@@ -115,43 +108,100 @@ protected:
         if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
             for (auto &target : targetStaticShapes)
                 target.push_back({});
+            function = createFunctionWithParam();
+        } else {
+            function = createFunctionWithConst();
         }
-
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeDynamicParams(ngPrc, {inputDynamicShapes});
-        auto depth_const = std::make_shared<ngraph::op::Constant>(ngraph::element::i32, ngraph::Shape{ }, depth);
-        auto depth_param = std::make_shared<ngraph::op::Parameter>(ngraph::element::i32, ngraph::Shape{ });
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER)
-            params.push_back(depth_param);
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-        auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, onValue);
-        auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, offValue);
-        auto oneHot = inputType == ngraph::helpers::InputLayerType::PARAMETER ?
-                      std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], paramOuts[1], on_value_const, off_value_const, axis) :
-                      std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], depth_const, on_value_const, off_value_const, axis);
-        function = makeNgraphFunction(ngPrc, params, oneHot, "OneHot");
     }
+    std::shared_ptr<ngraph::Function> createFunctionWithConst() {
+        auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes});
+        for (auto& p : params)
+            p->set_friendly_name("ParamsIndices");
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto depth_const = std::make_shared<ngraph::op::Constant>(ngraph::element::i32, ngraph::Shape{ }, Depth);
+        auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OnValue);
+        auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OffValue);
+        auto oneHot = std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], depth_const, on_value_const, off_value_const, Axis);
+        return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
+    }
+    std::shared_ptr<ngraph::Function> createFunctionWithParam() {
+        auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes});
+        for (auto& p : params)
+            p->set_friendly_name("ParamsIndices");
+        auto depth_param = std::make_shared<ngraph::op::Parameter>(ngraph::element::i32, ngraph::Shape{ });
+        depth_param->set_friendly_name("ParamDepth");
+        params.push_back(depth_param);
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+        auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OnValue);
+        auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OffValue);
+        auto oneHot = std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], paramOuts[1], on_value_const, off_value_const, Axis);
+        return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
+    }
+    void generateDepth() {
+        std::mt19937 gen;
+        gen.seed(static_cast<unsigned int>(time(0)));
+        Depth = gen() % 9 + 1;
+    }
+
+    int Axis;
+    size_t Depth;
+    float OnValue, OffValue;
 };
 
 TEST_P(OneHotLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    run();
+    if (function->get_parameters().size() == 1) {
+        run();
+    } else {
+        compile_model();
+        for (const auto& targetStaticShapeVec : targetStaticShapes) {
+            try {
+                generateDepth();
+                if (!inputDynamicShapes.empty()) {
+                    // resize ngraph function according new target shape
+                    functionRefs = createFunctionWithConst();
+                    auto inputs = functionRefs->inputs();
+                    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
+                    if (inputs.size() > targetStaticShapeVec.size()) {
+                        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetStaticShapeVec.size()) +
+                                                 " != inputs.size() = " + std::to_string(inputs.size()));
+                    }
+                    for (size_t i = 0; i < inputs.size(); i++) {
+                        shapes.insert({inputs[i], targetStaticShapeVec[i]});
+                    }
+                    functionRefs->reshape(shapes);
+                }
+                generate_inputs(targetStaticShapeVec);
+                infer();
+                for (const auto& in : inputs) {
+                    if (strcmp(in.first->get_friendly_name().data(), "ParamDepth") == 0) {
+                        inputs.erase(in.first);
+                        break;
+                    }
+                }
+                validate();
+            } catch (const std::exception &ex) {
+                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+            }
+        }
+    }
     // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
     // CheckPluginRelatedResults(executableNetwork, "OneHot");
 }
 
 namespace {
-const std::vector<Precision> outPrc = {Precision::FP32,
-                                       // TODO: Should be uncommented after PR #8339 merge
-                                       // Precision::BF16,
-                                       Precision::I8,
-                                       Precision::U8};
+const std::vector<Precision> outPrc = {
+        Precision::FP32,
+        // TODO: Should be uncommented after PR #8339 merge
+        // Precision::BF16,
+        Precision::I8,
+        Precision::U8
+};
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
-        // TODO: Should be uncommented after ngraph starts supporting depth as a parameter
-        // ngraph::helpers::InputLayerType::PARAMETER
+        ngraph::helpers::InputLayerType::PARAMETER
 };
 
 const std::vector<OneHotInputShapes> staticInputShapes0D = {
