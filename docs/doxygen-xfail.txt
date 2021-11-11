@@ -139,3 +139,17 @@ workbench/docs/FrequentlyAskedQuestions.md
 workbench/docs/InstallationGuide.md
 workbench/README.md
 workbench/README_dev.md
+pot/configs/README.md
+pot/docs/CLI.md
+pot/docs/FrequentlyAskedQuestions.md
+pot/docs/InstallationGuide.md
+pot/README.md
+pot/README_dev.md
+workbench/docs/Workbench_DG/Set_Accuracy_Config.md
+workbench/docs/Workbench_DG/Int-8_Quantization.md
+workbench/docs/Workbench_DG/Remote_Profiling.md
+workbench/docs/Workbench_DG/Run_Baseline_Inference.md
+workbench/docs/Workbench_DG/Run_Range_of_Inferences.md
+workbench/docs/Workbench_DG/Run_Single_Inference.md
+workbench/docs/Workbench_DG/Select_Models.md
+workbench/docs/Workbench_DG/Visualize_Accuracy.md
