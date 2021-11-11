@@ -16,9 +16,9 @@ from openvino.tools.mo.utils.class_registration import _check_unique_ids, update
 from openvino.tools.mo.utils.model_analysis import AnalyzeAction
 
 
-def import_by_path(path: str, middle_names: list = ()):
+def import_by_path(path: str, middle_names: list = (), prefix: str = ''):
     for module_loader, name, ispkg in pkgutil.iter_modules([path]):
-        importlib.import_module('openvino.tools.{}.{}'.format('.'.join(middle_names), name))
+        importlib.import_module('{}{}.{}'.format(prefix, '.'.join(middle_names), name))
 
 
 def default_path():
@@ -67,14 +67,13 @@ def load_dir(framework: str, path: str, get_front_classes: callable):
                          ('load', framework): [Loader],
                          ('front', ): front_classes,
                          ('front', framework): front_classes,
+                         ('front', framework, 'extractors'): front_classes,
                          ('middle', ): [MiddleReplacementPattern],
                          ('back', ): [BackReplacementPattern]}
-
-    if ext == 'mo':
-        internal_dirs[('front', framework, 'extractors')] = front_classes
+    prefix = 'openvino.tools.' if ext == 'mo' else ''
 
     for p in internal_dirs.keys():
-        import_by_path(os.path.join(path, *p), [ext, *p])
+        import_by_path(os.path.join(path, *p), [ext, *p], prefix)
         update_registration(internal_dirs[p], enabled_transforms, disabled_transforms)
     sys.path.remove(root_dir)
 
