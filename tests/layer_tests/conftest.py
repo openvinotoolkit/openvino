@@ -63,7 +63,7 @@ def pytest_addoption(parser):
         "--use_new_frontend",
         required=False,
         action="store_true",
-        help="Use FrontEnd API to extract operations")
+        help="Use Model Optimizer with new FrontEnd")
 
 
 @pytest.fixture(scope="session")

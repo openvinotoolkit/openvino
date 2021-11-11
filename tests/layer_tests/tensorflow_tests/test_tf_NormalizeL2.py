@@ -34,9 +34,6 @@ class TestNormalizeL2(CommonTFLayerTest):
 
     @staticmethod
     def create_normalize_l2_net_fusable(shape, axes, output_axes, ir_version, use_new_frontend):
-        if use_new_frontend:
-            return None
-
         tf_net = TestNormalizeL2.build_tf_graph(shape, axes)
 
         nodes_attributes = {
@@ -60,13 +57,12 @@ class TestNormalizeL2(CommonTFLayerTest):
                                ('normalize_l2_data', 'result'),
                                ])
 
+        if use_new_frontend:
+            ref_net = None
         return tf_net, ref_net
 
     @staticmethod
     def create_normalize_l2_net_non_fusable(shape, axes, output_axes, ir_version, use_new_frontend):
-        if use_new_frontend:
-            return None
-
         tf_net = TestNormalizeL2.build_tf_graph(shape, axes)
 
         reduced_shape = permute_nchw_to_nhwc(shape).copy()
@@ -142,6 +138,8 @@ class TestNormalizeL2(CommonTFLayerTest):
                                ('multiply_data', 'result'),
                                ])
 
+        if use_new_frontend:
+            ref_net = None
         return tf_net, ref_net
 
     test_data_fusable_precommit = [
