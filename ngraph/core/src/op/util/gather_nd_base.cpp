@@ -112,8 +112,3 @@ bool ov::op::util::GatherNDBase::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("batch_dims", m_batch_dims);
     return true;
 }
-
-shared_ptr<ov::Node> ov::op::util::GatherNDBase::clone_with_new_inputs(const OutputVector& new_args) const {
-    check_new_args_count(this, new_args);
-    return make_shared<ov::op::util::GatherNDBase>(new_args.at(0), new_args.at(1), m_batch_dims);
-}
