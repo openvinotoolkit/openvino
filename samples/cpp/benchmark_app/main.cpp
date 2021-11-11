@@ -865,9 +865,10 @@ int main(int argc, char* argv[]) {
         auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
 
-        if (statistics)
+        if (statistics) {
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                       {{"first inference time (ms)", duration_ms}});
+        }
         inferRequestsQueue.resetTimes();
 
         size_t processedFramesN = 0;
@@ -944,7 +945,7 @@ int main(int argc, char* argv[]) {
 
         auto latencies = inferRequestsQueue.getLatencies();
         double medianLatency = getMedianValue(latencies, FLAGS_latency_percentile);
-        double meanLatency = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
+        double avgLatency = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
         double minLatency = latencies[0];
         double maxLatency = latencies.back();
 
@@ -976,6 +977,18 @@ int main(int argc, char* argv[]) {
                 statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                           {
                                               {latency_label, double_to_string(medianLatency)},
+                                          });
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                              {"Average latency", double_to_string(avgLatency)},
+                                          });
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                              {"Min latency", double_to_string(minLatency)},
+                                          });
+                statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                          {
+                                              {"Max latency", double_to_string(maxLatency)},
                                           });
             }
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
@@ -1032,7 +1045,7 @@ int main(int argc, char* argv[]) {
                 std::cout << "\t" << FLAGS_latency_percentile << " percentile:    ";
             }
             std::cout << double_to_string(medianLatency) << " ms" << std::endl;
-            std::cout << "\tAvg:    " << double_to_string(meanLatency) << " ms" << std::endl;
+            std::cout << "\tAvg:    " << double_to_string(avgLatency) << " ms" << std::endl;
             std::cout << "\tMax:    " << double_to_string(maxLatency) << " ms" << std::endl;
             std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
 

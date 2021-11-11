@@ -50,8 +50,8 @@ InferenceEngine::SizeVector parseTensorShape(const std::string& tensor_shape);
 template <typename T>
 std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string parameter_string,
                                                                      const std::map<std::string, T>& input_info) {
-    // Parse parameter string like "[value0]", "[value0][value1]" or "input0[value0][value1],input1[value2][value3]" (applied to all
-    // inputs)
+    // Parse parameter string like "[value0]", "[value0][value1]" or "input0[value0][value1],input1[value2][value3]"
+    // (applied to all inputs)
     std::map<std::string, std::vector<std::string>> return_value;
     std::string search_string = parameter_string;
     auto start_pos = search_string.find_first_of('[');
@@ -155,7 +155,8 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
             } else if (info.partialShape.is_static()) {
                 info.tensorShape = info.partialShape.get_shape();
             } else if (!tensors_shape_map.empty()) {
-                throw std::logic_error("Can't find network input name \"" + name  + "\" in \"-tensor shap " + tensors_shape_string  + "\" command line parameter");
+                throw std::logic_error("Can't find network input name \"" + name + "\" in \"-tensor_shape " +
+                                       tensors_shape_string + "\" command line parameter");
             } else {
                 throw std::logic_error(
                     "tensor_shape command line parameter should be set in case of network dynamic shape.");
