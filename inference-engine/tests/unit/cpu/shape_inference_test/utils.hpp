@@ -64,6 +64,8 @@ static void check_static_shape(std::shared_ptr<OP> op,
     if (b_expect_throw) {
         EXPECT_ANY_THROW(shape_infer(op.get(), input_shapes, output_shapes, constData));
     } else {
+        output_shapes.resize(expect_shapes.size(), ov::StaticShape{});
+
         shape_infer(op.get(), input_shapes, output_shapes, constData);
 
         EXPECT_EQ(output_shapes.size(), expect_shapes.size());
