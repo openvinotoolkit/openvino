@@ -126,11 +126,13 @@ def convert_node_blobs(graph: Graph, node: Node, data_type: type):
             if finite_match_count:
                 log.error(
                     ("{} elements of {} were clipped to infinity while converting a blob for node [{}] to {}. " +
-                     refer_to_faq_msg(76)).format(finite_match_count, blob.size, consumers, data_type))
+                     refer_to_faq_msg(76)).format(finite_match_count, blob.size, consumers, data_type),
+                                                   extra={'is_warning': True})
             if zero_match_count:
-                log.warning(
+                log.error(
                     ("{} elements of {} were clipped to zero while converting a blob for node [{}] to {}. " +
-                     refer_to_faq_msg(77)).format(zero_match_count, blob.size, consumers, data_type))
+                     refer_to_faq_msg(77)).format(zero_match_count, blob.size, consumers, data_type),
+                                                   extra={'is_warning': True})
 
             node.value = new_blob
             # for the constant node need to propagate the converted value to the node output because there is a fake

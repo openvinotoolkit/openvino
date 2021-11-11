@@ -12,8 +12,8 @@ from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.utils.error import Error
 
 operations_with_data_type_attributes = {
-    'Cast': {'attr_name': 'dst_type', 'in_ports_to_check': (0,)},
-    'Range': {'attr_name': 'output_type', 'in_ports_to_check': (0, 1, 2)},
+    'Cast': {'attr_name': 'dst_type', 'in_ports_to_check': (0,), 'check_out_shape': False},
+    'Range': {'attr_name': 'output_type', 'in_ports_to_check': (0, 1, 2), 'check_out_shape': True},
 }
 
 
@@ -27,7 +27,6 @@ class ChangeOutputTypeAttributes(BackReplacementPattern):
     avoid floating point overflow.
     """
     enabled = True
-    force_shape_inference = True
 
     def run_after(self):
         from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
@@ -73,8 +72,9 @@ def assert_that_is_castable_to_fp16(node: Node):
         val = node.in_port(i).data.get_value()
         if val is None:
             return
-        # further this input values will be rewritten since force_shape_inference=True
+        # is needed for Range
         node.in_port(i).data.set_value(val.astype(np.float16))
+        node.in_node(i)['correct_data_type'] = True
 
     original_output = node.out_port(0).data.get_value()
 
@@ -95,6 +95,9 @@ def assert_that_is_castable_to_fp16(node: Node):
                   "This may lead to incorrect results during inference or may not be a problem, "
                   "depending on the model.".format(zero_match_count, original_output.size, node_name,
                                                    extra={'is_warning': True}))
+
+    if not operations_with_data_type_attributes[op_name]['check_out_shape']:
+        return
 
     node.infer(node)  # is needed for Range
     casted_output = node.out_port(0).data.get_value()
