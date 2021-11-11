@@ -40,21 +40,12 @@ void shape_infer(const Interpolate* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
 
     const auto& input_shape = input_shapes[0];
-    const auto& target_spatial_shape = input_shapes[1];
     auto& output_shape = output_shapes[0];
     output_shape = input_shape;
 
     auto attrs = op->get_attrs();
 
     if (input_shape.rank().is_static()) {
-        // todo: add test case for input_shape.rank() is dynamic. If dynamic, can we set output_shape[axis]
-        // todo: test original code with proc-type, is input_shape.rank is dynamic, what's the output shape?
-        if (target_spatial_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(
-                op,
-                target_spatial_shape[0].compatible(attrs.axes.size()),
-                "The target_spatial_shape must be compatible with the number of indices in *axes* attribute");
-        }
         for (auto axis : attrs.axes) {
             NODE_VALIDATION_CHECK(op, static_cast<int64_t>(axis) < input_shape.rank().get_length());
         }
@@ -191,7 +182,7 @@ void shape_infer(const Interpolate* op,
 
         auto attrs = op->get_attrs();
 
-        if (attrs.shape_calculation_mode == op->ShapeCalcMode::SCALES) {
+        if (attrs.shape_calculation_mode == Interpolate::ShapeCalcMode::SCALES) {
             std::vector<float> scales;
             if (get_data_as_float<T>(2, op, scales, constant_data)) {
                 infer_using_scales(output_shape, axes, scales, padded_input_shape);
