@@ -380,14 +380,15 @@ def if_op(
 ) -> Node:
     """Execute one of the bodies depending on condtion value.
 
-    @param      condition:             A scalar or 1D tensor with 1 element specifying body will be executed. If condition is True, 
-                                       then body will be executed, False - else_body.
+    @param      condition:             A scalar or 1D tensor with 1 element specifying body will be executed.
+                                       If condition is True, then body will be executed, False - else_body.
     @param      inputs:                The provided inputs to If operation.
-    @param      bodies:                Two graphs (then_body, else_body) which will be executed depending on condition value.
-    @param      input_desc             Two lists (for then_body and else_body) which contain rules how If inputs are connected with 
-                                       body parameters.
-    @param      output_desc:           Two lists (for then_body and else_body) which contain rules how If outputs are connected with 
-                                       body results.
+    @param      bodies:                Two graphs (then_body, else_body) which will be executed depending on
+                                       condition value.
+    @param      input_desc             Two lists (for then_body and else_body) which contain rules how If
+                                       inputs are connected with body parameters.
+    @param      output_desc:           Two lists (for then_body and else_body) which contain rules how If
+                                       outputs are connected with body results.
                 
     @return: The new node which performs If operation.
     """
