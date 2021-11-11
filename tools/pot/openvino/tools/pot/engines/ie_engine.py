@@ -121,10 +121,11 @@ class IEEngine(Engine):
             process_accumulated_stats(accumulated_stats=self._accumulated_layer_stats,
                                       stat_names_aliases=stat_names_aliases)
 
-        # restore original names in accumulated_stats, stats_layout and stat_aliases
-        for out_name, original_node_name in output_to_node_names.items():
-            accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
-            update_stats(stats_layout, stat_aliases, out_name, original_node_name)
+        if stats_layout:
+            # restore original names in accumulated_stats, stats_layout and stat_aliases
+            for out_name, original_node_name in output_to_node_names.items():
+                accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
+                update_stats(stats_layout, stat_aliases, out_name, original_node_name)
 
         # Calculate metrics of required type. Reset collected statistics
         metrics = None

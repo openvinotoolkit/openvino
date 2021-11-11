@@ -23,7 +23,9 @@ class Algorithm(ABC):
         self.params = {}
         self.default_steps_size = 0.05
         self.total_exec_steps = 0
-        self._config.ignored.scope = process_ignored_scope(self._config.ignored.scope)
+
+        if isinstance(self._config.ignored, dict) and 'scope' in self._config.ignored:
+            self._config.ignored.scope = process_ignored_scope(self._config.ignored.scope)
 
     @property
     def config(self):

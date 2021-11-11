@@ -5,6 +5,7 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
+from mo.graph.graph import rename_node
 
 from .utils import get_composite_model
 from ..utils import load_hardware_config
@@ -57,7 +58,7 @@ class QuantNoiseEstimator(Algorithm):
         fully_quantized_model = deepcopy(model)
         model = self.get_nonquantized_model(model)
         for node in mu.get_all_operation_nodes_recursively(fully_quantized_model):
-            node.name = node.name + self.q_suffix
+            rename_node(node, node.name + self.q_suffix)
             node.fullname += self.q_suffix
 
         composite_model = get_composite_model(
@@ -141,7 +142,7 @@ class QuantNoiseEstimator(Algorithm):
                 )
 
                 for node in mu.get_all_operation_nodes_recursively(single_fq_layer_model):
-                    node.name = node.name + self.q_suffix
+                    rename_node(node, node.name + self.q_suffix)
                     node.fullname += self.q_suffix
 
                 composite_model = get_composite_model(

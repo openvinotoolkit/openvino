@@ -173,7 +173,7 @@ class ActivationChannelAlignment(Algorithm):
             node_pairs_list.append((node_in, weights_in, bias_in,
                                     node_out, weights_out, bias_out))
             # align activations channels inside this sequence
-            logger.debug('{} -> {}'.format(node_in.name, node_out.name))
+            logger.debug('{} -> {}'.format(node_in.fullname, node_out.fullname))
 
         return node_pairs_list
 

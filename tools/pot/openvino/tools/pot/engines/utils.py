@@ -64,7 +64,7 @@ def get_per_layer_stat_mapping(stats_layout):
         for stat_name, _ in stats.items():
             layer_stat_name = layer
             if hasattr(stat_name, 'kwargs') and stat_name.kwargs.get('inplace_statistics', False):
-                layer_stat_name = stat_name.kwargs['type'] + '_' + layer
+                layer_stat_name = stat_name.kwargs.get('layer_stat_name', stat_name.kwargs['type'] + '_' + layer)
             old_names_mapping[layer_stat_name], stat_names_by_layer[layer_stat_name] = layer, stat_name
 
     return stat_names_by_layer, old_names_mapping
@@ -76,7 +76,7 @@ def get_inplace_stats_mapping(stats_layout):
         for stat_name, _ in stats.items():
             layer_stat_name = layer
             if hasattr(stat_name, 'kwargs') and stat_name.kwargs.get('inplace_statistics', False):
-                layer_stat_name = stat_name.kwargs['type'] + '_' + layer
+                layer_stat_name = stat_name.kwargs.get('layer_stat_name', stat_name.kwargs['type'] + '_' + layer)
             if layer not in old_name_stat_new_name:
                 old_name_stat_new_name[layer] = {stat_name: layer_stat_name}
             else:

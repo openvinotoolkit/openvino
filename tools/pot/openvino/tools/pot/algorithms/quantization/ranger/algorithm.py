@@ -45,8 +45,9 @@ class Ranger(Algorithm):
             min_after_act = np.min(activation_statistics[act_node.fullname]['min_per_tensor'])
             max_after_act = np.max(activation_statistics[act_node.fullname]['max_per_tensor'])
             clamp_attrs = {'min': min_after_act, 'max': max_after_act}
-            clamp_name = act_node.fullname + '/min_max_Clamp'
+            clamp_name = act_node.name + '/min_max_Clamp'
             clamp_node = ge.create_node(act_node.graph, clamp_name, 'AttributedClamp', clamp_attrs)
+            clamp_node['fullname'] = '|'.join(act_node.fullname.split('|')[:-1] + [clamp_name])
 
             dest_ports = act_node.out_port(0).get_destinations()
             act_node.out_port(0).disconnect()
@@ -62,7 +63,7 @@ class Ranger(Algorithm):
         stats_layout = {}
         for act_node in act_nodes:
             stats_layout[act_node.fullname] = {'max_per_tensor': acf.max_per_tensor,
-                                           'min_per_tensor': acf.min_per_tensor}
+                                               'min_per_tensor': acf.min_per_tensor}
         stats_collector.register(self.name, stats_layout, self._sampler)
 
     @property

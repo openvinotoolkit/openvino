@@ -203,10 +203,11 @@ class ACEngine(Engine):
         self._per_sample_metrics.clear()
         self.dump_prediction_to_annotation = False
 
-        # restore original names in accumulated_stats, stats_layout and stat_aliases
-        for out_name, original_node_name in output_to_node_names.items():
-            accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
-            update_stats(stats_layout, stat_aliases, out_name, original_node_name)
+        if stats_layout:
+            # restore original names in accumulated_stats, stats_layout and stat_aliases
+            for out_name, original_node_name in output_to_node_names.items():
+                accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
+                update_stats(stats_layout, stat_aliases, out_name, original_node_name)
 
         return metrics, accumulated_stats
 

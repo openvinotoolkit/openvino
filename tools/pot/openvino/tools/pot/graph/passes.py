@@ -16,7 +16,7 @@ from extensions.ops.elementwise import Add
 from extensions.ops.fakequantize import FakeQuantize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, rename_node
 from mo.graph.port import Port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
@@ -509,8 +509,8 @@ class RemoveFakeQuantize:
     def undo_renaming(graph, fq_node):
         if 'orig_fq_name' in fq_node:
             node = ge.get_node_by_name(graph, '{fq_name}/pre_fq_input'.format(fq_name=fq_node.fullname))
-            node.name = node['orig_node_name']
-            fq_node.name = fq_node['orig_fq_name']
+            rename_node(node, node['orig_node_name'])
+            rename_node(fq_node, fq_node['orig_fq_name'])
 
     @property
     def quantize_agnostic_operations(self):
@@ -660,11 +660,11 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
                 new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
             fq_node['orig_fq_name'] = copy(fq_node.name)
-            fq_node.name = copy(new_fq_name)
+            rename_node(fq_node, new_fq_name)
 
             if 'orig_node_name' not in input_node:
                 input_node['orig_node_name'] = copy(input_node.name)
-                input_node.name = '{original_name}/pre_fq_input'.format(original_name=input_node.name)
+                rename_node(input_node, f'{input_node.name}/pre_fq_input')
 
         pattern = get_fq_result_pattern()
         apply_pattern(
