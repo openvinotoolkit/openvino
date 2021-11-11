@@ -25,8 +25,6 @@ def generate_ir(coverage=False, **kwargs):
             params.extend(("-b", str(value)))
         elif key == "k":
             params.extend(("-k", str(value)))
-        elif key == "use_new_frontend":
-            params.append("--use_new_frontend")
         elif isinstance(value, bool) and value:
             params.append("--{}".format(key))
         elif isinstance(value, bool) and not value:

@@ -52,7 +52,7 @@ class CommonLayerTest:
             mo_params.update(dict(input=','.join(kwargs['input_names'])))
 
         if use_new_frontend:
-            mo_params["use_new_frontend"] = ""
+            mo_params["use_new_frontend"] = True
 
         exit_code, stderr = generate_ir(**mo_params)
 
