@@ -2198,7 +2198,6 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
 {
     CHECK_HANDLE_CORRECT(graphHandle);
 
-    ncStatus_t rc = NC_OK;
     struct ncGraphHandle_t *gh = *graphHandle;
     if (!gh) {
         mvLog(MVLOG_INFO, "handle is already destroyed");
@@ -2221,33 +2220,29 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     GLOBAL_UNLOCK();
     struct _devicePrivate_t *d = (gh->private_data)->dev;
 
+    ncStatus_t rc = NC_OK;
     graphCMDCommand_t cmd;
     cmd.type = GRAPH_DEALLOCATE_CMD;
     cmd.id = g->id;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
     rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
     if (rc != 0) {
-        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        return rc;
-    }
-    if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        return NC_ERROR;
+        mvLog(MVLOG_WARN, "can't send command\n");
+        rc = NC_ERROR;
+    } else if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
+        mvLog(MVLOG_WARN, "myriad NACK\n");
+        rc = NC_ERROR;
     }
     XLinkCloseStream(g->graph_stream_id);
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
     if (deallocateGraph(gh->private_data)) {
         mvLog(MVLOG_ERROR, "This graph has already been destroyed");
-        FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-        return NC_INVALID_PARAMETERS;
+        rc = NC_INVALID_PARAMETERS;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
     FREE_AND_NULL(g, gh->private_data, gh, *graphHandle);
-    return NC_OK;
+    return rc;
 }
 
 ncStatus_t ncGraphSetOption(struct ncGraphHandle_t * graphHandle,
@@ -3106,7 +3101,7 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     }
 
     struct _fifoPrivate_t *handle = fh->private_data;
-
+    ncStatus_t rc = NC_OK;
     if (handle->state == NC_FIFO_CREATED || handle->state == NC_FIFO_DEALLOCATED) {
         pthread_mutex_t * fifo_mutex = &fh->private_data->fifo_mutex;
 #if !(defined(_WIN32) || defined(_WIN64))
@@ -3152,13 +3147,11 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
         int msg = 0xdead;
         if (XLinkWriteData(handle->streamId, (uint8_t *) & msg, sizeof(msg)) !=
             0) {
-            FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
             mvLog(MVLOG_ERROR, "Failed to write to fifo before deleting it!");
-            return NC_ERROR;
+            rc = NC_ERROR;
         }
     }
 
-    ncStatus_t rc = NC_OK;
     graphCommonCommand_t cmd;
     cmd.type = GRAPH_BUFFER_DEALLOCATE_CMD;
     cmd.id = handle->id;
@@ -3167,29 +3160,23 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
     rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
     if (rc != 0) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
         mvLog(MVLOG_WARN, "can't send command\n");
-        return rc;
-    }
-    if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
+        rc = NC_ERROR;
+    } else if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
         mvLog(MVLOG_WARN, "myriad NACK\n");
-        return NC_ERROR;
+        rc = NC_ERROR;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
 
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
     if (deallocateFifo(handle)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-        FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
-        return NC_INVALID_PARAMETERS;
+        mvLog(MVLOG_WARN, "failed deallocateFifo\n");
+        rc = NC_INVALID_PARAMETERS;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
     FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
 
-    return NC_OK;
+    return rc;
 
 }
 
