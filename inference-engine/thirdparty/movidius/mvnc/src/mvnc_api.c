@@ -3158,15 +3158,13 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
 
     struct _devicePrivate_t *d = handle->dev;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
-    if (rc == NC_OK) {
-        rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
-        if (rc != 0) {
-            mvLog(MVLOG_WARN, "can't send command\n");
-            rc = NC_ERROR;
-        } else if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-            mvLog(MVLOG_WARN, "myriad NACK\n");
-            rc = NC_ERROR;
-        }
+    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if (rc != 0) {
+        mvLog(MVLOG_WARN, "can't send command\n");
+        rc = NC_ERROR;
+    } else if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
+        mvLog(MVLOG_WARN, "myriad NACK\n");
+        rc = NC_ERROR;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
 
