@@ -40,3 +40,11 @@ std::vector<std::string> ov::util::split(const std::string& src, char delimiter,
     }
     return rc;
 }
+
+size_t ov::util::hash_combine(const std::vector<size_t>& list) {
+    size_t seed = 0;
+    for (size_t v : list) {
+        seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    return seed;
+}

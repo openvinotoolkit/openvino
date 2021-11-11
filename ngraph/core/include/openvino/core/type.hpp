@@ -39,7 +39,8 @@ struct OPENVINO_API DiscreteTypeInfo {
         : name(_name),
           version(_version),
           version_id(nullptr),
-          parent(_parent) {}
+          parent(_parent),
+          hash_value(0) {}
 
     constexpr DiscreteTypeInfo(const char* _name,
                                uint64_t _version,
@@ -48,22 +49,12 @@ struct OPENVINO_API DiscreteTypeInfo {
         : name(_name),
           version(_version),
           version_id(_version_id),
-          parent(_parent) {}
+          parent(_parent),
+          hash_value(0) {}
 
-    bool is_castable(const DiscreteTypeInfo& target_type) const {
-        return *this == target_type || (parent && parent->is_castable(target_type));
-    }
+    bool is_castable(const DiscreteTypeInfo& target_type) const;
 
-    std::string get_version() const {
-        if (version_id) {
-            return std::string(version_id);
-        }
-        return std::to_string(version);
-    }
-
-    operator std::string() const {
-        return std::string(name) + "_" + get_version();
-    }
+    std::string get_version() const;
 
     // For use as a key
     bool operator<(const DiscreteTypeInfo& b) const;
@@ -72,6 +63,14 @@ struct OPENVINO_API DiscreteTypeInfo {
     bool operator>=(const DiscreteTypeInfo& b) const;
     bool operator==(const DiscreteTypeInfo& b) const;
     bool operator!=(const DiscreteTypeInfo& b) const;
+
+    operator std::string() const;
+
+    size_t hash() const;
+    size_t hash();
+
+private:
+    size_t hash_value;
 };
 
 OPENVINO_API
