@@ -131,6 +131,7 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor) {
 }
 
 namespace prior_box {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -164,6 +165,7 @@ bool evaluate_prior_box(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace prior_box
 
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

@@ -19,9 +19,10 @@
 
 namespace cldnn {
 
-engine::engine(const device::ptr device, const engine_configuration& configuration)
+engine::engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor)
 : _device(device)
-, _configuration(configuration) {}
+, _configuration(configuration)
+, _task_executor(task_executor) {}
 
 device_info engine::get_device_info() const {
     return _device->get_info();
@@ -183,23 +184,29 @@ void engine::subtract_memory_used(size_t bytes, allocation_type type) {
     }
 }
 
+const InferenceEngine::ITaskExecutor::Ptr engine::get_task_executor() {
+    return _task_executor;
+}
+
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               runtime_types runtime_type,
                                               const device::ptr device,
-                                              const engine_configuration& configuration) {
+                                              const engine_configuration& configuration,
+                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     switch (engine_type) {
-        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration);
+        case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
         default: throw std::runtime_error("Invalid engine type");
     }
 }
 
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               runtime_types runtime_type,
-                                              const engine_configuration& configuration) {
+                                              const engine_configuration& configuration,
+                                              const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     device_query query(engine_type, runtime_type);
     device::ptr default_device = query.get_available_devices().begin()->second;
 
-    return engine::create(engine_type, runtime_type, default_device, configuration);
+    return engine::create(engine_type, runtime_type, default_device, configuration, task_executor);
 }
 
 }  // namespace cldnn

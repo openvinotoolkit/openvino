@@ -5,9 +5,8 @@
 #pragma once
 
 #include <frontend_manager/frontend_exceptions.hpp>
-#include <ngraph/node.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 class NodeContext;
@@ -31,7 +30,7 @@ private:
 /// \param ... Additional error message info to be added to the error message via the `<<`
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
-/// \throws ::ngraph::OpValidationFailurePDPD if `cond` is false.
+/// \throws ::ov::OpValidationFailurePDPD if `cond` is false.
 #define PDPD_OP_VALIDATION_CHECK(node_context, ...) \
-    NGRAPH_CHECK_HELPER(::ngraph::frontend::pdpd::OpValidationFailurePDPD, (node_context), __VA_ARGS__)
-}  // namespace ngraph
+    OPENVINO_ASSERT_HELPER(::ov::frontend::pdpd::OpValidationFailurePDPD, (node_context), __VA_ARGS__)
+}  // namespace ov

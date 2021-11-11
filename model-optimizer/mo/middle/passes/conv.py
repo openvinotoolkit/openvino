@@ -22,6 +22,9 @@ def pad_op_transform(graph: Graph, match: dict):
         log.info('The pad node "{}" with pad mode "{}" cannot be fused.'.format(pad_op.soft_get('name'), pad_op.mode))
         return
 
+    if op.type == 'Pooling' and op.pool_method == 'max':
+        return
+
     if pad_op.mode == 'constant':
         fill_value = pad_op.in_port(3).data.get_value()
         if fill_value is None or fill_value != 0.0:

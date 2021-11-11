@@ -23,6 +23,7 @@ ov::descriptor::Tensor::Tensor(const element::Type& element_type,
       m_partial_shape(pshape),
       m_shape_changed(true) {}
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 void ov::descriptor::Tensor::set_tensor_type(const element::Type& element_type, const PartialShape& pshape) {
     set_element_type(element_type);
     set_partial_shape(pshape);
@@ -36,6 +37,7 @@ void ov::descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape
     m_partial_shape = partial_shape;
     m_shape_changed = true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 void ov::descriptor::Tensor::invalidate_values() {
     m_upper_value = nullptr;
@@ -114,7 +116,7 @@ void ov::descriptor::Tensor::add_names(const std::unordered_set<std::string>& na
     }
 }
 
-ostream& operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
+ostream& ov::descriptor::operator<<(ostream& out, const ov::descriptor::Tensor& tensor) {
     std::string names;
     for (const auto& name : tensor.get_names()) {
         if (!names.empty())

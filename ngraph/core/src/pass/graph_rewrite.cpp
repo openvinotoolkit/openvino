@@ -52,12 +52,12 @@
 
 namespace ov {
 namespace pass {
-namespace internal {
+namespace {
 PerfCounters& perf_counters_graph_rewrite() {
     static PerfCounters counters;
     return counters;
 }
-}  // namespace internal
+}  // namespace
 }  // namespace pass
 }  // namespace ov
 
@@ -173,7 +173,7 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Function> f,
 
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
-            size_t sub_graphs_num = sub_graph_node->get_num_internal_subgraphs();
+            size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
                 auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
                 run_on_function(sub_graph);
@@ -372,7 +372,7 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
 }
 
 bool ov::pass::MatcherPass::apply(std::shared_ptr<ov::Node> node) {
-    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::internal::perf_counters_graph_rewrite()[get_type_info()]);
+    OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, pass::perf_counters_graph_rewrite()[get_type_info()]);
     m_new_nodes.clear();
     if (m_handler)
         return m_handler(node);
