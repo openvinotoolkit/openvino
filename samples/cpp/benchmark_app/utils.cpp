@@ -166,7 +166,6 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
 
 InferenceEngine::Layout getLayoutFromString(const std::string& string_layout) {
     static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
-        {"ANY", InferenceEngine::Layout::ANY},
         {"NCHW", InferenceEngine::Layout::NCHW},
         {"NHWC", InferenceEngine::Layout::NHWC},
         {"NCDHW", InferenceEngine::Layout::NCDHW},
@@ -177,8 +176,7 @@ InferenceEngine::Layout getLayoutFromString(const std::string& string_layout) {
         {"HWC", InferenceEngine::Layout::HWC},
         {"HW", InferenceEngine::Layout::HW},
         {"NC", InferenceEngine::Layout::NC},
-        {"CN", InferenceEngine::Layout::CN},
-        {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
+        {"CN", InferenceEngine::Layout::CN}};
     auto it = layouts.find(string_layout);
     if (it != layouts.end()) {
         return it->second;
