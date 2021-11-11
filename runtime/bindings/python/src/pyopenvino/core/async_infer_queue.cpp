@@ -17,7 +17,6 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 
-#define INVALID_ID -1
 
 namespace py = pybind11;
 
@@ -92,7 +91,7 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    IE_THROW() << "Caught exception: " << e.what();
+                    throw ov::Exception(e.what());
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
