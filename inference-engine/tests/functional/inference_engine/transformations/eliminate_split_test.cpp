@@ -48,18 +48,6 @@ TEST_F(TransformationTestsF, EliminateSplitNegative) {
 
         manager.register_pass<ngraph::pass::EliminateSplit>();
     }
-
-    {
-        auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-        auto mul_constant = ngraph::opset8::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {89.2});
-        auto mul = std::make_shared<ngraph::opset8::Multiply>(input, mul_constant);
-        auto axis_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{}, {2});
-        auto split = std::make_shared<ngraph::opset8::Split>(mul, axis_const, 3);
-        auto res1 = std::make_shared<ngraph::opset8::Result>(split->output(0));
-        auto res2 = std::make_shared<ngraph::opset8::Result>(split->output(1));
-        auto res3 = std::make_shared<ngraph::opset8::Result>(split->output(2));
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{res1, res2, res3}, ngraph::ParameterVector{input});
-    }
 }
 
 TEST_F(TransformationTestsF, EliminateSequenceOfSplits) {
