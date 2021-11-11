@@ -15,9 +15,12 @@ public:
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override {};
+    void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
+
+    bool needPrepareParams() const override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -41,7 +44,6 @@ private:
     bool reverse;
     size_t numOfDims;
     size_t axis = 0;
-    std::vector<size_t> shape;
 
     InferenceEngine::Precision dataPrecision;
     std::string errorPrefix;
