@@ -351,7 +351,7 @@ class TensorIterator(Op):
     def find_iterations_count_for_output(ti_node):
         def check_field(record, field):
             return field in record and record[field] is not None
-        iterations_count = None
+        iterations_count = dynamic_dimension_value
         # find out iterations count from inputs.
         # If no input contains 'axis' attribute then no slicing is in TI and it has only one iteration
         # If several inputs have axis attribute with different iterations count then we use maximum value.
@@ -383,14 +383,14 @@ class TensorIterator(Op):
 
             # in case of dynamic iterations count don't continue any calculations on this iteration
             if not is_fully_defined(in_rec_end) or not is_fully_defined(in_rec_start):
-                iterations_count = dynamic_dimension_value
                 continue
 
-            if iterations_count is not None and ceil((in_rec_end - in_rec_start) / in_rec_stride) != iterations_count:
+            if iterations_count is not dynamic_dimension_value and \
+                    ceil((in_rec_end - in_rec_start) / in_rec_stride) != iterations_count:
                 raise Error("TensorIterator node {} have inputs with different iterations count".format(ti_node.id))
             iterations_count = ceil((in_rec_end - in_rec_start) / in_rec_stride)
 
-        return iterations_count if iterations_count is not None else 1
+        return iterations_count
 
 
 def get_internal_node_by_layer_id(ti, internal_layer_id):

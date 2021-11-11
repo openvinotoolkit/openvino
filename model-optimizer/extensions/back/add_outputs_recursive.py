@@ -6,7 +6,7 @@ from extensions.ops.If import If
 from extensions.ops.loop import Loop
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_array
+from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
 from mo.ops.result import Result
@@ -32,19 +32,20 @@ def get_iterations_count_from_output_record(output_rec):
         return field in record and record[field] is not None
 
     iterations_count = 1
-    # 1. check if we need concatenate iteration results for given output
+    # 1. check if we need to concatenate iteration results for given output
     if not check_field(output_rec, 'axis'):
-        # in this case we dont concat outputs, so iterations count is not needed really
-        return iterations_count
+        # in this case we do not concatenate outputs, so iterations count is not needed really
+        return None
 
     # 2. check if given output record contains values for 'end', so iterations count can be calculated from this record
     if check_field(output_rec, 'end') and output_rec['end'] != -1 and \
             check_field(output_rec, 'start') and output_rec['start'] != -1:
+        stride = output_rec['stride'] if check_field(output_rec, 'stride') else 1
         # get iterations count from output record
-        iterations_count = (output_rec['end'] - output_rec['start']) / output_rec['stride']
+        iterations_count = (output_rec['end'] - output_rec['start']) / stride
         return iterations_count
 
-    return None
+    return dynamic_dimension_value
 
 
 # shape inference for TensorIterator
@@ -67,7 +68,7 @@ def ti_infer(step_node, port_num):
     # find out iterations count for TensorIterator to set output shape correctly
 
     iterations_count = get_iterations_count_from_output_record(found_rec)
-    if iterations_count is None:
+    if iterations_count is dynamic_dimension_value:
         iterations_count = TensorIterator.find_iterations_count_for_output(step_node)
 
     ti_set_output_port_shape(step_node, found_rec['internal_layer_id'], port_num, iterations_count,
