@@ -22,7 +22,6 @@ extensions/back/CutMemory.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
-extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
 extensions/back/GatherNormalizer.py
 extensions/back/insert_compatibility_l2normalization.py
