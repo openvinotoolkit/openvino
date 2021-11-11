@@ -78,7 +78,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
     config.addinivalue_line("markers", "skip_on_template: Skip test on TEMPLATE")
     config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
-    config.addinivalue_line("markers", "static_library: Skip tests in static build")
+    config.addinivalue_line("markers", "dynamic_library: Runs tests only in dynamic libraries case")
 
 
 def pytest_collection_modifyitems(config, items):
