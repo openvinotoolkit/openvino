@@ -40,13 +40,13 @@ using ConfigParams = std::tuple<
         bool,                        // if select throw exception
         std::vector<std::tuple<std::string, bool>>, // {device, loadSuccess}
         unsigned int,                // select count
-        unsigned int                // load count
+        unsigned int                 // load count
         >;
 class AutoLoadFailedTest : public ::testing::TestWithParam<ConfigParams> {
 public:
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::CNNNetwork cnnNet;
-    std::shared_ptr<MockICore> core;
+    std::shared_ptr<ngraph::Function>               function;
+    InferenceEngine::CNNNetwork                     cnnNet;
+    std::shared_ptr<MockICore>                      core;
     std::shared_ptr<MockMultiDeviceInferencePlugin> plugin;
 
     //mock exeNetwork
@@ -54,6 +54,7 @@ public:
     ov::runtime::SoPtr<IExecutableNetworkInternal>  mockExeNetwork;
     MockIInferencePlugin*                           mockIPlugin;
     InferenceEngine::InferencePlugin                mockPlugin;
+    // config for Auto device
     std::map<std::string, std::string>              config;
     std::vector<DeviceInformation>                  metaDevices;
 
@@ -112,8 +113,8 @@ public:
        auto inferReqInternal = std::make_shared<MockIInferRequestInternal>();
        ON_CALL(*mockIExeNet.get(), CreateInferRequest()).WillByDefault(Return(inferReqInternal));
        IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNum, 2);
-       ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)))).
-           WillByDefault(Return(optimalNum));
+       ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
+           .WillByDefault(Return(optimalNum));
     }
 };
 
@@ -162,10 +163,10 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         selDevsSize = deviceConfigs.size();
         if (selDevsSize > 1) {
             ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize - 1)), _))
-            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+                .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
         } else {
             ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _))
-            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+                .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
         }
     }
 

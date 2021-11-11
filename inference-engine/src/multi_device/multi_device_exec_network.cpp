@@ -168,10 +168,10 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _loadContext[ACTUALDEVICE].metaDevices = metaDevices;
     _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
     bool isActualDevCPU =
-         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
+        _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
     // if Acutal device is CPU, diabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
     if (isActualDevCPU) {
-         _loadContext[CPU].isEnabled = false;
+        _loadContext[CPU].isEnabled = false;
     } else {
         const auto CPUIter = std::find_if(metaDevices.begin(), metaDevices.end(),
                 [=](const DeviceInformation& d)->bool{return d.deviceName.find("CPU") != std::string::npos;});
@@ -305,7 +305,7 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
     // the first loading is failed, wait for another loading
     for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
-           _loadContext[i].future.wait();
+            _loadContext[i].future.wait();
         }
     }
 

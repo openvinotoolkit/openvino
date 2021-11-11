@@ -197,7 +197,7 @@ private:
     std::future<void>                                                   _firstLoadFuture;
     std::promise<void>                                                  _firstLoadPromise;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
-    mutable std::mutex                                                   _confMutex;
+    mutable std::mutex                                                  _confMutex;
 };
 
 }  // namespace MultiDevicePlugin

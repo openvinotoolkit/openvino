@@ -16,6 +16,6 @@ public:
     MOCK_METHOD(DeviceInformation, SelectDevice, ((const std::vector<DeviceInformation>&),
                 const std::string&), (override));
     MOCK_METHOD((std::vector<DeviceInformation>), ParseMetaDevices,
-            (const std::string&, (const std::map<std::string, std::string>&)), (const, override));
+                (const std::string&, (const std::map<std::string, std::string>&)), (const, override));
 };
 }// namespace MockMultiDevice
