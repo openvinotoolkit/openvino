@@ -15,6 +15,7 @@
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
 #else
 #define MOCKTESTMACRO
 #endif

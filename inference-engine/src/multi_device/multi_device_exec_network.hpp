@@ -23,6 +23,12 @@
 # include <tbb/concurrent_queue.h>
 #endif
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
 
 namespace MultiDevicePlugin {
 

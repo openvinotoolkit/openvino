@@ -8,7 +8,7 @@
 #include "multi_device_plugin.hpp"
 #include <iostream>
 
-using namespace MultiDevicePlugin;
+using namespace MockMultiDevicePlugin;
 namespace MockMultiDevice {
 
 class MockMultiDeviceInferencePlugin : public MultiDeviceInferencePlugin {
