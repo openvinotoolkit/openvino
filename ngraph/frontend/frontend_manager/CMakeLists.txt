@@ -12,6 +12,10 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
+# Add include path to so_extension.hpp
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_manager.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+
 set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 source_group("src" FILES ${LIBRARY_SRC})
@@ -23,9 +27,11 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(${TARGET_NAME}_static STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
 target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
-target_include_directories(${TARGET_NAME}_static PUBLIC ${FRONTEND_INCLUDE_DIR})
+target_include_directories(${TARGET_NAME}_static PUBLIC
+    $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
 target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_MANAGER)
+ov_install_static_lib(${TARGET_NAME}_static ngraph)
 
 # Shared library - need to recompile object files to export necessary symbols
 

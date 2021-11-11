@@ -25,7 +25,8 @@ constexpr char LayerTransformation::originalLayerPostfix[];
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
-    deqPrecision(params.deqPrecision) {}
+    deqPrecision(params.deqPrecision),
+    context(nullptr) {}
 
 void LayerTransformation::setContext(TransformationContext* context) noexcept {
     this->context = context;
@@ -208,7 +209,15 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     bool unsignedPrecision = true;
 
     bool hasZeroPoint = false;
+    bool thereIsAtLeastOneNormalValue = false;
     for (size_t i = 0; i < outputLowValues.size(); ++i) {
+        if ((std::fabs(outputLowValues[i]) < zeroThreshold) && (std::fabs(outputHighValues[i]) < zeroThreshold)) {
+            // both values are too small to identify preferable precision
+            continue;
+        }
+
+        thereIsAtLeastOneNormalValue = true;
+
         const bool signedInterval = std::signbit(outputLowValues[i]) != std::signbit(outputHighValues[i]);
         const bool outputLowValueIsNotZero = std::fabs(outputLowValues[i]) >= zeroThreshold;
         if (signedInterval && outputLowValueIsNotZero) {
@@ -252,16 +261,11 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
         }
     }
 
-    // TODO: use this implementation after merge <= not aligned with master
-//    if (signedPrecision && (!unsignedPrecision)) {
-//        return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
-//    }
-//
-//    if ((!signedPrecision) && unsignedPrecision) {
-//        return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
-//    }
-//
-//    THROW_TRANSFORMATION_EXCEPTION << "unexpected interval";
+    if (!thereIsAtLeastOneNormalValue) {
+        // all values are small and didn't define 'signedPrecision'
+        signedPrecision = std::any_of(outputLowValues.begin(), outputLowValues.end(), [](const float& value) { return value < 0.f; });
+        unsignedPrecision = !signedPrecision;
+    }
 
     element::Type resultPrecision = element::undefined;
     if (!hasZeroPoint) {
@@ -310,6 +314,9 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
 bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const Node>& layer) {
     const auto nonConstNode = const_cast<ngraph::Node*>(layer.get())->shared_from_this();
     const auto dequantization = NetworkHelper::getDequantization(nonConstNode);
+    if (dequantization.empty()) {
+        return false;
+    }
     return dequantization.subtract != nullptr;
 }
 

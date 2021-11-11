@@ -6,8 +6,11 @@
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+
 #include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
@@ -16,9 +19,9 @@ using namespace InferenceEngine;
 
 bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op) &&
-            !std::dynamic_pointer_cast<const ngraph::opset1::Squeeze>(op) &&
-                !std::dynamic_pointer_cast<const ngraph::opset1::Unsqueeze>(op)) {
+        if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
+            !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
+                !std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
@@ -39,17 +42,18 @@ MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, co
 
     if (isDynamicNode()) {
         auto checkSecondInput = [](const std::shared_ptr<ngraph::Node>& op, const std::string opType) {
-            if (op->get_input_node_shared_ptr(1)->is_dynamic())
+            if (op->get_input_partial_shape(1).is_dynamic()) {
                 IE_THROW() << "CPU plug-in doesn't support " << opType << " node with non static second input";
+            }
         };
 
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op)) {
+        if (std::dynamic_pointer_cast<const ov::opset1::Reshape>(op)) {
             checkSecondInput(op, "Reshape");
-        } else if (std::dynamic_pointer_cast<const ngraph::opset1::Squeeze>(op)) {
+        } else if (std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op)) {
             if (op->get_input_size() == 1)
                 IE_THROW() << "CPU plug-in doesn't support Squeeze node with inputs num equal 1";
             checkSecondInput(op, "Squeeze");
-        } else if (std::dynamic_pointer_cast<const ngraph::opset1::Unsqueeze>(op)) {
+        } else if (std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
             IE_THROW() << "Unsupported operation type via reshape node";
@@ -82,22 +86,16 @@ std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
         lastSecondInputValues[i] = sndInput[i];
     }
 
-    ngraph::OutputVector inputsForShapeInfer;
-    inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(opToShapeInfer->get_input_element_type(0),
-                                                                              getParentEdgesAtPort(0)[0]->getMemory().GetShape().toPartialShape()));
-    inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32, memPtr.getStaticDims(), lastSecondInputValues));
-    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
+    std::vector<ov::StaticShape> input_shapes = {getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims(), memPtr.getStaticDims()};
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
+            {1, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, memPtr.getStaticDims(), memPtr.GetPtr())}
+    };
+    std::vector<ov::StaticShape> output_shapes = {{}};
+    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
 
-    localShapeInferOp->validate_and_infer_types();
-
-    std::vector<VectorDims> newOutputShapes(outputShapes.size());
-    for (size_t i = 0; i < newOutputShapes.size(); i++) {
-        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
-        if (partShape.is_dynamic())
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
-        newOutputShapes[i] = partShape.get_shape();
-    }
-    return newOutputShapes;
+    std::vector<VectorDims> result(output_shapes.size());
+    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
+    return result;
 }
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {

@@ -26,6 +26,7 @@ set(LINK_LIBRARIES
 set(DEPENDENCIES
     mock_engine
     template_extension
+    template_ov_extension
     lptNgraphFunctions
     sharedTestClasses
     test_model_zoo
@@ -122,32 +123,44 @@ function(ie_headers_compilation_with_custom_flags)
     cmake_parse_arguments(IE_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(IE_TEST_PLUGIN_API)
-        set(IE_TEST_INCLUDE_DIRECTORY
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        set(include_dirs
+            "${OpenVINO_SOURCE_DIR}/inference-engine/src/plugin_api/")
     else()
-        set(IE_TEST_INCLUDE_DIRECTORY
-            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+        set(include_dirs
+            "${OpenVINO_SOURCE_DIR}/ngraph/core/include"
+            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie"
+            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/")
     endif()
 
-    file(GLOB_RECURSE header_files RELATIVE "${IE_TEST_INCLUDE_DIRECTORY}"
-        "${IE_TEST_INCLUDE_DIRECTORY}/*")
+    foreach(include_dir IN LISTS include_dirs)
+        file(GLOB_RECURSE header_files_local RELATIVE "${include_dir}" "${include_dir}/*.hpp")
+        list(APPEND header_files ${header_files_local})
+    endforeach()
 
     if(NOT IE_TEST_CXX_STANDARD)
         set(IE_TEST_CXX_STANDARD ${CMAKE_CXX_STANDARD})
     endif()
 
     if(NOT IE_TEST_PLUGIN_API)
+        list(APPEND IE_TEST_HEADERS_TO_SKIP "_tbl.hpp")
         if(NOT OPENCL_HEADERS_DIR)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                 "gpu/gpu_context_api_ocl.hpp"
                                                 "gpu/gpu_context_api_va.hpp"
-                                                "gpu/gpu_context_api_dx.hpp")
+                                                "gpu/gpu_context_api_dx.hpp"
+                                                "gpu/gpu_ocl_wrapper.hpp"
+                                                "openvino/runtime/gpu/ocl_wrapper.hpp"
+                                                "openvino/runtime/gpu/ocl.hpp"
+                                                "openvino/runtime/gpu/va.hpp"
+                                                "openvino/runtime/gpu/dx.hpp")
         endif()
         if(NOT WIN32)
-            list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp")
+            list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_dx.hpp"
+                                                "openvino/runtime/gpu/dx.hpp")
         endif()
         if(NOT LIBVA_FOUND)
-            list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp")
+            list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_context_api_va.hpp"
+                                                "openvino/runtime/gpu/va.hpp")
         endif()
     endif()
 
@@ -156,7 +169,7 @@ function(ie_headers_compilation_with_custom_flags)
         # skip user-passed headers
         set(skip_current_file OFF)
         foreach(skip_file IN LISTS IE_TEST_HEADERS_TO_SKIP)
-            if(header_file STREQUAL skip_file)
+            if("${header_file}" MATCHES "${skip_file}")
                 set(skip_current_file ON)
             endif()
         endforeach()
@@ -186,8 +199,7 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
-            $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
         if(OPENCL_HEADERS_DIR)
@@ -232,12 +244,19 @@ endfunction()
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17
                                          CXX_STANDARD 17)
 
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx20
+                                             CXX_STANDARD 20)
+endif()
+
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
                                                  FLAGS -Wremarks -Wcheck -Werror-all -Werror -Wall)
-    else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
+    elseif(BUILD_SHARED_LIBS)
+        # fix warnings wit RTTI
+        # ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic
+        #                                          FLAGS -Wpedantic)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
@@ -259,14 +278,21 @@ endif()
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
                                          CXX_STANDARD 17 PLUGIN_API)
 
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx20
+                                            CXX_STANDARD 20 PLUGIN_API)
+endif()
+
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
                                                  FLAGS -Werror-all -Werror -Wall
                                                  PLUGIN_API)
-    else()
-        ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS -Wpedantic
-                                                 PLUGIN_API)
+    elseif(BUILD_SHARED_LIBS)
+        # fix warnings wit RTTI
+        # ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic
+        #                                          FLAGS -Wpedantic
+        #                                          PLUGIN_API)
     endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors

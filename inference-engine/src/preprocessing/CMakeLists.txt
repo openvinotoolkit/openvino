@@ -107,6 +107,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:o
                                                              $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
@@ -121,7 +122,7 @@ else()
     set(library_type STATIC)
 endif()
 
-add_library(${TARGET_NAME} MODULE
+add_library(${TARGET_NAME} ${library_type}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -134,10 +135,13 @@ target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
 if(BUILD_SHARED_LIBS)
     # for static linkage the dependencies are in opposite order
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+else()
+    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
 endif()
 
-target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
@@ -182,5 +186,9 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # install
 
-install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_NAME}
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)
+else()
+    ov_install_static_lib(${TARGET_NAME} core)
+endif()

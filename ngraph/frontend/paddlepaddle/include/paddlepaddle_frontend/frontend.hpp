@@ -9,7 +9,7 @@
 #include "exceptions.hpp"
 #include "model.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class OpPlacePDPD;
 
@@ -69,4 +69,4 @@ private:
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

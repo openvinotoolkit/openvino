@@ -17,7 +17,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
         R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
         // TODO: Issue 68586
         R"(.*EltwiseActFqTest.*act=Log.*)",
@@ -73,5 +72,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ExecGraphTests.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
+        // TODO: Issue: CVS-69639
+        R"(.*EltwiseLayerTest.*OpType=Prod.*)",
+        R"(.*EltwiseLayerTest.*OpType=Sum.*PARAMETER.*VECTOR.*)",
+        // TODO: Issue:27391
+        // TODO: Issue:28036
+        R"(.*ActivationLayerGNATest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
     };
 }

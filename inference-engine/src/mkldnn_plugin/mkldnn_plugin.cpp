@@ -6,6 +6,7 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
+#include "mkldnn_extension.h"
 #include "mkldnn_itt.h"
 #include "mkldnn_serialize.h"
 
@@ -115,7 +116,7 @@ using namespace InferenceEngine;
 
 Engine::Engine() {
     _pluginName = "CPU";
-    extensionManager->AddExtension(std::make_shared<Extensions::Cpu::MKLDNNExtensions>());
+    extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
 }
 
 Engine::~Engine() {
@@ -298,6 +299,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
             [](const_node_ptr &node) -> bool {
                 for (size_t i = 0; i < node->get_output_size(); i++) {
