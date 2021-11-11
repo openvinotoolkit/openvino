@@ -96,16 +96,16 @@ endfunction()
 # for Template plugin
 openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
 
+# this InferenceEngineDeveloperPackageConfig.cmake is not used
+# during extra modules build since it's generated after modules
+# are configured
+ie_generate_dev_package_config()
+
 # extra modules must be registered after inference_engine library
 # and all other IE common libraries (ie_libraries) are creared
 # because 'register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
 # with all imported developer targets
 register_extra_modules()
-
-# this InferenceEngineDeveloperPackageConfig.cmake is not used
-# during extra modules build since it's generated after modules
-# are configured
-ie_generate_dev_package_config()
 
 # for static libraries case we need to generate final ie_plugins.hpp
 # with all the information about plugins
