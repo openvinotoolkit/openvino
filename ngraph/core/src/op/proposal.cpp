@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/proposal.hpp"
+#include <proposal_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -21,7 +22,29 @@ op::v0::Proposal::Proposal(const Output<Node>& class_probs,
     constructor_validate_and_infer_types();
 }
 
+void op::v0::Proposal::validate() {
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).is_real(),
+                          "Proposal layer input class_probs should have floating point type (",
+                          get_input_element_type(0),
+                          ").");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(1).is_real(),
+                          "Proposal layer input bbox_deltas should have floating point type (",
+                          get_input_element_type(1),
+                          ").");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(2).is_real(),
+                          "Proposal layer input image_shape should have floating point type (",
+                          get_input_element_type(2),
+                          ").");
+}
+
+
 void op::v0::Proposal::validate_and_infer_types() {
+#if 0
     NGRAPH_OP_SCOPE(v0_Proposal_validate_and_infer_types);
     const auto& class_probs_ps = get_input_partial_shape(0);
     const auto& bbox_deltas_ps = get_input_partial_shape(1);
@@ -101,6 +124,15 @@ void op::v0::Proposal::validate_and_infer_types() {
 
     // intersect the batch size
     set_output_type(0, get_input_element_type(0), ov::PartialShape{out_dim * m_attrs.post_nms_topn, 5});
+#endif
+    NGRAPH_OP_SCOPE(v0_Proposal_validate_and_infer_types);
+    validate();
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                  get_input_partial_shape(1),
+                                                  get_input_partial_shape(2)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -139,6 +171,7 @@ op::v4::Proposal::Proposal(const Output<Node>& class_probs,
 }
 
 void op::v4::Proposal::validate_and_infer_types() {
+#if 0
     NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
     v0::Proposal::validate_and_infer_types();
     // Output shape was inferred in v0's validate_and_infer_types
@@ -148,6 +181,20 @@ void op::v4::Proposal::validate_and_infer_types() {
         out_ps = ov::PartialShape{proposals_ps[0]};
     }
     set_output_type(1, get_input_element_type(0), out_ps);
+#endif
+    NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
+    v0::Proposal::validate();
+
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                  get_input_partial_shape(1),
+                                                  get_input_partial_shape(2)};
+    shape_infer(this, input_shapes, output_shapes);
+
+    const auto& input0_type = get_input_element_type(0);
+    set_output_type(0, input0_type, output_shapes[0]);
+    set_output_type(1, input0_type, output_shapes[1]);
+
 }
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {

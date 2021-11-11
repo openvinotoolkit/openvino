@@ -66,6 +66,7 @@ public:
 
 protected:
     Attributes m_attrs;
+    void validate();
 };
 }  // namespace v0
 
