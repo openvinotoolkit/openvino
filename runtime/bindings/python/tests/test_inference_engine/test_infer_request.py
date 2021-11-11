@@ -154,21 +154,21 @@ def test_start_async(device):
     img = read_image()
     jobs = 3
     requests = []
-    for i in range(jobs):
+    for _ in range(jobs):
         requests.append(exec_net.create_infer_request())
 
     def callback(callbacks_info):
         time.sleep(0.01)
-        callbacks_info['finished'] += 1
+        callbacks_info["finished"] += 1
 
     callbacks_info = {}
-    callbacks_info['finished'] = 0
+    callbacks_info["finished"] = 0
     for request in requests:
         request.set_callback(callback, callbacks_info)
         request.start_async({0: img})
     for request in requests:
         request.wait()
-    assert callbacks_info['finished'] == jobs
+    assert callbacks_info["finished"] == jobs
 
 
 def test_infer_mixed_keys(device):

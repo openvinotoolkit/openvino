@@ -96,16 +96,13 @@ void regclass_InferRequest(py::module m) {
                     }
                 }
             }
-             if (userdata != py::none()) {
-                 if (self.user_callback_defined) {
-                     self.userdata = userdata;
-                 }
-                 else {
-                     PyErr_WarnEx(PyExc_RuntimeWarning,
-                                  "There is no callback function!",
-                                  1);
-                 }
-             }
+            if (userdata != py::none()) {
+                if (self.user_callback_defined) {
+                    self.userdata = userdata;
+                } else {
+                    PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
+                }
+            }
             py::gil_scoped_release release;
             self._start_time = Time::now();
             self._request.start_async();
@@ -254,8 +251,8 @@ void regclass_InferRequest(py::module m) {
     });
 
     cls.def_property_readonly("userdata", [](InferRequestWrapper& self) {
-         return self.userdata;
-     });
+        return self.userdata;
+    });
 
     cls.def_property_readonly("inputs", [](InferRequestWrapper& self) {
         return self._inputs;
