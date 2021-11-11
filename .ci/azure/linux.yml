@@ -26,9 +26,11 @@ jobs:
       Dynamic:
         CMAKE_BUILD_SHARED_LIBS: 'ON'
         PYTHON_STATIC_ARGS:
+        PYTHON_TEMPLATE_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library"
+        PYTHON_TEMPLATE_ARGS: -m "not template_plugin"
     maxParallel: 2
 
   # About 150% of total time
@@ -285,7 +287,7 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml $(PYTHON_STATIC_ARGS)
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml $(PYTHON_STATIC_ARGS) $(PYTHON_TEMPLATE_ARGS)
     displayName: 'Python API Tests'
     continueOnError: false
 
