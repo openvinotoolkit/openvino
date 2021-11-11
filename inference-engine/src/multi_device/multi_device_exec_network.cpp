@@ -20,7 +20,7 @@
 
 #include "ngraph/opsets/opset1.hpp"
 #include "transformations/utils/utils.hpp"
-#include "utils/hlog.hpp"
+#include "utils/log_util.hpp"
 
 #include "multi_itt.hpp"
 // ------------------------------MultiDeviceExecutableNetwork----------------------------
