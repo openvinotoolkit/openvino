@@ -179,7 +179,7 @@ def test_infer_queue(device):
         userdata["finished"] = True
 
     img = read_image()
-    infer_queue.set_infer_callback(callback)
+    infer_queue.set_callback(callback)
     assert infer_queue.is_ready
     for i in range(jobs):
         infer_queue.start_async({"data": img}, {"finished": False})

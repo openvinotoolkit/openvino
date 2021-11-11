@@ -29,7 +29,7 @@ public:
         : _requests(requests),
           _idle_handles(idle_handles),
           _user_ids(user_ids) {
-        this->setDefaultCallbacks();
+        this->set_default_callbacks();
         _last_id = -1;
     }
 
@@ -47,7 +47,7 @@ public:
         return !(_idle_handles.empty());
     }
 
-    size_t getIdleRequestId() {
+    size_t get_idle_request_id() {
         // Wait for any of _idle_handles
         py::gil_scoped_release release;
         std::unique_lock<std::mutex> lock(_mutex);
@@ -61,7 +61,7 @@ public:
         return idle_request_id;
     }
 
-    void waitAll() {
+    void wait_all() {
         // Wait for all requests to return with callback thus updating
         // _idle_handles so it matches the size of requests
         py::gil_scoped_release release;
@@ -71,7 +71,7 @@ public:
         });
     }
 
-    void setDefaultCallbacks() {
+    void set_default_callbacks() {
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, handle /* ... */](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
@@ -83,7 +83,7 @@ public:
         }
     }
 
-    void setCustomCallbacks(py::function f_callback) {
+    void set_custom_callbacks(py::function f_callback) {
         for (size_t handle = 0; handle < _requests.size(); handle++) {
             _requests[handle]._request.set_callback([this, f_callback, handle](std::exception_ptr exception_ptr) {
                 _requests[handle]._end_time = Time::now();
@@ -145,7 +145,7 @@ void regclass_AsyncInferQueue(py::module m) {
         [](AsyncInferQueue& self, const py::dict inputs, py::object userdata) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
-            auto handle = self.getIdleRequestId();
+            auto handle = self.get_idle_request_id();
             // Set new inputs label/id from user
             self._user_ids[handle] = userdata;
             // Update inputs if there are any
@@ -178,15 +178,15 @@ void regclass_AsyncInferQueue(py::module m) {
     });
 
     cls.def("wait_all", [](AsyncInferQueue& self) {
-        return self.waitAll();
+        return self.wait_all();
     });
 
     cls.def("get_idle_request_id", [](AsyncInferQueue& self) {
-        return self.getIdleRequestId();
+        return self.get_idle_request_id();
     });
 
-    cls.def("set_infer_callback", [](AsyncInferQueue& self, py::function f_callback) {
-        self.setCustomCallbacks(f_callback);
+    cls.def("set_callback", [](AsyncInferQueue& self, py::function f_callback) {
+        self.set_custom_callbacks(f_callback);
     });
 
     cls.def("__len__", [](AsyncInferQueue& self) {
