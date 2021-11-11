@@ -409,7 +409,7 @@ class BiasCorrection(Algorithm):
                 input_name = biased_after_param_nodes[node.name]
                 statistics_layout[input_name] = {'batch_mean_param_in': agf.batch_mean}
                 self._collected_stat_inputs.append(input_name)
-            statistics_layout[add_node.name] =\
+            statistics_layout[add_node_name] =\
                 {'mean_per_channel': TensorStatisticAxis(granularity='perchannel',
                                                          type='mean',
                                                          inplace_statistics=self.config['inplace_statistics'],
