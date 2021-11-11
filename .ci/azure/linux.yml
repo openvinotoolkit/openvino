@@ -25,10 +25,10 @@ jobs:
     matrix:
       Dynamic:
         CMAKE_BUILD_SHARED_LIBS: 'ON'
-        PYTHON_STATIC_ARGS:
+        PYTHON_STATIC_ARGS: -m "static_library"
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
-        PYTHON_STATIC_ARGS: -m "static_library"
+        PYTHON_STATIC_ARGS: -m "not static_library"
     maxParallel: 2
 
   # About 150% of total time
