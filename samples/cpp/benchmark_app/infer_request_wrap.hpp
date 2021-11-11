@@ -107,7 +107,11 @@ private:
 
 class InferRequestsQueue final {
 public:
-    InferRequestsQueue(InferenceEngine::ExecutableNetwork& net, size_t nireq, size_t lat_group_n) {
+    InferRequestsQueue(InferenceEngine::ExecutableNetwork& net,
+                       size_t nireq,
+                       size_t lat_group_n,
+                       bool enable_lat_groups)
+        : enable_lat_groups(enable_lat_groups) {
         for (size_t id = 0; id < nireq; id++) {
             requests.push_back(std::make_shared<InferReqWrap>(net,
                                                               id,
@@ -148,7 +152,9 @@ public:
     void putIdleRequest(size_t id, size_t lat_group_id, const double latency) {
         std::unique_lock<std::mutex> lock(_mutex);
         _latencies.push_back(latency);
-        _latency_groups[lat_group_id].push_back(latency);
+        if (enable_lat_groups) {
+            _latency_groups[lat_group_id].push_back(latency);
+        }
         _idleIds.push(id);
         _endTime = std::max(Time::now(), _endTime);
         _cv.notify_one();
@@ -190,4 +196,5 @@ private:
     Time::time_point _endTime;
     std::vector<double> _latencies;
     std::vector<std::vector<double>> _latency_groups;
+    bool enable_lat_groups;
 };

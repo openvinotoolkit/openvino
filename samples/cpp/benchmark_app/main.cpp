@@ -723,7 +723,7 @@ int main(int argc, char* argv[]) {
         // ----------------------------------------
         next_step();
 
-        InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size());
+        InferRequestsQueue inferRequestsQueue(exeNetwork, nireq, app_inputs_info.size(), FLAGS_pcseq);
 
         bool inputHasName = false;
         if (inputFiles.size() > 0) {
@@ -808,9 +808,11 @@ int main(int argc, char* argv[]) {
         bool legacyMode = FLAGS_legacy_mode;
 
         if (legacyMode) {
-            slog::warn << "Benchmark legacy mode was enabled!" << slog::endl;
+            slog::warn << "Benchmark legacy mode was enabled! Inputs blobs will be filled once before performance "
+                          "measurements."
+                       << slog::endl;
             if (nireq < inputsData.begin()->second.size())
-                slog::warn << "Only " << nireq << " test configs will be used" << slog::endl;
+                slog::warn << "Only " << nireq << " test configs will be used." << slog::endl;
             size_t i = 0;
             for (auto& inferRequest : inferRequestsQueue.requests) {
                 auto input = app_inputs_info[i % app_inputs_info.size()];
@@ -885,7 +887,10 @@ int main(int argc, char* argv[]) {
 
             if (!legacyMode) {
                 auto input = app_inputs_info[iteration % app_inputs_info.size()];
-                inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
+
+                if (FLAGS_pcseq) {
+                    inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
+                }
 
                 batchSize = getBatchSize(input);
                 for (auto& item : input) {
@@ -938,14 +943,18 @@ int main(int argc, char* argv[]) {
         inferRequestsQueue.waitAll();
 
         auto latencies = inferRequestsQueue.getLatencies();
-        auto latency_groups = inferRequestsQueue.getLatencyGroups();
-        for (auto& group : latency_groups) {
-            std::sort(group.begin(), group.end());
-        }
         double medianLatency = getMedianValue(latencies, FLAGS_latency_percentile);
         double meanLatency = std::accumulate(latencies.begin(), latencies.end(), 0.0) / latencies.size();
         double minLatency = latencies[0];
         double maxLatency = latencies.back();
+
+        std::vector<std::vector<double>> latency_groups = {};
+        if (FLAGS_pcseq) {
+            auto latency_groups = inferRequestsQueue.getLatencyGroups();
+            for (auto& group : latency_groups) {
+                std::sort(group.begin(), group.end());
+            }
+        }
 
         double totalDuration = inferRequestsQueue.getDurationInMilliseconds();
         double fps =
@@ -1026,7 +1035,8 @@ int main(int argc, char* argv[]) {
             std::cout << "\tAvg:    " << double_to_string(meanLatency) << " ms" << std::endl;
             std::cout << "\tMax:    " << double_to_string(maxLatency) << " ms" << std::endl;
             std::cout << "\tMin:    " << double_to_string(minLatency) << " ms" << std::endl;
-            if (FLAGS_pcseq) {
+
+            if (FLAGS_pcseq && latency_groups.size() > 1) {
                 std::cout << "Latency for each tensor shape group:" << std::endl;
                 for (size_t i = 0; i < app_inputs_info.size(); ++i) {
                     for (auto& item : app_inputs_info[i]) {

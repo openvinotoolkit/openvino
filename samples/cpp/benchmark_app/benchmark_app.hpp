@@ -213,7 +213,8 @@ static constexpr char input_image_mean_message[] =
     "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,\n"
     "Example: -imean data[255,255,255],info[255,255,255]\n";
 
-static constexpr char legacy_mode_message[] = "Optional. Enable legacy scenario for static models.\n";
+static constexpr char legacy_mode_message[] =
+    "Optional. Enable legacy scenario with inputs filling only once before measurements for static models.\n";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
