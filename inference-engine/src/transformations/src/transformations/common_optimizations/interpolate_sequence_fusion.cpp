@@ -9,14 +9,12 @@
 #include <memory>
 #include <numeric>
 #include <tuple>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-// #include <transformations/rt_info/disable_constant_folding.hpp>
 
 namespace {
 using namespace ngraph;
