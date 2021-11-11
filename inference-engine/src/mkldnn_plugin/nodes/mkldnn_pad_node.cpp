@@ -76,7 +76,7 @@ MKLDNNPadNode::MKLDNNPadNode(const std::shared_ptr<ngraph::Node>& op, const mkld
 
     auto pad = ov::as_type_ptr<const ngraph::opset1::Pad>(op);
     if (!pad) {
-        THROW_ERROR << "supports only opset1";
+        THROW_ERROR << "couldn't be casted to op of opset1";
     }
 
     if (op->get_input_node_shared_ptr(PADS_BEGIN_ID)->get_type_info() == ov::op::v0::Constant::get_type_info_static() &&
@@ -306,12 +306,10 @@ void MKLDNNPadNode::PadExecutor::exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPt
 }
 
 void MKLDNNPadNode::execute(mkldnn::stream strm) {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !srcMemPtr)
-        THROW_ERROR << "has not allocated source/destination memory.";
+    if (!execPtr)
+        THROW_ERROR << "has not compiled executor.";
 
-    execPtr->exec(srcMemPtr, dstMemPtr);
+    execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
 }
 
 void MKLDNNPadNode::executeDynamicImpl(mkldnn::stream strm) {
