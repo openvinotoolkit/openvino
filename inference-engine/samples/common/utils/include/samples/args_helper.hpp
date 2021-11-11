@@ -45,8 +45,8 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
                                 const std::string& op,
                                 const std::string& iop,
                                 const std::string& il,
-                                const std::string& inl,
                                 const std::string& ol,
-                                const std::string& onl,
                                 const std::string& iol,
-                                const std::string& ionl);
+                                const std::string& iml,
+                                const std::string& oml,
+                                const std::string& ioml);

@@ -68,14 +68,14 @@ static constexpr char iol_message[] =
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites layout from il and ol options for specified layers.";
 
-static constexpr char inputs_net_layout_message[] =
-                                             "Optional. Specifies network layout for all input layers of the network.";
+static constexpr char inputs_model_layout_message[] =
+                                             "Optional. Specifies model layout for all input layers of the network.";
 
-static constexpr char outputs_net_layout_message[] =
-                                             "Optional. Specifies network layout for all output layers of the network.";
+static constexpr char outputs_model_layout_message[] =
+                                             "Optional. Specifies model layout for all output layers of the network.";
 
-static constexpr char ionl_message[] =
-                                             "Optional. Specifies network layout for input and output tensors by name.\n"
+static constexpr char ioml_message[] =
+                                             "Optional. Specifies model layout for input and output tensors by name.\n"
 "                                             Example: -ionl \"input:NCHW, output:NHWC\".\n"
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites layout from il and ol options for specified layers.";
@@ -112,9 +112,9 @@ DEFINE_string(iop, "", iop_message);
 DEFINE_string(il, "", inputs_layout_message);
 DEFINE_string(ol, "", outputs_layout_message);
 DEFINE_string(iol, "", iol_message);
-DEFINE_string(inl, "", inputs_net_layout_message);
-DEFINE_string(onl, "", outputs_net_layout_message);
-DEFINE_string(ionl, "", ionl_message);
+DEFINE_string(iml, "", inputs_model_layout_message);
+DEFINE_string(oml, "", outputs_model_layout_message);
+DEFINE_string(ioml, "", ioml_message);
 DEFINE_bool(legacy, false, legacy_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
@@ -135,9 +135,9 @@ static void showUsage() {
     std::cout << "    -il                          <value>     "   << inputs_layout_message        << std::endl;
     std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
     std::cout << "    -iol                        \"<value>\"    "   << iol_message                << std::endl;
-    std::cout << "    -inl                         <value>     "   << inputs_net_layout_message    << std::endl;
-    std::cout << "    -onl                         <value>     "   << outputs_net_layout_message   << std::endl;
-    std::cout << "    -ionl                       \"<value>\"    "   << ionl_message               << std::endl;
+    std::cout << "    -iml                         <value>     "   << inputs_model_layout_message  << std::endl;
+    std::cout << "    -oml                         <value>     "   << outputs_model_layout_message << std::endl;
+    std::cout << "    -ioml                       \"<value>\"    "   << ioml_message               << std::endl;
     std::cout << "    -legacy                     \"<value>\"    "   << legacy_message             << std::endl;
     std::cout                                                                                      << std::endl;
     std::cout << " MYRIAD-specific options:                    "                                   << std::endl;
@@ -283,7 +283,7 @@ std::string getFileNameFromPath(const std::string& path,
 }
 
 void printInputAndOutputs(const std::shared_ptr<const ov::Function>& network) {
-    std::cout << "Network inputs:" << std::endl;
+    std::cout << "Model inputs:" << std::endl;
     for (auto&& input : network->inputs()) {
         std::string layout;
         if (auto parameter = dynamic_cast<const ov::op::v0::Parameter *>(input.get_node())) {
@@ -298,7 +298,7 @@ void printInputAndOutputs(const std::shared_ptr<const ov::Function>& network) {
         }
         std::cout << "} : " << input.get_element_type() << " / " << layout << std::endl;
     }
-    std::cout << "Network outputs:" << std::endl;
+    std::cout << "Model outputs:" << std::endl;
     for (auto&& output : network->outputs()) {
         std::string layout;
         if (auto result = dynamic_cast<const ov::op::v0::Result *>(output.get_node())) {
@@ -322,7 +322,9 @@ int main(int argc, char* argv[]) {
     TimeDiff loadNetworkTimeElapsed {0};
 
     try {
-        std::cout << "OpenVINO: " << ov::get_openvino_version() << std::endl;
+        std::cout << "OpenVINO: " << std::endl;
+        std::cout << "        Build ............... " << ov::get_openvino_version()->buildNumber << std::endl;
+        std::cout << "        Description ......... " << ov::get_openvino_version()->description << std::endl;
         std::cout << std::endl;
 
         if (!parseCommandLine(&argc, &argv)) {
@@ -366,7 +368,7 @@ int main(int argc, char* argv[]) {
 
             auto network = core.read_model(FLAGS_m);
 
-            configurePrePostProcessing(network, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_inl, FLAGS_onl, FLAGS_ionl);
+            configurePrePostProcessing(network, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
             printInputAndOutputs(network);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
             auto executableNetwork = core.compile_model(network, FLAGS_d, configure());
