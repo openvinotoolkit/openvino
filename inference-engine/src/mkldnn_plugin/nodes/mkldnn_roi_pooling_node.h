@@ -74,6 +74,9 @@ public:
     void execute(mkldnn::stream strm) override;
     bool created() const override;
 
+    void executeDynamicImpl(mkldnn::stream strm) override;
+    void prepareParams() override;
+
 private:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
@@ -82,17 +85,26 @@ private:
 
     InferenceEngine::Precision runtimePrecision;
 
-    size_t src_data_size;
-    size_t dst_data_size;
+    size_t src_data_size = 0;
+    size_t dst_data_size = 0;
 
-    int pooled_h = 0;
-    int pooled_w = 0;
-    float spatial_scale = 0;
-
-    jit_roi_pooling_params jpp = {};
-    std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel = nullptr;
+    jit_roi_pooling_params refParams = {};
 
     std::string errorPrefix;
+
+    struct ROIPoolingExecutor {
+        ROIPoolingExecutor(const jit_roi_pooling_params& _jpp);
+
+        void exec(const jit_roi_pooling_call_args& arg);
+        const jit_roi_pooling_params& getJpp() const;
+
+        ~ROIPoolingExecutor() = default;
+
+    private:
+        std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel;
+    };
+    using executorPtr = std::shared_ptr<ROIPoolingExecutor>;
+    executorPtr execPtr = nullptr;
 };
 
 }  // namespace MKLDNNPlugin
