@@ -272,8 +272,6 @@ class XmlSerializer : public ngraph::AttributeVisitor {
         const std::vector<std::string>& result_mapping,
         pugi::xml_node& port_map,
         const std::string& portmap_name) {
-        NGRAPH_CHECK(!parameter_mapping.empty(), "No parameters found in body Function.");
-
         if (!m_xml_node.parent().child(portmap_name.c_str())) {
             port_map = m_xml_node.parent().insert_child_before(portmap_name.c_str(), m_xml_node.parent().first_child());
         }
@@ -400,9 +398,8 @@ public:
                 map_type_from_body(m_xml_node.parent(), "Parameter", m_version, body_name);
 
             pugi::xml_node port_map = m_xml_node.parent().child(portmap_name.c_str());
-
-            NGRAPH_CHECK(!parameter_mapping.empty() || !result_mapping.empty(),
-                         "No parameters or results found in body Function.");
+            // Bodies can be without parameters(dependig on constants), but can not be without results
+            NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
             // TI, Loop do not have attributtes as regular ops, it is necessary to append "port_map" and
             // "back_edges" to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (here "m_xml_node")
             // with empty attributes is removed.
