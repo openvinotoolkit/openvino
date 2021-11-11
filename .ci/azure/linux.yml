@@ -26,7 +26,6 @@ jobs:
       Dynamic:
         CMAKE_BUILD_SHARED_LIBS: 'ON'
         PYTHON_STATIC_ARGS:
-        PYTHON_TEMPLATE_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
         PYTHON_STATIC_ARGS: -m "not dynamic_library"
