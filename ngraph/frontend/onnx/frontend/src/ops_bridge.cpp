@@ -361,6 +361,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("MatMulInteger", 1, matmul_integer);
     REGISTER_OPERATOR("MatMul", 1, matmul);
     REGISTER_OPERATOR("MaxPool", 1, max_pool);
+    REGISTER_OPERATOR("MaxPool", 8, max_pool);
     REGISTER_OPERATOR("Max", 1, max);
     REGISTER_OPERATOR("Max", 8, max);
     REGISTER_OPERATOR("Mean", 1, mean);

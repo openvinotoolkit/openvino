@@ -18,10 +18,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNCumSumNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
         if (!cumsum) {
             errorMessage = "Only opset3 CumSum operation is supported";
@@ -45,11 +41,11 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
     if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) || getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
 
-    const auto &dataShape = op->get_input_shape(CUM_SUM_DATA);
-    if (dataShape.size() < 1) {
-        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << dataShape.size();
+    const auto &dataShape = getInputShapeAtPort(CUM_SUM_DATA);
+    numOfDims = dataShape.getRank();
+    if (numOfDims < 1) {
+        IE_THROW() << errorPrefix << " doesn't support 'data' input tensor with rank: " << numOfDims;
     }
-    numOfDims = dataShape.size();
 
     const auto cumsum = std::dynamic_pointer_cast<const ngraph::opset3::CumSum>(op);
     if (cumsum == nullptr)
@@ -60,14 +56,13 @@ MKLDNNCumSumNode::MKLDNNCumSumNode(const std::shared_ptr<ngraph::Node>& op, cons
     reverse = cumsum->is_reverse();
 
     if (getOriginalInputsNumber() == numOfInputs) {
-        if (!ngraph::is_scalar(cumsum->get_input_shape(AXIS)))
+        const auto axis_shape = cumsum->get_input_partial_shape(AXIS);
+        if (axis_shape.is_dynamic() || !ngraph::is_scalar(axis_shape.to_shape()))
             IE_THROW() << errorPrefix << " doesn't support 'axis' input tensor with non scalar rank";
     }
 
-    if (dataShape != cumsum->get_output_shape(0))
+    if (dataShape != getOutputShapeAtPort(0))
         IE_THROW() << errorPrefix << " has different 'data' input and output dimensions";
-
-    shape = dataShape;
 }
 
 void MKLDNNCumSumNode::initSupportedPrimitiveDescriptors() {
@@ -162,6 +157,7 @@ template <bool reverse, bool exclusive, typename dataType>
 void MKLDNNCumSumNode::cumSum(const dataType *input, dataType *output, const VectorDims &strides) {
     SizeVector iterationRange(numOfDims - 1);
     size_t j = 0;
+    const auto &shape = getParentEdgesAtPort(CUM_SUM_DATA)[0]->getMemory().getStaticDims();
     for (size_t i = 0; i < shape.size(); i++) {
         if (i == axis)
             continue;
@@ -281,6 +277,20 @@ size_t MKLDNNCumSumNode::getAxis(const MKLDNNMemory& _axis, const MKLDNNMemory& 
 
 bool MKLDNNCumSumNode::created() const {
     return getType() == CumSum;
+}
+
+bool MKLDNNCumSumNode::needPrepareParams() const {
+    return false;
+}
+
+void MKLDNNCumSumNode::executeDynamicImpl(mkldnn::stream strm) {
+    return execute(strm);
+}
+
+void MKLDNNCumSumNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNCumSumNode, CumSum)
