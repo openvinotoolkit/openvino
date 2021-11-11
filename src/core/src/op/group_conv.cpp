@@ -543,15 +543,15 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
                 if ((m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) &&
                     (data_spatial_shape.is_static() && filters_spatial_shape.is_static() &&
                      output_spatial_pshape.is_static())) {
-                    opset1::infer_conv_backprop_auto_padding(data_spatial_shape.to_shape(),
-                                                             filters_spatial_shape.to_shape(),
-                                                             output_spatial_pshape.to_shape(),
-                                                             m_strides,
-                                                             m_dilations,
-                                                             m_auto_pad,
-                                                             m_output_padding,
-                                                             m_pads_begin,
-                                                             m_pads_end);
+                    ngraph::opset1::infer_conv_backprop_auto_padding(data_spatial_shape.to_shape(),
+                                                                     filters_spatial_shape.to_shape(),
+                                                                     output_spatial_pshape.to_shape(),
+                                                                     m_strides,
+                                                                     m_dilations,
+                                                                     m_auto_pad,
+                                                                     m_output_padding,
+                                                                     m_pads_begin,
+                                                                     m_pads_end);
                 }
             }
 
