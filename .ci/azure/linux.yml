@@ -28,7 +28,7 @@ jobs:
         PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
-        PYTHON_STATIC_ARGS: -m "not dynamic_library"
+        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
         PYTHON_TEMPLATE_ARGS: -m "not template_plugin"
     maxParallel: 2
 
