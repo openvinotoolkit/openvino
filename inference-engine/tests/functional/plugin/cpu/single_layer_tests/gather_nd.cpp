@@ -13,7 +13,7 @@ using namespace test;
 namespace CPULayerTestsDefinitions {
 
 using GatherNDLayerCPUTestParamSet = std::tuple<
-        InputShape,                            // Input shapes
+        InputShape,                                     // Input shapes
         std::pair<Shape, std::vector<int>>,             // Indexes shape and values
         ElementType,                                    // Input element type
         ElementType,                                    // Indices element type
@@ -63,11 +63,44 @@ protected:
     }
 };
 
+class GatherND8LayerCPUTest : public testing::WithParamInterface<GatherNDLayerCPUTestParamSet>,
+                              virtual public SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherNDLayerCPUTestParamSet> obj) {
+        return GatherNDLayerCPUTest::getTestCaseName(obj);
+    }
+
+protected:
+    void SetUp() override {
+        InputShape shapes;
+        std::pair<Shape, std::vector<int>> indexes;
+        ElementType dataElementType, idxElementType;
+        int batchDims;
+        std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
+
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        init_input_shapes({shapes});
+
+        auto params = ngraph::builder::makeDynamicParams(dataElementType, inputDynamicShapes);
+        auto indexes_node = ngraph::opset3::Constant::create(idxElementType, indexes.first, indexes.second);
+        auto gather_nd = std::make_shared<ngraph::opset8::GatherND>(params[0], indexes_node, batchDims);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather_nd)};
+        function = std::make_shared<ngraph::Function>(results, params, "gatherND");
+    }
+};
+
 TEST_P(GatherNDLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
 }
+
+// uncomment when evaluate method fot GatherND-8 will be completed
+//TEST_P(GatherND8LayerCPUTest, CompareWithRefs) {
+//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+//
+//    run();
+//}
 
 namespace {
 
@@ -95,14 +128,15 @@ const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesBD_0 = {
         std::pair<Shape, std::vector<int>>{{2, 1, 1, 2}, {0, 2, 1, 1}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherNDDynamicBD_0, GatherNDLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesDynamicBD_0),
-                                 ::testing::ValuesIn(indexesShapesBD_0),
-                                 ::testing::ValuesIn(inputPrecisions),
-                                 ::testing::ValuesIn(indexesPrecisions),
-                                 ::testing::Values(0)),
-                         GatherNDLayerCPUTest::getTestCaseName);
+const auto subset_BD0 = ::testing::Combine(
+        ::testing::ValuesIn(inputShapesDynamicBD_0),
+        ::testing::ValuesIn(indexesShapesBD_0),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(indexesPrecisions),
+        ::testing::Values(0));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5DynamicBD_0, GatherNDLayerCPUTest, subset_BD0, GatherNDLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_0, GatherND8LayerCPUTest, subset_BD0, GatherNDLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapesDynamicBD_1 = {
         {{{3, -1, -1}},                                        // dynamic
@@ -118,14 +152,15 @@ const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesBD_1 = {
         std::pair<Shape, std::vector<int>>{{3, 1, 1, 2}, {0, 2, 1, 1, 0, 2}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherNDDynamicBD_1, GatherNDLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesDynamicBD_1),
-                                 ::testing::ValuesIn(indexesShapesBD_1),
-                                 ::testing::ValuesIn(inputPrecisions),
-                                 ::testing::ValuesIn(indexesPrecisions),
-                                 ::testing::Values(1)),
-                         GatherNDLayerCPUTest::getTestCaseName);
+const auto subset_BD1 = ::testing::Combine(
+        ::testing::ValuesIn(inputShapesDynamicBD_1),
+        ::testing::ValuesIn(indexesShapesBD_1),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(indexesPrecisions),
+        ::testing::Values(0));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5DynamicBD_1, GatherNDLayerCPUTest, subset_BD1, GatherNDLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_1, GatherND8LayerCPUTest, subset_BD1, GatherNDLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapesDynamicBD_2 = {
         {{{2, 2, -1, -1, -1}},                                                       // dynamic
@@ -141,14 +176,15 @@ const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesBD_2 = {
                                                                 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherNDDynamicBD_2, GatherNDLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(inputShapesDynamicBD_2),
-                                 ::testing::ValuesIn(indexesShapesBD_2),
-                                 ::testing::ValuesIn(inputPrecisions),
-                                 ::testing::ValuesIn(indexesPrecisions),
-                                 ::testing::Values(2)),
-                         GatherNDLayerCPUTest::getTestCaseName);
+const auto subset_BD2 = ::testing::Combine(
+        ::testing::ValuesIn(inputShapesDynamicBD_2),
+        ::testing::ValuesIn(indexesShapesBD_2),
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(indexesPrecisions),
+        ::testing::Values(0));
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5DynamicBD_2, GatherNDLayerCPUTest, subset_BD2, GatherNDLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_2, GatherND8LayerCPUTest, subset_BD2, GatherNDLayerCPUTest::getTestCaseName);
 
 
 }  // namespace

@@ -8,7 +8,7 @@
 #include <mkldnn_types.h>
 #include "ie_parallel.hpp"
 #include "mkldnn_gather_nd_node.h"
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <precision_utils.h>
 #include <utils/general_utils.h>
 #include "common/cpu_memcpy.h"
@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ngraph::op::v5::GatherND>(op)) {
+        if (!ov::is_type<const ngraph::op::v5::GatherND>(op) && !ov::is_type<const ngraph::op::v8::GatherND>(op)) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
@@ -50,10 +50,13 @@ MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, 
     const size_t inputDataRank = getInputShapeAtPort(GATHERND_DATA).getRank();
     const size_t indicesDimsRank = getInputShapeAtPort(GATHERND_INDEXES).getRank();
 
-    auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op);
-    if (!gatherNdOp)
+    if (auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v8::GatherND>(op)) {
+        attrs.batchDims = gatherNdOp->get_batch_dims();
+    } else if (auto gatherNdOp = ngraph::as_type_ptr<const ngraph::op::v5::GatherND>(op)) {
+        attrs.batchDims = gatherNdOp->get_batch_dims();
+    } else {
         THROW_ERROR << "has support only opset5.";
-    attrs.batchDims = gatherNdOp->get_batch_dims();
+    }
 
     if (attrs.batchDims >= std::min(inputDataRank, indicesDimsRank))
         THROW_ERROR << "has invalid batch_dims attribute: " << attrs.batchDims;

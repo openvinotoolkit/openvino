@@ -54,4 +54,30 @@ void GatherNDLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
     function = std::make_shared<ngraph::Function>(results, params, "gatherND");
 }
+
+std::string GatherND8LayerTest::getTestCaseName(const testing::TestParamInfo<GatherNDParams>& obj) {
+    return GatherNDLayerTest::getTestCaseName(obj);
+}
+
+void GatherND8LayerTest::SetUp() {
+    InferenceEngine::SizeVector dataShape, indicesShape;
+    InferenceEngine::Precision dPrecision, iPrecision;
+    int batchDims;
+    GatherNDParamsSubset gatherArgsSubset;
+    std::tie(gatherArgsSubset, dPrecision, iPrecision, targetDevice, configuration) = this->GetParam();
+    std::tie(dataShape, indicesShape, batchDims) = gatherArgsSubset;
+
+    auto ngDPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dPrecision);
+    auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
+
+    auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto dataNode = paramOuts[0];
+    auto gather = std::dynamic_pointer_cast<ngraph::opset8::GatherND>(
+                ngraph::builder::makeGatherND(dataNode, indicesShape, ngIPrc, batchDims));
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
+    function = std::make_shared<ngraph::Function>(results, params, "gatherND");
+}
+
 }  // namespace LayerTestsDefinitions
