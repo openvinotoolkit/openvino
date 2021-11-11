@@ -20,7 +20,7 @@ def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     apply_moc_transformations(network)
 
     if argv.compress_fp16:
-        from mo.back.offline_transformations import compress_model
+        from openvino.tools.mo.back.offline_transformations import compress_model
         compress_model(network)
 
     orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
