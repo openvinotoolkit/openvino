@@ -20,6 +20,7 @@
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
 
+#include "multi_itt.hpp"
 // ------------------------------MultiDeviceInferencePlugin----------------------------
 namespace MultiDevicePlugin {
     using namespace InferenceEngine;
@@ -237,6 +238,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     if (workModeAuto) {
         // check the configure and check if need to set PerfCounters configure to device
         // and set filter configure
+        OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
         bool needPerfCounters = false;
         std::map<std::string, std::string> filterConfig;
         CheckConfig(fullConfig, needPerfCounters, filterConfig);
@@ -268,7 +270,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
         return std::make_shared<MultiDeviceExecutableNetwork>(modelPath, network, supportDevices, strDevices, this, needPerfCounters);
     }
-
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
     if (priorities == fullConfig.end()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
@@ -330,7 +332,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         SetExeNetworkInfo(impl,
                           executableNetworkPerDevice.begin()->second->GetInputsInfo(),
                           executableNetworkPerDevice.begin()->second->GetOutputsInfo());
-        SetExeNetworkInfo(impl, executableNetworkPerDevice.begin()->second->GetExecGraphInfo());
+        impl->setInputs(executableNetworkPerDevice.begin()->second->getInputs());
+        impl->setOutputs(executableNetworkPerDevice.begin()->second->getOutputs());
     }
     return impl;
 }
@@ -374,6 +377,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 }
 
 DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision) {
+    OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::SelectDevice");
     if (metaDevices.empty()) {
         IE_THROW(NotFound) << "No available device to select in " << GetName() <<  " plugin";
     }

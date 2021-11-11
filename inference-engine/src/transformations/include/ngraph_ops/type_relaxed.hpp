@@ -92,7 +92,9 @@ protected:
         for (size_t i = 0; i < node.get_input_size(); ++i) {
             auto origin_input_type = get_origin_input_type(i);
             if (origin_input_type != element::undefined) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 node.get_input_tensor(i).set_tensor_type(origin_input_type, node.get_input_partial_shape(i));
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }
     }
@@ -100,7 +102,9 @@ protected:
     void restore_input_data_types(Node &node, const element::TypeVector &old_input_types) {
         // Restore original input data types
         for (size_t i = 0; i < node.get_input_size(); ++i) {
+            OPENVINO_SUPPRESS_DEPRECATED_START
             node.get_input_tensor(i).set_tensor_type(old_input_types[i], node.get_input_partial_shape(i));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
         if (m_original_output_data_types.empty()) {
@@ -116,7 +120,7 @@ protected:
         for (size_t i = 0; i < node.get_output_size(); ++i) {
             auto overridden_output_type = get_overridden_output_type(i);
             if (overridden_output_type != element::undefined) {
-                node.set_output_type(0, overridden_output_type, node.get_output_partial_shape(i));
+                node.set_output_type(i, overridden_output_type, node.get_output_partial_shape(i));
             }
         }
     }
@@ -158,7 +162,9 @@ public:
     TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
         // save original element type in order to restore it in the destructor
         orig_type = m_output.get_element_type();
+        OPENVINO_SUPPRESS_DEPRECATED_START
         m_output.get_tensor().set_element_type(tmp_type);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// Return the output port that was used in the constructor
@@ -168,7 +174,9 @@ public:
 
     /// Restores the original element type for the output
     ~TemporaryReplaceOutputType() {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         m_output.get_tensor().set_element_type(orig_type);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
 
@@ -218,7 +226,9 @@ public:
     }
 
     void validate_and_infer_types() override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -232,6 +242,7 @@ private:
     init_rt_result init_rt = init_rt_info(*this);
 };
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <typename BaseOp>
 bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     std::shared_ptr<ngraph::op::v0::Convert> convert;
@@ -286,6 +297,7 @@ bool TypeRelaxed<BaseOp>::evaluate(const HostTensorVector& outputs, const HostTe
 
     return true;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
@@ -331,8 +343,10 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
     return type_info_static;
 }
 
+#ifndef OPENVINO_STATIC_LIBRARY
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
+#endif
 
 NGRAPH_SUPPRESS_DEPRECATED_END
 

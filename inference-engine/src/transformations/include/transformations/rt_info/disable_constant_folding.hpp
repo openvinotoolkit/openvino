@@ -13,37 +13,13 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
-
+#include "openvino/pass/constant_folding.hpp"
 
 namespace ov {
 
-/**
- * @ingroup ie_runtime_attr_api
- * @brief DisableConstantFolding disable ConstantFolding for given operation
- */
-class TRANSFORMATIONS_API DisableConstantFolding {
-public:
-    DisableConstantFolding() = default;
-};
-
-TRANSFORMATIONS_API void disable_constant_folding(const std::shared_ptr<Node>& node);
-
-TRANSFORMATIONS_API void enable_constant_folding(const std::shared_ptr<Node>& node);
-
-TRANSFORMATIONS_API bool constant_folding_is_disabled(const std::shared_ptr<Node>& node);
-
-extern template class TRANSFORMATIONS_API VariantImpl<DisableConstantFolding>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<DisableConstantFolding> : public VariantImpl<DisableConstantFolding> {
-public:
-    OPENVINO_RTTI("disabled_constant_folding", "0");
-
-    VariantWrapper() = default;
-
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
-
-    bool is_copyable() const override { return false; }
-};
+using pass::disable_constant_folding;
+using pass::enable_constant_folding;
+using pass::constant_folding_is_disabled;
+using pass::DisableConstantFolding;
 
 }  // namespace ov

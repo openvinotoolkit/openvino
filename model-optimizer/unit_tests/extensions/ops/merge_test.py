@@ -58,7 +58,7 @@ class TestMerge(unittest.TestCase):
                                            edges_with_attrs=self.edges,
                                            update_nodes_attributes=[('second', {'executable': True}),
                                                                     ('first', {'is_partial_inferred': False,
-                                                                                'value': None}),
+                                                                               'value': None}),
                                                                     ('merge_output', {'shape': np.array([2, 2]),
                                                                                       'value': None}),
                                                                     ('merge', {'is_not_fully_inferred': True})])
@@ -106,6 +106,34 @@ class TestMerge(unittest.TestCase):
                 ('second', {'executable': True, 'value': np.zeros([4, 4]), 'shape': int64_array([4, 4])}),
                 ('merge', {'is_not_fully_inferred': False}),
                 ('merge_output', {'shape': int64_array([4, 4]), 'value': np.zeros([4, 4])})
+            ]
+        )
+
+        tested_class = Merge(graph=graph, attrs={})
+        node = Node(graph, 'merge')
+        tested_class.merge_infer(node)
+
+        (flag, resp) = compare_graphs(graph, ref_graph, 'merge_output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_merge_infer_no_executable(self):
+        graph = build_graph_with_attrs(
+            nodes_with_attrs=self.nodes,
+            edges_with_attrs=self.edges,
+            update_nodes_attributes=[
+                ('first', {'executable': False, 'value': np.ones([2, 2]), 'shape': int64_array([2, 2])}),
+                ('second', {'executable': False, 'value': np.zeros([4, 4]), 'shape': int64_array([4, 4])})
+            ]
+        )
+
+        ref_graph = build_graph_with_attrs(
+            nodes_with_attrs=self.nodes,
+            edges_with_attrs=self.edges,
+            update_nodes_attributes=[
+                ('first', {'executable': False, 'value': np.ones([2, 2]), 'shape': int64_array([2, 2])}),
+                ('second', {'executable': False, 'value': np.zeros([4, 4]), 'shape': int64_array([4, 4])}),
+                ('merge', {'is_not_fully_inferred': False}),
+                ('merge_output', {'shape': int64_array([2, 2]), 'value': None})
             ]
         )
 

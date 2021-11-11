@@ -7,6 +7,7 @@
 #include <numeric>
 #include <vector>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
@@ -17,6 +18,8 @@
 
 using namespace std;
 using namespace ngraph;
+
+OPENVINO_SUPPRESS_DEPRECATED_START
 
 TEST(op_eval, roi_align_avg_pool) {
     const int N = 1;

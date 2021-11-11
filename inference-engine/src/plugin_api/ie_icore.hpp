@@ -28,12 +28,6 @@ namespace InferenceEngine {
 class ICore {
 public:
     /**
-     * @brief Returns global to Inference Engine class task executor
-     * @return Reference to task executor
-     */
-    virtual std::shared_ptr<ITaskExecutor> GetTaskExecutor() const = 0;
-
-    /**
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR
      * @param weights shared pointer to constant blob with weights
@@ -145,6 +139,8 @@ public:
      * this metric returns 'true', False otherwise.
      */
     virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
+
+    virtual bool isNewAPI() const = 0;
 
     /**
      * @brief Default virtual destructor

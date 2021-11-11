@@ -28,7 +28,7 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ngrap
             errorMessage = "Only opset1 Broadcast operation is supported";
             return false;
         }
-        if (broadcast->get_broadcast_spec() != ngraph::op::AutoBroadcastSpec::NUMPY) {
+        if (broadcast->get_broadcast_spec() != ngraph::op::AutoBroadcastType::NUMPY) {
             errorMessage = "Only NUMPY broadcast type is supported";
             return false;
         }
@@ -51,7 +51,7 @@ MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ngraph::Node>& op
 
     errorPrefix = "Broadcast node with name '" + op->get_friendly_name() + "'";
     if (op->get_input_size() != 2 || op->get_output_size() != 1)
-        IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";
+        IE_THROW() << errorPrefix << " has incorrect number of input/output edges! " << op->get_input_size() << "->" << op->get_output_size();
 
     SizeVector shape_dims = op->get_input_shape(BROADCAST_SHAPE);
     if (shape_dims.size() > 1)

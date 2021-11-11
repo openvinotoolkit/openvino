@@ -3,8 +3,8 @@
 //
 
 #include "include/unit_type.cl"
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 

@@ -24,6 +24,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 
 using InputShape = ngraph::PartialShape;
@@ -67,9 +69,11 @@ private:
 };
 
 TEST_P(ConvertDeconvolutionTest, CompareFunctions) {
-    const auto & orig_shape = f->get_output_partial_shape(0);
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertConvolutions().run_on_function(f);
+    const auto orig_shape = f->get_output_partial_shape(0);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;

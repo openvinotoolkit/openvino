@@ -64,14 +64,21 @@ public:
      * @param name Name of a shared library file
      */
     template <typename C, typename = enableIfSupportedChar<C>>
-    SOPointer(const std::basic_string<C>& name) : _so(name.c_str()) {
-        Load(std::integral_constant<bool, HasRelease::value>{});
+    SOPointer(const std::basic_string<C>& name) {
+        try {
+            _so = SharedObjectLoader(name.c_str());
+            Load(std::integral_constant<bool, HasRelease::value>{});
+        } catch (const std::runtime_error& ex) {
+            IE_THROW() << ex.what();
+        } catch (...) {
+            details::Rethrow();
+        }
     }
 
     /**
      * @brief Constructs an object with existing reference
-     * @brief Constructs an object with existing loader
-     * @param soLoader Existing pointer to a library loader
+     * @param so Existing pointer to a library loader
+     * @param ptr Existing reference to an object
      */
     SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr) : _so{so}, _ptr{ptr} {}
 

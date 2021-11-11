@@ -208,6 +208,15 @@ endif()
 
 # General flags
 
+macro(ov_install_static_lib target comp)
+    if(NOT BUILD_SHARED_LIBS)
+        install(TARGETS ${target} EXPORT OpenVINOTargets
+                RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${comp}
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp}
+                LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${comp})
+    endif()
+endmacro()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -280,8 +289,10 @@ function(ie_check_pip_package full_name message_type)
                 set(installed_version "${CMAKE_MATCH_1}")
             endif()
 
-            message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
-                "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            if(NOT req_version STREQUAL installed_version)
+                message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
+                    "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            endif()
         else()
             set(${name}_FOUND ON PARENT_SCOPE)
         endif()

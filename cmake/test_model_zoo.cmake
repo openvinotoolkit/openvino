@@ -66,6 +66,11 @@ ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/ngraph/test"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ngraph"
                   onnx_out_files)
 
+set(rel_path "inference-engine/tests/functional/plugin/shared/models")
+ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/func_tests/models"
+                 ft_out_files)
+
 set(rel_path "inference-engine/tests/functional/inference_engine/onnx_reader")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_reader"
@@ -80,6 +85,11 @@ set(rel_path "inference-engine/tests/unit/frontends/onnx_import/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)
+
+set(rel_path "docs/onnx_custom_op")
+ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/docs/models"
+                 docs_onnx_out_files)
 
 if(ENABLE_TESTS)
     if(NGRAPH_ONNX_FRONTEND_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
@@ -116,9 +126,11 @@ if(ENABLE_TESTS)
     endif()
 
     add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+                                             ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files})
+                                             ${ie_onnx_import_out_files}
+                                             ${docs_onnx_out_files})
 
     if(TARGET test_pip_prerequsites)
         add_dependencies(test_model_zoo test_pip_prerequsites)

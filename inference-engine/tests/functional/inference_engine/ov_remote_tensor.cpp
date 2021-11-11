@@ -9,8 +9,6 @@
 
 using namespace ::testing;
 using namespace std;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 TEST(RemoteTensorOVTests, throwsOnGetParams) {
     ov::runtime::RemoteTensor tensor;
@@ -20,4 +18,20 @@ TEST(RemoteTensorOVTests, throwsOnGetParams) {
 TEST(RemoteTensorOVTests, throwsOnGetDeviceName) {
     ov::runtime::RemoteTensor tensor;
     ASSERT_THROW(tensor.get_device_name(), ov::Exception);
+}
+
+TEST(RemoteTensorOVTests, remoteTensorFromEmptyTensorThrow) {
+    ov::runtime::Tensor empty_tensor;
+    ov::runtime::RemoteTensor remote_tensor;
+    ASSERT_THROW(remote_tensor = empty_tensor, ov::Exception);
+    ASSERT_FALSE(empty_tensor.is<ov::runtime::RemoteTensor>());
+    ASSERT_THROW(empty_tensor.as<ov::runtime::RemoteTensor>(), ov::Exception);
+}
+
+TEST(RemoteTensorOVTests, remoteTensorConvertToRemoteThrow) {
+    ov::runtime::Tensor tensor{ov::element::f32, {1, 2, 3, 4}};
+    ov::runtime::RemoteTensor remote_tensor;
+    ASSERT_THROW(remote_tensor = tensor, ov::Exception);
+    ASSERT_FALSE(tensor.is<ov::runtime::RemoteTensor>());
+    ASSERT_THROW(tensor.as<ov::runtime::RemoteTensor>(), ov::Exception);
 }

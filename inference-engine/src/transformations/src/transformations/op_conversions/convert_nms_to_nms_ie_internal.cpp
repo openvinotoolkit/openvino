@@ -86,7 +86,8 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
                     new_soft_nms_sigma,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    element::i32);
+                    element::i32,
+                    nms_5->get_output_element_type(1));
             new_ops.push_back(nms_legacy);
         } else {
             nms_legacy = std::make_shared<op::internal::NonMaxSuppressionIEInternal>(
@@ -97,7 +98,8 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
                     new_score_threshold,
                     center_point_box,
                     nms_5->get_sort_result_descending(),
-                    element::i32);
+                    element::i32,
+                    nms_5->get_output_element_type(1));
             new_ops.push_back(nms_legacy);
         }
 

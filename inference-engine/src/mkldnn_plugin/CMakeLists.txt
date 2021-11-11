@@ -26,6 +26,7 @@ addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
+              AS_EXTENSION
               SOURCES ${SOURCES} ${HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME})
@@ -77,13 +78,14 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inferenc
                                                       $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
                                               PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
                                                       $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
-                                                
+
 target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-target_compile_definitions(${TARGET_NAME}_obj
-        PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE
+    USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
+    $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
 )
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)

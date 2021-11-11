@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
@@ -11,7 +12,6 @@
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -20,8 +20,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_scalar)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_scalar) {
     Shape shape_a{};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{};
@@ -37,12 +36,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_scalar)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{312}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{312}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix) {
     Shape shape_a{4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{3, 2};
@@ -58,12 +55,11 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{2, 3, 6, 7, 10, 11}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f((vector<float>{2, 3, 6, 7, 10, 11}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_vector)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_vector) {
     Shape shape_a{16};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{12};
@@ -84,8 +80,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_vector)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap) {
     Shape shape_a{4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto B = make_shared<op::Parameter>(element::f32, shape_a);
@@ -112,8 +107,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place) {
     Shape shape_a{4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
@@ -136,8 +130,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice) {
     Shape shape_a{4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{1, 4};
@@ -156,12 +149,11 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{14, 16, 18, 20}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(
+        test::all_close_f((vector<float>{14, 16, 18, 20}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap) {
     Shape shape_a{5, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
@@ -175,8 +167,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a,
-              vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
     auto result = backend->create_tensor(element::f32, shape_r);
 
     auto handle = backend->compile(f);
@@ -186,8 +177,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose) {
     Shape shape_a{4, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 4};
@@ -202,8 +192,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
 
     // Create some tensors for input/output
     auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a,
-              vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
+    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20});
     auto result = backend->create_tensor(element::f32, shape_r);
 
     auto handle = backend->compile(f);
@@ -213,8 +202,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_with_transpose)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided) {
     Shape shape_a{4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2};
@@ -230,12 +218,10 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_strided)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{4, 7, 12, 15}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    EXPECT_TRUE(test::all_close_f((vector<float>{4, 7, 12, 15}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_3d) {
     Shape shape_a{4, 4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2, 2};
@@ -262,8 +248,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided) {
     Shape shape_a{4, 4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2, 2};
@@ -290,8 +275,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides) {
     Shape shape_a{4, 4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{2, 2, 2};
@@ -318,8 +302,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64) {
     Shape shape_a{4, 4, 4};
     auto A = make_shared<op::Parameter>(element::i64, shape_a);
     Shape shape_r{2, 2, 2};
@@ -344,13 +327,11 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_3d_strided_different_strides_int64)
     EXPECT_EQ((vector<int64_t>{0, 3, 8, 11, 32, 35, 40, 43}), read_vector<int64_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, slice_3d_start_just_oob)
-{
+NGRAPH_TEST(${BACKEND_NAME}, slice_3d_start_just_oob) {
     Shape shape_a{20, 10, 5};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     Shape shape_r{20, 0, 5};
-    auto r =
-        make_shared<op::Slice>(A, Coordinate{0, 10, 0}, Coordinate{20, 10, 5}, Strides{1, 1, 1});
+    auto r = make_shared<op::Slice>(A, Coordinate{0, 10, 0}, Coordinate{20, 10, 5}, Strides{1, 1, 1});
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

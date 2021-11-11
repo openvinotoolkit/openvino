@@ -199,10 +199,12 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     m_plugin(plugin),
     m_type(ContextType::OCL),
     m_config(config),
+    m_external_queue(nullptr),
     m_va_display(nullptr) {
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;
+    int target_tile_id = -1;
 
     if (params.size()) {
         // parameter map is non-empty
@@ -216,13 +218,20 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
         } else {
             IE_THROW() << "Invalid execution context type" << contextTypeStr;
         }
+        auto tile_id_itr = params.find(GPU_PARAM_KEY(TILE_ID));
+        if (tile_id_itr != params.end()) {
+            target_tile_id = tile_id_itr->second.as<int>();
+        }
+
+        if (params.find(GPU_PARAM_KEY(OCL_QUEUE)) != params.end())
+            m_external_queue = _ObjFromParamSimple<gpu_handle_param>(params, GPU_PARAM_KEY(OCL_QUEUE));
     }
 
     // TODO: Parameterize this based on plugin config and compilation options
     auto engine_type = cldnn::engine_types::ocl;
     auto runtime_type = cldnn::runtime_types::ocl;
     // Use actual runtime and engine types
-    cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device);
+    cldnn::device_query device_query(engine_type, runtime_type, _context_id, _va_device, target_tile_id);
     auto device_map = device_query.get_available_devices();
 
     auto iter = device_map.find(m_config.device_id);
@@ -234,21 +243,27 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
                 (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
         cldnn::queue_types queue_type;
-        if (dev->get_info().supports_immad)
+        if (m_external_queue) {
+            queue_type = cldnn::stream::detect_queue_type(engine_type, m_external_queue);
+        } else if (dev->get_info().supports_immad) {
             queue_type = cldnn::queue_types::in_order;
-        else
+        } else {
             queue_type = cldnn::queue_types::out_of_order;
+        }
 
+
+        ITaskExecutor::Ptr task_executor = std::make_shared<CPUStreamsExecutor>(m_config.task_exec_config);
         bool use_unified_shared_memory = true;
-        m_engine = cldnn::engine::create(engine_type, runtime_type, dev, cldnn::engine_configuration(enable_profiling,
-                                                                                                     queue_type,
-                                                                                                     m_config.sources_dumps_dir,
-                                                                                                     m_config.queuePriority,
-                                                                                                     m_config.queueThrottle,
-                                                                                                     m_config.memory_pool_on,
-                                                                                                     use_unified_shared_memory,
-                                                                                                     m_config.kernels_cache_dir,
-                                                                                                     m_config.n_threads));
+        m_engine = cldnn::engine::create(engine_type, runtime_type, dev,
+                                                    cldnn::engine_configuration(enable_profiling,
+                                                                                queue_type,
+                                                                                m_config.sources_dumps_dir,
+                                                                                m_config.queuePriority,
+                                                                                m_config.queueThrottle,
+                                                                                m_config.memory_pool_on,
+                                                                                use_unified_shared_memory,
+                                                                                m_config.kernels_cache_dir,
+                                                                                m_config.throughput_streams), task_executor);
     }
 }
 

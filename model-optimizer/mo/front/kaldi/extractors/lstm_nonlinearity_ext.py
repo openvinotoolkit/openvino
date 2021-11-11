@@ -5,8 +5,9 @@ import numpy as np
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import collect_until_token, collect_until_token_and_read
-from mo.front.kaldi.utils import read_binary_matrix, read_token_value
+from mo.front.kaldi.utils import read_binary_matrix
 from mo.ops.lstmnonlinearity import LstmNonLinearity
+from mo.utils.error import Error
 
 
 class LSTMNonlinearityFrontExtractor(FrontExtractorOp):
@@ -20,7 +21,11 @@ class LSTMNonlinearityFrontExtractor(FrontExtractorOp):
         collect_until_token(pb, b'<Params>')
         ifo_x_weights, ifo_x_weights_shape = read_binary_matrix(pb)
 
-        use_dropout = collect_until_token_and_read(pb, b'<UseDropout>', np.bool)
+        try:
+            use_dropout = collect_until_token_and_read(pb, b'<UseDropout>', np.bool)
+        except Error:
+            # layer have not UseDropout attribute, so setup it to False
+            use_dropout = False
 
         mapping_rule = {'use_dropout': use_dropout}
 

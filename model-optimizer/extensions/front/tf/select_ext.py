@@ -14,3 +14,13 @@ class SelectExtractor(FrontExtractorOp):
     def extract(cls, node: Node):
         Select.update_node_stat(node, {'format': 'tf',})
         return cls.enabled
+
+
+class SelectV2Extractor(FrontExtractorOp):
+    op = 'SelectV2'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        Select.update_node_stat(node, {'format': 'tf'})
+        return cls.enabled

@@ -67,8 +67,8 @@ public:
     /// reasons for
     /// some cases.
     /// Callback example:
-    /// auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
-    ///     return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) !=
+    /// auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
+    ///     return std::dynamic_pointer_cast<const ov::opset3::DepthToSpace>(node) !=
     ///     nullptr;
     /// };
     /// This callback returns true in case of DepthToSpace operation. So when execution

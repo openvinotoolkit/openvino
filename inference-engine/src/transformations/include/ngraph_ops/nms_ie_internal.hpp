@@ -30,7 +30,8 @@ public:
                                 const Output<Node>& score_threshold,
                                 int center_point_box,
                                 bool sort_result_descending,
-                                const ngraph::element::Type& output_type = ngraph::element::i64);
+                                const ngraph::element::Type& output_type = ngraph::element::i64,
+                                const ngraph::element::Type& score_output_type = ngraph::element::f32);
 
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                 const Output<Node>& scores,
@@ -40,7 +41,8 @@ public:
                                 const Output<Node>& soft_nms_sigma,
                                 int center_point_box,
                                 bool sort_result_descending,
-                                const ngraph::element::Type& output_type = ngraph::element::i64);
+                                const ngraph::element::Type& output_type = ngraph::element::i64,
+                                const ngraph::element::Type& score_output_type = ngraph::element::f32);
 
     void validate_and_infer_types() override;
 
@@ -51,6 +53,7 @@ public:
     int m_center_point_box;
     bool m_sort_result_descending = true;
     element::Type m_output_type;
+    element::Type m_scores_output_type;
 
 private:
     int64_t max_boxes_output_from_input() const;

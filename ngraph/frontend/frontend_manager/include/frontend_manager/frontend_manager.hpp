@@ -10,10 +10,10 @@
 
 #include "frontend.hpp"
 #include "frontend_manager_defs.hpp"
-#include "ngraph/variant.hpp"
+#include "openvino/core/variant.hpp"
 #include "parameters.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 // -------------- FrontEndManager -----------------
 using FrontEndFactory = std::function<FrontEnd::Ptr()>;
@@ -79,7 +79,7 @@ private:
 };
 
 template <>
-FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants);
+FRONTEND_API FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants);
 
 // --------- Plugin exporting information --------------
 
@@ -98,4 +98,4 @@ struct FrontEndPluginInfo {
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

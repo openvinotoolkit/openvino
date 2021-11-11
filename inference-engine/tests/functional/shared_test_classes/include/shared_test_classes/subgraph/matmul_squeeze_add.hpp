@@ -24,7 +24,7 @@ typedef std::tuple<
 > matmulSqueezeAddParams;
 
 class MatmulSqueezeAddTest : public testing::WithParamInterface<matmulSqueezeAddParams>,
-                     public LayerTestsUtils::LayerTestsCommon {
+                     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<matmulSqueezeAddParams>& obj);
 

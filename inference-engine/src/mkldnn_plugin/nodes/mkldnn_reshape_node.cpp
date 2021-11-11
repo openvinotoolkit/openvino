@@ -6,7 +6,12 @@
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ngraph/opsets/opset1.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <ie_ngraph_utils.hpp>
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -14,13 +19,9 @@ using namespace InferenceEngine;
 
 bool MKLDNNReshapeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-        if (!std::dynamic_pointer_cast<const ngraph::opset1::Reshape>(op) &&
-            !std::dynamic_pointer_cast<const ngraph::opset1::Squeeze>(op) &&
-                !std::dynamic_pointer_cast<const ngraph::opset1::Unsqueeze>(op)) {
+        if (!std::dynamic_pointer_cast<const ov::opset1::Reshape>(op) &&
+            !std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op) &&
+                !std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
             errorMessage = "Only opset1 Reshape, Squeeze, Unsqueeze operations are supported";
             return false;
         }
@@ -36,15 +37,65 @@ MKLDNNReshapeNode::MKLDNNReshapeNode(const std::shared_ptr<ngraph::Node>& op, co
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
+
+    errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
+
+    if (isDynamicNode()) {
+        auto checkSecondInput = [](const std::shared_ptr<ngraph::Node>& op, const std::string opType) {
+            if (op->get_input_partial_shape(1).is_dynamic()) {
+                IE_THROW() << "CPU plug-in doesn't support " << opType << " node with non static second input";
+            }
+        };
+
+        if (std::dynamic_pointer_cast<const ov::opset1::Reshape>(op)) {
+            checkSecondInput(op, "Reshape");
+        } else if (std::dynamic_pointer_cast<const ov::opset1::Squeeze>(op)) {
+            if (op->get_input_size() == 1)
+                IE_THROW() << "CPU plug-in doesn't support Squeeze node with inputs num equal 1";
+            checkSecondInput(op, "Squeeze");
+        } else if (std::dynamic_pointer_cast<const ov::opset1::Unsqueeze>(op)) {
+            checkSecondInput(op, "Unsqueeze");
+        } else {
+            IE_THROW() << "Unsupported operation type via reshape node";
+        }
+    }
 }
 
-MKLDNNReshapeNode::MKLDNNReshapeNode(const std::string& name, const Shape& inDims, const Shape& outDims, Precision precision,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &wCache)
-        : MKLDNNNode("Reshape", name, eng, wCache) {
-    this->inputShapes.push_back(inDims);
-    this->outputShapes.push_back(outDims);
-    addOriginalInputPrecision(precision);
-    addOriginalOutputPrecision(precision);
+bool MKLDNNReshapeNode::needShapeInfer() const {
+    if (inputShapesModified()) {
+        return true;
+    }
+    if (lastSecondInputValues.empty())
+        return true;
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(1)[0]->getMemory().GetPtr());
+    for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
+        if (lastSecondInputValues[i] != sndInput[i])
+            return true;
+    }
+    return false;
+}
+
+// TODO [DS]: rewrite after new shape infer will be added
+std::vector<VectorDims> MKLDNNReshapeNode::shapeInfer() const {
+    const auto &memPtr = getParentEdgesAtPort(1)[0]->getMemory();
+
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(memPtr.GetPtr());
+    if (lastSecondInputValues.empty())
+        lastSecondInputValues.resize(memPtr.getStaticDims()[0]);
+    for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
+        lastSecondInputValues[i] = sndInput[i];
+    }
+
+    std::vector<ov::StaticShape> input_shapes = {getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims(), memPtr.getStaticDims()};
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
+            {1, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, memPtr.getStaticDims(), memPtr.GetPtr())}
+    };
+    std::vector<ov::StaticShape> output_shapes = {{}};
+    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
+
+    std::vector<VectorDims> result(output_shapes.size());
+    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
+    return result;
 }
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {
@@ -60,6 +111,7 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::Precision inPrec = getOriginalInputPrecisionAtPort(0);
     InferenceEngine::Precision outPrec = getOriginalOutputPrecisionAtPort(0);
+    InferenceEngine::Precision secondInPrc = InferenceEngine::Precision::I32;
 
     // Current reshape implementation is simple memory reinterpret,
     // same precision on input and output is required
@@ -73,10 +125,11 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         config.inConfs[i].inPlace = -1;
         config.inConfs[i].constant = false;
-        config.inConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inPrec, getInputShapeAtPort(i));
+        config.inConfs[i].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc((i > 0 ? secondInPrc : inPrec), getInputShapeAtPort(i));
     }
     config.outConfs.resize(1);
-    config.outConfs[0].inPlace = 0;
+    // TODO [DS]: inplace
+    config.outConfs[0].inPlace = isDynamicNode() ? -1 : 0;
     config.outConfs[0].constant = false;
     config.outConfs[0].desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outPrec, getOutputShapeAtPort(0));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
@@ -91,6 +144,15 @@ void MKLDNNReshapeNode::createPrimitive() {
         IE_THROW() << "Input memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
+}
+
+void MKLDNNReshapeNode::executeDynamicImpl(mkldnn::stream strm) {
+    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto count = srcMemPtr->GetShape().getElementsCount();
+    if (count != dstMemPtr->GetShape().getElementsCount())
+        IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
+    cpu_memcpy(dstMemPtr->GetPtr(), srcMemPtr->GetPtr(), count * MKLDNNExtensionUtils::sizeOfDataType(srcMemPtr->GetDataType()));
 }
 
 bool MKLDNNReshapeNode::created() const {
