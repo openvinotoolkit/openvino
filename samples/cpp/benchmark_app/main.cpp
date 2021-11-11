@@ -522,7 +522,6 @@ int main(int argc, char* argv[]) {
                                           {{"read network time (ms)", duration_ms}});
 
             const InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
-            const auto& b = inputInfo.at("data")->getTensorDesc();
             if (inputInfo.empty()) {
                 throw std::logic_error("no inputs info is provided");
             }
@@ -553,8 +552,6 @@ int main(int argc, char* argv[]) {
                     statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                               {{"reshape network time (ms)", duration_ms}});
             }
-
-            const auto& c = inputInfo.at("data")->getTensorDesc();
 
             topology_name = cnnNetwork.getName();
             // use batch size according to provided layout and shapes (static case)
@@ -808,23 +805,50 @@ int main(int argc, char* argv[]) {
         next_step(ss.str());
 
         // warming up - out of scope
+        bool legacyMode = FLAGS_legacy_mode;
+
+        if (legacyMode) {
+            slog::warn << "Benchmark legacy mode was enabled!" << slog::endl;
+            if (nireq < inputsData.begin()->second.size())
+                slog::warn << "Only " << nireq << " test configs will be used" << slog::endl;
+            size_t i = 0;
+            for (auto& inferRequest : inferRequestsQueue.requests) {
+                auto input = app_inputs_info[i % app_inputs_info.size()];
+                for (auto& item : input) {
+                    auto input_name = item.first;
+                    const auto& data = inputsData.at(input_name)[i % inputsData.at(input_name).size()];
+                    //inferRequest->getBlob(input_name);
+                }
+
+                if (useGpuMem) {
+                    auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
+                    for (auto& output : exeNetwork.GetOutputsInfo()) {
+                        inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                    }
+                }
+                ++i;
+            }
+        }
+
         auto inferRequest = inferRequestsQueue.getIdleRequest();
         if (!inferRequest) {
             IE_THROW() << "No idle Infer Requests!";
         }
-        auto input = app_inputs_info[0];
 
-        for (auto& item : input) {
-            auto input_name = item.first;
-            const auto& data = inputsData.at(input_name)[0];
-            // inferRequest->setShape(item.first, data->getTensorDesc().getDims());
-            inferRequest->setBlob(input_name, data);
-        }
+        if (!legacyMode) {
+            auto input = app_inputs_info[0];
 
-        if (useGpuMem) {
-            auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
-            for (auto& output : exeNetwork.GetOutputsInfo()) {
-                inferRequest->setBlob(output.first, outputBlobs[output.first]);
+            for (auto& item : input) {
+                auto input_name = item.first;
+                const auto& data = inputsData.at(input_name)[0];
+                inferRequest->setBlob(input_name, data);
+            }
+
+            if (useGpuMem) {
+                auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
+                for (auto& output : exeNetwork.GetOutputsInfo()) {
+                    inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                }
             }
         }
 
@@ -836,6 +860,7 @@ int main(int argc, char* argv[]) {
         inferRequestsQueue.waitAll();
         auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
         slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
+
         if (statistics)
             statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
                                       {{"first inference time (ms)", duration_ms}});
@@ -855,20 +880,23 @@ int main(int argc, char* argv[]) {
             if (!inferRequest) {
                 IE_THROW() << "No idle Infer Requests!";
             }
-            auto input = app_inputs_info[iteration % app_inputs_info.size()];
-            inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
 
-            batchSize = getBatchSize(input);
-            for (auto& item : input) {
-                auto input_name = item.first;
-                const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
-                inferRequest->setBlob(input_name, data);
-            }
+            if (!legacyMode) {
+                auto input = app_inputs_info[iteration % app_inputs_info.size()];
+                inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
 
-            if (useGpuMem) {
-                auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
-                for (auto& output : exeNetwork.GetOutputsInfo()) {
-                    inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                batchSize = getBatchSize(input);
+                for (auto& item : input) {
+                    auto input_name = item.first;
+                    const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
+                    inferRequest->setBlob(input_name, data);
+                }
+
+                if (useGpuMem) {
+                    auto outputBlobs = ::gpu::getRemoteOutputBlobs(exeNetwork, inferRequest->getOutputClBuffer());
+                    for (auto& output : exeNetwork.GetOutputsInfo()) {
+                        inferRequest->setBlob(output.first, outputBlobs[output.first]);
+                    }
                 }
             }
 
@@ -897,6 +925,7 @@ int main(int argc, char* argv[]) {
                 progressBar.addProgress(newProgress);
                 progressCnt += newProgress;
             }
+
             processedFramesN += batchSize;
             ++iteration;
 

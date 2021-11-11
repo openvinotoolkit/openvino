@@ -213,6 +213,9 @@ static constexpr char input_image_mean_message[] =
     "Values to be provided in the [R, G, B] format. Can be defined for desired input of the model,\n"
     "Example: -imean data[255,255,255],info[255,255,255]\n";
 
+static constexpr char legacy_mode_message[] =
+    "Optional. Enable legacy scenario for static models.\n";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -345,6 +348,9 @@ DEFINE_string(iscale, "", input_image_scale_message);
 /// @brief Define flag for using input image mean <br>
 DEFINE_string(imean, "", input_image_mean_message);
 
+/// @brief Define flag for showing help message <br>
+DEFINE_bool(legacy_mode, false, legacy_mode_message);
+
 /**
  * @brief This function show a help message
  */
@@ -398,4 +404,5 @@ static void showUsage() {
     std::cout << "    -iop                        \"<value>\"    " << iop_message << std::endl;
     std::cout << "    -iscale                    " << input_image_scale_message << std::endl;
     std::cout << "    -imean                     " << input_image_mean_message << std::endl;
+    std::cout << "    -legacy_mode                     " << legacy_mode_message << std::endl;
 }
