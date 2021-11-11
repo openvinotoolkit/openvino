@@ -32,8 +32,8 @@ private:
     struct GatherNDAttributes {
         size_t batchDims = 0lu;
         size_t dataSize = 1lu;
-        size_t sliceRank = 0lu;
         size_t dstSize = 0lu;
+        size_t sliceRank = 0lu;
 
         VectorDims srcDims;
         VectorDims srcStrides;
@@ -41,20 +41,18 @@ private:
 
     struct GatherNDExecutor {
         GatherNDExecutor(const GatherNDAttributes& attrs);
-
-        void exec(const MKLDNNMemoryPtr &srcMemPtr, const MKLDNNMemoryPtr &idxMemPtr, MKLDNNMemoryPtr &dstMemPtr);
-
         ~GatherNDExecutor() = default;
+        void exec(const MKLDNNMemoryPtr &srcMemPtr, const MKLDNNMemoryPtr &idxMemPtr, MKLDNNMemoryPtr &dstMemPtr);
 
     private:
         size_t batchSize = 1lu;
         size_t cycles = 1lu;
         size_t dataLength = 1lu;
 
-        VectorDims srcShifts;
         size_t srcBatchStride = 1lu;
         size_t idxBatchStride = 1lu;
         size_t dstBatchStride = 1lu;
+        VectorDims srcShifts;
 
         GatherNDAttributes attrs;
     };

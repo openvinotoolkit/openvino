@@ -115,11 +115,11 @@ const std::vector<ElementType> indexesPrecisions = {
 };
 
 const std::vector<InputShape> inputShapesDynamicBD_0 = {
-        {{{-1, -1, -1}},                                       // dynamic
-         {{5, 10, 5}, {4, 12, 4}, {4, 12, 4}, {5, 5, 5}}},          // target
+        {{-1, -1, -1},                                       // dynamic
+         {{5, 10, 5}, {4, 12, 4}, {4, 12, 4}, {5, 5, 5}}},   // target
 
-         {{{-1, 5, -1, -1}},                                   // dynamic
-         {{8, 5, 5, 5}, {5, 5, 8, 4}, {4, 5, 4, 5}}},               // target
+         {{-1, 5, -1, -1},                                   // dynamic
+         {{8, 5, 5, 5}, {5, 5, 8, 4}, {4, 5, 4, 5}}},        // target
 };
 
 const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesBD_0 = {
@@ -139,11 +139,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5DynamicBD_0, GatherNDLayerCPUTest, subse
 INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_0, GatherND8LayerCPUTest, subset_BD0, GatherNDLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapesDynamicBD_1 = {
-        {{{3, -1, -1}},                                        // dynamic
-         {{3, 10, 5}, {3, 10, 5}, {3, 12, 8}, {3, 8, 8}}},          // target
+        {{3, -1, -1},                                            // dynamic
+         {{3, 10, 5}, {3, 10, 5}, {3, 12, 8}, {3, 8, 8}}},       // target
 
-        {{{3, {5, 10}, {5, 10}, {5, 10}, {5, 10}}},            // dynamic
-         {{3, 5, 5, 5, 5}, {3, 8, 10, 10, 10}, {3, 8, 6, 8, 7}}},   // target
+        {{3, {5, 10}, {5, 10}, {5, 10}, {5, 10}},                 // dynamic
+         {{3, 5, 5, 5, 5}, {3, 8, 10, 10, 10}, {3, 8, 6, 8, 7}}}, // target
 };
 
 const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesBD_1 = {
@@ -163,11 +163,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5DynamicBD_1, GatherNDLayerCPUTest, subse
 INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_1, GatherND8LayerCPUTest, subset_BD1, GatherNDLayerCPUTest::getTestCaseName);
 
 const std::vector<InputShape> inputShapesDynamicBD_2 = {
-        {{{2, 2, -1, -1, -1}},                                                       // dynamic
-         {{2, 2, 5, 6, 5}, {2, 2, 2, 3, 3}, {2, 2, 2, 3, 3}, {2, 2, 7, 2, 3}}},          // target
+        {{2, 2, -1, -1, -1},                                                       // dynamic
+         {{2, 2, 5, 6, 5}, {2, 2, 2, 3, 3}, {2, 2, 2, 3, 3}, {2, 2, 7, 2, 3}}},    // target
 
-        {{{2, 2, {5, 10}, {5, 10}, {5, 10}}},                                        // dynamic
-         {{2, 2, 5, 5, 5}, {2, 2, 10, 10, 5}, {2, 2, 7, 8, 7}}},                          // target
+        {{2, 2, {5, 10}, {5, 10}, {5, 10}},                                        // dynamic
+         {{2, 2, 5, 5, 5}, {2, 2, 10, 10, 5}, {2, 2, 7, 8, 7}}},                   // target
 };
 
 const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesBD_2 = {

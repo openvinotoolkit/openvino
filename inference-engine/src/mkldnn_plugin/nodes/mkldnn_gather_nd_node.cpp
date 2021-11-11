@@ -24,12 +24,6 @@ bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }
-
-        if (op->get_input_node_shared_ptr(GATHERND_INDEXES)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
-            // TODO: Support indexes for dynamic shapes.
-            errorMessage = "Only Constant 'indexes' inputs are supported.";
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -60,8 +54,6 @@ MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, 
 
     if (attrs.batchDims >= std::min(inputDataRank, indicesDimsRank))
         THROW_ERROR << "has invalid batch_dims attribute: " << attrs.batchDims;
-
-    attrs.sliceRank =  getInputShapeAtPort(GATHERND_INDEXES).getStaticDims().back();
 }
 
 void MKLDNNGatherNDNode::initSupportedPrimitiveDescriptors() {
@@ -107,6 +99,7 @@ void MKLDNNGatherNDNode::prepareParams() {
     attrs.srcDims = srcBlockedMemDesc->getBlockDims();
     attrs.srcStrides = srcBlockedMemDesc->getStrides();
     attrs.dstSize = dstMemPtr->GetSize();
+    attrs.sliceRank =  idxMemPtr->getDesc().getShape().getStaticDims().back();
     execPtr = std::make_shared<GatherNDExecutor>(attrs);
 }
 
@@ -148,13 +141,9 @@ void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
-    auto& srcMemPtr = getParentEdgeAt(GATHERND_DATA)->getMemoryPtr();
-    auto& idxMemPtr = getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr();
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    if (!srcMemPtr || !idxMemPtr || !dstMemPtr)
-        THROW_ERROR << "has not allocated source/indexes/destination memory.";
-
-    execPtr->exec(srcMemPtr, idxMemPtr, dstMemPtr);
+    execPtr->exec(getParentEdgeAt(GATHERND_DATA)->getMemoryPtr(),
+                  getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr(),
+                  getChildEdgeAt(0)->getMemoryPtr());
 }
 
 void MKLDNNGatherNDNode::executeDynamicImpl(dnnl::stream strm) {
