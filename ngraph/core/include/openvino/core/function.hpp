@@ -24,12 +24,12 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
-//#ifdef ENABLE_TESTS
+#ifdef NGRAPH_UNIT_TEST_ENABLE
 class FunctionAccessor;
-#define FUNCTION_TEST_FRIENDS friend class ov::FunctionAccessor
-//#else
-//#define FUNCTION_TEST_FRIENDS
-//#endif
+#    define FUNCTION_TEST_FRIENDS friend class ov::FunctionAccessor
+#else
+#    define FUNCTION_TEST_FRIENDS
+#endif
 /// A user-defined function.
 class OPENVINO_API Function : public std::enable_shared_from_this<Function> {
 public:

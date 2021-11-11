@@ -10,6 +10,8 @@ if(COMMAND ie_faster_build)
     ie_faster_build(ngraph_test_util UNITY)
 endif()
 
+add_definitions(-DNGRAPH_UNIT_TEST_ENABLE)
+
 target_link_libraries(ngraph_test_util PUBLIC ngraph gtest gmock)
 target_include_directories(ngraph_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../../core/src/)
 

@@ -32,19 +32,7 @@ class FunctionAccessor {
 public:
     FunctionAccessor(std::weak_ptr<Function> f) : m_function(std::move(f)) {}
 
-    bool get_cache_flag() const {
-        if (auto f = m_function.lock()) {
-            return f->m_shared_rt_info->get_use_topological_cache();
-        }
-        throw ngraph::ngraph_error("Original function is not available");
-    }
-
-    std::shared_ptr<SharedRTInfo> get_shared_info() const {
-        if (auto f = m_function.lock()) {
-            return f->m_shared_rt_info;
-        }
-        throw ngraph::ngraph_error("Original function is not available");
-    }
+    std::shared_ptr<SharedRTInfo> get_shared_info() const;
 };
 
 class NodeAccessor {
@@ -53,11 +41,6 @@ class NodeAccessor {
 public:
     NodeAccessor(std::weak_ptr<Node> node) : m_node(std::move(node)) {}
 
-    std::set<std::shared_ptr<SharedRTInfo>> get_shared_info() const {
-        if (auto node = m_node.lock()) {
-            return node->m_shared_rt_info;
-        }
-        throw ngraph::ngraph_error("Original node is not available");
-    }
+    std::set<std::shared_ptr<SharedRTInfo>> get_shared_info() const;
 };
 }  // namespace ov
