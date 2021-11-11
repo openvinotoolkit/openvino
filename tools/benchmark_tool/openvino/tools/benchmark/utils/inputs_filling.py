@@ -17,11 +17,8 @@ from .logging import logger
 def set_inputs(paths_to_input, batch_size, app_input_info, requests):
   requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests)
   for i in range(len(requests)):
-    inputs = requests[i].input_blobs
     for k, v in requests_input_data[i].items():
-        if k not in inputs.keys():
-            raise Exception(f"No input with name {k} found!")
-        inputs[k].buffer[:] = v
+        requests[i].get_tensor(k).data[:] = v
 
 
 def get_inputs(paths_to_input, batch_size, app_input_info, requests):
