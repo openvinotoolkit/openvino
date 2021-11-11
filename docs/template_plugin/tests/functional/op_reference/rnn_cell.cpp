@@ -100,7 +100,6 @@ private:
 class ReferenceRNNCellTestSigmoidActivationFunction : public ReferenceRNNCellTest {
 public:
     void SetUp() override {
-        threshold = 1e-1f;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.X.data, params.H_t.data, params.W.data, params.R.data, params.B.data};
