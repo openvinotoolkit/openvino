@@ -7,6 +7,7 @@ import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 from common.utils.tf_utils import permute_nchw_to_nhwc
 
+
 class TestMul(CommonTFLayerTest):
     def create_mul_placeholder_const_net(self, x_shape, y_shape, ir_version, use_new_frontend):
         """

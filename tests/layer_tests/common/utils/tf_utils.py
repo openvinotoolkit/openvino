@@ -9,7 +9,6 @@ import numpy as np
 
 from mo.ops.op import PermuteAttrs
 
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
