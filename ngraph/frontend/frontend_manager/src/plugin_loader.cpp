@@ -16,23 +16,26 @@
 
 #include <sys/stat.h>
 
+#include <ngraph/log.hpp>
 #include <string>
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 #ifdef WIN32
 #    define DLOPEN(file_str) LoadLibrary(TEXT(file_str.c_str()))
 #    define DLSYM(obj, func) GetProcAddress(obj, func)
 #    define DLCLOSE(obj)     FreeLibrary(obj)
+#    define DLERROR()        ""
 #else
 #    define DLOPEN(file_str) dlopen(file_str.c_str(), RTLD_LAZY)
 #    define DLSYM(obj, func) dlsym(obj, func)
 #    define DLCLOSE(obj)     dlclose(obj)
+#    define DLERROR()        dlerror()
 #endif
 
 // TODO: change to std::filesystem for C++17
@@ -70,12 +73,13 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-std::vector<PluginData> ngraph::frontend::load_plugins(const std::string& dir_name) {
+std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) {
     auto files = list_files(dir_name);
     std::vector<PluginData> res;
     for (const auto& file : files) {
         auto shared_object = DLOPEN(file);
         if (!shared_object) {
+            NGRAPH_DEBUG << "Error loading FrontEnd " << file << " " << DLERROR() << std::endl;
             continue;
         }
 
