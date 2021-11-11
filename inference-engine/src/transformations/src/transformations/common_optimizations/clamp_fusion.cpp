@@ -11,8 +11,8 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "itt.hpp"
-
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ClampFusion, "ClampFusion", 0);
 
@@ -21,8 +21,11 @@ ngraph::pass::ClampFusion::ClampFusion() {
     auto data_pattern = ngraph::pattern::any_input();
     auto min_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
-    auto max_pattern = ngraph::pattern::wrap_type<opset5::Maximum>({data_pattern, min_const_pattern}, pattern::consumers_count(1));
-    auto min_pattern = ngraph::pattern::wrap_type<opset5::Minimum>({max_pattern, max_const_pattern});
+    auto max_pattern1 = ngraph::pattern::wrap_type<opset5::Maximum>({data_pattern, min_const_pattern}, pattern::consumers_count(1));
+    auto min_pattern1 = ngraph::pattern::wrap_type<opset5::Minimum>({max_pattern1, max_const_pattern});
+    auto min_pattern2 = ngraph::pattern::wrap_type<opset5::Minimum>({data_pattern, max_const_pattern});
+    auto max_pattern2 = ngraph::pattern::wrap_type<opset5::Maximum>({min_pattern2, min_const_pattern}, pattern::consumers_count(1));
+    auto root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{min_pattern1, max_pattern2});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
@@ -42,19 +45,27 @@ ngraph::pass::ClampFusion::ClampFusion() {
         double max_value = max_const->cast_vector<double>()[0];
 
         auto clamp = register_new_node<ngraph::opset5::Clamp>(data, min_value, max_value);
-        auto minimum = pattern_map.at(min_pattern);
-        clamp->set_friendly_name(minimum.get_node()->get_friendly_name());
 
-        copy_runtime_info({
-                            pattern_map.at(max_pattern).get_node_shared_ptr(),
-                            minimum.get_node_shared_ptr()
-                          },
-                          clamp);
-        replace_node(minimum.get_node_shared_ptr(), clamp);
+        std::shared_ptr<ov::Node> root_node;
+        NodeVector nodes;
+        auto min_pattern1_it = pattern_map.find(min_pattern1);
+        if (min_pattern1_it != std::end(pattern_map)) {
+            root_node = min_pattern1_it->second.get_node_shared_ptr();
+            nodes.push_back(pattern_map.at(max_pattern1).get_node_shared_ptr());
+        } else {
+            root_node = pattern_map.at(max_pattern2).get_node_shared_ptr();
+            nodes.push_back(pattern_map.at(min_pattern2).get_node_shared_ptr());
+        }
+        nodes.push_back(root_node);
+
+        clamp->set_friendly_name(root_node->get_friendly_name());
+
+        copy_runtime_info(nodes, clamp);
+        replace_node(root_node, clamp);
 
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(min_pattern, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(root, matcher_name);
     this->register_matcher(m, callback);
 }
