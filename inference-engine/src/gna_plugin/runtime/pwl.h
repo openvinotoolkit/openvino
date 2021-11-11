@@ -61,7 +61,8 @@ bool pivot_search(std::vector<pwl_t>& result,
                   const double alpha_0,
                   const double alpha_N,
                   const double threshold,
-                  double& epsilon_final);
+                  double& epsilon_final,
+                  const int max_iteration_number);
 
 inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl);
 
@@ -72,7 +73,8 @@ bool pwl_search(const DnnActivation& activation_type,
                 const double allowed_err_pct,
                 const int samples,
                 std::vector<pwl_t>& pwl,
-                int pwl_max_num_segments = PWL_MAX_NUM_SEGMENTS);
+                const int pwl_max_num_segments = PWL_MAX_NUM_SEGMENTS,
+                const int max_iteration_number = PWL_MAX_ITERATIONS);
 
 bool split_search(const DnnActivationType fun,
                   const double l_bound,

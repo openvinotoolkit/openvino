@@ -62,7 +62,8 @@ bool pivot_search(std::vector<pwl_t>& result,
                   const double alpha_N,
                   const double threshold,
                   const bool negative,
-                  double& epsilon_final) {
+                  double& epsilon_final,
+                  const int max_iteration_number) {
     std::vector<std::vector<double>> t(N + 1);
     std::vector<std::vector<double>> alpha(N + 1);
     std::vector<std::vector<double>> epsilon(N + 1);
@@ -85,7 +86,6 @@ bool pivot_search(std::vector<pwl_t>& result,
         t[i].push_back(alpha_0 + (static_cast<double>((i + 1)) / static_cast<double>((N + 1))) * (alpha_N - alpha_0));
     }
 
-    double previous_delta = 0;
     while (true) {
         // Figure 4:  Box #2
         alpha[0].resize(j + 1);
@@ -122,7 +122,7 @@ bool pivot_search(std::vector<pwl_t>& result,
             if (std::abs(epsilon[i][j]) > max_epsilon) max_epsilon = std::abs(epsilon[i][j]);
             if (std::abs(epsilon[i][j]) < min_epsilon) min_epsilon = std::abs(epsilon[i][j]);
         }
-        if (max_epsilon - min_epsilon < threshold * min_epsilon) {
+        if (max_iteration_number != 0 && j > max_iteration_number || max_epsilon - min_epsilon < threshold * min_epsilon) {
             pwl_t value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
@@ -141,10 +141,13 @@ bool pivot_search(std::vector<pwl_t>& result,
             value.alpha = alpha[N][j];
             value.beta = sgn * first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + sgn * f(t[N - 1][j]) - epsilon_final;
             result.push_back(value);
+            if (max_iteration_number != 0 && j > max_iteration_number) {
+                gnalog() << "The maximum number (" << max_iteration_number << ") of iterations has been exceeded.\n";
+                return false;
+            }
+
             return true;
         }
-
-        previous_delta = std::abs((max_epsilon - min_epsilon) - threshold * min_epsilon);
 
         if (j > 0) {
             if (max_epsilon > max_epsilon_prev) {
@@ -185,7 +188,8 @@ bool pivot_search(std::vector<pwl_t>& result,
                   const double alpha_0,
                   const double alpha_N,
                   const double threshold,
-                  double& epsilon_final) {
+                  double& epsilon_final,
+                  const int max_iteration_number) {
     bool negative = false;
     double(*f)(const double) = nullptr;
     double(*first_deriv_f)(const double) = nullptr;
@@ -231,7 +235,7 @@ bool pivot_search(std::vector<pwl_t>& result,
                                                             activation_type.args.pow.offset };
             auto fun = [&args](double x) -> double { return power(x, args); };
             auto first_deriv = [&args](double x) -> double { return first_deriv_power(x, args); };
-            return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative, epsilon_final);
+            return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative, epsilon_final, max_iteration_number);
         }
         default:
             break;
@@ -246,7 +250,7 @@ bool pivot_search(std::vector<pwl_t>& result,
 
     auto fun = [&f](double x) -> double { return f(x); };
     auto first_deriv = [&first_deriv_f](double x) -> double { return first_deriv_f(x); };
-    return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative, epsilon_final);
+    return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative, epsilon_final, max_iteration_number);
 }
 
 double calculate_error_pct(const DnnActivation& activation_type,
@@ -379,7 +383,8 @@ bool pwl_search(const DnnActivation& activation_type,
                 const double allowed_err_pct,
                 const int samples,
                 std::vector<pwl_t>& pwl,
-                int pwl_max_num_segments) {
+                const int pwl_max_num_segments,
+                const int max_iteration_number) {
     pwl.clear();
     if (l_bound > u_bound ||
         threshold < 0) {
@@ -388,13 +393,29 @@ bool pwl_search(const DnnActivation& activation_type,
 
     if (split_search(activation_type, l_bound, u_bound)) {
         double break_bound = get_break_bound(activation_type);
-        if (!pwl_search(activation_type, l_bound, break_bound, threshold, allowed_err_pct, samples, pwl, pwl_max_num_segments)) {
+        if (!pwl_search(activation_type,
+                        l_bound,
+                        break_bound,
+                        threshold,
+                        allowed_err_pct,
+                        samples,
+                        pwl,
+                        pwl_max_num_segments,
+                        max_iteration_number)) {
             return false;
         }
 
         negative_pwl(pwl);
         std::vector<pwl_t> pwl2;
-        if (!pwl_search(activation_type, break_bound, u_bound, threshold, allowed_err_pct, samples, pwl2, pwl_max_num_segments)) {
+        if (!pwl_search(activation_type,
+                        break_bound,
+                        u_bound,
+                        threshold,
+                        allowed_err_pct,
+                        samples,
+                        pwl2,
+                        pwl_max_num_segments,
+                        max_iteration_number)) {
             return false;
         }
 
@@ -457,7 +478,7 @@ bool pwl_search(const DnnActivation& activation_type,
             int n_segments_upper = 1;
             do {
                 int n_segments = std::min(n_segments_upper * 2, pwl_max_num_segments);
-                if (!pivot_search(pwl, activation_type, n_segments, l_bound, u_bound, threshold, err)) {
+                if (!pivot_search(pwl, activation_type, n_segments, l_bound, u_bound, threshold, err, max_iteration_number)) {
                     break;
                 }
                 n_segments_lower = n_segments_upper;
@@ -468,7 +489,7 @@ bool pwl_search(const DnnActivation& activation_type,
             int n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower) / 2;
             std::pair<double, int> previous_good_result(err_pct, n_segments_mid);
             while (std::abs(n_segments_lower - n_segments_upper) > 1) {
-                if (!pivot_search(pwl, activation_type, n_segments_mid, l_bound, u_bound, threshold, err)) {
+                if (!pivot_search(pwl, activation_type, n_segments_mid, l_bound, u_bound, threshold, err, max_iteration_number)) {
                     n_segments_upper = n_segments_mid;
                     err_pct = std::numeric_limits<double>::max();
                 } else {
@@ -492,7 +513,7 @@ bool pwl_search(const DnnActivation& activation_type,
             }
 
             if ((allowed_err_pct == 0 || allowed_err_pct < err_pct) && err_pct > previous_good_result.first) {
-                pivot_search(pwl, activation_type, previous_good_result.second, l_bound, u_bound, threshold, err);
+                pivot_search(pwl, activation_type, previous_good_result.second, l_bound, u_bound, threshold, err, max_iteration_number);
                 err_pct = previous_good_result.first;
                 gnalog() << err_pct << " is the best err_pct for range [" << l_bound << ", " << u_bound <<
                     "] and allowed_err_pct = " << allowed_err_pct << '\n';
