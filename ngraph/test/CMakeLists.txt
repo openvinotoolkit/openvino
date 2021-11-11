@@ -411,6 +411,10 @@ set(SRC
     util.cpp
 )
 
+# For type relaxed types
+set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
+                    APPEND PROPERTY INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
