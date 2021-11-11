@@ -246,29 +246,29 @@ const auto cpuParams_sse42_ndhwc = CPUSpecificParams {{ndhwc}, {ndhwc}, {"jit_ss
 const auto cpuParams_ref = CPUSpecificParams {{}, {}, {"ref_any"}, {"ref_any"}};
 
 const std::vector<InputShape> inputShapes4D = {
-        {{{-1, -1, -1 , -1}},                           // dynamic
+        {{-1, -1, -1 , -1},                                  // dynamic
          {{2, 36, 1, 1}, {1, 36, 3, 1}, {1, 72, 1, 4}}},     // target
 
-        {{{-1, 576, -1 , -1}},                          // dynamic
+        {{-1, 576, -1 , -1},                                 // dynamic
          {{1, 576, 1, 1}, {1, 576, 2, 2}, {3, 576, 4, 1}}},  // target
 
-        {{{{1, 5}, {36, 72}, {1, 16}, {1, 16}}},        // dynamic
+        {{{1, 5}, {36, 72}, {1, 16}, {1, 16}},               // dynamic
          {{3, 36, 4, 4}, {1, 36, 16, 12}, {3, 72, 8, 8}}},   // target
 };
 
 const std::vector<InputShape> inputShapes5D = {
-        {{{-1, -1, -1, -1, -1}},                                 // dynamic
+        {{-1, -1, -1, -1, -1},                                        // dynamic
          {{2, 216, 1, 1, 1}, {1, 216, 3, 1, 2}, {1, 432, 2, 3, 1}}},  // target
 
-        {{{{1, 3}, {216, 432}, {1, 4}, {1, 4}, {1, 4}}},         // dynamic
+        {{{1, 3}, {216, 432}, {1, 4}, {1, 4}, {1, 4}},                // dynamic
          {{3, 216, 2, 2, 2}, {1, 432, 1, 1, 1}}},                     // target
 };
 
 const std::vector<InputShape> inputShapesBlocked5D = {
-        {{{-1, 256, -1, -1, -1}},                                   // dynamic
+        {{-1, 256, -1, -1, -1},                                          // dynamic
          {{1, 256, 1, 1, 1}, {1, 256, 2, 1, 4}, {3, 256, 4, 1, 2}}},     // target
 
-        {{{{1, 3}, 256, {1, 3}, {1, 3}, {1, 3}}},                   // dynamic
+        {{{1, 3}, 256, {1, 3}, {1, 3}, {1, 3}},                          // dynamic
          {{1, 256, 1, 1, 1}, {1, 256, 2, 1, 3}, {3, 256, 3, 1, 2}}},     // target
 };
 

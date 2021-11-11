@@ -63,8 +63,8 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
     if (attrs.blockSize == 0)
         THROW_ERROR << "has incorrect block_size parameter is zero!";
 
-    const int srcRank = getInputShapeAtPort(0).getRank();
-    const int dstRank = getOutputShapeAtPort(0).getRank();
+    const size_t srcRank = getInputShapeAtPort(0).getRank();
+    const size_t dstRank = getOutputShapeAtPort(0).getRank();
 
     if (srcRank < 3)
         THROW_ERROR << "has incorrect number of input dimensions";
@@ -73,7 +73,7 @@ MKLDNNDepthToSpaceNode::MKLDNNDepthToSpaceNode(const std::shared_ptr<ngraph::Nod
     if (srcRank != dstRank)
         THROW_ERROR << "has incorrect number of input/output dimensions";
 
-    size_t nSpatialDims = srcRank - 2;
+    const size_t nSpatialDims = srcRank - 2;
     attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, nSpatialDims));
 }
 
@@ -85,15 +85,13 @@ void MKLDNNDepthToSpaceNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
 
-    impl_desc_type impl_type;
+    impl_desc_type impl_type = impl_desc_type::ref;
     if (cpu::x64::mayiuse(cpu::x64::avx512_common)) {
         impl_type = impl_desc_type::jit_avx512;
     } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
         impl_type = impl_desc_type::jit_avx2;
     } else if (cpu::x64::mayiuse(cpu::x64::sse41)) {
         impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
     }
 
     NodeConfig config;
@@ -259,16 +257,11 @@ void MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::exec(MKLDNNMemoryPtr& srcMemP
 
 void MKLDNNDepthToSpaceNode::execute(mkldnn::stream strm) {
     if (!execPtr) {
-        IE_THROW() << "Could not execute Transpose node. Primitive was not created.";
+        THROW_ERROR << "doesn't have a compiled executor.";
     }
 
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !srcMemPtr)
-        THROW_ERROR << "has not allocated source/destination memory";
-
-    int MB = isDynamicNode() ? srcMemPtr->getStaticDims()[0] : batchToProcess();
-    execPtr->exec(srcMemPtr, dstMemPtr, MB);
+    int MB = isDynamicNode() ? getParentEdgeAt(0)->getMemoryPtr()->getStaticDims()[0] : batchToProcess();
+    execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), MB);
 }
 
 void MKLDNNDepthToSpaceNode::executeDynamicImpl(mkldnn::stream strm) {
