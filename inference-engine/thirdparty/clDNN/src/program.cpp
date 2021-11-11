@@ -1427,7 +1427,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
             continue;
         }
-        if (node->is_type<data>() || node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>()) {
+        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
             const_sum += out_size;
         } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
             continue;

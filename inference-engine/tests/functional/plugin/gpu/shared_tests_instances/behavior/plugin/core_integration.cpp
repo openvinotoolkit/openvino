@@ -121,7 +121,7 @@ TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow
     InferenceEngine::Core ie;
     InferenceEngine::Parameter p;
 
-    std::map<std::string, InferenceEngine::Parameter> _options = {{"CNN_NETWORK", &simpleCnnNetwork}};
+    std::map<std::string, InferenceEngine::Parameter> _options = {{"MODEL_PTR", simpleCnnNetwork.getFunction()}};
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MAX_BATCH_SIZE), _options).as<uint32_t>());
     uint32_t t = p;
 
@@ -142,7 +142,7 @@ TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
     InferenceEngine::Parameter p;
     uint32_t n_streams = 2;
     int64_t available_device_mem_size = 1073741824;
-    std::map<std::string, InferenceEngine::Parameter> _options = {{"CNN_NETWORK", &simpleCnnNetwork}};
+    std::map<std::string, InferenceEngine::Parameter> _options = {{"MODEL_PTR", simpleCnnNetwork.getFunction()}};
     _options.insert(std::make_pair("GPU_THROUGHPUT_STREAMS", n_streams));
     _options.insert(std::make_pair("AVAILABLE_DEVICE_MEM_SIZE", available_device_mem_size));
 

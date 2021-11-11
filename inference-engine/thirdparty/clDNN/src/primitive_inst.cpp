@@ -309,7 +309,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
-            GPU_DEBUG_COUT << "[" << _node.id() << ": output]" << std::endl;
+            GPU_DEBUG_COUT << "[" << _node.id() << ": constant]" << std::endl;
         }
         return _engine.allocate_memory(layout, alloc_type, false);
     } else if (is_internal || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {

@@ -17,7 +17,6 @@
 #include <ie_algorithm.hpp>
 
 #include "cldnn_engine.h"
-#include "cldnn_engine_factory.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_transformations_pipeline.h"
 #include "cldnn_custom_layer.h"
@@ -744,61 +743,103 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         auto available_device_mem = device_info.max_global_mem_size;
         int64_t max_batch_size = 0;
 
-        if (options.find("CNN_NETWORK") == options.end()) {
-            throw std::runtime_error("No CNN_NETWORK option given!");
+        if (options.find("MODEL_PTR") == options.end()) {
+            IE_THROW() << "[GPU] MODEL_PTR option is not given!";
         }
         if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
-            n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
+            try {
+                n_streams = options.find("GPU_THROUGHPUT_STREAMS")->second.as<uint32_t>();
+            } catch (...) {
+                IE_THROW() << "[GPU] bad casting: GPU_THROUGHPUT_STREAMS should be uint32_t type";
+            }
         }
         if (options.find("AVAILABLE_DEVICE_MEM_SIZE") != options.end()) {
-            available_device_mem = options.find("AVAILABLE_DEVICE_MEM_SIZE")->second.as<int64_t>();
+            try {
+                available_device_mem = options.find("AVAILABLE_DEVICE_MEM_SIZE")->second.as<int64_t>();
+            } catch (...) {
+                IE_THROW() << "[GPU] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
+            }
             if (available_device_mem < 0) {
                 IE_THROW() << "[GPU] AVAILABLE_DEVICE_MEM_SIZE value should be greater than 0 for max batch size calculation";
             }
         }
 
-        auto network = options.find("CNN_NETWORK")->second.as<InferenceEngine::CNNNetwork*>();
+        std::shared_ptr<ngraph::Function> model;
+        auto model_param = options.find("MODEL_PTR")->second;
+        try {
+            model = model_param.as<std::shared_ptr<ngraph::Function>>();
+        } catch (...) {
+            IE_THROW() << "[GPU] MODEL_PTR should be std::shared_ptr<ngraph::Function> type";
+        }
 
-        auto input_shapes = network->getInputShapes();
-        std::string input_name;
-        SizeVector input_shape;
-        std::tie(input_name, input_shape) = *input_shapes.begin();
+        InferenceEngine::CNNNetwork network(model);
         size_t base_batch_size = 16; // empirically decided for DG1
+        auto engine_params = clDNNEngine::GetEngineParams(config, iter->second, nullptr);
+        auto engine = cldnn::engine::create(engine_params.engine_type, engine_params.runtime_type, iter->second,
+                                cldnn::engine_configuration(false, engine_params.queue_type, std::string(),
+                                config.queuePriority, config.queueThrottle, config.memory_pool_on,
+                                engine_params.use_unified_shared_memory, std::string(), config.throughput_streams),
+                                engine_params.task_executor);
 
-        auto engine = clDNNEngineFactory::create(config, iter->second, nullptr, true);
         std::shared_ptr<Program> program;
 
-        if (options.find("BASE_BATCH_SIZE") != options.end() && base_batch_size != options.find("BASE_BATCH_SIZE")->second.as<int32_t>()) {
-            base_batch_size = options.find("BASE_BATCH_SIZE")->second.as<int32_t>();
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
+            int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
+            base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
         }
 
-        if (base_batch_size != input_shape[0]) {
-            auto cloned_network = InferenceEngine::details::cloneNetwork(*network);
-            auto input_shapes = cloned_network.getInputShapes();
-            std::string input_name;
-            SizeVector input_shape;
-            std::tie(input_name, input_shape) = *input_shapes.begin();
-            input_shape[0] = base_batch_size;
-            input_shapes[input_name] = input_shape;
-            cloned_network.reshape(input_shapes);
-            auto t_config = Config(config);
-            auto nGraphFunc = cloned_network.getFunction();
-#ifdef ENABLE_ONEDNN_FOR_GPU
-            if (GetDeviceInfo(config.key_config_map).supports_immad)
-                t_config.enable_fp16_for_quantized_models = false;
-#endif
-            TransformationsPipeline transformations(t_config, device_info);
-            transformations.apply(nGraphFunc);
-            program = std::make_shared<Program>(cloned_network, engine, config, false, true);
+        auto cloned_network = InferenceEngine::details::cloneNetwork(network);
+        auto inputs_info = cloned_network.getInputsInfo();
+        ICNNNetwork::InputShapes new_shapes;
+        //std::map<std::string, SizeVector>;
+        bool batch_detected = false;
+        for (auto& info : inputs_info) {
+            if (!info.second)
+                continue;
+            Layout layout = info.second->getLayout();
+            auto data = info.second->getInputData();
+            if (!data)
+                continue;
+            std::string name = info.second->getInputData()->getName();
+            auto shape = data->getTensorDesc().getDims();
+            if (layout == InferenceEngine::Layout::NCHW ||
+                layout == InferenceEngine::Layout::NHWC ||
+                layout == InferenceEngine::Layout::NCDHW ||
+                layout == InferenceEngine::Layout::NDHWC ||
+                layout == InferenceEngine::Layout::NC)  {
+                shape[0] = base_batch_size;
+                batch_detected = true;
+            } else if (layout == InferenceEngine::Layout::CN) {
+                shape[1] = base_batch_size;
+                batch_detected = true;
+            }
+            new_shapes[name] = shape;
+        }
+        if (batch_detected) { // reshape only for batched layout
+            cloned_network.reshape(new_shapes);
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Reshaped base batch size to " << base_batch_size << std::endl;
+            }
         } else {
-            auto transformedNetwork = CloneAndTransformNetwork(*network, config);
-            program = std::make_shared<Program>(transformedNetwork, engine, config, false, true);
+            base_batch_size = 1;
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "Batch dimension is not used in inputs." << std::endl;
+            }
         }
 
+        auto nGraphFunc = cloned_network.getFunction();
+        TransformationsPipeline transformations(config, device_info);
+        transformations.apply(nGraphFunc);
+        program = std::make_shared<Program>(cloned_network, engine, config, false, true);
         std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
         max_batch_size = std::max(1L, static_cast<int64_t>((available_device_mem - device_memory_usage.first)
                                 / (n_streams * std::max(1UL, (device_memory_usage.second / base_batch_size)))));
-
+        GPU_DEBUG_IF(debug_config->verbose >= 1) {
+            GPU_DEBUG_COUT << "Base batch size: " << base_batch_size  << std::endl;
+            GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first  << std::endl;
+            GPU_DEBUG_COUT << "General mem usage: " << device_memory_usage.second  << std::endl;
+        }
         IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(max_batch_size));
     } else {
         IE_THROW() << "Unsupported metric key " << name;

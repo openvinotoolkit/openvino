@@ -191,7 +191,6 @@ protected:
     bool _mem_allocated = false;
 
     memory::ptr allocate_output();
-
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::shared_ptr<primitive_inst>> const& mem_deps);
 
