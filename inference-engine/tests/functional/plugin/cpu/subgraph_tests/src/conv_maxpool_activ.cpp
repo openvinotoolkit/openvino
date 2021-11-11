@@ -58,23 +58,7 @@ protected:
             pooling = builder::makePooling(conv, strides, padBegin, padEnd, kernelSize, roundingType, paddingType, false, poolType);
         }
 
-        auto makeImplStr = []() {
-            if (InferenceEngine::with_cpu_x86_avx512f()) {
-                return "jit_avx512";
-            }
-            if (InferenceEngine::with_cpu_x86_avx2()) {
-                return "jit_avx2";
-            }
-            if (InferenceEngine::with_cpu_x86_avx()) {
-                return "jit_avx";
-            }
-            if (InferenceEngine::with_cpu_x86_sse42()) {
-                return "jit_sse42";
-            }
-            return "ref";
-        };
-
-        selectedType = makeSelectedTypeStr(makeImplStr(), element::f32);
+        selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
 
         function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
     }
