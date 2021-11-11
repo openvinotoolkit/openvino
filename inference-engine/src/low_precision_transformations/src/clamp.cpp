@@ -70,8 +70,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->input_value(0), min, max);
     }
 
-    replace_node(newClamp, replacement);
-    replacement->set_friendly_name(newClamp->get_friendly_name());
+    replace_node_update_name(newClamp, replacement);
 
     element::Type outputClampType = dequantization.multiply ?
         dequantization.multiply->get_output_element_type(0) :

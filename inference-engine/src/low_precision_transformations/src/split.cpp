@@ -109,6 +109,16 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         }
     }
 
+    // We do it to avoid dequantization propagation to the shapeOf subgraphs
+    for (size_t i = 0; i < replacement.size(); ++i) {
+        for (const auto& input : replacement[i].get_target_inputs()) {
+            if (const auto shapeOf = as_type_ptr<opset1::ShapeOf>(input.get_node()->shared_from_this())) {
+                const auto newShapeOf = shapeOf->clone_with_new_inputs({ newSplit->output(i) });
+                replace_node_update_name(shapeOf, newShapeOf);
+            }
+        }
+    }
+
     updateOutputs(context, lastNodes, newSplit);
     return true;
 }

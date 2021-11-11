@@ -159,7 +159,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
         mvn->get_output_element_type(0));
     ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);
 
-    replace_node(mvn, newMultiply);
+    NetworkHelper::insertDequantizationAfter(mvn, newMultiply, newMVN);
 
     updateOutput(context, newMultiply, newMVN);
     return true;

@@ -230,7 +230,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
             deqPrecision,
             newFakeQuantizeLayer);
 
-        replace_node(layer, dequantization.multiply);
+        NetworkHelper::insertDequantizationAfter(layer, dequantization.multiply, newFakeQuantizeLayer);
 
         std::vector<std::shared_ptr<ngraph::Node>> sourceNodes{ layer };
         std::vector<std::shared_ptr<ngraph::Node>> targetNodes{ newFakeQuantizeLayer,  dequantization.multiply };

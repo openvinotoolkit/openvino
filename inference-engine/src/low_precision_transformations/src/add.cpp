@@ -227,7 +227,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
 
-        replace_node(add, newMultiply);
+        NetworkHelper::insertDequantizationAfter(add, newMultiply, newAddOrSubtract);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
         ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
     }
