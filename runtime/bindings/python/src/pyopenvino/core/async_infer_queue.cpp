@@ -17,7 +17,6 @@
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 
-
 namespace py = pybind11;
 
 class AsyncInferQueue {
