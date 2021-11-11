@@ -46,6 +46,9 @@ public:
     ///
     OutputVector make_max_pool() const;
 
+    /// \brief Creates max pooling ONNX operation with 2 outputs (values and indices).
+    OutputVector make_max_pool_with_indices() const;
+
 protected:
     Node m_onnx_node;
     const OutputVector m_inputs;
@@ -56,6 +59,10 @@ protected:
     Shape m_padding_above;
     ngraph::op::PadType m_auto_pad;
     ngraph::op::RoundingType m_rounding_type;
+
+    enum class StorageOrder : int64_t { ROW_MAJOR = 0, COLUMN_MAJOR = 1 };
+
+    StorageOrder m_storage_order;
 };
 }  // namespace pooling
 }  // namespace onnx_import

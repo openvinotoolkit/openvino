@@ -77,6 +77,7 @@ tolerance_map = {
     "resnet34-v2-7": {"atol": 0.001, "rtol": 0.001},
     "vgg16-7": {"atol": 0.001, "rtol": 0.001},
     "vgg19-bn-7": {"atol": 0.001, "rtol": 0.001},
+    "vgg19-7": {"atol": 0.001, "rtol": 0.001},
     "tinyyolov2-7": {"atol": 0.001, "rtol": 0.001},
     "tinyyolov2-8": {"atol": 0.001, "rtol": 0.001},
     "candy-8": {"atol": 0.001, "rtol": 0.001},
@@ -115,6 +116,12 @@ tolerance_map = {
     "test_retinanet_resnet101": {"atol": 1.3e-06},
 }
 
+def tolerance_map_key_in_model_path(path):
+    for key in tolerance_map:
+        if key in path:
+            return key
+    return None
+
 zoo_models = []
 # rglob doesn't work for symlinks, so models have to be physically somwhere inside "MODELS_ROOT_DIR"
 for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
@@ -127,6 +134,12 @@ for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
             # updated model looks now:
             # {"model_name": path, "model_file": file, "dir": mdir, "atol": ..., "rtol": ...}
             model.update(tolerance_map[basedir])
+        else:
+            # some models have the same stem, have to check if any of the keys from tolerance_map
+            # is found in the full model path
+            model_key = tolerance_map_key_in_model_path(str(path))
+            if model_key is not None:
+                model.update(tolerance_map[model_key])
         if basedir in post_processing:
             model.update(post_processing[basedir])
         zoo_models.append(model)

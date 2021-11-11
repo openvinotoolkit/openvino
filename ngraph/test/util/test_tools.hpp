@@ -55,3 +55,12 @@ std::vector<T> read_binary_file(const std::string& path) {
     inputs_fs.read(reinterpret_cast<char*>(file_content.data()), size);
     return file_content;
 }
+
+template <typename T = int32_t>
+std::vector<T> gen_range(const size_t elements, const T start = T{0}) {
+    std::vector<T> range;
+    range.resize(elements);
+    std::iota(range.begin(), range.end(), start);
+
+    return range;
+}
