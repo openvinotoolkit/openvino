@@ -10,7 +10,7 @@ class TestStridedSlice(CommonTFLayerTest):
 
     @staticmethod
     def create_strided_slice_net(input_shape, begin, end, strides, begin_mask, end_mask, ellipsis_mask,
-                                 new_axis_mask, shrink_axis_mask, ir_version):
+                                 new_axis_mask, shrink_axis_mask, ir_version, use_new_frontend):
 
         #
         # Create Tensorflow model
@@ -60,9 +60,9 @@ class TestStridedSlice(CommonTFLayerTest):
 
     @pytest.mark.parametrize('params', test_squeeze_data)
     @pytest.mark.nightly
-    def test_strided_slice_replace_with_squeeze(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_strided_slice_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_strided_slice_replace_with_squeeze(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_strided_slice_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_unsqueeze_data = [
         dict(input_shape=[1, 5], begin=[0, 0], end=[1, 5], strides=[1, 1], begin_mask=0,
@@ -85,6 +85,6 @@ class TestStridedSlice(CommonTFLayerTest):
 
     @pytest.mark.parametrize('params', test_unsqueeze_data)
     @pytest.mark.nightly
-    def test_strided_slice_replace_with_unsqueeze(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_strided_slice_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_strided_slice_replace_with_unsqueeze(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_strided_slice_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
