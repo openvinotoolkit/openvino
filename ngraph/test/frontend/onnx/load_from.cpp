@@ -12,7 +12,7 @@
 #include "utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 using ONNXLoadTest = FrontEndLoadFromTest;
 

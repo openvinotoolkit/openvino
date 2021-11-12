@@ -40,13 +40,5 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 #                     POSSIBLE_PLUGINS ${TARGET_NAME})
 # [cmake:plugin]
 
-# ATTENTION: uncomment to install component
-# install
-
-# set(component_name template)
-# ie_cpack_add_component(${component_name} REQUIRED)
-
-# install(TARGETS ${TARGET_NAME}
-#         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
-#         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
-#         COMPONENT ${component_name})
+ov_install_static_lib(ngraph_backend ngraph)
+ov_install_static_lib(interpreter_backend ngraph)
