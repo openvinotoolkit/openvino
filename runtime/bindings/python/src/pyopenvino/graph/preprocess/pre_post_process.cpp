@@ -373,7 +373,7 @@ static void regclass_graph_InputInfo(py::module m) {
             me->network(std::move(*inputNetworkInfo));
             return me;
         },
-        py::arg("input_netwok_info"));
+        py::arg("input_network_info"));
 }
 
 static void regclass_graph_OutputInfo(py::module m) {
@@ -429,7 +429,7 @@ static void regclass_graph_OutputInfo(py::module m) {
             me->network(std::move(*outputNetworkInfo));
             return me;
         },
-        py::arg("output_netwok_info"));
+        py::arg("output_network_info"));
 }
 
 static void regclass_graph_OutputNetworkInfo(py::module m) {
