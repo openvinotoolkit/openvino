@@ -128,8 +128,7 @@ def compute_stats_layouts(config, model, qscheme=None):
 
     fake_quantize_config = {}
     for fq in fq_nodes:
-        node_input = get_node_input(fq, 0)
-        is_weights = node_input.type == 'Const'
+        is_weights = 'weights' in fq_configuration[fq.name]
         if is_weights:
             fq_config = copy(fq_configuration[fq.name]['weights'])
         else:
