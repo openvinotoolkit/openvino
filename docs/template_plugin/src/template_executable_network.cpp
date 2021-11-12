@@ -151,11 +151,23 @@ InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::C
                                                   networkOutputs,
                                                   std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
 }
+
+InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(
+    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    return std::make_shared<TemplateInferRequest>(inputs,
+                                                  outputs,
+                                                  std::static_pointer_cast<ExecutableNetwork>(shared_from_this()));
+}
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
 InferenceEngine::IInferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
-    auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    InferenceEngine::IInferRequestInternal::Ptr internalRequest;
+    if (this->_plugin && this->_plugin->GetCore() && this->_plugin->GetCore()->isNewAPI())
+        internalRequest = CreateInferRequestImpl(_parameters, _results);
+    if (!internalRequest)
+        internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     return std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                        _taskExecutor,
                                                        _plugin->_waitExecutor,
@@ -206,7 +218,9 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     serializer.run_on_function(_function);
 
     auto m_constants = binFile.str();

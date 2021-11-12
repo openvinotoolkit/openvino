@@ -69,6 +69,8 @@ std::vector<std::string> disabledTestPatterns() {
 
         // TODO: 57562 No dynamic output shape support
         R"(.*NonZeroLayerTest.*)",
+        // TODO: 69084 Not constant Axis input produces dynamic output shape.
+        R"(.*GatherLayerTestCPU.*constAx=False.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
@@ -82,8 +84,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet|canLoadCorrectNetworkToGetExecutableWithIncorrectConfig).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
-        // azure is failing after #6199
-        R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
@@ -106,6 +106,7 @@ std::vector<std::string> disabledTestPatterns() {
         // CPU plugin does not support some precisions
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
+        R"(.*EltwiseLayerTest.*NetType=f16.*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
         // as WA we used GetInputsInfo() precisions instead of ngraph ones
@@ -141,6 +142,15 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
         R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
         R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
+
+        // Issue: 69086
+        // need to add support convert BIN -> FP32
+        // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
+        R"(.*smoke_FakeQuantizeLayerCPUTest.*bin.*)",
+        // Issue: 69088
+        // bad accuracy
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
+            *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
     };
 
 #define FIX_62820 0

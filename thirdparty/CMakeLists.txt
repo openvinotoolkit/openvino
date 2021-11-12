@@ -20,6 +20,7 @@ endif()
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+ov_install_static_lib(xbyak openvino_common)
 
 #
 # Pugixml
@@ -35,6 +36,7 @@ else()
         add_subdirectory(pugixml EXCLUDE_FROM_ALL)
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+        ov_install_static_lib(pugixml-static openvino_common)
     endfunction()
 
     ie_build_pugixml()
@@ -51,6 +53,9 @@ add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
 set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
+
+ov_install_static_lib(ade openvino_common)
+ov_install_static_lib(fluid openvino_common)
 
 #
 # Gflags
@@ -135,6 +140,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_INSTALL_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
         set(ONEDNN_LIBRARY "${ONEDNN_BUILD_DIR}/src/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+
+        # Get processors count to limit number of threads spawned by make
+        include(ProcessorCount)
+        ProcessorCount(CORES_COUNT)
+        if(CORES_COUNT EQUAL 0)
+            set(CORES_COUNT "")
+        endif()
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
@@ -159,7 +171,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                        "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                        "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
                        "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
-            BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target onednn_gpu --parallel
+            BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target onednn_gpu --parallel ${CORES_COUNT}
             INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}
             COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
             BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}

@@ -38,8 +38,7 @@ shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape
         auto out_pattern =
             op::Constant::create(element::i64, Shape{shape.size()}, vector<int64_t>(shape.begin(), shape.end()));
 
-        return make_shared<ngraph::opset1::Reshape>(value, out_pattern, false)
-            ->add_provenance_group_members_above({value});
+        return make_shared<ngraph::opset1::Reshape>(value, out_pattern, false);
     }
 }
 
@@ -47,7 +46,7 @@ shared_ptr<Node> builder::opset1::reorder_axes(const Output<Node>& value, vector
     const auto axes_order_const = op::Constant::create(element::i64,
                                                        Shape{axes_order.size()},
                                                        vector<int64_t>(axes_order.begin(), axes_order.end()));
-    return make_shared<ngraph::opset1::Transpose>(value, axes_order_const)->add_provenance_group_members_above({value});
+    return make_shared<ngraph::opset1::Transpose>(value, axes_order_const);
 }
 
 shared_ptr<Node> builder::opset1::transpose(const Output<Node>& value) {
@@ -65,8 +64,7 @@ shared_ptr<Node> builder::opset1::transpose(const Output<Node>& value) {
     const auto reverse_axes_order = std::make_shared<ngraph::opset1::Range>(reshape(start_node, Shape{}),  // start
                                                                             neg_one,   // stop (exclusive)
                                                                             neg_one);  // step
-    return std::make_shared<ngraph::opset1::Transpose>(value, reverse_axes_order)
-        ->add_provenance_group_members_above({value});
+    return std::make_shared<ngraph::opset1::Transpose>(value, reverse_axes_order);
 }
 
 namespace ngraph {
@@ -128,7 +126,7 @@ shared_ptr<Node> builder::opset1::flatten(const Output<Node>& value, int axis) {
         output_shape =
             make_shared<ngraph::opset1::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);
     }
-    return make_shared<ngraph::opset1::Reshape>(value, output_shape, true)->add_provenance_group_members_above({value});
+    return make_shared<ngraph::opset1::Reshape>(value, output_shape, true);
 }
 
 shared_ptr<Node> builder::opset1::expand_dims(const Output<Node>& value, size_t axis) {

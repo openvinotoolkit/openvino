@@ -14,7 +14,9 @@
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_icore.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/core/node.hpp"
 
 namespace InferenceEngine {
 
@@ -56,7 +58,13 @@ ConstInputsDataMap IExecutableNetworkInternal::GetInputsInfo() const {
 }
 
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequest() {
-    auto asyncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
+    std::shared_ptr<IInferRequestInternal> asyncRequestImpl;
+    try {
+        asyncRequestImpl = CreateInferRequestImpl(_parameters, _results);
+    } catch (const NotImplemented&) {
+    }
+    if (!asyncRequestImpl)
+        asyncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
     return asyncRequestImpl;
 }
@@ -106,6 +114,12 @@ std::shared_ptr<RemoteContext> IExecutableNetworkInternal::GetContext() const {
 std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
     InputsDataMap networkInputs,
     OutputsDataMap networkOutputs) {
+    IE_THROW(NotImplemented);
+}
+
+std::shared_ptr<IInferRequestInternal> IExecutableNetworkInternal::CreateInferRequestImpl(
+    const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+    const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
     IE_THROW(NotImplemented);
 }
 
