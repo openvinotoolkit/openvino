@@ -3,15 +3,15 @@
 
 from openvino.impl.op import Parameter
 from openvino.impl import Function, Shape, Type
-from openvino.opset8 import relu
+import openvino.opset8 as ops
 
 
 def get_test_function():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    relu = relu(param)
-    func = Function([relu], [param], 'test')
-    assert func != None
+    relu = ops.relu(param)
+    func = Function([relu], [param], "test")
+    assert func is not None
     return func
 
 
@@ -21,5 +21,5 @@ def test_compare_functions():
         func = get_test_function()
         status, msg = compare_functions(func, func)
         assert status
-    except:
-        print("openvino.test_utils.CompareNetworks is not available")
+    except RuntimeError:
+        print("openvino.test_utils.compare_functions is not available")
