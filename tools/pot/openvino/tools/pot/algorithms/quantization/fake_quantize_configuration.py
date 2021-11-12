@@ -10,7 +10,7 @@ from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNI
 from ...graph.utils import find_operation_matches, get_operation_list
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
-    get_node_input, get_node_inputs, get_node_output_ports
+    get_node_input, get_node_inputs
 from ...utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -125,16 +125,12 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
             queue = deque([node])
             while queue:
                 current = queue.popleft()
-                children_ports = get_node_output_ports(current)
-                children = [port.node for port in children_ports]
-                for child_port in children_ports:
-                    child = child_port.node
+                children = get_all_node_outputs(current)
+                for child in children:
                     if not _is_quantizable(child):
                         queue.append(child)
                     elif child.type not in descendants:
-                        is_weights = child_port.get_source().type == 'Const'
-                        descendants.append((is_weights,
-                                            child.name,
+                        descendants.append((child.name,
                                             get_hardware_config_operation_type(child, available_types)))
                     if current.type == 'Split' \
                             and child.type == 'Concat' \
@@ -149,7 +145,8 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
         out = {}
         available_types = [layer['type'] for layer in hardware_config]
         for fq in get_nodes_by_type(model, ['FakeQuantize']):
-            out[fq.name] = _get_node_valuable_descendant(fq)
+            node_input = get_node_input(fq, 0)
+            out[fq.name] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
 
         return out
 
@@ -184,13 +181,11 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
     q_config = get_fake_quantize_configuration(config)
 
     res_fq_to_hw_conf = {}
-    for fq_name, types in _fake_quantize_to_types().items():
-        res_fq_to_hw_conf[fq_name] = {}
+    for fq_name, (types, is_weights) in _fake_quantize_to_types().items():
+        fq_type = 'weights' if is_weights else 'activations'
+        res_fq_to_hw_conf[fq_name] = {fq_type: []}
         for type_ in types:
-            is_weights, child_name, op_type = type_
-            fq_type = 'weights' if is_weights else 'activations'
-            if fq_type not in res_fq_to_hw_conf[fq_name]:
-                res_fq_to_hw_conf[fq_name][fq_type] = []
+            child_name, op_type = type_
             ops = [op for op in hardware_config if op_type == op['type']]
             conf = _find_configurations(fq_name, fq_type)
             if conf:
