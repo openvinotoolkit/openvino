@@ -36,7 +36,7 @@ std::shared_ptr<unsigned char> OCVReader::getData(size_t width = 0, size_t heigh
     size_t size = width * height * img.channels();
     _data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
 
-    cv::Mat resized(width, height, img.type(), _data.get());
+    cv::Mat resized(cv::Size(width, height), img.type(), _data.get());
 
     if (width != img.cols || height != img.rows) {
         slog::warn << "Image is resized from (" << img.cols << ", " << img.rows << ") to (" << width << ", " << height
