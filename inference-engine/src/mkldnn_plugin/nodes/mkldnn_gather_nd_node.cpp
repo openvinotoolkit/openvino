@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 
 bool MKLDNNGatherNDNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type<const ngraph::op::v5::GatherND>(op) && !ov::is_type<const ngraph::op::v8::GatherND>(op)) {
+        if (!MKLDNNPlugin::one_of(op->get_type_info(), ngraph::op::v5::GatherND::get_type_info_static(), ngraph::op::v8::GatherND::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
             return false;
         }

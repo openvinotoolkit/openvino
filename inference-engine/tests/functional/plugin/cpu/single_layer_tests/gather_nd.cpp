@@ -118,8 +118,11 @@ const std::vector<InputShape> inputShapesDynamicBD_0 = {
         {{-1, -1, -1},                                       // dynamic
          {{5, 10, 5}, {4, 12, 4}, {4, 12, 4}, {5, 5, 5}}},   // target
 
-         {{-1, 5, -1, -1},                                   // dynamic
+        {{-1, 5, -1, -1},                                    // dynamic
          {{8, 5, 5, 5}, {5, 5, 8, 4}, {4, 5, 4, 5}}},        // target
+
+        {{{4, 10}, {5, 10}, {5, 10}, {5, 10}, {5, 10}},           // dynamic
+         {{4, 5, 5, 5, 5}, {4, 5, 5, 8, 5}, {10, 8, 5, 5, 5}}},   // target
 };
 
 const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesBD_0 = {
