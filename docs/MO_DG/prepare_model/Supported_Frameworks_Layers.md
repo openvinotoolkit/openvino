@@ -52,11 +52,11 @@
 
 | Symbol Name in MXNet\*| Limitations|
 | :----------| :----------|
-| _Plus | No |
-| _contrib_box_nms | No |
-| _contrib_DeformableConvolution | No |
-| _contrib_DeformablePSROIPooling | No |
-| _contrib_div_sqrt_dim | No |
+| _Plus |  |
+| _contrib_box_nms |  |
+| _contrib_DeformableConvolution |  |
+| _contrib_DeformablePSROIPooling |  |
+| _contrib_div_sqrt_dim |  |
 | _contrib_MultiBoxDetection | "force_suppress" = 1 is not supported, non-default variances are not supported |
 | _contrib_MultiBoxPrior |  |
 | _contrib_Proposal |  |
@@ -70,49 +70,49 @@
 | _rnn_param_concat |  |
 | _arange |  |
 | _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
-| _maximum | No |
-| _minimum | No |
-| _np_roll | No |
-| _zeros | No |
-| add_n | No |
-| arccosh | No |
-| arcsinh | No |
-| arctanh | No |
-| batch_dot | No |
-| broadcast_add | No |
-| broadcast_div | No |
-| broadcast_mul | No |
-| broadcast_sub | No |
-| BlockGrad | No |
-| cumsum | No |
-| div_scalar | No |
-| elementwise_sub | No |
-| elemwise_add | No |
-| elemwise_mul | No |
-| elemwise_sub | No |
-| exp | No |
-| expand_dims | No |
-| greater_scalar | No |
-| max | No |
-| minus_scalar | No |
+| _maximum |  |
+| _minimum |  |
+| _np_roll |  |
+| _zeros |  |
+| add_n |  |
+| arccosh |  |
+| arcsinh |  |
+| arctanh |  |
+| batch_dot |  |
+| broadcast_add |  |
+| broadcast_div |  |
+| broadcast_mul |  |
+| broadcast_sub |  |
+| BlockGrad |  |
+| cumsum |  |
+| div_scalar |  |
+| elementwise_sub |  |
+| elemwise_add |  |
+| elemwise_mul |  |
+| elemwise_sub |  |
+| exp |  |
+| expand_dims |  |
+| greater_scalar |  |
+| max |  |
+| minus_scalar |  |
 | null | Not needed for inference |
-| LayerNorm | No |
-| repeat | No |
-| rnn | No |
-| rnn_param_concat | No |
-| round | No |
-| sigmoid | No |
-| slice | No |
-| SliceChannel | No |
-| slice_axis | No |
-| slice_channel | No |
-| slice_like | No |
-| softmax | No |
-| stack | No |
-| swapaxis | No |
-| tile | No |
-| transpose | No |
-| zeros | No |
+| LayerNorm |  |
+| repeat |  |
+| rnn |  |
+| rnn_param_concat |  |
+| round |  |
+| sigmoid |  |
+| slice |  |
+| SliceChannel |  |
+| slice_axis |  |
+| slice_channel |  |
+| slice_like |  |
+| softmax |  |
+| stack |  |
+| swapaxis |  |
+| tile |  |
+| transpose |  |
+| zeros |  |
 | Activation | supported "act_type" = "relu", "sigmoid", "softrelu" or "tanh" |
 | BatchNorm |  |
 | Concat |  |
