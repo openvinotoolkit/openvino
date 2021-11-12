@@ -39,6 +39,9 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
+    const InferenceEngine::SizeVector& getWeightDims() { return weightDims; }
+    const std::vector<ptrdiff_t>& getStride() { return stride; }
+
 private:
     bool withGroups = false;
     bool isDW = false;
