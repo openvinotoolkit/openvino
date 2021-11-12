@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUEnabled);
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUCompilerMLIR);
 
 /**
  * @brief Parses command line and check required arguments

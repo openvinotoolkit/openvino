@@ -62,7 +62,7 @@ def prepare_executable_cmd(args: dict):
             "-m", str(args["model"].resolve(strict=True)),
             "-d", args["device"],
             "-c" if args["cache"] else "",
-            "-v" if args["vpu"] else ""
+            "-v" if args["vpu_mlir_compiler"] else ""
             ]
 
 
@@ -139,9 +139,9 @@ def cli_parser():
                         action='store_true',
                         help='Enable model cache usage')
     parser.add_argument('-v',
-                        dest="vpu",
+                        dest='vpu_mlir_compiler',
                         action='store_true',
-                        help='Enable model vpu usage')
+                        help='Change VPUX compiler type to MLIR. Default compiler is MCM')
 
     args = parser.parse_args()
 

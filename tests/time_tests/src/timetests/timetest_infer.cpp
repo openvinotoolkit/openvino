@@ -3,6 +3,7 @@
 //
 
 #include <inference_engine.hpp>
+#include <ie_plugin_config.hpp>
 #include <iostream>
 
 #include "common_utils.h"
@@ -16,8 +17,8 @@ using namespace InferenceEngine;
  * main(). The function should not throw any exceptions and responsible for
  * handling it by itself.
  */
-int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUEnabled) {
-  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUEnabled) {
+int runPipeline(const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUCompilerMLIR) {
+  auto pipeline = [](const std::string &model, const std::string &device, const bool isCacheEnabled, const bool isVPUCompilerMLIR) {
     Core ie;
     CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
@@ -48,7 +49,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
 
           {
             SCOPED_TIMER(load_network);
-            if (isVPUEnabled) {
+            if (isVPUCompilerMLIR) {
                 exeNetwork = ie.LoadNetwork(cnnNetwork, device, {{"VPUX_COMPILER_TYPE", "MLIR"}});
             }
             else {
@@ -74,7 +75,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
   };
 
   try {
-    pipeline(model, device, isCacheEnabled, isVPUEnabled);
+    pipeline(model, device, isCacheEnabled, isVPUCompilerMLIR);
   } catch (const InferenceEngine::Exception &iex) {
     std::cerr
         << "Inference Engine pipeline failed with Inference Engine exception:\n"
