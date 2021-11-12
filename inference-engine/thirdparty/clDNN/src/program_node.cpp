@@ -688,7 +688,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const 
 }
 
 
-void program_node::set_onednn_primitive_attributes() {
+void program_node::init_onednn_primitive_attributes() {
     const std::vector<fused_primitive_desc>& cldnn_post_ops = get_fused_primitives();
     auto attrs = std::make_shared<dnnl::primitive_attr>();
     dnnl::post_ops post_ops;

@@ -393,9 +393,9 @@ private:
     void run(program& p) override;
 };
 
-class set_onednn_optimization_attributes : public base_pass {
+class add_onednn_optimization_attributes : public base_pass {
 public:
-    set_onednn_optimization_attributes() : base_pass("set_onednn_optimization_attributes") {}
+    add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
     void run(program& p) override;
 };
 
