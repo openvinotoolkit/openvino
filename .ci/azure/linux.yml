@@ -196,12 +196,12 @@ jobs:
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
-    continueOnError: true
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
-    continueOnError: true
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
