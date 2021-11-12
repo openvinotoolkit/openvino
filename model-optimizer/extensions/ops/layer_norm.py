@@ -8,7 +8,7 @@ from mo.ops.op import Op
 
 class LayerNorm(Op):
     """
-    LayerNorm - normalize along axis 1.
+    LayerNorm - normalize along given axis.
     We first compute the mean and variance along this axis and
     then compute the normalized output, which has the same shape as input
     """
