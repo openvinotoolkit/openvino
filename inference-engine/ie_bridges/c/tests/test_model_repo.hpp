@@ -43,6 +43,10 @@ std::string generate_model_path(std::string dir, std::string filename) {
     return get_models_path() + kPathSeparator + dir + kPathSeparator + filename;
 }
 
+std::string generate_gna_model_path(std::string filename) {
+    return get_data_path() + kPathSeparator + std::string("gna") + kPathSeparator + filename;
+}
+
 std::string generate_image_path(std::string dir, std::string filename) {
     return get_data_path() + kPathSeparator + "validation_set" + kPathSeparator + dir + kPathSeparator + filename;
 }

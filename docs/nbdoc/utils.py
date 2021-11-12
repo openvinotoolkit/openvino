@@ -55,7 +55,7 @@ def load_secret(path: str = "../.secret") -> str:
 
     """
     with open(path, "r+") as file:
-        return file.readline()
+        return file.readline().strip()
 
 
 def process_notebook_name(notebook_name: str) -> str:
