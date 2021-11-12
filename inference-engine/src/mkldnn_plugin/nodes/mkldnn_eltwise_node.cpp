@@ -1125,7 +1125,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     };
 
     auto initDesc = [&] (LayoutType lt) -> NodeDesc {
-        auto createMemoryDesc = [lt](const Shape &shape, Precision prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
+        auto createMemoryDesc = [lt](const Shape &shape, Precision prc) -> std::shared_ptr<CpuBlockedMemoryDesc> {
             const auto &dims = shape.getDims();
             if (lt == ChannelsFirst && shape.getRank() != 1) {
                 auto ndims = shape.getRank();
@@ -1141,7 +1141,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                     blocks[i] = dims[order[i]];
                 }
 
-                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order);
             // TODO: need investigate
             // bad accuracy for shape {1, 1, 4, 11}, {2, 5, 1, 1}
             // same for disabled collapse dims
@@ -1156,18 +1156,16 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 blocks.push_back(blockSize);
                 order.push_back(1);
 
-                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order);
             } else {
                 VectorDims blocks = dims;
                 VectorDims order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
 
-                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
+                return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order);
             }
         };
 
-        // TODO [DS]: inplace
-        size_t offset = isDynamicNode() ? 0 : std::numeric_limits<size_t>::max();
         NodeConfig config;
         if (!isDynamicNode()) {
             config.dynBatchSupport = getOutputShapeAtPort(0).getRank() > 1 && getOutputShapeAtPort(0) ==
@@ -1181,7 +1179,10 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
             portConfig.constant = false;
 
-            portConfig.desc = createMemoryDesc(getInputShapeAtPort(i), inputPrecisions[i], offset);
+            portConfig.desc = createMemoryDesc(getInputShapeAtPort(i), inputPrecisions[i]);
+            if (!isDynamicNode()) {
+                portConfig.desc = portConfig.desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+            }
 
             config.inConfs.push_back(portConfig);
         }
@@ -1190,7 +1191,10 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         portConfig.inPlace = -1;
         portConfig.constant = false;
 
-        portConfig.desc = createMemoryDesc(getOutputShapeAtPort(0), outputPrecision, offset);
+        portConfig.desc = createMemoryDesc(getOutputShapeAtPort(0), outputPrecision);
+        if (!isDynamicNode()) {
+            portConfig.desc = portConfig.desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+        }
 
         config.outConfs.push_back(portConfig);
 
