@@ -24,10 +24,10 @@ TEST(StaticShapeInferenceTest, GatherTest) {
     auto G = std::make_shared<op::v1::Gather>(P, I, A);
     std::vector<PartialShape> input_shapes = {PartialShape{3, 2}, PartialShape{2, 2}, PartialShape{1}},
                               output_shapes = {PartialShape{}};
-    shape_infer(G.get(), G->get_batch_dims(), input_shapes, output_shapes);
+    shape_infer(G.get(), input_shapes, output_shapes);
     ASSERT_EQ(output_shapes[0], (PartialShape{2, 2, 2}));
     std::vector<StaticShape> static_input_shapes = {StaticShape{3, 2}, StaticShape{2, 2}, StaticShape{1}},
                              static_output_shapes = {StaticShape{}};
-    shape_infer(G.get(), G->get_batch_dims(), static_input_shapes, static_output_shapes);
+    shape_infer(G.get(), static_input_shapes, static_output_shapes);
     ASSERT_EQ(static_output_shapes[0], (StaticShape{2, 2, 2}));
 }

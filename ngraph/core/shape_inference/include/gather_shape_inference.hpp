@@ -21,7 +21,6 @@ void inline create_shape(Rank& rank, PartialShape& shape) {
 
 template <class T>
 void shape_infer(GatherBase* op,
-                 int64_t batch_dims,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
@@ -42,14 +41,14 @@ void shape_infer(GatherBase* op,
                               "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
                               axis_pshape);
     }
-
+    int64_t batch_dims = op->get_batch_dims();
     if (batch_dims < 0 && indices_rank.is_static()) {
         batch_dims += indices_rank.get_length();
     }
 
     std::vector<int64_t> axes_val;
     bool axis_is_set = get_data_as_int64<T>(2, op, axes_val, constant_data);
-    int64_t axis;
+    int64_t axis = 0;
 
     if (axis_is_set) {
         axis = axes_val[0];
@@ -71,7 +70,7 @@ void shape_infer(GatherBase* op,
                               axis);
 
         NODE_VALIDATION_CHECK(op,
-                              data_rank.is_dynamic(),
+                              data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
                               "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
                               axis,
                               " data_rank = ",

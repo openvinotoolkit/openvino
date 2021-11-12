@@ -95,8 +95,7 @@ TEST(type_prop, gather_v1_axis_out_of_input_rank) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Incorrect element of axis input";
     } catch (const ov::AssertFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter axis"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -330,8 +329,7 @@ TEST(type_prop, gather_7_axis_out_of_input_rank) {
         // Should have thrown, so fail if it didn't
         FAIL() << "axis check failed";
     } catch (const ov::AssertFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter axis"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -664,8 +662,7 @@ TEST(type_prop, gather_v8_axis_out_of_input_rank) {
         // Should have thrown, so fail if it didn't
         FAIL() << "axis check failed";
     } catch (const ov::AssertFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Parameter axis"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }

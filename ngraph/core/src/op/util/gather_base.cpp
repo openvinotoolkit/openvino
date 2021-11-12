@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "gather_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
@@ -13,7 +14,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/shape.hpp"
-#include "gather_shape_inference.hpp"
 
 using namespace std;
 
@@ -37,7 +37,7 @@ void ov::op::util::GatherBase::validate_and_infer_types() {
     const auto& axis_pshape = get_input_partial_shape(2);
     std::vector<PartialShape> input_shapes = {data_pshape, indices_pshape, axis_pshape},
                               output_shapes = {PartialShape{}};
-    shape_infer(this, this->m_batch_dims, input_shapes, output_shapes);
+    shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, data_type, output_shapes[0]);
 }
 

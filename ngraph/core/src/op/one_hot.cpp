@@ -10,6 +10,7 @@
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include <one_hot_shape_inference.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -45,58 +46,21 @@ void op::v1::OneHot::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           on_value_et.compatible(off_value_et),
                           "on_value element type must be compatible with off_value element type.");
-
+    NODE_VALIDATION_CHECK(this,
+                          depth_et.is_integral(),
+                          "'depth' input element type must be an integer (got ",
+                          depth_et,
+                          ").");
     const auto& indices_shape = get_input_partial_shape(0);
     const auto& depth_shape = get_input_partial_shape(1);
     const auto& on_value_shape = get_input_partial_shape(2);
     const auto& off_value_shape = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          depth_shape.is_dynamic() || ngraph::is_scalar(depth_shape.to_shape()),
-                          "depth input must be scalar.");
+    std::vector<PartialShape> input_shapes = {indices_shape, depth_shape, on_value_shape, off_value_shape},
+                              output_shapes = {PartialShape{}};
+    shape_infer(this, input_shapes, output_shapes);
 
-    NODE_VALIDATION_CHECK(this,
-                          on_value_shape.is_dynamic() || ngraph::is_scalar(on_value_shape.to_shape()),
-                          "on_value input must be scalar.");
-
-    NODE_VALIDATION_CHECK(this,
-                          off_value_shape.is_dynamic() || ngraph::is_scalar(off_value_shape.to_shape()),
-                          "off_value input must be scalar.");
-
-    ov::PartialShape result_shape{ov::PartialShape::dynamic()};
-    const auto& depth = input_value(1).get_node_shared_ptr();
-    const auto& depth_constant = get_constant_from_source(input_value(1));
-    if (indices_shape.rank().is_static() && depth_constant) {
-        std::vector<Dimension> out_dims{indices_shape};
-        const auto indices_rank = indices_shape.rank().get_length();
-        m_axis = ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
-
-        auto depth_element_type = depth->get_output_element_type(0);
-        NODE_VALIDATION_CHECK(this,
-                              depth_element_type.is_integral(),
-                              "'depth' input element type must be an integer (got ",
-                              depth_element_type,
-                              ").");
-
-        NODE_VALIDATION_CHECK(this,
-                              ngraph::is_scalar(depth->get_shape()),
-                              "A scalar input should be provided as 'depth' to OneHot",
-                              " (got ",
-                              depth->get_shape(),
-                              " elements).");
-
-        int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
-        NODE_VALIDATION_CHECK(this,
-                              depth_val > 0,
-                              "The value of 'depth' must be a positive number.",
-                              " (got ",
-                              depth_val,
-                              ").");
-        out_dims.insert(out_dims.begin() + m_axis, Dimension(depth_val));
-        result_shape = out_dims;
-    }
-
-    set_output_type(0, on_value_et, result_shape);
+    set_output_type(0, on_value_et, output_shapes[0]);
 }
 
 bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor) {
