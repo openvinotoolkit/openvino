@@ -1254,7 +1254,11 @@ void MKLDNNGraph::EnforceBF16() {
         if (node->getType() != Input && node->getType() != Output) {
             for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
                 const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude skipNodes after Constant Inputs
+                /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
+                 * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
+                 * and if activation is BF16 */
+                if (!(parent->getType() == Input && parent->isConstant() &&
+                      node->getType() != Concatenation) && // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
                     !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
                     node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
                     node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
