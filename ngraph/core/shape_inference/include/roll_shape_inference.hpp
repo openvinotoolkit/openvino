@@ -92,18 +92,18 @@ void shape_infer(const ov::op::v7::Roll* op,
 
     if (shift_pshape.rank().is_static()) {
         const auto& shift_rank = shift_pshape.size();
-        NODE_VALIDATION_CHECK(this, shift_rank <= 1, "Shift must be a scalar or 1D tensor.");
+        NODE_VALIDATION_CHECK(op, shift_rank <= 1, "Shift must be a scalar or 1D tensor.");
     }
 
-    if (axes_pshape.rank().is_static() {
+    if (axes_pshape.rank().is_static()) {
         const auto& axes_rank = axes_pshape.size();
-        NODE_VALIDATION_CHECK(this, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
+        NODE_VALIDATION_CHECK(op, axes_rank <= 1, "Axes must be a scalar or 1D tensor.");
     }
 
     // If shift is a scalar, than axes can be arbitrary 1d tensor and we don't need
     // to check shift shape consistency with axes, otherwise the check is needed.
     if (!(shift_pshape.is_static() && ngraph::is_scalar(shift_pshape.to_shape()))) {
-        NODE_VALIDATION_CHECK(this,
+        NODE_VALIDATION_CHECK(op,
                               shift_pshape.compatible(axes_pshape),
                               "If shift is a 1D vector, axes must be a 1D tensor of the same size.");
     }
@@ -113,7 +113,7 @@ void shape_infer(const ov::op::v7::Roll* op,
         if (data_pshape.rank().is_static()) {
             const auto& data_rank = data_pshape.size();
             for (int64_t& axis : axes) {
-                NODE_VALIDATION_CHECK(this,
+                NODE_VALIDATION_CHECK(op,
                                       axis < data_rank,
                                       "Axes must be less than data tensor rank. Got "
                                       "data tensor rank: ",
@@ -123,7 +123,7 @@ void shape_infer(const ov::op::v7::Roll* op,
                 if (axis < 0) {
                     axis += data_rank;
                 }
-                NODE_VALIDATION_CHECK(this,
+                NODE_VALIDATION_CHECK(op,
                                       axis >= 0,
                                       "Axes must be positive or equal to zero. Got "
                                       "axis: ",
