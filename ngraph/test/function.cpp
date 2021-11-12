@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset8.hpp"
 
 TEST(function, get_input_by_tensor_name) {
@@ -965,4 +966,193 @@ TEST(function, add_output_port_to_result) {
 
     EXPECT_NO_THROW(f->add_output(result->output(0)));
     EXPECT_EQ(f->get_results().size(), 1);
+}
+
+TEST(function, get_batch_size) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->set_layout(ov::Layout("CNHW"));
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->set_layout(ov::Layout("CNHW"));
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_NO_THROW(ov::util::get_batch_size(f));
+    EXPECT_EQ(ov::util::get_batch_size(f), 3);
+}
+
+TEST(function, get_batch_size_with_2_batches) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->set_layout(ov::Layout("CNHW"));
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->set_layout(ov::Layout("CNHW"));
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_THROW(ov::util::get_batch_size(f), ov::Exception);
+}
+
+TEST(function, get_batch_size_without_layouts) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_THROW(ov::util::get_batch_size(f), ov::Exception);
+}
+
+TEST(function, get_batch_size_without_one_layout) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->set_layout(ov::Layout("CNHW"));
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_NO_THROW(ov::util::get_batch_size(f));
+    EXPECT_EQ(ov::util::get_batch_size(f), 2);
+}
+
+TEST(function, set_batch_size) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->set_layout(ov::Layout("CNHW"));
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->set_layout(ov::Layout("CNHW"));
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_NO_THROW(ov::util::set_batch_size(f, 4));
+    ov::PartialShape pshape({1, 4, 3, 3});
+    EXPECT_EQ(arg0->get_partial_shape(), pshape);
+    EXPECT_EQ(arg1->get_partial_shape(), pshape);
+}
+
+TEST(function, set_batch_size_without_one_layout) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->set_layout(ov::Layout("CNHW"));
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_NO_THROW(ov::util::set_batch_size(f, 1));
+    EXPECT_EQ(ov::util::get_batch_size(f), 1);
+}
+
+TEST(function, set_batch_size_without_batch) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg0->set_friendly_name("data");
+    arg0->get_output_tensor(0).set_names({"input1"});
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    arg1->set_friendly_name("data1");
+    arg1->get_output_tensor(0).set_names({"input2", "data1"});
+
+    auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
+    concat->set_friendly_name("concat");
+    concat->get_output_tensor(0).set_names({"concat_t"});
+    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    shape_of->set_friendly_name("shape_of");
+    shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
+    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    f->validate_nodes_and_infer_types();
+
+    EXPECT_THROW(ov::util::set_batch_size(f, 4), ov::Exception);
 }

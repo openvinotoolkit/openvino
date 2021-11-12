@@ -19,6 +19,7 @@
 #include "ngraph/validation_util.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/function.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -869,4 +870,40 @@ void ov::Function::add_output(const ov::Output<ov::Node>& port) {
     }
     auto result = std::make_shared<ov::op::v0::Result>(port);
     add_results({result});
+}
+
+size_t ov::util::get_batch_size(const std::shared_ptr<const ov::Function>& f) {
+    bool batch_initialized = false;
+    size_t batch_size(0);
+    for (const auto& param : f->get_parameters()) {
+        const auto& layout = param->get_layout();
+        if (layout.empty() || !ov::layout::has_batch(layout))
+            continue;
+        const auto& pshape = param->get_partial_shape();
+        int64_t batch_idx = ov::layout::batch_idx(layout);
+        if (pshape.is_dynamic() || pshape[batch_idx].is_dynamic())
+            continue;
+        if (!batch_initialized) {
+            batch_size = pshape[batch_idx].get_length();
+            batch_initialized = true;
+        }
+        OPENVINO_ASSERT(batch_size == pshape[batch_idx].get_length(),
+                        "Cannot get batch size. Several model inputs have different batch size.");
+    }
+    OPENVINO_ASSERT(batch_initialized, "Batch was not found in the model");
+    return batch_size;
+}
+
+void ov::util::set_batch_size(const std::shared_ptr<ov::Function>& f, size_t batch_size) {
+    bool batch_exists = false;
+    for (const auto& param : f->get_parameters()) {
+        const auto& layout = param->get_layout();
+        if (layout.empty() || !ov::layout::has_batch(layout))
+            continue;
+        batch_exists = true;
+        int64_t batch_idx = ov::layout::batch_idx(layout);
+        param->get_partial_shape()[batch_idx] = batch_size;
+    }
+    OPENVINO_ASSERT(batch_exists, "Model doesn't have batch dimension.");
+    f->validate_nodes_and_infer_types();
 }

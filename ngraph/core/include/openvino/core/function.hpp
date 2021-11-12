@@ -330,4 +330,11 @@ public:
     OPENVINO_RTTI("AttributeAdapter<std::shared_ptr<Function>");
     BWDCMP_RTTI_DECLARATION;
 };
+
+namespace util {
+OPENVINO_API
+size_t get_batch_size(const std::shared_ptr<const ov::Function>& f);
+OPENVINO_API
+void set_batch_size(const std::shared_ptr<ov::Function>& f, size_t batch_size);
+}  // namespace util
 }  // namespace ov
