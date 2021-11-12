@@ -87,6 +87,10 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
 
 }  // namespace
 
+OPENVINO_SUPPRESS_DEPRECATED_START
+const ov::DiscreteTypeInfo ov::Function::type_info = ov::Function::get_type_info_static();
+OPENVINO_SUPPRESS_DEPRECATED_END
+
 ov::Function::Function(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
       m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1))),
