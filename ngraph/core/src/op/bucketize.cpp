@@ -4,8 +4,8 @@
 
 #include "ngraph/op/bucketize.hpp"
 
-#include "itt.hpp"
 #include "bucketize_shape_inference.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace std;
