@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <fstream>
 #include <signal.h>
+#include <fstream>
 #include <transformations/utils/utils.hpp>
 
 #ifdef _WIN32
 #include <process.h>
 #endif
 
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
 
 #include "graph_comparator.hpp"
@@ -27,16 +28,16 @@ namespace test {
 
 void SubgraphBaseTest::run() {
     auto crashHandler = [](int errCode) {
-        auto &s = LayerTestsUtils::Summary::getInstance();
+        auto& s = LayerTestsUtils::Summary::getInstance();
         s.saveReport();
         std::cerr << "Unexpected application crash with code: " << errCode << std::endl;
         std::abort();
     };
     signal(SIGSEGV, crashHandler);
 
-    LayerTestsUtils::PassRate::Statuses status =
-            FuncTestUtils::SkipTestsConfig::currentTestIsDisabled() ?
-            LayerTestsUtils::PassRate::Statuses::SKIPPED : LayerTestsUtils::PassRate::Statuses::CRASHED;
+    LayerTestsUtils::PassRate::Statuses status = FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()
+                                                     ? LayerTestsUtils::PassRate::Statuses::SKIPPED
+                                                     : LayerTestsUtils::PassRate::Statuses::CRASHED;
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status);
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -54,12 +55,13 @@ void SubgraphBaseTest::run() {
                 generate_inputs(targetStaticShapeVec);
                 infer();
                 validate();
-            } catch (const std::exception &ex) {
-                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+            } catch (const std::exception& ex) {
+                throw std::runtime_error("Incorrect target static shape: " +
+                                         CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
             }
         }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
-    } catch (const std::exception &ex) {
+    } catch (const std::exception& ex) {
         status = LayerTestsUtils::PassRate::Statuses::FAILED;
         errorMessage = ex.what();
     } catch (...) {
@@ -89,10 +91,13 @@ void SubgraphBaseTest::serialize() {
 
     bool success;
     std::string message;
-    std::tie(success, message) =
-            compare_functions(result, function, false, false, false,
-                              true,     // precision
-                              true);    // attributes
+    std::tie(success, message) = compare_functions(result,
+                                                   function,
+                                                   false,
+                                                   false,
+                                                   false,
+                                                   true,   // precision
+                                                   true);  // attributes
 
     EXPECT_TRUE(success) << message;
 
@@ -115,8 +120,8 @@ void SubgraphBaseTest::query_model() {
     ASSERT_EQ(expected, actual);
 }
 
-void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
-                               const std::vector<ov::runtime::Tensor> &actual) {
+void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
+                               const std::vector<ov::runtime::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); i++) {
         ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
@@ -125,11 +130,13 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
 
 void SubgraphBaseTest::configure_model() {
     // configure input precision
+    ov::preprocess::PrePostProcessor p;
     {
-        auto params = function->get_parameters();
-        for (auto& param : params) {
+        auto& params = function->get_parameters();
+        for (size_t i = 0; i < params.size(); i++) {
             if (inType != ov::element::Type_t::undefined) {
-                param->get_output_tensor(0).set_element_type(inType);
+                p.input(ov::preprocess::InputInfo(i)
+                        .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
             }
         }
     }
@@ -137,12 +144,14 @@ void SubgraphBaseTest::configure_model() {
     // configure output precision
     {
         auto results = function->get_results();
-        for (auto& result : results) {
+        for (size_t i = 0; i < results.size(); i++) {
             if (outType != ov::element::Type_t::undefined) {
-                result->get_output_tensor(0).set_element_type(outType);
+                p.output(ov::preprocess::OutputInfo(i)
+                             .tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
             }
         }
     }
+    function = p.build(function);
 }
 
 void SubgraphBaseTest::compile_model() {
@@ -158,7 +167,13 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     const auto& funcInputs = function->inputs();
     for (int i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
-        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        ov::runtime::Tensor tensor;
+        if (funcInput.get_element_type().is_real()) {
+            tensor = ov::test::utils::create_and_fill_tensor(
+                funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+        } else {
+            tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+        }
         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
     }
 }
@@ -192,8 +207,8 @@ void SubgraphBaseTest::validate() {
         return;
     }
 
-    ASSERT_EQ(actualOutputs.size(), expectedOutputs.size()) << "nGraph interpreter has "
-        << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+    ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
+        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     compare(expectedOutputs, actualOutputs);
 }
@@ -208,7 +223,8 @@ void SubgraphBaseTest::init_input_shapes(const std::vector<InputShape>& shapes) 
             dynShape = shape.second.front();
         }
         inputDynamicShapes.push_back(dynShape);
-        ASSERT_EQ(shape.second.size(), targetStaticShapeSize) << "Target static count shapes should be the same for all inputs";
+        ASSERT_EQ(shape.second.size(), targetStaticShapeSize)
+            << "Target static count shapes should be the same for all inputs";
         for (size_t i = 0; i < shape.second.size(); ++i) {
             targetStaticShapes[i].push_back(shape.second.at(i));
         }
