@@ -144,9 +144,9 @@ void MKLDNNDepthToSpaceNode::createPrimitive() {
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
     attrs.nSpatialDims = memoryDesc.getShape().getRank() - 2;
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp8c) ||
-                       memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? DepthToSpaceAttrs::Blocked :
-                       (memoryDesc.hasLayoutType(LayoutType::nspc) ? DepthToSpaceAttrs::ChannelsLast : DepthToSpaceAttrs::Planar);
+    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? LayoutType::nCsp16c :
+                       memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c :
+                       memoryDesc.hasLayoutType(LayoutType::nspc) ? LayoutType::nspc : LayoutType::ncsp;
 
     if (inputShapesDefined()) {
         if (needPrepareParams())
@@ -161,8 +161,11 @@ void MKLDNNDepthToSpaceNode::prepareParams() {
 }
 
 MKLDNNDepthToSpaceNode::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
-    const bool isBlocked = attrs.layoutType == DepthToSpaceAttrs::Blocked;
-    const bool isChannelsFirst = attrs.layoutType == DepthToSpaceAttrs::ChannelsLast;
+    if (!MKLDNNPlugin::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
+        IE_THROW() << "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
+
+    const bool isBlocked = MKLDNNPlugin::one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
     const size_t nDims = attrs.srcBlockedDims.size();
     const size_t reshapedRank = nDims + attrs.nSpatialDims + static_cast<int>(isBlocked && attrs.mode == Mode::DEPTH_FIRST);
     const size_t lastIdx = reshapedRank - 1;
