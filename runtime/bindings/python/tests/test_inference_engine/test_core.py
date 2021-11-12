@@ -139,6 +139,7 @@ def test_net_from_buffer_valid():
     ref_func = core.read_model(model=test_net_xml, weights=test_net_bin)
     assert func.get_parameters() == ref_func.get_parameters()
     assert func.get_results() == ref_func.get_results()
+    assert func.get_ordered_ops() == ref_func.get_ordered_ops()
 
 
 def test_get_version(device):
