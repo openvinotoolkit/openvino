@@ -3,8 +3,8 @@
 //
 
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
-#include "transformations/op_conversions/convert_convolutions.hpp"
-#include "transformations/common_optimizations/conv_bias_fusion.hpp"
+#include "../../../../../src/legacy_api/include/legacy/transformations/convert_convolutions.hpp"
+#include "../../../../../src/legacy_api/include/legacy/transformations/conv_bias_fusion.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "shared_test_classes/subgraph/conv_eltwise_fusion.hpp"
 

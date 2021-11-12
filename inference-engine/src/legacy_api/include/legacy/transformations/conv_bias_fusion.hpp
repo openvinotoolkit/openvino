@@ -16,8 +16,8 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/add.hpp"
 
-#include "ngraph_ops/convolution_ie.hpp"
-#include "ngraph_ops/deconvolution_ie.hpp"
+#include <legacy/ngraph_ops/convolution_ie.hpp>
+#include <legacy/ngraph_ops/deconvolution_ie.hpp>
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/rt_info.hpp"
 
