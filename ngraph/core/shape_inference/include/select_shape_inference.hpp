@@ -14,8 +14,9 @@ template <class T>
 void shape_infer(const Select* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
 
+    const auto& broadcast_spec = op->get_auto_broadcast();
     auto& result_shape = output_shapes[0];
-    if (op->get_auto_broadcast().m_type == op::AutoBroadcastType::PDPD) {
+    if (broadcast_spec.m_type == op::AutoBroadcastType::PDPD) {
         // PDPD broadcast rule is one-way broadcast. Needs to figure out src and dest
         // when `then` tensor and `else` tensor are broadcasted to each other.
         size_t dest_idx = 1;
@@ -39,30 +40,30 @@ void shape_infer(const Select* op, const std::vector<T>& input_shapes, std::vect
         result_shape = input_shapes[dest_idx];
 
         // Try broadcast merging src into dest
-        then_else_merged = T::broadcast_merge_into(result_shape, input_shapes[src_idx], op->get_auto_broadcast());
+        then_else_merged = T::broadcast_merge_into(result_shape, input_shapes[src_idx], broadcast_spec);
 
         // Try the other way if needed
         if (!then_else_merged && try_bidirection) {
             result_shape = input_shapes[src_idx];
-            then_else_merged = T::broadcast_merge_into(result_shape, input_shapes[dest_idx], op->get_auto_broadcast());
+            then_else_merged = T::broadcast_merge_into(result_shape, input_shapes[dest_idx], broadcast_spec);
         }
 
         NODE_VALIDATION_CHECK(op,
                               then_else_merged,
                               "'Else' tensor and `Then` tensor are not broadcasted to each other ");
         NODE_VALIDATION_CHECK(op,
-                              T::broadcast_merge_into(result_shape, input_shapes[0], op->get_auto_broadcast()),
+                              T::broadcast_merge_into(result_shape, input_shapes[0], broadcast_spec),
                               "'Cond' tensor shape is not broadcastable.");
     } else {
         result_shape = input_shapes[2];
-        for (int i = 1; i >= 0; i--) {
-            if (op->get_auto_broadcast().m_type == op::AutoBroadcastType::NONE) {
+        for (int input_port = 1; input_port >= 0; input_port--) {
+            if (broadcast_spec.m_type == op::AutoBroadcastType::NONE) {
                 NODE_VALIDATION_CHECK(op,
-                                      T::merge_into(result_shape, input_shapes[i]),
+                                      T::merge_into(result_shape, input_shapes[input_port]),
                                       "Argument shapes are inconsistent.");
-            } else if (op->get_auto_broadcast().m_type == op::AutoBroadcastType::NUMPY) {
+            } else if (broadcast_spec.m_type == op::AutoBroadcastType::NUMPY) {
                 NODE_VALIDATION_CHECK(op,
-                                      T::broadcast_merge_into(result_shape, input_shapes[i], op->get_auto_broadcast()),
+                                      T::broadcast_merge_into(result_shape, input_shapes[input_port], broadcast_spec),
                                       "Argument shapes are inconsistent.");
             } else {
                 NODE_VALIDATION_CHECK(op, false, "Unsupported auto broadcast specification");
