@@ -196,12 +196,10 @@ std::vector<BatchToSpaceParams> generateBatchToSpaceParams() {
 
 std::vector<BatchToSpaceParams> generateBatchToSpaceCombinedParams() {
     const std::vector<std::vector<BatchToSpaceParams>> batchToSpaceTypeParams {
-        generateBatchToSpaceParams<element::Type_t::i4>(),
         generateBatchToSpaceParams<element::Type_t::i8>(),
         generateBatchToSpaceParams<element::Type_t::i16>(),
         generateBatchToSpaceParams<element::Type_t::i32>(),
         generateBatchToSpaceParams<element::Type_t::i64>(),
-        generateBatchToSpaceParams<element::Type_t::u4>(),
         generateBatchToSpaceParams<element::Type_t::u8>(),
         generateBatchToSpaceParams<element::Type_t::u16>(),
         generateBatchToSpaceParams<element::Type_t::u32>(),

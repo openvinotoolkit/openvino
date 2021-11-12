@@ -185,12 +185,10 @@ std::vector<RollParams> generateRollFloatingPointParams() {
 
 std::vector<RollParams> generateRollCombinedParams() {
     const std::vector<std::vector<RollParams>> rollTypeParams {
-        generateRollParams<element::Type_t::i4>(),
         generateRollParams<element::Type_t::i8>(),
         generateRollParams<element::Type_t::i16>(),
         generateRollParams<element::Type_t::i32>(),
         generateRollParams<element::Type_t::i64>(),
-        generateRollParams<element::Type_t::u4>(),
         generateRollParams<element::Type_t::u8>(),
         generateRollParams<element::Type_t::u16>(),
         generateRollParams<element::Type_t::u32>(),
