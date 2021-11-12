@@ -32,21 +32,22 @@ void shape_infer(const ov::op::v0::SpaceToDepth* op,
 
     if (data_shape.is_static()) {
         const ov::Shape& data_sshape = data_shape.to_shape();
-        auto multiplier = std::pow(op->m_blocksize, data_sshape.size() - 2);
+        const auto block_size = op->get_block_size();
+        auto multiplier = std::pow(block_size, data_sshape.size() - 2);
 
         auto out_shape = data_sshape;
         out_shape[1] *= multiplier;
         for (size_t i = 2; i < out_shape.size(); i++) {
             NODE_VALIDATION_CHECK(op,
-                                  op->m_blocksize > 0 && !(out_shape[i] % op->m_blocksize),
+                                  block_size > 0 && !(out_shape[i] % block_size),
                                   "The dimension on position: ",
                                   i,
                                   " equal to: ",
                                   out_shape[i],
                                   " must be a multiple of m_blocksize: ",
-                                  op->m_blocksize);
+                                  block_size);
 
-            out_shape[i] /= op->m_blocksize;
+            out_shape[i] /= block_size;
         }
         output_shapes[0] = T{out_shape};
     } else {

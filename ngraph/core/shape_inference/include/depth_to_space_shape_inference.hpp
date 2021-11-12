@@ -32,12 +32,13 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
 
     if (data_shape.is_static()) {
         const ov::Shape& data_sshape = data_shape.to_shape();
+        const auto block_size = op->get_block_size();
 
-        auto divider = std::pow(op->m_blocksize, data_sshape.size() - 2);
+        auto divider = std::pow(block_size, data_sshape.size() - 2);
         NODE_VALIDATION_CHECK(op, (divider), "DepthToSpace: The divider must not be 0");
 
         NODE_VALIDATION_CHECK(op,
-                              op->m_blocksize > 0 && !(data_sshape[1] % op->m_blocksize),
+                              block_size > 0 && !(data_sshape[1] % block_size),
                               "DepthToSpace: The input data's 'channels' axis size: ",
                               data_sshape[1],
                               " must be a equivalent to 'block_size'^'spatial_dims': ",
@@ -46,7 +47,7 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
         auto out_shape = data_sshape;
         out_shape[1] /= divider;
         for (size_t i = 2; i < out_shape.size(); i++) {
-            out_shape[i] *= op->m_blocksize;
+            out_shape[i] *= block_size;
         }
         output_shapes[0] = T{out_shape};
     } else {
