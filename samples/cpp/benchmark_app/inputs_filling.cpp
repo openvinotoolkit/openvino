@@ -177,7 +177,14 @@ InferenceEngine::Blob::Ptr createBlobFromBinary(const std::vector<std::string>& 
                           "but the network expects "
                        << std::to_string(inputSize);
         }
-        binaryFile.read(&data[b * inputSize], inputSize);
+
+        if (inputInfo.layout != "CN") {
+            binaryFile.read(&data[b * inputSize], inputSize);
+        } else {
+            for (int i = 0; i < inputInfo.channels(); i++) {
+                binaryFile.read(&data[(i * batchSize + b) * sizeof(T)], sizeof(T));
+            }
+        }
 
         if (filenames_used) {
             *filenames_used += (filenames_used->empty() ? "" : ", ") + files[inputIndex];

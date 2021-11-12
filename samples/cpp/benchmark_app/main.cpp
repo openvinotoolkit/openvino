@@ -147,11 +147,10 @@ std::map<std::string, std::vector<std::string>> parseInputArguments() {
         auto files = parseInputFiles(*f);
         if (mapped_files.find(files.first) == mapped_files.end()) {
             mapped_files[files.first] = {};
-        } else {
+        } else if (!files.first.empty()) {
             throw std::logic_error("Input " + files.first + " was specified twice!");
         }
 
-        mapped_files[files.first] = {};
         for (auto& file : files.second) {
             readInputFilesArguments(mapped_files[files.first], file);
         }
@@ -893,7 +892,10 @@ int main(int argc, char* argv[]) {
                     inferRequest->setLatencyGroupId(iteration % app_inputs_info.size());
                 }
 
-                batchSize = getBatchSize(input);
+                if (isDynamic) {
+                    batchSize = getBatchSize(input);
+                }
+
                 for (auto& item : input) {
                     auto input_name = item.first;
                     const auto& data = inputsData.at(input_name)[iteration % inputsData.at(input_name).size()];
