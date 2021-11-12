@@ -260,6 +260,22 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
 }
 
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const {
+    if (onnx_node.op_type() == "Identity") {
+        // we eliminate Identity op (since it's a no-op) and therefore
+        // we must preserve its input name, unless Identity is connected
+        // to a graph's output - in that case Identity's input gets
+        // a new name
+        const auto& graph_outputs = m_model->get_graph().output();
+        const auto& name = onnx_node.output(0);
+        bool is_identity_on_output = std::find_if(graph_outputs.begin(),
+                                                  graph_outputs.end(),
+                                                  [&name](const ONNX_NAMESPACE::ValueInfoProto& output) -> bool {
+                                                      return output.name() == name;
+                                                  }) != graph_outputs.end();
+        if (!is_identity_on_output) {
+            return;
+        }
+    }
     for (size_t i = 0; i < ng_node_vector.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
         // Other optional outputs should have name set to an empty string.
