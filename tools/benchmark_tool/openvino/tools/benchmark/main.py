@@ -216,15 +216,16 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.load_network(args.path_to_model)
+            exe_network = benchmark.ie.compile_model(args.path_to_model)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Load network took {duration_ms} ms")
+            logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('load network time (ms)', duration_ms)
+                                              ('compile model time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.input_info)
+            function = exe_network.get_runtime_function()
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().inputs)
             if batch_size == 0:
                 batch_size = 1
         elif not is_network_compiled:
@@ -232,26 +233,26 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            ie_network = benchmark.read_network(args.path_to_model)
-            topology_name = ie_network.name
+            network = benchmark.read_model(args.path_to_model)
+            topology_name = network.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Read network took {duration_ms} ms")
+            logger.info(f"Read model took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('read network time (ms)', duration_ms)
+                                              ('read model time (ms)', duration_ms)
                                           ])
 
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean,  ie_network.input_info)
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean,  network.inputs, network.get_parameters())
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { k : v.shape for k,v in app_inputs_info.items() }
                 logger.info(
                     'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
-                ie_network.reshape(shapes)
+                network.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
                 logger.info(f"Reshape network took {duration_ms} ms")
                 if statistics:
@@ -261,27 +262,27 @@ def run(args):
                                               ])
 
             # use batch size according to provided layout and shapes
-            batch_size = get_batch_size(app_inputs_info) if args.layout else ie_network.batch_size
+            batch_size = get_batch_size(app_inputs_info)
 
             logger.info(f'Network batch size: {batch_size}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
 
-            process_precision(ie_network, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
-            print_inputs_and_outputs_info(ie_network)
+            process_precision(network, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
+            #print_inputs_and_outputs_info(network)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.load_network(ie_network)
+            exe_network = benchmark.ie.compile_model(network, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Load network took {duration_ms} ms")
+            logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('load network time (ms)', duration_ms)
+                                              ('compile model time (ms)', duration_ms)
                                           ])
         else:
             next_step()
@@ -295,15 +296,15 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.import_network(args.path_to_model)
+            exe_network = benchmark.ie.import_model(args.path_to_model)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-            logger.info(f"Import network took {duration_ms} ms")
+            logger.info(f"Import model took {duration_ms} ms")
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('import network time (ms)', duration_ms)
+                                              ('import model time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.input_info)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function.input_info)
             if batch_size == 0:
                 batch_size = 1
 

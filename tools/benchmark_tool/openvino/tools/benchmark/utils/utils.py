@@ -1,7 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import IENetwork,IECore
+from openvino import Core, Function, PartialShape, Layout
+from openvino.impl import Type
+from openvino.impl.preprocess import PrePostProcessor, InputInfo as InputInfop, OutputInfo, InputTensorInfo, OutputTensorInfo
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -48,52 +50,52 @@ def next_step(additional_info='', step_id=0):
     step_info_template = step_info_template.format(next_step.step_id, len(step_names), step_name)
     print(step_info_template)
 
-def process_precision(ie_network: IENetwork, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+
+def get_element_type(precision):
+    format_map = {
+      'FP32' : Type.f32,
+      'I32'  : Type.i32,
+      'I64'  : Type.i64,
+      'FP16' : Type.f16,
+      'I16'  : Type.i16,
+      'U16'  : Type.u16,
+      'I8'   : Type.i8,
+      'U8'   : Type.u8,
+      'BOOL' : Type.boolean,
+    }
+    if precision in format_map.keys():
+        return format_map[precision]
+    raise Exception("Can't find openvino element type for precision: " + precision)
+
+
+def process_precision(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+    pre_post_processor = PrePostProcessor()
     if input_precision:
-        _configure_network_inputs(ie_network, app_inputs_info, input_precision)
+        element_type = get_element_type(input_precision)
+        for i in range(function.inputs):
+            pre_post_processor.input(InputInfop(i).tensor(InputTensorInfo().set_element_type(element_type)))
     if output_precision:
-        _configure_network_outputs(ie_network, output_precision)
+        element_type = get_element_type(output_precision)
+        for i in range(function.outputs):
+            pre_post_processor.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(element_type)))
     if input_output_precision:
-        _configure_network_inputs_and_outputs(ie_network, input_output_precision)
-    input_info = ie_network.input_info
-    for key in app_inputs_info.keys():
-        ## if precision for input set by user, then set it to app_inputs
-        ## if it an image, set U8
-        if input_precision or (input_output_precision and key in input_output_precision.keys()):
-            app_inputs_info[key].precision = input_info[key].precision
-        elif app_inputs_info[key].is_image:
-            app_inputs_info[key].precision = 'U8'
-            input_info[key].precision = 'U8'
+        user_precision_map = _parse_arg_map(input_output_precision)
+        input_names = get_input_output_names(function.inputs)
+        output_names = get_input_output_names(function.outputs)
+        for node_name, precision in user_precision_map.items():
+            user_precision_map[node_name] = get_element_type(precision)
+        for name, element_type in user_precision_map.items():
+            if name in input_names:
+                pre_post_processor.input(InputInfop(name).tensor(InputTensorInfo().set_element_type(element_type)))
+            elif name in output_names:
+                pre_post_processor.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(element_type)))
+            else:
+                raise Exception(f"Node '{name}' does not exist in network")
+    function = pre_post_processor.build(function)
+    # update app_inputs_info
+    for i in range(function.inputs):
+        app_inputs_info[i].element_type = function.input(i).get_element_type()
 
-def _configure_network_inputs(ie_network: IENetwork, app_inputs_info, input_precision: str):
-    input_info = ie_network.input_info
-
-    for key in input_info.keys():
-        app_inputs_info[key].precision = input_precision
-        input_info[key].precision = input_precision
-
-def _configure_network_outputs(ie_network: IENetwork, output_precision: str):
-    output_info = ie_network.outputs
-
-    for key in output_info.keys():
-        output_info[key].precision = output_precision
-
-def _configure_network_inputs_and_outputs(ie_network: IENetwork, input_output_precision: str):
-    if not input_output_precision:
-        raise Exception("Input/output precision is empty")
-
-    user_precision_map = _parse_arg_map(input_output_precision)
-
-    input_info = ie_network.input_info
-    output_info = ie_network.outputs
-
-    for key, value in user_precision_map.items():
-        if key in input_info:
-            input_info[key].precision = value
-        elif key in output_info:
-            output_info[key].precision = value
-        else:
-            raise Exception(f"Element '{key}' does not exist in network")
 
 def _parse_arg_map(arg_map: str):
     arg_map = arg_map.replace(" ", "")
@@ -106,19 +108,18 @@ def _parse_arg_map(arg_map: str):
 
     return parsed_map
 
-def print_inputs_and_outputs_info(ie_network: IENetwork):
-    input_info = ie_network.input_info
-    for key in input_info.keys():
-        tensor_desc = input_info[key].tensor_desc
-        logger.info(f"Network input '{key}' precision {tensor_desc.precision}, "
-                                                    f"dimensions ({tensor_desc.layout}): "
-                                                    f"{' '.join(str(x) for x in tensor_desc.dims)}")
+
+"""def print_inputs_and_outputs_info(function: Function):
+    for input in function.inputs:
+        logger.info(f"Network input '{input.get_node().name}', type {input.get_element_type()}, "
+                                                    f"s ")
     output_info = ie_network.outputs
     for key in output_info.keys():
         info = output_info[key]
         logger.info(f"Network output '{key}' precision {info.precision}, "
                                         f"dimensions ({info.layout}): "
-                                        f"{' '.join(str(x) for x in info.shape)}")
+                                        f"{' '.join(str(x) for x in info.shape)}")"""
+
 
 def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
     niter = number_iterations
@@ -270,7 +271,10 @@ def get_command_line_arguments(argv):
         parameters.append((arg_name, arg_value))
     return parameters
 
-def parse_input_parameters(parameter_string, input_info):
+def get_input_output_names(output_nodes):
+    return [output_node.get_node().get_name() for output_node in output_nodes]
+
+def parse_input_parameters(parameter_string, input_names):
     # Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
     return_value = {}
     if parameter_string:
@@ -281,7 +285,7 @@ def parse_input_parameters(parameter_string, input_info):
                 if input_name != '':
                     return_value[input_name] = value
                 else:
-                    return_value  = { k:value for k in input_info.keys() }
+                    return_value  = { k:value for k in input_names }
                     break
         else:
             raise Exception(f"Can't parse input parameter: {parameter_string}")
@@ -299,38 +303,36 @@ def parse_scale_or_mean(parameter_string, input_info):
                 if input_name != '':
                     return_value[input_name] = f_value
                 else:
-                    print("input_info: ", input_info)
-                    for name, description in input_info.items():
-                        if description.is_image:
-                            return_value[name] = f_value
+                    for input in input_info:
+                        if input.is_image:
+                            return_value[input.tensor_name] = f_value
         else:
             raise Exception(f"Can't parse input parameter: {parameter_string}")
     return return_value
 
 class InputInfo:
     def __init__(self):
-        self.precision = None
-        self.layout = ""
-        self.shape = []
+        self.element_type = None
+        self.layout = Layout()
+        self.shape = None
         self.scale = []
         self.mean = []
+        self.tensor_name = None
 
     @property
     def is_image(self):
-        if self.layout not in [ "NCHW", "NHWC", "CHW", "HWC" ]:
+        if str(self.layout) not in [ "NCHW", "NHWC", "CHW", "HWC" ]:
             return False
         return self.channels == 3
 
     @property
     def is_image_info(self):
-        if self.layout != "NC":
+        if str(self.layout) != "NC":
             return False
         return self.channels >= 2
 
     def getDimentionByLayout(self, character):
-        if character not in self.layout:
-            raise Exception(f"Error: Can't get {character} from layout {self.layout}")
-        return self.shape[self.layout.index(character)]
+        return self.shape[self.layout.get_index_by_name(character)]
 
     @property
     def width(self):
@@ -352,55 +354,62 @@ class InputInfo:
     def depth(self):
         return self.getDimentionByLayout("D")
 
-def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_string, input_info):
-    shape_map = parse_input_parameters(shape_string, input_info)
-    layout_map = parse_input_parameters(layout_string, input_info)
+def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_string, inputs, parameters = None):
+    input_names = get_input_output_names(inputs)
+    shape_map = parse_input_parameters(shape_string, input_names)
+    layout_map = parse_input_parameters(layout_string, input_names)
     reshape = False
-    info_map = {}
-    for name, descriptor in input_info.items():
+    input_info = []
+    for i in range(len(inputs)):
         info = InputInfo()
         # Precision
-        info.precision = descriptor.precision
+        info.element_type = inputs[i].get_element_type()
         # Shape
-        if name in shape_map.keys():
-            parsed_shape = [int(dim) for dim in shape_map[name].split(',')]
+        input_name = inputs[i].get_node().get_name()
+        info.tensor_name = input_name
+        if input_name in shape_map.keys():
+            parsed_shape = PartialShape(int(dim) for dim in shape_map[input_name].split(','))
             info.shape = parsed_shape
             reshape = True
         else:
-            info.shape = descriptor.input_data.shape
-        # Layout
-        info.layout = layout_map[name].upper() if name in layout_map.keys() else descriptor.tensor_desc.layout
+            info.shape = inputs[i].get_partial_shape()
+
+        if input_name in layout_map.keys():
+            info.layout = Layout(layout_map[input_name])
+        elif parameters:
+            info.layout = parameters[i].get_layout()
+
         # Update shape with batch if needed
         if batch_size != 0:
-            batch_index = info.layout.index('N') if 'N' in info.layout else -1
+            batch_index = info.layout.get_index_by_name('N') if info.layout.has_name('N') else -1
             if batch_index != -1 and info.shape[batch_index] != batch_size:
                 info.shape[batch_index] = batch_size
                 reshape = True
-        info_map[name] = info
+        input_info.append(info)
 
     # Update scale, mean
-    scale_map = parse_scale_or_mean(scale_string, info_map)
-    mean_map = parse_scale_or_mean(mean_string, info_map)
+    scale_map = parse_scale_or_mean(scale_string, input_names)
+    mean_map = parse_scale_or_mean(mean_string, input_names)
 
-    for name, descriptor in info_map.items():
-        if descriptor.is_image:
-            descriptor.scale = np.ones(3)
-            descriptor.mean = np.zeros(3)
+    for input in input_info:
+        if input.is_image:
+            input.scale = np.ones(3)
+            input.mean = np.zeros(3)
 
-            if name in scale_map:
-                descriptor.scale = scale_map[name]
-            if name in mean_map:
-                descriptor.mean = mean_map[name]
+            if input.tensor_name in scale_map:
+                input.scale = scale_map[input.tensor_name]
+            if input.tensor_name in mean_map:
+                input.mean = mean_map[input.tensor_name]
 
-    return info_map, reshape
+    return input_info, reshape
 
 def get_batch_size(inputs_info):
     batch_size = 0
     for _, info in inputs_info.items():
-        batch_index = info.layout.index('N') if 'N' in info.layout else -1
+        batch_index = info.layout.get_index_by_name('N') if info.layout.has_name('N') else -1
         if batch_index != -1:
             if batch_size == 0:
-                batch_size = info.shape[batch_index]
+                batch_size = info.batch
             elif batch_size != info.shape[batch_index]:
                 raise Exception("Can't deterimine batch size: batch is different for different inputs!")
     if batch_size == 0:
@@ -408,8 +417,7 @@ def get_batch_size(inputs_info):
     return batch_size
 
 def show_available_devices():
-    ie = IECore()
-    print("\nAvailable target devices:  ", ("  ".join(ie.available_devices)))
+    print("\nAvailable target devices:  ", ("  ".join(Core().available_devices)))
 
 def dump_config(filename, config):
     with open(filename, 'w') as f:

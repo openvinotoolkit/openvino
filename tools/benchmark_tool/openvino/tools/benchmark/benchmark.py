@@ -4,7 +4,8 @@
 import os
 from datetime import datetime
 from math import ceil
-from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
+from typing import Union
+from openvino import Core, Function, get_version
 
 from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
@@ -18,7 +19,7 @@ class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = None, number_iterations: int = None,
                  duration_seconds: int = None, api_type: str = 'async'):
         self.device = device
-        self.ie = IECore()
+        self.ie = Core()
         self.nireq = number_infer_requests
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
@@ -33,7 +34,7 @@ class Benchmark:
             logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
         if path_to_extension:
-            self.ie.add_extension(extension_path=path_to_extension, device_name=CPU_DEVICE_NAME)
+            self.ie.add_extension(extension_path=path_to_extension)
             logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def get_version_info(self) -> str:
@@ -52,41 +53,11 @@ class Benchmark:
     def set_cache_dir(self, cache_dir: str):
         self.ie.set_config({'CACHE_DIR': cache_dir}, '')
 
-    def read_network(self, path_to_model: str):
+    def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
         head, ext = os.path.splitext(model_filename)
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
-        ie_network = self.ie.read_network(model_filename, weights_filename)
-        return ie_network
-
-    def load_network(self, ie_network: IENetwork, config = {}):
-        exe_network = self.ie.load_network(ie_network,
-                                           self.device,
-                                           config=config,
-                                           num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
-        # Number of requests
-        self.nireq = len(exe_network.requests)
-
-        return exe_network
-
-    def load_network_from_file(self, path_to_model: str, config = {}):
-        exe_network = self.ie.load_network(path_to_model,
-                                           self.device,
-                                           config=config,
-                                           num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
-        # Number of requests
-        self.nireq = len(exe_network.requests)
-
-        return exe_network
-
-    def import_network(self, path_to_file : str, config = {}):
-        exe_network = self.ie.import_network(model_file=path_to_file,
-                                             device_name=self.device,
-                                             config=config,
-                                             num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
-        # Number of requests
-        self.nireq = len(exe_network.requests)
-        return exe_network
+        return self.ie.read_model(model_filename, weights_filename)
 
     def first_infer(self, exe_network):
         infer_request = exe_network.requests[0]
