@@ -58,7 +58,7 @@ void regclass_Core(py::module m) {
             return self.read_model(model, tensor);
         },
         py::arg("model"),
-        py::arg("weights"));
+        py::arg("weights") = "");
 
     cls.def("read_model",
             (std::shared_ptr<ov::Function>(ov::runtime::Core::*)(const std::string&, const std::string&) const) &
