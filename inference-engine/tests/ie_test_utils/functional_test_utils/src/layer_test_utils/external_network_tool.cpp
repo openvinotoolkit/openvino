@@ -265,8 +265,8 @@ void ExternalNetworkTool::dumpNetworkToFile(const std::shared_ptr<ngraph::Functi
     writeToHashMap(network_name, new_network_name);
 }
 
-static ngraph::frontend::FrontEndManager& get_frontend_manager() {
-    static ngraph::frontend::FrontEndManager manager;
+static ov::frontend::FrontEndManager& get_frontend_manager() {
+    static ov::frontend::FrontEndManager manager;
     return manager;
 }
 
@@ -282,8 +282,8 @@ std::shared_ptr<ngraph::Function> ExternalNetworkTool::loadNetworkFromFile(const
                                 + new_network_name + ".bin";
 
     auto& manager = get_frontend_manager();
-    ngraph::frontend::FrontEnd::Ptr FE;
-    ngraph::frontend::InputModel::Ptr inputModel;
+    ov::frontend::FrontEnd::Ptr FE;
+    ov::frontend::InputModel::Ptr inputModel;
 
     FE = manager.load_by_model(out_xml_path, out_bin_path);
     if (FE) {
