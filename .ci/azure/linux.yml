@@ -25,8 +25,10 @@ jobs:
     matrix:
       Dynamic:
         CMAKE_BUILD_SHARED_LIBS: 'ON'
+        PYTHON_STATIC_ARGS:
       Static:
         CMAKE_BUILD_SHARED_LIBS: 'OFF'
+        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     maxParallel: 2
 
   # About 150% of total time
@@ -209,10 +211,9 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph Python Bindings Tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
@@ -267,11 +268,11 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -284,10 +285,9 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml $(PYTHON_STATIC_ARGS)
     displayName: 'Python API Tests'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       . $(SETUPVARS)
