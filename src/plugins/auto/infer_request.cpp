@@ -17,14 +17,16 @@ using namespace InferenceEngine;
 MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                                  const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                                  const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with)
-        : IInferRequestInternal(inputs, outputs) {
+        : IInferRequestInternal(inputs, outputs),
+        _requestToShareBlobsWith(request_to_share_blobs_with) {
     CreateInferRequest(request_to_share_blobs_with);
 }
 
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
                                                  const SoIInferRequestInternal & request_to_share_blobs_with)
-        : IInferRequestInternal(networkInputs, networkOutputs) {
+        : IInferRequestInternal(networkInputs, networkOutputs),
+        _requestToShareBlobsWith(request_to_share_blobs_with) {
     CreateInferRequest(request_to_share_blobs_with);
 }
 
@@ -58,6 +60,25 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         _outputs[it.first]->allocate();
     }
 }
+
+void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) {
+    auto exeNetwork = _exeNetwork.get();
+    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkActualNeeded
+            && !dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkFirstReady && _requestToShareBlobsWith)
+        _requestToShareBlobsWith->SetBlob(name, blob);
+    else
+	 IInferRequestInternal::SetBlob(name, blob);
+}
+
+InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
+    auto exeNetwork = _exeNetwork.get();
+    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkActualNeeded
+            && !dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkFirstReady && _requestToShareBlobsWith)
+        return _requestToShareBlobsWith->GetBlob(name);
+    else
+        return IInferRequestInternal::GetBlob(name);
+}
+
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
     for (const auto &it : _networkInputs) {
         auto &name = it.first;
