@@ -56,6 +56,21 @@ def aggregate_stats(stats: dict):
             for step_name, duration_list in stats.items()}
 
 
+def get_cache_stats(flatten_data):
+    """Update statistics for run with models cache"""
+    data_cache = {
+        'full_run_using_cache': flatten_data['full_run'],
+        'first_inference_latency_using_cache': flatten_data['first_inference_latency'],
+        'load_plugin': flatten_data['load_plugin'],
+        'create_exenetwork_using_cache': flatten_data['create_exenetwork'],
+        'read_network': flatten_data['read_network'],
+        'load_network_using_cache': flatten_data['load_network'],
+        'first_inference': flatten_data['first_inference'],
+        'fill_inputs': flatten_data['fill_inputs'],
+    }
+    return data_cache
+
+
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
     return [str(args["executable"].resolve(strict=True)),
@@ -92,6 +107,9 @@ def run_timetest(args: dict, log=None):
         # Parse raw data
         flatten_data = {}
         parse_stats(raw_data[0], flatten_data)
+
+        if run_iter > 0:
+            flatten_data = get_cache_stats(flatten_data)
 
         log.debug(f"Statistics after run of executable #{run_iter}: {flatten_data}")
 
