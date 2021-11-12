@@ -168,7 +168,7 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
             return false;
 
         const auto new_matmul = std::make_shared<opset1::MatMul>(input_1, input_2, transposed_a, false);
-        new_matmul->set_friendly_name(matmul->get_friendly_name());
+        new_matmul->set_friendly_name(transpose_after->get_friendly_name());
         copy_runtime_info({transpose_before, reshape_before, matmul, reshape_after, transpose_after}, new_matmul);
         replace_node(transpose_after, new_matmul);
         return true;
