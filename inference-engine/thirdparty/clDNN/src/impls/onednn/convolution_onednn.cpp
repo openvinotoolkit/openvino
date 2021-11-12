@@ -47,6 +47,7 @@ protected:
 
     std::unordered_map<int, dnnl::memory> get_arguments(convolution_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        auto attrs = instance.get_node().get_onednn_primitive_attributes();
 
         {
             auto weights = instance.weights_memory(0);
@@ -58,13 +59,13 @@ protected:
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1))});
         }
 
-        if (has_zero_points(DNNL_ARG_SRC, _attrs)) {
+        if (has_zero_points(DNNL_ARG_SRC, attrs)) {
             auto a_zp = instance.activations_zero_points_memory(0);
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
         }
 
-        if (has_zero_points(DNNL_ARG_WEIGHTS, _attrs)) {
+        if (has_zero_points(DNNL_ARG_WEIGHTS, attrs)) {
             auto w_zp = instance.weights_zero_points_memory(0);
             dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
@@ -74,7 +75,7 @@ protected:
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg) {
-        auto attrs = parent::get_primitive_attributes(arg);
+        auto attrs = arg.get_onednn_primitive_attributes();
 
         if (arg.activations_zero_points_term()) {
             auto& a_zp = arg.activations_zero_points();

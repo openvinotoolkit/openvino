@@ -393,4 +393,10 @@ private:
     void run(program& p) override;
 };
 
+class add_onednn_optimization_attributes : public base_pass {
+public:
+    add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
+    void run(program& p) override;
+};
+
 }  // namespace cldnn
