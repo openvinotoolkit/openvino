@@ -1,3 +1,12 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 resources:
   repositories:
   - repository: openvino_contrib
@@ -12,6 +21,14 @@ resources:
 
 jobs:
 - job: Lin
+  strategy:
+    matrix:
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+      Static:
+        CMAKE_BUILD_SHARED_LIBS: 'OFF'
+    maxParallel: 2
+
   # About 150% of total time
   timeoutInMinutes: 90
 
@@ -117,6 +134,9 @@ jobs:
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
+        -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_CLDNN=$(CMAKE_BUILD_SHARED_LIBS)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
@@ -174,10 +194,12 @@ jobs:
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
@@ -190,6 +212,7 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph Python Bindings Tests'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
@@ -209,6 +232,7 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
     # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
@@ -226,6 +250,7 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
@@ -242,6 +267,7 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/templateFuncTests --gtest_filter=*smoke* --gtest_output=xml:TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
@@ -261,6 +287,7 @@ jobs:
       . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
     displayName: 'Python API Tests'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       . $(SETUPVARS)
