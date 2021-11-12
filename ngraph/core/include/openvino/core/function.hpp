@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -333,6 +334,8 @@ private:
     // Private runtime info which is shared across nodes and used only
     // for internal purposes.
     std::shared_ptr<SharedRTInfo> m_shared_rt_info;
+
+    mutable std::mutex m_topological_sort_mutex;
 };
 
 OPENVINO_API

@@ -285,8 +285,7 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
 
     auto order = m_topological_sorter(nodes);
 
-    static mutex cache_mutex;
-    const lock_guard<mutex> lock(cache_mutex);
+    const lock_guard<mutex> lock(m_topological_sort_mutex);
 
     // Update nodes cache and update all nodes to have shared rt info
     // which belongs to the current Function.
