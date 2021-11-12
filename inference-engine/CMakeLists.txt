@@ -63,4 +63,3 @@ elseif(WIN32)
             PATTERN speech_libs_and_demos EXCLUDE
             PATTERN .clang-format EXCLUDE)
 endif()
-
