@@ -57,7 +57,6 @@ public:
 protected:
     std::size_t m_blocksize;
     SpaceToDepthMode m_mode;
-
 };
 }  // namespace v0
 }  // namespace op
