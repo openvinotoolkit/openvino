@@ -381,14 +381,9 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
     if (_workModeIsAUTO) {
         if (!_networkFirstReady && _networkActualNeeded) {
-            for (const auto& device : _devicePriorities) {
-                auto& dev_requests = _workerRequests[device.deviceName];
-                if ((num - sum) < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-                break;
-                }
-            sum += dev_requests.size();
-            }
+            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            auto index = num % dev_requests.size();
+            request_to_share_blobs_with = dev_requests.at(index)._inferRequest;
         }
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
     }
@@ -413,15 +408,10 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
     if (_workModeIsAUTO) {
-         if (!_networkFirstReady && _networkActualNeeded) {
-            for (const auto& device : _devicePriorities) {
-                auto& dev_requests = _workerRequests[device.deviceName];
-                if ((num - sum) < dev_requests.size()) {
-                request_to_share_blobs_with = dev_requests.at(num - sum)._inferRequest;
-                break;
-                }
-            sum += dev_requests.size();
-            }
+        if (!_networkFirstReady && _networkActualNeeded) {
+            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            auto index = num % dev_requests.size();
+            request_to_share_blobs_with = dev_requests.at(index)._inferRequest;
         }
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     }
