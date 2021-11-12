@@ -346,7 +346,7 @@ void MKLDNNConcatNode::prepareParams() {
     if (canOptimizeNspc || isOptimized())
         return;
 
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& dstMemPtr = getChildEdgesAtPort(0)[0]->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
         IE_THROW() << "Destination memory didn't allocate.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
@@ -355,7 +355,7 @@ void MKLDNNConcatNode::prepareParams() {
     std::vector<memory::desc> srcs_d;
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        const auto& srcMemPtr = getParentEdgesAtPort(i)[0]->getMemoryPtr();
         if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
             auto parent = getParentEdgeAt(i)->getParent();
             IE_THROW() << "Source memory from " << parent->getName() << " didn't allocate for node "
