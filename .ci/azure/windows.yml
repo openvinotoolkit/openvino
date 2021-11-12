@@ -1,3 +1,12 @@
+trigger:
+  branches:
+    include:
+    - master
+    - releases/*
+  paths:
+    exclude:
+    - docs/*
+
 resources:
   repositories:
   - repository: openvino_contrib
@@ -151,6 +160,10 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddlepaddle_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-PaddlePaddle.xml
     displayName: 'PaddlePaddle Frontend UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
+    displayName: 'Tensorflow Frontend UT'
     continueOnError: false
 
   - script: |

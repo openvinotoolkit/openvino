@@ -28,6 +28,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
     {
       SCOPED_TIMER(first_inference_latency);
       {
+        // enables performance hint for specified device
+        ie.SetConfig({{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}}, device);
         SCOPED_TIMER(load_plugin);
         ie.GetVersions(device);
         if (isCacheEnabled) {

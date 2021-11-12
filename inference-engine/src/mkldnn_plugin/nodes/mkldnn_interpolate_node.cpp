@@ -25,6 +25,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -1604,7 +1605,7 @@ private:
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
-SizeVector getBlockND(SizeVector& shape) {
+inline SizeVector getBlockND(SizeVector& shape) {
     int shapeRank = shape.size();
     SizeVector blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
@@ -1613,7 +1614,7 @@ SizeVector getBlockND(SizeVector& shape) {
     return blockND;
 }
 // w/hw/ncw/nchw/ncdhw to ncdhw
-SizeVector to5Dim(SizeVector casesDim) {
+inline SizeVector to5Dim(SizeVector casesDim) {
     size_t caseSize = casesDim.size();
     SizeVector dim5(5, 1lu);
     dim5[4] = casesDim[caseSize - 1];
@@ -2059,7 +2060,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
     }
 }
 
-int clipCoord(int pos, int length) {
+inline int clipCoord(int pos, int length) {
     return std::max(static_cast<int>(0), std::min(pos, length - 1));
 }
 
@@ -2394,7 +2395,9 @@ void MKLDNNInterpolateNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
+            constexpr int align = 16;
+            // TODO [DS]: change to shape from memory
+            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
             continue;
         }
 

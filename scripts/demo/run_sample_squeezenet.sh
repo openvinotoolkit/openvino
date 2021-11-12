@@ -6,6 +6,7 @@
 echo -ne "\e[0;33mWARNING: If you get an error when running the sample in the Docker container, you may need to install additional packages. To do this, run the container as root (-u 0) and run install_openvino_dependencies.sh script. If you get a package-independent error, try setting additional parameters using -sample-options.\e[0m\n"
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]-$0}" )" && pwd )"
+build_dir="$HOME/inference_engine_cpp_samples_build"
 
 . "$ROOT_DIR/utils.sh"
 
@@ -14,6 +15,7 @@ usage() {
     echo
     echo "Options:"
     echo "  -help                     Print help message"
+    echo "  -b BUILD_DIR              Specify the sample build directory"
     echo "  -d DEVICE                 Specify the target device to infer on; CPU, GPU, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified"
     echo "  -sample-options OPTIONS   Specify command line arguments for the sample"
     echo
@@ -30,6 +32,10 @@ do
 key="$1"
 
 case $key in
+    -b | --build_dir)
+    build_dir="$2/inference_engine_cpp_samples_build"
+    shift
+    ;;
     -h | -help | --help)
     usage
     ;;
@@ -54,9 +60,9 @@ target_precision="FP16"
 
 echo -ne "target_precision = ${target_precision}\n"
 
-models_path="$HOME/openvino_models/models"
-models_cache="$HOME/openvino_models/cache"
-irs_path="$HOME/openvino_models/ir"
+models_path="$build_dir/../openvino_models/models"
+models_cache="$build_dir/../openvino_models/cache"
+irs_path="$build_dir/../openvino_models/ir"
 
 model_name="squeezenet1.1"
 
@@ -80,6 +86,8 @@ if [[ -f /etc/centos-release ]]; then
     DISTRO="centos"
 elif [[ -f /etc/lsb-release ]]; then
     DISTRO="ubuntu"
+elif [[ -f /etc/redhat-release ]]; then
+    DISTRO="redhat"
 fi
 
 if [[ $DISTRO == "centos" ]]; then
@@ -87,6 +95,8 @@ if [[ $DISTRO == "centos" ]]; then
     if command -v python3.6 >/dev/null 2>&1; then
         python_binary=python3.6
     fi
+elif [[ $DISTRO == "redhat" ]]; then
+    python_binary=python3
 elif [[ $DISTRO == "ubuntu" ]]; then
     python_binary=python3
 elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -126,7 +136,7 @@ fi
 echo -ne "\n###############|| Downloading the Caffe model and the prototxt ||###############\n\n"
 
 model_dir=$(omz_info_dumper --name "$model_name" |
-    python -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
+    ${python_binary} -c 'import sys, json; print(json.load(sys.stdin)[0]["subdirectory"])')
 
 print_and_run omz_downloader --name "$model_name" --output_dir "${models_path}" --cache_dir "${models_cache}"
 

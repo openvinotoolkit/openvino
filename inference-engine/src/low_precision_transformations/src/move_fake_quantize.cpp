@@ -96,10 +96,10 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
             fq_input->set_friendly_name(operation_original_name + "_" + std::to_string(i + 1));
         }
         auto newFq = fq->clone_with_new_inputs({ fq_input,
-            fq->get_input_node_shared_ptr(1),
-            fq->get_input_node_shared_ptr(2),
-            fq->get_input_node_shared_ptr(3),
-            fq->get_input_node_shared_ptr(4) });
+          fq->get_input_node_shared_ptr(1)->clone_with_new_inputs({}),
+          fq->get_input_node_shared_ptr(2)->clone_with_new_inputs({}),
+          fq->get_input_node_shared_ptr(3)->clone_with_new_inputs({}),
+          fq->get_input_node_shared_ptr(4)->clone_with_new_inputs({}) });
         newFq->set_friendly_name(fq_original_name + "_" + std::to_string(i + 1));
         fqs.push_back(newFq);
     }
