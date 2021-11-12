@@ -334,7 +334,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through(node, rc),
-        'Transpose': lambda node, rc: ReverseChannelsPropagationUp.pass_rc_through_transpose(node, rc),
+        'Transpose': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_transpose(node, rc),
     }
 
     @staticmethod
