@@ -397,7 +397,7 @@ std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const {
 
     for (const auto& graph_output : m_onnx_graph.output()) {
         const auto node_index = find_source_node_idx(m_onnx_graph, m_onnx_graph.node_size(), graph_output.name());
-        // no need to test node_index against -1 as graph output name must not be empty
+        OPENVINO_ASSERT(node_index >= 0);
         const auto& node_outputs = m_onnx_graph.node(node_index).output();
         const auto output_port_it = std::find(std::begin(node_outputs), std::end(node_outputs), graph_output.name());
         all_outputs.emplace_back(node_index, output_port_it - std::begin(node_outputs));
