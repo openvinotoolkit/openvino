@@ -25,12 +25,7 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
-#ifdef NGRAPH_UNIT_TEST_ENABLE
 class FunctionAccessor;
-#    define FUNCTION_TEST_FRIENDS friend class ov::FunctionAccessor
-#else
-#    define FUNCTION_TEST_FRIENDS
-#endif
 /// A user-defined function.
 class OPENVINO_API Function : public std::enable_shared_from_this<Function> {
 public:
@@ -44,7 +39,7 @@ public:
     OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
     static const ov::DiscreteTypeInfo type_info;
 
-    FUNCTION_TEST_FRIENDS;
+    friend class ov::FunctionAccessor;
 
     Function(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 

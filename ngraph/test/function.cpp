@@ -971,7 +971,7 @@ TEST(function, add_output_port_to_result) {
 }
 
 namespace {
-bool all_ops_have_same_info(std::shared_ptr<ov::Function> f) {
+bool all_ops_have_same_info(const std::shared_ptr<ov::Function>& f) {
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
     for (auto&& op : f->get_ordered_ops()) {
         if (std::set<std::shared_ptr<ov::SharedRTInfo>>({shared_info}) != ov::NodeAccessor(op).get_shared_info()) {

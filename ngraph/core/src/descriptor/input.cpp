@@ -50,7 +50,7 @@ void ov::descriptor::Input::replace_output(Output& new_output) {
     // so we have to reset cache by setting a flag into shared node info.
     for_each(m_node->m_shared_rt_info.cbegin(),
              m_node->m_shared_rt_info.cend(),
-             [](std::shared_ptr<SharedRTInfo> info) {
+             [](const std::shared_ptr<SharedRTInfo>& info) {
                  info->set_use_topological_cache(false);
              });
 }

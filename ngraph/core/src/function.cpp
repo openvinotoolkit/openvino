@@ -206,7 +206,7 @@ void ov::Function::prerequirements(bool detect_variables, bool detect_parameters
         check_all_variables_registered(ordered_ops, m_variables);
 
     // Initialize shared rt info for all nodes related to Function
-    for_each(ordered_ops.cbegin(), ordered_ops.cend(), [this](std::shared_ptr<ov::Node> node) {
+    for_each(ordered_ops.cbegin(), ordered_ops.cend(), [this](const std::shared_ptr<ov::Node>& node) {
         node->m_shared_rt_info.insert(m_shared_rt_info);
     });
 }
@@ -290,7 +290,7 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
     // Update nodes cache and update all nodes to have shared rt info
     // which belongs to the current Function.
     m_cached_ordered_ops.clear();
-    for_each(order.cbegin(), order.cend(), [this](shared_ptr<Node> node) {
+    for_each(order.cbegin(), order.cend(), [this](const shared_ptr<Node>& node) {
         m_cached_ordered_ops.push_back(node);
         node->m_shared_rt_info.insert(m_shared_rt_info);
     });

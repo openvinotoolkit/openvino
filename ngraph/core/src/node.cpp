@@ -72,7 +72,7 @@ ov::Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
 
 ov::Node::~Node() {
     // raise a flag to reset nodes cache
-    for_each(m_shared_rt_info.cbegin(), m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
+    for_each(m_shared_rt_info.cbegin(), m_shared_rt_info.cend(), [](const std::shared_ptr<SharedRTInfo>& info) {
         info->set_use_topological_cache(false);
     });
 

@@ -104,12 +104,7 @@ std::string node_validation_failure_loc_string(const Node* node);
     case element::Type_t::a: \
         rc = evaluate<element::Type_t::a>
 
-#ifdef NGRAPH_UNIT_TEST_ENABLE
 class NodeAccessor;
-#    define NODE_TEST_FRIENDS friend class ov::NodeAccessor
-#else
-#    define NODE_TEST_FRIENDS
-#endif
 
 /// Nodes are the backbone of the graph of Value dataflow. Every node has
 /// zero or more nodes as arguments and one value, which is either a tensor
@@ -128,7 +123,7 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
 
     friend class Function;
 
-    NODE_TEST_FRIENDS;
+    friend class ov::NodeAccessor;
 
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
