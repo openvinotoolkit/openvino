@@ -49,7 +49,7 @@ void shape_infer(GatherBase* op,
 
     std::vector<int64_t> axes_val;
     bool axis_is_set = get_data_as_int64<T>(2, op, axes_val, constant_data);
-    int64_t axis;
+    int64_t axis = 0;
 
     if (axis_is_set) {
         axis = axes_val[0];
@@ -71,7 +71,7 @@ void shape_infer(GatherBase* op,
                               axis);
 
         NODE_VALIDATION_CHECK(op,
-                              data_rank.is_dynamic(),
+                              data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
                               "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
                               axis,
                               " data_rank = ",
