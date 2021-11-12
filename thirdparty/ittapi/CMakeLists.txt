@@ -11,7 +11,7 @@ if(ENABLE_PROFILING_ITT)
             message(WARNING "Profiling option enabled, but no ITT library was found under INTEL_VTUNE_DIR")
         endif()
     else()
-        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ittapi ${CMAKE_BINARY_DIR}/_deps/ittapi)
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ittapi ${CMAKE_BINARY_DIR}/_deps/ittapi EXCLUDE_FROM_ALL)
 
         target_compile_definitions(ittnotify INTERFACE ENABLE_PROFILING_ITT)
         if(CMAKE_COMPILER_IS_GNUCXX)

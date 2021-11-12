@@ -10,12 +10,12 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-add_subdirectory(ittapi EXCLUDE_FROM_ALL)
+add_subdirectory(ittapi)
 add_subdirectory(itt_collector EXCLUDE_FROM_ALL)
 add_subdirectory(zlib EXCLUDE_FROM_ALL)
 add_subdirectory(cnpy EXCLUDE_FROM_ALL)
 if(ENABLE_CLDNN)
-    add_subdirectory(ocl EXCLUDE_FROM_ALL)
+    add_subdirectory(ocl)
 endif()
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
@@ -183,10 +183,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
         ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
         ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
 
+        # WA: create temp 'include' directory
+        file(MAKE_DIRECTORY "${BINARY_DIR}/include")
+
         add_library(onednn_gpu STATIC IMPORTED GLOBAL)
         set_target_properties(onednn_gpu PROPERTIES
             IMPORTED_LOCATION ${ONEDNN_OUTPUT_LIBRARY}
-            INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include/>;$<BUILD_INTERFACE:${SOURCE_DIR}/include/>"
+            INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include>;$<BUILD_INTERFACE:${SOURCE_DIR}/include>"
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
         add_dependencies(onednn_gpu onednn_gpu_build)
 
