@@ -49,6 +49,7 @@ public:
     }
 
 protected:
+    InferenceEngine::SizeVector kernel, stride;
     void SetUp() override {
         groupConvBackpropDataLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
@@ -73,7 +74,7 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        InferenceEngine::SizeVector dilation;
         std::vector<ptrdiff_t> padBegin, padEnd, outputPadding;
         size_t convOutChannels, numGroups;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType, outputPadding) = groupConvParams;
@@ -101,7 +102,14 @@ TEST_P(GroupDeconvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckPluginRelatedResults(executableNetwork, "Deconvolution");
+    CPUTestsBase::CheckPluginRelatedResults(executableNetwork, "Deconvolution");
+    bool isSupportedParams = stride[stride.size() - 1] <= kernel[kernel.size() - 1];
+    if (stride.size() > 1)
+        isSupportedParams &= stride[stride.size() - 2] <= kernel[kernel.size() - 2];
+    if (stride.size() > 2)
+        isSupportedParams &= stride[stride.size() - 3] <= kernel[kernel.size() - 3];
+    if (isSupportedParams)
+        CheckFusingResults(executableNetwork, "Deconvolution");
 }
 
 namespace {
