@@ -87,20 +87,6 @@ class InsertReverseChannels(BackReplacementPattern):
             if parameter.out_port(0).disconnected():
                 continue
 
-            # This code is needed to enable channel reversing optimization which fuses reversing to Convolution weights
-            # for case when we insert NHWC->NCHW transpose after Parameter node. Fusion does not propagate
-            # through transposes, so we insert ReverseChannels operation after the Transpose op.
-            if reverse_index != 1:
-                out_node = parameter.out_port(0).get_connection().get_destination().node
-                if out_node.soft_get('type') == 'Transpose':
-                    order = out_node.in_port(1).data.get_value()
-                    if order is not None and order[1] == reverse_index:
-                        # At this point layout corresponds to old API (NCHW), so the axis to reverse = 1
-                        reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels',
-                                                                   'axis': 1}).create_node()
-                        out_node.out_port(0).get_connection().insert_node(reverse_channels)
-                        continue
-
             reverse_channels = ReverseChannels(graph, {'name': name + '/reverse_input_channels',
                                                        'axis': reverse_index}).create_node()
             parameter.out_port(0).get_connection().insert_node(reverse_channels, attributes_save_mode='source')
@@ -130,7 +116,20 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         'ShapeOf': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
 
         'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through(node, rc),
+        'Transpose': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_transpose(node, rc),
     }
+
+    @staticmethod
+    def pass_rc_through_transpose(node: Node, reverse_channels: Node):
+        if node.in_port(1).disconnected():
+            return False
+        order = node.in_port(1).data.get_value()
+        reverse_axis = reverse_channels.axis
+        if order is None:
+            return False
+        new_axis = list(order).index(reverse_axis)
+        reverse_channels.axis = new_axis
+        return ReverseChannelsPropagationDown.pass_rc_through(node, reverse_channels)
 
     @staticmethod
     def pass_rc_through(node: Node, reverse_channels: Node):
@@ -329,11 +328,24 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'Subtract': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
-        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_pad(node, rc),
+        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through(node, rc),
+        'Transpose': lambda node, rc: ReverseChannelsPropagationUp.pass_rc_through_transpose(node, rc),
     }
 
     @staticmethod
-    def lift_up_through_pad(node: Node, reverse_channels: Node):
+    def lift_up_through_transpose(node: Node, reverse_channels: Node):
+        if node.in_port(1).disconnected():
+            return False
+        order = node.in_port(1).data.get_value()
+        reverse_axis = reverse_channels.axis
+        if order is None:
+            return False
+        new_axis = order[reverse_axis]
+        reverse_channels.axis = new_axis
+        return ReverseChannelsPropagationUp.lift_up_through(node, reverse_channels)
+
+    @staticmethod
+    def lift_up_through(node: Node, reverse_channels: Node):
         r"""
         BEFORE                       AFTER
 
@@ -341,7 +353,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
                                           \
         previous_op  previous_op       ReverseChannels  previous_op
                  \     /                           \     /
-                   Pad                              Pad
+                   Node                              Node
                     |                                |
               ReverseChannels                      next_op
                     |
@@ -357,7 +369,16 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             reverse_channels.out_port(0).disconnect()
             reverse_channels.in_port(0).disconnect()
             src = node_input_port_0.get_connection().get_source()
-            node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
+
+            if src.node.soft_get('type') == 'Parameter':
+                # For Parameter nodes tensor debug attributes should not move to the last node
+                # of subgraph. It is needed for the proper mapping of input framework name.
+                # For this reason "source" mode is used to keep tensor debug attributes at Parameter node.
+                node_input_port_0.get_connection().set_source(reverse_channels.out_port(0),
+                                                              attributes_save_mode="source")
+            else:
+                node_input_port_0.get_connection().set_source(reverse_channels.out_port(0))
+
             src.connect(reverse_channels.in_port(0))
             for reverse_channels_destination in reverse_channels_out_nodes:
                 node.out_port(0).get_connection().add_destination(reverse_channels_destination)
