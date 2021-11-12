@@ -805,8 +805,14 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
 
     ov::runtime::TensorVector output_tensors;
     for (const auto& output : outputs()) {
-        auto host_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape());
-        output_tensors.emplace_back(host_tensor);
+        if (output.get_partial_shape().is_dynamic() || output.get_element_type().is_dynamic() ||
+            output.get_partial_shape().rank().is_dynamic()) {
+            auto host_tensor = ov::runtime::Tensor();
+            output_tensors.emplace_back(host_tensor);
+        } else {
+            auto host_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape());
+            output_tensors.emplace_back(host_tensor);
+        }
     }
 
     if (evaluate(output_tensors, input_tensors)) {
