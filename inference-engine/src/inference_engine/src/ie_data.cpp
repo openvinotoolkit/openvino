@@ -133,7 +133,13 @@ void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
     if (dims.is_static()) {
         reshape(SizeVector(dims.to_shape()), layout);
     } else {
-        tensorDesc = TensorDesc(tensorDesc.getPrecision(), layout);
+        SizeVector d;
+        if (dims.rank().is_static()) {
+            d = SizeVector(dims.rank().get_length(), 0);
+        } else {
+            d = SizeVector{0};
+        }
+        tensorDesc = TensorDesc(tensorDesc.getPrecision(), d, layout);
         _impl->pShape = dims;
     }
 }

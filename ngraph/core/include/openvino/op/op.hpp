@@ -31,7 +31,8 @@ protected:
 
 public:
     static const ::ov::Node::type_info_t& get_type_info_static() {
-        static const ::ov::Node::type_info_t info{"Op", 0, "util"};
+        static ::ov::Node::type_info_t info{"Op", 0, "util"};
+        info.hash();
         return info;
     }
     const ::ov::Node::type_info_t& get_type_info() const override {

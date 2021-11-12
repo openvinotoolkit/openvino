@@ -18,6 +18,7 @@
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/shape.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -29,6 +30,9 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
                                            const ngraph::Output<ngraph::Node>& pads_begin,
                                            const ngraph::Output<ngraph::Node>& pads_end)
     : Op({data, block_shape, pads_begin, pads_end}) {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
+    ov::mark_as_precision_sensitive(input(3));
     constructor_validate_and_infer_types();
 }
 
