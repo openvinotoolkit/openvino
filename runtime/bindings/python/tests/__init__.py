@@ -24,6 +24,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
+xfail_issue_FLOAT_LIKE = xfail_test(reason="Use of bfloat16 or float16")
 xfail_issue_69444 = xfail_test(reason="failed with accuracy issue")
 xfail_issue_69443 = xfail_test(reason="Error in ref. implementation due to the empty pads_begin, pads_end")
 skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
@@ -141,3 +142,4 @@ xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElemen
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")
 xfail_issue_54663 = xfail_test(reason="Disabled until MaxPool-8 is supported on CPU")
+xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")

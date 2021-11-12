@@ -14,6 +14,8 @@
 #include <string>
 #include "Python.h"
 #include "ie_common.h"
+#include "openvino/runtime/tensor.hpp"
+#include "pyopenvino/core/containers.hpp"
 
 namespace py = pybind11;
 
@@ -47,6 +49,12 @@ namespace Common
     bool is_TBlob(const py::handle& blob);
 
     const std::shared_ptr<InferenceEngine::Blob> cast_to_blob(const py::handle& blob);
+
+    const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs);
+
+    const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
+
+    const ov::runtime::Tensor& cast_to_tensor(const py::handle& tensor);
 
     void blob_from_numpy(const py::handle& _arr, InferenceEngine::Blob::Ptr &blob);
 

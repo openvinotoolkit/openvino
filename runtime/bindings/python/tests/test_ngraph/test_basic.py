@@ -17,8 +17,6 @@ from openvino.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
-from tests import skip_issue_67415
-
 
 def test_ngraph_function_api():
     shape = [2, 2]
@@ -35,6 +33,12 @@ def test_ngraph_function_api():
     assert op_types == ["Parameter", "Parameter", "Parameter", "Add", "Multiply", "Result"]
     assert len(function.get_ops()) == 6
     assert function.get_output_size() == 1
+    assert ["A", "B", "C"] == [input.get_node().friendly_name for input in function.inputs]
+    assert ["Result"] == [output.get_node().get_type_name() for output in function.outputs]
+    assert function.input(0).get_node().friendly_name == "A"
+    assert function.output(0).get_node().get_type_name() == "Result"
+    assert function.input(tensor_name="A").get_node().friendly_name == "A"
+    assert function.output().get_node().get_type_name() == "Result"
     assert function.get_output_op(0).get_type_name() == "Result"
     assert function.get_output_element_type(0) == parameter_a.get_element_type()
     assert list(function.get_output_shape(0)) == [2, 2]
@@ -48,7 +52,7 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        pytest.param(np.float64, marks=skip_issue_67415),
+        np.float64,
         np.int8,
         np.int16,
         np.int32,
@@ -173,7 +177,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
 )
 def test_convert_to_int(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16)).astype(np.float32)
+    input_data = (np.ceil(-8 + np.random.rand(2, 3, 4) * 16)).astype(expected_type)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ops.convert, destination_type)
     assert np.allclose(result, expected)
@@ -195,7 +199,7 @@ def test_convert_to_int(destination_type, expected_type):
 )
 def test_convert_to_uint(destination_type, expected_type):
     np.random.seed(133391)
-    input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(np.float32)
+    input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(expected_type)
     expected = np.array(input_data, dtype=expected_type)
     result = run_op_node([input_data], ops.convert, destination_type)
     assert np.allclose(result, expected)

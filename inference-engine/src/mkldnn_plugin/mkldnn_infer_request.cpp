@@ -305,7 +305,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                                                                                                          desc.getShape().getRank()))
                                                                    : MemoryDescUtils::convertToTensorDesc(desc);
                         const auto &tensorDesc = data->getTensorDesc();
-                        if (expectedTensorDesc.getPrecision() != tensorDesc.getPrecision()) {
+                        if (expectedTensorDesc.getPrecision() != normalizeToSupportedPrecision(tensorDesc.getPrecision())) {
                             IE_THROW(ParameterMismatch)
                                     << "Network input and output use the same name: " << name << " but expect blobs with different precision: "
                                     << tensorDesc.getPrecision() << " for input and " << expectedTensorDesc.getPrecision()

@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
 #include "pyopenvino/graph/function.hpp"
@@ -14,6 +15,16 @@
 namespace py = pybind11;
 
 static const char* CAPSULE_NAME = "ngraph_function";
+
+void set_tensor_names(const ov::ParameterVector& parameters) {
+    for (const auto& param : parameters) {
+        ov::Output<ov::Node> p = param;
+        if (p.get_node()->output(0).get_names().empty()) {
+            std::unordered_set<std::string> p_names({p.get_node()->get_friendly_name()});
+            p.get_node()->output(0).set_names(p_names);
+        }
+    }
+}
 
 void regclass_graph_Function(py::module m) {
     py::class_<ov::Function, std::shared_ptr<ov::Function>> function(m, "Function", py::module_local());
@@ -53,12 +64,15 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init<const std::vector<std::shared_ptr<ov::Node>>&,
-                          const std::vector<std::shared_ptr<ov::op::v0::Parameter>>&,
-                          const std::string&>(),
+    function.def(py::init([](const std::vector<std::shared_ptr<ov::Node>>& results,
+                             const ov::ParameterVector& parameters,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     return std::make_shared<ov::Function>(results, parameters, name);
+                 }),
                  py::arg("results"),
                  py::arg("parameters"),
-                 py::arg("name"),
+                 py::arg("name") = "",
                  R"(
                     Create user-defined Function which is a representation of a model.
 
@@ -74,12 +88,15 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init<const std::shared_ptr<ov::Node>&,
-                          const std::vector<std::shared_ptr<ov::op::v0::Parameter>>&,
-                          const std::string&>(),
+    function.def(py::init([](const std::shared_ptr<ov::Node>& results,
+                             const ov::ParameterVector& parameters,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     return std::make_shared<ov::Function>(results, parameters, name);
+                 }),
                  py::arg("result"),
                  py::arg("parameters"),
-                 py::arg("name"),
+                 py::arg("name") = "",
                  R"(
                     Create user-defined Function which is a representation of a model.
 
@@ -94,6 +111,41 @@ void regclass_graph_Function(py::module m) {
                     name : str
                         String to set as function's friendly name.
                  )");
+
+    function.def(
+        "reshape",
+        [](ov::Function& self, const std::map<std::string, ov::PartialShape>& partial_shapes) {
+            self.reshape(partial_shapes);
+        },
+        py::arg("partial_shapes"),
+        R"(
+                Parameters
+                ----------
+                partial_shapes : Dict[string, PartialShape]
+                    Index of Output.
+
+                Returns
+                ----------
+                reshape : void
+             )");
+
+    function.def(
+        "reshape",
+        [](ov::Function& self, const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
+            self.reshape(partial_shapes);
+        },
+        py::arg("partial_shapes"),
+        R"(
+                Parameters
+                ----------
+                partial_shapes : Dict[Output, PartialShape]
+                    Index of Output.
+
+                Returns
+                ----------
+                reshape : void
+             )");
+
     function.def("get_output_size",
                  &ov::Function::get_output_size,
                  R"(
@@ -264,6 +316,42 @@ void regclass_graph_Function(py::module m) {
                     ----------
                     is_dynamic : bool
                  )");
+    function.def("input", (ov::Output<ov::Node>(ov::Function::*)()) & ov::Function::input);
+
+    function.def("input", (ov::Output<ov::Node>(ov::Function::*)(size_t)) & ov::Function::input, py::arg("i"));
+
+    function.def("input",
+                 (ov::Output<ov::Node>(ov::Function::*)(const std::string&)) & ov::Function::input,
+                 py::arg("tensor_name"));
+
+    function.def("input", (ov::Output<const ov::Node>(ov::Function::*)() const) & ov::Function::input);
+
+    function.def("input",
+                 (ov::Output<const ov::Node>(ov::Function::*)(size_t) const) & ov::Function::input,
+                 py::arg("i"));
+
+    function.def("input",
+                 (ov::Output<const ov::Node>(ov::Function::*)(const std::string&) const) & ov::Function::input,
+                 py::arg("tensor_name"));
+
+    function.def("output", (ov::Output<ov::Node>(ov::Function::*)()) & ov::Function::output);
+
+    function.def("output", (ov::Output<ov::Node>(ov::Function::*)(size_t)) & ov::Function::output, py::arg("i"));
+
+    function.def("output",
+                 (ov::Output<ov::Node>(ov::Function::*)(const std::string&)) & ov::Function::output,
+                 py::arg("tensor_name"));
+
+    function.def("output", (ov::Output<const ov::Node>(ov::Function::*)() const) & ov::Function::output);
+
+    function.def("output",
+                 (ov::Output<const ov::Node>(ov::Function::*)(size_t) const) & ov::Function::output,
+                 py::arg("i"));
+
+    function.def("output",
+                 (ov::Output<const ov::Node>(ov::Function::*)(const std::string&) const) & ov::Function::output,
+                 py::arg("tensor_name"));
+
     function.def("__repr__", [](const ov::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::stringstream shapes_ss;
@@ -309,6 +397,16 @@ void regclass_graph_Function(py::module m) {
         return pybind_capsule;
     });
 
+    function.def_property_readonly("inputs",
+                                   (std::vector<ov::Output<ov::Node>>(ov::Function::*)()) & ov::Function::inputs);
+    function.def_property_readonly(
+        "inputs",
+        (std::vector<ov::Output<const ov::Node>>(ov::Function::*)() const) & ov::Function::inputs);
+    function.def_property_readonly("outputs",
+                                   (std::vector<ov::Output<ov::Node>>(ov::Function::*)()) & ov::Function::outputs);
+    function.def_property_readonly(
+        "outputs",
+        (std::vector<ov::Output<const ov::Node>>(ov::Function::*)() const) & ov::Function::outputs);
     function.def_property_readonly("name", &ov::Function::get_name);
     function.def_property("friendly_name", &ov::Function::get_friendly_name, &ov::Function::set_friendly_name);
 }
