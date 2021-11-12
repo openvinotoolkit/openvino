@@ -67,7 +67,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-#ifdef NGRAPH_ONNX_FRONTEND_ENABLE
+#ifdef OV_ONNX_FRONTEND_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     const std::string model = CommonTestUtils::getModelFromTestModelZoo(

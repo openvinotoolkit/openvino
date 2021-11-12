@@ -17,11 +17,11 @@ if(ENABLE_MULTI)
 endif()
 
 # remove once CVS-69781 is fixed
-if(NGRAPH_IR_FRONTEND_ENABLE)
-    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+if(OV_IR_FRONTEND_ENABLE)
+    list(APPEND DEPENDENCIES ov_ir_frontend)
 endif()
 
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
+if (OV_ONNX_FRONTEND_ENABLE)
     list(APPEND DEPENDENCIES test_model_zoo)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}/func_tests/models/")
 else()
@@ -46,7 +46,7 @@ addIeTarget(
             PUBLIC
                 pugixml::static
                 funcTestUtils
-                ngraph_test_util
+                ov_core_test_util
                 ngraphFunctions
                 lptNgraphFunctions
                 sharedTestClasses

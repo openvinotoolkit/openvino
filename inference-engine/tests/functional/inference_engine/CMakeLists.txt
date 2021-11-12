@@ -32,8 +32,8 @@ set(DEPENDENCIES
     test_model_zoo
 )
 
-if(NGRAPH_IR_FRONTEND_ENABLE)
-    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+if(OV_IR_FRONTEND_ENABLE)
+    list(APPEND DEPENDENCIES ov_ir_frontend)
 endif()
 
 if(ENABLE_IR_V7_READER)
@@ -48,11 +48,11 @@ if(ENABLE_MULTI)
     list(APPEND DEPENDENCIES MultiDevicePlugin)
 endif()
 
-if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
+if (NOT OV_ONNX_FRONTEND_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT NGRAPH_PDPD_FRONTEND_ENABLE)
+if (NOT OV_PDPD_FRONTEND_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader")
 endif()
 
@@ -70,17 +70,17 @@ addIeTargetTest(
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(OV_ONNX_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
-        NGRAPH_ONNX_FRONTEND_ENABLE
+        OV_ONNX_FRONTEND_ENABLE
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
-    add_dependencies(${TARGET_NAME} onnx_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} ov_onnx_frontend)
 endif()
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE)
+if(OV_PDPD_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} ov_paddlepaddle_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -127,7 +127,7 @@ function(ie_headers_compilation_with_custom_flags)
             "${OpenVINO_SOURCE_DIR}/inference-engine/src/plugin_api/")
     else()
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/ngraph/core/include"
+            "${OpenVINO_SOURCE_DIR}/runtime/core/include"
             "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie"
             "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/")
     endif()
@@ -194,7 +194,7 @@ function(ie_headers_compilation_with_custom_flags)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # ngraph, pugixml::static, openvino::itt, inference_engine_preproc headers
+        # pugixml::static, openvino::itt, inference_engine_preproc headers
         target_include_directories(${target_name} SYSTEM PRIVATE
             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)

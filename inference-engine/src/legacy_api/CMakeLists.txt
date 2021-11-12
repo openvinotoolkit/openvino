@@ -42,10 +42,10 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:openvino::core,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
@@ -62,7 +62,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                      PRIVATE pugixml::static openvino::itt
-                                             ngraph inference_engine_transformations)
+                                             openvino::core inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)

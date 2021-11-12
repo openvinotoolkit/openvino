@@ -24,7 +24,7 @@ file (GLOB LIBRARY_SRC
 
 # Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/ie_core.cpp
-                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+                    APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/runtime/core/src/")
 
 # TODO: WA for OneHot pass usage in reshape
 set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
@@ -130,10 +130,10 @@ ie_faster_build(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                      $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:openvino::core,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -167,7 +167,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_F
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
-                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Core Runtime library")
@@ -180,7 +180,7 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
                                              frontend_manager::static inference_engine_transformations
-                                     PUBLIC ngraph)
+                                     PUBLIC openvino::core)
 
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
@@ -221,7 +221,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} openvino::core
     frontend_manager::static inference_engine_preproc_s inference_engine_transformations pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
@@ -246,8 +246,7 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # install TBB
 
-list(APPEND core_components ngraph)
-list(APPEND PATH_VARS "IE_INCLUDE_DIR" "IE_NGRAPH_DIR"
+list(APPEND PATH_VARS "IE_INCLUDE_DIR" "OV_CORE_DIR"
                       "IE_PARALLEL_CMAKE")
 
 # define variables for InferenceEngineConfig.cmake
@@ -306,7 +305,7 @@ endif()
 # Install Inference Engine
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
-ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
+ie_cpack_add_component(core_dev REQUIRED core)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
@@ -347,7 +346,7 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
-set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
+set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/runtime/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
@@ -362,7 +361,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
                               PATH_VARS ${PATH_VARS})
 
 set(IE_INCLUDE_DIR "include/ie")
-set(IE_NGRAPH_DIR ".")
+set(OV_CORE_DIR ".")
 set(IE_TBB_DIR "${IE_TBB_DIR_INSTALL}")
 set(IE_TBBBIND_DIR "${IE_TBBBIND_DIR_INSTALL}")
 set(IE_PARALLEL_CMAKE "cmake/ie_parallel.cmake")

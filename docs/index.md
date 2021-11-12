@@ -22,7 +22,7 @@ You can use your framework of choice to prepare and train a deep learning model 
 Several of these pre-trained models are used also in the [code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader) tool is used.
 
 One of the core component of the OpenVINO™ toolkit is the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) a cross-platform command-line
-tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
+tool that converts a trained neural network from its source framework to an open-source, OpenVINO graph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
 ![](img/OV-diagram-step2.png)
 
 If your neural network model contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process through use of  [Custom Layers](HOWTO/Custom_Layers_Guide.md).

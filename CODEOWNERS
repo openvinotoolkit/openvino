@@ -64,7 +64,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
 
 # nGraph:
-/ngraph/  @openvinotoolkit/openvino-ngraph-maintainers
+/runtime/core       @openvinotoolkit/openvino-ngraph-maintainers
+/runtime/frontends  @openvinotoolkit/openvino-ngraph-maintainers
 
 # POT Tools
 /tools/pot/  @openvinotoolkit/openvino-pot-maintainers

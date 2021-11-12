@@ -32,7 +32,7 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/ngraph/ngraphTargets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/runtime/coreTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 foreach(component IN LISTS openvino_export_components)
@@ -76,15 +76,14 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
-ie_cpack_add_component(ngraph REQUIRED)
-ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
+ie_cpack_add_component(core REQUIRED)
+ie_cpack_add_component(core_dev REQUIRED DEPENDS core)
 
 # add target with processed tests model zoo
 include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
-add_subdirectory(ngraph)
 add_subdirectory(inference-engine)
 add_subdirectory(runtime)
 include(cmake/extra_modules.cmake)

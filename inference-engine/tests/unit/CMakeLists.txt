@@ -24,6 +24,6 @@ if (ENABLE_MYRIAD)
     add_subdirectory(vpu)
 endif ()
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(OV_ONNX_FRONTEND_ENABLE)
     add_subdirectory(frontends/onnx_import)
 endif()

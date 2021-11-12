@@ -7,7 +7,7 @@
 #------------------------------------------------------------------------------
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
+set(OV_ONNX_NAMESPACE ov_onnx)
 set(BUILD_SHARED_LIBS OFF)
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
@@ -22,8 +22,8 @@ macro(onnx_set_target_properties)
 endmacro()
 
 set(ONNX_USE_PROTOBUF_SHARED_LIBS ${BUILD_SHARED_LIBS} CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
-set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
-set(ONNX_USE_LITE_PROTO ${NGRAPH_USE_PROTOBUF_LITE} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
+set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
+set(ONNX_USE_LITE_PROTO ${OV_USE_PROTOBUF_LITE} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
 if(CMAKE_CROSSCOMPILING)
     set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})

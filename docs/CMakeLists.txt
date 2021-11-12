@@ -17,7 +17,7 @@ if(NOT ENABLE_DOCKER)
         set(OpenVINO_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    if(NGRAPH_ONNX_FRONTEND_ENABLE)
+    if(OV_ONNX_FRONTEND_ENABLE)
         add_subdirectory(onnx_custom_op)
     endif()
     add_subdirectory(template_extension)
@@ -69,9 +69,9 @@ function(build_docs)
     set(PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
-    set(NGRAPH_DIR "${OpenVINO_SOURCE_DIR}/ngraph")
-    set(NGRAPH_PY_DIR "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/src/compatibility/ngraph/")
-    set(NGRAPH_CPP_DIR "${NGRAPH_DIR}/core/include/" "${NGRAPH_DIR}/frontend/onnx_import/include")
+    set(CORE_DIR "${OpenVINO_SOURCE_DIR}/runtime/core")
+    set(FRONTENDS_DIR "${OpenVINO_SOURCE_DIR}/runtime/frontends")
+    set(OV_GRAPH_OLD_PY_DIR "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/src/compatibility/ngraph/")
 
     # Preprocessing scripts
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
@@ -106,30 +106,30 @@ function(build_docs)
 
     configure_file(${PYTHON_API_IN} ${PYTHON_API_OUT} @ONLY)
 
-    set(NGRAPH_CPP_CONFIG_SOURCE "${DOXYGEN_DIR}/ngraph_cpp_api.config")
-    set(NGRAPH_PY_CONFIG_SOURCE "${DOXYGEN_DIR}/ngraph_py_api.config")
+    set(OV_CORE_CPP_CONFIG_SOURCE "${DOXYGEN_DIR}/ov_core_cpp_api.config")
+    set(OV_CORE_PY_CONFIG_SOURCE "${DOXYGEN_DIR}/ov_core_py_api.config")
     set(IE_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_docs.config")
     set(C_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_c_api.config")
     set(PY_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_py_api.config")
     set(PLUGIN_CONFIG_SOURCE "${DOXYGEN_DIR}/ie_plugin_api.config")
 
-    set(NGRAPH_CPP_CONFIG_BUILD "${DOCS_BUILD_DIR}/ngraph_cpp_api.config")
-    set(NGRAPH_PY_CONFIG_BUILD "${DOCS_BUILD_DIR}/ngraph_py_api.config")
+    set(OV_CORE_CPP_CONFIG_BUILD "${DOCS_BUILD_DIR}/ov_core_cpp_api.config")
+    set(OV_CORE_PY_CONFIG_BUILD "${DOCS_BUILD_DIR}/ov_core_py_api.config")
     set(IE_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_docs.config")
     set(C_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_c_api.config")
     set(PY_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_py_api.config")
     set(PLUGIN_CONFIG_BUILD "${DOCS_BUILD_DIR}/ie_plugin_api.config")
 
-    set(NGRAPH_CPP_LAYOUT_SOURCE "${DOXYGEN_DIR}/ngraph_cpp_api.xml")
-    set(NGRAPH_PY_LAYOUT_SOURCE "${DOXYGEN_DIR}/ngraph_py_api.xml")
+    set(OV_CORE_CPP_LAYOUT_SOURCE "${DOXYGEN_DIR}/ov_core_cpp_api.xml")
+    set(OV_CORE_PY_LAYOUT_SOURCE "${DOXYGEN_DIR}/ov_core_py_api.xml")
     set(IE_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_docs.xml")
     set(OPENVINO_LAYOUT_SOURCE "${DOXYGEN_DIR}/openvino_docs.xml")
     set(C_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_c_api.xml")
     set(PY_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_py_api.xml")
     set(PLUGIN_LAYOUT_SOURCE "${DOXYGEN_DIR}/ie_plugin_api.xml")
 
-    set(NGRAPH_CPP_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ngraph_cpp_api.xml")
-    set(NGRAPH_PY_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ngraph_py_api.xml")
+    set(OV_CORE_CPP_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ov_core_cpp_api.xml")
+    set(OV_CORE_PY_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ov_core_py_api.xml")
     set(IE_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_docs.xml")
     set(OPENVINO_LAYOUT_BUILD "${DOCS_BUILD_DIR}/openvino_docs.xml")
     set(C_LAYOUT_BUILD "${DOCS_BUILD_DIR}/ie_c_api.xml")
@@ -142,12 +142,12 @@ function(build_docs)
     set(C_OUTPUT "${OUTPUT_DIRECTORY}/ie_c_api")
     set(PY_OUTPUT "${OUTPUT_DIRECTORY}/ie_python_api")
     set(PLUGIN_OUTPUT "${OUTPUT_DIRECTORY}/ie_plugin_api")
-    set(NGRAPH_CPP_OUTPUT "${OUTPUT_DIRECTORY}/ngraph_cpp_api")
-    set(NGRAPH_PY_OUTPUT "${OUTPUT_DIRECTORY}/ngraph_python_api")
+    set(OV_CORE_CPP_OUTPUT "${OUTPUT_DIRECTORY}/ov_core_cpp_api")
+    set(OV_CORE_PY_OUTPUT "${OUTPUT_DIRECTORY}/ov_core_python_api")
 
     # Tables of contents
-    configure_file(${NGRAPH_CPP_LAYOUT_SOURCE} ${NGRAPH_CPP_LAYOUT_BUILD} @ONLY)
-    configure_file(${NGRAPH_PY_LAYOUT_SOURCE} ${NGRAPH_PY_LAYOUT_BUILD} @ONLY)
+    configure_file(${OV_CORE_CPP_LAYOUT_SOURCE} ${OV_CORE_CPP_LAYOUT_BUILD} @ONLY)
+    configure_file(${OV_CORE_PY_LAYOUT_SOURCE} ${OV_CORE_PY_LAYOUT_BUILD} @ONLY)
     configure_file(${IE_LAYOUT_SOURCE} ${IE_LAYOUT_BUILD} @ONLY)
     configure_file(${OPENVINO_LAYOUT_SOURCE} ${OPENVINO_LAYOUT_BUILD} @ONLY)
     configure_file(${C_LAYOUT_SOURCE} ${C_LAYOUT_BUILD} @ONLY)
@@ -155,8 +155,8 @@ function(build_docs)
     configure_file(${PLUGIN_LAYOUT_SOURCE} ${PLUGIN_LAYOUT_BUILD} @ONLY)
 
     # Doxygen config files
-    configure_file(${NGRAPH_CPP_CONFIG_SOURCE} ${NGRAPH_CPP_CONFIG_BUILD} @ONLY)
-    configure_file(${NGRAPH_PY_CONFIG_SOURCE} ${NGRAPH_PY_CONFIG_BUILD} @ONLY)
+    configure_file(${OV_CORE_CPP_CONFIG_SOURCE} ${OV_CORE_CPP_CONFIG_BUILD} @ONLY)
+    configure_file(${OV_CORE_PY_CONFIG_SOURCE} ${OV_CORE_PY_CONFIG_BUILD} @ONLY)
     configure_file(${IE_CONFIG_SOURCE} ${IE_CONFIG_BUILD} @ONLY)
     configure_file(${C_CONFIG_SOURCE} ${C_CONFIG_BUILD} @ONLY)
     configure_file(${PY_CONFIG_SOURCE} ${PY_CONFIG_BUILD} @ONLY)
@@ -166,19 +166,17 @@ function(build_docs)
     set(DOXY_MD_FILTER "${DOXYGEN_DIR}/doxy_md_filter.py")
     set(PYX_FILTER "${DOXYGEN_DIR}/pyx_filter.py")
 
-    # nGraph C++ API
-
-    add_custom_target(ngraph_cpp_api
-                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${NGRAPH_CPP_OUTPUT}/assets
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${NGRAPH_CPP_CONFIG_BUILD}
+    # OpenVINO Core C++ API
+    add_custom_target(core_cpp_api
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${OV_CORE_CPP_OUTPUT}/assets
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${OV_CORE_CPP_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
 
     # nGraph Python API
-
     add_custom_target(ngraph_py_api
-                      COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${NGRAPH_PY_OUTPUT}/assets
-                      COMMAND ${DOXYGEN_EXECUTABLE} ${NGRAPH_PY_CONFIG_BUILD}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${OV_CORE_PY_OUTPUT}/assets
+                      COMMAND ${DOXYGEN_EXECUTABLE} ${OV_CORE_PY_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
                       VERBATIM)
 
@@ -321,7 +319,7 @@ function(build_docs)
     # IE dev guide and C++ API
 
     add_custom_target(ie_docs
-                      DEPENDS ngraph_cpp_api preprocess_docs
+                      DEPENDS core_cpp_api preprocess_docs
                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${IE_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${IE_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
@@ -330,7 +328,7 @@ function(build_docs)
     # Plugin API
 
     add_custom_target(plugin_api
-                      DEPENDS ngraph_cpp_api ie_docs
+                      DEPENDS core_cpp_api ie_docs
                       COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} ${PLUGIN_OUTPUT}/assets
                       COMMAND ${DOXYGEN_EXECUTABLE} ${PLUGIN_CONFIG_BUILD}
                       WORKING_DIRECTORY ${DOCS_BUILD_DIR}
@@ -340,12 +338,12 @@ function(build_docs)
     # Umbrella OpenVINO target
 
     add_custom_target(openvino_docs
-                      DEPENDS ngraph_cpp_api ngraph_py_api c_api py_api ie_docs plugin_api
+                      DEPENDS core_cpp_api ngraph_py_api c_api py_api ie_docs plugin_api
                       COMMENT "Generating OpenVINO documentation"
                       VERBATIM)
 
     set_target_properties(openvino_docs ie_docs c_api py_api preprocess_docs plugin_api
-                          ngraph_py_api ngraph_cpp_api
+                          ngraph_py_api core_cpp_api
                           PROPERTIES FOLDER docs)
 
     add_custom_command(TARGET openvino_docs

@@ -14,7 +14,7 @@ addIeTargetTest(
         LINK_LIBRARIES
             PRIVATE
                 funcTestUtils
-                ngraph
+                openvino::core
                 pugixml::static
         ADD_CPPLINT
 )

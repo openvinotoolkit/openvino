@@ -66,7 +66,7 @@ RUN cmake .. \
     -DENABLE_SAMPLES=OFF \
     -DENABLE_PYTHON=ON \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-    -DNGRAPH_ONNX_FRONTEND_ENABLE=ON \
+    -DOV_ONNX_FRONTEND_ENABLE=ON \
     -DOPENVINO_DEBUG_ENABLE=OFF \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
 RUN make -j $(nproc) install

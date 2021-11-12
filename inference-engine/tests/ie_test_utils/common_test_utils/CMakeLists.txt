@@ -15,11 +15,11 @@ function(add_common_utils ADD_TARGET_NAME)
                 inference_engine_tests
             LINK_LIBRARIES
                 PUBLIC
-                    ngraph
+                    openvino::core
                     gtest
                     gtest_main
                     inference_engine_transformations
-                    ngraph_test_util
+                    ov_core_test_util
                 PRIVATE
                     openvino::util
     )

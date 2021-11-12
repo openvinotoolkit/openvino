@@ -43,8 +43,8 @@ def get_lib_path(lib_name):
             'Windows': Path('runtime/bin/intel64/Release/MKLDNNPlugin.dll'),
             'Linux': Path('runtime/lib/intel64/libMKLDNNPlugin.so')},
         'ngraph': {
-            'Windows': Path('runtime/bin/intel64/Release/ngraph.dll'),
-            'Linux': Path('runtime/lib/intel64/libngraph.so')}
+            'Windows': Path('runtime/bin/intel64/Release/ov_core.dll'),
+            'Linux': Path('runtime/lib/intel64/libov_core.so')}
                 }
     return all_libs[lib_name][os_name]
 

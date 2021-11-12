@@ -16,7 +16,7 @@ set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 add_subdirectory(src)
 
-if(NGRAPH_UNIT_TEST_ENABLE)
+if(OV_CORE_UNIT_TEST_ENABLE)
     add_subdirectory(tests/mock/mock_py_ngraph_frontend)
     add_dependencies(_pyngraph mock_py_ngraph_frontend)
     set_target_properties(mock_py_ngraph_frontend PROPERTIES

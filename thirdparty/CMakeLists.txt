@@ -68,7 +68,7 @@ openvino_developer_export_targets(COMPONENT openvino_common TARGETS gflags)
 # Google Tests framework
 #
 
-if(NGRAPH_UNIT_TEST_ENABLE OR ENABLE_TESTS)
+if(OV_CORE_UNIT_TEST_ENABLE OR ENABLE_TESTS)
     add_subdirectory(gtest EXCLUDE_FROM_ALL)
 
     openvino_developer_export_targets(COMPONENT inference_engine_tests
@@ -79,8 +79,8 @@ endif()
 # Protobuf
 #
 
-if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONTEND_ENABLE)
-    if(NGRAPH_USE_SYSTEM_PROTOBUF)
+if(OV_PDPD_FRONTEND_ENABLE OR OV_ONNX_FRONTEND_ENABLE OR OV_TF_FRONTEND_ENABLE)
+    if(OV_USE_SYSTEM_PROTOBUF)
         set(Protobuf_USE_STATIC_LIBS ON)
         if(VERBOSE_BUILD)
             set(Protobuf_DEBUG ON)
@@ -106,7 +106,7 @@ if(NGRAPH_PDPD_FRONTEND_ENABLE OR NGRAPH_ONNX_FRONTEND_ENABLE OR NGRAPH_TF_FRONT
     # set public / interface compile options
     foreach(target IN LISTS Protobuf_LITE_LIBRARIES)
         set(link_type PUBLIC)
-        if(NGRAPH_USE_SYSTEM_PROTOBUF)
+        if(OV_USE_SYSTEM_PROTOBUF)
             set(link_type INTERFACE)
         endif()
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
@@ -119,7 +119,7 @@ endif()
 # ONNX
 #
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
+if(OV_ONNX_FRONTEND_ENABLE)
     add_subdirectory(onnx)
 endif()
 

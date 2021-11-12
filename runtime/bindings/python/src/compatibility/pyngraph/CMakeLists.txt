@@ -56,8 +56,8 @@ target_include_directories(_${PROJECT_NAME} PRIVATE "../")
 
 target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::core openvino::frontend::manager)
 
-if(TARGET onnx_ngraph_frontend)
-    add_dependencies(_${PROJECT_NAME} onnx_ngraph_frontend)
+if(TARGET ov_onnx_frontend)
+    add_dependencies(_${PROJECT_NAME} ov_onnx_frontend)
 endif()
 
 

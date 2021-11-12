@@ -22,7 +22,7 @@ OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../..
 # Change current working directory to runtime/bindings/python
 os.chdir(PYTHON_API_ROOT_DIR)
 
-NGRAPH_LIBS = ["ngraph", "onnx_ngraph_frontend", "openvino"]
+NGRAPH_LIBS = ["ngraph", "ov_onnx_frontend", "openvino"]
 
 packages = [
     "ngraph",
@@ -177,7 +177,7 @@ class BuildCMakeExt(build_ext):
                     f"-DCMAKE_BUILD_TYPE={self.config}",
                     f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
                     "-DENABLE_PYTHON=ON",
-                    "-DNGRAPH_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
+                    "-DOV_ONNX_FRONTEND_ENABLE=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

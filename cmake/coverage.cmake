@@ -85,15 +85,15 @@ if(ENABLE_GNA)
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "ngraph"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/ngraph/core/*")
-ie_coverage_genhtml(INFO_FILE "ngraph"
+ie_coverage_extract(INPUT "openvino" OUTPUT "core"
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/*")
+ie_coverage_genhtml(INFO_FILE "core"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-if(NGRAPH_ONNX_FRONTEND_ENABLE)
-    ie_coverage_extract(INPUT "openvino" OUTPUT "onnx"
-        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/ngraph/frontend/onnx/*"
-        "${OV_COVERAGE_BASE_DIRECTORY}/ngraph/frontend/onnx/*")
-    ie_coverage_genhtml(INFO_FILE "onnx"
+if(OV_ONNX_FRONTEND_ENABLE)
+    ie_coverage_extract(INPUT "openvino" OUTPUT "ov_onnx_frontend"
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/frontends/onnx/*"
+        "${OV_COVERAGE_BASE_DIRECTORY}/runtime/frontends/onnx/*")
+    ie_coverage_genhtml(INFO_FILE "ov_onnx_frontend"
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()

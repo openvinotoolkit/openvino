@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 if(NOT ENABLE_PYTHON)
-    message(WARNING "Please enable IE & nGraph Python API (ie_api and offline_transformations_api) targets to enable Model Optimizer target")
+    message(WARNING "Please enable OpenVINO Python API (ie_api and offline_transformations_api) targets to enable Model Optimizer target")
 else()
     add_custom_target(model_optimizer DEPENDS ie_api offline_transformations_api ir_ngraph_frontend)
     if(ENABLE_TESTS)
