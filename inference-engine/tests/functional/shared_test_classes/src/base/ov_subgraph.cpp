@@ -5,8 +5,8 @@
 #include <fstream>
 #include <signal.h>
 #include <transformations/utils/utils.hpp>
-#include <shared_test_classes/read_ir/generate_inputs.hpp>
-#include <shared_test_classes/read_ir/compare_results.hpp>
+#include <shared_test_classes/base/utils/generate_inputs.hpp>
+#include <shared_test_classes/base/utils/compare_results.hpp>
 
 #ifdef _WIN32
 #include <process.h>
@@ -45,10 +45,10 @@ void SubgraphBaseTest::run() {
 
     ASSERT_FALSE(targetStaticShapes.empty()) << "Target Static Shape is empty!!!";
     std::string errorMessage;
-    try {
+//    try {
         compile_model();
         for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            try {
+//            try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
                     ngraph::helpers::resize_function(functionRefs, targetStaticShapeVec);
@@ -56,19 +56,19 @@ void SubgraphBaseTest::run() {
                 generate_inputs(targetStaticShapeVec);
                 infer();
                 validate();
-            } catch (const std::exception &ex) {
-                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
-            }
+//            } catch (const std::exception &ex) {
+//                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
+//            }
         }
         status = LayerTestsUtils::PassRate::Statuses::PASSED;
-    } catch (const std::exception &ex) {
-        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-        errorMessage = ex.what();
-    } catch (...) {
-        status = LayerTestsUtils::PassRate::Statuses::FAILED;
-        errorMessage = "Unknown failure occurred.";
-    }
-    summary.updateOPsStats(function, status);
+//    } catch (const std::exception &ex) {
+//        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+//        errorMessage = ex.what();
+//    } catch (...) {
+//        status = LayerTestsUtils::PassRate::Statuses::FAILED;
+//        errorMessage = "Unknown failure occurred.";
+//    }
+//    summary.updateOPsStats(function, status);
     if (status != LayerTestsUtils::PassRate::Statuses::PASSED) {
         GTEST_FATAL_FAILURE_(errorMessage.c_str());
     }
@@ -121,19 +121,6 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
                                const std::vector<ov::runtime::Tensor> &actual) {
     ASSERT_EQ(expected.size(), actual.size());
     ASSERT_EQ(expected.size(), function->get_results().size());
-
-//    auto compareMap = utils::getCompareMap();
-//    for (const auto &result : function->get_results()) {
-//        for (size_t i = 0; i < result->get_input_size(); i++) {
-//            const auto &node = result->get_input_node_ptr(i);
-//            auto it = compareMap.find(node->get_type_info());
-//            for (size_t port = 0; port < node->get_input_size(); ++port) {
-//                if (node->get_input_node_ptr(port)->shared_from_this() == result->shared_from_this()) {
-//                    inputs.insert({result, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
-//                }
-//            }
-//        }
-//    }
     auto compareMap = utils::getCompareMap();
     const auto& results = function->get_results();
     for (size_t j = 0; j < results.size(); j++) {
@@ -145,11 +132,6 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor> &expected,
         }
     }
 }
-
-//    for (size_t i = 0; i < expected.size(); i++) {
-//        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
-//    }
-//}
 
 void SubgraphBaseTest::configure_model() {
     // configure input precision
@@ -189,9 +171,11 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
             for (const auto &node : param->get_output_target_inputs(i)) {
                 const auto nodePtr = node.get_node()->shared_from_this();
                 auto it = inputMap.find(nodePtr->get_type_info());
+                auto itTargetShape = targetInputStaticShapes.begin();
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), targetInputStaticShapes[i])});
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape++)});
+                        break;
                     }
                 }
             }

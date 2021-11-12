@@ -29,10 +29,7 @@ public:
 private:
     PluginCache();
 
-//    ~PluginCache() = default;
-    ~PluginCache() {
-        ov_core.reset();
-    }
+    ~PluginCache() = default;
 
     std::mutex g_mtx;
     std::shared_ptr<ov::runtime::Core> ov_core;

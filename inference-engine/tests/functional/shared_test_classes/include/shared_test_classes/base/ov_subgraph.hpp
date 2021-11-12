@@ -33,10 +33,10 @@ public:
 protected:
     void compare(const std::vector<ov::runtime::Tensor> &expected,
                  const std::vector<ov::runtime::Tensor> &actual);
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
 
     virtual void configure_model();
     virtual void compile_model();
-    virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();
 

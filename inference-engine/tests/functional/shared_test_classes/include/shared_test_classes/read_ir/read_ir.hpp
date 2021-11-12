@@ -22,13 +22,6 @@ public:
 
 protected:
     void SetUp() override;
-//    void TearDown() override {
-//        ov::test::utils::PluginCache::get().core().reset();
-//    }
-//    void generate_inputs() override;
-//    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expected,
-//                 const std::vector<InferenceEngine::Blob::Ptr> &actual) override;
-//    std::vector<InferenceEngine::Blob::Ptr> GetOutputs() override;
 
 private:
     std::string pathToModel;

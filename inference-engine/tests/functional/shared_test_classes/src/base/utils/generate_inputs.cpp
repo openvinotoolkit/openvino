@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional_test_utils/ov_tensor_utils.hpp>
 #include "ngraph/ops.hpp"
+
+#include "functional_test_utils/ov_tensor_utils.hpp"
 
 #include "shared_test_classes/single_layer/roi_align.hpp"
 #include "shared_test_classes/single_layer/psroi_pooling.hpp"
-#include "shared_test_classes/read_ir/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
 namespace test {
@@ -16,26 +18,40 @@ namespace utils {
 namespace {
 ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
                              size_t port,
-                             const ov::element::Type_t& elemType,
+                             const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    return ov::test::utils::create_and_fill_tensor(elemType, targetShape);
+    size_t inNodeCnt = node->get_input_size();
+    InputGenerateData inGenData;
+    if (elemType.is_real()) {
+        inGenData.resolution = 10;
+    }
+    auto it = inputRanges.find(node->get_type_info());
+    if (it != inputRanges.end()) {
+        const auto& ranges = it->second;
+        if (ranges.size() != 2) {
+            throw std::runtime_error("Incorrect size of ranges. It should be 2 (real and int cases)");
+        }
+        const auto& range = ranges.at(elemType.is_real());
+        inGenData = range.size() < inNodeCnt ? range.front() : range.at(port);
+    }
+    return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData.range, inGenData.start_from, inGenData.resolution, inGenData.seed);
 }
 
-//namespace Activation {
-//InferenceEngine::Blob::Ptr generate(const InferenceEngine::InputInfo &info,
-//                                    bool inPrcSigned,
-//                                    int32_t data_start_from = -10,
-//                                    uint32_t data_range = 20,
-//                                    int32_t resolution = 32768) {
-//    if (!inPrcSigned) {
-//        data_range = 15;
-//        data_start_from = 0;
-//    }
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
-//                                            data_start_from,
-//                                            resolution);
-//}
-//} // namespace Activation
+namespace Activation {
+InferenceEngine::Blob::Ptr generate(const InferenceEngine::InputInfo &info,
+                                    bool inPrcSigned,
+                                    int32_t data_start_from = -10,
+                                    uint32_t data_range = 20,
+                                    int32_t resolution = 32768) {
+    if (!inPrcSigned) {
+        data_range = 15;
+        data_start_from = 0;
+    }
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
+                                            data_start_from,
+                                            resolution);
+}
+} // namespace Activation
 //
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Abs> node,
 //                                    const InferenceEngine::InputInfo &info,
@@ -119,13 +135,6 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
 //                                    size_t port) {
 //    return Activation::generate(info, node->get_input_element_type(0).is_signed());
 //}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Erf> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return Activation::generate(info, node->get_input_element_type(0).is_signed());
-//}
-//
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::Exp> node,
 //                                    const InferenceEngine::InputInfo &info,
 //                                    size_t port) {
@@ -346,21 +355,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
 //                                    size_t port) {
 //    return Activation::generate(info, node->get_input_element_type(0).is_signed());
 //}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::Divide> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128) :
-//           FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 100, 101);
-//}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::FloorMod> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128) :
-//           FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
-//}
-//
+
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::GatherTree> node,
 //                                    const InferenceEngine::InputInfo &info,
 //                                    size_t port) {
@@ -399,14 +394,7 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
 //                                    size_t port) {
 //    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
 //}
-//
-//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v1::Power> node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
-//    return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128) :
-//           FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
-//}
-//
+
 //InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v3::Bucketize> node,
 //                                    const InferenceEngine::InputInfo &info,
 //                                    size_t port) {
@@ -534,19 +522,32 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
 //    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 //}
 //
-//InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::NonMaxSuppression node,
-//                                    const InferenceEngine::InputInfo &info,
-//                                    size_t port) {
+//ov::runtime::Tensor generate(const ngraph::op::v5::NonMaxSuppression node,
+//                             size_t port,
+//                             const ov::element::Type& elemType,
+//                             const ov::Shape& targetShape) {
+//    ov::runtime::Tensor tensor;
 //    if (port == 1) {
-//        InferenceEngine::Blob::Ptr blob;
-//        blob = make_blob_with_precision(info.getTensorDesc());
-//        blob->allocate();
-//        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, 1000);
-//        return blob;
-//    }
-//    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
-//}
+//        tensor = ov::runtime::Tensor(elemType, targetShape);
 //
+//        const size_t range = 1;
+//        const size_t startFrom = 0;
+//        const size_t k = 1000;
+//        const int seed = 1;
+//        std::default_random_engine random(seed);
+//        std::uniform_int_distribution<int32_t> distribution(k * startFrom, k * (startFrom + range));
+//
+//        auto *dataPtr = tensor.data<float>();
+//        for (size_t i = 0; i < tensor.get_size(); i++) {
+//            auto value = static_cast<float>(distribution(random));
+//            dataPtr[i] = value / static_cast<float>(k);
+//        }
+//    } else {
+//        tensor = ov::test::utils::create_and_fill_tensor(elemType, targetShape);
+//    }
+//    return tensor;
+//}
+
 //InferenceEngine::Blob::Ptr generate(const ngraph::op::v5::RNNSequence node,
 //                                    const InferenceEngine::InputInfo &info,
 //                                    size_t port) {
@@ -565,9 +566,9 @@ ov::runtime::Tensor generate(const std::shared_ptr<ov::Node> node,
 
 template<typename T>
 ov::runtime::Tensor generateInput(const std::shared_ptr<ov::Node> node,
-                                         size_t port,
-                                         const ov::element::Type_t& elemType,
-                                         const ov::Shape& targetShape) {
+                                  size_t port,
+                                  const ov::element::Type& elemType,
+                                  const ov::Shape& targetShape) {
     return generate(ngraph::as_type_ptr<T>(node), port, elemType, targetShape);
 }
 } // namespace
@@ -582,6 +583,8 @@ InputsMap getInputMap() {
 #include "ngraph/opsets/opset4_tbl.hpp"
 #include "ngraph/opsets/opset5_tbl.hpp"
 #include "ngraph/opsets/opset6_tbl.hpp"
+#include "ngraph/opsets/opset7_tbl.hpp"
+#include "ngraph/opsets/opset8_tbl.hpp"
 
 #undef NGRAPH_OP
     };
