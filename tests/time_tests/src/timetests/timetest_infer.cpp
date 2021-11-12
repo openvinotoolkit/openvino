@@ -3,6 +3,7 @@
 //
 
 #include <inference_engine.hpp>
+#include <ie_plugin_config.hpp>
 #include <iostream>
 
 #include "common_utils.h"
@@ -29,6 +30,8 @@ int runPipeline(const std::string &model, const std::string &device) {
       {
         SCOPED_TIMER(load_plugin);
         ie.GetVersions(device);
+        // enables performance hint for specified device
+        ie.SetConfig({{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}}, device);
       }
       {
         SCOPED_TIMER(create_exenetwork);
