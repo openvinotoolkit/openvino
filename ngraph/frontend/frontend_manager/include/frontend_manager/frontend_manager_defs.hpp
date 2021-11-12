@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 // Increment each time when FrontEnd/InputModel/Place interface is changed
 #define OV_FRONTEND_API_VERSION 1

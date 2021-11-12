@@ -11,6 +11,8 @@
 #include <openvino/op/util/framework_node.hpp>
 #include <pugixml.hpp>
 
+#include "openvino/core/validation_util.hpp"
+
 using namespace ngraph;
 using namespace InferenceEngine;
 
@@ -182,7 +184,7 @@ void ParsePreProcess(pugi::xml_node& root,
 }
 }  // namespace
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class InputModelIR::InputModelIRImpl {
     std::shared_ptr<ngraph::runtime::AlignedBuffer> m_weights;
@@ -239,4 +241,4 @@ std::shared_ptr<Function> InputModelIR::InputModelIRImpl::convert() {
     return function;
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

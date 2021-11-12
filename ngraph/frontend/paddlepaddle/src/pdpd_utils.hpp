@@ -6,7 +6,7 @@
 
 #include "frontend_manager/frontend_exceptions.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 #ifdef _WIN32
@@ -40,4 +40,4 @@ bool endsWith(const std::basic_string<T>& str, const std::basic_string<T>& suffi
 
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
