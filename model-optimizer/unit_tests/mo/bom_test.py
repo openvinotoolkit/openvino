@@ -27,16 +27,16 @@ class TestBOMFile(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.existing_files = []
-        # unit_tests are located in the 'pkg/tests' directory
-        tests_path = os.path.join(os.path.realpath(__file__), os.pardir, os.pardir, os.pardir)
-        # output_dir is the model_optimizer directory that is located in 'pkg/tools'
-        cls.output_dir = os.path.abspath(tests_path).replace('tests', 'tools')
-        with open(os.path.join(tests_path, 'automation', 'package_BOM.txt'), 'r') as bom_file:
+        cur_path = os.path.join(os.path.realpath(__file__), os.pardir)
+        mo_path = os.path.abspath(os.path.join(cur_path, os.pardir, os.pardir))
+        with open(os.path.join(mo_path, 'automation', 'package_BOM.txt'), 'r') as bom_file:
             if platform.system() == 'Windows':
                 cls.existing_files = [name.rstrip().replace('/', '\\') for name in bom_file.readlines()]
             else:
                 cls.existing_files = [name.rstrip() for name in bom_file.readlines()]
 
+        # output_dir is the model_optimizer directory that is located in 'pkg/tools'
+        cls.output_dir = mo_path.replace('tests', 'tools')
         cls.expected_header = [re.compile(pattern) for pattern in [
             r'^# Copyright \([cC]\) [0-9\-]+ Intel Corporation$',
             r'^# SPDX-License-Identifier: Apache-2.0$',
