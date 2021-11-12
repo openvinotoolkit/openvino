@@ -269,7 +269,7 @@ memory::ptr primitive_inst::allocate_output() {
     };
 
     bool usm_device_allocatable = true;
-    const auto& total_device_input_mem_size = std::accumulate(node_deps.begin(), node_deps.end(), 0, device_mem_acc);
+    const auto& total_device_input_mem_size = std::accumulate(node_deps.begin(), node_deps.end(), (uint64_t)0, device_mem_acc);
     if (total_device_input_mem_size > engine.get_device_info().max_global_mem_size)
         usm_device_allocatable = false;
 
