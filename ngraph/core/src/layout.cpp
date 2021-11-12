@@ -346,8 +346,6 @@ std::int64_t width_idx(const Layout& layout) {
 
 }  // namespace layout
 
-constexpr DiscreteTypeInfo AttributeAdapter<ov::Layout>::type_info;
-
 const std::string& AttributeAdapter<ov::Layout>::get() {
     m_dump = m_ref.to_string();
     return m_dump;

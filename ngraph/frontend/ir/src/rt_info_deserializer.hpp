@@ -4,18 +4,19 @@
 
 #pragma once
 
-#include <ir_frontend/utility.hpp>
 #include <istream>
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <utils.hpp>
+
+#include "ir_frontend/utility.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+#include "utils.hpp"
 
 namespace ov {
-class RTInfoDeserializer : public ngraph::AttributeVisitor {
+class RTInfoDeserializer : public ov::AttributeVisitor {
 public:
     explicit RTInfoDeserializer(const pugi::xml_node& node) : m_node(node) {}
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -23,7 +24,7 @@ public:
         value.set(val);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& value) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& value) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -42,16 +43,16 @@ public:
         value.set(is_true);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override;
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
             return;
         adapter.set(stringToType<double>(val));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -59,12 +60,11 @@ public:
         adapter.set(stringToType<int64_t>(val));
     }
 
-    void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
-        throw ngraph::ngraph_error("Function type is unsupported for rt info deserialization");
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) override {
+        throw ov::Exception("Function type is unsupported for rt info deserialization");
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -74,7 +74,7 @@ public:
         adapter.set(value);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -84,7 +84,7 @@ public:
         adapter.set(value);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -94,7 +94,7 @@ public:
         adapter.set(value);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -104,7 +104,7 @@ public:
         adapter.set(value);
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         check_attribute_name(name);
         std::string val;
         if (!getStrAttribute(m_node, name, val))
@@ -116,7 +116,7 @@ public:
 
     void check_attribute_name(const std::string& name) const {
         if (name == "name" || name == "version") {
-            throw ngraph::ngraph_error("Attribute key with name: " + name + " is not allowed. Please use another name");
+            throw ov::Exception("Attribute key with name: " + name + " is not allowed. Please use another name");
         }
     }
 
