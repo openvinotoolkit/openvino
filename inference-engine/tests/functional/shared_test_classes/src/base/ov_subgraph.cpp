@@ -12,8 +12,6 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
-#include "ngraph/op/convert.hpp"
 
 #include "graph_comparator.hpp"
 
@@ -131,7 +129,6 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
 }
 
 void SubgraphBaseTest::configure_model() {
-    // Caution!!! This parameters work properly only for test cases with static shapes, see issue: CVS-70301
     // configure input precision
     ov::preprocess::PrePostProcessor p(function);
     {
