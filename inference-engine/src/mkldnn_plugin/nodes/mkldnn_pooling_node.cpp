@@ -358,8 +358,7 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 PortConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                auto desc = getSrcMemDesc(itpd, i);
-                dataConfig.desc = std::move(desc);
+                dataConfig.desc = getSrcMemDesc(itpd, i);
 
                 config.inConfs.push_back(dataConfig);
             }
@@ -368,8 +367,8 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 PortConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
-                auto desc = getDstMemDesc(itpd, i);
-                dataConfig.desc = std::move(desc);
+                dataConfig.desc = getDstMemDesc(itpd, i);
+
                 config.outConfs.push_back(dataConfig);
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
