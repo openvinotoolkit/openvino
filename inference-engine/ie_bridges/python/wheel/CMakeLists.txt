@@ -47,7 +47,7 @@ endif()
 # create target for openvino.wheel
 
 set(openvino_wheel_deps ie_api offline_transformations_api)
-foreach(_target ie_libraries ie_plugins _pyngraph)
+foreach(_target ie_libraries ie_plugins _pyngraph pyopenvino)
     if(TARGET ${_target})
         list(APPEND openvino_wheel_deps ${_target})
     endif()
@@ -70,4 +70,4 @@ add_custom_command(OUTPUT ${openvino_wheel_path}
     COMMENT "Building Python wheel ${openvino_wheel_name}"
     VERBATIM)
 
-add_custom_target(ie_wheel DEPENDS ${openvino_wheel_path})
+add_custom_target(ie_wheel ALL DEPENDS ${openvino_wheel_path})

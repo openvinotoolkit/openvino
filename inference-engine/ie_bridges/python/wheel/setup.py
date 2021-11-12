@@ -109,6 +109,11 @@ PY_INSTALL_CFG = {
         'prefix': 'site-packages',
         'install_dir': PY_PACKAGES_DIR,
     },
+    'pyopenvino' : {
+        'name': f'pyopenvino_{PYTHON_VERSION}',
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR,
+    },
 }
 
 
