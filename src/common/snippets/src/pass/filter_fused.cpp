@@ -83,14 +83,14 @@ bool SupportsFusingWithConvolution_SumActivation(std::shared_ptr<Node> node) {
 bool canBePerformedAsScaleShift(std::shared_ptr<Node> node) {
     size_t fusingPort = 0;
     size_t numNonConstInputs = 0;
-    ov::Shape dataShape;
+    ov::PartialShape dataShape;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         const auto parent = node->get_input_node_shared_ptr(i);
         if (!ngraph::op::is_constant(parent)) {
             fusingPort = i;
-            dataShape = node->get_input_shape(i);
+            dataShape = node->get_input_partial_shape(i);
             // only one non-const parent is allowed
-            if (++numNonConstInputs != 1)
+            if (dataShape.is_dynamic() || ++numNonConstInputs != 1)
                 return false;
         } else {
             // every const parent must have exactly one child
@@ -124,7 +124,9 @@ bool canBePerformedAsScaleShift(std::shared_ptr<Node> node) {
         for (size_t i = 0; i < node->get_input_size(); i++) {
             if (i == fusingPort)
                 continue;
-            if (!isPerTensorOrPerChannelBroadcastable(dataShape, node->get_input_shape(i)))
+            const ov::PartialShape weightShape = node->get_input_partial_shape(i);
+            if (weightShape.is_dynamic() ||
+                !isPerTensorOrPerChannelBroadcastable(dataShape.get_shape(), weightShape.get_shape()))
                 return false;
         }
         return true;
@@ -206,7 +208,10 @@ bool isSuitableChildForFusingMatMul(std::shared_ptr<Node> node, SnippetsNodeType
         } else {
             if (getNumNonConstInputs(parent) == 1)
                 can_be_converted_to_FC = true;
-            matmul_shape = parent_out.get_shape();
+            const auto pshape = parent_out.get_partial_shape();
+            if (pshape.is_dynamic())
+                return false;
+            matmul_shape = pshape.get_shape();
         }
     }
     if (num_non_const_inputs != 1)
@@ -242,9 +247,9 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
         const auto bias = n->get_input_source_output(1);
         if (!(ngraph::op::is_constant(bias.get_node_shared_ptr()) && isSuitableConvolutionParent(conv.get_node_shared_ptr())))
             return false;
-        const auto conv_shape = conv.get_shape();
-        const auto bias_shape = bias.get_shape();
-        if (bias_shape.size() > conv_shape.size())
+        const auto conv_shape = conv.get_partial_shape();
+        const auto bias_shape = bias.get_partial_shape();
+        if  (bias_shape.is_dynamic() || conv_shape.is_dynamic() || bias_shape.size() > conv_shape.size())
             return false;
         auto getNormalizedDims = [](const ov::Shape &dims, size_t ndims) -> std::vector<size_t>{
             std::vector<size_t> normalizedDims = dims;
@@ -253,7 +258,7 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
             }
             return normalizedDims;
         };
-        const auto bias_norm_dims = getNormalizedDims(bias_shape, conv_shape.size());
+        const auto bias_norm_dims = getNormalizedDims(bias_shape.get_shape(), conv_shape.size());
         if (bias_norm_dims.size() < 2 || bias_norm_dims[0] != 1 || conv_shape[1] != bias_norm_dims[1])
             return false;
         for (size_t i = 2; i < bias_norm_dims.size(); i++) {

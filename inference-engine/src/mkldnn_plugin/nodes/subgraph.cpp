@@ -362,12 +362,6 @@ void MKLDNNSnippetNode::define_shedule() {
                 offsets_out[i][j] *= dataSize;
             }
         }
-
-        start_offset_out.resize(outputNum);
-        for (size_t i = 0; i < outputNum; i++) {
-            const auto desc = getChildEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-            start_offset_out[i] = desc->getOffsetPadding() * dataSize;
-        }
     };
 
     auto find_dims_to_collapse = [this, config, &outBlockingDesc_maxRank]() -> int {
