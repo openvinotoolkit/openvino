@@ -8,7 +8,7 @@ import numpy as np
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 from mo.graph.graph import Node
-from mo.middle.passes.convert_data_type import data_type_str_to_np
+from mo.middle.passes.convert_data_type import data_type_str_to_np, convert_blob
 from mo.utils.error import Error
 
 operations_with_data_type_attributes = {
@@ -77,10 +77,7 @@ def assert_that_is_castable_to_fp16(node: Node):
         node.in_node(i)['correct_data_type'] = True
 
     original_output = node.out_port(0).data.get_value()
-
-    converted_blob = original_output.astype(dtype=np.float16, casting="unsafe")
-    infinite_match_count = np.count_nonzero(np.isfinite(original_output) != np.isfinite(converted_blob))
-    zero_match_count = np.count_nonzero((original_output == 0) != (converted_blob == 0))
+    converted_blob, infinite_match_count, zero_match_count = convert_blob(original_output, np.float16)
 
     if infinite_match_count:
         # some models have -Inf values but nevertheless are correctly inferred in FP16
