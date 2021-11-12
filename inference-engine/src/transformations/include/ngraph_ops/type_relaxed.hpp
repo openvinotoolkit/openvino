@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <mutex>
 
 #include <transformations_visibility.hpp>
 
@@ -235,6 +236,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
+    mutable std::mutex type_relax_mutex;
     void init() {
         validate_and_infer_types();
     }
@@ -315,6 +317,7 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
 
 template <typename BaseOp>
 std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVector& new_args) const {
+    std::lock_guard<std::mutex> lock(type_relax_mutex);
     // copy then modify inputs
     std::shared_ptr<Node> new_node = std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*this), m_input_data_types, m_output_data_types);
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
