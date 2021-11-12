@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <op_table.hpp>
-#include <openvino/opsets/opset8.hpp>
+#include "op_table.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -13,11 +13,15 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateCumsumOp(const NodeContext& node) {
-    auto ng_x = node.get_ng_input(0), ng_axis = node.get_ng_input(1);
-    auto exclusive = node.get_attribute<bool>("exclusive"), reverse = node.get_attribute<bool>("reverse");
+OutputVector translate_cumsum_op(const NodeContext& node) {
+    auto ng_x = node.get_input(0);
+    auto ng_axis = node.get_input(1);
+    auto exclusive = node.get_attribute<bool>("exclusive");
+    auto reverse = node.get_attribute<bool>("reverse");
 
-    return {ConstructNgNode<CumSum>(node.get_name(), ng_x, ng_axis, exclusive, reverse)};
+    auto res = make_shared<CumSum>(ng_x, ng_axis, exclusive, reverse);
+    set_node_name(node.get_name(), res);
+    return res->outputs();
 }
 }  // namespace op
 }  // namespace tf
