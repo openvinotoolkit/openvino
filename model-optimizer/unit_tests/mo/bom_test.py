@@ -27,9 +27,11 @@ class TestBOMFile(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.existing_files = []
+        # unit_tests are located in the 'pkg/tests' directory
         cur_path = os.path.join(os.path.realpath(__file__), os.pardir)
-        cls.output_dir = os.path.abspath(os.path.join(cur_path, os.pardir, os.pardir))
-        with open(os.path.join(cls.output_dir, 'automation', 'package_BOM.txt'), 'r') as bom_file:
+        # output_dir is the model_optimizer directory that is located in 'pkg/tools'
+        cls.output_dir = os.path.abspath(os.path.join(cur_path, os.pardir, os.pardir)).replace('tests', 'tools')
+        with open(os.path.join(cur_path, 'automation', 'package_BOM.txt'), 'r') as bom_file:
             if platform.system() == 'Windows':
                 cls.existing_files = [name.rstrip().replace('/', '\\') for name in bom_file.readlines()]
             else:
