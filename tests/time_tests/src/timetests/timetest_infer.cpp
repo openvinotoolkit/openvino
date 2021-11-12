@@ -25,11 +25,12 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
     InferRequest inferRequest;
     size_t batchSize = 0;
 
+    // enables performance hint for specified device
+    ie.SetConfig({{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}}, device);
+
     {
       SCOPED_TIMER(first_inference_latency);
       {
-        // enables performance hint for specified device
-        ie.SetConfig({{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}}, device);
         SCOPED_TIMER(load_plugin);
         ie.GetVersions(device);
         if (isCacheEnabled) {
@@ -48,7 +49,6 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
             cnnNetwork = ie.ReadNetwork(model);
             batchSize = cnnNetwork.getBatchSize();
           }
-
           {
             SCOPED_TIMER(load_network);
             if (isVPUCompilerMLIR) {
