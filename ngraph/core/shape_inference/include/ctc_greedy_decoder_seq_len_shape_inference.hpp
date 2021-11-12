@@ -19,12 +19,12 @@ void shape_infer(const CTCGreedyDecoderSeqLen* op, const std::vector<T>& input_s
     // check ranks of input tensors
     if (logits_is_static_rank) {
         NODE_VALIDATION_CHECK(op,
-                              logits_shape.rank().get_length() == 3,
+                              logits_shape.rank().compatible(3),
                               "The rank of logits tensor must be equal to 3.");
     }
     if (seq_len_is_static_rank) {
         NODE_VALIDATION_CHECK(op,
-                              seq_len_shape.rank().get_length() == 1,
+                              seq_len_shape.rank().compatible(1),
                               "The rank of sequence len tensor must be equal to 1.");
     }
 

@@ -21,4 +21,8 @@ TEST(StaticShapeInferenceTest, ReverseSequenceTest) {
                               output_shapes = {PartialShape{}};
     shape_infer(reverse_seq.get(), input_shapes, output_shapes);
     ASSERT_EQ(output_shapes[0], (PartialShape{4, 3, 2}));
+    std::vector<StaticShape> static_input_shapes = {StaticShape{4, 3, 2}, StaticShape{4}},
+                             static_output_shapes = {StaticShape{}};
+    shape_infer(reverse_seq.get(), static_input_shapes, static_output_shapes);
+    ASSERT_EQ(static_output_shapes[0], (StaticShape{4, 3, 2}));
 }

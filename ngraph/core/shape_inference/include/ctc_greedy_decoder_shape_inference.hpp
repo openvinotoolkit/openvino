@@ -26,45 +26,37 @@ void shape_infer(const CTCGreedyDecoder* op, const std::vector<T>& input_shapes,
     // check ranks of input tensors
     if (logits_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              logits_pshape.rank().get_length() == 3,
+                              logits_pshape.rank().compatible(3),
                               "The rank of logits tensor must be equal to 3.");
     }
     if (seq_mask_pshape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              seq_mask_pshape.rank().get_length() == 2,
+                              seq_mask_pshape.rank().compatible(2),
                               "The rank of sequence mask tensor must be equal to 2.");
     }
 
     // validate input shapes and compute output shape
     auto& batch_size = output_shape[0];
     auto& time_size = output_shape[1];
-    bool is_batch_static = false;
-    bool is_time_static = false;
     if (logits_pshape.rank().is_static()) {
         if (logits_pshape[0].is_static()) {
             time_size = logits_pshape[0];
-            is_time_static = true;
         }
         if (logits_pshape[1].is_static()) {
             batch_size = logits_pshape[1];
-            is_batch_static = true;
         }
     }
     if (seq_mask_pshape.rank().is_static()) {
         if (seq_mask_pshape[0].is_static()) {
-            if (is_time_static) {
-                NODE_VALIDATION_CHECK(op,
-                                      seq_mask_pshape[0] == time_size,
-                                      "The first dimensions of input tensors must match.");
-            }
+            NODE_VALIDATION_CHECK(op,
+                                  seq_mask_pshape[0].compatible(time_size),
+                                  "The first dimensions of input tensors must match.");
             time_size = seq_mask_pshape[0];
         }
         if (seq_mask_pshape[1].is_static()) {
-            if (is_batch_static) {
-                NODE_VALIDATION_CHECK(op,
-                                      seq_mask_pshape[1] == batch_size,
-                                      "The second dimensions of input tensors must match.");
-            }
+            NODE_VALIDATION_CHECK(op,
+                                  seq_mask_pshape[1].compatible(batch_size),
+                                  "The second dimensions of input tensors must match.");
             batch_size = seq_mask_pshape[1];
         }
     }

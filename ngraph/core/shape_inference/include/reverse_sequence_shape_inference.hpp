@@ -13,7 +13,7 @@ template <class T>
 void shape_infer(const ReverseSequence* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     const auto& data_pshape = input_shapes[0];
     const auto& data_rank = data_pshape.rank();
-
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op,
                           data_rank.is_dynamic() || data_rank.get_length() >= 2,
                           "Data input rank should be equal or greater than 2. Got: ",
@@ -32,10 +32,10 @@ void shape_infer(const ReverseSequence* op, const std::vector<T>& input_shapes, 
 
     output_pshape = data_pshape;
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
-        Dimension merged_sequence_length;
+        DimType merged_sequence_length;
         NODE_VALIDATION_CHECK(
             op,
-            Dimension::merge(merged_sequence_length, data_pshape[normalized_batch_axis], seq_lengths_pshape[0]),
+            DimType::merge(merged_sequence_length, data_pshape[normalized_batch_axis], seq_lengths_pshape[0]),
             "Sequence lengths input size (",
             seq_lengths_pshape[0],
             ") is not equal to batch axis dimension of data input (",
