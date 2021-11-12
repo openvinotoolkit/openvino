@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/roi_align.hpp"
+#include <roi_align_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -49,6 +50,7 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 }
 
 void op::v3::ROIAlign::validate_and_infer_types() {
+#if 0
     NGRAPH_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
@@ -135,6 +137,50 @@ void op::v3::ROIAlign::validate_and_infer_types() {
         set_input_is_relevant_to_shape(1);
         set_input_is_relevant_to_shape(2);
     }
+#endif
+    NGRAPH_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
+                          "The data type for input and ROIs is expected to be a floating point type. Got: ",
+                          get_input_element_type(0),
+                          " and: ",
+                          get_input_element_type(1));
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0) == get_input_element_type(1),
+                          "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
+                          get_input_element_type(0),
+                          " and: ",
+                          get_input_element_type(1));
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(2).is_integral_number(),
+                          "The data type for batch indices is expected to be an integer. Got: ",
+                          get_input_element_type(2));
+
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                  get_input_partial_shape(1),
+                                                  get_input_partial_shape(2)};
+
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_size(1);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+
+    const auto& input_ps = get_input_partial_shape(0);
+
+    // if the channels dimension is not known
+    // the first input should be used during the function specialization
+    if (input_ps.rank().is_static() && input_ps[1].is_dynamic()) {
+        set_input_is_relevant_to_shape(0);
+    }
+    // if the 'NUM_ROIS' value is not known
+    // the last 2 inputs should be used during the function specialization
+    if ((output_shapes[0])[0].is_dynamic()) {
+        set_input_is_relevant_to_shape(1);
+        set_input_is_relevant_to_shape(2);
+    }
+
 }
 
 bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor) {

@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/roll.hpp"
+#include <roll_shape_inference.hpp>
 
 #include <ngraph/validation_util.hpp>
 
@@ -19,6 +20,7 @@ op::v7::Roll::Roll(const Output<Node>& data, const Output<Node>& shift, const Ou
 }
 
 void op::v7::Roll::validate_and_infer_types() {
+#if 0
     NGRAPH_OP_SCOPE(v7_Roll_validate_and_infer_types);
 
     const auto& shift_et = get_input_element_type(1);
@@ -79,6 +81,26 @@ void op::v7::Roll::validate_and_infer_types() {
     }
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#endif
+    NGRAPH_OP_SCOPE(v7_Roll_validate_and_infer_types);
+
+    const auto& shift_et = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(this,
+                          shift_et.is_dynamic() || shift_et == element::i32 || shift_et == element::i64,
+                          "Shift must have int32 or int64 element type.");
+
+    const auto& axes_et = get_input_element_type(2);
+    NODE_VALIDATION_CHECK(this,
+                          axes_et.is_dynamic() || axes_et == element::i32 || axes_et == element::i64,
+                          "Axes must have int32 or int64 element type.");
+
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
+                                                        get_input_partial_shape(1),
+                                                        get_input_partial_shape(2)};
+    shape_infer(this, input_shapes, output_shapes);
+
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 bool op::v7::Roll::visit_attributes(AttributeVisitor& visitor) {

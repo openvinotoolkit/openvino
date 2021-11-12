@@ -1,0 +1,140 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <openvino/op/roi_align.hpp>
+
+#include "utils.hpp"
+
+namespace ov {
+namespace op {
+namespace v3 {
+
+template <class T>
+void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+#if 0
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
+    const auto& class_probs_ps = input_shapes[0];
+    const auto& bbox_deltas_ps = input_shapes[1];
+    const auto& image_shape_ps = input_shapes[2];
+
+    NODE_VALIDATION_CHECK(op,
+                          class_probs_ps.rank().compatible(4),
+                          "Proposal layer shape class_probs should be rank 4 compatible (",
+                          class_probs_ps,
+                          ").");
+
+    NODE_VALIDATION_CHECK(op,
+                          bbox_deltas_ps.rank().compatible(4),
+                          "Proposal layer shape bbox_deltas should be rank 4 compatible (",
+                          bbox_deltas_ps,
+                          ").");
+
+    NODE_VALIDATION_CHECK(op,
+                          image_shape_ps.rank().compatible(1),
+                          "Proposal layer shape image_shape should be rank 1 compatible (",
+                          image_shape_ps,
+                          ").");
+    if (bbox_deltas_ps.is_static() && class_probs_ps.is_static()) {
+        // class probs and bbox deltas shapes are static, check anchor count and batch number
+        // consistency
+        NODE_VALIDATION_CHECK(op,
+                              class_probs_ps[1].get_length() * 2 == bbox_deltas_ps[1].get_length(),
+                              "Anchor number inconsistent between class_probs (",
+                              class_probs_ps[1].get_length() / 2,
+                              "), and bbox_deltas (",
+                              bbox_deltas_ps[1].get_length() / 4,
+                              ").");
+
+        NODE_VALIDATION_CHECK(op,
+                              class_probs_ps[0] == bbox_deltas_ps[0],
+                              "Batch size inconsistent between class_probs (",
+                              class_probs_ps[0],
+                              ") and bbox deltas (",
+                              bbox_deltas_ps[0],
+                              ").");
+    }
+
+    if (image_shape_ps.is_static()) {
+        NODE_VALIDATION_CHECK(op,
+                              image_shape_ps[0].get_length() >= 3 && image_shape_ps[0].get_length() <= 4,
+                              "Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]",
+                              image_shape_ps[0],
+                              ").");
+    }
+
+    auto out_dim = DimType{};
+
+    if (class_probs_ps.rank().is_static() && bbox_deltas_ps.rank().is_static()) {
+        out_dim = (class_probs_ps[0] & bbox_deltas_ps[0]);
+    } else if (class_probs_ps.rank().is_static()) {
+        out_dim = class_probs_ps[0];
+    } else if (bbox_deltas_ps.rank().is_static()) {
+        out_dim = bbox_deltas_ps[0];
+    } else {
+        proposal_build_dynamic_dimension(out_dim);
+    }
+    output_shapes[0].resize(2);
+    (output_shapes[0])[0] = out_dim * op->get_attrs().post_nms_topn;
+    (output_shapes[0])[1] = 5;
+#endif
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 3 && output_shapes.size() == 1);
+    const auto& input_ps = input_shapes[0];
+
+    const auto rois_ps_rank = rois_ps.rank();
+    const auto input_ps_rank = input_ps.rank();
+    const auto batch_indices_ps_rank = batch_indices_ps.rank();
+
+    NODE_VALIDATION_CHECK(this,
+                          input_ps_rank.compatible(4),
+                          "Expected a 4D tensor for the input data. Got: ",
+                          input_ps);
+
+    const auto& rois_ps = input_shapes[1];
+    NODE_VALIDATION_CHECK(this, rois_ps_rank.compatible(2), "Expected a 2D tensor for the ROIs input. Got: ", rois_ps);
+
+    const auto& batch_indices_ps = input_shapes[2];
+    NODE_VALIDATION_CHECK(this,
+                          batch_indices_ps_rank.compatible(1),
+                          "Expected a 1D tensor for the batch indices input. Got: ",
+                          batch_indices_ps);
+
+    if (rois_ps_rank.is_static()) {
+        const auto rois_second_dim = rois_ps[1];
+        NODE_VALIDATION_CHECK(this,
+                              rois_second_dim.compatible(4),
+                              "The second dimension of ROIs input should contain box coordinates. ",
+                              "This dimension is expected to be equal to 4. Got: ",
+                              rois_second_dim);
+
+        if (batch_indices_ps_rank.is_static()) {
+            NODE_VALIDATION_CHECK(this,
+                                  rois_ps[0].compatible(batch_indices_ps[0]),
+                                  "The first dimension of ROIs input must be equal to the first dimension ",
+                                  "of the batch indices input. Got: ",
+                                  rois_ps[0],
+                                  " and: ",
+                                  batch_indices_ps[0]);
+        }
+    }
+
+    output_shapes[0].resize(4);
+    (output_shapes[0])[1] = input_ps[1];
+    (output_shapes[0])[2] = op->get_pooled_h();
+    (output_shapes[0])[3] = op->get_pooled_w();
+
+    // if either of those 2 dimensions is static its value will be used
+    // for the first dimension of the output shape - 'NUM_ROIS'
+    if (rois_ps_rank.is_static() && rois_ps[0].is_static()) {
+        (output_shape[0])[0] = rois_ps[0];
+    } else if (batch_indices_ps_rank.is_static() && batch_indices_ps[0].is_static()) {
+        (output_shape[0])[0] = batch_indices_ps[0];
+    }
+}
+
+}  // namespace v3
+}  // namespace op
+}  // namespace ov
