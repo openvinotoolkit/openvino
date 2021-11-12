@@ -12,6 +12,7 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -117,6 +118,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
       m_pads_end(pads_end),
       m_auto_pad(auto_pad),
       m_output_padding(output_padding) {
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 

@@ -77,7 +77,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # ngraph is linked against ngraph_builders, ngraph_reference static libraries
+    # ngraph is linked against ngraph_builders, ngraph_reference, ov_shape_inference static libraries
     # which include ngraph headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
     # multiple defitions for ngraph symbols.
@@ -85,7 +85,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # The possible way is to use object libraries for ngraph_builders, ngraph_reference
     # but it's not convinient since these libraries are exported from build tree
     # and it's better to use them as static libraries in 3rd party projects
-    set_target_properties(ngraph PROPERTIES LINK_FLAGS "/IGNORE:4217,4286")
+    if(BUILD_SHARED_LIBS)
+        set(link_type PRIVATE)
+    else()
+        set(link_type PUBLIC)
+    endif()
+
+    target_link_options(ngraph ${link_type} "/IGNORE:4217,4286")
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations

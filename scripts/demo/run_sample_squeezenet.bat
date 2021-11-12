@@ -4,12 +4,18 @@
 @echo off
 setlocal enabledelayedexpansion
 
+set ROOT_DIR=%~dp0
+
 set TARGET=CPU
 set BUILD_FOLDER=%USERPROFILE%\Documents\Intel\OpenVINO
 
 :: command line arguments parsing
 :input_arguments_loop
 if not "%1"=="" (
+    if "%1"=="-b" (
+        set BUILD_FOLDER=%2
+        shift
+    )
     if "%1"=="-d" (
         set TARGET=%2
         echo target = !TARGET!
@@ -25,6 +31,7 @@ if not "%1"=="" (
         echo.
         echo Options:
         echo    -help                      Print help message
+        echo    -b BUILD_FOLDER            Specify the sample build directory
         echo    -d DEVICE                  Specify the target device to infer on; CPU, GPU, HDDL or MYRIAD are acceptable. Sample will look for a suitable plugin for device specified
         echo    -sample-options OPTIONS    Specify command line arguments for the sample
         exit /b
@@ -33,7 +40,7 @@ if not "%1"=="" (
     goto :input_arguments_loop
 )
 
-set ROOT_DIR=%~dp0
+set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_cpp_samples_build"
 
 set TARGET_PRECISION=FP16
 
@@ -154,81 +161,21 @@ if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
     set "PLATFORM=Win32"
 )
 
-set VSWHERE="false"
-if exist "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" (
-    set VSWHERE="true"
-    cd /d "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer"
-) else if exist "%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe" (
-    set VSWHERE="true"
-    cd /d "%ProgramFiles%\Microsoft Visual Studio\Installer"
-) else (
-    echo "vswhere tool is not found"
-)
-
-if !VSWHERE! == "true" (
-    for /f "usebackq tokens=*" %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath`) do (
-        set VS_PATH=%%i
-    )
-    if exist "!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe" (
-        set "MSBUILD_BIN=!VS_PATH!\MSBuild\14.0\Bin\MSBuild.exe"
-    )
-    if exist "!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe" (
-        set "MSBUILD_BIN=!VS_PATH!\MSBuild\15.0\Bin\MSBuild.exe"
-    )
-    if exist "!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe" (
-        set "MSBUILD_BIN=!VS_PATH!\MSBuild\Current\Bin\MSBuild.exe"
-    )
-    for /f "usebackq tokens=1 delims=." %%i in (`vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationVersion`) do (
-        set VS_MAJOR_VER=%%i
-    )
-    if "!VS_MAJOR_VER!"=="16" set "MSBUILD_VERSION=16 2019"
-    if "!VS_MAJOR_VER!"=="15" set "MSBUILD_VERSION=15 2017"
-)
-
-if "!MSBUILD_BIN!" == "" (
-    if exist "C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe" (
-        set "MSBUILD_BIN=C:\Program Files (x86)\MSBuild\14.0\Bin\MSBuild.exe"
-        set "MSBUILD_VERSION=14 2015"
-    )
-    if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe" (
-        set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\MSBuild\15.0\Bin\MSBuild.exe"
-        set "MSBUILD_VERSION=15 2017"
-    )
-    if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe" (
-        set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe"
-        set "MSBUILD_VERSION=15 2017"
-    )
-    if exist "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe" (
-        set "MSBUILD_BIN=C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
-        set "MSBUILD_VERSION=15 2017"
-    )
-) else (
-    if not "!MSBUILD_BIN:2019=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=16 2019"
-    if not "!MSBUILD_BIN:2017=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=15 2017"
-    if not "!MSBUILD_BIN:2015=!"=="!MSBUILD_BIN!" set "MSBUILD_VERSION=14 2015"
-)
-
-if "!MSBUILD_BIN!" == "" (
-    echo Build tools for Visual Studio 2015 / 2017 / 2019 cannot be found. If you use Visual Studio 2017, please download and install build tools from https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017
-    GOTO errorHandling
-)
-
-set "SOLUTION_DIR64=%BUILD_FOLDER%\inference_engine_cpp_samples_build"
-
-echo Creating Visual Studio !MSBUILD_VERSION! %PLATFORM% files in %SOLUTION_DIR64%... && ^
 if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
-cd /d "%INTEL_OPENVINO_DIR%\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\samples\cpp"
+
+cd /d "%INTEL_OPENVINO_DIR%\samples\cpp" && cmake -E make_directory "%SOLUTION_DIR64%" && cd /d "%SOLUTION_DIR64%" && cmake -G "Visual Studio 16 2019" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\samples\cpp"
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7
 
 echo.
-echo ###############^|^| Build Inference Engine samples using MS Visual Studio (MSBuild.exe) ^|^|###############
+echo ###############^|^| Build Inference Engine samples using cmake ^|^|###############
 echo.
-CALL :delay 3
-echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\classification_sample_async /clp:ErrorsOnly /m
-"!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\classification_sample_async /clp:ErrorsOnly /m
 
+CALL :delay 3
+
+echo cmake --build . --config Release --target classification_sample_async
+cmake --build . --config Release --target classification_sample_async
 if ERRORLEVEL 1 GOTO errorHandling
 
 CALL :delay 7

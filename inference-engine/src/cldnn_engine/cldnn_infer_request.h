@@ -70,9 +70,9 @@ private:
     std::map<std::string, cldnn::primitive_id> inputsMap;
     std::map<std::string, cldnn::primitive_id> outputsMap;
 
-    bool m_useProfiling;
-    bool m_useStreams;
-    bool m_useExternalQueue;
+    bool m_useProfiling = false;
+    bool m_useStreams = false;
+    bool m_useExternalQueue = false;
     std::shared_ptr<CLDNNGraph> m_graph;
 
     // dynamic batch stuff
