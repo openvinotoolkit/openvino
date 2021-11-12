@@ -155,3 +155,4 @@ workbench/docs/Workbench_DG/Select_Models.md
 workbench/docs/Workbench_DG/Visualize_Accuracy.md
 ngraph/core/include/ngraph/type.hpp
 openvino/docs/IE_DG/network_state_intro.md
+workbench/docs/Workbench_DG/Compare_Performance_between_Two_Versions_of_Models.md
