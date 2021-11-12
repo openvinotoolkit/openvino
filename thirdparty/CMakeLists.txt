@@ -179,6 +179,20 @@ if(ENABLE_ONEDNN_FOR_GPU)
             COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
             BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
         )
+
+        ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
+        ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
+
+        add_library(onednn_gpu STATIC IMPORTED GLOBAL)
+        set_target_properties(onednn_gpu PROPERTIES
+            IMPORTED_LOCATION ${ONEDNN_OUTPUT_LIBRARY}
+            INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include/>;$<BUILD_INTERFACE:${SOURCE_DIR}/include/>"
+            INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
+        add_dependencies(onednn_gpu onednn_gpu_build)
+
+        # TODO: does not work for imported targets; need to import this target in
+        # OpenVINOConfig.cmake explicitly
+        # ov_install_static_lib(onednn_gpu gpu)
     endfunction()
 
     build_onednn_gpu()

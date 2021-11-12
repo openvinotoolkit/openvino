@@ -14,7 +14,7 @@ if(ENABLE_PROFILING_ITT)
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ittapi ${CMAKE_BINARY_DIR}/_deps/ittapi)
 
         target_compile_definitions(ittnotify INTERFACE ENABLE_PROFILING_ITT)
-        if (UNIX)
+        if(CMAKE_COMPILER_IS_GNUCXX)
             target_compile_options(ittnotify PRIVATE -Wno-undef)
         endif()
 
