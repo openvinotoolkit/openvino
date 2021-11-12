@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pytest
 import datetime
+import time
 
 from ..conftest import image_path, model_path
 from openvino import Core, Tensor, ProfilingInfo
@@ -133,10 +134,6 @@ def test_cancel(device):
     img = read_image()
     request = exec_net.create_infer_request()
 
-    def callback(e):
-        raise Exception(e)
-
-    request.set_callback(callback)
     request.start_async({0: img})
     request.cancel()
     with pytest.raises(RuntimeError) as e:
@@ -148,6 +145,30 @@ def test_cancel(device):
     with pytest.raises(RuntimeError) as e:
         request.wait_for(1)
     assert "[ INFER_CANCELLED ]" in str(e.value)
+
+
+def test_start_async(device):
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
+    img = read_image()
+    jobs = 3
+    requests = []
+    for _ in range(jobs):
+        requests.append(exec_net.create_infer_request())
+
+    def callback(callbacks_info):
+        time.sleep(0.01)
+        callbacks_info["finished"] += 1
+
+    callbacks_info = {}
+    callbacks_info["finished"] = 0
+    for request in requests:
+        request.set_callback(callback, callbacks_info)
+        request.start_async({0: img})
+    for request in requests:
+        request.wait()
+    assert callbacks_info["finished"] == jobs
 
 
 def test_infer_mixed_keys(device):

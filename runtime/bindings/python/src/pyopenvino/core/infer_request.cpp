@@ -81,9 +81,7 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "_start_async",
-        [](InferRequestWrapper& self, const py::dict& inputs) {
-            py::gil_scoped_release release;
-
+        [](InferRequestWrapper& self, const py::dict& inputs, py::object& userdata) {
             // Update inputs if there are any
             if (!inputs.empty()) {
                 if (py::isinstance<std::string>(inputs.begin()->first)) {
@@ -98,28 +96,19 @@ void regclass_InferRequest(py::module m) {
                     }
                 }
             }
-            // TODO: check for None so next async infer userdata can be updated
-            // if (!userdata.empty())
-            // {
-            //     if (user_callback_defined)
-            //     {
-            //         self._request.SetCompletionCallback([self, userdata]() {
-            //             // py::gil_scoped_acquire acquire;
-            //             auto statusCode = const_cast<InferRequestWrapper&>(self).Wait(
-            //                 InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
-            //             self._request.user_callback(self, statusCode, userdata);
-            //             // py::gil_scoped_release release;
-            //         });
-            //     }
-            //     else
-            //     {
-            //         py::print("There is no callback function!");
-            //     }
-            // }
+            if (userdata != py::none()) {
+                if (self.user_callback_defined) {
+                    self.userdata = userdata;
+                } else {
+                    PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
+                }
+            }
+            py::gil_scoped_release release;
             self._start_time = Time::now();
             self._request.start_async();
         },
-        py::arg("inputs"));
+        py::arg("inputs"),
+        py::arg("userdata"));
 
     cls.def("cancel", [](InferRequestWrapper& self) {
         self._request.cancel();
@@ -140,7 +129,9 @@ void regclass_InferRequest(py::module m) {
 
     cls.def(
         "set_callback",
-        [](InferRequestWrapper& self, py::function f_callback) {
+        [](InferRequestWrapper& self, py::function f_callback, py::object& userdata) {
+            self.userdata = userdata;
+            self.user_callback_defined = true;
             self._request.set_callback([&self, f_callback](std::exception_ptr exception_ptr) {
                 self._end_time = Time::now();
                 try {
@@ -148,14 +139,15 @@ void regclass_InferRequest(py::module m) {
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    IE_THROW() << "Caught exception: " << e.what();
+                    throw ov::Exception("Caught exception: " + std::string(e.what()));
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                f_callback(exception_ptr);
+                f_callback(self.userdata);
             });
         },
-        py::arg("f_callback"));
+        py::arg("f_callback"),
+        py::arg("userdata"));
 
     cls.def(
         "get_tensor",
@@ -256,6 +248,10 @@ void regclass_InferRequest(py::module m) {
 
     cls.def("get_profiling_info", [](InferRequestWrapper& self) {
         return self._request.get_profiling_info();
+    });
+
+    cls.def_property_readonly("userdata", [](InferRequestWrapper& self) {
+        return self.userdata;
     });
 
     cls.def_property_readonly("inputs", [](InferRequestWrapper& self) {

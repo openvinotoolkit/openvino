@@ -69,6 +69,7 @@ int ParseAndCheckCommandLine(int argc, char* argv[]) {
             config_msg = optarg;
             break;
         default:
+            fprintf(stderr, "Unknown argument `%c`. Please use -h option.\n", opt);
             return -1;
         }
     }
@@ -76,11 +77,11 @@ int ParseAndCheckCommandLine(int argc, char* argv[]) {
     if (help)
         return -1;
     if (input_model == NULL) {
-        printf("Model is required but not set. Please set -m option.\n");
+        fprintf(stderr, "Model is required but not set. Please set -m option.\n");
         return -1;
     }
     if (img_msg == NULL) {
-        printf("Input is required but not set.Please set -i option.\n");
+        fprintf(stderr, "Input is required but not set.Please set -i option.\n");
         return -1;
     }
 
@@ -96,14 +97,14 @@ int ParseAndCheckCommandLine(int argc, char* argv[]) {
 void readInputFilesArgument(const char* arg) {
     struct stat sb;
     if (stat(arg, &sb) != 0) {
-        printf("%sFile %s cannot be opened!\n", warn, arg);
+        fprintf(stderr, "%sFile %s cannot be opened!\n", warn, arg);
         return;
     }
     if (S_ISDIR(sb.st_mode)) {
         DIR* dp;
         dp = opendir(arg);
         if (dp == NULL) {
-            printf("%sFile %s cannot be opened!\n", warn, arg);
+            fprintf(stderr, "%sFile %s cannot be opened!\n", warn, arg);
             return;
         }
 
@@ -189,6 +190,7 @@ void parseInputFilesArguments(int argc, char** argv) {
 ie_config_t* parseConfig(const char* config_file, char comment) {
     FILE* file = fopen(config_file, "r");
     if (!file) {
+        fprintf(stderr, "ERROR file `%s` opening failure\n", config_file);
         return NULL;
     }
 
@@ -323,7 +325,7 @@ int main(int argc, char** argv) {
     /** This file_paths stores paths to the processed images **/
     parseInputFilesArguments(argc, argv_temp);
     if (!file_num) {
-        printf("No suitable images were found\n");
+        fprintf(stderr, "No suitable images were found\n");
         free(argv_temp);
         return EXIT_FAILURE;
     }
@@ -334,16 +336,20 @@ int main(int argc, char** argv) {
 
     printf("%sLoading Inference Engine\n", info);
     IEStatusCode status = ie_core_create("", &core);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_create status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     // ------------------------------ Get Available Devices
     // ------------------------------------------------------
     ie_core_versions_t ver;
     printf("%sDevice info: \n", info);
     status = ie_core_get_versions(core, device_name, &ver);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_get_versions status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     for (i = 0; i < ver.num_vers; ++i) {
         printf("         %s\n", ver.versions[i].device_name);
         printf("         %s version ......... %zu.%zu\n",
@@ -358,8 +364,10 @@ int main(int argc, char** argv) {
         // Custom CPU extension is loaded as a shared library and passed as a
         // pointer to base extension
         status = ie_core_add_extension(core, custom_ex_library_msg, "CPU");
-        if (status != OK)
+        if (status != OK) {
+            fprintf(stderr, "ERROR ie_core_add_extension status %d, line %d\n", status, __LINE__);
             goto err;
+        }
         printf("%sCustom extension loaded: %s\n", info, custom_ex_library_msg);
     }
 
@@ -369,8 +377,10 @@ int main(int argc, char** argv) {
         // description
         ie_config_t cfg = {"CONFIG_FILE", custom_plugin_cfg_msg, NULL};
         status = ie_core_set_config(core, &cfg, device_name);
-        if (status != OK)
+        if (status != OK) {
+            fprintf(stderr, "ERROR ie_core_set_config status %d, line %d\n", status, __LINE__);
             goto err;
+        }
         printf("%sConfig for device plugin custom extension loaded: %s\n", info, custom_plugin_cfg_msg);
     }
     // -----------------------------------------------------------------------------------------------------
@@ -380,8 +390,10 @@ int main(int argc, char** argv) {
     printf("%sLoading network:\n", info);
     printf("\t%s\n", input_model);
     status = ie_core_read_network(core, input_model, NULL, &network);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_core_read_network status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 3. Configure input & output
@@ -394,7 +406,7 @@ int main(int argc, char** argv) {
     size_t input_num = 0;
     status = ie_network_get_inputs_number(network, &input_num);
     if (status != OK || (input_num != 1 && input_num != 2)) {
-        printf("Sample supports topologies only with 1 or 2 inputs\n");
+        fprintf(stderr, "Sample supports topologies only with 1 or 2 inputs\n");
         goto err;
     }
 
@@ -435,7 +447,7 @@ int main(int argc, char** argv) {
 
             status = ie_network_set_input_precision(network, name, FP32);
             if (status != OK || (input_dim.dims[1] != 3 && input_dim.dims[1] != 6)) {
-                printf("Invalid input info. Should be 3 or 6 values length\n");
+                fprintf(stderr, "Invalid input info. Should be 3 or 6 values length\n");
                 goto err;
             }
         }
@@ -464,7 +476,7 @@ int main(int argc, char** argv) {
     for (i = 0; i < file_num; ++i) {
         c_mat_t img = {NULL, 0, 0, 0, 0, 0};
         if (image_read(file_paths[i], &img) == -1) {
-            printf("%sImage %s cannot be read!\n", warn, file_paths[i]);
+            fprintf(stderr, "%sImage %s cannot be read!\n", warn, file_paths[i]);
             continue;
         }
         /** Store image data **/
@@ -504,7 +516,7 @@ int main(int argc, char** argv) {
     }
 
     if (!image_num) {
-        printf("Valid input images were not found!\n");
+        fprintf(stderr, "Valid input images were not found!\n");
         free(originalImages);
         free(images);
         goto err;
@@ -512,8 +524,10 @@ int main(int argc, char** argv) {
 
     input_shapes_t shapes;
     status = ie_network_get_input_shapes(network, &shapes);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_get_input_shapes status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     /** Using ie_network_reshape() to set the batch size equal to the number of
      * input images **/
@@ -521,14 +535,18 @@ int main(int argc, char** argv) {
      * **/
     shapes.shapes[0].shape.dims[0] = image_num;
     status = ie_network_reshape(network, shapes);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_reshape status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     ie_network_input_shapes_free(&shapes);
 
     input_shapes_t shapes2;
     status = ie_network_get_input_shapes(network, &shapes2);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_get_input_shapes status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     size_t batchSize = shapes2.shapes[0].shape.dims[0];
     ie_network_input_shapes_free(&shapes2);
     printf("%sBatch size is %zu\n", info, batchSize);
@@ -541,20 +559,24 @@ int main(int argc, char** argv) {
     status = ie_network_get_outputs_number(network, &output_num);
 
     if (status != OK || !output_num) {
-        printf("Can't find a DetectionOutput layer in the topology\n");
+        fprintf(stderr, "Can't find a DetectionOutput layer in the topology\n");
         goto err;
     }
 
     status = ie_network_get_output_name(network, output_num - 1, &output_name);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_get_output_name status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     dimensions_t output_dim;
     status = ie_network_get_output_dims(network, output_name, &output_dim);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_get_output_dims status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     if (output_dim.ranks != 4) {
-        printf("Incorrect output dimensions for SSD model\n");
+        fprintf(stderr, "Incorrect output dimensions for SSD model\n");
         goto err;
     }
 
@@ -569,8 +591,10 @@ int main(int argc, char** argv) {
     /** Set the precision of output data provided by the user, should be called
      * before load of the network to the device **/
     status = ie_network_set_output_precision(network, output_name, FP32);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_network_set_output_precision status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 4. Loading model to the device
@@ -581,13 +605,16 @@ int main(int argc, char** argv) {
         status = ie_core_load_network(core, network, device_name, config, &exe_network);
         config_free(config);
         if (status != OK) {
+            fprintf(stderr, "ERROR ie_core_load_network status %d, line %d\n", status, __LINE__);
             goto err;
         }
     } else {
         ie_config_t cfg = {NULL, NULL, NULL};
         status = ie_core_load_network(core, network, device_name, &cfg, &exe_network);
-        if (status != OK)
+        if (status != OK) {
+            fprintf(stderr, "ERROR ie_core_load_network status %d, line %d\n", status, __LINE__);
             goto err;
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------
@@ -596,8 +623,10 @@ int main(int argc, char** argv) {
     // -------------------------------------------------
     printf("%sCreate infer request\n", info);
     status = ie_exec_network_create_infer_request(exe_network, &infer_request);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_exec_network_create_infer_request status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 6. Prepare input
@@ -605,22 +634,28 @@ int main(int argc, char** argv) {
 
     /** Creating input blob **/
     status = ie_infer_request_get_blob(infer_request, imageInputName, &imageInput);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_get_blob status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     /** Filling input tensor with images. First b channel, then g and r channels
      * **/
     dimensions_t input_tensor_dims;
     status = ie_blob_get_dims(imageInput, &input_tensor_dims);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_blob_get_dims status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     size_t num_channels = input_tensor_dims.dims[1];
     size_t image_size = input_tensor_dims.dims[3] * input_tensor_dims.dims[2];
 
     ie_blob_buffer_t blob_buffer;
     status = ie_blob_get_buffer(imageInput, &blob_buffer);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_blob_get_buffer status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     unsigned char* data = (unsigned char*)(blob_buffer.buffer);
 
     /** Iterate over all input images **/
@@ -651,6 +686,7 @@ int main(int argc, char** argv) {
         ie_blob_buffer_t info_blob_buffer;
         status |= ie_blob_get_buffer(input2, &info_blob_buffer);
         if (status != OK) {
+            fprintf(stderr, "ERROR ie_blob_get_buffer status %d, line %d\n", status, __LINE__);
             ie_blob_free(&input2);
             goto err;
         }
@@ -672,8 +708,10 @@ int main(int argc, char** argv) {
     printf("%sStart inference\n", info);
     status = ie_infer_request_infer_async(infer_request);
     status |= ie_infer_request_wait(infer_request, -1);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_infer_async status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- Step 8. Process output
@@ -681,13 +719,17 @@ int main(int argc, char** argv) {
     printf("%sProcessing output blobs\n", info);
 
     status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_infer_request_get_blob status %d, line %d\n", status, __LINE__);
         goto err;
+    }
 
     ie_blob_buffer_t output_blob_buffer;
     status = ie_blob_get_cbuffer(output_blob, &output_blob_buffer);
-    if (status != OK)
+    if (status != OK) {
+        fprintf(stderr, "ERROR ie_blob_get_cbuffer status %d, line %d\n", status, __LINE__);
         goto err;
+    }
     const float* detection = (float*)(output_blob_buffer.cbuffer);
 
     int** classes = (int**)calloc(image_num, sizeof(int*));
