@@ -185,7 +185,7 @@ void op::v4::Proposal::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
     v0::Proposal::validate();
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
                                                   get_input_partial_shape(1),
                                                   get_input_partial_shape(2)};
