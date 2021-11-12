@@ -95,11 +95,10 @@ void MKLDNNGatherNDNode::prepareParams() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << " has unidentified preferable primitive descriptor.";
 
-    const auto srcBlockedMemDesc = srcMemPtr->GetDescWithType<BlockedMemoryDesc>();
-    attrs.srcDims = srcBlockedMemDesc->getBlockDims();
-    attrs.srcStrides = srcBlockedMemDesc->getStrides();
+    attrs.srcDims = srcMemPtr->getStaticDims();
+    attrs.srcStrides = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getStrides();
     attrs.dstSize = dstMemPtr->GetSize();
-    attrs.sliceRank =  idxMemPtr->getDesc().getShape().getStaticDims().back();
+    attrs.sliceRank =  idxMemPtr->getStaticDims().back();
     execPtr = std::make_shared<GatherNDExecutor>(attrs);
 }
 
