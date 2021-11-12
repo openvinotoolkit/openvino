@@ -238,14 +238,32 @@ bool MKLDNNSplitNode::needPrepareParams() const {
 }
 
 void MKLDNNSplitNode::prepareParams() {
-    initializeDstMemPtrs();
-    if (!canUseOptimizedNspc2Ncsp) {
-        const auto inDesc = getParentEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        const auto outputPortsCount = outputShapes.size();
-        std::vector<BlockedMemoryDescCPtr> outDescs(outputPortsCount);
-        for (size_t i = 0; i < outputPortsCount; i++) {
-            outDescs[i] = getChildEdgesAtPort(i)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    const auto &srcMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
+    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
+        THROW_ERROR << "has not allocated input memory";
+    }
+
+    dstMemPtrs.clear();
+    std::vector<BlockedMemoryDescCPtr> outDescs;
+    for (size_t i = 0; i < outputShapes.size(); ++i) {
+        const auto &outMemPtr = this->getChildEdgesAtPort(i)[0]->getMemoryPtr();
+        if (!outMemPtr || !outMemPtr->GetPrimitivePtr()) {
+            THROW_ERROR << "has not allocated destination memory";
         }
+
+        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outMemPtr->GetPtr())) {
+            dstMemPtrs.push_back(dstData);
+        } else {
+            THROW_ERROR << "can't get child edge indx " << i << "data.";
+        }
+
+        if (!canUseOptimizedNspc2Ncsp) {
+            outDescs.push_back(outMemPtr->GetDescWithType<BlockedMemoryDesc>());
+        }
+    }
+
+    if (!canUseOptimizedNspc2Ncsp) {
+        const auto inDesc = srcMemPtr->GetDescWithType<BlockedMemoryDesc>();
         execPtr = std::make_shared<SplitOptimizedExecutor>(inDesc, outDescs, axis);
     }
 }
@@ -504,19 +522,6 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
         });
 
         sIdx += innerSize;
-    }
-}
-
-void MKLDNNSplitNode::initializeDstMemPtrs() {
-    dstMemPtrs.clear();
-
-    for (size_t i = 0; i < outputShapes.size(); ++i) {
-        auto outputEdges = this->getChildEdgesAtPort(i);
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdges.front()->getMemoryPtr()->GetPtr())) {
-            dstMemPtrs.push_back(dstData);
-        } else {
-            THROW_ERROR << "can't get child edge indx " << i << "data.";
-        }
     }
 }
 

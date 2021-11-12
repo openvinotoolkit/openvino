@@ -55,7 +55,6 @@ private:
             size_t countStrides;
     };
 
-    void initializeDstMemPtrs();
     void optimizedNspc2Ncsp(size_t MB);
 
     bool canUseOptimizedNspc2Ncsp;
