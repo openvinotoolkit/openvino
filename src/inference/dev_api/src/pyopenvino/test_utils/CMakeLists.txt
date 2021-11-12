@@ -8,9 +8,14 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
+set(PYTHON_BRIDGE_CPACK_PATH "python")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_utils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils.hpp)
+
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
+    find_package(InferenceEngineDeveloperPackage REQUIRED)
+endif()
 
 # create target
 
@@ -41,7 +46,7 @@ endif()
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy  ${CMAKE_CURRENT_LIST_DIR}/../openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
+        COMMAND ${CMAKE_COMMAND} -E copy  ${PYTHON_SOURCE_DIR}/openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
         )
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
@@ -54,3 +59,8 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT tests EXCLUDE_FROM_ALL
         LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL)
+
+install(PROGRAMS  ${PYTHON_SOURCE_DIR}/openvino/test_utils/__init__.py
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)

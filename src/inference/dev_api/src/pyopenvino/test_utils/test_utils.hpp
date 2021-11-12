@@ -8,4 +8,6 @@
 
 namespace py = pybind11;
 
-void regmodule_test_utils(py::module m);
+PYBIND11_MODULE(test_utils, m) {
+    void regmodule_test_utils(py::module m);
+}

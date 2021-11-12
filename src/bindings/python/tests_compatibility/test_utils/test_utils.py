@@ -15,7 +15,7 @@ def get_test_function():
     return func
 
 
-def test_compare_networks():
+def test_compare_functions():
     try:
         from openvino.test_utils import compare_functions
         func = get_test_function()

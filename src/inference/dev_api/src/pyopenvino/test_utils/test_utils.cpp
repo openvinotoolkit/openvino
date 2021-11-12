@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyopenvino/test_utils/test_utils.hpp"
+#include "test_utils.hpp"
 
 #include <pybind11/pybind11.h>
 
-#include <common_test_utils/ngraph_test_utils.hpp>
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include <string>
 
 namespace py = pybind11;
