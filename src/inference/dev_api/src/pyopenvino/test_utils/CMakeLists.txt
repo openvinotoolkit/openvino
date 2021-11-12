@@ -22,7 +22,6 @@ endif()
 pybind11_add_module(${TARGET_NAME} MODULE ${SOURCES})
 
 add_dependencies(${TARGET_NAME} pyopenvino)
-ov_python_disable_intel_warnings(${TARGET_NAME})
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
