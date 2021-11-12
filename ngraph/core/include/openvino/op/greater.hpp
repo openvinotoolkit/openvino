@@ -15,7 +15,7 @@ public:
     OPENVINO_OP("Greater", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a greater-than operation.
-    Greater() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
+    Greater() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a greater-than operation.
     ///
     /// \param arg0 Node that produces the first input tensor.

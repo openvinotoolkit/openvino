@@ -133,7 +133,13 @@ void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
     if (dims.is_static()) {
         reshape(SizeVector(dims.to_shape()), layout);
     } else {
-        tensorDesc = TensorDesc(tensorDesc.getPrecision(), layout);
+        SizeVector d;
+        if (dims.rank().is_static()) {
+            d = SizeVector(dims.rank().get_length(), 0);
+        } else {
+            d = SizeVector{0};
+        }
+        tensorDesc = TensorDesc(tensorDesc.getPrecision(), d, layout);
         _impl->pShape = dims;
     }
 }
@@ -205,15 +211,19 @@ const SizeVector& Data::getDims() const {
 
 namespace InferenceEngine {
 
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data) {
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data);
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data);
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data);
+
+CNNLayerWeakPtr& getCreatorLayer(const DataPtr& data) {
     return data->_impl->creatorLayer;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data) {
+std::map<std::string, CNNLayerPtr>& getInputTo(const DataPtr& data) {
     return data->_impl->inputTo;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data) {
+std::map<std::string, CNNLayerPtr>& getInputTo(Data* data) {
     return data->_impl->inputTo;
 }
 

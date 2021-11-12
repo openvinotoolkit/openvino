@@ -244,11 +244,22 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     {
         LayerTransformation::createParamsU8I8AndI8(),
         { 256ul, {}, { 0.f }, { 25.5f }, { -1.0686283872061019e-38 }, { 1.0686283872061019e-38 } },
-        { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 255.f } },
+        { 256ul, {}, { 0.f }, { 25.5f }, { -128.f }, { 127.f } },
+        ngraph::element::i8,
+        {
+            { ngraph::element::f32, {{ngraph::element::f32}, {}, { 1e-32f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, {}, { 1e-32f }} }
+        }
+    },
+    // denormal values
+    {
+        LayerTransformation::createParamsU8I8AndI8(),
+        { 256ul, {}, { 0.f }, { 25.5f }, { 0.0 }, { 1.0686283872061019e-38 } },
+        { 256ul, {}, { 0.f }, { 25.5f }, { 0.0 }, { 255 } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { }, { 1e-32f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { }, { 1e-32f }} }
+            { ngraph::element::f32, {{ngraph::element::f32}, {}, { 1e-32f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, {}, { 1e-32f }} }
         }
     },
     // U16

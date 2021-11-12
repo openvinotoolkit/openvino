@@ -23,8 +23,8 @@ if (ENABLE_CLDNN)
     else()
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     endif()
-    set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
     add_subdirectory(clDNN)
+    ov_install_static_lib(clDNN_lib gpu)
 endif()
 
 function(ie_add_mkldnn)
@@ -54,6 +54,7 @@ function(ie_add_mkldnn)
 
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
+    ov_install_static_lib(dnnl cpu)
 endfunction()
 
 if(ENABLE_MKL_DNN)
