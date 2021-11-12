@@ -116,15 +116,19 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: CVS-66778
         R"(.*smoke_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_Hetero_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
+        R"(.*smoke_Auto_BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)",
         R"(.*smoke_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicOutputToDynamicInput.*)",
         R"(.*smoke_Hetero_BehaviorTests.*DynamicInputToDynamicOutput.*)",
-
+        R"(.*smoke_Auto_BehaviorTests.*DynamicOutputToDynamicInput.*)",
+        R"(.*smoke_Auto_BehaviorTests.*DynamicInputToDynamicOutput.*)",
         // CPU dynamism: empty tensor returns size() == 1. Looks like layout is SCALAR
         // Issue: CVS-66780
         R"(.*smoke_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
         R"(.*smoke_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
+        //R"(.*smoke_Auto_BehaviorTests.*InferDynamicNetworkWithGetTensor.*)",
+        //R"(.*smoke_Auto_BehaviorTests.*InferUpperBoundNetworkWithGetTensor.*)",
 
         // TODO: Issue CVS-51680
         R"(.*BehaviorTests.*canRun3SyncRequestsConsistentlyFromThreads.*CPU_THROUGHPUT.*)",
