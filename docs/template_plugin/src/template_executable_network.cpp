@@ -218,7 +218,9 @@ void TemplatePlugin::ExecutableNetwork::Export(std::ostream& modelStream) {
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     ov::pass::Serialize serializer(xmlFile, binFile, custom_opsets);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     serializer.run_on_function(_function);
 
     auto m_constants = binFile.str();
