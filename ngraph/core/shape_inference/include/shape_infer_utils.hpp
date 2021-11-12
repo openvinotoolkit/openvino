@@ -14,4 +14,10 @@ template <>
 void inline default_work(ov::PartialShape& shape) {
     shape = ov::PartialShape::dynamic();
 }
+
+template <class T>
+void inline copy_shape(const T& src, T& dst) {
+    dst = src;
+}
+
 }  // namespace ShapeInfer
