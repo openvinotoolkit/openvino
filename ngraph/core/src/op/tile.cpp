@@ -36,20 +36,10 @@ void op::v0::Tile::validate_and_infer_types() {
                           "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
-    auto arg_shape = get_input_partial_shape(0);
-    auto repeats_shape = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(this, repeats_shape.rank().compatible(1), "PartialShape of repeats must be of rank 1");
-    ov::PartialShape repeats_as_pshape;
-    bool repeats_are_known = evaluate_as_partial_shape(get_input_source_output(1), repeats_as_pshape);
-
-    if (repeats_are_known) {
-        std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-        std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), repeats_as_pshape};
-        shape_infer(this, input_shapes, output_shapes);
-        set_output_type(0, arg_et, output_shapes[0]);
-    } else {
-        set_output_type(0, arg_et, ov::PartialShape::dynamic());
-    }
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
+    std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0), get_input_partial_shape(1)};
+    shape_infer(this, input_shapes, output_shapes);
+    set_output_type(0, arg_et, output_shapes[0]);
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);

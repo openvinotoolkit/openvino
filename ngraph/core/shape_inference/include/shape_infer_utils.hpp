@@ -7,7 +7,7 @@
 namespace ShapeInfer {
 template <class T>
 void inline default_work(T& shape) {
-    OPENVINO_UNREACHABLE("[ShapeInfer]Not Reachable");
+    OPENVINO_UNREACHABLE("[ShapeInfer]This code should be executed only for PartialShape class");
 }
 
 template <>

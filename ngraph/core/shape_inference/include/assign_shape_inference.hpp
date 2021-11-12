@@ -10,24 +10,6 @@ namespace ov {
 namespace op {
 namespace v3 {
 
-template <class T1, class T2>
-bool is_equal(const T1& lhs, const T2& rhs) {
-    OPENVINO_ASSERT(lhs.is_static() && rhs.is_static());
-    OPENVINO_ASSERT(lhs.rank().get_length() == rhs.rank().get_length());
-    const auto rank = lhs.rank().get_length();
-    bool ret = true;
-    for (size_t i = 0; i < rank; i++) {
-        if (lhs[i].get_length() != rhs[i].get_length())
-            ret = false;
-    }
-    return ret;
-}
-
-template <class T>
-bool is_equal(const T& lhs, const T& rhs) {
-    return lhs == rhs;
-}
-
 template <class T>
 void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
@@ -41,7 +23,7 @@ void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vect
 
     if (input_shape.is_static() && variable_info.data_shape.is_static()) {
         NODE_VALIDATION_CHECK(op,
-                              is_equal(input_shape, variable_info.data_shape),
+                              input_shape.to_shape() == variable_info.data_shape.to_shape(),
                               "Variables output shapes are inconsistent.");
     }
     if (input_shape.is_static())

@@ -8,12 +8,12 @@
 namespace ov {
 namespace op {
 namespace ShapeInferLSTM {
-template <class T1, class T2>
-void lstm_shape_infer(const T1* op,
-                      const std::vector<T2>& input_shapes,
-                      std::vector<T2>& output_shapes,
+template <class OpsType, class ShapeType>
+void lstm_shape_infer(const OpsType* op,
+                      const std::vector<ShapeType>& input_shapes,
+                      std::vector<ShapeType>& output_shapes,
                       std::size_t gates_count) {
-    using DimType = typename std::iterator_traits<typename T2::iterator>::value_type;
+    using DimType = typename std::iterator_traits<typename ShapeType::iterator>::value_type;
     // If rank is dynamic, then output_shape is undefined
     for (const auto& input : input_shapes) {
         if (input.rank().is_dynamic()) {
@@ -38,7 +38,7 @@ void lstm_shape_infer(const T1* op,
 
     // Check rnn common input
     util::validate_input_rank(dynamic_cast<const util::RNNCellBase*>(op),
-                              std::vector<T2>{x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
+                              std::vector<ShapeType>{x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
     // Check cell
     NODE_VALIDATION_CHECK(op,

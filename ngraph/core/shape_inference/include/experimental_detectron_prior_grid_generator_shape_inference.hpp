@@ -29,20 +29,18 @@ void shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
 
     NODE_VALIDATION_CHECK(op, priors_shape.rank().compatible(2), "Priors rank must be equal to 2.");
 
-    if (priors_shape[1].is_static()) {
-        NODE_VALIDATION_CHECK(op,
-                              priors_shape[1].compatible(4),
-                              "The last dimension of the 'priors' input must be equal to 4. Got: ",
-                              priors_shape[1]);
-    }
+    NODE_VALIDATION_CHECK(op,
+                          priors_shape[1].compatible(4),
+                          "The last dimension of the 'priors' input must be equal to 4. Got: ",
+                          priors_shape[1]);
 
-    NODE_VALIDATION_CHECK(op, featmap_shape.rank().compatible(4), "Feature_map rank must be equal to 4.");
+    NODE_VALIDATION_CHECK(op, featmap_shape.size() == 4, "Feature_map rank must be equal to 4.");
 
     if (im_data_shape.rank().is_dynamic()) {
         return;
     }
 
-    NODE_VALIDATION_CHECK(op, im_data_shape.rank().compatible(4), "Im_data rank must be equal to 4.");
+    NODE_VALIDATION_CHECK(op, im_data_shape.size() == 4, "Im_data rank must be equal to 4.");
 
     const auto num_batches_featmap = featmap_shape[0];
     const auto num_batches_im_data = im_data_shape[0];
