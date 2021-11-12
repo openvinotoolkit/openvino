@@ -52,18 +52,23 @@ class InsertReverseChannels(BackReplacementPattern):
 
     @staticmethod
     def get_fw_index(node: Node, idx: int):
-        if node.has_valid('rt_info'):
-            rt_info = node.rt_info
-            if rt_info.contains('old_api_map'):
-                old_api_map_version = rt_info.get_attribute_version('old_api_map')
-                old_api_map = rt_info.info['old_api_map', old_api_map_version]
-                if 'inverse_order' in old_api_map.info:
-                    order = old_api_map.info['inverse_order']
-                    node_name = node.soft_get('name', node.id)
-                    assert len(order) > idx >= 0, \
-                        'Channel index {} is incompatible with old_api_map in node {}.'.format(idx, node_name)
-                    return list(order).index(idx)
-        return idx
+        if not node.has_valid('rt_info'):
+            return idx
+
+        rt_info = node.rt_info
+        if not rt_info.contains('old_api_map'):
+            return idx
+
+        old_api_map_version = rt_info.get_attribute_version('old_api_map')
+        old_api_map = rt_info.info['old_api_map', old_api_map_version]
+        if 'inverse_order' not in old_api_map.info:
+            return idx
+
+        order = old_api_map.info['inverse_order']
+        node_name = node.soft_get('name', node.id)
+        assert len(order) > idx >= 0, \
+            'Channel index {} is incompatible with old_api_map in node {}.'.format(idx, node_name)
+        return list(order).index(idx)
 
     def find_and_replace_pattern(self, graph: Graph):
         all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
