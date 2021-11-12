@@ -50,8 +50,8 @@ static std::tuple<bool, uint32_t, uint32_t, uint32_t> VerifyAndGetConvParams(std
     const uint32_t in_channels = input2_shape.back();
     const uint32_t out_channels = input2_shape.front();
     if (input1_shape.front() <= GNALimitations::affineMaxBatchSize ||
-        out_channels % GNALimitations::convFiltersNumDivider != 0 ||
-        out_channels > GNALimitations::convMaxFiltersNum ||
+        out_channels % GNALimitations::convFiltersNumDividerGna2_0 != 0 ||
+        out_channels > GNALimitations::convMaxFiltersNumGna2_0 ||
         in_channels > GNALimitations::convFilterMaxSize) {
         return std::make_tuple(false, 0, 0, 0);
     }

@@ -14,11 +14,12 @@ namespace GNALimitations {
 
 constexpr uint32_t bufferMaxSize = 65528;
 
-constexpr uint32_t convMinFiltersNum = 4;
-constexpr uint32_t convMaxFiltersNum = 65532;
+constexpr uint32_t convMinFiltersNumGna2_0 = 4;
+constexpr uint32_t convMaxFiltersNumGna2_0 = 65532;
+constexpr uint32_t convMaxFiltersNumGna3_0 = 8192;
 constexpr uint32_t convDilationHeight = 1;
 constexpr uint32_t convDilationWidth = 1;
-constexpr uint32_t convFiltersNumDivider = 4;
+constexpr uint32_t convFiltersNumDividerGna2_0 = 4;
 constexpr uint32_t convFilterSizeDivider = 8;
 constexpr uint32_t convFilterMaxSize = 768;
 constexpr uint32_t convEachKernelByteAlignment = 16;

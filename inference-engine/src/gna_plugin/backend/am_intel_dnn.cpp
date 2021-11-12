@@ -202,9 +202,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
         THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << num_columns_in <<
                                ") is not a multiply by 8";
     }
-    if (num_filters < GNALimitations::convMinFiltersNum ||
-        num_filters > GNALimitations::convMaxFiltersNum ||
-        num_filters % GNALimitations::convFiltersNumDivider != 0) {
+    if (num_filters < GNALimitations::convMinFiltersNumGna2_0 ||
+        num_filters > GNALimitations::convMaxFiltersNumGna2_0 ||
+        num_filters % GNALimitations::convFiltersNumDividerGna2_0 != 0) {
         THROW_GNA_EXCEPTION << "Unsupported number of filters in Convolutional1DComponent: " << num_filters;
     }
     auto max_number_of_out_elements = outputFromConv(num_columns_in, num_filter_coefficients, convStride);

@@ -1316,7 +1316,7 @@ void InsertSplitAligningFilterPass::run() {
 
                     const auto offsetOfUnalignment = (currentOffset - aligned64_offset) / bytesPerSplitElement;
                     // TODO consider to use a different number of filters do decrese the number of trailing zeros (additionalPaddingOfFilter)
-                    const auto numberOfFilters = GNALimitations::convMinFiltersNum;
+                    const auto numberOfFilters = GNALimitations::convMinFiltersNumGna2_0;
                     const auto filterSize = ALIGN(offsetOfUnalignment + numberOfFilters, GNALimitations::convFilterSizeDivider);
 
                     // filterWeights: numberOfFilters X (offsetOfUnalignment + additionalPaddingOfFilter + numberOfFilters)
