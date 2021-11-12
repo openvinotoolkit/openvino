@@ -71,7 +71,7 @@ void shape_infer(GatherBase* op,
                               axis);
 
         NODE_VALIDATION_CHECK(op,
-                              data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
+                              data_rank.is_dynamic(),
                               "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
                               axis,
                               " data_rank = ",
