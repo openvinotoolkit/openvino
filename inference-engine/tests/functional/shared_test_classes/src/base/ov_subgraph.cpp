@@ -131,7 +131,6 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
 }
 
 void SubgraphBaseTest::configure_model() {
-    // Caution!!! This parameters work properly only for test cases with static shapes, see issue: CVS-70301
     // configure input precision
     ov::preprocess::PrePostProcessor p;
     {
