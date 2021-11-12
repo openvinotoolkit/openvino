@@ -12,7 +12,6 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
 #include "ngraph/opsets/opset8.hpp"
-#include "ngraph/runtime/tensor.hpp"
 
 using namespace GNAPluginNS;
 
@@ -21,44 +20,21 @@ TEST(op_eval, softsign) {
     auto softsign = std::make_shared<SoftSign>(p);
     auto fun = std::make_shared<ngraph::Function>(ngraph::OutputVector{softsign}, ngraph::ParameterVector{p});
 
-    std::vector<float> inputs{-1.0, 0.0, 1.0, 20.0};
+    float inputs[] = {-1.0, 0.0, 1.0, 20.0};
     std::vector<float> expected_result{0.5, 1.0, 0.5, 0.047619};
 
-    auto result = std::make_shared<ngraph::HostTensor>();
+    ov::runtime::TensorVector result(1);
+    ov::runtime::Tensor input{ov::element::f32, ov::Shape{4}, inputs};
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<ngraph::element::Type_t::f32>(ngraph::Shape{4}, inputs)}));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ASSERT_TRUE(fun->evaluate(result, ov::runtime::TensorVector{input}));
 
-    EXPECT_EQ(result->get_element_type(), ngraph::element::f32);
-    EXPECT_EQ(result->get_shape(), ngraph::Shape{4});
-    auto result_data = read_vector<float>(result);
-    for (size_t i = 0; i < inputs.size(); i++)
+    EXPECT_EQ(result.size(), 1);
+    EXPECT_EQ(result[0].get_element_type(), ngraph::element::f32);
+    EXPECT_EQ(result[0].get_shape(), ngraph::Shape{4});
+    EXPECT_EQ(result[0].get_size(), 4);
+
+    const float * result_data = result[0].data<float>();
+    for (size_t i = 0; i < result[0].get_size(); ++i)
         EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
-}
-
-TEST(op_eval, softsign_new) {
-    auto p = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, ngraph::Shape{4});
-    auto softsign = std::make_shared<SoftSign>(p);
-    auto fun = std::make_shared<ngraph::Function>(ngraph::OutputVector{softsign}, ngraph::ParameterVector{p});
-
-    std::vector<float> inputs{-1.0, 0.0, 1.0, 20.0};
-    std::vector<float> expected_result{0.5, 1.0, 0.5, 0.047619};
-
-    /*
-    auto result = std::make_shared<ngraph::HostTensor>();
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<ngraph::element::Type_t::f32>(ngraph::Shape{4}, inputs)}));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    EXPECT_EQ(result->get_element_type(), ngraph::element::f32);
-    EXPECT_EQ(result->get_shape(), ngraph::Shape{4});
-    auto result_data = read_vector<float>(result);
-    for (size_t i = 0; i < inputs.size(); i++)
-        EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
-        */
-    auto backend = ngraph::runtime::Backend::create("GNA");
-
 }
 

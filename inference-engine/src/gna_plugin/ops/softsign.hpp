@@ -23,8 +23,11 @@ public:
     SoftSign(const ngraph::Output<ngraph::Node>& arg);
     std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
     OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const override;
+    bool evaluate(const ngraph::HostTensorVector& outputs,
+                  const ngraph::HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate(ov::runtime::TensorVector& output_values,
+                  const ov::runtime::TensorVector& input_values) const override;
     bool has_evaluate() const override;
 };
 }  // namespace GNAPluginNS

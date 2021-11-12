@@ -39,6 +39,13 @@ inline bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorP
     return true;
 }
 
+template <ngraph::element::Type_t ET>
+inline bool evaluate(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out, const size_t count) {
+    using T = typename ngraph::element_type_traits<ET>::value_type;
+    softsign<T>(arg.data<T>(), out.data<T>(), count);
+    return true;
+}
+
 namespace {
 bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out) {
     bool rc = true;
@@ -58,7 +65,30 @@ bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTenso
     }
     return rc;
 }
+
+bool evaluate_softsign(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out) {
+    bool rc = true;
+    //out->set_unary(arg); // FIXME
+    size_t count = shape_size(arg.get_shape());
+
+    switch (arg.get_element_type()) {
+    case ov::element::Type_t::f16:
+        rc = evaluate<ov::element::Type_t::f16>(arg, out, count);
+        break;
+    case ov::element::Type_t::f32:
+        rc = evaluate<ov::element::Type_t::f32>(arg, out, count);
+        break;
+    default:
+        rc = false;
+        break;
+    }
+    return rc;
+}
 } // namespace
+
+bool SoftSign::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
+    return evaluate_softsign(inputs[0], outputs[0]);
+}
 
 bool SoftSign::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
     return evaluate_softsign(inputs[0], outputs[0]);
