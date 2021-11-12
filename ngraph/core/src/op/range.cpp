@@ -12,6 +12,7 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/type/element_type_traits.hpp"
+#include "range_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -71,10 +72,6 @@ void op::v4::Range::validate_and_infer_types() {
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
 
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).compatible(ov::Shape{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).compatible(ov::Shape{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(2).compatible(ov::Shape{}), "'step' input is not a scalar");
-
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_integral_number() || get_input_element_type(0).is_real(),
                           "'start' input scalar should be a numeric type. Got: ",
@@ -88,63 +85,14 @@ void op::v4::Range::validate_and_infer_types() {
                           "'step' input scalar should be a numeric type. Got: ",
                           get_input_element_type(2));
 
-    auto const_start = get_constant_from_source(input_value(0));
-    auto const_stop = get_constant_from_source(input_value(1));
-    auto const_step = get_constant_from_source(input_value(2));
+    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
+    std::vector<PartialShape> input_shapes;
+    for (int i = 0; i < get_input_size(); i++)
+        input_shapes.push_back(get_input_partial_shape(i));
 
-    double start = 0;
-    double stop = 0;
-    double step = 0;
+    shape_infer(this, input_shapes, result_shapes);
 
-    if (const_start != nullptr) {
-        std::vector<double> start_val = const_start->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, start_val.size() == 1);
-        start = start_val[0];
-        NODE_VALIDATION_CHECK(this, std::isfinite(start) && !std::isnan(start), "'start' cannot be nan or infinite.");
-    }
-
-    if (const_stop != nullptr) {
-        std::vector<double> stop_val = const_stop->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
-        stop = stop_val[0];
-        NODE_VALIDATION_CHECK(this, std::isfinite(stop) && !std::isnan(stop), "'stop' cannot be nan or infinite.");
-    }
-
-    if (const_step != nullptr) {
-        std::vector<double> step_val = const_step->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, step_val.size() == 1);
-        step = step_val[0];
-        NODE_VALIDATION_CHECK(this, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
-    }
-
-    ov::PartialShape result{ov::PartialShape::dynamic(1)};
-
-    if (const_start != nullptr && const_stop != nullptr && const_step != nullptr) {
-        // all inputs must be casted to output_type before
-        // the rounding for casting values are done towards zero
-        if (m_output_type.is_integral_number() && get_input_element_type(0).is_real()) {
-            start = std::trunc(start);
-        }
-        if (m_output_type.is_integral_number() && get_input_element_type(1).is_real()) {
-            stop = std::trunc(stop);
-        }
-        if (m_output_type.is_integral_number() && get_input_element_type(2).is_real()) {
-            step = std::trunc(step);
-        }
-
-        // the number of elements is: max(ceil((stop − start) / step), 0)
-        double span;
-        if ((step > 0 && start >= stop) || (step < 0 && start <= stop)) {
-            span = 0;
-        } else {
-            span = stop - start;
-        }
-
-        double strided = ceil(fabs(span) / fabs(step));
-
-        result = ov::PartialShape{Dimension(static_cast<int64_t>(strided))};
-    }
-    set_output_type(0, m_output_type, result);
+    set_output_type(0, m_output_type, result_shapes[0]);
 }
 
 shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const {
