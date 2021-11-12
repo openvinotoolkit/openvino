@@ -41,26 +41,31 @@ TEST(StaticShapeInferenceTest, VariadicSplitV1) {
     check_output_shape(build_variadic_split(Shape{12, 1, 6}, {2}, {3, 1, 2}), {{12, 1, 3}, {12, 1, 1}, {12, 1, 2}});
     check_output_shape(build_variadic_split(Shape{12, 6}, {1}, {6, 0}), {{12, 6}, {12, 0}});
 
-    check_static_shape(split, {Shape{12, 6}, {-2}, {{3}, {7, -1, 2}}}, {{7, 6}, {3, 6}, {2, 6}});
+    check_static_shape(split,
+                       {StaticShape{12, 6}, {-2}, TestTensor(StaticShape{3}, {7, -1, 2})},
+                       {{7, 6}, {3, 6}, {2, 6}});
 }
 
 TEST(StaticShapeInferenceTest, VariadicSplitV1_StaticWithConstMap) {
     check_static_shape(build_variadic_split(Shape{2, 6}, {}, {}),
-                       {Shape{12, 6}, {-2}, {7, -1, 2}},
+                       {StaticShape{12, 6}, {-2}, {7, -1, 2}},
                        {{7, 6}, {3, 6}, {2, 6}});
 }
 
 TEST(StaticShapeInferenceTest, VariadicSplitV1_StaticNoConstMap) {
-    check_static_shape(build_variadic_split(Shape{2, 6}, {}, {}), {Shape{2, 6}, Shape{}, Shape{3}}, {}, true);
+    check_static_shape(build_variadic_split(Shape{2, 6}, {}, {}),
+                       {StaticShape{2, 6}, StaticShape{}, StaticShape{3}},
+                       {},
+                       true);
 }
 
 TEST(StaticShapeInferenceTest, VariadicSplitV1_StaticWrongConstMap1) {
-    check_static_shape(build_variadic_split(Shape{2, 6}, {}, {}), {Shape{12, 6}, {-2}, {7, 99, 2}}, {}, true);
+    check_static_shape(build_variadic_split(Shape{2, 6}, {}, {}), {StaticShape{12, 6}, {-2}, {7, 99, 2}}, {}, true);
 }
 
 TEST(StaticShapeInferenceTest, VariadicSplitV1_StaticWrongConstMap2) {
     check_static_shape(build_variadic_split(Shape{2, 6}, {}, {}),
-                       {Shape{12, 6}, {-2}, {Shape{2, 2}, std::initializer_list<int>{7, -1, 2, 1}}},
+                       {StaticShape{12, 6}, {-2}, {StaticShape{2, 2}, std::initializer_list<int>{7, -1, 2, 1}}},
                        {},
                        true);
 }

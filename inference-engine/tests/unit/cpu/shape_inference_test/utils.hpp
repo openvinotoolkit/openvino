@@ -16,25 +16,28 @@ struct TestTensor {
     ov::StaticShape static_shape;
 
     template <typename T>
-    TestTensor(std::initializer_list<T> values) : TestTensor(ov::Shape({values.size()}), values) {}
-
-    TestTensor(int64_t scalar) : TestTensor(ov::Shape(), {scalar}) {}
-
-    TestTensor(ov::Shape shape) {
-        for (auto dim : shape)
-            static_shape.push_back(dim);
-    }
+    TestTensor(std::initializer_list<T> values) : TestTensor(ov::StaticShape({values.size()}), values) {}
 
     template <typename T>
-    TestTensor(ov::Shape shape, std::initializer_list<T> values) {
-        tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::from<T>(), shape);
-        T* ptr = tensor->get_data_ptr<T>();
-        int i = 0;
-        for (auto& v : values)
-            ptr[i++] = v;
+    TestTensor(T scalar) : TestTensor(ov::StaticShape({}), {scalar}) {}
 
+    TestTensor(ov::StaticShape shape) : static_shape(shape) {}
+
+    template <typename T>
+    TestTensor(ov::StaticShape shape, std::initializer_list<T> values) {
+        static_shape = shape;
+
+        ov::Shape s;
         for (auto dim : shape)
-            static_shape.push_back(dim);
+            s.push_back(dim.get_length());
+
+        if (values.size() > 0) {
+            tensor = std::make_shared<ngraph::runtime::HostTensor>(ov::element::from<T>(), s);
+            T* ptr = tensor->get_data_ptr<T>();
+            int i = 0;
+            for (auto& v : values)
+                ptr[i++] = v;
+        }
     }
 };
 
@@ -84,5 +87,28 @@ static void check_output_shape(std::shared_ptr<OP> op, std::initializer_list<ov:
     for (auto& shape : expect_shapes) {
         EXPECT_EQ(op->get_output_partial_shape(id), shape);
         id++;
+    }
+}
+
+template <typename OP>
+static void check_partial_shape(std::shared_ptr<OP> op,
+                                std::vector<ov::PartialShape> input_shapes,
+                                std::initializer_list<ov::PartialShape> expect_shapes,
+                                bool b_expect_throw = false) {
+    std::vector<ov::PartialShape> output_shapes;
+
+    if (b_expect_throw) {
+        EXPECT_ANY_THROW(shape_infer(op.get(), input_shapes, output_shapes));
+    } else {
+        output_shapes.resize(expect_shapes.size(), ov::PartialShape::dynamic());
+
+        shape_infer(op.get(), input_shapes, output_shapes);
+
+        EXPECT_EQ(output_shapes.size(), expect_shapes.size());
+        int id = 0;
+        for (auto& shape : expect_shapes) {
+            EXPECT_EQ(output_shapes[id], shape);
+            id++;
+        }
     }
 }

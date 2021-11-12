@@ -15,7 +15,8 @@ namespace util {
 template <class T>
 void shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
                  const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes) {
+                 std::vector<T>& output_shapes,
+                 const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
     const auto input_size = input_shapes.size();
 
     NODE_VALIDATION_CHECK(op, (input_size >= 3 && input_size <= 5) && output_shapes.size() == 1);
@@ -30,9 +31,7 @@ void shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
     NODE_VALIDATION_CHECK(op, input_shapes[OFFSETS].rank().compatible(1), "OFFSETS must be 1D");
 
     if (input_size >= 4) {
-        NODE_VALIDATION_CHECK(op,
-                              input_shapes[DEFAULT_INDEX].rank().compatible(0),
-                              "DEFAULT_INDEX must be a scalar");
+        NODE_VALIDATION_CHECK(op, input_shapes[DEFAULT_INDEX].rank().compatible(0), "DEFAULT_INDEX must be a scalar");
     }
 
     if (input_size == 5) {

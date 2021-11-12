@@ -2,15 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include <openvino/core/coordinate_diff.hpp>
-#include <openvino/op/convolution.hpp>
-#include <openvino/op/ops.hpp>
-#include <openvino/op/parameter.hpp>
 #include <pad_shape_inference.hpp>
 
-#include "utils/shape_inference/static_shape.hpp"
+#include "utils.hpp"
 
 using namespace ov;
 
@@ -24,20 +18,14 @@ TEST(StaticShapeInferenceTest, Padv1) {
     const auto pad = std::make_shared<ov::op::v1::Pad>(data, pads_begin, pads_end, pad_val, op::PadMode::CONSTANT);
     auto f = std::make_shared<Function>(pad, ParameterVector{data});
 
-    std::vector<PartialShape> input_shapes = {PartialShape{3, 6, 5, 5}, ov::Shape{4}, ov::Shape{4}, ov::Shape{}};
-    std::vector<PartialShape> output_shapes = {PartialShape::dynamic()};
-    shape_infer(pad.get(), input_shapes, output_shapes);
+    check_partial_shape(pad,
+                        {ov::PartialShape{3, 6, 5, 5}, ov::PartialShape{4}, ov::PartialShape{4}, ov::PartialShape{}},
+                        {PartialShape({6, 9, 8, 8})});
 
-    ASSERT_EQ(output_shapes.size(), 1);
-    ASSERT_EQ(output_shapes[0], PartialShape({6, 9, 8, 8}));
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5},
-                                                    StaticShape{4},
-                                                    StaticShape{4},
-                                                    StaticShape(std::initializer_list<StaticDimension>{})};
-    std::vector<StaticShape> static_output_shapes = {StaticShape{}};
-    shape_infer(pad.get(), static_input_shapes, static_output_shapes);
-
-    ASSERT_EQ(static_output_shapes.size(), 1);
-    ASSERT_EQ(static_output_shapes[0], StaticShape({6, 9, 8, 8}));
+    check_static_shape(pad,
+                       {ov::StaticShape{3, 6, 5, 5},
+                        ov::StaticShape{4},
+                        ov::StaticShape{4},
+                        ov::StaticShape(std::initializer_list<ov::StaticDimension>{})},
+                       {ov::StaticShape({6, 9, 8, 8})});
 }

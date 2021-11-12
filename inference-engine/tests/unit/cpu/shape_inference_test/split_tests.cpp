@@ -26,7 +26,7 @@ TEST(StaticShapeInferenceTest, SplitV1) {
     const auto op = build_split(PartialShape({2, 3, 4}), {1}, 3);
 
     check_output_shape(op, {{2, 1, 4}, {2, 1, 4}, {2, 1, 4}});
-    check_static_shape(op, {Shape{2, 3, 4}, Shape{}}, {{2, 1, 4}, {2, 1, 4}, {2, 1, 4}});
+    check_static_shape(op, {StaticShape{2, 3, 4}, StaticShape{}}, {{2, 1, 4}, {2, 1, 4}, {2, 1, 4}});
 }
 
 TEST(StaticShapeInferenceTest, SplitV1_Dynamic) {
@@ -39,27 +39,27 @@ TEST(StaticShapeInferenceTest, SplitV1_Dynamic) {
 
 TEST(StaticShapeInferenceTest, SplitV1_StaticNoConstMap) {
     check_static_shape(build_split(PartialShape({2, 8, 4}), {}, 4),
-                       {Shape{2, 8, 4}, Shape{}},
+                       {StaticShape{2, 8, 4}, StaticShape{}},
                        {{2, 8, 1}, {2, 8, 1}, {2, 8, 1}, {2, 8, 1}},
                        true);
 }
 
 TEST(StaticShapeInferenceTest, SplitV1_StaticWrongConstMap1) {
     check_static_shape(build_split(PartialShape({2, 8, 4}), {}, 4),
-                       {Shape{2, 8, 4}, {2, 3}},
+                       {StaticShape{2, 8, 4}, {2, 3}},
                        {{2, 8, 1}, {2, 8, 1}, {2, 8, 1}, {2, 8, 1}},
                        true);
 }
 
 TEST(StaticShapeInferenceTest, SplitV1_StaticWrongConstMap2) {
     check_static_shape(build_split(PartialShape({2, 8, 4}), {}, 4),
-                       {Shape{2, 8, 4}, -4},
+                       {StaticShape{2, 8, 4}, -4},
                        {{2, 8, 1}, {2, 8, 1}, {2, 8, 1}, {2, 8, 1}},
                        true);
 }
 
 TEST(StaticShapeInferenceTest, SplitV1_StaticWithConstMap) {
     check_static_shape(build_split(PartialShape({2, 8, 4}), {}, 4),
-                       {Shape{2, 8, 4}, 2},
+                       {StaticShape{2, 8, 4}, 2},
                        {{2, 8, 1}, {2, 8, 1}, {2, 8, 1}, {2, 8, 1}});
 }
