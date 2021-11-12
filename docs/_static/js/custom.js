@@ -2,6 +2,19 @@ var sw_anchors = {};
 var urlSearchParams = new URLSearchParams(window.location.search);
 var sw_timer;
 
+/* Adobe Analytics */
+var wapLocalCode = 'us-en';
+var wapSection = 'openvinotoolkit';
+
+(function () {
+    var host = (window.document.location.protocol == 'http:') ? "http://www.intel.com" : "https://www.intel.com";
+    var url = host + "/content/dam/www/global/wap/tms-loader.js"; //wap file url
+    var po = document.createElement('script');
+    po.type = 'text/javascript'; po.async = true; po.src = url;
+    var s = document.getElementsByTagName('head')[0];
+    s.appendChild(po);
+})();
+
 $(document).ready(function() {
     init_col_sections();
     init_switchers();

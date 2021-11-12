@@ -220,6 +220,11 @@ function(build_docs)
                       WORKING_DIRECTORY ${RST_OUTPUT}
                       VERBATIM)
 
+    add_custom_target(linkcheck
+                      COMMAND sphinx-build -b linkcheck ${RST_OUTPUT} ${SPHINX_OUTPUT}
+                      WORKING_DIRECTORY ${RST_OUTPUT}
+                      VERBATIM)
+
     set_target_properties(doxygen_xml sphinx_docs
                           PROPERTIES FOLDER docs)
 
