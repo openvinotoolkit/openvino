@@ -88,14 +88,6 @@ class StatisticsReport:
                 def get_average_performance_counters(prof_info):
                     performance_counters_avg = {}
                     ## iterate over each processed infer request and handle its PM data
-                    """for i in range(0, len(perf_counts)):
-                        ## iterate over each layer from sorted vector and add required PM data to the per-layer maps
-                        for k in perf_counts[0].keys():
-                            if k not in performance_counters_avg.keys():
-                                performance_counters_avg[k] = perf_counts[i][k]
-                            else:
-                                performance_counters_avg[k]['real_time'] += perf_counts[i][k]['real_time']
-                                performance_counters_avg[k]['cpu_time'] += perf_counts[i][k]['cpu_time']"""
                     for pi in prof_info:
                         if pi.node_name not in performance_counters_avg.keys():
                             performance_counters_avg[pi.node_name] = {'real_time': pi.real_time, 'cpu_time': pi.cpu_time}

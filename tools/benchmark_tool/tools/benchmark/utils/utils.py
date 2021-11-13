@@ -93,7 +93,7 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
                 raise Exception(f"Node '{name}' does not exist in network")
     function = pre_post_processor.build(function)
     # update app_inputs_info
-    for i in range(function.inputs):
+    for i in range(len(function.inputs)):
         app_inputs_info[i].element_type = function.input(i).get_element_type()
 
 
@@ -109,8 +109,9 @@ def _parse_arg_map(arg_map: str):
     return parsed_map
 
 
-"""def print_inputs_and_outputs_info(function: Function):
-    for input in function.inputs:
+def print_inputs_and_outputs_info(function: Function):
+    pass
+    """for input in function.inputs:
         logger.info(f"Network input '{input.get_node().name}', type {input.get_element_type()}, "
                                                     f"s ")
     output_info = ie_network.outputs
@@ -405,7 +406,7 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
 
 def get_batch_size(inputs_info):
     batch_size = 0
-    for _, info in inputs_info.items():
+    for info in inputs_info:
         batch_index = info.layout.get_index_by_name('N') if info.layout.has_name('N') else -1
         if batch_index != -1:
             if batch_size == 0:

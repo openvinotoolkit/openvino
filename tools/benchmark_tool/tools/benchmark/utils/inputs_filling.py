@@ -10,20 +10,28 @@ from collections import defaultdict
 from pathlib import Path
 from itertools import chain
 
+from openvino.impl import Type
+
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
 
 
 def set_inputs(paths_to_input, batch_size, app_input_info, requests):
-  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests)
+  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, len(requests))
   for i in range(len(requests)):
     for k, v in requests_input_data[i].items():
         requests[i].get_tensor(k).data[:] = v
 
 
-def get_inputs(paths_to_input, batch_size, app_input_info, requests):
+def get_inputs(paths_to_input, batch_size, app_input_info, num_requests):
     input_file_mapping = parse_paths_to_input(paths_to_input)
     check_input_file_mapping(input_file_mapping, app_input_info)
+
+    app_input_info_hashed = {}
+    for info in app_input_info:
+        app_input_info_hashed[info.tensor_name] = info
+
+    app_input_info = app_input_info_hashed
 
     input_image_sizes = {}
     for key in sorted(app_input_info.keys()):
@@ -48,7 +56,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
     elif (len(image_files) == 0) and (len(binary_files) == 0):
         logger.warning("No input files were given: all inputs will be filled with random values!")
     else:
-        binary_to_be_used = binaries_count * batch_size * len(requests)
+        binary_to_be_used = binaries_count * batch_size * num_requests
         if binary_to_be_used > 0 and len(binary_files) == 0:
             logger.warning(f"No supported binary inputs found! "
                                         f"Please check your file extensions: {','.join(BINARY_EXTENSIONS)}")
@@ -62,7 +70,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
                 f"Some binary input files will be ignored: only {binary_to_be_used} "
                                         f"files are required from {len(binary_files)}")
 
-        images_to_be_used = images_count * batch_size * len(requests)
+        images_to_be_used = images_count * batch_size * num_requests
         if images_to_be_used > 0 and len(image_files) == 0:
             logger.warning(f"No supported image inputs found! Please check your "
                                         f"file extensions: {','.join(IMAGE_EXTENSIONS)}")
@@ -76,7 +84,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, requests):
                                                     f"files are required from {len(image_files)}")
 
     requests_input_data = []
-    for request_id in range(0, len(requests)):
+    for request_id in range(0, num_requests):
         logger.info(f"Infer Request {request_id} filling")
         input_data = {}
         keys = list(sorted(app_input_info.keys()))
@@ -198,15 +206,15 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
 
 def get_dtype(precision):
     format_map = {
-      'FP32' : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
-      'I32'  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
-      'I64'  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
-      'FP16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
-      'I16'  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
-      'U16'  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
-      'I8'   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
-      'U8'   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
-      'BOOL' : (np.uint8, 0, 1),
+      Type.f32 : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
+      Type.i32  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
+      Type.i64  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
+      Type.f16 : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
+      Type.i16  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
+      Type.u16 : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
+      Type.i8   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
+      Type.u8   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
+      Type.boolean : (np.uint8, 0, 1),
     }
     if precision in format_map.keys():
         return format_map[precision]
@@ -252,7 +260,7 @@ def fill_blob_with_image_info(image_size, layer):
     return im_info
 
 def fill_blob_with_random(layer):
-    dtype, rand_min, rand_max = get_dtype(layer.precision)
+    dtype, rand_min, rand_max = get_dtype(layer.element_type)
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1

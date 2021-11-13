@@ -16,11 +16,11 @@ def percentile(values, percent):
     return values[ceil(len(values) * percent / 100) - 1]
 
 class Benchmark:
-    def __init__(self, device: str, number_infer_requests: int = None, number_iterations: int = None,
+    def __init__(self, device: str, number_infer_requests: int = 0, number_iterations: int = None,
                  duration_seconds: int = None, api_type: str = 'async'):
         self.device = device
         self.ie = Core()
-        self.nireq = number_infer_requests
+        self.nireq = number_infer_requests if api_type == 'async' else 1
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
         self.api_type = api_type
@@ -59,22 +59,19 @@ class Benchmark:
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
         return self.ie.read_model(model_filename, weights_filename)
 
-    def first_infer(self, exe_network):
-        infer_request = exe_network.requests[0]
+    def first_infer(self, infer_queue):
+        infer_request = infer_queue[0]
 
         # warming up - out of scope
         if self.api_type == 'sync':
             infer_request.infer()
         else:
             infer_request.async_infer()
-            status = infer_request.wait()
-            if status != StatusCode.OK:
-                raise Exception(f"Wait for all requests is failed with status code {status}!")
+            infer_request.wait()
         return infer_request.latency
 
-    def infer(self, exe_network, batch_size, latency_percentile, progress_bar=None):
+    def infer(self, infer_queue, batch_size, latency_percentile, progress_bar=None):
         progress_count = 0
-        infer_requests = exe_network.requests
 
         start_time = datetime.utcnow()
         exec_time = 0
@@ -88,22 +85,15 @@ class Benchmark:
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (self.api_type == 'async' and iteration % self.nireq):
             if self.api_type == 'sync':
-                infer_requests[0].infer()
-                times.append(infer_requests[0].latency)
+                infer_queue[0].infer()
+                times.append(infer_queue[0].latency)
             else:
-                infer_request_id = exe_network.get_idle_request_id()
-                if infer_request_id < 0:
-                    status = exe_network.wait(num_requests=1)
-                    if status != StatusCode.OK:
-                        raise Exception("Wait for idle request failed!")
-                    infer_request_id = exe_network.get_idle_request_id()
-                    if infer_request_id < 0:
-                        raise Exception("Invalid request id!")
-                if infer_request_id in in_fly:
-                    times.append(infer_requests[infer_request_id].latency)
+                idle_id = infer_queue.get_idle_request_id()
+                if idle_id in in_fly:
+                    times.append(infer_queue[idle_id].latency)
                 else:
-                    in_fly.add(infer_request_id)
-                infer_requests[infer_request_id].async_infer()
+                    in_fly.add(idle_id)
+                infer_queue.start_async()
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
@@ -121,13 +111,11 @@ class Benchmark:
                   progress_bar.add_progress(1)
 
         # wait the latest inference executions
-        status = exe_network.wait()
-        if status != StatusCode.OK:
-            raise Exception(f"Wait for all requests is failed with status code {status}!")
+        infer_queue.wait_all()
 
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:
-            times.append(infer_requests[infer_request_id].latency)
+            times.append(infer_queue[infer_request_id].latency)
         times.sort()
         latency_ms = percentile(times, latency_percentile)
         fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else batch_size * iteration / total_duration_sec

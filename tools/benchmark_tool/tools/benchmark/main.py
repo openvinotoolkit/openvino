@@ -5,18 +5,20 @@ import os
 import sys
 from datetime import datetime
 
-from openvino.tools.benchmark.benchmark import Benchmark
-from openvino.tools.benchmark.parameters import parse_args
-from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
+from openvino import AsyncInferQueue
+
+from tools.benchmark.benchmark import Benchmark
+from tools.benchmark.parameters import parse_args
+from tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
     GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
-from openvino.tools.benchmark.utils.inputs_filling import set_inputs
-from openvino.tools.benchmark.utils.logging import logger
-from openvino.tools.benchmark.utils.progress_bar import ProgressBar
-from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, process_precision, \
+from tools.benchmark.utils.inputs_filling import set_inputs
+from tools.benchmark.utils.logging import logger
+from tools.benchmark.utils.progress_bar import ProgressBar
+from tools.benchmark.utils.utils import next_step, get_number_iterations, process_precision, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_batch_size, load_config, dump_config
-from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
+from tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
 def main():
@@ -323,14 +325,14 @@ def run(args):
             key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
-        # Number of requests
-        infer_requests = exe_network.requests
-
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, args.api_type)
 
         # ------------------------------------ 9. Creating infer requests and filling input blobs ----------------------
         next_step()
+
+        infer_queue = AsyncInferQueue(exe_network, benchmark.nireq if benchmark.nireq else 0)
+        benchmark.nireq = len(infer_queue)
 
         paths_to_input = list()
         if args.paths_to_input:
@@ -339,7 +341,7 @@ def run(args):
                     paths_to_input.extend(path)
                 else:
                     paths_to_input.append(os.path.abspath(*path))
-        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
+        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_queue)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -371,14 +373,14 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        duration_ms = f"{benchmark.first_infer(exe_network):.2f}"
+        duration_ms = f"{benchmark.first_infer(infer_queue):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(exe_network, batch_size, args.latency_percentile, progress_bar)
+        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_queue, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
