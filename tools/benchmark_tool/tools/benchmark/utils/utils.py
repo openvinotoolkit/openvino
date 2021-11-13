@@ -366,7 +366,7 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
         # Precision
         info.element_type = inputs[i].get_element_type()
         # Shape
-        input_name = inputs[i].get_node().get_name()
+        input_name = inputs[i].get_node().get_friendly_name()
         info.tensor_name = input_name
         if input_name in shape_map.keys():
             parsed_shape = PartialShape(int(dim) for dim in shape_map[input_name].split(','))

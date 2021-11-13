@@ -206,15 +206,15 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
 
 def get_dtype(precision):
     format_map = {
-      Type.f32 : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
-      Type.i32  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
-      Type.i64  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
-      Type.f16 : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
-      Type.i16  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
-      Type.u16 : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
-      Type.i8   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
-      Type.u8   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
-      Type.boolean : (np.uint8, 0, 1),
+      'f32' : (np.float32, np.finfo(np.float32).min, np.finfo(np.float32).max),
+      'i32'  : (np.int32, np.iinfo(np.int32).min, np.iinfo(np.int32).max),
+      'i64'  : (np.int64, np.iinfo(np.int64).min, np.iinfo(np.int64).max),
+      'fp16' : (np.float16, np.finfo(np.float16).min, np.finfo(np.float16).max),
+      'i16'  : (np.int16, np.iinfo(np.int16).min, np.iinfo(np.int16).max),
+      'u16'  : (np.uint16, np.iinfo(np.uint16).min, np.iinfo(np.uint16).max),
+      'i8'   : (np.int8, np.iinfo(np.int8).min, np.iinfo(np.int8).max),
+      'u8'   : (np.uint8, np.iinfo(np.uint8).min, np.iinfo(np.uint8).max),
+      'boolean' : (np.uint8, 0, 1),
     }
     if precision in format_map.keys():
         return format_map[precision]
@@ -229,7 +229,7 @@ def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_
         binary_index = request_id * batch_size
     else:
         binary_index = request_id * batch_size * input_size + input_id
-    dtype = get_dtype(info.precision)[0]
+    dtype = get_dtype(info.element_type.get_type_name())[0]
     for b in range(batch_size):
         binary_index %= len(binary_paths)
         binary_filename = binary_paths[binary_index]
@@ -260,13 +260,13 @@ def fill_blob_with_image_info(image_size, layer):
     return im_info
 
 def fill_blob_with_random(layer):
-    dtype, rand_min, rand_max = get_dtype(layer.element_type)
+    dtype, rand_min, rand_max = get_dtype(layer.element_type.get_type_name())
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
     rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
     if layer.shape:
-        return rs.uniform(rand_min, rand_max, layer.shape).astype(dtype)
+        return rs.uniform(rand_min, rand_max, list(layer.shape.to_shape())).astype(dtype)
     return (dtype)(rs.uniform(rand_min, rand_max))
 
 
