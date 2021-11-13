@@ -69,7 +69,7 @@ function(build_docs)
     set(PYTHON_API_OUT "${DOCS_BUILD_DIR}/python_api/ie_api.pyx")
     set(C_API "${IE_SOURCE_DIR}/ie_bridges/c/include")
     set(PLUGIN_API_DIR "${DOCS_BUILD_DIR}/IE_PLUGIN_DG")
-    set(CORE_DIR "${OpenVINO_SOURCE_DIR}/runtime/core")
+    set(CORE_DIR "${OpenVINO_SOURCE_DIR}/runtime/core/core")
     set(FRONTENDS_DIR "${OpenVINO_SOURCE_DIR}/runtime/frontends")
     set(OV_GRAPH_OLD_PY_DIR "${OpenVINO_SOURCE_DIR}/runtime/bindings/python/src/compatibility/ngraph/")
 

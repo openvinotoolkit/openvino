@@ -86,7 +86,7 @@ if(ENABLE_GNA)
 endif()
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "core"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/core/*")
 ie_coverage_genhtml(INFO_FILE "core"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 

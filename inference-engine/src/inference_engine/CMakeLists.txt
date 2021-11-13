@@ -346,7 +346,7 @@ install(EXPORT OpenVINOTargets
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
-set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/runtime/core")
+set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/runtime/core/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
 set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
