@@ -365,7 +365,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                                          "--input_model", orig_model_name,
                                          "--framework", argv.framework,
                                          "--transform", argv.transform]
-                if argv.compress_fp16:
+                if "compress_fp16" in argv and argv.compress_fp16:
                     cmd += ["--compress_fp16"]
                     # restore data_type cmd parameter
                     argv.data_type = 'FP16'
