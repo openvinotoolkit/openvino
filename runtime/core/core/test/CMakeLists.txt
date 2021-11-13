@@ -9,7 +9,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
 endif()
 
-add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/ngraph/models\")
+add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 set(OV_ONNX_NAMESPACE ov_onnx)
 
 add_subdirectory(runtime)
