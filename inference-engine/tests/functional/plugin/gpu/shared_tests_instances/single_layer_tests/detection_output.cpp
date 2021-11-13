@@ -37,15 +37,15 @@ const auto commonAttributes = ::testing::Combine(
 /* =============== 3 inputs cases =============== */
 
 const std::vector<ParamsWhichSizeDepends> specificParams3In = {
-    ParamsWhichSizeDepends{true, true, true, 1, 1, {1, 60}, {1, 165}, {1, 1, 60}, {}, {}},
-    ParamsWhichSizeDepends{true, false, true, 1, 1, {1, 660}, {1, 165}, {1, 1, 60}, {}, {}},
-    ParamsWhichSizeDepends{false, true, true, 1, 1, {1, 60}, {1, 165}, {1, 2, 60}, {}, {}},
-    ParamsWhichSizeDepends{false, false, true, 1, 1, {1, 660}, {1, 165}, {1, 2, 60}, {}, {}},
+    DetectionOutputLayerTest::fromStatic(true, true, true, 1, 1, {1, 60}, {1, 165}, {1, 1, 60}, {}, {}),
+    DetectionOutputLayerTest::fromStatic(true, false, true, 1, 1, {1, 660}, {1, 165}, {1, 1, 60}, {}, {}),
+    DetectionOutputLayerTest::fromStatic(false, true, true, 1, 1, {1, 60}, {1, 165}, {1, 2, 60}, {}, {}),
+    DetectionOutputLayerTest::fromStatic(false, false, true, 1, 1, {1, 660}, {1, 165}, {1, 2, 60}, {}, {}),
 
-    ParamsWhichSizeDepends{true, true, false, 10, 10, {1, 60}, {1, 165}, {1, 1, 75}, {}, {}},
-    ParamsWhichSizeDepends{true, false, false, 10, 10, {1, 660}, {1, 165}, {1, 1, 75}, {}, {}},
-    ParamsWhichSizeDepends{false, true, false, 10, 10, {1, 60}, {1, 165}, {1, 2, 75}, {}, {}},
-    ParamsWhichSizeDepends{false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {}, {}}
+    DetectionOutputLayerTest::fromStatic(true, true, false, 10, 10, {1, 60}, {1, 165}, {1, 1, 75}, {}, {}),
+    DetectionOutputLayerTest::fromStatic(true, false, false, 10, 10, {1, 660}, {1, 165}, {1, 1, 75}, {}, {}),
+    DetectionOutputLayerTest::fromStatic(false, true, false, 10, 10, {1, 60}, {1, 165}, {1, 2, 75}, {}, {}),
+    DetectionOutputLayerTest::fromStatic(false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {}, {})
 };
 
 const auto params3Inputs = ::testing::Combine(
@@ -53,6 +53,7 @@ const auto params3Inputs = ::testing::Combine(
         ::testing::ValuesIn(specificParams3In),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(0.0f),
+        ::testing::Values(false),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -61,15 +62,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In, DetectionOutputLayerTest, par
 /* =============== 5 inputs cases =============== */
 
 const std::vector<ParamsWhichSizeDepends> specificParams5In = {
-    ParamsWhichSizeDepends{true, true, true, 1, 1, {1, 60}, {1, 165}, {1, 1, 60}, {1, 30}, {1, 60}},
-    ParamsWhichSizeDepends{true, false, true, 1, 1, {1, 660}, {1, 165}, {1, 1, 60}, {1, 30}, {1, 660}},
-    ParamsWhichSizeDepends{false, true, true, 1, 1, {1, 60}, {1, 165}, {1, 2, 60}, {1, 30}, {1, 60}},
-    ParamsWhichSizeDepends{false, false, true, 1, 1, {1, 660}, {1, 165}, {1, 2, 60}, {1, 30}, {1, 660}},
+    DetectionOutputLayerTest::fromStatic(true, true, true, 1, 1, {1, 60}, {1, 165}, {1, 1, 60}, {1, 30}, {1, 60}),
+    DetectionOutputLayerTest::fromStatic(true, false, true, 1, 1, {1, 660}, {1, 165}, {1, 1, 60}, {1, 30}, {1, 660}),
+    DetectionOutputLayerTest::fromStatic(false, true, true, 1, 1, {1, 60}, {1, 165}, {1, 2, 60}, {1, 30}, {1, 60}),
+    DetectionOutputLayerTest::fromStatic(false, false, true, 1, 1, {1, 660}, {1, 165}, {1, 2, 60}, {1, 30}, {1, 660}),
 
-    ParamsWhichSizeDepends{true, true, false, 10, 10, {1, 60}, {1, 165}, {1, 1, 75}, {1, 30}, {1, 60}},
-    ParamsWhichSizeDepends{true, false, false, 10, 10, {1, 660}, {1, 165}, {1, 1, 75}, {1, 30}, {1, 660}},
-    ParamsWhichSizeDepends{false, true, false, 10, 10, {1, 60}, {1, 165}, {1, 2, 75}, {1, 30}, {1, 60}},
-    ParamsWhichSizeDepends{false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {1, 30}, {1, 660}}
+    DetectionOutputLayerTest::fromStatic(true, true, false, 10, 10, {1, 60}, {1, 165}, {1, 1, 75}, {1, 30}, {1, 60}),
+    DetectionOutputLayerTest::fromStatic(true, false, false, 10, 10, {1, 660}, {1, 165}, {1, 1, 75}, {1, 30}, {1, 660}),
+    DetectionOutputLayerTest::fromStatic(false, true, false, 10, 10, {1, 60}, {1, 165}, {1, 2, 75}, {1, 30}, {1, 60}),
+    DetectionOutputLayerTest::fromStatic(false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {1, 30}, {1, 660})
 };
 
 const auto params5Inputs = ::testing::Combine(
@@ -77,6 +78,7 @@ const auto params5Inputs = ::testing::Combine(
         ::testing::ValuesIn(specificParams5In),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
+        ::testing::Values(false),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 

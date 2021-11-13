@@ -11,6 +11,7 @@
 
 #include "ngraph/op/detection_output.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -37,16 +38,16 @@ using DetectionOutputAttributes = std::tuple<
 >;
 
 using ParamsWhichSizeDepends = std::tuple<
-    bool,                        // varianceEncodedInTarget
-    bool,                        // shareLocation
-    bool,                        // normalized
-    size_t,                      // inputHeight
-    size_t,                      // inputWidth
-    InferenceEngine::SizeVector, // "Location" input
-    InferenceEngine::SizeVector, // "Confidence" input
-    InferenceEngine::SizeVector, // "Priors" input
-    InferenceEngine::SizeVector, // "ArmConfidence" input
-    InferenceEngine::SizeVector  // "ArmLocation" input
+    bool,                 // varianceEncodedInTarget
+    bool,                 // shareLocation
+    bool,                 // normalized
+    size_t,               // inputHeight
+    size_t,               // inputWidth
+    ov::test::InputShape, // "Location" input
+    ov::test::InputShape, // "Confidence" input
+    ov::test::InputShape, // "Priors" input
+    ov::test::InputShape, // "ArmConfidence" input
+    ov::test::InputShape  // "ArmLocation" input
 >;
 
 using DetectionOutputParams = std::tuple<
@@ -54,17 +55,31 @@ using DetectionOutputParams = std::tuple<
     ParamsWhichSizeDepends,
     size_t,     // Number of batch
     float,      // objectnessScore
+    bool,       // replace dynamic shapes to intervals
     std::string // Device name
 >;
 
-class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, virtual public LayerTestsUtils::LayerTestsCommon {
+class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOutputParams>, virtual public ov::test::SubgraphBaseTest {
   public:
     static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj);
+    static ParamsWhichSizeDepends fromStatic(
+        const bool varianceEncodedInTarget,
+        const bool shareLocation,
+        const bool normalized,
+        const size_t inputHeight,
+        const size_t inputWidth,
+        const ov::Shape& locationInput,
+        const ov::Shape& confidenceInput,
+        const ov::Shape& priorsInput,
+        const ov::Shape& armConfidence,
+        const ov::Shape& armLocation);
+
     ngraph::op::DetectionOutputAttrs attrs;
-    std::vector<InferenceEngine::SizeVector> inShapes;
-    void GenerateInputs() override;
-    void Compare(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> &expectedOutputs,
-                 const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
+    std::vector<ov::test::InputShape> inShapes;
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void compare(
+        const std::vector<ov::runtime::Tensor>& expected,
+        const std::vector<ov::runtime::Tensor>& actual) override;
   protected:
     void SetUp() override;
 };
