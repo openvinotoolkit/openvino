@@ -28,7 +28,6 @@ public:
           _idle_handles(idle_handles),
           _user_ids(user_ids) {
         this->set_default_callbacks();
-        _last_id = -1;
     }
 
     ~AsyncInferQueue() {
@@ -53,10 +52,7 @@ public:
             return !(_idle_handles.empty());
         });
 
-        size_t idle_request_id = _idle_handles.front();
-        _idle_handles.pop();
-
-        return idle_request_id;
+        return _idle_handles.front();;
     }
 
     void wait_all() {
@@ -106,7 +102,6 @@ public:
     std::vector<InferRequestWrapper> _requests;
     std::queue<size_t> _idle_handles;
     std::vector<py::object> _user_ids;  // user ID can be any Python object
-    size_t _last_id;
     std::mutex _mutex;
     std::condition_variable _cv;
 };
@@ -144,6 +139,7 @@ void regclass_AsyncInferQueue(py::module m) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
             auto handle = self.get_idle_request_id();
+            self._idle_handles.pop();
             // Set new inputs label/id from user
             self._user_ids[handle] = userdata;
             // Update inputs if there are any
