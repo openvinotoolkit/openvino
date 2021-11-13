@@ -35,4 +35,5 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 ov_install_static_lib(${TARGET_NAME} core)
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+file(GLOB_RECURSE hdrs ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${hdrs})

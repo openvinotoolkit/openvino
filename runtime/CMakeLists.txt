@@ -7,7 +7,7 @@ if(ENABLE_LTO)
 endif()
 
 set(OV_CORE_INCLUDE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/core/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/core/include
 )
 set(OV_CORE_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/coreTargets.cmake")
 
