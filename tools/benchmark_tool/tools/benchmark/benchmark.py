@@ -59,8 +59,8 @@ class Benchmark:
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
         return self.ie.read_model(model_filename, weights_filename)
 
-    def first_infer(self, requests):
-        infer_request = requests[0]
+    def first_infer(self, infer_queue):
+        infer_request = infer_queue[0]
 
         # warming up - out of scope
         if self.api_type == 'sync':
@@ -70,7 +70,7 @@ class Benchmark:
             infer_request.wait()
         return infer_request.latency
 
-    def infer(self, requests, batch_size, latency_percentile, progress_bar=None):
+    def infer(self, infer_queue, batch_size, latency_percentile, progress_bar=None):
         progress_count = 0
 
         start_time = datetime.utcnow()
@@ -85,15 +85,15 @@ class Benchmark:
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (self.api_type == 'async' and iteration % self.nireq):
             if self.api_type == 'sync':
-                requests[0].infer()
-                times.append(requests[0].latency)
+                infer_queue[0].infer()
+                times.append(infer_queue[0].latency)
             else:
-                idle_id = requests.get_idle_request_id()
+                idle_id = infer_queue.get_idle_request_id()
                 if idle_id in in_fly:
-                    times.append(requests[idle_id].latency)
+                    times.append(infer_queue[idle_id].latency)
                 else:
                     in_fly.add(idle_id)
-                requests.start_async()
+                infer_queue.start_async()
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
@@ -111,12 +111,11 @@ class Benchmark:
                   progress_bar.add_progress(1)
 
         # wait the latest inference executions
-        if self.api_type == 'async':
-            requests.wait_all()
+        infer_queue.wait_all()
 
         total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
         for infer_request_id in in_fly:
-            times.append(requests[infer_request_id].latency)
+            times.append(infer_queue[infer_request_id].latency)
         times.sort()
         latency_ms = percentile(times, latency_percentile)
         fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else batch_size * iteration / total_duration_sec

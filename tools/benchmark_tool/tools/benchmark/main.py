@@ -331,11 +331,8 @@ def run(args):
         # ------------------------------------ 9. Creating infer requests and filling input blobs ----------------------
         next_step()
 
-        if benchmark.api_type == "sync":
-            requests = [exe_network.create_infer_request()]
-        else:
-            requests = AsyncInferQueue(exe_network, benchmark.nireq if benchmark.nireq else 0)
-            benchmark.nireq = len(requests)
+        infer_queue = AsyncInferQueue(exe_network, benchmark.nireq if benchmark.nireq else 0)
+        benchmark.nireq = len(infer_queue)
 
         paths_to_input = list()
         if args.paths_to_input:
@@ -344,7 +341,7 @@ def run(args):
                     paths_to_input.extend(path)
                 else:
                     paths_to_input.append(os.path.abspath(*path))
-        set_inputs(paths_to_input, batch_size, app_inputs_info, requests)
+        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_queue)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -376,14 +373,14 @@ def run(args):
 
         progress_bar = ProgressBar(progress_bar_total_count, args.stream_output, args.progress) if args.progress else None
 
-        duration_ms = f"{benchmark.first_infer(requests):.2f}"
+        duration_ms = f"{benchmark.first_infer(infer_queue):.2f}"
         logger.info(f"First inference took {duration_ms} ms")
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(requests, batch_size, args.latency_percentile, progress_bar)
+        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(infer_queue, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
