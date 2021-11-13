@@ -52,7 +52,8 @@ public:
             return !(_idle_handles.empty());
         });
 
-        return _idle_handles.front();;
+        return _idle_handles.front();
+        ;
     }
 
     void wait_all() {
