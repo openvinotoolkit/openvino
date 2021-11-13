@@ -69,18 +69,6 @@ if(TARGET ngraph::ngraph AND NOT TARGET IE::ngraph)
     set_target_properties(IE::ngraph PROPERTIES INTERFACE_LINK_LIBRARIES ngraph::ngraph)
 endif()
 
-if(TARGET openvino::op_references AND NOT TARGET IE::ngraph_reference)
-    add_library(IE::ngraph_reference INTERFACE IMPORTED)
-    set_target_properties(IE::ngraph_reference PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::op_references)
-endif()
-
-if(TARGET openvino::graph_builders AND NOT TARGET IE::ngraph_builder)
-    add_library(IE::ngraph_builder INTERFACE IMPORTED)
-    set_target_properties(IE::ngraph_builder PROPERTIES
-        INTERFACE_LINK_LIBRARIES openvino::graph_builders)
-endif()
-
 foreach(component @openvino_export_components@)
     include("${CMAKE_CURRENT_LIST_DIR}/${component}_dev_targets.cmake")
 endforeach()

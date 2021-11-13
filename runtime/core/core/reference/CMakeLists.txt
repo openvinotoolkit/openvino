@@ -46,7 +46,11 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(openvino::op_references ALIAS ${TARGET_NAME})
 
+# For Backward compatibility
+add_library(ngraph_reference INTERFACE)
+set_target_properties(ngraph_reference PROPERTIES INTERFACE_LINK_LIBRARIES openvino::op_references)
+
 ov_install_static_lib(${TARGET_NAME} openvino::core)
 
 # developer package
-openvino_developer_export_targets(COMPONENT core TARGETS openvino::op_references)
+openvino_developer_export_targets(COMPONENT core TARGETS openvino::op_references ngraph_reference)
