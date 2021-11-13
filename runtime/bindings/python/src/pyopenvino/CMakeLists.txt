@@ -69,5 +69,5 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
 endif()
 
 if(TARGET ie_wheel)
-    add_dependencies(ie_wheel pyopenvino)
+    add_dependencies(ie_wheel ${PROJECT_NAME})
 endif()
