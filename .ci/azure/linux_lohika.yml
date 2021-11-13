@@ -90,7 +90,7 @@ jobs:
       # For running PaddlePaddle frontend unit tests
       python3 -m pip install -r $(REPO_DIR)/runtime/core/core/test/frontend/paddlepaddle/requirements_dev.txt
       # For running ONNX frontend unit tests
-      python3 -m pip install -r $(REPO_DIR)/runtime/core/test/requirements_test_onnx.txt
+      python3 -m pip install -r $(REPO_DIR)/runtime/core/core/test/requirements_test_onnx.txt
       # For MO unit tests
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements.txt
       python3 -m pip install -r $(REPO_DIR)/model-optimizer/requirements_dev.txt
