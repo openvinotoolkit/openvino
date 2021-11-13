@@ -191,18 +191,20 @@ def test_infer_mixed_keys(device):
 
 def test_infer_queue(device):
     jobs = 8
+    num_request = 4
     core = Core()
     func = core.read_model(test_net_xml, test_net_bin)
     exec_net = core.compile_model(func, device)
-    infer_queue = AsyncInferQueue(exec_net, jobs)
+    infer_queue = AsyncInferQueue(exec_net, num_request)
+    jobs_done = [False for _ in range(jobs)]
 
-    def callback(request, userdata):
-        userdata["finished"] = True
+    def callback(request, job_id):
+        jobs_done[job_id] = True
 
     img = read_image()
     infer_queue.set_callback(callback)
     assert infer_queue.is_ready
-    for _ in range(jobs):
-        infer_queue.start_async({"data": img}, {"finished": False})
+    for i in range(jobs):
+        infer_queue.start_async({"data": img}, i)
     infer_queue.wait_all()
-    assert all(data["finished"] for data in infer_queue.userdata)
+    assert all(jobs_done)
