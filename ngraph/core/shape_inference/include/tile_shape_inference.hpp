@@ -22,20 +22,27 @@ void shape_infer(const Tile* op,
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     std::vector<int64_t> axes_val;
     NODE_VALIDATION_CHECK(op, repeats_shape.rank().compatible(1), "PartialShape of repeats must be of rank 1");
+
     //Get repeats
     bool axes_are_known = get_data_as_int64<T>(1, op, axes_val, constant_data);
-    if (axes_are_known && arg_shape.rank().is_static()) {
+    const auto arg_rank = arg_shape.rank();
+    if (arg_rank.is_static() && (axes_are_known || repeats_shape[0].is_static())) {
+        //try to specify rank
         auto data_rank = arg_shape.size();
-        auto repeats_rank = axes_val.size();
+        auto repeats_rank = axes_are_known ? axes_val.size() : repeats_shape[0].get_length();
         auto output_rank = std::max(data_rank, repeats_rank);
         output_shape.resize(output_rank);
-        for (size_t i = 0; i < output_rank; i++) {
-            auto data_tmp = i < output_rank - data_rank ? DimType(1) : arg_shape[i - (output_rank - data_rank)];
-            auto repeat_tmp =
-                i < output_rank - repeats_rank ? DimType(1) : axes_val[i - (output_rank - repeats_rank)];
-            output_shape[i] = data_tmp * repeat_tmp;
+        //if have constant axes, compute new axes
+        if (axes_are_known) {
+            for (size_t i = 0; i < output_rank; i++) {
+                auto data_tmp = i < output_rank - data_rank ? DimType(1) : arg_shape[i - (output_rank - data_rank)];
+                auto repeat_tmp =
+                    i < output_rank - repeats_rank ? DimType(1) : axes_val[i - (output_rank - repeats_rank)];
+                output_shape[i] = data_tmp * repeat_tmp;
+            }
         }
     } else {
+        //can't deduce shape, set default value
         ShapeInfer::default_work(output_shape);
     }
 }
