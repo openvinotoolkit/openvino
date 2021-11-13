@@ -70,7 +70,6 @@ void regclass_InferRequest(py::module m) {
             // Call Infer function
             self._start_time = Time::now();
             self._request.infer();
-            self._end_time = Time::now();
             Containers::InferResults results;
             for (auto& out : self._outputs) {
                 results.push_back(self._request.get_tensor(out));
