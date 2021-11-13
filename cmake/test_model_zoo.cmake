@@ -117,7 +117,7 @@ if(ENABLE_TESTS)
             list(APPEND args --use-feature=2020-resolver)
         endif()
 
-        set(reqs "${OpenVINO_SOURCE_DIR}/runtime/core/test/requirements_test_onnx.txt")
+        set(reqs "${OpenVINO_SOURCE_DIR}/runtime/core/core/test/requirements_test_onnx.txt")
         add_custom_target(test_pip_prerequsites ALL
                           "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
                           COMMENT "Install requirements_test.txt"

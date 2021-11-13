@@ -83,7 +83,6 @@ ie_cpack_add_component(core_dev REQUIRED DEPENDS core)
 include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
-add_subdirectory(openvino)
 add_subdirectory(inference-engine)
 add_subdirectory(runtime)
 include(cmake/extra_modules.cmake)

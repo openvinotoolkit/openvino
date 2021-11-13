@@ -5,13 +5,15 @@ To run please do the following:
     - pip3 install -r requirements.txt
 2. Set environment variable:
     a. Required:
+        ```
         export PATH_TO_EXE=<path where nGraph unit-test locates>
+        ```
 3. To run all tests:
-    a. cd folder where unit_test_executable.py locates
-    b. pytest --gtest_filter="*"
+    a. `cd folder where unit_test_executable.py locates`
+    b. `pytest --gtest_filter="*"`
 4. To run exact test:
-    a. cd folder where unit_test_executable.py locates
-    b. pytest --gtest_filter="<your test name>"
+    a. `cd folder where unit_test_executable.py locates`
+    b. `pytest --gtest_filter="<your test name>"`
 5. To get html report add "--html=report.html" to pytest cmd line
     (but before install this module "pip install pytest-html")
 6.This test get result of opset1 operation (passed and failed) and also creates csv file 'nodes_coverage.csv' and
