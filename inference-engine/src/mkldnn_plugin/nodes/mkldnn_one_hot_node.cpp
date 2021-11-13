@@ -11,6 +11,8 @@
 #include <nodes/common/blocked_desc_creator.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <ie_ngraph_utils.hpp>
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
 #include "common/cpu_memcpy.h"
 
 using namespace MKLDNNPlugin;
@@ -82,42 +84,37 @@ bool MKLDNNOneHotNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
-    ngraph::OutputVector inputsForShapeInfer;
-    inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(InferenceEngine::details::convertPrecision(
-                                                                              getParentEdgesAtPort(0)[0]->getMemory().getDesc().getPrecision()),
-                                                                              getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().toPartialShape()));
-    inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(InferenceEngine::details::convertPrecision(
-                                                                 getParentEdgesAtPort(1)[0]->getMemory().getDesc().getPrecision()),
-                                                                 VectorDims{ },
-                                                                 getParentEdgesAtPort(1)[0]->getMemory().GetPtr()));
-    inputsForShapeInfer.push_back(opToShapeInfer->get_input_node_shared_ptr(2));
-    inputsForShapeInfer.push_back(opToShapeInfer->get_input_node_shared_ptr(3));
+    std::vector<ov::StaticShape> input_shapes = {
+            getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims(),
+            getParentEdgesAtPort(1)[0]->getMemory().GetShape().getStaticDims(),
+            getParentEdgesAtPort(2)[0]->getMemory().GetShape().getStaticDims(),
+            getParentEdgesAtPort(3)[0]->getMemory().GetShape().getStaticDims()
+    };
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
+            {1, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, VectorDims{ }, getParentEdgesAtPort(1)[0]->getMemory().GetPtr())},
+            {2, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::f32, VectorDims{ }, getParentEdgesAtPort(2)[0]->getMemory().GetPtr())},
+            {3, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::f32, VectorDims{ }, getParentEdgesAtPort(3)[0]->getMemory().GetPtr())}
+    };
+    std::vector<ov::StaticShape> output_shapes = {{}};
+    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
 
-    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
-    localShapeInferOp->validate_and_infer_types();
-
-    std::vector<VectorDims> newOutputShapes(outputShapes.size());
-    for (size_t i = 0; i < newOutputShapes.size(); i++) {
-        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
-        if (partShape.is_dynamic())
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
-        newOutputShapes[i] = partShape.get_shape();
-    }
+    std::vector<VectorDims> result(output_shapes.size());
+    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
 
     depth = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr())[0];
     VectorDims srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
     if (ngraph::is_scalar(srcDims)) {
         srcDims = SizeVector{1};
     }
-    VectorDims dstDims = newOutputShapes[0];
+    VectorDims dstDims = result[0];
     if (ngraph::is_scalar(dstDims)) {
         dstDims = SizeVector{1};
     }
     if (!(((1 + srcDims.size()) == dstDims.size()) ||
-           (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))
+          (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
 
-    return newOutputShapes;
+    return result;
 }
 
 void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
