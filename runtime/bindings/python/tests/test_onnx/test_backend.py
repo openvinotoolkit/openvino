@@ -131,11 +131,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reflect_pad_cpu",
     ),
     (
-        xfail_issue_39658,
-        "OnnxBackendNodeModelTest.test_tile_cpu",
-        "OnnxBackendNodeModelTest.test_tile_precomputed_cpu",
-    ),
-    (
         xfail_issue_39662,
         "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
         "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
