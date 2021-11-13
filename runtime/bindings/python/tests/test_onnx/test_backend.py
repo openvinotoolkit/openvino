@@ -26,7 +26,6 @@ from tests import (
     xfail_issue_38724,
     xfail_issue_38734,
     xfail_issue_38735,
-    xfail_issue_39658,
     xfail_issue_39662,
     xfail_issue_44854,
     xfail_issue_44858,
@@ -129,11 +128,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_constant_pad_cpu",
         "OnnxBackendNodeModelTest.test_edge_pad_cpu",
         "OnnxBackendNodeModelTest.test_reflect_pad_cpu",
-    ),
-    (
-        xfail_issue_39658,
-        "OnnxBackendNodeModelTest.test_tile_cpu",
-        "OnnxBackendNodeModelTest.test_tile_precomputed_cpu",
     ),
     (
         xfail_issue_39662,

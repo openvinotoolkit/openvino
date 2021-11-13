@@ -28,8 +28,8 @@ void shape_infer(const Tile* op,
     const auto arg_rank = arg_shape.rank();
     if (arg_rank.is_static() && (axes_are_known || repeats_shape[0].is_static())) {
         //try to specify rank
-        auto data_rank = arg_shape.size();
-        auto repeats_rank = axes_are_known ? axes_val.size() : repeats_shape[0].get_length();
+        int64_t data_rank = arg_shape.size();
+        int64_t repeats_rank = axes_are_known ? axes_val.size() : repeats_shape[0].get_length();
         auto output_rank = std::max(data_rank, repeats_rank);
         output_shape.resize(output_rank);
         //if have constant axes, compute new axes
