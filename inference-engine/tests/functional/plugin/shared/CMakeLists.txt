@@ -18,7 +18,7 @@ endif()
 
 # remove once CVS-69781 is fixed
 if(OV_IR_FRONTEND_ENABLE)
-    list(APPEND DEPENDENCIES ov_ir_frontend)
+    list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
 if (OV_ONNX_FRONTEND_ENABLE)

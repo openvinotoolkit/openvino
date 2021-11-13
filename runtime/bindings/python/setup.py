@@ -22,7 +22,7 @@ OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../..
 # Change current working directory to runtime/bindings/python
 os.chdir(PYTHON_API_ROOT_DIR)
 
-NGRAPH_LIBS = ["ngraph", "ov_onnx_frontend", "openvino"]
+NGRAPH_LIBS = ["ov_core", "onnx_ov_frontend", "openvino"]
 
 packages = [
     "ngraph",

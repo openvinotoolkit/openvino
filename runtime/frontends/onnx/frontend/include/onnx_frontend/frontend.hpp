@@ -6,7 +6,7 @@
 
 #include <frontend_manager/frontend.hpp>
 
-#ifdef ov_onnx_frontend_EXPORTS
+#ifdef onnx_ov_frontend_EXPORTS
 #    define ONNX_FRONTEND_API OPENVINO_CORE_EXPORTS
 #else
 #    define ONNX_FRONTEND_API OPENVINO_CORE_IMPORTS

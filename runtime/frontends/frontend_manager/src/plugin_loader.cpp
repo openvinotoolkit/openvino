@@ -46,7 +46,7 @@ static std::vector<std::string> list_files(const std::string& path) {
         ov::util::iterate_files(
             path,
             [&res](const std::string& file, bool is_dir) {
-                if (!is_dir && file.find("_ngraph_frontend") != std::string::npos) {
+                if (!is_dir && file.find("_ov_frontend") != std::string::npos) {
 #ifdef _WIN32
                     std::string ext = ".dll";
 #elif defined(__APPLE__)

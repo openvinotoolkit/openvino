@@ -60,20 +60,20 @@ endif()
 
 if(OV_IR_FRONTEND_ENABLE)
     if(BUILD_SHARED_LIBS)
-        add_dependencies(ie_libraries ov_ir_frontend)
+        add_dependencies(ie_libraries ir_ov_frontend)
     endif()
     # use this one once CVS-69781 is fixed
-    # add_dependencies(inference_engine ov_ir_frontend)
+    # add_dependencies(inference_engine ir_ov_frontend)
 endif()
 
 if(OV_ONNX_FRONTEND_ENABLE)
-    add_dependencies(inference_engine ov_onnx_frontend)
+    add_dependencies(inference_engine onnx_ov_frontend)
 endif()
 
 if(OV_PDPD_FRONTEND_ENABLE)
-    add_dependencies(inference_engine ov_paddlepaddle_frontend)
+    add_dependencies(inference_engine paddlepaddle_ov_frontend)
 endif()
 
 if(OV_TF_FRONTEND_ENABLE)
-    add_dependencies(inference_engine ov_tensorflow_frontend)
+    add_dependencies(inference_engine tensorflow_ov_frontend)
 endif()

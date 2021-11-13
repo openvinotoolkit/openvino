@@ -16,17 +16,17 @@ if (OV_TF_FRONTEND_ENABLE)
 endif()
 
 set(SRC ${CMAKE_CURRENT_SOURCE_DIR}/mock_frontend.cpp)
-add_library(mock1_ngraph_frontend SHARED ${SRC})
+add_library(mock1_ov_frontend SHARED ${SRC})
 
-target_compile_definitions(mock1_ngraph_frontend PRIVATE "-DMOCK_VARIANT=\"1\"")
+target_compile_definitions(mock1_ov_frontend PRIVATE "-DMOCK_VARIANT=\"1\"")
 
-target_include_directories(mock1_ngraph_frontend PRIVATE ".")
+target_include_directories(mock1_ov_frontend PRIVATE ".")
 
-target_link_libraries(mock1_ngraph_frontend PRIVATE frontend_manager)
-add_dependencies(ov_core_unit_tests mock1_ngraph_frontend)
+target_link_libraries(mock1_ov_frontend PRIVATE frontend_manager)
+add_dependencies(ov_core_unit_tests mock1_ov_frontend)
 
-add_clang_format_target(mock1_ngraph_frontend_clang FOR_TARGETS mock1_ngraph_frontend)
+add_clang_format_target(mock1_ov_frontend_clang FOR_TARGETS mock1_ov_frontend)
 
-install(TARGETS mock1_ngraph_frontend
+install(TARGETS mock1_ov_frontend
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)

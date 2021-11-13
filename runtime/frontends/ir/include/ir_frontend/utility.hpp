@@ -5,11 +5,11 @@
 #pragma once
 
 // Defined if we are building the plugin DLL (instead of using it)
-#ifdef ov_ir_frontend_EXPORTS
+#ifdef ir_ov_frontend_EXPORTS
 #    define IR_API OPENVINO_CORE_EXPORTS
 #else
 #    define IR_API OPENVINO_CORE_IMPORTS
-#endif  // ov_ir_frontend_EXPORTS
+#endif  // ir_ov_frontend_EXPORTS
 
 #define IR_ASSERT(ex, msg)                 \
     {                                      \
