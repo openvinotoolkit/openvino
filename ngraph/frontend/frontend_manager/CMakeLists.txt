@@ -35,7 +35,7 @@ ov_install_static_lib(${TARGET_NAME}_static ngraph)
 
 # Shared library - need to recompile object files to export necessary symbols
 
-add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
+add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::manager ALIAS ${TARGET_NAME})
 

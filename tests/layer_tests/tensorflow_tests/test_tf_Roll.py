@@ -1,18 +1,18 @@
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestTFRoll(CommonTFLayerTest):
-    def create_tf_roll_net(self, shift, axis, x_shape, input_type, ir_version):
+    def create_tf_roll_net(self, shift, axis, x_shape, input_type, ir_version, use_new_frontend):
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = x_shape.copy()
-            # reshaping
-            if len(tf_x_shape) >= 3:
-                tf_x_shape.append(tf_x_shape.pop(1))
+
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
 
             x = tf.compat.v1.placeholder(input_type, tf_x_shape, 'Input')
             roll = tf.roll(x, shift=shift, axis=axis)
@@ -35,8 +35,8 @@ class TestTFRoll(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_tf_roll(self, params, ie_device, precision, ir_version, temp_dir):
+    def test_tf_roll(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
-        self._test(*self.create_tf_roll_net(**params, ir_version=ir_version), ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, **params)
+        self._test(*self.create_tf_roll_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend), ie_device, precision,
+                   temp_dir=temp_dir, ir_version=ir_version, **params, use_new_frontend=use_new_frontend)
