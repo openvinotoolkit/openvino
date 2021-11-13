@@ -9,7 +9,7 @@ add_library(${TARGET_NAME} INTERFACE)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/reader_api>
-    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ov_install_static_lib(${TARGET_NAME} core)
 

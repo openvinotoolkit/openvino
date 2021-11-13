@@ -45,7 +45,7 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
         openvino::graph_builders inference_engine_transformations
-        inference_engine pugixml::static inference_engine_plugin_api)
+        openvino::runtime pugixml::static openvino::runtime::plugin_api)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

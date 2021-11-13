@@ -19,7 +19,7 @@ file(GLOB SHARED_TESTS_SRC
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 
-add_dependencies(${TARGET_NAME} inference_engine_preproc mock_engine)
+add_dependencies(${TARGET_NAME} openvino::preprocessing mock_engine)
 
 if(ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} MultiDevicePlugin)
@@ -46,7 +46,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/lstm
         ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:ov_runtime_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 if(OpenCV_FOUND)

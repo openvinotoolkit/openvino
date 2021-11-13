@@ -9,13 +9,13 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}/include
-            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         DEPENDENCIES
             ir_ov_frontend
         LINK_LIBRARIES
             PRIVATE
                 gflags
-                inference_engine
+                openvino::runtime
                 commonTestUtils
                 pugixml::static
         ADD_CPPLINT

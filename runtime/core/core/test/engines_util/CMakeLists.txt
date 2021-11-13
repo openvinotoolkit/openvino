@@ -10,8 +10,8 @@ if(COMMAND ie_faster_build)
     ie_faster_build(engines_test_util UNITY)
 endif()
 
-target_include_directories(engines_test_util PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
-target_link_libraries(engines_test_util PUBLIC openvino::core ov_backend inference_engine gtest gmock ov_core_test_util)
+target_include_directories(engines_test_util PRIVATE $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(engines_test_util PUBLIC openvino::core ov_backend openvino::runtime gtest gmock ov_core_test_util)
 target_include_directories(engines_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_clang_format_target(engines_test_util_clang FOR_SOURCES ${ENGINES_UTIL_SRC})

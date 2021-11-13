@@ -20,7 +20,7 @@ add_subdirectory(reference)
 add_subdirectory(shape_inference)
 
 # WA for Tensor implementation via ie::Blob::Ptr
-set(IE_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src")
+set(IE_SRC_ROOT "${OpenVINO_MAIN_SOURCE_DIR}/runtime/core/runtime/src")
 set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
                    "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
                    "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
@@ -32,8 +32,8 @@ set(MIXED_SRC ${IE_SHARED_SRCS}
 set_property(SOURCE ${MIXED_SRC}
     APPEND PROPERTY INCLUDE_DIRECTORIES
         ${IE_SRC_ROOT}
-        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::runtime::plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_source_files_properties(${MIXED_SRC}
     PROPERTIES COMPILE_DEFINITIONS IMPLEMENT_INFERENCE_ENGINE_API)
@@ -73,7 +73,7 @@ ie_mark_target_as_cc(${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-                add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)

@@ -39,9 +39,9 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src # For CNNNetworkNGraphImpl
+    ${OpenVINO_MAIN_SOURCE_DIR}/runtime/core/runtime/src # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::runtime::plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -60,7 +60,7 @@ add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Legacy library")
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
                                      PRIVATE pugixml::static openvino::itt
                                              openvino::core inference_engine_transformations)
 
@@ -76,7 +76,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT runtime TARGETS ${TARGET_NAME})
 
 # install
 

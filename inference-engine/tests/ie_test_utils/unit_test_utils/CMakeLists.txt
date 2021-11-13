@@ -20,7 +20,7 @@ addIeTarget(
         LINK_LIBRARIES
             PUBLIC
                 commonTestUtils_s
-                inference_engine_s
+                ov_runtime_s
                 gmock
         INCLUDES
             PRIVATE

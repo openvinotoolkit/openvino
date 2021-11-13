@@ -50,6 +50,12 @@ find_dependency(ngraph
                 NO_DEFAULT_PATH)
 
 # create targets with old names for compatibility
+if(TARGET openvino::runtime AND NOT TARGET IE::inference_engine)
+    add_library(IE::inference_engine INTERFACE IMPORTED)
+    set_target_properties(IE::inference_engine PROPERTIES
+        INTERFACE_LINK_LIBRARIES openvino::runtime)
+endif()
+
 if(TARGET openvino::core AND NOT TARGET IE::core)
     add_library(IE::core INTERFACE IMPORTED)
     set_target_properties(IE::core PROPERTIES

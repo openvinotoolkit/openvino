@@ -80,12 +80,12 @@ function(ie_add_plugin)
         endif()
 
         ie_add_vs_version_file(NAME ${IE_PLUGIN_NAME}
-            FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
+            FILEDESCRIPTION "OpenVINO ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
-        if(TARGET IE::inference_engine_plugin_api)
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api)
+        if(TARGET IE::ov_runtime_plugin_api)
+            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::ov_runtime_plugin_api)
         else()
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api)
+            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE ov_runtime_plugin_api)
         endif()
 
         if(WIN32)
@@ -108,8 +108,8 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET inference_engine_preproc AND BUILD_SHARED_LIBS)
-            add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
+        if(TARGET openvino::preprocessing AND BUILD_SHARED_LIBS)
+            add_dependencies(${IE_PLUGIN_NAME} openvino::preprocessing)
         endif()
 
         # fake dependencies to build in the following order:
@@ -281,7 +281,7 @@ macro(ie_generate_plugins_hpp)
 
         # link plugin to inference_engine static version
         list(GET name 1 plugin_name)
-        target_link_libraries(inference_engine PRIVATE ${plugin_name})
+        target_link_libraries(ov_runtime PRIVATE ${plugin_name})
     endforeach()
 
     set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/inference-engine/src/inference_engine/ie_plugins.hpp")
@@ -306,10 +306,10 @@ macro(ie_generate_plugins_hpp)
     # for some reason dependnency on source files does not work
     # so, we have to use explicit target and make it dependency for inference_engine
     add_custom_target(ie_generate_hpp DEPENDS ${ie_plugins_hpp})
-    add_dependencies(inference_engine ie_generate_hpp)
+    add_dependencies(ov_runtime ie_generate_hpp)
 
     # add dependency for object files
-    get_target_property(sources inference_engine SOURCES)
+    get_target_property(sources ov_runtime SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library

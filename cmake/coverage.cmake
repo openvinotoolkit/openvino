@@ -12,9 +12,8 @@ ie_coverage_capture(INFO_FILE "openvino"
 
 # Generate reports
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference_engine/*"
-                             "${OV_COVERAGE_BASE_DIRECTORY}/plugin_api/*")
+ie_coverage_extract(INPUT "openvino" OUTPUT "runtime"
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/runtime/*")
 ie_coverage_genhtml(INFO_FILE "inference_engine"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
@@ -49,9 +48,9 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_transformations"
 ie_coverage_genhtml(INFO_FILE "inference_engine_transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_snippets"
+ie_coverage_extract(INPUT "openvino" OUTPUT "ov_snippets"
                     PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/snippets/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_snippets"
+ie_coverage_genhtml(INFO_FILE "ov_snippets"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "low_precision_transformations"

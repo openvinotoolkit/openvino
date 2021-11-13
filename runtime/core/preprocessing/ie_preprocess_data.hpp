@@ -74,7 +74,7 @@ public:
         if (!_ptr)
             IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
 #else
-        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
+        ov::util::FilePath libraryName = ov::util::to_file_path(std::string("ov_preprocessing") + std::string(IE_BUILD_POSTFIX));
         ov::util::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(preprocLibraryPath)) {

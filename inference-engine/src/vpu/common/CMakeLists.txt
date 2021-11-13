@@ -23,10 +23,10 @@ function(add_common_target TARGET_NAME STATIC_IE)
     endif()
 
     if(STATIC_IE)
-        # static linkage to inference_engine library
+        # static linkage to openvino::runtime library
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
-                USE_STATIC_IE)
+                USE_STATIC_OV_RUNTIME)
         set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
@@ -37,7 +37,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
             $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime::plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
     if(WIN32)

@@ -15,8 +15,8 @@ add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
 target_link_libraries(${TARGET_NAME}
         PRIVATE
-        inference_engine
-        inference_engine_c_api
+        openvino::runtime
+        openvino::runtime::c
         ${OpenCV_LIBRARIES}
         commonTestUtils
         )
