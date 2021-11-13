@@ -23,7 +23,7 @@ target_compile_definitions(mock1_ngraph_frontend PRIVATE "-DMOCK_VARIANT=\"1\"")
 target_include_directories(mock1_ngraph_frontend PRIVATE ".")
 
 target_link_libraries(mock1_ngraph_frontend PRIVATE frontend_manager)
-add_dependencies(unit-test mock1_ngraph_frontend)
+add_dependencies(ov_core_unit_tests mock1_ngraph_frontend)
 
 add_clang_format_target(mock1_ngraph_frontend_clang FOR_TARGETS mock1_ngraph_frontend)
 

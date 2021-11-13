@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(TARGET_NAME ov_core_unit_tests)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
@@ -550,7 +552,7 @@ foreach(src IN LISTS SRC MULTI_TEST_SRC)
         list(APPEND full_src_names "${CMAKE_CURRENT_SOURCE_DIR}/${src}")
     endif()
 endforeach()
-add_clang_format_target(unit-test_clang FOR_SOURCES ${full_src_names})
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${full_src_names})
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
@@ -559,34 +561,34 @@ foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
 
     foreach(TEST_SRC ${MULTI_TEST_SRC})
         string(REPLACE ":" "_" BACKEND_NAME ${BACKEND_NAME})
-        string(REPLACE ".in." "_${BACKEND_NAME}." TARGET_NAME ${TEST_SRC})
-        configure_file(${TEST_SRC} ${TARGET_NAME})
-        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME} ${SRC})
+        string(REPLACE ".in." "_${BACKEND_NAME}." OBJ_TARGET_NAME ${TEST_SRC})
+        configure_file(${TEST_SRC} ${OBJ_TARGET_NAME})
+        set(SRC ${CMAKE_CURRENT_BINARY_DIR}/${OBJ_TARGET_NAME} ${SRC})
     endforeach()
 
     message(STATUS "Adding unit test for backend ${BACKEND_NAME}")
 endforeach()
 
-add_executable(unit-test ${SRC})
+add_executable(${TARGET_NAME} ${SRC})
 
-add_dependencies(unit-test template_extension)
+add_dependencies(${TARGET_NAME} template_extension)
 
-target_include_directories(unit-test PRIVATE ".")
-target_include_directories(unit-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+target_include_directories(${TARGET_NAME} PRIVATE ".")
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 
 get_target_property(OV_CORE_SRC_DIR openvino::core SOURCE_DIR)
-target_include_directories(unit-test PRIVATE ${OV_CORE_SRC_DIR}/src)
+target_include_directories(${TARGET_NAME} PRIVATE ${OV_CORE_SRC_DIR}/src)
 
-target_compile_definitions(unit-test
+target_compile_definitions(${TARGET_NAME}
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
 
 if(UNIT_TESTS_DEPENDENCIES)
-    add_dependencies(unit-test ${UNIT_TESTS_DEPENDENCIES})
+    add_dependencies(${TARGET_NAME} ${UNIT_TESTS_DEPENDENCIES})
 endif()
 
-target_link_libraries(unit-test PRIVATE ov_core_test_util
+target_link_libraries(${TARGET_NAME} PRIVATE ov_core_test_util
                                         engines_test_util
                                         openvino::graph_builders
                                         openvino::util
@@ -604,36 +606,36 @@ target_link_libraries(unit-test PRIVATE ov_core_test_util
 if (OV_ONNX_FRONTEND_ENABLE)
     # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
     # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
-    target_include_directories(unit-test
+    target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
             $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
             ${Protobuf_INCLUDE_DIRS})
-    target_compile_definitions(unit-test
+    target_compile_definitions(${TARGET_NAME}
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_definitions(unit-test PRIVATE OV_ONNX_FRONTEND_ENABLE)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_ONNX_FRONTEND_ENABLE)
 endif()
 
 if (OV_COMPILER_IS_CLANG)
-    target_compile_options(unit-test PRIVATE -Wno-undef -Wno-reserved-id-macro)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
 if (OV_ONNX_FRONTEND_ENABLE)
     get_target_property(ONNX_FRONTEND_SRC_DIR ov_onnx_frontend SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(unit-test PRIVATE ov_onnx_frontend onnx_test_util)
+    target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
+    target_link_libraries(${TARGET_NAME} PRIVATE ov_onnx_frontend onnx_test_util)
     if (LINUX)
-        target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+        target_link_options(${TARGET_NAME} PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
-        target_link_options(unit-test PRIVATE -Wl,-dead_strip)
+        target_link_options(${TARGET_NAME} PRIVATE -Wl,-dead_strip)
     endif()
 endif()
 
 if(OV_IR_FRONTEND_ENABLE)
-    add_dependencies(unit-test ov_ir_frontend)
+    add_dependencies(${TARGET_NAME} ov_ir_frontend)
 endif()
 
-install(TARGETS unit-test
+install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
@@ -641,4 +643,4 @@ install(TARGETS unit-test
 add_subdirectory(frontend)
 
 # process models
-add_dependencies(unit-test test_model_zoo)
+add_dependencies(${TARGET_NAME} test_model_zoo)
