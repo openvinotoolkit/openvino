@@ -9,6 +9,9 @@
 #include <stdexcept>
 #include <ostream>
 
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+
 namespace ov {
 /// \brief Class representing a dimension, which must be static,
 ///        in a shape or shape-like object.
@@ -25,6 +28,10 @@ public:
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
+    StaticDimension(const Dimension &) {
+        OPENVINO_UNREACHABLE("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
+    }
+
     bool operator==(const StaticDimension& dimension) const;
     bool operator!=(const StaticDimension& dimension) const;
 
@@ -34,6 +41,12 @@ public:
     value_type get_length() const;
     value_type get_min_length() const;
     value_type get_max_length() const;
+
+    Interval& get_interval() const {
+        static Interval dummy{};
+        OPENVINO_UNREACHABLE("[shape infer] Shoudn't call get_interval() in StaticDimension.");
+        return dummy;
+    }
 
     bool same_scheme(const StaticDimension& dim) const;
     bool compatible(const StaticDimension& d) const;

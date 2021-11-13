@@ -12,6 +12,7 @@
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace op {
@@ -25,6 +26,10 @@ public:
     StaticShape(std::initializer_list<StaticDimension> init);
     StaticShape(const std::vector<StaticDimension::value_type>& dimensions);
     StaticShape(std::vector<StaticDimension> dimensions);
+
+    StaticShape(const PartialShape &) {
+        OPENVINO_UNREACHABLE("[shape infer] Shouldn't convert from PartialShape to StaticShape at runtime.");
+    }
 
     static bool is_static() { return true; }
     static bool is_dynamic() { return false; }
