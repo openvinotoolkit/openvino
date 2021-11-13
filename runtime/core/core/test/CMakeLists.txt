@@ -455,7 +455,7 @@ if (OV_CORE_TEST_BACKENDS_ENABLE)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
 
-add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
+add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
 add_subdirectory(util)
 add_subdirectory(engines_util)
 if (OV_ONNX_FRONTEND_ENABLE)
