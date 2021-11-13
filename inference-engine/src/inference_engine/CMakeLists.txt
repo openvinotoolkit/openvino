@@ -5,12 +5,24 @@
 set (TARGET_NAME "inference_engine")
 
 if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    find_package(TBBBIND_2_5 QUIET)
-    if(TBBBIND_2_5_FOUND)
-        message(STATUS "Static tbbbind_2_5 package is found")
-        if(NOT BUILD_SHARED_LIBS)
-            set(install_tbbbind ON)
+    if(TARGET TBB::tbbbind_2_5)
+        # provided TBB has tbbbind_2_5 imported target
+        set(TBBBIND_2_5_IMPORTED_TARGETS TBB::tbbbind_2_5)
+        set(TBBBIND_2_5_FOUND ON)
+    else()
+        # try to find prebuilt version of tbbbind_2_5
+        find_package(TBBBIND_2_5 QUIET)
+        if(TBBBIND_2_5_FOUND)
+            message(STATUS "Static tbbbind_2_5 package is found")
+            if(NOT BUILD_SHARED_LIBS)
+                set(install_tbbbind ON)
+            endif()
         endif()
+    endif()
+
+    if(TBBBIND_2_5_IMPORTED_TARGETS)
+        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
+            INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
     endif()
 endif()
 
@@ -149,7 +161,6 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openv
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_5_AVAILABLE)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
@@ -174,7 +185,6 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 if (TBBBIND_2_5_FOUND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_5_AVAILABLE)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
@@ -208,7 +218,6 @@ add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)
-    target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_5_AVAILABLE)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
