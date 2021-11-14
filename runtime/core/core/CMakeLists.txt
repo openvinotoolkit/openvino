@@ -20,7 +20,7 @@ add_subdirectory(reference)
 add_subdirectory(shape_inference)
 
 # WA for Tensor implementation via ie::Blob::Ptr
-set(IE_SRC_ROOT "${OpenVINO_MAIN_SOURCE_DIR}/runtime/core/runtime/src")
+set(IE_SRC_ROOT "${OpenVINO_SOURCE_DIR}/runtime/core/runtime/src")
 set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
                    "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
                    "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
