@@ -11,12 +11,12 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     TEST_P(PriorBoxClusteredLayerTest, Serialize) {
-        Serialize();
+        serialize();
     }
 
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+    const std::vector<ov::test::ElementType> netPrecisions = {
+        ov::test::ElementType::f32,
+        ov::test::ElementType::f16
     };
 
     const std::vector<std::vector<float>> widths = {
@@ -53,8 +53,13 @@ namespace {
         true, false
     };
 
-    const std::vector<size_t> inputShape = {4, 4};
-    const std::vector<size_t> imageShape = {50, 50};
+    const std::vector<ov::test::InputShape> inputShapes = {
+        {{4, 4}, {{4, 4}}}
+    };
+
+    const std::vector<ov::test::InputShape> imageShapes = {
+        {{50, 50}, {{50, 50}}}
+    };
 
     const auto layerSpeficParams = ::testing::Combine(
         ::testing::ValuesIn(widths),
@@ -70,12 +75,12 @@ namespace {
             ::testing::Combine(
                 layerSpeficParams,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(ov::test::ElementType::undefined),
+                ::testing::Values(ov::test::ElementType::undefined),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(inputShape),
-                ::testing::Values(imageShape),
+                ::testing::ValuesIn(inputShapes),
+                ::testing::ValuesIn(imageShapes),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
             PriorBoxClusteredLayerTest::getTestCaseName);
 
