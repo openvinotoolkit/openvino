@@ -28,7 +28,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("value"),
         R"(
                 Subtracts single float value from each element in input tensor.
-                Input tensor must have ngraph.Type.f32 data type.
+                Input tensor must have ov.Type.f32 data type.
                 Parameters
                 ----------
                 value : float
@@ -47,7 +47,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("values"),
         R"(
                 Subtracts a given single float value from each element in a given channel from input tensor.
-                Input tensor must have ngraph.Type.f32 data type.
+                Input tensor must have ov.Type.f32 data type.
                 Parameters
                 ----------
                 values : List
@@ -66,7 +66,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("value"),
         R"(
                 Divides each element in input tensor by specified constant float value.
-                Input tensor must have ngraph.Type.f32 data type.
+                Input tensor must have ov.Type.f32 data type.
                 Parameters
                 ----------
                 value : float
@@ -85,7 +85,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         py::arg("values"),
         R"(
                 Divides each element in a given channel from input tensor by a given single float value.
-                Input tensor must have ngraph.Type.f32 data type.
+                Input tensor must have ov.Type.f32 data type.
                 Parameters
                 ----------
                 value : List
@@ -373,7 +373,7 @@ static void regclass_graph_InputInfo(py::module m) {
             me->network(std::move(*inputNetworkInfo));
             return me;
         },
-        py::arg("input_netwok_info"));
+        py::arg("input_network_info"));
 }
 
 static void regclass_graph_OutputInfo(py::module m) {
@@ -429,7 +429,7 @@ static void regclass_graph_OutputInfo(py::module m) {
             me->network(std::move(*outputNetworkInfo));
             return me;
         },
-        py::arg("output_netwok_info"));
+        py::arg("output_network_info"));
 }
 
 static void regclass_graph_OutputNetworkInfo(py::module m) {
