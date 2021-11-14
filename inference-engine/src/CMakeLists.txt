@@ -37,11 +37,6 @@ if(ENABLE_MULTI)
     add_subdirectory(multi_device)
 endif()
 
-
-
-add_subdirectory(readers)
-
-
 # add a custom target to build all Inference Engine Core libraries
 
 add_custom_target(tr_ie_libraries ALL
