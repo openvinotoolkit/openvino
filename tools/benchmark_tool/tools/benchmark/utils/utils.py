@@ -142,13 +142,13 @@ def print_inputs_and_outputs_info(function: Function):
     for i in range(inputs):
         logger.info(f"Network input '{input_names[i]}' precision {get_precision(inputs[i].get_element_type())}, "
                                                     f"dimensions ({str(parameters[i].get_layout())}): "
-                                                    f"{' '.join(str(x) for x in inputs[i].get_partial_shape())}") # TODO: add __iter__ to PartialShape
+                                                    f"{' '.join(str(x) for x in inputs[i].get_partial_shape())}")
     outputs = function.outputs
     output_names = get_input_output_names(outputs)
     results = function.get_results()
     for i in range(outputs):
         logger.info(f"Network output '{output_names[i]}' precision {get_precision(outputs[i].get_element_type())}, "
-                                        f"dimensions ({results[i].get_layout()}): " # TODO: bind result
+                                        f"dimensions ({str(results[i].get_layout())}): "
                                         f"{' '.join(str(x) for x in  outputs[i].get_partial_shape())}")
 
 
@@ -420,7 +420,7 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
         # Update shape with batch if needed
         if batch_size != 0:
             batch_index = info.layout.index('N') if 'N' in info.layout else -1
-            if batch_index != -1 and info.shape[batch_index] != Dimension(batch_size): # TODO: add __getitem__ for PatrialShape
+            if batch_index != -1 and info.shape[batch_index] != Dimension(batch_size):
                 info.shape[batch_index] = batch_size
                 reshape = True
         input_info.append(info)
