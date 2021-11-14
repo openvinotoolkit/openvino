@@ -27,4 +27,7 @@ add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 add_subdirectory(core)
 
 add_subdirectory(frontend)
-add_subdirectory(test)
+
+if(ENABLE_TESTS)
+    add_subdirectory(test)
+endif()
