@@ -28,7 +28,7 @@ public:
     StaticShape(std::vector<StaticDimension> dimensions);
 
     StaticShape(const PartialShape &) {
-        OPENVINO_UNREACHABLE("Cannot convert from PartialShape.");
+        OPENVINO_UNREACHABLE("[shape infer] Shouldn't convert from PartialShape to StaticShape at runtime.");
     }
 
     static bool is_static() { return true; }

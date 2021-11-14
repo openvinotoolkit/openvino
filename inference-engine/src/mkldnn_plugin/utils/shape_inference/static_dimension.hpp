@@ -25,12 +25,12 @@ public:
     /// \param dimension Value of the dimension.
     StaticDimension(value_type dimension);
 
-    StaticDimension(const Dimension &) {
-        OPENVINO_UNREACHABLE("Cannot convert from Dimension type.");
-    }
-
     /// \brief Construct a zero dimension
     StaticDimension() = default;
+
+    StaticDimension(const Dimension &) {
+        OPENVINO_UNREACHABLE("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
+    }
 
     bool operator==(const StaticDimension& dimension) const;
     bool operator!=(const StaticDimension& dimension) const;
@@ -42,10 +42,9 @@ public:
     value_type get_min_length() const;
     value_type get_max_length() const;
 
-    /// \brief Return the interval of valid lengths
     Interval& get_interval() const {
         static Interval dummy{};
-        OPENVINO_UNREACHABLE("Cannot get interval from StaticDimension.");
+        OPENVINO_UNREACHABLE("[shape infer] Shoudn't call get_interval() in StaticDimension.");
         return dummy;
     }
 

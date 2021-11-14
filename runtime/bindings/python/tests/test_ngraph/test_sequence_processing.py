@@ -6,8 +6,7 @@ import numpy as np
 import openvino.opset8 as ov
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_47337,
-                   xfail_accuracy)
+from tests import (xfail_issue_47337)
 
 
 def test_onehot():
@@ -35,7 +34,6 @@ def test_one_hot():
     assert np.allclose(result, excepted)
 
 
-@xfail_accuracy
 def test_range():
     start = 5
     stop = 35
