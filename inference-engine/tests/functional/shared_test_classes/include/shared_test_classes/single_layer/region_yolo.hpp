@@ -11,11 +11,12 @@
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsDefinitions {
 
 using regionYoloParamsTuple = std::tuple<
-        ngraph::Shape,                  // Input Shape
+        ov::test::InputShape,           // Input Shape
         size_t,                         // classes
         size_t,                         // coordinates
         size_t,                         // num regions
@@ -27,7 +28,7 @@ using regionYoloParamsTuple = std::tuple<
         std::string>;                   // Device name
 
 class RegionYoloLayerTest : public testing::WithParamInterface<regionYoloParamsTuple>,
-                            virtual public LayerTestsUtils::LayerTestsCommon {
+                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<regionYoloParamsTuple> &obj);
 

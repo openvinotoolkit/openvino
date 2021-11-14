@@ -9,23 +9,23 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<ngraph::Shape> inShapes_caffe = {
-    {1, 125, 13, 13}
+const std::vector<ov::test::InputShape> inShapes_caffe = {
+    {{1, 125, 13, 13}, {{1, 125, 13, 13}}}
 };
 
-const std::vector<ngraph::Shape> inShapes_mxnet = {
-    {1, 75, 52, 52},
-    {1, 75, 32, 32},
-    {1, 75, 26, 26},
-    {1, 75, 16, 16},
-    {1, 75, 13, 13},
-    {1, 75, 8, 8}
+const std::vector<ov::test::InputShape> inShapes_mxnet = {
+    {{1, 75, 52, 52}, {{1, 75, 52, 52}}},
+    {{1, 75, 32, 32}, {{1, 75, 32, 32}}},
+    {{1, 75, 26, 26}, {{1, 75, 26, 26}}},
+    {{1, 75, 16, 16}, {{1, 75, 16, 16}}},
+    {{1, 75, 13, 13}, {{1, 75, 13, 13}}},
+    {{1, 75, 8, 8}, {{1, 75, 8, 8}}}
 };
 
-const std::vector<ngraph::Shape> inShapes_v3 = {
-    {1, 255, 52, 52},
-    {1, 255, 26, 26},
-    {1, 255, 13, 13}
+const std::vector<ov::test::InputShape> inShapes_v3 = {
+    {{1, 255, 52, 52}, {{1, 255, 52, 52}}},
+    {{1, 255, 26, 26}, {{1, 255, 26, 26}}},
+    {{1, 255, 13, 13}, {{1, 255, 13, 13}}}
 };
 
 const std::vector<std::vector<int64_t>> masks = {
