@@ -104,9 +104,11 @@ protected:
 inline InferenceEngine::Core createIECoreWithTemplate() {
     PluginCache::get().reset();
     InferenceEngine::Core ie;
+#ifndef OPENVINO_STATIC_LIBRARY
     std::string pluginName = "templatePlugin";
     pluginName += IE_BUILD_POSTFIX;
-    ie.RegisterPlugin(pluginName, "TEMPLATE");
+    ie.RegisterPlugin(pluginName, CommonTestUtils::DEVICE_TEMPLATE);
+#endif // !OPENVINO_STATIC_LIBRARY
     return ie;
 }
 
