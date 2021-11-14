@@ -18,10 +18,10 @@ from ..statistics.function_selector import ACTIVATIONS, get_stats_function
 
 class StatisticGraphBuilder:
     def insert_statistic(self, model, stats_layout, stat_aliases=None):
-        if stat_aliases is None or model is None:
-            return model, list(stats_layout.keys())
-        nodes_names = []
         output_to_node_names = {}
+        if stat_aliases is None or model is None:
+            return model, list(stats_layout.keys()), output_to_node_names
+        nodes_names = []
         copy_stat_aliases = deepcopy(stat_aliases)
         for algo_name, node_stats in copy_stat_aliases.items():
             for node_name, stats in node_stats.items():
