@@ -8,6 +8,7 @@ extensions/analysis/tf_od_api.py
 extensions/analysis/tf_retinanet.py
 extensions/analysis/tf_yolo.py
 extensions/back/__init__.py
+extensions/back/add_outputs_recursive.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
