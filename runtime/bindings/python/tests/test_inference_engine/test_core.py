@@ -259,7 +259,6 @@ def test_unregister_plugin(device):
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
-@pytest.mark.xfail("68212")
 @pytest.mark.template_extension
 def test_add_extension(device):
     model = bytes(b"""<net name="Network" version="10">
