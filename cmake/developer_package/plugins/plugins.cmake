@@ -284,7 +284,7 @@ macro(ie_generate_plugins_hpp)
         target_link_libraries(ov_runtime PRIVATE ${plugin_name})
     endforeach()
 
-    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/inference-engine/src/inference_engine/ie_plugins.hpp")
+    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/runtime/core/runtime/ie_plugins.hpp")
     set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
 
     add_custom_command(OUTPUT "${ie_plugins_hpp}"
