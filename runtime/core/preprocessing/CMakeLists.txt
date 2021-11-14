@@ -138,7 +138,7 @@ if(BUILD_SHARED_LIBS)
     # for static linkage the dependencies are in opposite order
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 else()
-    target_link_libraries(openvino::runtime PRIVATE ${TARGET_NAME})
+    target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
 endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE

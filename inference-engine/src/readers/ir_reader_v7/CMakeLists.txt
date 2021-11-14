@@ -46,7 +46,7 @@ if(WIN32)
 endif()
 
 if(NOT BUILD_SHARED_LIBS)
-    target_link_libraries(openvino::runtime PRIVATE ${TARGET_NAME})
+    target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
 else()
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 endif()
