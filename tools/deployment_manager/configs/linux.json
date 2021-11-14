@@ -28,7 +28,7 @@
         "runtime/lib/intel64/libinference_engine_c_api.so",
         "runtime/lib/intel64/libHeteroPlugin.so",
         "runtime/lib/intel64/libMultiDevicePlugin.so",
-        "runtime/lib/intel64/libngraph.so",
+        "runtime/lib/intel64/libov_core.so",
         "runtime/lib/intel64/libfrontend_manager.so",
         "runtime/lib/intel64/libir_ov_frontend.so",
         "runtime/lib/intel64/libonnx_ov_frontend.so",

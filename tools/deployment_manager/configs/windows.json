@@ -22,7 +22,7 @@
         "runtime/bin/intel64/Release/inference_engine_c_api.dll",
         "runtime/bin/intel64/Release/HeteroPlugin.dll",
         "runtime/bin/intel64/Release/MultiDevicePlugin.dll",
-        "runtime/bin/intel64/Release/ngraph.dll",
+        "runtime/bin/intel64/Release/ov_core.dll",
         "runtime/bin/intel64/Release/frontend_manager.dll",
         "runtime/bin/intel64/Release/ir_ov_frontend.dll",
         "runtime/bin/intel64/Release/onnx_ov_frontend.dll",
