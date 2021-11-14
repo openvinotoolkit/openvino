@@ -227,7 +227,7 @@ def run(args):
                                               ('compile model time (ms)', duration_ms)
                                           ])
             function = exe_network.get_runtime_function()
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().inputs)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.inputs, function.get_parameters())
             if batch_size == 0:
                 batch_size = 1
         elif not is_network_compiled:
@@ -306,7 +306,8 @@ def run(args):
                                           [
                                               ('import model time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function.input_info)
+            function = exe_network.get_runtime_function()
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.inputs(), function.get_parameters())
             if batch_size == 0:
                 batch_size = 1
 
@@ -397,8 +398,8 @@ def run(args):
 
         if perf_counts:
             perfs_count_list = []
-            for ni in range(int(benchmark.nireq)):
-                perfs_count_list.append(exe_network.requests[ni].get_perf_counts())
+            for request in requests:
+                perfs_count_list.append(request.profiling_info)
             if args.perf_counts:
                 print_perf_counters(perfs_count_list)
             if statistics:

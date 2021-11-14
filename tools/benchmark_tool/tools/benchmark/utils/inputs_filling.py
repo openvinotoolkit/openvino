@@ -29,7 +29,7 @@ def get_inputs(paths_to_input, batch_size, app_input_info, num_requests):
 
     app_input_info_hashed = {}
     for info in app_input_info:
-        app_input_info_hashed[info.tensor_name] = info
+        app_input_info_hashed[info.name] = info
 
     app_input_info = app_input_info_hashed
 
