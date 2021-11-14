@@ -55,9 +55,9 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-if(COMMAND ie_add_api_validator_post_build_step)
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-endif()
+# if(COMMAND ie_add_api_validator_post_build_step)
+#     ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+# endif()
 
 if(COMMAND ie_add_vs_version_file)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
