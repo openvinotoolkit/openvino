@@ -1334,11 +1334,6 @@ shared_ptr<op::Constant> ngraph::get_constant_max_of_type(element::Type_t t) {
         NGRAPH_TYPE_TO_MAX_CONST(element::u16);
         NGRAPH_TYPE_TO_MAX_CONST(element::u32);
         NGRAPH_TYPE_TO_MAX_CONST(element::u64);
-
-    case element::i4:
-        return op::Constant::create(element::i4, {}, {7});
-    case element::u4:
-        return op::Constant::create(element::u4, {}, {15});
     default:
         return nullptr;
     }
@@ -1365,11 +1360,6 @@ shared_ptr<op::Constant> ngraph::get_constant_min_of_type(element::Type_t t) {
         NGRAPH_TYPE_TO_MIN_CONST(element::u16);
         NGRAPH_TYPE_TO_MIN_CONST(element::u32);
         NGRAPH_TYPE_TO_MIN_CONST(element::u64);
-
-    case element::i4:
-        return op::Constant::create(element::i4, {}, {-8});
-    case element::u4:
-        return op::Constant::create(element::u4, {}, {0});
     default:
         return nullptr;
     }
@@ -1551,6 +1541,7 @@ shared_ptr<op::v0::Constant> ov::evaluate_subgraph(const Output<Node>& subgraph_
         input_tensors.push_back(host_tensor);
     }
     HostTensorVector output_tensors;
+    output_tensors.reserve(sink_node->get_output_size());
     for (const auto& output : sink_node->outputs()) {
         auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
         output_tensors.push_back(tensor);

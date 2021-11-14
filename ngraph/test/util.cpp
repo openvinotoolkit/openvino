@@ -911,7 +911,8 @@ TEST(evaluate_subgraph, convert_subtract_subgraph) {
     }
 }
 
-static void test_evaluate_subgraph_with_split(const std::vector<float>& input) {
+TEST(evaluate_subgraph, split) {
+    std::vector<float> input{0, 1, 2, 3, 4, 5, 6, 7, 8};
     auto constant = op::Constant::create(element::f32, Shape{input.size()}, input);
     auto mul = std::make_shared<opset8::Multiply>(constant, op::Constant::create(element::f32, Shape{}, {1}));
     auto shape = std::make_shared<opset8::ShapeOf>(mul);
@@ -923,11 +924,4 @@ static void test_evaluate_subgraph_with_split(const std::vector<float>& input) {
     auto split_outputs = split->outputs();
     std::vector<float> expected(std::next(input.begin(), input.size() / 2), input.end());
     test_evaluate_subgraph(split_outputs[1], input, expected);
-}
-
-TEST(evaluate_subgraph, split) {
-    {
-        std::vector<float> input{0, 1, 2, 3, 4, 5, 6, 7, 8};
-        test_evaluate_subgraph_with_split(input);
-    }
 }
