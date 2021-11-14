@@ -62,7 +62,7 @@ protected:
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<deconvolution>& arg) {
-        auto attrs = parent::get_primitive_attributes(arg);
+        auto attrs = arg.get_onednn_primitive_attributes();
 
         return attrs;
     }

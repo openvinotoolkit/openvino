@@ -15,7 +15,7 @@ using namespace InferenceEngine::details;
 class SharedObjectLoaderTests: public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
-        return FileUtils::makePluginLibraryName<char>(getIELibraryPath(),
+        return FileUtils::makePluginLibraryName<char>({},
             std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 
