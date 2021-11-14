@@ -5,7 +5,6 @@
 project(InferenceEngine)
 
 add_subdirectory(thirdparty)
-add_subdirectory(src)
 add_subdirectory(ie_bridges/c)
 
 if(ENABLE_PYTHON)

@@ -82,8 +82,11 @@ ie_cpack_add_component(core_dev REQUIRED DEPENDS core)
 include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
+# FIXME: Register plugins before the runtime to generate plugins.xml
+add_subdirectory(inference-engine/src)
 add_subdirectory(runtime)
 add_subdirectory(inference-engine)
+
 include(cmake/extra_modules.cmake)
 if(ENABLE_SAMPLES)
     add_subdirectory(samples)
