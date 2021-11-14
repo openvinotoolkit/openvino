@@ -83,6 +83,7 @@ include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
 # FIXME: Register plugins before the runtime to generate plugins.xml
+add_subdirectory(inference-engine/thirdparty)
 add_subdirectory(inference-engine/src)
 add_subdirectory(runtime)
 add_subdirectory(inference-engine)
