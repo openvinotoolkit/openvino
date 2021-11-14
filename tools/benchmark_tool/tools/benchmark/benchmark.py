@@ -60,15 +60,14 @@ class Benchmark:
         return self.ie.read_model(model_filename, weights_filename)
 
     def first_infer(self, requests):
-        infer_request = requests[0]
-
-        # warming up - out of scope
         if self.api_type == 'sync':
-            infer_request.infer()
+            requests[0].infer()
+            return requests[0].latency
         else:
+            id = requests.get_idle_request_id()
             requests.start_async()
             requests.wait_all()
-        return infer_request.latency
+            return requests[id].latency
 
     def infer(self, requests, batch_size, latency_percentile, progress_bar=None):
         progress_count = 0

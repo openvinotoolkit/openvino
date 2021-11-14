@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import datetime
 from openvino import Core, Function, PartialShape, Dimension
 from openvino.impl import Type
 from openvino.impl.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
@@ -69,15 +70,16 @@ def get_element_type(precision):
 
 
 def process_precision(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
+    # TODO: raise python exception if precion in input_output_precision rewrite input_precision/output_precision
     pre_post_processor = PrePostProcessor()
     if input_precision:
         element_type = get_element_type(input_precision)
-        for i in range(function.inputs):
+        for i in range(len(function.inputs)):
             pre_post_processor.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(element_type)))
             app_inputs_info[i].element_type = element_type
     if output_precision:
         element_type = get_element_type(output_precision)
-        for i in range(function.outputs):
+        for i in range(len(function.outputs)):
             pre_post_processor.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(element_type)))
     user_precision_map = {}
     if input_output_precision:
@@ -90,13 +92,13 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
             if name in input_names:
                 pre_post_processor.input(InputInfo(name).tensor(InputTensorInfo().set_element_type(element_type)))
             elif name in output_names:
-                pre_post_processor.output(OutputInfo(name).tensor(OutputTensorInfo().set_element_type(element_type)))
+                pre_post_processor.output(OutputInfo(name).tensor(OutputTensorInfo().set_element_type(element_type))) # TODO: check why it doesn't work with friendly names
             else:
                 raise Exception(f"Node '{name}' does not exist in network")
     # update app_inputs_info
     if not input_precision:
         inputs = function.inputs
-        for i in range(inputs):
+        for i in range(len(inputs)):
             if app_inputs_info[i].name in user_precision_map.keys():
                 app_inputs_info[i].element_type = user_precision_map[app_inputs_info[i].name]
             elif app_inputs_info[i].is_image:
@@ -121,7 +123,7 @@ def _parse_arg_map(arg_map: str):
 
 def get_precision(element_type: Type):
     format_map = {
-      'f32' : 'F32',
+      'f32' : 'FP32',
       'i32'  : 'I32',
       'i64'  : 'I64',
       'f16' : 'FP16',
@@ -131,22 +133,22 @@ def get_precision(element_type: Type):
       'u8'   : 'U8',
       'boolean' : 'BOOL',
     }
-    if str(element_type) in format_map.keys():
-        return format_map[str(element_type)]
+    if element_type.get_type_name() in format_map.keys():
+        return format_map[element_type.get_type_name()]
     raise Exception("Can't find  precision for openvino element type: " + str(element_type))
 
 def print_inputs_and_outputs_info(function: Function):
     inputs = function.inputs
     parameters = function.get_parameters()
     input_names = get_input_output_names(inputs)
-    for i in range(inputs):
+    for i in range(len(inputs)):
         logger.info(f"Network input '{input_names[i]}' precision {get_precision(inputs[i].get_element_type())}, "
                                                     f"dimensions ({str(parameters[i].get_layout())}): "
                                                     f"{' '.join(str(x) for x in inputs[i].get_partial_shape())}")
     outputs = function.outputs
     output_names = get_input_output_names(outputs)
     results = function.get_results()
-    for i in range(outputs):
+    for i in range(len(outputs)):
         logger.info(f"Network output '{output_names[i]}' precision {get_precision(outputs[i].get_element_type())}, "
                                         f"dimensions ({str(results[i].get_layout())}): "
                                         f"{' '.join(str(x) for x in  outputs[i].get_partial_shape())}")
@@ -266,12 +268,12 @@ def print_perf_counters(perf_counts_list):
     max_layer_name = 30
     for ni in range(len(perf_counts_list)):
         perf_counts = perf_counts_list[ni]
-        total_time = 0
-        total_time_cpu = 0
+        total_time = datetime.timedelta()
+        total_time_cpu = datetime.timedelta()
         logger.info(f"Performance counts for {ni}-th infer request")
         for pi in perf_counts:
             print(f"{pi.node_name[:max_layer_name - 4] + '...' if (len(pi.node_name) >= max_layer_name) else pi.node_name:<30}"
-                                                                f"{pi.status:<15}"
+                                                                f"{str(pi.status):<15}"
                                                                 f"{'layerType: ' + pi.node_type:<30}"
                                                                 f"{'realTime: ' + str(pi.real_time):<20}"
                                                                 f"{'cpu: ' +  str(pi.cpu_time):<20}"
@@ -306,7 +308,7 @@ def get_command_line_arguments(argv):
 
 
 def get_input_output_names(output_nodes):
-    return [output_node.get_node().get_friendly_name() for output_node in output_nodes]
+    return [output_node.get_node().get_friendly_name() for output_node in output_nodes] # get_friendly_name() or get_name() ?
 
 
 def parse_input_parameters(parameter_string, input_names):
@@ -406,7 +408,7 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
         info.name = input_names[i]
         # Shape
         if info.name in shape_map.keys():
-            parsed_shape = PartialShape(int(dim) for dim in shape_map[info.name].split(',')) # TODO: update to support dynamic shapes
+            parsed_shape = PartialShape(list(int(dim) for dim in shape_map[info.name].split(','))) # TODO: update to support dynamic shapes
             info.shape = parsed_shape
             reshape = True
         else:
@@ -421,7 +423,7 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
         if batch_size != 0:
             batch_index = info.layout.index('N') if 'N' in info.layout else -1
             if batch_index != -1 and info.shape[batch_index] != Dimension(batch_size):
-                info.shape[batch_index] = batch_size
+                info.shape[batch_index] = Dimension(batch_size)
                 reshape = True
         input_info.append(info)
 
@@ -434,9 +436,9 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
             input.scale = np.ones(3)
             input.mean = np.zeros(3)
 
-            if input.tensor_name in scale_map:
+            if input.name in scale_map:
                 input.scale = scale_map[input.name]
-            if input.tensor_name in mean_map:
+            if input.name in mean_map:
                 input.mean = mean_map[input.name]
 
     return input_info, reshape

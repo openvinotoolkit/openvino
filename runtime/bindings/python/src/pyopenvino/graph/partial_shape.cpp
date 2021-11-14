@@ -196,9 +196,10 @@ void regclass_graph_PartialShape(py::module m) {
         return self.size();
     });
 
-    shape.def("__getitem__", [](ov::PartialShape& self, int key) {
-        return self[key];
+    shape.def("__setitem__", [](ov::PartialShape& self, int key, ov::Dimension& d) {
+        self[key] = d;
     });
+
     shape.def("__getitem__", [](const ov::PartialShape& self, int key) {
         return self[key];
     });

@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from datetime import timedelta
 import os
 import sys
 from enum import Enum
@@ -59,47 +60,49 @@ class StatisticsReport:
             logger.info(f"Statistics report is stored to {f.name}")
 
     def dump_performance_counters_request(self, f, prof_info):
-        total = 0
-        total_cpu = 0
+        total = timedelta()
+        total_cpu = timedelta()
         f.write(self.csv_separator.join(['layerName', 'execStatus', 'layerType', 'execType', 'realTime (ms)', 'cpuTime (ms)\n']))
         for pi in prof_info:
-            f.write(self.csv_separator.join([pi.node_name, pi.status, pi.node_type, pi.exec_type, str(pi.real_time/1000.0), str(pi.cpu_time/1000.0)]))
+            f.write(self.csv_separator.join([pi.node_name, str(pi.status), pi.node_type, pi.exec_type, str(pi.real_time/1000.0), str(pi.cpu_time/1000.0)]))
             f.write('\n')
             total += pi.real_time
             total_cpu += pi.cpu_time
         f.write(self.csv_separator.join(['Total','','','',str(total/1000.0),str(total_cpu/1000.0)]))
         f.write('\n\n')
 
-    def dump_performance_counters(self, prof_info):
+    def dump_performance_counters(self, prof_info_list):
         if self.config.report_type == '' or self.config.report_type == noCntReport:
             logger.info("Statistics collecting for performance counters was not requested. No reports are dumped.")
             return
 
-        if not prof_info:
+        if not prof_info_list:
             logger.info('Performance counters are empty. No reports are dumped.')
             return
 
         filename = os.path.join(self.config.report_folder, f'benchmark_{self.config.report_type}_report.csv')
         with open(filename, 'w') as f:
             if self.config.report_type == detailedCntReport:
-                for pi in prof_info:
-                    self.dump_performance_counters_request(f, pi)
+                for prof_info in prof_info_list:
+                    self.dump_performance_counters_request(f, prof_info)
             elif self.config.report_type == averageCntReport:
-                def get_average_performance_counters(prof_info):
-                    performance_counters_avg = {}
+                def get_average_performance_counters(prof_info_list):
+                    performance_counters_avg = []
                     ## iterate over each processed infer request and handle its PM data
-                    for pi in prof_info:
-                        if pi.node_name not in performance_counters_avg.keys():
-                            performance_counters_avg[pi.node_name] = {'real_time': pi.real_time, 'cpu_time': pi.cpu_time}
-                        else:
-                            performance_counters_avg[pi.node_name]['real_time'] += pi.real_time
-                            performance_counters_avg[pi.node_name]['cpu_time'] += pi.cpu_time
+                    for prof_info in prof_info_list:
+                        for pi in prof_info:
+                            item = next((x for x in performance_counters_avg if x.node_name == pi.node_name), None)
+                            if item:
+                                item.real_time += pi.real_time
+                                item.cpu_time += pi.cpu_time
+                            else:
+                                performance_counters_avg.append(pi)
 
-                    for v in performance_counters_avg.values():
-                        v['real_time'] /= len(prof_info)
-                        v['cpu_time'] /= len(prof_info)
+                    for pi in performance_counters_avg:
+                        pi.real_time /= len(prof_info_list)
+                        pi.cpu_time /= len(prof_info_list)
                     return performance_counters_avg
-                self.dump_performance_counters_request(f, get_average_performance_counters(prof_info))
+                self.dump_performance_counters_request(f, get_average_performance_counters(prof_info_list))
             else:
                 raise Exception('PM data can only be collected for average or detailed report types')
 

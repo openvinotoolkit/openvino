@@ -251,7 +251,7 @@ def run(args):
             app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean,  network.inputs, network.get_parameters())
             if reshape:
                 start_time = datetime.utcnow()
-                shapes = { k : v.shape for k,v in app_inputs_info.items() }
+                shapes = { info.name : info.shape for info in app_inputs_info }
                 logger.info(
                     'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
                 network.reshape(shapes)
@@ -272,7 +272,7 @@ def run(args):
             next_step()
 
             process_precision(network, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
-            #print_inputs_and_outputs_info(network)
+            print_inputs_and_outputs_info(network)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
@@ -326,9 +326,6 @@ def run(args):
             key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
             device_number_streams[device] = benchmark.ie.get_config(device, key)
 
-        # Iteration limit
-        benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, args.api_type)
-
         # ------------------------------------ 9. Creating infer requests and filling input blobs ----------------------
         next_step()
 
@@ -337,6 +334,9 @@ def run(args):
         else:
             requests = AsyncInferQueue(exe_network, benchmark.nireq if benchmark.nireq else 0)
             benchmark.nireq = len(requests)
+
+        # Iteration limit
+        benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, args.api_type)
 
         paths_to_input = list()
         if args.paths_to_input:
@@ -403,7 +403,7 @@ def run(args):
             if args.perf_counts:
                 print_perf_counters(perfs_count_list)
             if statistics:
-              statistics.dump_performance_counters(perfs_count_list)
+                statistics.dump_performance_counters(perfs_count_list)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
