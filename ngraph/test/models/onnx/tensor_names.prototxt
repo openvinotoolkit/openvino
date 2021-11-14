@@ -3,6 +3,12 @@ producer_name: "test_model"
 graph {
   node {
     input: "input"
+    output: "identity_on_input"
+    name: "identity_node_on_input"
+    op_type: "Identity"
+  }
+  node {
+    input: "identity_on_input"
     output: "relu_t"
     op_type: "Relu"
     name: "relu"

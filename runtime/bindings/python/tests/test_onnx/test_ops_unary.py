@@ -11,8 +11,6 @@ from openvino.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
 
-from tests import skip_issue_67415
-
 
 @pytest.mark.parametrize(
     "input_data",
@@ -333,7 +331,6 @@ def test_cast_to_bool(val_type, input_data):
     assert np.allclose(result, expected)
 
 
-@skip_issue_67415
 @pytest.mark.parametrize(
     "val_type, range_start, range_end, in_dtype",
     [
@@ -359,7 +356,7 @@ def test_cast_to_float(val_type, range_start, range_end, in_dtype):
 )
 def test_cast_to_int(val_type):
     np.random.seed(133391)
-    input_data = np.ceil(-8 + np.random.rand(2, 3, 4) * 16)
+    input_data = np.ceil(-8 + np.random.rand(2, 3, 4) * 16).astype(val_type)
     expected = np.array(input_data, dtype=val_type)
 
     model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
@@ -372,7 +369,7 @@ def test_cast_to_int(val_type):
 )
 def test_cast_to_uint(val_type):
     np.random.seed(133391)
-    input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
+    input_data = np.ceil(np.random.rand(2, 3, 4) * 16).astype(val_type)
     expected = np.array(input_data, dtype=val_type)
 
     model = get_node_model("Cast", input_data, opset=6, to=onnx.mapping.NP_TYPE_TO_TENSOR_TYPE[val_type])
