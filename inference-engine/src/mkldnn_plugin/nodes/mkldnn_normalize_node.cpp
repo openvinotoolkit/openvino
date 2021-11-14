@@ -34,6 +34,8 @@ using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_normalize_call_args, field)
 
+#define THROW_ERROR IE_THROW() << "NormalizeL2 layer with name '" << getName() << "' "
+
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type;
 }
@@ -645,50 +647,36 @@ private:
     }
 };
 
-MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(op, eng, cache), src_data_size(0lu), dst_data_size(0lu), input_prec(Precision::UNSPECIFIED), output_prec(Precision::UNSPECIFIED) {
-    std::string errorMessage;
-    if (isSupportedOperation(op, errorMessage)) {
-        errorPrefix = "NormalizeL2 node with name '" + getName() + "' ";
-        const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
-        eps = norm->get_eps();
-        epsMode = norm->get_eps_mode() == ngraph::op::EpsMode::MAX ? NormEpsMode::MAX : NormEpsMode::ADD;
-        across_spatial = ngraph::shape_size(op->get_input_shape(AXES)) != 1;
-        // One of the corner cases is when axes is an empty list,
-        // then we divide each input element by itself resulting value 1 for all non-zero elements
-        cornerCase = ngraph::shape_size(op->get_input_shape(AXES)) == 0;
-    } else {
-        IE_THROW(NotImplemented) << errorMessage;
-    }
-}
-
 bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-
-        const auto norm = std::dynamic_pointer_cast<const ngraph::op::v0::NormalizeL2>(op);
+        auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
         if (!norm) {
             errorMessage = "Only opset1 NormalizeL2 operation is supported";
             return false;
         }
-        const auto dataDims = norm->get_input_shape(DATA);
-        if (dataDims.size() < 2 && dataDims.size() > 4) {
-            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(dataDims.size());
+
+        const auto inputRank = norm->get_input_partial_shape(DATA).size();
+        if (inputRank < 2 || inputRank > 4) {
+            errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inputRank);
             return false;
         }
-        const auto axesNode = std::dynamic_pointer_cast<const ngraph::op::v0::Constant>(norm->get_input_node_shared_ptr(AXES));
+
+        auto axesNode = ov::as_type_ptr<const ngraph::op::v0::Constant>(norm->get_input_node_shared_ptr(AXES));
         if (!axesNode) {
             errorMessage = "Supports only constant 'axes' input";
             return false;
         }
 
-        const auto isSupportedAxes = [](const std::vector<size_t> &axes, const ngraph::Shape &dataDims) {
+        if (axesNode->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+            // TODO [DS]: Add 'axes' input dynamism support
+            errorMessage = "Doesn't support dynamic 'axes' input";
+            return false;
+        }
+
+        const auto isSupportedAxes = [](const std::vector<size_t> &axes, const size_t inputRank) {
             if (axes.size() == 1 && axes[0] == 1) {
                 return true;
-            } else if (axes.size() == dataDims.size() - 1) {
+            } else if (axes.size() == inputRank - 1) {
                 auto sortAxes = axes;
                 std::sort(sortAxes.begin(), sortAxes.end());
                 for (size_t i = 0; i < sortAxes.size(); i++) {
@@ -699,13 +687,15 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngr
             }
             return false;
         };
+
         const auto axes = axesNode->cast_vector<size_t>();
-        if (!isSupportedAxes(axes, dataDims) && ngraph::shape_size(axesNode->get_shape()) != 0) {
+        if (!isSupportedAxes(axes, inputRank) && ngraph::shape_size(axesNode->get_shape()) != 0) {
             errorMessage = "Doesn't support reduction axes: " + vec2str(axes);
             return false;
         }
+
         const auto mode = norm->get_eps_mode();
-        if (mode != ngraph::op::EpsMode::ADD && mode != ngraph::op::EpsMode::MAX) {
+        if (!one_of(mode, ngraph::op::EpsMode::ADD, ngraph::op::EpsMode::MAX)) {
             errorMessage = "Doesn't support eps_mode: " + ngraph::as_string(mode);
             return false;
         }
@@ -715,25 +705,32 @@ bool MKLDNNNormalizeL2Node::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-void MKLDNNNormalizeL2Node::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
-    if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges: " << getParentEdges().size();
-    if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has incorrect number of output edges: " << getChildEdges().size();
-
-    if (getInputShapeAtPort(0).getRank() > 4 || getInputShapeAtPort(0).getRank() < 2) {
-        IE_THROW() << errorPrefix << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
+MKLDNNNormalizeL2Node::MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(op, eng, cache) {
+    std::string errorMessage;
+    if (!isSupportedOperation(op, errorMessage)) {
+        IE_THROW(NotImplemented) << errorMessage;
     }
+
+    if (inputShapes.size() != 2 || outputShapes.size() != 1)
+        THROW_ERROR << " has incorrect number of input/output edges";
+
+    if (getInputShapeAtPort(DATA).getRank() > 4 || getInputShapeAtPort(DATA).getRank() < 2) {
+        THROW_ERROR << "has invalid input shape. Normalize supports from 2D to 4D blobs.";
+    }
+
+    auto norm = ov::as_type_ptr<const ngraph::op::v0::NormalizeL2>(op);
+    attrs.eps = norm->get_eps();
+    attrs.epsMode = norm->get_eps_mode() == ngraph::op::EpsMode::MAX ? NormEpsMode::MAX : NormEpsMode::ADD;
+    attrs.across_spatial = ngraph::shape_size(op->get_input_shape(AXES)) != 1;
+    // One of the corner cases is when axes is an empty list,
+    // then we divide each input element by itself resulting value 1 for all non-zero elements
+    attrs.cornerCase = ngraph::shape_size(op->get_input_shape(AXES)) == 0;
 }
 
 void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-
-    setPostOps(attr, true);
 
     Precision inputPrecision = getOriginalInputPrecisionAtPort(DATA);
     Precision outputPrecision = getOriginalOutputPrecisionAtPort(DATA);
@@ -750,18 +747,20 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     }
 
     if (!one_of(inputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
-        IE_THROW() << errorPrefix << "has unsupported input precision. " << getName();
+        THROW_ERROR << "has unsupported input precision: " << inputPrecision;
     }
     if (!one_of(outputPrecision, Precision::FP32, Precision::BF16, Precision::I8, Precision::U8)) {
-        IE_THROW() << errorPrefix << "has unsupported output precision. " << getName();
+        THROW_ERROR << "has unsupported output precision: " << outputPrecision;
     }
 
-    input_prec = inputPrecision;
-    output_prec = outputPrecision;
-    src_data_size = inputPrecision.size();
-    dst_data_size = outputPrecision.size();
+    attrs.input_prec = inputPrecision;
+    attrs.output_prec = outputPrecision;
+    attrs.src_data_size = inputPrecision.size();
+    attrs.dst_data_size = outputPrecision.size();
 
-    bool canBeInplace = src_data_size == dst_data_size && getParentEdgeAt(DATA)->getParent()->getChildEdges().size() == 1;
+    // TODO [DS]: inplace
+    bool canBeInplace = !isDynamicNode() && attrs.src_data_size == attrs.dst_data_size &&
+                        getParentEdgeAt(DATA)->getParent()->getChildEdges().size() == 1;
 
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -770,34 +769,46 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
 
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-    auto pushDesc = [&](LayoutType format) {
+    auto pushDesc = [&](LayoutType format, impl_desc_type impl_type) {
         auto a = creatorsMap.at(format)->createSharedDesc(inputPrecision, getInputShapeAtPort(DATA));
         config.inConfs[0].desc = std::move(a);
         a = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(InferenceEngine::Precision::I32, getInputShapeAtPort(AXES));
         config.inConfs[1].desc = std::move(a);
         a = creatorsMap.at(format)->createSharedDesc(outputPrecision, getOutputShapeAtPort(DATA));
         config.outConfs[0].desc = std::move(a);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
+    impl_desc_type impl_type = impl_desc_type::ref;
+    if (mayiuse(cpu::x64::avx512_common)) {
+        impl_type = impl_desc_type::jit_avx512;
+        attrs.blk_size = 16;
+    } else if (mayiuse(cpu::x64::avx2)) {
+        impl_type = impl_desc_type::jit_avx2;
+        attrs.blk_size = 8;
+    } else if (mayiuse(cpu::x64::sse41)) {
+        impl_type = impl_desc_type::jit_sse42;
+        attrs.blk_size = 4;
+    }
+
     // only plain layout support when w/o sse42
-    if (getInputShapeAtPort(DATA).getRank() == 4 && !cornerCase) {
+    if (getInputShapeAtPort(DATA).getRank() == 4 && !attrs.cornerCase) {
         if (mayiuse(cpu::x64::sse41)) {
-            pushDesc(LayoutType::nspc);
+            pushDesc(LayoutType::nspc, impl_type);
             if (mayiuse(cpu::x64::avx512_common)) {
-                pushDesc(LayoutType::nCsp16c);
+                pushDesc(LayoutType::nCsp16c, impl_type);
             } else {
-                pushDesc(LayoutType::nCsp8c);
+                pushDesc(LayoutType::nCsp8c, impl_type);
             }
         }
     }
     if (canBeInplace)
         config.inConfs[0].inPlace = 0;
-    pushDesc(LayoutType::ncsp);
+    pushDesc(LayoutType::ncsp, impl_type);
 }
 
 bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
-    return !cornerCase && canFuseSimpleOperation(node);
+    return !attrs.cornerCase && canFuseSimpleOperation(node);
 }
 
 void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
@@ -812,9 +823,8 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            // TODO [DS]: change to shape from memory
             constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+            eltwiseNode->appendPostOps(ops, attrs.dims, align);
             continue;
         }
 
@@ -828,46 +838,66 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << "can't get destination memory";
+        THROW_ERROR << "can't get destination memory";
     if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << errorPrefix << "can't get input memory";
+        THROW_ERROR << "can't get input memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << errorPrefix << "has nullable preferable primitive descriptor";
+        THROW_ERROR << "has nullable preferable primitive descriptor";
 
-    if (!cornerCase) {
-        auto selectedPD = getSelectedPrimitiveDescriptor();
-        jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[0].desc->getPrecision());
-        jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc->getPrecision());
-        jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
-        jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.dst_dt);
+    if (!attrs.cornerCase) {
+        attrs.jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
+        attrs.jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
+        attrs.jcp.src_data_size = attrs.input_prec.size();
+        attrs.jcp.dst_data_size = attrs.output_prec.size();
+        attrs.jcp.across_spatial = attrs.across_spatial;
 
-        jcp.is_nchw = jcp.is_nhwc = jcp.is_blk = false;
-        if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
-            jcp.is_nchw = true;
-        } else if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                  getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c)) {
-            jcp.is_blk = true;
+        attrs.jcp.is_nchw = attrs.jcp.is_nhwc = attrs.jcp.is_blk = false;
+        if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
+            attrs.jcp.is_nchw = true;
+        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                   srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
+            attrs.jcp.is_blk = true;
+        } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
+            attrs.jcp.is_nhwc = true;
         } else {
-            jcp.is_nhwc = true;
+            THROW_ERROR << "has selected layout which is not supported";
+        }
+    }
+
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNNormalizeL2Node::prepareParams() {
+    attrs.dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
+    setPostOps(attrs.kernel_attrs, true);
+    execPtr = std::make_shared<NormalizeL2Executor>(attrs);
+}
+
+MKLDNNNormalizeL2Node::NormalizeL2Executor::NormalizeL2Executor(const NormalizeL2Attrs& attrs_) : attrs(attrs_) {
+    if (!attrs.cornerCase) {
+        if (!attrs.jcp.is_nchw && !attrs.jcp.is_nhwc && !attrs.jcp.is_blk) {
+            IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
 
-        jcp.across_spatial = across_spatial;
-        auto dims = getParentEdgeAt(0)->getMemory().getStaticDims();
-        size_t dims_size = dims.size();
-        jcp.n = (dims_size > 0) ? dims[0] : 1lu;
-        jcp.c = (dims_size > 1) ? dims[1] : 1lu;
-        jcp.h = (dims_size > 2) ? dims[2] : 1lu;
-        jcp.w = (dims_size > 3) ? dims[3] : 1lu;
+        size_t dims_size = attrs.dims.size();
+        attrs.jcp.n = attrs.dims[0];
+        attrs.jcp.c = attrs.dims[1];
+        attrs.jcp.h = (dims_size > 2) ? attrs.dims[2] : 1lu;
+        attrs.jcp.w = (dims_size > 3) ? attrs.dims[3] : 1lu;
 
         if (mayiuse(cpu::x64::avx512_common)) {
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(attrs.jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(attrs.jcp, *attrs.kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(attrs.jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(attrs.jcp, *attrs.kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(attrs.jcp));
+            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(attrs.jcp, *attrs.kernel_attrs.get()));
         }
         if (normalize_kernel)
             normalize_kernel->create_ker();
@@ -875,12 +905,12 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
         if (normalize_modulo_kernel)
             normalize_modulo_kernel->create_ker();
 
-        const auto &p = (*attr.get()).post_ops_;
+        const auto &p = (*attrs.kernel_attrs.get()).post_ops_;
         for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(
-                    post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
+                        post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(
                         post_op.depthwise.alg));
@@ -889,45 +919,31 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
     }
 }
 
-namespace {
+inline float MKLDNNNormalizeL2Node::NormalizeL2Executor::epsApply(const float &modulo) const {
+    return attrs.epsMode == NormEpsMode::ADD ? modulo + attrs.eps : std::max(modulo, attrs.eps);
+}
 
-struct NormalizeContext {
-    MKLDNNNormalizeL2Node &node;
-    const uint8_t *src;
-    uint8_t *dst;
-    const SizeVector& dims;
-};
-
-}   // namespace
-
-template<typename T>
-struct MKLDNNNormalizeL2Node::NormalizeExecute {
-    using src_t = typename std::tuple_element<0, T>::type;
-    using dst_t = typename std::tuple_element<1, T>::type;
-
-    void operator()(NormalizeContext & ctx) {
-        auto src = reinterpret_cast<const src_t *>(ctx.src);
-        auto dst = reinterpret_cast<dst_t *>(ctx.dst);
-        ctx.node.normalize_function<src_t, dst_t>(src, dst, ctx.dims);
-    }
-};
+std::vector<VectorDims> MKLDNNNormalizeL2Node::shapeInfer() const {
+    return std::vector<VectorDims>{getParentEdgesAtPort(DATA)[0]->getMemory().getStaticDims()};
+}
 
 void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
-    auto &srcMemPtr = getParentEdgeAt(DATA)->getMemoryPtr();
-    auto &dstMemPtr = getChildEdgeAt(DATA)->getMemoryPtr();
-    const uint8_t *src_ptr = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    if (!execPtr)
+        THROW_ERROR << "doesn't have a compiled executor.";
 
-    auto dims = getParentEdgeAt(DATA)->getMemory().getStaticDims();
+    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
+    execPtr->exec(src_ptr, dst_ptr);
+}
 
+void MKLDNNNormalizeL2Node::NormalizeL2Executor::exec(const uint8_t* src_ptr, uint8_t* dst_ptr) {
     NormalizeContext ctx = {
         *this,
         src_ptr,
-        dst_ptr,
-        dims
+        dst_ptr
     };
 
-    OV_SWITCH(MKLDNNPlugin, NormalizeExecute, ctx, std::tie(input_prec, output_prec),
+    OV_SWITCH(MKLDNNPlugin, NormalizeExecute, ctx, std::tie(attrs.input_prec, attrs.output_prec),
     OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
     OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
     OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),
@@ -940,32 +956,43 @@ void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
     OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
 }
 
+
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
-    size_t blk_size = 1;  // elt in vmm
-    if (mayiuse(cpu::x64::avx512_common)) {
-        blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        blk_size = 8;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        blk_size = 4;
+void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_function(const in_data_t* src_data, out_data_t* dst_data) {
+    if (attrs.cornerCase) {
+        const auto workAmount = std::accumulate(attrs.dims.begin(), attrs.dims.end(), 1, std::multiplies<size_t>());
+        parallel_for(workAmount, [&](size_t i) {
+            dst_data[i] = src_data[i] == 0 ? 0 : 1;
+        });
+    } else if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
+        if (attrs.jcp.is_nchw) {
+            normalize_nchw(src_data, dst_data);
+        } else if (attrs.jcp.is_nhwc) {
+            normalize_nhwc(src_data, dst_data);
+        } else if (attrs.jcp.is_blk) {
+            normalize_blk(src_data, dst_data);
+        }
+    } else {
+        if (attrs.jcp.is_nchw) {
+            normalize_nchw_ref(src_data, dst_data);
+        } else {
+            IE_THROW() << "NormalizeL2 supports only plain layout on machine w/o sse42.";
+        }
     }
+}
 
-    size_t dims_size = dims.size();
-    size_t W = (dims_size > 3) ? dims[3] : 1lu;
-    size_t H = (dims_size > 2) ? dims[2] : 1lu;
-    size_t C = (dims_size > 1) ? dims[1] : 1lu;
-    size_t B = (dims_size > 0) ? dims[0] : 1lu;
-
-    for (size_t b = 0lu; b < B; b++) {
-        const in_data_t *src_data_b = src_data + b * C * H * W;
-        out_data_t *dst_data_b = dst_data + b * C * H * W;
-        if (across_spatial) {
+template <typename in_data_t, typename out_data_t>
+void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_nchw(const in_data_t* src_data, out_data_t* dst_data) {
+    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
+    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+        const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
+        out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
+        if (attrs.across_spatial) {
             // modulo
             float addition_identity = 0.0f;
             float modulo = 0.0f;
-            modulo = parallel_sum(C, addition_identity, [&](int ic) -> float {
-                const in_data_t *src_data_bc = src_data_b + ic * H * W;
+            modulo = parallel_sum(attrs.jcp.c, addition_identity, [&](int ic) -> float {
+                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
                 float modulo_kernel = 0.0f;
                 float modulo_tail = 0.0f;
                 size_t tail_start = 0;
@@ -973,14 +1000,14 @@ void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bc;
                 arg.modulo = static_cast<float*>(&modulo_kernel);
-                arg.src_stride = blk_size * sizeof(in_data_t);
-                arg.work_amount = (W * H) / blk_size;
+                arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                arg.work_amount = (spatial_dims) / attrs.blk_size;
                 (*normalize_modulo_kernel)(&arg);
 
-                tail_start = (W * H / blk_size) * blk_size;
+                tail_start = (spatial_dims / attrs.blk_size) * attrs.blk_size;
 
                 // tail
-                for (size_t tail = tail_start; tail < H * W; tail++) {
+                for (size_t tail = tail_start; tail < spatial_dims; tail++) {
                     modulo_tail += src_data_bc[tail] * src_data_bc[tail];
                 }
                 return modulo_kernel + modulo_tail;
@@ -990,55 +1017,55 @@ void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t
             float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
-            parallel_for(C, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * H * W;
-                out_data_t *dst_data_bc = dst_data_b + ic * H * W;
+            parallel_for(attrs.jcp.c, [&](size_t ic) {
+                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bc;
                 arg.dst = dst_data_bc;
                 arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
                 arg.oc_off = ic * sizeof(float);
-                arg.work_amount = static_cast<size_t>(W * H);
+                arg.work_amount = static_cast<size_t>(spatial_dims);
                 (*normalize_kernel)(&arg);
             });
         } else {  // across_spatial: false
             // moduloM
-            std::vector<float> moduloM(H * W, 0.f);
-            size_t blocks_num = div_up(H * W, blk_size);
+            std::vector<float> moduloM(spatial_dims, 0.f);
+            size_t blocks_num = div_up(spatial_dims, attrs.blk_size);
             parallel_for(blocks_num, [&](size_t ib) {
-                const in_data_t *src_data_b_ib = src_data_b + ib * blk_size;
-                size_t min_cb = (std::min)(blk_size, (H * W) - (ib * blk_size));
-                if (min_cb == blk_size) {
+                const in_data_t *src_data_b_ib = src_data_b + ib * attrs.blk_size;
+                size_t min_cb = (std::min)(attrs.blk_size, spatial_dims - (ib * attrs.blk_size));
+                if (min_cb == attrs.blk_size) {
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_b_ib;
-                    arg.modulo = static_cast<float*>(&moduloM[ib * blk_size]);
-                    arg.src_stride = W * H * sizeof(in_data_t);
-                    arg.work_amount = C;
+                    arg.modulo = static_cast<float*>(&moduloM[ib * attrs.blk_size]);
+                    arg.src_stride = spatial_dims * sizeof(in_data_t);
+                    arg.work_amount = attrs.jcp.c;
                     (*normalize_modulo_kernel)(&arg);
                 } else {
-                    for (size_t c = 0; c < C; c++) {
-                        const in_data_t *src_data_b_ib_c = src_data_b_ib + W * H * c;
+                    for (size_t c = 0; c < attrs.jcp.c; c++) {
+                        const in_data_t *src_data_b_ib_c = src_data_b_ib + spatial_dims * c;
                         for (size_t blk = 0; blk < min_cb; blk++) {
-                            moduloM[ib * blk_size + blk] += src_data_b_ib_c[blk] * src_data_b_ib_c[blk];
+                            moduloM[ib * attrs.blk_size + blk] += src_data_b_ib_c[blk] * src_data_b_ib_c[blk];
                         }
                     }
                 }
             });
 
-            for (size_t m = 0; m < H * W; m++) {
+            for (size_t m = 0; m < spatial_dims; m++) {
                 moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
             }
 
             // normalize
-            parallel_for(C, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * H * W;
-                out_data_t *dst_data_bc = dst_data_b + ic * H * W;
+            parallel_for(attrs.jcp.c, [&](size_t ic) {
+                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bc;
                 arg.dst = dst_data_bc;
                 arg.fused_factor = static_cast<float*>(&moduloM[0]);  // ld dynamic
                 arg.oc_off = ic * sizeof(float);
-                arg.work_amount = static_cast<size_t>(W * H);
+                arg.work_amount = static_cast<size_t>(spatial_dims);
                 (*normalize_kernel)(&arg);
             });
         }
@@ -1046,24 +1073,19 @@ void MKLDNNNormalizeL2Node::normalize_nchw(const in_data_t* src_data, out_data_t
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
-    size_t dims_size = dims.size();
-    size_t W = (dims_size > 3) ? dims[3] : 1lu;
-    size_t H = (dims_size > 2) ? dims[2] : 1lu;
-    size_t C = (dims_size > 1) ? dims[1] : 1lu;
-    size_t B = (dims_size > 0) ? dims[0] : 1lu;
-
-    for (size_t b = 0lu; b < B; b++) {
-        const in_data_t *src_data_b = src_data + b * C * H * W;
-        out_data_t *dst_data_b = dst_data + b * C * H * W;
-        if (across_spatial) {
+void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data) {
+    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
+    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+        const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
+        out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
+        if (attrs.across_spatial) {
             // modulo
             float addition_identity = 0.0f;
             float modulo = 0.0f;
-            modulo = parallel_sum(C, addition_identity, [&](int ic) -> float {
-                const in_data_t *src_data_bc = src_data_b + ic * H * W;
+            modulo = parallel_sum(attrs.jcp.c, addition_identity, [&](int ic) -> float {
+                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
                 float modulo_c = 0.0f;
-                for (size_t m = 0; m < H * W; m++) {
+                for (size_t m = 0; m < spatial_dims; m++) {
                     modulo_c += src_data_bc[m] * src_data_bc[m];
                 }
                 return modulo_c;
@@ -1073,13 +1095,13 @@ void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_da
             float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
-            parallel_for(C, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * H * W;
-                out_data_t *dst_data_bc = dst_data_b + ic * H * W;
-                for (size_t m = 0; m < W * H; m++) {
+            parallel_for(attrs.jcp.c, [&](size_t ic) {
+                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
+                for (size_t m = 0; m < spatial_dims; m++) {
                     float dst_value = src_data_bc[m] * modulo_inv;
                     apply_post_ops_scalar(dst_value, ic);
-                    if (output_prec == Precision::U8) {
+                    if (attrs.output_prec == Precision::U8) {
                         dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                     } else {
                         dst_data_bc[m] = dst_value;
@@ -1088,30 +1110,30 @@ void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_da
             });
         } else {  // across_spatial: false
             // moduloM
-            std::vector<float> moduloM(H * W, 0.f);
-            parallel_for(H, [&](size_t ih) {
-                size_t offset_h = ih * W;
+            std::vector<float> moduloM(spatial_dims, 0.f);
+            parallel_for(attrs.jcp.h, [&](size_t ih) {
+                size_t offset_h = ih * attrs.jcp.w;
                 const in_data_t *src_data_b_ih = src_data_b + offset_h;
-                for (size_t c = 0; c < C; c++) {
-                    const in_data_t *src_data_b_ih_c = src_data_b_ih + W * H * c;
-                    for (size_t w = 0; w < W; w++) {
+                for (size_t c = 0; c < attrs.jcp.c; c++) {
+                    const in_data_t *src_data_b_ih_c = src_data_b_ih + spatial_dims * c;
+                    for (size_t w = 0; w < attrs.jcp.w; w++) {
                         moduloM[offset_h + w] += src_data_b_ih_c[w] * src_data_b_ih_c[w];
                     }
                 }
             });
 
-            for (size_t m = 0; m < H * W; m++) {
+            for (size_t m = 0; m < spatial_dims; m++) {
                 moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
             }
 
             // normalize
-            parallel_for(C, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * H * W;
-                out_data_t *dst_data_bc = dst_data_b + ic * H * W;
-                for (size_t m = 0; m < W * H; m++) {
+            parallel_for(attrs.jcp.c, [&](size_t ic) {
+                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
+                for (size_t m = 0; m < spatial_dims; m++) {
                     float dst_value = src_data_bc[m] * moduloM[m];
                     apply_post_ops_scalar(dst_value, ic);
-                    if (output_prec == Precision::U8) {
+                    if (attrs.output_prec == Precision::U8) {
                         dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
                     } else {
                         dst_data_bc[m] = dst_value;
@@ -1123,46 +1145,33 @@ void MKLDNNNormalizeL2Node::normalize_nchw_ref(const in_data_t* src_data, out_da
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
-    size_t blk_size = 1;  // elt in vmm
-    if (mayiuse(cpu::x64::avx512_common)) {
-        blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        blk_size = 8;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        blk_size = 4;
-    }
-
-    size_t dims_size = dims.size();
-    size_t W = (dims_size > 3) ? dims[3] : 1lu;
-    size_t H = (dims_size > 2) ? dims[2] : 1lu;
-    size_t C = (dims_size > 1) ? dims[1] : 1lu;
-    size_t B = (dims_size > 0) ? dims[0] : 1lu;
-
-    for (size_t b = 0lu; b < B; b++) {
-        const in_data_t *src_data_b = src_data + b * C * H * W;
-        out_data_t *dst_data_b = dst_data + b * C * H * W;
-        if (across_spatial) {
+void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data) {
+    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
+    const size_t c_w_dims = attrs.jcp.c * attrs.jcp.w;
+    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+        const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
+        out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
+        if (attrs.across_spatial) {
             // modulo
             float addition_identity = 0;
             float modulo = 0.0f;
-            modulo = parallel_sum(H, addition_identity, [&](int ih) -> float {
+            modulo = parallel_sum(attrs.jcp.h, addition_identity, [&](int ih) -> float {
                 size_t tail_start = 0;
-                const in_data_t *src_data_bh = src_data_b + ih * C * W;
+                const in_data_t *src_data_bh = src_data_b + ih * c_w_dims;
                 float modulo_kernel = 0.f;
                 float modulo_tail = 0.f;
 
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bh;
                 arg.modulo = static_cast<float*>(&modulo_kernel);
-                arg.src_stride = blk_size * sizeof(in_data_t);
-                arg.work_amount = (C * W) / blk_size;
+                arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                arg.work_amount = c_w_dims / attrs.blk_size;
                 (*normalize_modulo_kernel)(&arg);
 
-                tail_start = (C * W / blk_size) * blk_size;
+                tail_start = (c_w_dims / attrs.blk_size) * attrs.blk_size;
 
                 // tail
-                for (size_t tail = tail_start; tail < C * W; tail++) {
+                for (size_t tail = tail_start; tail < c_w_dims; tail++) {
                     modulo_tail += src_data_bh[tail] * src_data_bh[tail];
                 }
                 return modulo_kernel + modulo_tail;
@@ -1171,34 +1180,34 @@ void MKLDNNNormalizeL2Node::normalize_nhwc(const in_data_t* src_data, out_data_t
             float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
-            parallel_for2d(H, W, [&](int ih, int iw) {
-                const in_data_t *src_data_bhw = src_data_b + ih * C * W + iw * C;
-                out_data_t *dst_data_bhw = dst_data_b + ih * C * W + iw * C;
+            parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
+                const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bhw;
                 arg.dst = dst_data_bhw;
                 arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
                 arg.oc_off = 0;
-                arg.work_amount = static_cast<size_t>(C);
+                arg.work_amount = static_cast<size_t>(attrs.jcp.c);
                 (*normalize_kernel)(&arg);
             });
         } else {  // for across_spatial=false
-            parallel_for2d(H, W, [&](int ih, int iw) {
+            parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
                 // modulo
                 float modulo = 0.f;
-                const in_data_t *src_data_bhw = src_data_b + ih * C * W + iw * C;
-                out_data_t *dst_data_bhw = dst_data_b + ih * C * W + iw * C;
+                const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bhw;
                 arg.modulo = static_cast<float*>(&modulo);
-                arg.src_stride = blk_size * sizeof(in_data_t);
-                arg.work_amount = C / blk_size;
+                arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                arg.work_amount = attrs.jcp.c / attrs.blk_size;
                 (*normalize_modulo_kernel)(&arg);
 
-                size_t tail_start = (C / blk_size) * blk_size;
+                size_t tail_start = (attrs.jcp.c / attrs.blk_size) * attrs.blk_size;
 
                 // for tail
-                for (size_t c = tail_start; c < C; c++) {
+                for (size_t c = tail_start; c < attrs.jcp.c; c++) {
                     modulo += src_data_bhw[c] * src_data_bhw[c];
                 }
 
@@ -1208,7 +1217,7 @@ void MKLDNNNormalizeL2Node::normalize_nhwc(const in_data_t* src_data, out_data_t
                 // normalize
                 arg.dst = dst_data_bhw;
                 arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
-                arg.work_amount = C;
+                arg.work_amount = attrs.jcp.c;
                 arg.oc_off = 0;
                 (*normalize_kernel)(&arg);
             });
@@ -1217,46 +1226,32 @@ void MKLDNNNormalizeL2Node::normalize_nhwc(const in_data_t* src_data, out_data_t
 }
 
 template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
-    size_t blk_size = 1;  // channel blk for memory layout
-    if (mayiuse(cpu::x64::avx512_common)) {
-        blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        blk_size = 8;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        blk_size = 8;
-    }
-
-    size_t dims_size = dims.size();
-    size_t W = (dims_size > 3) ? dims[3] : 1lu;
-    size_t H = (dims_size > 2) ? dims[2] : 1lu;
-    size_t C = (dims_size > 1) ? dims[1] : 1lu;
-    size_t B = (dims_size > 0) ? dims[0] : 1lu;
-
-    size_t CB = div_up(C, blk_size);
-
-    for (size_t b = 0lu; b < B; b++) {
-        const in_data_t *src_data_b = src_data + b * CB * H * W * blk_size;
-        out_data_t *dst_data_b = dst_data + b * CB * H * W * blk_size;
-        if (across_spatial) {
+void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_blk(const in_data_t* src_data, out_data_t* dst_data) {
+    const size_t CB = div_up(attrs.jcp.c, attrs.blk_size);
+    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
+    const size_t w_blk_dims = attrs.jcp.w * attrs.blk_size;
+    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+        const in_data_t *src_data_b = src_data + b * CB * spatial_dims * attrs.blk_size;
+        out_data_t *dst_data_b = dst_data + b * CB * spatial_dims * attrs.blk_size;
+        if (attrs.across_spatial) {
             // modulo
             float modulo = 0.0f;
             float addition_identity = 0.0f;
-            modulo = parallel_sum2d(CB, H, addition_identity, [&](size_t cb, size_t h) -> float {
+            modulo = parallel_sum2d(CB, attrs.jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
                 // handle W * blk_size data
-                const in_data_t *src_data_b_cb_h = src_data_b + cb * H * W * blk_size + h * W * blk_size;
-                size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
+                const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
+                size_t min_cb = (std::min)(attrs.blk_size, attrs.jcp.c - cb * attrs.blk_size);
                 float modulo_w_blk = 0.0f;
-                if (min_cb == blk_size) {
+                if (min_cb == attrs.blk_size) {
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_b_cb_h;
                     arg.modulo = static_cast<float*>(&modulo_w_blk);
-                    arg.src_stride = blk_size * sizeof(in_data_t);
-                    arg.work_amount = W;
+                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                    arg.work_amount = attrs.jcp.w;
                     (*normalize_modulo_kernel)(&arg);
                 } else {
-                    for (size_t w = 0; w < W; w++) {
-                        const in_data_t *src_data_b_cb_h_w = src_data_b_cb_h + w * blk_size;
+                    for (size_t w = 0; w < attrs.jcp.w; w++) {
+                        const in_data_t *src_data_b_cb_h_w = src_data_b_cb_h + w * attrs.blk_size;
                         for (size_t c = 0; c < min_cb; c++) {
                             modulo_w_blk += src_data_b_cb_h_w[c] * src_data_b_cb_h_w[c];
                         }
@@ -1269,34 +1264,34 @@ void MKLDNNNormalizeL2Node::normalize_blk(const in_data_t* src_data, out_data_t*
             float modulo_inv = 1.0f / (epsApply(modulo));
 
             // normalize
-            parallel_for2d(CB, H, [&](size_t cb, size_t h) {
-                const in_data_t *src_data_b_cb_h = src_data_b + cb * H * W * blk_size + h * W * blk_size;
-                out_data_t *dst_data_b_cb_h = dst_data_b + cb * H * W * blk_size + h * W * blk_size;
+            parallel_for2d(CB, attrs.jcp.h, [&](size_t cb, size_t h) {
+                const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
+                out_data_t *dst_data_b_cb_h = dst_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_b_cb_h;
                 arg.dst = dst_data_b_cb_h;
                 arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
-                arg.work_amount = static_cast<size_t>(W);
-                arg.oc_off = cb * blk_size * sizeof(float);
+                arg.work_amount = static_cast<size_t>(attrs.jcp.w);
+                arg.oc_off = cb * attrs.blk_size * sizeof(float);
                 (*normalize_kernel)(&arg);
             });
         } else {  // across_spatial: false
-            parallel_for2d(H, W, [&](size_t ih, size_t iw) {
+            parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](size_t ih, size_t iw) {
                 // modulo
                 float modulo = 0.0f;
-                const in_data_t *src_data_bhw = src_data_b + ih * W * blk_size + iw * blk_size;
-                out_data_t *dst_data_bhw = dst_data_b + ih * W * blk_size + iw * blk_size;
+                const in_data_t *src_data_bhw = src_data_b + ih * w_blk_dims + iw * attrs.blk_size;
+                out_data_t *dst_data_bhw = dst_data_b + ih * w_blk_dims + iw * attrs.blk_size;
                 auto arg = jit_normalize_call_args();
                 arg.src = src_data_bhw;
                 arg.modulo = static_cast<float*>(&modulo);
-                arg.src_stride = blk_size * W * H * sizeof(in_data_t);
-                arg.work_amount = C / blk_size;  // CB or CB-1
+                arg.src_stride = attrs.blk_size * spatial_dims * sizeof(in_data_t);
+                arg.work_amount = attrs.jcp.c / attrs.blk_size;  // CB or CB-1
                 (*normalize_modulo_kernel)(&arg);
                 // for tail
-                size_t padding = CB * blk_size - C;
+                size_t padding = CB * attrs.blk_size - attrs.jcp.c;
                 if (padding > 0) {
-                    size_t tail = blk_size - padding;
-                    const in_data_t *src_data_bhw_lastCB = src_data_bhw + (CB - 1) * blk_size * W * H;
+                    size_t tail = attrs.blk_size - padding;
+                    const in_data_t *src_data_bhw_lastCB = src_data_bhw + (CB - 1) * attrs.blk_size * spatial_dims;
                     for (size_t c = 0; c < tail; c++) {
                         modulo += src_data_bhw_lastCB[c] * src_data_bhw_lastCB[c];
                     }
@@ -1316,34 +1311,8 @@ void MKLDNNNormalizeL2Node::normalize_blk(const in_data_t* src_data, out_data_t*
     }
 }
 
-template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::normalize_function(const in_data_t* src_data, out_data_t* dst_data, const SizeVector& dims) {
-    if (cornerCase) {
-        const auto workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
-        parallel_for(workAmount, [&](size_t i) {
-            dst_data[i] = src_data[i] == 0 ? 0 : 1;
-        });
-    } else if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
-        if (jcp.is_nchw) {
-            normalize_nchw(src_data, dst_data, dims);
-        } else if (jcp.is_nhwc) {
-            normalize_nhwc(src_data, dst_data, dims);
-        } else if (jcp.is_blk) {
-            normalize_blk(src_data, dst_data, dims);
-        } else {
-            IE_THROW() << errorPrefix << "has selected layout which is not supported.";
-        }
-    } else {
-        if (jcp.is_nchw) {
-            normalize_nchw_ref(src_data, dst_data, dims);
-        } else {
-            IE_THROW() << errorPrefix << "supports only plain layout on machine w/o sse42.";
-        }
-    }
-}
-
-inline void MKLDNNNormalizeL2Node::apply_post_ops_scalar(float &dst_value, int index_c) {
-    const auto &p = (*attr.get()).post_ops_;
+inline void MKLDNNNormalizeL2Node::NormalizeL2Executor::apply_post_ops_scalar(float &dst_value, int index_c) {
+    const auto &p = (*attrs.kernel_attrs.get()).post_ops_;
     int eltwise_inj_idx = 0;
     int depthwise_inj_idx = 0;
     for (int i = 0; i < p.len(); i++) {
@@ -1358,7 +1327,7 @@ inline void MKLDNNNormalizeL2Node::apply_post_ops_scalar(float &dst_value, int i
             depthwise_inj_idx++;
         } else if (post_op.is_quantization()) {
             bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-            bool do_rounding = do_dequantization || output_prec == Precision::FP32 || i != p.len() - 1;
+            bool do_rounding = do_dequantization || attrs.output_prec == Precision::FP32 || i != p.len() - 1;
 
             auto quant = post_op.quantization;
 

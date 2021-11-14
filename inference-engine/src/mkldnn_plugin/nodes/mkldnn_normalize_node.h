@@ -75,7 +75,8 @@ class MKLDNNNormalizeL2Node : public MKLDNNNode {
 public:
     MKLDNNNormalizeL2Node(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
-    void getSupportedDescriptors() override;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
@@ -83,72 +84,85 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const MKLDNNNodePtr& node) const override;
+
+    std::vector<VectorDims> shapeInfer() const override;
+    void prepareParams() override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
 private:
     enum class NormEpsMode {
         ADD,
         MAX
     };
-    NormEpsMode epsMode = NormEpsMode::ADD;
 
-    float epsApply(const float &modulo) const {
-        if (epsMode == NormEpsMode::ADD) {
-            return modulo + eps;
-        } else if (epsMode == NormEpsMode::MAX) {
-            return std::max(modulo, eps);
-        } else {
-            IE_THROW() << errorPrefix << "has unsupported epsilon mode";
-        }
-    }
+    struct NormalizeL2Attrs {
+        NormEpsMode epsMode = NormEpsMode::ADD;
+        bool cornerCase = false;
+        bool across_spatial = true;
+        float eps = 1e-10f;
 
-    bool cornerCase = false;
+        VectorDims dims;
+        InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
+        InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
+        size_t src_data_size = 0lu;
+        size_t dst_data_size = 0lu;
+        size_t blk_size = 1lu;
 
-    template<typename T>
-    struct NormalizeExecute;
+        mkldnn::primitive_attr kernel_attrs;
+        jit_normalize_config_params jcp = {};
+    } attrs;
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    struct NormalizeL2Executor {
+        NormalizeL2Executor(const NormalizeL2Attrs& attrs_);
+        void exec(const uint8_t* src_ptr, uint8_t* dst_ptr);
+        ~NormalizeL2Executor() = default;
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    private:
+        inline float epsApply(const float &modulo) const;
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+        struct NormalizeContext {
+            NormalizeL2Executor &executor;
+            const uint8_t *src_ptr;
+            uint8_t *dst_ptr;
+        };
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+        template<typename T>
+        struct NormalizeExecute {
+            using src_t = typename std::tuple_element<0, T>::type;
+            using dst_t = typename std::tuple_element<1, T>::type;
+
+            void operator()(NormalizeContext & ctx) {
+                auto src = reinterpret_cast<const src_t*>(ctx.src_ptr);
+                auto dst = reinterpret_cast<dst_t*>(ctx.dst_ptr);
+                ctx.executor.normalize_function<src_t, dst_t>(src, dst);
+            }
+        };
+
+        template <typename in_data_t, typename out_data_t> void normalize_function(const in_data_t* src_data, out_data_t* dst_data);
+        template <typename in_data_t, typename out_data_t> void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data);
+        template <typename in_data_t, typename out_data_t> void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data);
+        template <typename in_data_t, typename out_data_t> void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data);
+        template <typename in_data_t, typename out_data_t> void normalize_blk(const in_data_t* src_data, out_data_t* dst_data);
+
+        inline void apply_post_ops_scalar(float &dst_value, int index_c);
+
+        NormalizeL2Attrs attrs;
+
+        std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
+        std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
+
+        std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
+        std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
+    };
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
-    inline void apply_post_ops_scalar(float &dst_value, int index_c);
 
-    template <typename in_data_t, typename out_data_t>
-    void normalize_function(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    static constexpr size_t DATA = 0;
+    static constexpr size_t AXES = 1;
 
-    bool across_spatial = true;
-    float eps = 1e-10f;
-
-    InferenceEngine::Precision input_prec, output_prec;
-    size_t src_data_size, dst_data_size;
-
-    mkldnn::primitive_attr attr;
-
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-
-    std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
-    std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
-
-    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
-    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
-
-    jit_normalize_config_params jcp = {};
-
-    static const size_t DATA = 0;
-    static const size_t AXES = 1;
-
-    std::string errorPrefix;
+    using executorPtr = std::shared_ptr<NormalizeL2Executor>;
+    executorPtr execPtr = nullptr;
 };
 
 }  // namespace MKLDNNPlugin
