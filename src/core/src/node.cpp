@@ -689,7 +689,8 @@ inline ngraph::HostTensorVector create_tmp_tensors(const ov::runtime::TensorVect
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        if (!tensor || tensor.get_shape() == ov::Shape{0}) {
+        if (!tensor || tensor.get_element_type().is_dynamic() ||
+            ((tensor.get_shape() == ov::Shape{0}) && (!tensor.get_constant_flag()))) {
             auto el_type = ov::element::dynamic;
             if (tensor)
                 el_type = tensor.get_element_type();
@@ -799,6 +800,9 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
             auto host_tensor = ov::runtime::Tensor(constant_node->get_element_type(),
                                                    constant_node->get_shape(),
                                                    const_cast<void*>(constant_node->get_data_ptr()));
+            if (constant_node->get_shape() == ov::Shape{0})
+                host_tensor.set_constant_flag(true);
+
             input_tensors.emplace_back(host_tensor);
         }
     }

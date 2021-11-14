@@ -51,6 +51,7 @@ protected:
     friend class ov::runtime::InferRequest;
     friend class ov::runtime::RemoteContext;
     friend class ov::runtime::VariableState;
+    bool m_constant_flag;
 
 public:
     /**
@@ -197,6 +198,9 @@ public:
     operator T() const {
         return as<T>();
     }
+
+    void set_constant_flag(const bool& constant_flag);
+    bool get_constant_flag() const;
 };
 
 using TensorVector = std::vector<Tensor>;
