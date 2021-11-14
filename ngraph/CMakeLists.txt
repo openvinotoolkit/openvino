@@ -28,6 +28,4 @@ add_subdirectory(core)
 
 add_subdirectory(frontend)
 
-if(ENABLE_TESTS)
-    add_subdirectory(test)
-endif()
+add_subdirectory(test)

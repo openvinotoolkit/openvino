@@ -12,11 +12,13 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
 
-add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
-add_subdirectory(util)
-add_subdirectory(engines_util)
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_subdirectory(onnx_test_util)
+if(ENABLE_TESTS)
+    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
+    add_subdirectory(util)
+    add_subdirectory(engines_util)
+    if (NGRAPH_ONNX_FRONTEND_ENABLE)
+        add_subdirectory(onnx_test_util)
+    endif()
 endif()
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
