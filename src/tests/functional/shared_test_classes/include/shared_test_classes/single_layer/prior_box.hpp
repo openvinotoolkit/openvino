@@ -25,6 +25,7 @@
 
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestDefinitions {
 using priorBoxSpecificParams =  std::tuple<
@@ -44,24 +45,24 @@ using priorBoxSpecificParams =  std::tuple<
 
 typedef std::tuple<
         priorBoxSpecificParams,
-        InferenceEngine::Precision,   // net precision
-        InferenceEngine::Precision,   // Input precision
-        InferenceEngine::Precision,   // Output precision
+        ov::test::ElementType,        // net precision
+        ov::test::ElementType,        // Input precision
+        ov::test::ElementType,        // Output precision
         InferenceEngine::Layout,      // Input layout
         InferenceEngine::Layout,      // Output layout
-        InferenceEngine::SizeVector,  // input shape
-        InferenceEngine::SizeVector,  // image shape
+        ov::test::InputShape,         // input shape
+        ov::test::InputShape,         // image shape
         std::string> priorBoxLayerParams;
 
 class PriorBoxLayerTest
     : public testing::WithParamInterface<priorBoxLayerParams>,
-      virtual public LayerTestsUtils::LayerTestsCommon {
+      virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj);
 protected:
-    InferenceEngine::SizeVector inputShapes;
-    InferenceEngine::SizeVector imageShapes;
-    InferenceEngine::Precision netPrecision;
+    ov::test::InputShape inputShapes;
+    ov::test::InputShape imageShapes;
+    ov::test::ElementType netPrecision;
     std::vector<float> min_size;
     std::vector<float> max_size;
     std::vector<float> aspect_ratio;

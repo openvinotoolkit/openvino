@@ -5,11 +5,14 @@
 #include "shared_test_classes/single_layer/prior_box.hpp"
 
 namespace LayerTestDefinitions {
+using namespace ov::test;
+
 std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
+    ov::test::ElementType netPrecision;
+    ov::test::ElementType inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
-    InferenceEngine::SizeVector inputShapes, imageShapes;
+    ov::test::InputShape inputShapes;
+    ov::test::InputShape imageShapes;
     std::string targetDevice;
     priorBoxSpecificParams specParams;
     std::tie(specParams,
@@ -28,11 +31,11 @@ std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<prio
 
     std::ostringstream result;
     const char separator = '_';
-    result << "IS="      << CommonTestUtils::vec2str(inputShapes) << separator;
-    result << "imageS="  << CommonTestUtils::vec2str(imageShapes) << separator;
-    result << "netPRC="  << netPrecision.name()   << separator;
-    result << "inPRC="   << inPrc.name() << separator;
-    result << "outPRC="  << outPrc.name() << separator;
+    result << "IS="      << inputShapes << separator;
+    result << "imageS="  << imageShapes << separator;
+    result << "netPRC="  << netPrecision   << separator;
+    result << "inPRC="   << inPrc << separator;
+    result << "outPRC="  << outPrc << separator;
     result << "inL="     << inLayout << separator;
     result << "outL="    << outLayout << separator;
     result << "min_s=" << CommonTestUtils::vec2str(min_size) << separator;
@@ -55,16 +58,23 @@ std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<prio
 
 void PriorBoxLayerTest::SetUp() {
     priorBoxSpecificParams specParams;
+
+    InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
+    InferenceEngine::Layout outLayout = InferenceEngine::Layout::ANY;
+    ov::test::ElementType inPrc = ov::test::ElementType::undefined;
+    ov::test::ElementType outPrc = ov::test::ElementType::undefined;
     std::tie(specParams, netPrecision,
              inPrc, outPrc, inLayout, outLayout,
              inputShapes, imageShapes, targetDevice) = GetParam();
 
-    std::tie(min_size, max_size, aspect_ratio, density, fixed_ratio, fixed_size,
-             clip, flip, step, offset, variance, scale_all_sizes,
+    init_input_shapes({ inputShapes, imageShapes });
+
+    std::tie(min_size, max_size, aspect_ratio,
+             density, fixed_ratio, fixed_size, clip,
+             flip, step, offset, variance, scale_all_sizes,
              min_max_aspect_ratios_order) = specParams;
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes, imageShapes});
+    auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputShapes.first, imageShapes.first});
 
     ngraph::op::v8::PriorBox::Attributes attributes;
     attributes.min_size = min_size;
