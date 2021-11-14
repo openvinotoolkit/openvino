@@ -164,6 +164,8 @@ add_library(${TARGET_NAME}
 
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
 add_library(IE::inference_engine ALIAS ${TARGET_NAME})
+# For Java plugin and backward compatibility
+add_library(inference_engine ALIAS ${TARGET_NAME})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${OV_RUNTIME_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
@@ -217,7 +219,7 @@ endif()
 target_include_directories(${TARGET_NAME}_s PUBLIC
     $<TARGET_PROPERTY:openvino::runtime::plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:${IE_MAIN_SOURCE_DIR}/src/legacy_api/src>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/runtime/core/legacy_api/src>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
@@ -350,7 +352,7 @@ install(EXPORT OpenVINOTargets
 
 set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/runtime/core/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
+set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -385,7 +387,7 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
+              "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake"
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 
