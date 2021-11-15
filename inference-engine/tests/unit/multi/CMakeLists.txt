@@ -4,14 +4,6 @@
 
 set(TARGET_NAME ieMultiPluginUnitTests)
 
-# Find OpenCV components if exist
-find_package(OpenCV COMPONENTS core QUIET)
-if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} needs OpenCV for its build")
-else()
-    add_definitions(-DUSE_OPENCV)
-endif()
-
 set(CI_BUILD_NUMBER "unittest")
 addVersionDefines(${IE_MAIN_SOURCE_DIR}/src/multi_device/multi_device_plugin.cpp CI_BUILD_NUMBER)
 add_definitions(-DMULTIUNITTEST)
@@ -24,7 +16,6 @@ addIeTargetTest(
             ${IE_MAIN_SOURCE_DIR}/src/multi_device
         LINK_LIBRARIES
             inference_engine_lp_transformations
-            ${OpenCV_LIBRARIES}
             ngraphFunctions
             inference_engine
             ngraph
@@ -41,7 +32,5 @@ addIeTargetTest(
 )
 
 set_ie_threading_interface_for(${TARGET_NAME})
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
