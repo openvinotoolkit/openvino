@@ -66,6 +66,13 @@ class InsertReverseChannels(BackReplacementPattern):
 
         order = old_api_map.info['inverse_order']
         node_name = node.soft_get('name', node.id)
+
+        if idx < 0:
+            assert not node.out_port(0).disconnected(), 'Cannot normalize negative axis {} in node {} ' \
+                                                        'as out port is disconnected.'.format(idx, node_name)
+            data_rank = len(list(node.out_port(0).data.get_shape()))
+            idx = data_rank + idx
+
         assert len(order) > idx >= 0, \
             'Channel index {} is incompatible with old_api_map in node {}.'.format(idx, node_name)
         return list(order).index(idx)
@@ -120,24 +127,30 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         'Shape': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
         'ShapeOf': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_shape(node, rc),
 
-        'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through(node, rc),
+        'Pad': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_zero_port_only(node, rc),
         'Transpose': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_transpose(node, rc),
     }
 
     @staticmethod
     def pass_rc_through_transpose(node: Node, reverse_channels: Node):
-        if node.in_port(1).disconnected():
+        if node.in_port(1).disconnected() or node.in_port(0).disconnected():
             return False
         order = node.in_port(1).data.get_value()
         reverse_axis = reverse_channels.axis
+        data_rank = len(list(node.in_port(0).data.get_shape()))
+
+        if reverse_axis < 0:
+            reverse_axis = data_rank + reverse_axis
+        assert 0 < reverse_axis < data_rank, "Incorrect ReverseChannels axis in node {}.".format(reverse_channels)
+
         if order is None:
             return False
         new_axis = list(order).index(reverse_axis)
         reverse_channels.axis = new_axis
-        return ReverseChannelsPropagationDown.pass_rc_through(node, reverse_channels)
+        return ReverseChannelsPropagationDown.pass_rc_through_zero_port_only(node, reverse_channels)
 
     @staticmethod
-    def pass_rc_through(node: Node, reverse_channels: Node):
+    def pass_rc_through_zero_port_only(node: Node, reverse_channels: Node):
         r"""
         BEFORE                          AFTER
 
@@ -333,24 +346,30 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'Subtract': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
-        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through(node, rc),
+        'Pad': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_zero_port_only(node, rc),
         'Transpose': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_transpose(node, rc),
     }
 
     @staticmethod
     def lift_up_through_transpose(node: Node, reverse_channels: Node):
-        if node.in_port(1).disconnected():
+        if node.in_port(1).disconnected() or node.in_port(0).disconnected():
             return False
         order = node.in_port(1).data.get_value()
         reverse_axis = reverse_channels.axis
+        data_rank = len(list(node.in_port(0).data.get_shape()))
+
+        if reverse_axis < 0:
+            reverse_axis = data_rank + reverse_axis
+        assert 0 < reverse_axis < data_rank, "Incorrect ReverseChannels axis in node {}.".format(reverse_channels)
+
         if order is None:
             return False
         new_axis = order[reverse_axis]
         reverse_channels.axis = new_axis
-        return ReverseChannelsPropagationUp.lift_up_through(node, reverse_channels)
+        return ReverseChannelsPropagationUp.lift_up_through_zero_port_only(node, reverse_channels)
 
     @staticmethod
-    def lift_up_through(node: Node, reverse_channels: Node):
+    def lift_up_through_zero_port_only(node: Node, reverse_channels: Node):
         r"""
         BEFORE                       AFTER
 
