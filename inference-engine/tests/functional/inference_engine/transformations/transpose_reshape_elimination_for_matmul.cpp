@@ -8,8 +8,9 @@
 #include <queue>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
+#include <transformations/op_conversions/einsum_decomposition.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -153,6 +154,37 @@ TEST(TransformationTests, TransposeReshapeEliminationForMatMul_TransposedAB) {
         auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
         auto data_2 = std::make_shared<opset1::Parameter>(element::f32, data_shape_2);
         auto matmul = std::make_shared<opset1::MatMul>(data_1, data_2, true, false);
+        f_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data_1, data_2});
+    }
+
+    auto res = compare_functions(f, f_ref, true);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, TransposeReshapeEliminationForMatMul_Einsum) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+
+    Shape data_shape_1{5, 2};
+    Shape data_shape_2{10, 2, 25};
+    {
+        auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<opset1::Parameter>(element::f32, data_shape_2);
+        auto einsum = std::make_shared<opset7::Einsum>(OutputVector{data_1, data_2}, "kl,mlj->mkj");
+        f = std::make_shared<Function>(NodeVector{einsum}, ParameterVector{data_1, data_2});
+        pass::Manager m;
+        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<pass::EinsumDecomposition>();
+        m.register_pass<pass::TransposeReshapeEliminationForMatmul>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto data_1 = std::make_shared<opset1::Parameter>(element::f32, data_shape_1);
+        auto data_2 = std::make_shared<opset1::Parameter>(element::f32, data_shape_2);
+        // for some cases Reshape may be first input for Matmul
+        auto shape_constant = std::make_shared<opset1::Constant>(element::i64, Shape{data_shape_1.size()}, data_shape_1);
+        auto reshape = std::make_shared<opset1::Reshape>(data_1, shape_constant, false);
+        auto matmul = std::make_shared<opset1::MatMul>(reshape, data_2, false, false);
         f_ref = std::make_shared<Function>(NodeVector{matmul}, ParameterVector{data_1, data_2});
     }
 
