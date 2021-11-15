@@ -296,6 +296,9 @@ set(SRC
     visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/embedding_segments_sum.cpp
+    visitors/op/embeddingbag_offsetssum.cpp
+    visitors/op/embeddingbag_packedsum.cpp
     visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/exp.cpp
@@ -411,6 +414,10 @@ set(SRC
     util.cpp
 )
 
+# For type relaxed types
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
@@ -480,11 +487,9 @@ set(MULTI_TEST_SRC
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
-    backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
-    backend/gather.in.cpp
     backend/interpolate.in.cpp
     backend/matrix_nms.in.cpp
     backend/multiclass_nms.in.cpp
@@ -493,7 +498,6 @@ set(MULTI_TEST_SRC
     backend/node_name.in.cpp
     backend/non_max_suppression.in.cpp
     backend/one_hot.in.cpp
-    backend/pad.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/roll.in.cpp
