@@ -8,4 +8,7 @@ add_library(${TARGET_NAME} INTERFACE)
 
 add_library(openvino::pp ALIAS ${TARGET_NAME})
 
-target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+ov_install_static_lib(${TARGET_NAME} ngraph)

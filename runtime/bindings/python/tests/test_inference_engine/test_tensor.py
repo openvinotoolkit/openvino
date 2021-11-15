@@ -3,8 +3,24 @@
 
 import numpy as np
 import pytest
+
+from ..conftest import image_path
 from openvino import Tensor
 import openvino as ov
+
+
+def read_image():
+    import cv2
+
+    n, c, h, w = (1, 3, 32, 32)
+    image = cv2.imread(image_path())
+    if image is None:
+        raise FileNotFoundError("Input image not found")
+
+    image = cv2.resize(image, (h, w)) / 255
+    image = image.transpose((2, 0, 1)).astype(np.float32)
+    image = image.reshape((n, c, h, w))
+    return image
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
@@ -47,27 +63,86 @@ def test_init_with_ngraph(ov_type, numpy_dtype):
     (ov.impl.Type.u64, np.uint64),
     (ov.impl.Type.boolean, np.bool)
 ])
-def test_init_with_numpy(ov_type, numpy_dtype):
+def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
     ov_shape = ov.impl.Shape(shape)
-    ones_arr = np.ones(shape, numpy_dtype)
-    ones_ov_tensor = Tensor(array=ones_arr)
     ov_tensors = []
-    ov_tensors.append(Tensor(dtype=numpy_dtype, shape=shape))
-    ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=shape))
-    ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=np.array(shape)))
-    ov_tensors.append(ones_ov_tensor)
-    ov_tensors.append(Tensor(dtype=numpy_dtype, shape=ov_shape))
-    ov_tensors.append(Tensor(dtype=np.dtype(numpy_dtype), shape=ov_shape))
+    ov_tensors.append(Tensor(type=numpy_dtype, shape=shape))
+    ov_tensors.append(Tensor(type=np.dtype(numpy_dtype), shape=shape))
+    ov_tensors.append(Tensor(type=np.dtype(numpy_dtype), shape=np.array(shape)))
+    ov_tensors.append(Tensor(type=numpy_dtype, shape=ov_shape))
+    ov_tensors.append(Tensor(type=np.dtype(numpy_dtype), shape=ov_shape))
     assert np.all(tuple(ov_tensor.shape) == shape for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.element_type == ov_type for ov_tensor in ov_tensors)
     assert np.all(isinstance(ov_tensor.data, np.ndarray) for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.dtype == numpy_dtype for ov_tensor in ov_tensors)
     assert np.all(ov_tensor.data.shape == shape for ov_tensor in ov_tensors)
-    assert np.shares_memory(ones_arr, ones_ov_tensor.data)
-    assert np.array_equal(ones_ov_tensor.data, ones_arr)
-    assert ones_ov_tensor.size == ones_arr.size
-    assert ones_ov_tensor.byte_size == ones_arr.nbytes
+
+
+@pytest.mark.parametrize("ov_type, numpy_dtype", [
+    (ov.impl.Type.f32, np.float32),
+    (ov.impl.Type.f64, np.float64),
+    (ov.impl.Type.f16, np.float16),
+    (ov.impl.Type.i8, np.int8),
+    (ov.impl.Type.u8, np.uint8),
+    (ov.impl.Type.i32, np.int32),
+    (ov.impl.Type.u32, np.uint32),
+    (ov.impl.Type.i16, np.int16),
+    (ov.impl.Type.u16, np.uint16),
+    (ov.impl.Type.i64, np.int64),
+    (ov.impl.Type.u64, np.uint64),
+    (ov.impl.Type.boolean, np.bool)
+])
+def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
+    arr = read_image().astype(numpy_dtype)
+    shape = arr.shape
+    arr = np.ascontiguousarray(arr)
+    ov_tensor = Tensor(array=arr, shared_memory=True)
+    assert tuple(ov_tensor.shape) == shape
+    assert ov_tensor.element_type == ov_type
+    assert isinstance(ov_tensor.data, np.ndarray)
+    assert ov_tensor.data.dtype == numpy_dtype
+    assert ov_tensor.data.shape == shape
+    assert np.shares_memory(arr, ov_tensor.data)
+    assert np.array_equal(ov_tensor.data, arr)
+    assert ov_tensor.size == arr.size
+    assert ov_tensor.byte_size == arr.nbytes
+
+
+@pytest.mark.parametrize("ov_type, numpy_dtype", [
+    (ov.impl.Type.f32, np.float32),
+    (ov.impl.Type.f64, np.float64),
+    (ov.impl.Type.f16, np.float16),
+    (ov.impl.Type.i8, np.int8),
+    (ov.impl.Type.u8, np.uint8),
+    (ov.impl.Type.i32, np.int32),
+    (ov.impl.Type.u32, np.uint32),
+    (ov.impl.Type.i16, np.int16),
+    (ov.impl.Type.u16, np.uint16),
+    (ov.impl.Type.i64, np.int64),
+    (ov.impl.Type.u64, np.uint64),
+    (ov.impl.Type.boolean, np.bool)
+])
+def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
+    arr = read_image().astype(numpy_dtype)
+    shape = arr.shape
+    ov_tensor = Tensor(array=arr, shared_memory=False)
+    assert tuple(ov_tensor.shape) == shape
+    assert ov_tensor.element_type == ov_type
+    assert isinstance(ov_tensor.data, np.ndarray)
+    assert ov_tensor.data.dtype == numpy_dtype
+    assert ov_tensor.data.shape == shape
+    assert not(np.shares_memory(arr, ov_tensor.data))
+    assert np.array_equal(ov_tensor.data, arr)
+    assert ov_tensor.size == arr.size
+    assert ov_tensor.byte_size == arr.nbytes
+
+
+def test_init_with_numpy_fail():
+    arr = read_image()
+    with pytest.raises(RuntimeError) as e:
+        _ = Tensor(array=arr, shared_memory=True)
+    assert "Tensor with shared memory must be C contiguous" in str(e.value)
 
 
 def test_init_with_roi_tensor():
@@ -143,7 +218,9 @@ def test_set_shape(ov_type, numpy_dtype):
 ])
 def test_cannot_set_shape_on_preallocated_memory(ref_shape):
     ones_arr = np.ones(shape=(1, 3, 32, 32), dtype=np.float32)
-    ov_tensor = Tensor(ones_arr)
+    ones_arr = np.ascontiguousarray(ones_arr)
+    ov_tensor = Tensor(ones_arr, shared_memory=True)
+    assert np.shares_memory(ones_arr, ov_tensor.data)
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = ref_shape
     assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)

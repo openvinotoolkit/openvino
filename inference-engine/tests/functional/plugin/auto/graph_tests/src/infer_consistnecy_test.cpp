@@ -119,28 +119,13 @@ void AutoInferConsistency::GenerateInputs() {
             imageInfoLayerName = input.first;
         }
     }
-
     for (int i = 0; i < functionParams.size(); ++i) {
         const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
         InferenceEngine::InputInfo::CPtr info = infoIt->second;
-        InferenceEngine::Blob::Ptr blob = nullptr;
-        if (!inputDynamicShapes.empty()) {
-            if (inputDynamicShapes[i].rank() != 0) {
-                InferenceEngine::DataPtr dataNew(
-                        new InferenceEngine::Data(infoIt->first, info->getTensorDesc().getPrecision(),
-                                                  targetStaticShapes[index][i],
-                                                  info->getTensorDesc().getLayout()));
-                InferenceEngine::InputInfo infoNew;
-                infoNew.setInputData(dataNew);
-                blob = GenerateInput(infoNew);
-            }
-        }
+        InferenceEngine::Blob::Ptr blob = GenerateInput(*info);
 
-        if (blob == nullptr) {
-            blob = GenerateInput(*info);
-        }
         //Overwrite with correct data
         if (param->get_friendly_name() == imageInfoLayerName) {
             std::vector<float> imageInfo = {static_cast<float>(height),
@@ -176,11 +161,6 @@ void AutoInferConsistency::Infer() {
     }
     inferRequest.Infer();
 }
-
-void AutoInferConsistency::TearDown() {
-    inputs.clear();
-}
-
 
 TEST_P(AutoInferConsistency, CompareWithDirectHW) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

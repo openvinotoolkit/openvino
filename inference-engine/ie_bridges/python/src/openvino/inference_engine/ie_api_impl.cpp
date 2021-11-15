@@ -6,6 +6,7 @@
 
 #include "ie_plugin_config.hpp"
 #include "ngraph/partial_shape.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
@@ -197,7 +198,11 @@ public:
     }
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
-        return {{"framework_node_ext", ngraph::OpSet()}};
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<ov::op::util::FrameworkNode>();
+        opsets["util"] = opset;
+        return opsets;
     }
 
     void Unload() noexcept override {}
@@ -351,6 +356,14 @@ PyObject* InferenceEnginePython::IEExecNetwork::getMetric(const std::string& met
 
 PyObject* InferenceEnginePython::IEExecNetwork::getConfig(const std::string& name) {
     return parse_parameter(actual->GetConfig(name));
+}
+
+void InferenceEnginePython::IEExecNetwork::setConfig(const std::map<std::string, std::string>& config) {
+    std::map<std::string, InferenceEngine::Parameter> newConfig;
+    for (const auto& item : config) {
+        newConfig[item.first] = InferenceEngine::Parameter(item.second);
+    }
+    actual->SetConfig(newConfig);
 }
 
 void InferenceEnginePython::IEExecNetwork::exportNetwork(const std::string& model_file) {

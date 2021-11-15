@@ -184,7 +184,7 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
     for (size_t i = 0; i < m_body->get_results().size(); i++) {
         auto result = m_body->get_results()[i];
         PartialShape partial(result->get_shape());
-        bool isCompatible = ngraph::PartialShape::broadcast_merge_into(partial, std::get<0>(output_shapes[i]), ::ngraph::op::AutoBroadcastSpec::NUMPY);
+        bool isCompatible = ngraph::PartialShape::broadcast_merge_into(partial, std::get<0>(output_shapes[i]), ::ngraph::op::AutoBroadcastType::NUMPY);
         // equality check won't pass since we reshape without changes on external snippet edges
         NODE_VALIDATION_CHECK(this, isCompatible, "Inferend and passed results shapes are difference for snippet : ",
                                                   result->get_shape(), " vs ", std::get<0>(output_shapes[i]), ".");

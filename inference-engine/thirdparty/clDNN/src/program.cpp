@@ -522,13 +522,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, options.get<build_option_type::optimize_data>()->enabled());
 
-    if (options.get<build_option_type::optimize_data>()->enabled() && get_engine().configuration().n_streams == 1) {
-        // Fuse conv + eltw after padding preparations
-        apply_opt_pass<prepare_conv_eltw_fusing>(lo, lo.get_optimization_attributes().b_fs_yx_fsv16_network);
-
-        apply_opt_pass<prepare_conv_eltw_read_write_opt>();
-    }
-
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
@@ -541,6 +534,9 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
+
+    // add optimization attributes for onednn primitives
+    apply_opt_pass<add_onednn_optimization_attributes>();
 }
 
 void program::post_optimize_graph(bool is_internal) {
