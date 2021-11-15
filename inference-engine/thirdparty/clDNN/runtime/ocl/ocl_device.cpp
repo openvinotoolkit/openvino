@@ -300,5 +300,13 @@ ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl_pl
 , _info(init_device_info(dev))
 , _mem_caps(init_memory_caps(dev, _info)) { }
 
+bool ocl_device::is_same(const device::ptr other) {
+    auto casted = downcast<ocl_device>(other.get());
+    if (!casted)
+        return false;
+
+    return _context == casted->get_context() && _device == casted->get_device() && _platform == casted->get_platform();
+}
+
 }  // namespace ocl
 }  // namespace cldnn

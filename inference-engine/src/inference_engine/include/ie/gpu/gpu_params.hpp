@@ -63,6 +63,12 @@ DECLARE_GPU_PARAM_VALUE(VA_SHARED);
 DECLARE_GPU_PARAM_KEY(OCL_CONTEXT, gpu_handle_param);
 
 /**
+ * @brief This key identifies ID of device in OpenCL context
+ * if multiple devices are present in the context
+ */
+DECLARE_GPU_PARAM_KEY(OCL_CONTEXT_DEVICE_ID, int);
+
+/**
  * @brief In case of multi-tile system,
  * this key identifies tile within given context
  */

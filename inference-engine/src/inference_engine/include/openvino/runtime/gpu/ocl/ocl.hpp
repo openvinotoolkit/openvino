@@ -6,7 +6,7 @@
  * @brief a header that defines wrappers for internal GPU plugin-specific
  * OpenCL context and OpenCL shared memory tensors
  *
- * @file openvino/runtime/gpu/ocl.hpp
+ * @file openvino/runtime/gpu/ocl/ocl.hpp
  */
 #pragma once
 
@@ -15,13 +15,14 @@
 
 #include "gpu/gpu_params.hpp"
 #include "openvino/runtime/core.hpp"
-#include "openvino/runtime/gpu/ocl_wrapper.hpp"
+#include "openvino/runtime/gpu/ocl/ocl_wrapper.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
 namespace ov {
 namespace runtime {
 namespace gpu {
+namespace ocl {
 
 /**
  * @brief Shortcut for defining a handle parameter
@@ -146,10 +147,12 @@ public:
      * @brief Constructs context object from user-supplied OpenCL context handle
      * @param core A reference to OpenVINO Runtime Core object
      * @param ctx A OpenCL context to be used to create shared remote context
+     * @param ctx_device_id An ID of device to be used from ctx
      */
-    ClContext(Core& core, cl_context ctx) {
+    ClContext(Core& core, cl_context ctx, int ctx_device_id = 0) {
         ParamMap context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL)},
-                                   {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)}};
+                                   {GPU_PARAM_KEY(OCL_CONTEXT), static_cast<gpu_handle_param>(ctx)},
+                                   {GPU_PARAM_KEY(OCL_CONTEXT_DEVICE_ID), ctx_device_id}};
         *this = core.create_context(device_name, context_params);
     }
 
@@ -250,6 +253,7 @@ public:
         return create_tensor(type, shape, params);
     }
 };
+}  // namespace ocl
 }  // namespace gpu
 }  // namespace runtime
 }  // namespace ov

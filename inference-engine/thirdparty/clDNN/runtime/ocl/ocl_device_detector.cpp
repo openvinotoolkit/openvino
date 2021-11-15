@@ -91,11 +91,14 @@ static std::vector<cl::Device> getSubDevices(cl::Device& rootDevice) {
     return subDevices;
 }
 
-std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context, void* user_device, int target_tile_id) const {
+std::map<std::string, device::ptr> ocl_device_detector::get_available_devices(void* user_context,
+                                                                              void* user_device,
+                                                                              int ctx_device_id,
+                                                                              int target_tile_id) const {
     bool host_out_of_order = true;  // Change to false, if debug requires in-order queue.
     std::vector<device::ptr> dev_orig, dev_sorted;
     if (user_context != nullptr) {
-        dev_orig = create_device_list_from_user_context(host_out_of_order, user_context);
+        dev_orig = create_device_list_from_user_context(host_out_of_order, user_context, ctx_device_id);
     } else if (user_device != nullptr) {
         dev_orig = create_device_list_from_user_device(host_out_of_order, user_device);
     } else {
@@ -171,13 +174,14 @@ std::vector<device::ptr> ocl_device_detector::create_device_list(bool out_out_or
     return ret;
 }
 
-std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_context(bool out_out_order, void* user_context) const {
+std::vector<device::ptr>  ocl_device_detector::create_device_list_from_user_context(bool out_out_order, void* user_context, int ctx_device_id) const {
     cl::Context ctx = cl::Context(static_cast<cl_context>(user_context), true);
     auto all_devices = ctx.getInfo<CL_CONTEXT_DEVICES>();
 
     std::vector<device::ptr> ret;
-    for (auto& device : all_devices) {
-        if (!does_device_match_config(out_out_order, device))
+    for (size_t i = 0; i < all_devices.size(); i++) {
+        auto& device = all_devices[i];
+        if (!does_device_match_config(out_out_order, device) || i != ctx_device_id)
             continue;
         ret.emplace_back(std::make_shared<ocl_device>(device, ctx, device.getInfo<CL_DEVICE_PLATFORM>()));
     }

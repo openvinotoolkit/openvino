@@ -20,6 +20,7 @@ public:
                           runtime_types runtime_type,
                           void* user_context = nullptr,
                           void* user_device = nullptr,
+                          int ctx_device_id = 0,
                           int target_tile_id = -1);
 
     std::map<std::string, device::ptr> get_available_devices() const {

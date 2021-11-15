@@ -28,6 +28,8 @@ public:
     const cl::Context& get_context() const { return _context; }
     cl_platform_id get_platform() const { return _platform; }
 
+    bool is_same(const device::ptr other) override;
+
     ~ocl_device() = default;
 
 private:
