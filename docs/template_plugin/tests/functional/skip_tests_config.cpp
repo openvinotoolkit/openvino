@@ -61,6 +61,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceGatherElementsTestNegative.*)",
         // CVS-64052
         R"(.*ReferenceStridedSliceLayerTest.*strided_slice_stride_optional_dynamic)",
+        // CVS-64017
+        R"(.*ReferenceGatherTest.*dType=i16.*)",
+        R"(.*ReferenceGatherTest.*dType=u16.*)",
+        R"(.*ReferenceGatherTest.*dType=bf16.*)",
+        R"(.*ReferenceGatherTest.*dType=f64.*)",
+        // CVS-64110
+        R"(.*ReferenceGatherTestV7.*dType=i16.*)",
+        R"(.*ReferenceGatherTestV7.*dType=u16.*)",
+        R"(.*ReferenceGatherTestV7.*dType=bf16.*)",
+        R"(.*ReferenceGatherTestV7.*dType=f64.*)",
+        // CVS-64037
+        R"(.*ReferencePadTest.*pad_exterior_2d_0x0)",
+        R"(.*ReferencePadTest.*pad_exterior_2d_0x3)",
+        R"(.*ReferencePadTest.*pad_exterior_2d_3x0)",
     };
 
 #ifdef _WIN32
