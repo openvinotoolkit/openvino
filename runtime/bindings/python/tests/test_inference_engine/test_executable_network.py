@@ -304,7 +304,7 @@ def test_infer_numpy_model_from_buffer(device):
     func = core.read_model(model=xml, weights=bin)
     img = read_image()
     exec_net = core.compile_model(func, device)
-    res = exec_net.infer_new_request({'data': img})
+    res = exec_net.infer_new_request({"data": img})
     assert np.argmax(res) == 2
 
 
@@ -318,5 +318,5 @@ def test_infer_tensor_model_from_buffer(device):
     img = read_image()
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
-    res = exec_net.infer_new_request({'data': tensor})
+    res = exec_net.infer_new_request({"data": tensor})
     assert np.argmax(res) == 2
