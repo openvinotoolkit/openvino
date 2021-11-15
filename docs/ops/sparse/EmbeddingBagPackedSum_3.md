@@ -8,6 +8,8 @@
 
 **Detailed description**: This is the first case of the PyTorch [EmbeddingBag](https://pytorch.org/docs/stable/nn.html#embeddingbag), it has indices in the tensor of format `[batch, indices_per_bag]`. If 3rd input is not provided, this operation is equivalent to *Gather* followed by *ReduceSum(axis=0)*. However, *EmbeddingBagPackedSum* is much more time and memory efficient than using a chain of these operations.
 
+**Attributes**: EmbeddingBagPackedSum operation has no attributes.
+
 **Inputs**:
 
 *   **1**: `emb_table` tensor containing the embedding lookup table of the module of shape `[num_emb, emb_dim1, emb_dim2, ...]` and of type *T*. **Required.**
