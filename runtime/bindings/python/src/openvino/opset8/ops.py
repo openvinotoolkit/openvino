@@ -140,18 +140,18 @@ def adaptive_max_pool(
 
 @nameable_op
 def multiclass_nms(
-        boxes: NodeInput,
-        scores: NodeInput,
-        sort_result_type: str = "none",
-        sort_result_across_batch: bool = False,
-        output_type: str = "i64",
-        iou_threshold: float = 0.0,
-        score_threshold: float = 0.0,
-        nms_top_k: int = -1,
-        keep_top_k: int = -1,
-        background_class: int = -1,
-        nms_eta: float = 1.0,
-        normalized: bool = True
+    boxes: NodeInput,
+    scores: NodeInput,
+    sort_result_type: str = "none",
+    sort_result_across_batch: bool = False,
+    output_type: str = "i64",
+    iou_threshold: float = 0.0,
+    score_threshold: float = 0.0,
+    nms_top_k: int = -1,
+    keep_top_k: int = -1,
+    background_class: int = -1,
+    nms_eta: float = 1.0,
+    normalized: bool = True
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -196,19 +196,19 @@ def multiclass_nms(
 
 @nameable_op
 def matrix_nms(
-        boxes: NodeInput,
-        scores: NodeInput,
-        sort_result_type: str = "none",
-        sort_result_across_batch: bool = False,
-        output_type: str = "i64",
-        score_threshold: float = 0.0,
-        nms_top_k: int = -1,
-        keep_top_k: int = -1,
-        background_class: int = -1,
-        decay_function: str = "linear",
-        gaussian_sigma: float = 2.0,
-        post_threshold: float = 0.0,
-        normalized: bool = True
+    boxes: NodeInput,
+    scores: NodeInput,
+    sort_result_type: str = "none",
+    sort_result_across_batch: bool = False,
+    output_type: str = "i64",
+    score_threshold: float = 0.0,
+    nms_top_k: int = -1,
+    keep_top_k: int = -1,
+    background_class: int = -1,
+    decay_function: str = "linear",
+    gaussian_sigma: float = 2.0,
+    post_threshold: float = 0.0,
+    normalized: bool = True
 ) -> Node:
     """Return a node which performs MatrixNms.
 
@@ -280,17 +280,17 @@ def gather(
 
 @nameable_op
 def max_pool(
-        data: NodeInput,
-        strides: List[int],
-        dilations: List[int],
-        pads_begin: List[int],
-        pads_end: List[int],
-        kernel_shape: TensorShape,
-        rounding_type: str = "floor",
-        auto_pad: Optional[str] = None,
-        index_element_type: Optional[str] = "i64",
-        axis: Optional[int] = 0,
-        name: Optional[str] = None,
+    data: NodeInput,
+    strides: List[int],
+    dilations: List[int],
+    pads_begin: List[int],
+    pads_end: List[int],
+    kernel_shape: TensorShape,
+    rounding_type: str = "floor",
+    auto_pad: Optional[str] = None,
+    index_element_type: Optional[str] = "i64",
+    axis: Optional[int] = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Perform max pooling operation and return both values and indices of the selected elements.
 
