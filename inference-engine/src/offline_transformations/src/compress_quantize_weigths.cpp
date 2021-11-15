@@ -182,7 +182,7 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
 
         auto zp_value = zero_point->cast_vector<float>();
         if (std::all_of(zp_value.begin(), zp_value.end(), [] (float f) -> bool { return std::fabs(f) <= std::numeric_limits<float>::epsilon(); })) {
-            copy_runtime_info({sub}, {convert});
+            copy_runtime_info(sub, {convert});
             replace_node(sub, convert);
         }
 
@@ -225,7 +225,7 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
         new_weights->set_friendly_name(weights->get_friendly_name());
         replace_node(weights, new_weights);
 
-        copy_runtime_info({sub}, {convert});
+        copy_runtime_info(sub, {convert});
         replace_node(sub, convert);
         return true;
     };
