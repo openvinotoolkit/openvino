@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
-from openvino import Core, Function, PartialShape, Dimension
+from openvino import Core, Function, PartialShape, Dimension, Layout
 from openvino.impl import Type
 from openvino.impl.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
 
@@ -417,8 +417,10 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
         # Layout
         if info.name in layout_map.keys():
             info.layout = layout_map[info.name]
-        else:
+        elif parameters[i].get_layout() != Layout():
             info.layout = str(parameters[i].get_layout())
+        else:
+            info.layout = "NCHW"
 
         # Update shape with batch if needed
         if batch_size != 0:
