@@ -29,7 +29,7 @@ static std::vector<std::string> modelPaths = {
 };
 
 
-namespace AutoInfer50Throughput {
+namespace AutoInferThroughput {
     std::map<std::string, std::string>  baseDeviceConfig = {{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(THROUGHPUT)}};
     std::map<std::string, std::string>  autoDeviceConfig = {baseDeviceConfig.begin(), baseDeviceConfig.end()};
 
@@ -65,9 +65,9 @@ namespace AutoInfer50Throughput {
     INSTANTIATE_TEST_SUITE_P(AutoGPUTestNightly, AutoInferConsistency, param50InferThroughputGPUNightly, AutoInferConsistency::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(AutoCPUTest, AutoInferConsistency, param50InferThroughputCPU, AutoInferConsistency::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(AutoGPUTest, AutoInferConsistency, param50InferThroughputGPU, AutoInferConsistency::getTestCaseName);
-} // namespace AutoInfer50Throughput
+} // namespace AutoInferThroughput
 
-namespace AutoInfer50Latency {
+namespace AutoInferLatency {
     std::map<std::string, std::string>  baseDeviceConfig = {{CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(LATENCY)}};
     std::map<std::string, std::string>  autoDeviceConfig = {baseDeviceConfig.begin(), baseDeviceConfig.end()};
     const auto param50InferLatencyCPUNightly = ::testing::Combine(
@@ -102,4 +102,4 @@ namespace AutoInfer50Latency {
     INSTANTIATE_TEST_SUITE_P(AutoGPUTestNightly, AutoInferConsistency, param50InferLatencyGPUNightly, AutoInferConsistency::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(AutoCPUTest, AutoInferConsistency, param50InferLatencyCPU, AutoInferConsistency::getTestCaseName);
     INSTANTIATE_TEST_SUITE_P(AutoGPUTest, AutoInferConsistency, param50InferLatencyGPU, AutoInferConsistency::getTestCaseName);
-} // namespace AutoInfer50Latency
+} // namespace AutoInferLatency

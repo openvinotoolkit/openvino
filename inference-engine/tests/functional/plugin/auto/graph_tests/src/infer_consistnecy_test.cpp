@@ -177,6 +177,10 @@ void AutoInferConsistency::Infer() {
     inferRequest.Infer();
 }
 
+void AutoInferConsistency::TearDown() {
+    inputs.clear();
+}
+
 
 TEST_P(AutoInferConsistency, CompareWithDirectHW) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
