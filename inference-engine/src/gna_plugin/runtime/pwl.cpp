@@ -503,7 +503,7 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
             }
 
-            if (n_segments >= PWL_MAX_ITERATIONS_DEFAULT) {
+            if (n_segments >= PWL_MAX_NUM_SEGMENTS) {
                 THROW_GNA_EXCEPTION << "Failed to converge in pwl_search!";
             }
         }
