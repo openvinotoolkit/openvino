@@ -169,7 +169,7 @@ void ov::Node::set_arguments(const OutputVector& arguments) {
         m_inputs.emplace_back(this, i++, output_descriptor);
     }
 
-    // set_arguments doesn't use replace_output method so we have to
+    // set_arguments doesn't use replace_output method, so we have to reset cache manually here
     for_each(this->m_shared_rt_info.cbegin(), this->m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
         info->set_use_topological_cache(false);
     });
