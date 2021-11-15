@@ -1397,32 +1397,22 @@ void MKLDNNEltwiseNode::prepareParams() {
             if (static_cast<int>(jep.dims.size()) - collapsedDims - 2 < 0)
                 break;
 
+            for (int j = 1; j < dims_in.size(); j++) {
+                if (dims_in[j].back() != dims_in[0].back()) {
+                    hasDifferentDims = true;
+                }
+            }
+
             if (oc_size > 1 && oc_size != dims_in[0][dims_in[0].size() - 1]) {
                 hasDifferentDims = true;
             }
 
             bool canCollapse = true;
-            for (int i = 0; i < canCollapse && dims_in.size(); i++) {
-                for (int j = i + 1; j < dims_in.size(); j++) {
-                    // for the following cases we need broadcasting, so we cannot use collapsing:
-                    // inputs: [1.8.5.1] and [1.8.5.5]
-                    if (dims_in[i][dims_in[i].size() - 2] != 1 && dims_in[j][dims_in[j].size() - 2] != 1) {
-                        if (dims_in[i].back() != dims_in[j].back() || hasDifferentDims) {
-                            canCollapse = false;
-                            break;
-                        }
-                    // inputs: [1.8.5.1] and [1.8.1.8]
-                    } else if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                        if (dims_in[i].back() == 1 && dims_in[j].back() != 1 || hasDifferentDims) {
-                            canCollapse = false;
-                            break;
-                        }
-                    // inputs: [1.8.1.8] and [1.8.5.1]
-                    } else if (dims_in[j][dims_in[j].size() - 2] != 1) {
-                        if (dims_in[j].back() == 1 && dims_in[i].back() != 1 || hasDifferentDims) {
-                            canCollapse = false;
-                            break;
-                        }
+            for (int i = 0; i < dims_in.size(); i++) {
+                if (dims_in[i][dims_in[i].size() - 2] != 1) {
+                    if (hasDifferentDims) {
+                        canCollapse = false;
+                        break;
                     }
                 }
             }
