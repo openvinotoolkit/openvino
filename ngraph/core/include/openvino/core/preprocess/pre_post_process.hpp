@@ -5,12 +5,12 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/input_info.hpp"
 #include "openvino/core/preprocess/output_info.hpp"
 
 namespace ov {
 
+class Function;
 namespace preprocess {
 
 /// \brief Main class for adding pre- and post- processing steps to existing ov::Function
