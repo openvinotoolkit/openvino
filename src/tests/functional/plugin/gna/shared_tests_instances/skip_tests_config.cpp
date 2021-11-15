@@ -87,21 +87,19 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
     };
 
-    // Only these skip patterns will be used in any DUMP mode
+    // Only these skip patterns will be used in DUMP_ALL mode
     std::vector<std::string> serializationPatterns = {
         R"(.*ConstantResultSubgraphTest.*IS=\(2\.3\.4\.5\).*)",
         R"(.*ConstantResultSubgraphTest.*inPrc=(U8|I8|I32|U64|I64|BOOL).*)",
     };
 
-    // These skip patterns are united with standard skip patterns
+    // These skip patterns are united with standard skip patterns during LOAD mode
     std::vector<std::string> loadingPatterns = {
         R"(.*smoke_convert_matmul_to_fc.*)",
         R"(.*MultipleInputTest.*)",
     };
 
-    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP) ||
-        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP_MODELS_ONLY) ||
-        LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP_INPUTS_ONLY)) {
+    if (LayerTestsUtils::ENT::isMode(LayerTestsUtils::ENTMode::DUMP_ALL)) {
         return serializationPatterns;
     }
 

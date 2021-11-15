@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <map>
 #include <fstream>
+#include <unordered_map>
 #include <common_test_utils/file_utils.hpp>
 #include <ie_core.hpp>
 #include <ie_common.h>
@@ -25,7 +26,7 @@
 #endif
 
 #define MAX_FILE_NAME_SIZE 255
-#define SHORT_HASH_SIZE 7
+#define SHORT_HASH_SIZE 10
 
 namespace LayerTestsUtils {
 
@@ -40,7 +41,8 @@ enum class ExternalNetworkMode {
     LOAD,
     DUMP,
     DUMP_MODELS_ONLY,
-    DUMP_INPUTS_ONLY
+    DUMP_INPUTS_ONLY,
+    DUMP_ALL,
 };
 
 class ExternalNetworkTool {
@@ -50,6 +52,8 @@ private:
     static std::string& modelsPath();
 
     static constexpr const char* modelsNamePrefix = "TestModel_";
+
+    static constexpr const char* modelsHashPrefix = "hash";
 
     template <typename T>
     static std::vector<std::shared_ptr<ov::Node>> topological_name_sort(T root_nodes);
@@ -170,31 +174,19 @@ public:
 
     static bool isMode(ExternalNetworkMode val) { return mode == val; }
 
+    static bool toDumpModel();
+
+    static bool toDumpInput();
+
+    static bool toLoad();
+
     static void setModelsPath(std::string &val);
 
     static void setMode(ExternalNetworkMode val) { mode = val; }
 
     static std::string processTestName(const std::string &network_name, const size_t extension_len = 3);
 
-    static std::string generateHashName(std::string value) {
-        auto command = "python sha256hash.py " + value;
-        auto hash = executeCommand(command);
-        hash.resize(hash.length() - 1);
-        return hash;
-    }
-
-    static std::string executeCommand(std::string cmd) {
-        std::array<char, 128> buffer;
-        std::string result;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
-        if (!pipe) {
-            throw std::runtime_error("popen() failed!");
-        }
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-            result += buffer.data();
-        }
-        return result;
-    }
+    static std::string generateHashName(std::string value);
 };
 
 }  // namespace LayerTestsUtils

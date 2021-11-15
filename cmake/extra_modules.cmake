@@ -53,20 +53,17 @@ function(ov_generate_dev_package_config)
                    @ONLY)
 endfunction()
 
-#
-# Add extra modules
-#
 
-#
-# Add python hasher in binary directory 
-#
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/tools/sha256hash.py
-     DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/)
 
 #
 # Set Frontend path
 #
+
 set(ENV{OV_FRONTEND_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/bin/intel64/${CMAKE_BUILD_TYPE}/lib)
+
+#
+# Add extra modules
+#
 
 function(register_extra_modules)
     # post export

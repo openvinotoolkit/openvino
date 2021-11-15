@@ -348,13 +348,12 @@ void LayerTestsCommon::ConfigureNetwork() {
 
 void LayerTestsCommon::LoadNetwork() {
     // External Network Tool
-    if (ENT::isMode(ENTMode::DUMP) ||
-        ENT::isMode(ENTMode::DUMP_MODELS_ONLY)) {
+    if (ENT::toDumpModel()) {
         std::string testName = GetTestCaseName() + "_" + GetTestName();
         ENT::dumpNetworkToFile(function, testName);
     }
 
-    if (ENT::isMode(ENTMode::LOAD)) {
+    if (ENT::toLoad()) {
         std::string testName = GetTestCaseName() + "_" + GetTestName();
         function = ENT::loadNetworkFromFile(testName);
         functionRefs = ngraph::clone_function(*function);
@@ -379,8 +378,7 @@ void LayerTestsCommon::GenerateInputs() {
         InferenceEngine::InputInfo::CPtr info = infoIt->second;
         InferenceEngine::Blob::Ptr blob = GenerateInput(*info);
 
-        if (ENT::isMode(ENTMode::DUMP) ||
-            ENT::isMode(ENTMode::DUMP_INPUTS_ONLY)) {
+        if (ENT::toDumpInput()) {
             std::string network_name = GetTestCaseName() + "_" + GetTestName();
             uint32_t ir_id = functionParams.size() - 1 - i;  // topological sort dependency!
             ENT::saveInputFile(network_name, info, blob, ir_id);

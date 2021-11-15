@@ -20,6 +20,18 @@ void ExternalNetworkTool::setModelsPath(std::string &val) {
     ref = val;
 }
 
+bool ExternalNetworkTool::toDumpModel() {
+    return isMode(ENTMode::DUMP) || isMode(ENTMode::DUMP_MODELS_ONLY) || isMode(ENTMode::DUMP_ALL);
+}
+
+bool ExternalNetworkTool::toDumpInput() {
+    return isMode(ENTMode::DUMP) || isMode(ENTMode::DUMP_INPUTS_ONLY) || isMode(ENTMode::DUMP_ALL);
+}
+
+bool ExternalNetworkTool::toLoad() {
+    return isMode(ENTMode::LOAD);
+}
+
 void ExternalNetworkTool::writeToHashMap(const std::string &network_name,
                                          const std::string &shorted_name) {
     std::ofstream hash_map_file;
@@ -56,7 +68,7 @@ std::vector<std::shared_ptr<ov::Node>> ExternalNetworkTool::topological_name_sor
 }
 
 std::string ExternalNetworkTool::replaceInName(const std::string &network_name, const std::map<std::string, std::string> replace_map) {
-    auto new_network_name { network_name };
+    std::string new_network_name { network_name };
 
     for (auto &pair : replace_map) {
         auto &old_str = pair.first;
@@ -72,7 +84,7 @@ std::string ExternalNetworkTool::replaceInName(const std::string &network_name, 
 }
 
 std::string ExternalNetworkTool::eraseInName(const std::string &network_name, const std::vector<std::string> patterns) {
-    auto new_network_name { network_name };
+    std::string new_network_name { network_name };
 
     for (auto &pattern : patterns) {
         auto index = new_network_name.find(pattern);
@@ -114,6 +126,14 @@ std::string ExternalNetworkTool::eraseRepeatedInName(const std::string &network_
     return std::string(buffer, new_name_size);
 }
 
+std::string ExternalNetworkTool::generateHashName(std::string value) {
+    std::hash<std::string> hasher;
+    size_t hash = hasher(value);
+    std::string hash_string = std::to_string(hash);
+    std::string hash_prefix = std::string(modelsHashPrefix);
+    return hash_prefix + hash_string;
+}
+
 std::string ExternalNetworkTool::processTestName(const std::string &network_name, const size_t extension_len) {
     std::vector<std::string> erase_patterns = {
         "netPRC",
@@ -143,7 +163,7 @@ std::string ExternalNetworkTool::processTestName(const std::string &network_name
         { "sw_fp32", "mode" },
     };
 
-    auto new_network_name { network_name };
+    std::string new_network_name { network_name };
     new_network_name = eraseInName(new_network_name, erase_patterns);
     new_network_name = replaceInName(new_network_name, replace_map);
     new_network_name = eraseRepeatedInName(new_network_name, {'_'});
@@ -152,9 +172,10 @@ std::string ExternalNetworkTool::processTestName(const std::string &network_name
     auto prefix_len = prefix.length();
     auto max_name_len = MAX_FILE_NAME_SIZE - extension_len - prefix_len - 1;
     if (new_network_name.length() > max_name_len) {
+        // Add hash if test name is still too long for a system
         auto hashed_network_name = generateHashName(network_name);
-        auto fitted_size = max_name_len - SHORT_HASH_SIZE;
-        new_network_name = new_network_name.substr(0, fitted_size) + hashed_network_name.substr(0, SHORT_HASH_SIZE);
+        auto fitted_size = max_name_len - SHORT_HASH_SIZE - 1;
+        new_network_name = new_network_name.substr(0, fitted_size) + '_' + hashed_network_name.substr(0, SHORT_HASH_SIZE);
     }
 
     new_network_name = prefix + new_network_name;
