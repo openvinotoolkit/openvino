@@ -542,10 +542,12 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         // Apply post-processing
         node = result->get_input_source_output(0);
+        bool post_processing_applied = false;
         if (output->m_postprocess) {
             for (const auto& action : output->m_postprocess->actions()) {
                 auto action_result = action({node}, context);
                 node = std::get<0>(action_result);
+                post_processing_applied = true;
             }
         }
         // Implicit: Convert element type + layout to user's tensor implicitly
@@ -561,9 +563,17 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         for (const auto& action : implicit_steps.actions()) {
             auto action_result = action({node}, context);
             node = std::get<0>(action_result);
+            post_processing_applied = true;
         }
         node.get_node_shared_ptr()->set_friendly_name(
             result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
+
+        // Reset friendly name of input node to avoid names collision
+        // when there is at a new node inserted by post-processing steps
+        // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+        // as it's required for old API correct work
+        if (post_processing_applied)
+            result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
 
         // Create result
         auto new_result = std::make_shared<ov::op::v0::Result>(node);

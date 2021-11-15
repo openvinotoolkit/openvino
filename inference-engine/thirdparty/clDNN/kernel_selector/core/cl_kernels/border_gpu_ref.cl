@@ -5,10 +5,35 @@
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
+inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
+{
+#if INPUT0_DIMS < 5
+    return INPUT0_GET_INDEX(b, f, y, x);
+#elif INPUT0_DIMS == 5
+    return INPUT0_GET_INDEX(b, f, z, y, x);
+#elif INPUT0_DIMS == 6
+    return INPUT0_GET_INDEX(b, f, w, z, y, x);
+#else
+#error [clDNN border_gpu_ref.cl]: input format - not supported
+#endif
+}
+
+inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
+{
+#if OUTPUT_DIMS < 5
+    return OUTPUT_GET_INDEX(b, f, y, x);
+#elif OUTPUT_DIMS == 5
+    return OUTPUT_GET_INDEX(b, f, z, y, x);
+#elif OUTPUT_DIMS == 6
+    return OUTPUT_GET_INDEX(b, f, w, z, y, x);
+#else
+#error [clDNN border_gpu_ref.cl]: output format - not supported
+#endif
+}
 
 KERNEL(border_gpu_ref)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output)
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output)
 {
     // [CONSTEXPR]
     // Border sizes (left-top set and right-bottom set):
@@ -72,7 +97,7 @@ KERNEL(border_gpu_ref)(
     const uint out_w  = out_yw / OUTPUT_SIZE_Y;
 
 #ifdef BORDER_TYPE_CONSTANT
-    UNIT_TYPE in_val = TO_UNIT_TYPE(BORDER_VALUE);
+    INPUT0_TYPE in_val = TO_INPUT0_TYPE(BORDER_VALUE);
 
     if (out_x >= blt_sx & out_x < in_lx &
         out_y >= blt_sy & out_y < in_ly &
@@ -88,7 +113,7 @@ KERNEL(border_gpu_ref)(
         const uint in_f = out_f - blt_sf;
         const uint in_b = out_b - blt_sb;
 
-        const uint in_pos = GET_DATA_INDEX_6D(INPUT0, in_b, in_f, in_w, in_z, in_y, in_x);
+        const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
         in_val = input[in_pos];
     }
 #elif defined BORDER_TYPE_EDGE
@@ -99,8 +124,8 @@ KERNEL(border_gpu_ref)(
     const uint in_f = (out_f >= blt_sf & out_f < in_lf) ? out_f - blt_sf : (out_f < blt_sf ? 0 : in_sf - 1);
     const uint in_b = (out_b >= blt_sb & out_b < in_lb) ? out_b - blt_sb : (out_b < blt_sb ? 0 : in_sb - 1);
 
-    const uint in_pos = GET_DATA_INDEX_6D(INPUT0, in_b, in_f, in_w, in_z, in_y, in_x);
-    UNIT_TYPE in_val = input[in_pos];
+    const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
+    INPUT0_TYPE in_val = input[in_pos];
 #elif defined BORDER_TYPE_MIRROR
     const uint in_x = (out_x >= blt_sx & out_x < in_lx) ? out_x - blt_sx : (out_x < blt_sx ? blt_sx - 1 - out_x : in_sx + in_lx - 1 - out_x);
     const uint in_y = (out_y >= blt_sy & out_y < in_ly) ? out_y - blt_sy : (out_y < blt_sy ? blt_sy - 1 - out_y : in_sy + in_ly - 1 - out_y);
@@ -109,8 +134,8 @@ KERNEL(border_gpu_ref)(
     const uint in_f = (out_f >= blt_sf & out_f < in_lf) ? out_f - blt_sf : (out_f < blt_sf ? blt_sf - 1 - out_f : in_sf + in_lf - 1 - out_f);
     const uint in_b = (out_b >= blt_sb & out_b < in_lb) ? out_b - blt_sb : (out_b < blt_sb ? blt_sb - 1 - out_b : in_sb + in_lb - 1 - out_b);
 
-    const uint in_pos = GET_DATA_INDEX_6D(INPUT0, in_b, in_f, in_w, in_z, in_y, in_x);
-    UNIT_TYPE in_val = input[in_pos];
+    const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
+    INPUT0_TYPE in_val = input[in_pos];
 #elif defined BORDER_TYPE_MIRROR_101
     const uint in_x = (out_x >= blt_sx & out_x < in_lx) ? out_x - blt_sx : (out_x < blt_sx ? blt_sx - out_x : in_sx + in_lx - 2 - out_x);
     const uint in_y = (out_y >= blt_sy & out_y < in_ly) ? out_y - blt_sy : (out_y < blt_sy ? blt_sy - out_y : in_sy + in_ly - 2 - out_y);
@@ -119,12 +144,12 @@ KERNEL(border_gpu_ref)(
     const uint in_f = (out_f >= blt_sf & out_f < in_lf) ? out_f - blt_sf : (out_f < blt_sf ? blt_sf - out_f : in_sf + in_lf - 2 - out_f);
     const uint in_b = (out_b >= blt_sb & out_b < in_lb) ? out_b - blt_sb : (out_b < blt_sb ? blt_sb - out_b : in_sb + in_lb - 2 - out_b);
 
-    const uint in_pos = GET_DATA_INDEX_6D(INPUT0, in_b, in_f, in_w, in_z, in_y, in_x);
-    UNIT_TYPE in_val = input[in_pos];
+    const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
+    INPUT0_TYPE in_val = input[in_pos];
 #else
     #error Unsupported border type.
 #endif
 
-    const uint out_pos = GET_DATA_INDEX_6D(OUTPUT, out_b, out_f, out_w, out_z, out_y, out_x);
+    const uint out_pos = FUNC_CALL(get_output_index)(out_b, out_f, out_w, out_z, out_y, out_x);
     output[out_pos] = in_val;
 }

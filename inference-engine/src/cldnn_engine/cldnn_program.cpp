@@ -6,6 +6,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph_ops/nms_ie_internal.hpp"
 #include "cldnn_itt.h"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -231,6 +232,12 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Program::CreateSingleLayerPrimitive");
     InitProfileInfo(op->get_friendly_name(), op->get_type_name());
 
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->verbose >= 2) {
+        GPU_DEBUG_COUT << "Process " << "op::v" << op->get_type_info().version << "::" << op->get_type_name() << " operation "
+                       << "(friendly_name=" << op->get_friendly_name() << ")" << std::endl;
+    }
+
     bool is_created = false;
     const ngraph::NodeTypeInfo* op_type_info = &op->get_type_info();
     while (op_type_info != nullptr) {
@@ -251,8 +258,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, const std::s
 
     if (!is_created) {
         IE_THROW() << "Operation: " << op->get_friendly_name()
-                           << " of type " << op->get_type_name()
-                           << "(op::v" << op->get_type_info().version << ") is not supported";
+                   << " of type " << op->get_type_name()
+                   << "(op::v" << op->get_type_info().version << ") is not supported";
     }
 }
 
