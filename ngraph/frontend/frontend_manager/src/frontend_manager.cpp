@@ -129,6 +129,11 @@ bool FrontEnd::supported_impl(const std::vector<std::shared_ptr<Variant>>& varia
 InputModel::Ptr FrontEnd::load_impl(const std::vector<std::shared_ptr<Variant>>& params) const {
     FRONT_END_NOT_IMPLEMENTED(load_impl);
 }
+
+InputModel::Ptr FrontEnd::load(const ov::VariantVector& vars) const {
+    return load_impl(vars);
+}
+
 std::shared_ptr<ngraph::Function> FrontEnd::convert(InputModel::Ptr model) const {
     FRONT_END_NOT_IMPLEMENTED(convert);
 }
