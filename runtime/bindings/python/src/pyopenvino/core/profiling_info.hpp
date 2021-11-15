@@ -1,5 +1,6 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -7,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_InferQueue(py::module m);
+void regclass_ProfilingInfo(py::module m);
