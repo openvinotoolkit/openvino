@@ -29,6 +29,26 @@ def create_swish_pattern():
 
 
 @registry_ignore_patterns('blocks')
+def create_se_pattern():
+    """
+    Removing this pattern can drop accuracy after quantization of model w/ SE-blocks
+    """
+    pattern = PatternBuilder()
+    pattern.insert_se(start_name='input', end_name='output')
+    return pattern.set_name('se_block').pattern
+
+
+@registry_ignore_patterns('blocks')
+def create_se_swish_pattern():
+    """
+    Removing this pattern can drop accuracy after quantization of model w/ SE-blocks
+    """
+    pattern = PatternBuilder()
+    pattern.insert_se(start_name='input', end_name='output', is_swish=True)
+    return pattern.set_name('se_block_swish_activation').pattern
+
+
+@registry_ignore_patterns('blocks')
 def create_biased_op_pattern():
     pattern = PatternBuilder()
     pattern.append_single_op(lambda x: x in [op['type'] for op in OPERATIONS_WITH_WEIGHTS], 'input')
