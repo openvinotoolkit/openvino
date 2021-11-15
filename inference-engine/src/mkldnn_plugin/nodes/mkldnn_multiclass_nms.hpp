@@ -52,7 +52,8 @@ private:
     size_t m_numClasses;
     size_t m_maxBoxesPerBatch;
 
-    int m_nmsTopk = 0;
+    int m_nmsRealTopk = 0;
+    int m_nmsTopK;
     float m_iouThreshold = 0.0f;
     float m_scoreThreshold = 0.0f;
 

@@ -245,14 +245,8 @@ void MKLDNNMatrixNmsNode::createPrimitive() {
 }
 
 void MKLDNNMatrixNmsNode::prepareParams() {
-    if (!inputShapesDefined()) {
-        IE_THROW() << "Can't prepare params for MKLDNNMatrixNmsNode node with name: " << getName();
-    }
-
-    const auto& boxes_dims = isDynamicNode() ? getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims() :
-                                               getInputShapeAtPort(NMS_BOXES).getStaticDims();
-    const auto& scores_dims = isDynamicNode() ? getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims() :
-                                                getInputShapeAtPort(NMS_SCORES).getStaticDims();
+    const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
+    const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
         IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
     }
@@ -365,6 +359,7 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
     auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTED_INDICES)[0]->getMemoryPtr();
     auto validOutputsMemPtr = getChildEdgesAtPort(NMS_VALID_OUTPUTS)[0]->getMemoryPtr();
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (!m_outStaticShape) {
         size_t totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), 0);
         selectedOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTED_OUTPUTS)->cloneWithNewDims({totalBox, 6}));
@@ -391,6 +386,7 @@ void MKLDNNMatrixNmsNode::execute(mkldnn::stream strm) {
             selectedBase[4] = m_filteredBoxes[originalIndex].box.x2;
             selectedBase[5] = m_filteredBoxes[originalIndex].box.y2;
         }
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         if (m_outStaticShape) {
             std::fill_n(selectedOutputs + (outputOffset + real_boxes) * 6, (m_maxBoxesPerBatch - real_boxes) * 6, -1);
             std::fill_n(selectedIndices + (outputOffset + real_boxes), m_maxBoxesPerBatch - real_boxes, -1);

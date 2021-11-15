@@ -11,19 +11,22 @@
 using namespace ov::test::subgraph;
 using namespace InferenceEngine;
 using namespace ngraph;
-const std::vector<ShapeParams> inStaticShapeParams = {
-    // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out if static shape
-    ShapeParams{{}, {{{3, 100, 4}, {3,   1, 100}}}, true},
-    ShapeParams{{}, {{{1, 10,  4}, {1, 100, 10 }}}, false}
+const std::vector<std::vector<ov::Shape>> inStaticShapeParams = {
+    {{3, 100, 4}, {3,   1, 100}},
+    {{1, 10,  4}, {1, 100, 10 }}
 };
 
-const std::vector<ShapeParams> inDynamicShapeParams = {
-    ShapeParams{{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
-        {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}, true},
-    ShapeParams{{{1, ngraph::Dimension::dynamic(), 4}, {1, 5, ngraph::Dimension::dynamic()}},
-        {{{1, 80, 4},  {1, 5, 80}}, {{1, 90, 4}, {1, 5, 90}}, {{1, 100, 4}, {1, 5, 100}}}, false},
-    ShapeParams{{{1, 100, 4}, {1, ngraph::Dimension::dynamic(), 100}},
-        {{{1, 100, 4}, {1, 5, 100}}, {{1, 100, 4}, {1, 6, 100}}, {{1, 100, 4}, {1, 7, 100}}}, false},
+const std::vector<std::vector<ov::test::InputShape>> inDynamicShapeParams = {
+    // num_batches, num_boxes, 4
+    {{{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), 4},
+        {{1, 10, 4}, {2, 100, 4}}},
+    // num_batches, num_classes, num_boxes
+     {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
+        {{1, 3, 10}, {2, 5, 100}}}},
+    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), 4},
+        {{1, 10, 4}, {2, 100, 4}}},
+    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), ngraph::Dimension(1, 100)}},
+        {{1, 3, 10}, {2, 5, 100}}}}
 };
 
 const std::vector<op::v8::MatrixNms::SortResultType> sortResultType = {op::v8::MatrixNms::SortResultType::CLASSID,
@@ -45,7 +48,7 @@ const std::vector<bool> normalized = {true, false};
 const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                 op::v8::MatrixNms::DecayFunction::LINEAR};
 
-const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(inStaticShapeParams),
+const auto nmsParamsStatic = ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams)),
                                                 ::testing::Combine(::testing::Values(ov::element::f32),
                                                                    ::testing::Values(ov::element::i32),
                                                                    ::testing::Values(ov::element::f32)),

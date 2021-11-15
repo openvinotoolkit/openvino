@@ -15,9 +15,6 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-// Dynamic shape + Target static shapes + output if static shape
-using ShapeParams = std::tuple<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>, bool>;
-
 using InputPrecisions = std::tuple<ElementType,   // boxes and scores precisions
                                    ElementType,   // max_output_boxes_per_class
                                                   // precision
@@ -31,7 +28,7 @@ using InputfloatVar = std::tuple<float,   // iouThreshold
 using InputboolVar = std::tuple<bool,   // nmsEta
                                 bool>;  // normalized
 
-using MulticlassNmsParams = std::tuple<ShapeParams,                                // Params using to create 1st and 2nd inputs
+using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                    // Params using to create 1st and 2nd inputs
                                        InputPrecisions,                            // Input precisions
                                        int32_t,                                    // Max output boxes per class
                                        InputfloatVar,                              // iouThreshold, scoreThreshold, nmsEta

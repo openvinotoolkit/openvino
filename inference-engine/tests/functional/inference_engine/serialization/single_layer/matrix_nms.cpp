@@ -19,11 +19,19 @@ namespace {
             ov::element::f16
     };
 
-    const std::vector<ShapeParams> shapeParams = {
-            // dynamic shape, {{batch, box, 4}, {batch, class, box}}, out if static shape
-            ShapeParams{{}, {{{3, 100, 4}, {3,   5, 100}}}, false},
-            ShapeParams{{{ngraph::Dimension::dynamic(), 100, 4}, {ngraph::Dimension::dynamic(), 5, 100}},
-                {{{1, 100, 4}, {1, 5, 100}}, {{2, 100, 4}, {2, 5, 100}}, {{3, 100, 4}, {3, 5, 100}}}, false}
+    const std::vector<std::vector<ov::test::InputShape>> shapeParams = {
+        // num_batches, num_boxes, 4
+        {{{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), 4},
+            {{1, 10, 4}, {2, 100, 4}}},
+        // num_batches, num_classes, num_boxes
+        {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
+            {{1, 3, 10}, {2, 5, 100}}}},
+        // num_batches, num_boxes, 4
+        {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), 4},
+            {{1, 10, 4}, {2, 100, 4}}},
+        // num_batches, num_classes, num_boxes
+        {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 100), ngraph::Dimension(1, 100)}},
+            {{1, 3, 10}, {2, 5, 100}}}}
     };
 
     const std::vector<op::v8::MatrixNms::SortResultType> sortResultType = {op::v8::MatrixNms::SortResultType::CLASSID,

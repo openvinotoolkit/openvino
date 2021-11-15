@@ -17,7 +17,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 
 std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj) {
-    ShapeParams inShapeParams;
+    std::vector<InputShape> shapes;
     InputPrecisions inPrecisions;
     int32_t nmsTopK, backgroundClass, keepTopK;
     element::Type outType;
@@ -29,7 +29,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
 
     std::string targetDevice;
 
-    std::tie(inShapeParams, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
+    std::tie(shapes, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
 
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -39,15 +39,20 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
 
     bool sortResCB, normalized;
     std::tie(sortResCB, normalized) = inboolVar;
-    bool outStaticShape = std::get<2>(inShapeParams);
 
     std::ostringstream result;
-    result << "outStaticShape=" << outStaticShape << "_IS=" << CommonTestUtils::partialShape2str(std::get<0>(inShapeParams)) << "_";
-    result << "TS=";
-    for (const auto& item : std::get<1>(inShapeParams)) {
-        result << CommonTestUtils::vec2str(item) << "_";
+    result << "IS=(";
+    for (const auto& shape : shapes) {
+        result << CommonTestUtils::partialShape2str({shape.first}) << "_";
     }
-    result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
+    result << ")_TS=(";
+    for (const auto& shape : shapes) {
+        for (const auto& item : shape.second) {
+            result << CommonTestUtils::vec2str(item) << "_";
+        }
+    }
+
+    result << ")_paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
     result << "nmsTopK=" << nmsTopK << "_";
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_backgroundClass=" << backgroundClass << "_";
     result << "keepTopK=" << keepTopK << "_outType=" << outType << "_";
@@ -248,7 +253,7 @@ void MulticlassNmsLayerTest::compare(const std::vector<ov::runtime::Tensor> &exp
 }
 
 void MulticlassNmsLayerTest::SetUp() {
-    ShapeParams inShapeParams;
+    std::vector<InputShape> shapes;
     InputPrecisions inPrecisions;
     size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
     element::Type outType;
@@ -258,14 +263,10 @@ void MulticlassNmsLayerTest::SetUp() {
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
 
-    std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) =
+    std::tie(shapes, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) =
         this->GetParam();
 
-    inputDynamicShapes = std::get<0>(inShapeParams);
-    targetStaticShapes = std::get<1>(inShapeParams);
-    m_outStaticShape = std::get<2>(inShapeParams);
-    if (inputDynamicShapes.empty())
-        inputDynamicShapes = std::vector<ngraph::PartialShape>{targetStaticShapes[0][0], targetStaticShapes[0][1]};
+    init_input_shapes(shapes);
 
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -293,9 +294,11 @@ void MulticlassNmsLayerTest::SetUp() {
 
     auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
 
-    if (!m_outStaticShape) {
+    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
+        m_outStaticShape = false;
         function = std::make_shared<Function>(nms, params, "MulticlassNMS");
     } else {
+        m_outStaticShape = true;
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(paramsPrec, Shape {1}, {1}));
         auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));
         auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape {1}, {1}));

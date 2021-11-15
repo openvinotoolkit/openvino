@@ -56,7 +56,7 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
 
     auto& atrri = nms->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
-    m_nmsTopk = atrri.nms_top_k;
+    m_nmsTopK = atrri.nms_top_k;
     m_iouThreshold = atrri.iou_threshold;
     m_scoreThreshold = atrri.score_threshold;
     m_backgroundClass = atrri.background_class;
@@ -110,14 +110,8 @@ void MKLDNNMultiClassNmsNode::createPrimitive() {
 }
 
 void MKLDNNMultiClassNmsNode::prepareParams() {
-    if (!inputShapesDefined()) {
-        IE_THROW() << "Can't prepare params for MKLDNNMultiClassNmsNode node with name: " << getName();
-    }
-
-    const auto& boxes_dims = isDynamicNode() ? getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims() :
-                                               getInputShapeAtPort(NMS_BOXES).getStaticDims();
-    const auto& scores_dims = isDynamicNode() ? getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims() :
-                                                getInputShapeAtPort(NMS_SCORES).getStaticDims();
+    const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
+    const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
     if (!(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2])) {
         IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' input dmensions";
     }
@@ -127,13 +121,14 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
 
     m_numClasses = scores_dims[1];
 
-    int64_t max_output_boxes_per_class = 0;
+    int max_output_boxes_per_class = 0;
     size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
         m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
-    if (m_nmsTopk >= 0)
-        max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
-    else
-        max_output_boxes_per_class = m_numBoxes;
+    if (m_nmsTopK) {
+        max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes : m_nmsTopK;
+        m_filtBoxes.resize(max_output_boxes_per_class * m_numBatches * m_numClasses);
+    }
+    m_nmsRealTopk = max_output_boxes_per_class;
 
     m_maxBoxesPerBatch = max_output_boxes_per_class * real_num_classes;
     if (m_keepTopK >= 0)
@@ -144,11 +139,6 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
         numPerBatch.resize(m_numClasses, 0);
     }
     m_numBoxOffset.resize(m_numBatches);
-
-    if (m_nmsTopk) {
-        m_nmsTopk = (m_nmsTopk == -1) ? m_numBoxes : m_nmsTopk;
-        m_filtBoxes.resize(m_nmsTopk * m_numBatches * m_numClasses);
-    }
 }
 
 void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
@@ -157,7 +147,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
 
-    if (m_nmsTopk == 0)
+    if (m_nmsRealTopk == 0)
         return;
 
     auto selectedOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr();
@@ -177,9 +167,9 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     m_numBoxOffset[0] = 0;
     for (size_t b = 0; b < m_numFiltBox.size(); b++) {
         size_t batchOffsetNew = 0;
-        size_t batchOffset = b * m_numClasses * m_nmsTopk;
+        size_t batchOffset = b * m_numClasses * m_nmsRealTopk;
         for (size_t c = (b == 0 ? 1 : 0); c < m_numFiltBox[b].size(); c++) {
-            size_t offset = batchOffset + c * m_nmsTopk;
+            size_t offset = batchOffset + c * m_nmsRealTopk;
             for (size_t i = 0; i < m_numFiltBox[b][c]; i++) {
                 m_filtBoxes[startOffset + i] = m_filtBoxes[offset + i];
             }
@@ -261,6 +251,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         m_selected_num[m_filtBoxes[idx].batch_index]++;
     }
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     if (!m_outStaticShape) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), 0);
         selectedOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDOUTPUTS)->cloneWithNewDims({totalBox, 6}));
@@ -288,6 +279,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
             selected_base[4] = boxes[selected_indices[j + output_offset] * 4 + 2];
             selected_base[5] = boxes[selected_indices[j + output_offset] * 4 + 3];
         }
+        // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
         if (m_outStaticShape) {
             std::fill_n(selected_outputs + (output_offset + real_boxes) * 6, (selectedBoxesNum_perBatch - real_boxes) * 6, -1);
             std::fill_n(selected_indices + (output_offset + real_boxes), selectedBoxesNum_perBatch - real_boxes, -1);
@@ -351,7 +343,7 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
             fb.reserve(sorted_boxes.size());
             if (sorted_boxes.size() > 0) {
                 auto adaptive_threshold = m_iouThreshold;
-                int max_out_box = (m_nmsTopk > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsTopk;
+                int max_out_box = (m_nmsRealTopk > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
                 while (max_out_box && !sorted_boxes.empty()) {
                     boxInfo currBox = sorted_boxes.top();
                     float origScore = currBox.score;
@@ -386,7 +378,7 @@ void MKLDNNMultiClassNmsNode::nmsWithEta(const float* boxes, const float* scores
                 }
             }
             m_numFiltBox[batch_idx][class_idx] = fb.size();
-            size_t offset = batch_idx * m_numClasses * m_nmsTopk + class_idx * m_nmsTopk;
+            size_t offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
             for (size_t i = 0; i < fb.size(); i++) {
                 m_filtBoxes[offset + i] = fb[i];
             }
@@ -411,10 +403,10 @@ void MKLDNNMultiClassNmsNode::nmsWithoutEta(const float* boxes, const float* sco
                 parallel_sort(sorted_boxes.begin(), sorted_boxes.end(), [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                     return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
                 });
-                int offset = batch_idx * m_numClasses * m_nmsTopk + class_idx * m_nmsTopk;
+                int offset = batch_idx * m_numClasses * m_nmsRealTopk + class_idx * m_nmsRealTopk;
                 m_filtBoxes[offset + 0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
                 io_selection_size++;
-                int max_out_box = (m_nmsTopk > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsTopk;
+                int max_out_box = (m_nmsRealTopk > sorted_boxes.size()) ? sorted_boxes.size() : m_nmsRealTopk;
                 for (size_t box_idx = 1; box_idx < max_out_box; box_idx++) {
                     bool box_is_selected = true;
                     for (int idx = io_selection_size - 1; idx >= 0; idx--) {

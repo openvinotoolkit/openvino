@@ -15,9 +15,6 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-// Dynamic shape + Target static shapes + output if static shape
-using ShapeParams = std::tuple<std::vector<ngraph::PartialShape>, std::vector<std::vector<ngraph::Shape>>, bool>;
-
 using InputPrecisions = std::tuple<ElementType,   // boxes and scores precisions
                                    ElementType,   // max_output_boxes_per_class
                                                   // precision
@@ -30,7 +27,7 @@ using ThresholdParams = std::tuple<float,   // minimum score to consider box for
                                    float,   // gaussian_sigma parameter for gaussian decay_function
                                    float>;  // filter out boxes with low confidence score after decaying
 
-using NmsParams = std::tuple<ShapeParams,                                        // Params using to create 1st and 2nd inputs
+using NmsParams = std::tuple<std::vector<InputShape>,                            // Params using to create 1st and 2nd inputs
                              InputPrecisions,                                    // Input precisions
                              ngraph::op::v8::MatrixNms::SortResultType,          // Order of output elements
                              ngraph::element::Type,                              // Output type
