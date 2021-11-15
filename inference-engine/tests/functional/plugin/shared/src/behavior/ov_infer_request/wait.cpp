@@ -14,6 +14,8 @@ std::string OVInferRequestWaitTests::getTestCaseName(const testing::TestParamInf
 }
 
 void OVInferRequestWaitTests::SetUp() {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     OVInferRequestTests::SetUp();
     req = execNet.create_infer_request();
     input = execNet.input();
