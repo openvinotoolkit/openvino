@@ -137,6 +137,9 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                     TARGET_PATH "${TEMP}/tbbbind_2_5"
                     ENVIRONMENT "TBBBIND_2_5_ROOT"
                     SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+        else()
+            message(WARNING "prebuilt TBBBIND_2_5 is not available.
+    Build oneTBB from sources and set TBBROOT environment var before OpenVINO cmake configure")
         endif()
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
