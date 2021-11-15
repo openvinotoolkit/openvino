@@ -312,9 +312,9 @@ def test_add_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(extension_path="template_extension.dll")
+        core.add_extension(library_path="template_extension.dll")
     else:
-        core.add_extension(extension_path="libtemplate_extension.so")
+        core.add_extension(library_path="libtemplate_extension.so")
     func = core.read_model(model=model, init_from_buffer=True)
     assert isinstance(func, Function)
 
