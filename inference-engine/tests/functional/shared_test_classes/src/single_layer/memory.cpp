@@ -81,6 +81,7 @@ namespace LayerTestsDefinitions {
                 CoreConfiguration(this);
                 ConfigureNetwork();
                 executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+                inferRequest = executableNetwork.CreateInferRequest();
             }
             GenerateInputs();
             for (int64_t i = 0; i < iteration_count; ++i) {

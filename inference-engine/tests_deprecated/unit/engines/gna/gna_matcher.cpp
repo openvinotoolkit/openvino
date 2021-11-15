@@ -798,30 +798,6 @@ void GNAQueryStateMatcher :: match() {
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 #endif
-    IE_SUPPRESS_DEPRECATED_START
-    try {
-        loadNetwork();
-        if (GnaPluginTestEnvironment::kAnyNotNull == _env.numberOfStates) {
-            auto states = executer->QueryState();
-            ASSERT_NE(states.size(), 0);
-            // usually states are callable
-            for (auto & state : states) {
-                state->Reset();
-            }
-        } else if (_env.numberOfStates >= 0) {
-            ASSERT_EQ(executer->QueryState().size(), _env.numberOfStates);
-        } else {
-            FAIL() << "number of memory states expectation not set";
-        }
-
-    }
-    catch(std::exception &ex) {
-        FAIL() << ex.what();
-    }
-    catch(...) {
-        FAIL() << "unknown exception thrown";
-    }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 
