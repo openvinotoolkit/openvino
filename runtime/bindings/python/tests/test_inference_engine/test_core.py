@@ -8,8 +8,7 @@ from sys import platform
 from pathlib import Path
 
 import openvino.opset8 as ov
-from openvino import Core, IENetwork, ExecutableNetwork, tensor_from_file, compile_model
-from openvino.impl import Function
+from openvino import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
 
 from ..conftest import model_path, model_onnx_path, plugins_path, read_image
 
@@ -37,7 +36,6 @@ def test_compact_api_onnx():
     assert np.argmax(results) == 2
 
 
-@pytest.mark.skip(reason="Fix")
 def test_core_class():
     input_shape = [1, 3, 4, 4]
     param = ov.parameter(input_shape, np.float32, name="parameter")
@@ -45,29 +43,18 @@ def test_core_class():
     func = Function([relu], [param], "test")
     func.get_ordered_ops()[2].friendly_name = "friendly"
 
-    cnn_network = IENetwork(func)
-
     core = Core()
-    core.set_config({}, device_name="CPU")
-    executable_network = core.compile_model(cnn_network, "CPU", {})
+    model = core.compile_model(func, "CPU", {})
 
-    td = TensorDesc("FP32", input_shape, "NCHW")
-
-    # from IPython import embed; embed()
-
-    request = executable_network.create_infer_request()
-    input_data = np.random.rand(*input_shape) - 0.5
+    request = model.create_infer_request()
+    input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
 
     expected_output = np.maximum(0.0, input_data)
 
-    input_blob = Blob(td, input_data)
+    input_tensor = Tensor(input_data)
+    results = request.infer({"parameter": input_tensor})
 
-    request.set_input({"parameter": input_blob})
-    request.infer()
-
-    result = request.get_blob("relu").buffer
-
-    assert np.allclose(result, expected_output)
+    assert np.allclose(results, expected_output)
 
 
 def test_compile_model(device):
@@ -118,15 +105,15 @@ def test_read_model_from_onnx_as_path():
     assert isinstance(func, Function)
 
 
-@pytest.mark.xfail("68212")
-def test_read_net_from_buffer():
-    core = Core()
-    with open(test_net_bin, "rb") as f:
-        bin = f.read()
-    with open(model_path()[0], "rb") as f:
-        xml = f.read()
-    func = core.read_model(model=xml, weights=bin)
-    assert isinstance(func, IENetwork)
+# @pytest.mark.xfail("68212")
+# def test_read_net_from_buffer():
+#     core = Core()
+#     with open(test_net_bin, "rb") as f:
+#         bin = f.read()
+#     with open(model_path()[0], "rb") as f:
+#         xml = f.read()
+#     func = core.read_model(model=xml, weights=bin)
+#     assert isinstance(func, IENetwork)
 
 
 @pytest.mark.xfail("68212")

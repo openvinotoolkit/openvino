@@ -6,7 +6,7 @@
 
 from pkg_resources import get_distribution, DistributionNotFound
 
-__path__ = __import__('pkgutil').extend_path(__path__, __name__) # type: ignore # mypy issue #1422
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore # mypy issue #1422
 
 try:
     __version__ = get_distribution("openvino-core").version
@@ -22,22 +22,12 @@ from openvino.impl import PartialShape
 from openvino.impl import Layout
 
 from openvino.ie_api import Core
-from openvino.pyopenvino import IENetwork
 from openvino.ie_api import ExecutableNetwork
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
-from openvino.pyopenvino import InputInfoPtr
-from openvino.pyopenvino import InputInfoCPtr
-from openvino.pyopenvino import DataPtr
-from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
-#from openvino.pyopenvino import InferQueue
+# from openvino.pyopenvino import InferQueue
 from openvino.ie_api import InferRequest
-from openvino.pyopenvino import PreProcessInfo
-from openvino.pyopenvino import MeanVariant
-from openvino.pyopenvino import ResizeAlgorithm
-from openvino.pyopenvino import ColorFormat
-from openvino.pyopenvino import PreProcessChannel
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import ProfilingInfo
 
@@ -50,6 +40,10 @@ from openvino import opset5
 from openvino import opset6
 from openvino import opset7
 from openvino import opset8
+
+# Helper functions for openvino module
+from openvino.ie_api import tensor_from_file
+from openvino.ie_api import compile_model
 
 # Extend Node class to support binary operators
 Node.__add__ = opset8.add
@@ -68,7 +62,3 @@ Node.__lt__ = opset8.less
 Node.__le__ = opset8.less_equal
 Node.__gt__ = opset8.greater
 Node.__ge__ = opset8.greater_equal
-
-# Helper functions for openvino module
-from openvino.ie_api import tensor_from_file
-from openvino.ie_api import compile_model

@@ -16,7 +16,7 @@ from openvino.utils.types import get_dtype
 
 
 def tensor_from_file(path: str) -> Tensor:
-    """The data will be read with dtype of unit8"""
+    """Create Tensor from file. Data will be read with dtype of unit8."""
     return Tensor(np.fromfile(path, dtype=np.uint8))
 
 
@@ -38,45 +38,55 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
 
 def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict:
     """Get all precisions from object inputs."""
-    return {i.get_node().get_friendly_name() : i.get_node().get_element_type() for i in obj.inputs}
+    return {i.get_node().get_friendly_name(): i.get_node().get_element_type() for i in obj.inputs}
 
 
 class InferRequest(InferRequestBase):
+    """InferRequest wrapper."""
 
-    def infer(self, inputs: dict = {}) -> List[np.ndarray]:
+    def infer(self, inputs: dict = {}) -> List[np.ndarray]:  # noqa: B006
         """Infer wrapper for InferRequest."""
         res = super().infer(inputs=normalize_inputs(inputs, get_input_types(self)))
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
         return [copy.deepcopy(tensor.data) for tensor in res]
 
-    def start_async(self, inputs: dict = {}, userdata: Any = None) -> None:  # type: ignore
+    def start_async(self, inputs: dict = {}, userdata: Any = None) -> None:  # noqa: B006, type: ignore
         """Asynchronous infer wrapper for InferRequest."""
         super().start_async(inputs=normalize_inputs(inputs, get_input_types(self)), userdata=userdata)
 
+
 class ExecutableNetwork(ExecutableNetworkBase):
+    """ExecutableNetwork wrapper."""
 
     def create_infer_request(self) -> InferRequest:
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: dict = {}) -> List[np.ndarray]:
+    def infer_new_request(self, inputs: dict = {}) -> List[np.ndarray]:  # noqa: B006
         """Infer wrapper for ExecutableNetwork."""
         res = super().infer_new_request(inputs=normalize_inputs(inputs, get_input_types(self)))
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
         return [copy.deepcopy(tensor.data) for tensor in res]
 
-class Core(CoreBase):
 
-    def compile_model(self, model: Function, device_name: str, config: dict = {}) -> ExecutableNetwork:
+class Core(CoreBase):
+    """Core wrapper."""
+
+    def compile_model(
+        self, model: Function, device_name: str, config: dict = {}  # noqa: B006
+    ) -> ExecutableNetwork:
         """Compile a model from given Function."""
         return ExecutableNetwork(super().compile_model(model, device_name, config))
 
-    def import_model(self, model_file: str, device_name: str, config: dict = {}) -> ExecutableNetwork:
+    def import_model(
+        self, model_file: str, device_name: str, config: dict = {}  # noqa: B006
+    ) -> ExecutableNetwork:
         """Compile a model from given model file path."""
         return ExecutableNetwork(super().import_model(model_file, device_name, config))
 
 
 def compile_model(model_path: str) -> ExecutableNetwork:
+    """Compact method to compile model with AUTO plugin."""
     return Core().compile_model(model_path, "AUTO")
