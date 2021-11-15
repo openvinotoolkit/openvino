@@ -4,7 +4,7 @@
 import sys,argparse
 from fnmatch import fnmatch
 
-from tools.benchmark.utils.utils import show_available_devices
+from openvino.tools.benchmark.utils.utils import show_available_devices
 
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):

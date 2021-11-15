@@ -29,7 +29,7 @@ setup(
     long_description_content_type='text/markdown',
     entry_points={
         'console_scripts': [
-            'benchmark_app = tools.benchmark.main:main'],
+            'benchmark_app = openvino.tools.benchmark.main:main'],
     },
     classifiers=[
         'Programming Language :: Python :: 3',
