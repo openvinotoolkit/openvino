@@ -241,7 +241,7 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name,
 void util::DictAttributeDeserializer::on_adapter(const std::string& name,
                                                  ov::ValueAccessor<std::shared_ptr<ov::Function>>& adapter) {
     if (m_attributes.contains(name)) {
-        if (name == "body") {
+        if (name == "body" || name == "then_body" || name == "else_body") {
             const py::dict& body_attrs = m_attributes[name.c_str()].cast<py::dict>();
             const auto& body_outputs = as_output_vector(body_attrs["results"].cast<ov::NodeVector>());
             const auto& body_parameters = body_attrs["parameters"].cast<ov::ParameterVector>();
