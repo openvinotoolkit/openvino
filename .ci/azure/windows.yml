@@ -94,7 +94,7 @@ jobs:
   - script: |
       python -m pip install --upgrade pip
       rem For running Python API tests
-      python -m pip install -r $(REPO_DIR)\inference-engine\ie_bridges\python\src\requirements-dev.txt
+      python -m pip install -r $(REPO_DIR)\runtime\bindings\python_ie\src\requirements-dev.txt
       rem For running PaddlePaddle frontend unit tests
       python -m pip install -r $(REPO_DIR)\runtime\core\core\test\frontend\paddlepaddle\requirements_dev.txt
       rem For running ONNX frontend unit tests

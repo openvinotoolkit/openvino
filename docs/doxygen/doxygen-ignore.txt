@@ -10,7 +10,7 @@ openvino/docs/HOWTO/Custom_Layers_Guide.md
 openvino/docs/install_guides/deployment-manager-tool.md
 openvino/docs/MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md
 openvino/docs/ovsa/ovsa_get_started.md
-openvino/inference-engine/ie_bridges/c/docs/api_overview.md
+openvino/runtime/bindings/c/docs/api_overview.md
 inference-engine/include/cpp/ie_infer_request.hpp
 inference-engine/include/ie_parallel.hpp
 inference-engine/include/gpu/gpu_context_api_ocl.hpp
