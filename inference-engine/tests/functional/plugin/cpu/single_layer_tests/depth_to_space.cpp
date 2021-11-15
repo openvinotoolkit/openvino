@@ -2,56 +2,78 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/depth_to_space.hpp>
+#include "shared_test_classes/single_layer/depth_to_space.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 using namespace ngraph::opset3;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
-typedef std::tuple<
-        LayerTestsDefinitions::depthToSpaceParamsTuple,
+using DepthToSpaceLayerCPUTestParamSet = std::tuple<
+        InputShape,                                     // Input shape
+        ElementType,                                    // Input element type
+        DepthToSpace::DepthToSpaceMode,                 // Mode
+        std::size_t,                                    // Block size
         CPUSpecificParams
-> DepthToSpaceLayerCPUTestParamSet;
+>;
 
 class DepthToSpaceLayerCPUTest : public testing::WithParamInterface<DepthToSpaceLayerCPUTestParamSet>,
-                        virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                                 virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceLayerCPUTestParamSet> obj) {
-        LayerTestsDefinitions::depthToSpaceParamsTuple basicParamsSet;
+        InputShape shapes;
+        ElementType inType;
+        DepthToSpace::DepthToSpaceMode mode;
+        std::size_t blockSize;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        std::tie(shapes, inType, mode, blockSize, cpuParams) = obj.param;
 
-        std::ostringstream result;
-        result << LayerTestsDefinitions::DepthToSpaceLayerTest::getTestCaseName(
-                testing::TestParamInfo<LayerTestsDefinitions::depthToSpaceParamsTuple>(basicParamsSet, 0));
+        std::ostringstream results;
+        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "TS=";
+        for (const auto& item : shapes.second) {
+            results << CommonTestUtils::vec2str(item) << "_";
+        }
+        results << "Prc=" << inType << "_";
+        switch (mode) {
+            case DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST:
+                results << "BLOCKS_FIRST_";
+                break;
+            case DepthToSpace::DepthToSpaceMode::DEPTH_FIRST:
+                results << "DEPTH_FIRST_";
+                break;
+            default:
+                throw std::runtime_error("Unsupported DepthToSpaceMode");
+        }
+        results << "BS=" << blockSize << "_";
+        results << CPUTestsBase::getTestCaseName(cpuParams);
 
-        result << CPUTestsBase::getTestCaseName(cpuParams);
-
-        return result.str();
+        return results.str();
     }
 protected:
     void SetUp() override {
-        LayerTestsDefinitions::depthToSpaceParamsTuple basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        std::vector<size_t> inputShape;
+        InputShape shapes;
+        ElementType inType;
         DepthToSpace::DepthToSpaceMode mode;
         std::size_t blockSize;
-        InferenceEngine::Precision netPrecision;
-        std::tie(inputShape, netPrecision, mode, blockSize, targetDevice) = basicParamsSet;
+        CPUSpecificParams cpuParams;
+        std::tie(shapes, inType, mode, blockSize, cpuParams) = this->GetParam();
 
-        inPrc = outPrc = netPrecision;
-        selectedType = getPrimitiveType() + "_" + inPrc.name();
-        auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(inPrc, {inputShape});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto d2s = ngraph::builder::makeDepthToSpace(paramOuts[0], mode, blockSize);
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        if (selectedType.empty()) {
+            selectedType = getPrimitiveType();
+        }
+        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        init_input_shapes({shapes});
+
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto d2s = ngraph::builder::makeDepthToSpace(params[0], mode, blockSize);
         d2s->get_rt_info() = getCPUInfo();
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
         function = std::make_shared<ngraph::Function>(results, params, "DepthToSpaceCPU");
@@ -61,35 +83,51 @@ protected:
 TEST_P(DepthToSpaceLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    Run();
-    CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
+    run();
+    // TODO: need to uncomment when this method will be updated
+    // CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
 }
 
 namespace {
 
-const auto cpuParams_nChw16c = CPUSpecificParams {{nChw16c}, {nChw16c}, {"jit_avx512"}, {"jit_avx512"}};
-const auto cpuParams_nCdhw16c = CPUSpecificParams {{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, {"jit_avx512"}};
+const auto cpuParams_nChw16c = CPUSpecificParams {{nChw16c}, {nChw16c}, {}, {}};
+const auto cpuParams_nCdhw16c = CPUSpecificParams {{nCdhw16c}, {nCdhw16c}, {}, {}};
 
-const auto cpuParams_nChw8c_avx2 = CPUSpecificParams {{nChw8c}, {nChw8c}, {"jit_avx2"}, {"jit_avx2"}};
-const auto cpuParams_nCdhw8c_avx2 = CPUSpecificParams {{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, {"jit_avx2"}};
+const auto cpuParams_nChw8c = CPUSpecificParams {{nChw8c}, {nChw8c}, {}, {}};
+const auto cpuParams_nCdhw8c = CPUSpecificParams {{nCdhw8c}, {nCdhw8c}, {}, {}};
 
-const auto cpuParams_nChw8c_sse42 = CPUSpecificParams {{nChw8c}, {nChw8c}, {"jit_sse42"}, {"jit_sse42"}};
-const auto cpuParams_nCdhw8c_sse42 = CPUSpecificParams {{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, {"jit_sse42"}};
+const auto cpuParams_nhwc = CPUSpecificParams {{nhwc}, {nhwc}, {}, {}};
+const auto cpuParams_ndhwc = CPUSpecificParams {{ndhwc}, {ndhwc}, {}, {}};
 
-const auto cpuParams_nhwc_avx2 = CPUSpecificParams {{nhwc}, {nhwc}, {"jit_avx2"}, {"jit_avx2"}};
-const auto cpuParams_ndhwc_avx2 = CPUSpecificParams {{ndhwc}, {ndhwc}, {"jit_avx2"}, {"jit_avx2"}};
+const auto cpuParams_nchw = CPUSpecificParams {{nchw}, {nchw}, {}, {}};
+const auto cpuParams_ncdhw = CPUSpecificParams {{ncdhw}, {ncdhw}, {}, {}};
 
-const auto cpuParams_nhwc_sse42 = CPUSpecificParams {{nhwc}, {nhwc}, {"jit_sse42"}, {"jit_sse42"}};
-const auto cpuParams_ndhwc_sse42 = CPUSpecificParams {{ndhwc}, {ndhwc}, {"jit_sse42"}, {"jit_sse42"}};
+const std::vector<CPUSpecificParams> CPUParams4D = {
+        cpuParams_nhwc,
+        cpuParams_nchw
+};
 
-const auto cpuParams_nhwc_ref = CPUSpecificParams {{nhwc}, {nhwc}, {"ref_any"}, {"ref_any"}};
-const auto cpuParams_ndhwc_ref = CPUSpecificParams {{ndhwc}, {ndhwc}, {"ref_any"}, {"ref_any"}};
+const std::vector<CPUSpecificParams> CPUParamsBlocked4D = {
+        cpuParams_nChw16c,
+        cpuParams_nChw8c,
+        cpuParams_nhwc
+};
 
+const std::vector<CPUSpecificParams> CPUParams5D = {
+        cpuParams_ndhwc,
+        cpuParams_ncdhw
+};
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::BF16,
-        InferenceEngine::Precision::I8
+const std::vector<CPUSpecificParams> CPUParamsBlocked5D = {
+        cpuParams_nCdhw16c,
+        cpuParams_nCdhw8c,
+        cpuParams_ndhwc
+};
+
+const std::vector<ElementType> inputElementType = {
+        ElementType::f32,
+        ElementType::bf16,
+        ElementType::i8
 };
 
 const std::vector<DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
@@ -97,99 +135,162 @@ const std::vector<DepthToSpace::DepthToSpaceMode> depthToSpaceModes = {
         DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
-const std::vector<std::vector<size_t >> inputShapesBS2_4D = {
-        {1, 64, 1, 1}, {1, 64, 1, 3}, {1, 128, 3, 3}, {2, 128, 1, 1}, {1, 192, 2, 2}, {2, 256, 2, 3}, {1, 512, 2, 1}
+/* *========================* Static Shapes Tests *========================* */
+
+namespace static_shapes {
+
+const std::vector<ov::Shape> inputShapesBS2_4D = {
+        {1, 64,  1, 1},
+        {1, 64,  1, 3},
+        {1, 128, 3, 3},
+        {2, 128, 1, 1},
+        {1, 192, 2, 2},
+        {2, 256, 2, 3},
+        {1, 512, 2, 1}
 };
 
-const std::vector<std::vector<size_t >> inputShapesBS3_4D = {
-        {1, 27, 1, 1}, {1, 27, 2, 3}, {1, 18, 2, 3}, {3, 18, 1, 1}, {2, 18, 3, 1}
+const std::vector<ov::Shape> inputShapesBS3_4D = {
+        {1, 27, 1, 1},
+        {1, 27, 2, 3},
+        {1, 18, 2, 3},
+        {3, 18, 1, 1},
+        {2, 18, 3, 1}
 };
 
-const std::vector<CPUSpecificParams> CPUParamsBS2_4D = {
-        cpuParams_nChw16c,
-        cpuParams_nChw8c_avx2,
-        cpuParams_nChw8c_sse42,
-        cpuParams_nhwc_avx2,
-        cpuParams_nhwc_sse42,
-        cpuParams_nhwc_ref,
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS2_4D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS2_4D)),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(depthToSpaceModes),
+                                 testing::Values(1, 2),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBlocked4D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceStaticBS3_4D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS3_4D)),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(depthToSpaceModes),
+                                 testing::Values(1, 3),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParams4D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
+
+const std::vector<ov::Shape> inputShapesBS2_5D = {
+        {1, 128, 1, 1, 1},
+        {1, 128, 2, 1, 2},
+        {1, 256, 2, 1, 3},
+        {2, 256, 3, 1, 1},
+        {1, 384, 1, 2, 2},
+        {2, 512, 1, 2, 1}
 };
 
-const auto depthToSpaceBS2_4DParams = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(inputShapesBS2_4D),
-                testing::ValuesIn(inputPrecisions),
-                testing::ValuesIn(depthToSpaceModes),
-                testing::Values(1, 2),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
-        testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_4D))
-);
-
-INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS2_4D, DepthToSpaceLayerCPUTest, depthToSpaceBS2_4DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
-
-const std::vector<CPUSpecificParams> CPUParamsBS3_4D = {
-        cpuParams_nhwc_avx2,
-        cpuParams_nhwc_sse42,
-        cpuParams_nhwc_ref,
+const std::vector<ov::Shape> inputShapesBS3_5D = {
+        {1, 54, 1, 1, 1},
+        {1, 54, 2, 1, 2},
+        {3, 54, 1, 1, 1},
+        {2, 54, 3, 1, 2},
+        {1, 54, 3, 2, 2}
 };
 
-const auto depthToSpaceBS3_4DParams = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(inputShapesBS3_4D),
-                testing::ValuesIn(inputPrecisions),
-                testing::ValuesIn(depthToSpaceModes),
-                testing::Values(1, 3),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_4D))
-);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceStaticBS2_5D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS2_5D)),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(depthToSpaceModes),
+                                 testing::Values(1, 2),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBlocked5D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS3_4D, DepthToSpaceLayerCPUTest, depthToSpaceBS3_4DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceStaticBS3_5D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::ValuesIn(static_shapes_to_test_representation(inputShapesBS3_5D)),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(depthToSpaceModes),
+                                 testing::Values(1, 3),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParams5D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<size_t >> inputShapesBS2_5D = {
-        {1, 128, 1, 1, 1}, {1, 128, 2, 1, 2}, {1, 256, 2, 1, 3}, {2, 256, 3, 1, 1}, {1, 384, 1, 2, 2}, {2, 512, 1, 2, 1}
+} // namespace static_shapes
+/* *========================* *==================* *========================* */
+
+
+/* *========================* Dynamic Shapes Tests *========================* */
+namespace dynamic_shapes {
+
+const std::vector<InputShape> inputShapes4D = {
+        {{-1, -1, -1 , -1},                                  // dynamic
+         {{2, 36, 1, 1}, {1, 36, 3, 1}, {1, 72, 1, 4}}},     // target
+
+        {{-1, 576, -1 , -1},                                 // dynamic
+         {{1, 576, 1, 1}, {1, 576, 2, 2}, {3, 576, 4, 1}}},  // target
+
+        {{{1, 5}, {36, 72}, {1, 16}, {1, 16}},               // dynamic
+         {{3, 36, 4, 4}, {1, 36, 16, 12}, {3, 72, 8, 8}}},   // target
 };
 
-const std::vector<std::vector<size_t >> inputShapesBS3_5D = {
-        {1, 54, 1, 1, 1}, {1, 54, 2, 1, 2}, {3, 54, 1, 1, 1}, {2, 54, 3, 1, 2}, {1, 54, 3, 2, 2}
+const std::vector<InputShape> inputShapes5D = {
+        {{-1, -1, -1, -1, -1},                                        // dynamic
+         {{2, 216, 1, 1, 1}, {1, 216, 3, 1, 2}, {1, 432, 2, 3, 1}}},  // target
+
+        {{{1, 3}, {216, 432}, {1, 4}, {1, 4}, {1, 4}},                // dynamic
+         {{3, 216, 2, 2, 2}, {1, 432, 1, 1, 1}}},                     // target
 };
 
-const std::vector<CPUSpecificParams> CPUParamsBS2_5D = {
-        cpuParams_nCdhw16c,
-        cpuParams_nCdhw8c_avx2,
-        cpuParams_nCdhw8c_sse42,
-        cpuParams_ndhwc_avx2,
-        cpuParams_ndhwc_sse42,
-        cpuParams_ndhwc_ref,
+const std::vector<InputShape> inputShapesBlocked5D = {
+        {{-1, 256, -1, -1, -1},                                          // dynamic
+         {{1, 256, 1, 1, 1}, {1, 256, 2, 1, 4}, {3, 256, 4, 1, 2}}},     // target
+
+        {{{1, 3}, 256, {1, 3}, {1, 3}, {1, 3}},                          // dynamic
+         {{1, 256, 1, 1, 1}, {1, 256, 2, 1, 3}, {3, 256, 3, 1, 2}}},     // target
 };
 
-const auto depthToSpaceBS2_5DParams = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(inputShapesBS2_5D),
-                testing::ValuesIn(inputPrecisions),
-                testing::ValuesIn(depthToSpaceModes),
-                testing::Values(1, 2),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS2_5D))
-);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamic4D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::ValuesIn(inputShapes4D),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(depthToSpaceModes),
+                                 testing::Values(1, 2, 3),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParams4D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS2_5D, DepthToSpaceLayerCPUTest, depthToSpaceBS2_5DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamicBlocksFirstBlocked4D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::Values(inputShapes4D[1]),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::Values(DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST),
+                                 testing::Values(1, 2, 3),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBlocked4D))),
+                        DepthToSpaceLayerCPUTest::getTestCaseName);
 
-const std::vector<CPUSpecificParams> CPUParamsBS3_5D = {
-        cpuParams_ndhwc_avx2,
-        cpuParams_ndhwc_sse42,
-        cpuParams_ndhwc_ref,
-};
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamicDepthFirstBlocked4D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::Values(inputShapes4D[1]),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::Values(DepthToSpace::DepthToSpaceMode::DEPTH_FIRST),
+                                 testing::Values(1, 2),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBlocked4D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
 
-const auto depthToSpaceBS3_5DParams = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(inputShapesBS3_5D),
-                testing::ValuesIn(inputPrecisions),
-                testing::ValuesIn(depthToSpaceModes),
-                testing::Values(1, 3),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBS3_5D))
-);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamic5D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::ValuesIn(inputShapes5D),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(depthToSpaceModes),
+                                 testing::Values(1, 2, 3),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParams5D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceBS3_5D, DepthToSpaceLayerCPUTest, depthToSpaceBS3_5DParams, DepthToSpaceLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_CPUDepthToSpaceDynamicCPUSpecific5D, DepthToSpaceLayerCPUTest,
+                         testing::Combine(
+                                 testing::ValuesIn(inputShapesBlocked5D),
+                                 testing::ValuesIn(inputElementType),
+                                 testing::ValuesIn(depthToSpaceModes),
+                                 testing::Values(1, 2),
+                                 testing::ValuesIn(filterCPUInfoForDevice(CPUParamsBlocked5D))),
+                         DepthToSpaceLayerCPUTest::getTestCaseName);
+
+} // namespace dynamic_shapes
+/* *========================* *==================* *========================* */
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
