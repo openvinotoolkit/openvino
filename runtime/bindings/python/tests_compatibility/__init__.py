@@ -98,7 +98,6 @@ xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
-xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "

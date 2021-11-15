@@ -53,11 +53,17 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
         // res_index = dims_on_axis - topk->output(1) = 6 - 3 = 3
         // result = res_index - 1 = 3 - 1 = 2
 
-        const auto axis_node = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {m_axis});
+        const int64_t normalized_axis =
+            normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
+
+        const auto axis_node = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<opset1::Reverse>(m_input_node, axis_node, opset1::Reverse::Mode::INDEX);
 
-        const auto topk =
-            std::make_shared<default_opset::TopK>(reverse, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
+        const auto topk = std::make_shared<default_opset::TopK>(reverse,
+                                                                k_node,
+                                                                normalized_axis,
+                                                                mode,
+                                                                default_opset::TopK::SortType::NONE);
 
         const auto data_shape = std::make_shared<default_opset::ShapeOf>(m_input_node);
         const auto dims_on_axis = std::make_shared<default_opset::Gather>(
