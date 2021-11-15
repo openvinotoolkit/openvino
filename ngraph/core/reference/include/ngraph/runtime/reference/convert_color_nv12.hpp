@@ -89,7 +89,7 @@ void color_convert_i420(const T* arg_y,
             for (int w = 0; w < image_w; w++) {
                 auto y_index = h * image_w + w;
                 auto y_val = static_cast<float>(y_ptr[y_index]);
-                auto uv_index = (h / 2) * image_w + (w / 2) * 2;
+                auto uv_index = (h / 2) * (image_w / 2) + (w / 2);
                 auto u_val = static_cast<float>(u_ptr[uv_index]);
                 auto v_val = static_cast<float>(v_ptr[uv_index]);
                 T r, g, b;
