@@ -119,7 +119,6 @@ def test_read_model_from_onnx_as_path():
     assert isinstance(func, Function)
 
 
-@pytest.mark.xfail("68212")
 def test_read_net_from_buffer():
     core = Core()
     with open(test_net_bin, "rb") as f:
@@ -127,10 +126,9 @@ def test_read_net_from_buffer():
     with open(model_path()[0], "rb") as f:
         xml = f.read()
     func = core.read_model(model=xml, weights=bin)
-    assert isinstance(func, IENetwork)
+    assert isinstance(func, Function)
 
 
-@pytest.mark.xfail("68212")
 def test_net_from_buffer_valid():
     core = Core()
     with open(test_net_bin, "rb") as f:
@@ -139,14 +137,9 @@ def test_net_from_buffer_valid():
         xml = f.read()
     func = core.read_model(model=xml, weights=bin)
     ref_func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert func.name == func.name
-    assert func.batch_size == ref_func.batch_size
-    ii_func = func.input_info
-    ii_func2 = ref_func.input_info
-    o_func = func.outputs
-    o_func2 = ref_func.outputs
-    assert ii_func.keys() == ii_func2.keys()
-    assert o_func.keys() == o_func2.keys()
+    assert func.get_parameters() == ref_func.get_parameters()
+    assert func.get_results() == ref_func.get_results()
+    assert func.get_ordered_ops() == ref_func.get_ordered_ops()
 
 
 def test_get_version(device):
@@ -266,7 +259,6 @@ def test_unregister_plugin(device):
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
-@pytest.mark.xfail("68212")
 @pytest.mark.template_extension
 def test_add_extension(device):
     model = bytes(b"""<net name="Network" version="10">
@@ -320,9 +312,9 @@ def test_add_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(extension_path="template_extension.dll")
+        core.add_extension(library_path="template_extension.dll")
     else:
-        core.add_extension(extension_path="libtemplate_extension.so")
+        core.add_extension(library_path="libtemplate_extension.so")
     func = core.read_model(model=model, init_from_buffer=True)
     assert isinstance(func, Function)
 
