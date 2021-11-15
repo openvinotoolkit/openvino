@@ -3,12 +3,13 @@
 //
 
 #include "pyopenvino/graph/preprocess/pre_post_process.hpp"
-#include "openvino/core/function.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
+
+#include "openvino/core/function.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 namespace py = pybind11;
 
