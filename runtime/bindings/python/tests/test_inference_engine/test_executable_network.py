@@ -295,6 +295,7 @@ def test_infer_tensor_wrong_input_data(device):
     assert "Incompatible key type!" in str(e.value)
 
 
+
 def test_infer_numpy_model_from_buffer(device):
     core = Core()
     with open(test_net_bin, "rb") as f:
