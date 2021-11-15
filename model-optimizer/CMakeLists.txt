@@ -46,17 +46,17 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         )
 
 install(FILES requirements_dev.txt
-        DESTINATION tools/model_optimizer
+        DESTINATION tests/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
 install(DIRECTORY unit_tests
-        DESTINATION tools/model_optimizer
+        DESTINATION tests/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
 install(DIRECTORY automation
-        DESTINATION tools/model_optimizer
+        DESTINATION tests/model_optimizer
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
