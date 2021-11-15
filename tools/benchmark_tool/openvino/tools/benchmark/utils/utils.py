@@ -374,7 +374,7 @@ class AppInputInfo:
     def getDimentionByLayout(self, character):
         if character not in self.layout:
             raise Exception(f"Error: Can't get {character} from layout {self.layout}")
-        return self.shape[self.layout.index(character)]
+        return len(self.shape[self.layout.index(character)])
 
     @property
     def width(self):
