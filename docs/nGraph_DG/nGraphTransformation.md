@@ -10,8 +10,8 @@ Before creating a transformation, do the following:
 * Understand where to put your transformation code
 
 ### Transformation Library Structure
-Transformation library is independent from Inference Engine target library named as `inference_engine_transformations`
-and is located in the `inference-engine/src/transformations` directory.
+Transformation library is independent from Inference Engine target library named as `ov_transformations`
+and is located in the `runtime/core/transformations` directory.
 
 Transformations root directory contains two folders:
 * `ngraph_ops` - Contains internal opset operations that are common for plugins.

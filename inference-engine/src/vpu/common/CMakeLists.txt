@@ -52,7 +52,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
-    target_link_libraries(${TARGET_NAME} PUBLIC openvino::core inference_engine_transformations
+    target_link_libraries(${TARGET_NAME} PUBLIC openvino::core openvino::transformations
                                          PRIVATE openvino::itt)
 
     if(NOT STATIC_IE)

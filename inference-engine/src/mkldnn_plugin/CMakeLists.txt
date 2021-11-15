@@ -42,8 +42,8 @@ endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
                                              openvino::runtime
-                                             inference_engine_transformations
-                                             inference_engine_lp_transformations
+                                             openvino::transformations
+                                             openvino::lp_transformations
                                              ov_shape_inference)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
@@ -72,9 +72,9 @@ add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 link_system_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ov_preprocessing_s,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
                                               PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
                                                       $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)

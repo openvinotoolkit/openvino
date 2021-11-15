@@ -77,7 +77,7 @@ endif()
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
-                                     PRIVATE openvino::graph_builders inference_engine_transformations)
+                                     PRIVATE openvino::graph_builders openvino::transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "inference_engine_transformations")
+set(TARGET_NAME "ov_transformations")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -18,6 +18,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create library
 
 add_library(${TARGET_NAME} ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(openvino::transformations ALIAS ${TARGET_NAME})
+add_library(IE::inference_engine_transformations ALIAS ${TARGET_NAME})
 
 ie_faster_build(${TARGET_NAME}
     UNITY

@@ -145,7 +145,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
                                                       "${CMAKE_CURRENT_BINARY_DIR}" # for static ie_plugins.hpp
                                                       "${IE_MAIN_SOURCE_DIR}/tests_deprecated/readers/ir_reader_v7" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:openvino::transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME}_obj PRIVATE inference_engine_reader_api openvino::itt openvino::util)
@@ -185,7 +185,7 @@ if (TBBBIND_2_5_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
-                                             frontend_manager::static inference_engine_transformations
+                                             frontend_manager::static openvino::transformations
                                      PUBLIC openvino::core)
 
 target_include_directories(${TARGET_NAME} INTERFACE
@@ -228,7 +228,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} openvino::core
-    frontend_manager::static ov_preprocessing_s inference_engine_transformations pugixml::static)
+    frontend_manager::static ov_preprocessing_s openvino::transformations pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_OV_RUNTIME)
 

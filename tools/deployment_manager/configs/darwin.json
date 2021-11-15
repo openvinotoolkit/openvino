@@ -17,7 +17,7 @@
       "group": ["ie"],
       "files": [
         "runtime/lib/intel64/libov_runtime.dylib",
-        "runtime/lib/intel64/libinference_engine_transformations.dylib",
+        "runtime/lib/intel64/libov_transformations.dylib",
         "runtime/lib/intel64/libov_preprocessing.so",
         "runtime/lib/intel64/libov_runtime_c.dylib",
         "runtime/lib/intel64/libHeteroPlugin.so",
@@ -36,7 +36,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/lib/intel64/libinference_engine_lp_transformations.dylib",
+        "runtime/lib/intel64/libov_lp_transformations.dylib",
         "runtime/lib/intel64/libMKLDNNPlugin.so"
       ]
     },

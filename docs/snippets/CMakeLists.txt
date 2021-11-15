@@ -57,4 +57,4 @@ if(NOT MSVC)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::plugin_api
-    openvino::core inference_engine_transformations)
+    openvino::core openvino::transformations)

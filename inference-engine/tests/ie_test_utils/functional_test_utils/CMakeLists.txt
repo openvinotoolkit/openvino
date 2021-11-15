@@ -19,8 +19,8 @@ addIeTarget(
     LINK_LIBRARIES
         PUBLIC
             commonTestUtils
-            inference_engine_transformations
-            inference_engine_lp_transformations
+            openvino::transformations
+            openvino::lp_transformations
             openvino::runtime
         PRIVATE
             ngraphFunctions

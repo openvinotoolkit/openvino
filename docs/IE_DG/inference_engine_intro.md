@@ -28,11 +28,11 @@ Modules in the Inference Engine component
 
 Your application must link to the core Inference Engine libraries:
 * Linux* OS:
-    - `libinference_engine.so`, which depends on `libinference_engine_transformations.so`, `libtbb.so`, `libtbbmalloc.so` and `libngraph.so`
+    - `libinference_engine.so`, which depends on `libov_transformations.so`, `libtbb.so`, `libtbbmalloc.so` and `libngraph.so`
 * Windows* OS:
-    - `inference_engine.dll`, which depends on `inference_engine_transformations.dll`, `tbb.dll`, `tbbmalloc.dll` and `ngraph.dll`
+    - `inference_engine.dll`, which depends on `ov_transformations.dll`, `tbb.dll`, `tbbmalloc.dll` and `ngraph.dll`
 * macOS*:
-    - `libinference_engine.dylib`, which depends on `libinference_engine_transformations.dylib`, `libtbb.dylib`, `libtbbmalloc.dylib` and `libngraph.dylib`
+    - `libinference_engine.dylib`, which depends on `libov_transformations.dylib`, `libtbb.dylib`, `libtbbmalloc.dylib` and `libngraph.dylib`
 
 The required C++ header files are located in the `include` directory.
 
@@ -70,8 +70,8 @@ The table below shows the plugin libraries and additional dependencies for Linux
 
 | Plugin | Library name for Linux      | Dependency libraries for Linux                              | Library name for Windows | Dependency libraries for Windows                                                                       | Library name for macOS       | Dependency libraries for macOS              |
 |--------|-----------------------------|-------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|------------------------------|---------------------------------------------|
-| CPU    | `libMKLDNNPlugin.so`        | `libinference_engine_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`                                                              | `libMKLDNNPlugin.so`      | `inference_engine_lp_transformations.dylib` |
-| GPU    | `libclDNNPlugin.so`         | `libinference_engine_lp_transformations.so`, `libOpenCL.so` | `clDNNPlugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
+| CPU    | `libMKLDNNPlugin.so`        | `libov_lp_transformations.so`                 | `MKLDNNPlugin.dll`       | `ovne_lp_transformations.dll`                                                              | `libMKLDNNPlugin.so`      | `ov_lp_transformations.dylib` |
+| GPU    | `libclDNNPlugin.so`         | `libov_lp_transformations.so`, `libOpenCL.so` | `clDNNPlugin.dll`        | `OpenCL.dll`, `ov_lp_transformations.dll`                                                |  Is not supported            |  -                                          |
 | MYRIAD | `libmyriadPlugin.so`        | `libusb.so`,                                                | `myriadPlugin.dll`       | `usb.dll`                                                                                              | `libmyriadPlugin.so`      | `libusb.dylib`                              |
 | HDDL   | `libHDDLPlugin.so`          | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`             | `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll` |  Is not supported            |  -                                          |
 | GNA    | `libGNAPlugin.so`           | `libgna.so`,                                                | `GNAPlugin.dll`          | `gna.dll`                                                                                              |  Is not supported            |  -                                          |

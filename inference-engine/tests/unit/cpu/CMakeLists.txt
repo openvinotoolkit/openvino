@@ -18,8 +18,8 @@ addIeTargetTest(
             gtest_main
             gmock
             mkldnn
-            inference_engine_transformations
-            inference_engine_lp_transformations
+            openvino::transformations
+            openvino::lp_transformations
             ov_shape_inference
             ov_runtime_s
             unitTestUtils

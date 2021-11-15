@@ -14,6 +14,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
 endif()
 
+add_subdirectory(transformations)
+add_subdirectory(low_precision_transformations)
+add_subdirectory(offline_transformations)
+
 add_subdirectory(snippets)
 add_subdirectory(runtime)
 add_subdirectory(legacy_api)
@@ -23,6 +27,8 @@ add_subdirectory(preprocessing)
 
 add_custom_target(ov_runtime_libraries ALL
                   DEPENDS inference_engine_legacy
+                          openvino::transformations
+                          openvino::lp_transformations
                           openvino::runtime openvino::preprocessing
                           openvino::snippets)
 

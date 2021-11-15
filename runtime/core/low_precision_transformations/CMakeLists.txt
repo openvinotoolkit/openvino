@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "inference_engine_lp_transformations")
+set (TARGET_NAME "ov_lp_transformations")
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -20,13 +20,15 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
+add_library(openvino::lp_transformations ALIAS ${TARGET_NAME})
+add_library(IE::inference_engine_lp_transformations ALIAS ${TARGET_NAME})
 
 ie_faster_build(${TARGET_NAME} UNITY)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine LP transformations library")
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::transformations
                                      PRIVATE openvino::itt)
 
 target_include_directories(${TARGET_NAME} PUBLIC

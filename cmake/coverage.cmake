@@ -38,7 +38,7 @@ ie_coverage_genhtml(INFO_FILE "preprocessing"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "ov_transformations"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/transformations/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/transformations/*")
 ie_coverage_genhtml(INFO_FILE "ov_transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
@@ -48,7 +48,7 @@ ie_coverage_genhtml(INFO_FILE "ov_snippets"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "low_precision_transformations"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/low_precision_transformations/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/low_precision_transformations/*")
 ie_coverage_genhtml(INFO_FILE "low_precision_transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 

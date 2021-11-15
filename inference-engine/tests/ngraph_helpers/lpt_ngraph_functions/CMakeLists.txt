@@ -18,7 +18,7 @@ addIeTarget(
         LINK_LIBRARIES
             PRIVATE
                 ngraphFunctions
-                inference_engine_lp_transformations
+                openvino::lp_transformations
                 inference_engine_legacy
         ADD_CPPLINT
         DEPENDENCIES

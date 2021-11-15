@@ -44,7 +44,7 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
-        openvino::graph_builders inference_engine_transformations
+        openvino::graph_builders openvino::transformations
         openvino::runtime pugixml::static openvino::runtime::plugin_api)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}

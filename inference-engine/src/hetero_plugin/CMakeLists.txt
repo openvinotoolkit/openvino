@@ -17,7 +17,7 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::runtime
-    openvino::core inference_engine_transformations)
+    openvino::core openvino::transformations)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 

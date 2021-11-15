@@ -40,7 +40,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${OpenVINO_SOURCE_DIR}/runtime/core/runtime/src # For CNNNetworkNGraphImpl
-    $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::runtime::plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -62,7 +62,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime
                                      PRIVATE pugixml::static openvino::itt
-                                             openvino::core inference_engine_transformations)
+                                             openvino::core openvino::transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)

@@ -86,9 +86,6 @@ add_subdirectory(thirdparty)
 add_subdirectory(inference-engine/thirdparty)
 add_subdirectory(inference-engine/src)
 add_subdirectory(runtime)
-# add a custom target to build all Inference Engine Core libraries
-add_dependencies(ov_runtime_libraries inference_engine_transformations
-                                      inference_engine_lp_transformations)
 add_subdirectory(inference-engine)
 
 include(cmake/extra_modules.cmake)

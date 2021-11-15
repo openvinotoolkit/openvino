@@ -18,7 +18,7 @@ function(add_common_utils ADD_TARGET_NAME)
                     openvino::core
                     gtest
                     gtest_main
-                    inference_engine_transformations
+                    openvino::transformations
                     ov_core_test_util
                 PRIVATE
                     openvino::util
@@ -58,7 +58,7 @@ function(add_common_utils ADD_TARGET_NAME)
         PRIVATE
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::transformations,INTERFACE_INCLUDE_DIRECTORIES>
             )
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 

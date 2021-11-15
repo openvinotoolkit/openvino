@@ -38,7 +38,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 # Enable support of CC for the plugin
 ie_mark_target_as_cc(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime inference_engine_legacy inference_engine_transformations
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime inference_engine_legacy openvino::transformations
         Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -65,7 +65,7 @@ target_compile_definitions(${TARGET_NAME}_test_static
             INTEGER_LOW_P
             USE_STATIC_OV_RUNTIME)
 
-target_link_libraries(${TARGET_NAME}_test_static PUBLIC ov_runtime_s ov_preprocessing_s inference_engine_transformations libGNA::API)
+target_link_libraries(${TARGET_NAME}_test_static PUBLIC ov_runtime_s ov_preprocessing_s openvino::transformations libGNA::API)
 target_include_directories(${TARGET_NAME}_test_static
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}

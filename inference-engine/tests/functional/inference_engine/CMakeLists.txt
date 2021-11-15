@@ -11,7 +11,7 @@ set(LINK_LIBRARIES
     funcTestUtils
     ngraphFunctions
     lptNgraphFunctions
-    inference_engine_transformations
+    openvino::transformations
     openvino::itt
     openvino::util
     openvino::conditional_compilation

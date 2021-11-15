@@ -45,7 +45,7 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::core 
-    PRIVATE frontend_manager openvino::graph_builders openvino::util onnx_common inference_engine_transformations)
+    PRIVATE frontend_manager openvino::graph_builders openvino::util onnx_common openvino::transformations)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)

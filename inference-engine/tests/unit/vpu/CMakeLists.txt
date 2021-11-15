@@ -22,7 +22,7 @@ addIeTargetTest(
             mvnc
             openvino::core
             interpreter_backend
-            inference_engine_lp_transformations # for ngraphFunctions
+            openvino::lp_transformations # for ngraphFunctions
         ADD_CPPLINT
         LABELS
             VPU

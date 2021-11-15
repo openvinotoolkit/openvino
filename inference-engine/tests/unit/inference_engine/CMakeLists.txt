@@ -16,7 +16,7 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
-            inference_engine_lp_transformations
+            openvino::lp_transformations
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
         DEPENDENCIES

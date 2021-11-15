@@ -29,9 +29,9 @@ ie_faster_build(${TARGET_NAME}
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Snippets transformations library")
 
-target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
+target_compile_definitions(${TARGET_NAME} PRIVATE ov_transformations_EXPORTS)
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::core inference_engine_transformations
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::core openvino::transformations
                                      PRIVATE openvino::op_references)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}

@@ -95,7 +95,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_link_options(${TARGET_NAME} ${link_type} "/IGNORE:4217,4286")
 endif()
 
-# some sources are located in ov_core, while headers are in inference_engine_transformations
+# some sources are located in ov_core, while headers are in openvino::transformations
 file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_reshape/*.cpp)
 file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
@@ -105,7 +105,7 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>

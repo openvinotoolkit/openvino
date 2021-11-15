@@ -17,7 +17,7 @@
       "group": ["ie"],
       "files": [
         "runtime/bin/intel64/Release/ov_runtime.dll",
-        "runtime/bin/intel64/Release/inference_engine_transformations.dll",
+        "runtime/bin/intel64/Release/ov_transformations.dll",
         "runtime/bin/intel64/Release/ov_preprocessing.dll",
         "runtime/bin/intel64/Release/ov_runtime_c.dll",
         "runtime/bin/intel64/Release/HeteroPlugin.dll",
@@ -36,7 +36,7 @@
       "group": ["ie"],
       "dependencies" : ["ie_core"],
       "files": [
-        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
+        "runtime/bin/intel64/Release/ov_lp_transformations.dll",
         "runtime/bin/intel64/Release/MKLDNNPlugin.dll"
       ]
     },
@@ -46,7 +46,7 @@
       "dependencies" : ["ie_core"],
       "files": [
         "runtime/bin/intel64/Release/cache.json",
-        "runtime/bin/intel64/Release/inference_engine_lp_transformations.dll",
+        "runtime/bin/intel64/Release/ov_lp_transformations.dll",
         "runtime/bin/intel64/Release/clDNNPlugin.dll"
       ]
     },
