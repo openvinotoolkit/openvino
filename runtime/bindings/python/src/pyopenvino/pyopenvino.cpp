@@ -19,10 +19,11 @@
 #if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
+#include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/executable_network.hpp"
-#include "pyopenvino/core/ie_infer_queue.hpp"
+#include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
@@ -99,7 +100,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_InferRequest(m);
     regclass_Version(m);
     regclass_Parameter(m);
-    // regclass_InferQueue(m);
+    regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
 
     regmodule_offline_transformations(m);

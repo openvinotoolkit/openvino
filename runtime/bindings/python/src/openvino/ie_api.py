@@ -9,6 +9,7 @@ from openvino.pyopenvino import Function
 from openvino.pyopenvino import Core as CoreBase
 from openvino.pyopenvino import ExecutableNetwork as ExecutableNetworkBase
 from openvino.pyopenvino import InferRequest as InferRequestBase
+from openvino.pyopenvino import AsyncInferQueue as AsyncInferQueueBase
 from openvino.pyopenvino import Tensor
 
 from openvino.utils.types import get_dtype

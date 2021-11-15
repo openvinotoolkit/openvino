@@ -26,7 +26,7 @@ from openvino.ie_api import ExecutableNetwork
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import get_version
-# from openvino.pyopenvino import InferQueue
+from openvino.pyopenvino import AsyncInferQueue
 from openvino.ie_api import InferRequest
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import ProfilingInfo
