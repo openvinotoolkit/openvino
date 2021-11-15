@@ -7,8 +7,8 @@
 #include <cmath>
 #include <cstddef>
 
-#include "openvino/op/util/convert_color_nv12_base.hpp"
 #include "openvino/op/util/convert_color_i420_base.hpp"
+#include "openvino/op/util/convert_color_nv12_base.hpp"
 
 namespace ngraph {
 namespace runtime {

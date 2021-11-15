@@ -39,7 +39,8 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
     auto single_plane = get_input_size() == 1;
     auto y_type = get_input_element_type(0);
     const auto& shape_y = get_input_partial_shape(0);
-    const auto one_channel_nhwc_shape = PartialShape({Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 1});
+    const auto one_channel_nhwc_shape =
+        PartialShape({Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 1});
     NODE_VALIDATION_CHECK(this,
                           shape_y.compatible(one_channel_nhwc_shape),
                           "Y input shall have 4 dimensions (N, H, W, C) with channels dimension equal to 1");
@@ -64,11 +65,15 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this,
                               ov::element::Type::merge(out_type, out_type, u_type),
                               "Y, U, V inputs shall have compatible types, got ",
-                              y_type, u_type, v_type);
+                              y_type,
+                              u_type,
+                              v_type);
         NODE_VALIDATION_CHECK(this,
                               ov::element::Type::merge(out_type, out_type, v_type),
                               "Y, U, V inputs shall have compatible types, got ",
-                              y_type, u_type, v_type);
+                              y_type,
+                              u_type,
+                              v_type);
         // Validate Y/U/V shapes compatibility
         const auto& shape_u = get_input_partial_shape(1);
         NODE_VALIDATION_CHECK(this,
@@ -82,7 +87,9 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
                               shape_v);
         NODE_VALIDATION_CHECK(this,
                               shape_u.compatible(shape_v),
-                              "U shape shall be compatible with V shape: ", shape_u, shape_v);
+                              "U shape shall be compatible with V shape: ",
+                              shape_u,
+                              shape_v);
         auto shape_uv = shape_u;
         PartialShape::merge_into(shape_uv, shape_v);
         if (shape_uv.rank().is_static()) {
@@ -95,7 +102,10 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
         }
         NODE_VALIDATION_CHECK(this,
                               shape_y.compatible(shape_uv),
-                              "Y shape is inconsistent with U and V shapes: ", shape_y, shape_u, shape_v);
+                              "Y shape is inconsistent with U and V shapes: ",
+                              shape_y,
+                              shape_u,
+                              shape_v);
         PartialShape::merge_into(out_shape, shape_uv);
     }
     NODE_VALIDATION_CHECK(this,

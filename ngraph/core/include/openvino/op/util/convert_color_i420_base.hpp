@@ -61,7 +61,10 @@ protected:
     /// 'W' is half of image width, 'C' dimension equals to 1.
     ///
     /// \param format       Conversion format.
-    ConvertColorI420Base(const Output<Node>& arg_y, const Output<Node>& arg_u, const Output<Node>& arg_v, ColorConversion format);
+    ConvertColorI420Base(const Output<Node>& arg_y,
+                         const Output<Node>& arg_u,
+                         const Output<Node>& arg_v,
+                         ColorConversion format);
 
 public:
     OPENVINO_OP("ConvertColorI420Base", "util");
