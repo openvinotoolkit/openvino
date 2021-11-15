@@ -147,14 +147,11 @@ OPENVINO_API std::int64_t width_idx(const Layout& layout);
 template <>
 class OPENVINO_API AttributeAdapter<Layout> : public ValueAccessor<std::string> {
 public:
+    OPENVINO_RTTI("AttributeAdapter<Layout>");
     explicit AttributeAdapter(Layout& value) : m_ref(value) {}
 
     const std::string& get() override;
     void set(const std::string& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Layout>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
     explicit operator Layout&() {
         return m_ref;
     }
