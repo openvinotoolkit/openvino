@@ -178,10 +178,7 @@ bool evaluate_i420_convert(const ov::HostTensorVector& input_values,
     bool rc = false;
     switch (input_values[0]->get_element_type()) {
         NGRAPH_TYPE_CASE(evaluate_i420_convert, u8, input_values, output_value, single_tensor, conv_format);
-        NGRAPH_TYPE_CASE(evaluate_i420_convert, f16, input_values, output_value, single_tensor, conv_format);
-        NGRAPH_TYPE_CASE(evaluate_i420_convert, bf16, input_values, output_value, single_tensor, conv_format);
         NGRAPH_TYPE_CASE(evaluate_i420_convert, f32, input_values, output_value, single_tensor, conv_format);
-        NGRAPH_TYPE_CASE(evaluate_i420_convert, f64, input_values, output_value, single_tensor, conv_format);
     default:
         break;
     }
