@@ -47,6 +47,7 @@
 #include "lstm_gemm_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
+#include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
 #include "proposal_inst.h"
@@ -1295,6 +1296,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::border::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
             prim.type() != cldnn::scale::type_id() &&
