@@ -395,10 +395,14 @@ def if_op(
     attributes = {
         "then_body": bodies[0].serialize(),
         "else_body": bodies[1].serialize(),
-        "then_inputs": [desc.serialize() for desc in input_desc[0]],
-        "else_inputs": [desc.serialize() for desc in input_desc[1]],
-        "then_outputs": [desc.serialize() for desc in output_desc[0]],
-        "else_outputs": [desc.serialize() for desc in output_desc[1]]
+        "then_inputs": {"invariant_input_desc":[desc.serialize() for desc in input_desc[0]],
+                        "merged_input_desc":[], "slice_input_desc":[]},
+        "else_inputs": {"invariant_input_desc":[desc.serialize() for desc in input_desc[1]],
+                        "merged_input_desc":[], "slice_input_desc":[]},
+        "then_outputs": {"body_output_desc":[desc.serialize() for desc in output_desc[0]],
+                         "concat_output_desc":[]},
+        "else_outputs": {"body_output_desc":[desc.serialize() for desc in output_desc[1]],
+                         "concat_output_desc":[]}
     }
     return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
                                              attributes)
