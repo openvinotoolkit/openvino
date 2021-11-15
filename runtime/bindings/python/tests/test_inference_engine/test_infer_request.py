@@ -8,7 +8,7 @@ import datetime
 import time
 
 from ..conftest import image_path, model_path
-from openvino import Core, Tensor, ProfilingInfo
+from openvino import Core, AsyncInferQueue, Tensor, ProfilingInfo
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
@@ -35,6 +35,7 @@ def test_get_profiling_info(device):
     img = read_image()
     request = exec_net.create_infer_request()
     request.infer({0: img})
+    assert request.latency > 0
     prof_info = request.get_profiling_info()
     soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
     assert soft_max_node.node_type == "Softmax"
@@ -168,6 +169,7 @@ def test_start_async(device):
         request.start_async({0: img})
     for request in requests:
         request.wait()
+        assert request.latency > 0
     assert callbacks_info["finished"] == jobs
 
 
@@ -187,3 +189,26 @@ def test_infer_mixed_keys(device):
     with pytest.raises(TypeError) as e:
         request.infer({0: tensor, "fc_out": tensor2})
     assert "incompatible function arguments!" in str(e.value)
+
+
+def test_infer_queue(device):
+    jobs = 8
+    num_request = 4
+    core = Core()
+    func = core.read_model(test_net_xml, test_net_bin)
+    exec_net = core.compile_model(func, device)
+    infer_queue = AsyncInferQueue(exec_net, num_request)
+    jobs_done = [{"finished": False, "latency": 0} for _ in range(jobs)]
+
+    def callback(request, job_id):
+        jobs_done[job_id]["finished"] = True
+        jobs_done[job_id]["latency"] = request.latency
+
+    img = read_image()
+    infer_queue.set_callback(callback)
+    assert infer_queue.is_ready
+    for i in range(jobs):
+        infer_queue.start_async({"data": img}, i)
+    infer_queue.wait_all()
+    assert all(job["finished"] for job in jobs_done)
+    assert all(job["latency"] > 0 for job in jobs_done)

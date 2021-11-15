@@ -3,7 +3,7 @@
 
 import numpy as np
 import copy
-from typing import List
+from typing import List, Union
 
 from openvino.pyopenvino import TBlobFloat32
 from openvino.pyopenvino import TBlobFloat64
@@ -17,6 +17,7 @@ from openvino.pyopenvino import TBlobInt8
 from openvino.pyopenvino import TBlobUint8
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import InferRequest
+from openvino.pyopenvino import AsyncInferQueue
 from openvino.pyopenvino import ExecutableNetwork
 from openvino.pyopenvino import Tensor
 
@@ -57,7 +58,7 @@ def infer_new_request(exec_net: ExecutableNetwork, inputs: dict = None) -> List[
     return [copy.deepcopy(tensor.data) for tensor in res]
 
 # flake8: noqa: D102
-def start_async(request: InferRequest, inputs: dict = {}, userdata: dict = None) -> None:  # type: ignore
+def start_async(request: Union[InferRequest, AsyncInferQueue], inputs: dict = {}, userdata: dict = None) -> None:  # type: ignore
     request._start_async(inputs=normalize_inputs(inputs), userdata=userdata)
 
 # flake8: noqa: C901

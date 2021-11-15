@@ -20,11 +20,15 @@ public:
     InferRequestWrapper(ov::runtime::InferRequest request)
         : _request(request)
     {
+        // AsyncInferQueue uses this constructor - setting callback for computing a latency will be done there
     }
 
     InferRequestWrapper(ov::runtime::InferRequest request, const std::vector<ov::Output<const ov::Node>>& inputs, const std::vector<ov::Output<const ov::Node>>& outputs)
         : _request(request), _inputs(inputs), _outputs(outputs)
     {
+        _request.set_callback([this](std::exception_ptr exception_ptr) {
+            _end_time = Time::now();
+        });
     }
     // ~InferRequestWrapper() = default;
 

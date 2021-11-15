@@ -36,7 +36,7 @@ from openvino.pyopenvino import InputInfoCPtr
 from openvino.pyopenvino import DataPtr
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
-#from openvino.pyopenvino import InferQueue
+from openvino.pyopenvino import AsyncInferQueue
 from openvino.pyopenvino import InferRequest  # TODO: move to ie_api?
 from openvino.pyopenvino import Blob
 from openvino.pyopenvino import PreProcessInfo
@@ -83,5 +83,5 @@ ExecutableNetwork.infer_new_request = infer_new_request
 # Patching InferRequest
 InferRequest.infer = infer
 InferRequest.start_async = start_async
-# Patching InferQueue
-#InferQueue.async_infer = async_infer
+# Patching AsyncInferQueue
+AsyncInferQueue.start_async = start_async

@@ -321,13 +321,13 @@ void set_request_blobs(InferenceEngine::InferRequest& request, const py::dict& d
     }
 }
 
-uint32_t get_optimal_number_of_requests(const InferenceEngine::ExecutableNetwork& actual) {
+uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual) {
     try {
-        auto parameter_value = actual.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+        auto parameter_value = actual.get_metric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
         const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
         if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = actual.GetMetric(key);
+            parameter_value = actual.get_metric(key);
             if (parameter_value.is<unsigned int>())
                 return parameter_value.as<unsigned int>();
             else
