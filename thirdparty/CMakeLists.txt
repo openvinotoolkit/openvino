@@ -20,6 +20,7 @@ endif()
 
 add_subdirectory(xbyak EXCLUDE_FROM_ALL)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)
+ov_install_static_lib(xbyak openvino_common)
 
 #
 # Pugixml
@@ -31,10 +32,14 @@ if(ENABLE_SYSTEM_PUGIXML)
     add_library(pugixml::static ALIAS pugixml)
 else()
     function(ie_build_pugixml)
-        set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        function(ie_build_pugixml_static)
+            set(BUILD_SHARED_LIBS OFF)
+            add_subdirectory(pugixml EXCLUDE_FROM_ALL)
+        endfunction()
+        ie_build_pugixml_static()
         set_property(TARGET pugixml-static PROPERTY EXPORT_NAME pugixml)
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml::static)
+        ov_install_static_lib(pugixml-static openvino_common)
     endfunction()
 
     ie_build_pugixml()
@@ -51,6 +56,9 @@ add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi EXCLUDE_FROM_ALL)
 set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
+
+ov_install_static_lib(ade openvino_common)
+ov_install_static_lib(fluid openvino_common)
 
 #
 # Gflags

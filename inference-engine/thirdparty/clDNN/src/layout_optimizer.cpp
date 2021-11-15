@@ -859,17 +859,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                 if (input_layout.size.batch[0] % 16 == 0) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
-                    if (data_type_traits::is_floating_point(output_layout.data_type))
-                        expected_format = cldnn::format::b_fs_yx_fsv16;
-                    else
-                        expected_format = cldnn::format::b_fs_yx_fsv32;
+                    expected_format = cldnn::format::b_fs_yx_fsv32;
                 }
             } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                        convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) && is_2d) {
-                if (is_dw)
-                    expected_format = cldnn::format::b_fs_yx_fsv32;
-                else
-                    expected_format = cldnn::format::b_fs_yx_fsv16;
+                // TODO: optimize clDNN kernels for good support of b_fs_yx_fsv32 format
+                expected_format = cldnn::format::b_fs_yx_fsv32;
             } else {
                 expected_format = imad_case(node);
             }
@@ -1128,7 +1123,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         auto scoresTensor = convert_data_tensor(nms_node.input_scores().get_output_layout());
         const size_t kBatchNum = scoresTensor.Batch().v;
         const size_t kClassNum = scoresTensor.Feature().v;
-        const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().n_streams);
+        const size_t kNStreams = static_cast<size_t>(node.get_program().get_engine().configuration().throughput_streams);
         const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
         preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
     } else if (node.is_type<reorder>()) {

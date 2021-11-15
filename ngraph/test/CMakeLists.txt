@@ -306,6 +306,8 @@ set(SRC
     visitors/op/floor_mod.cpp
     visitors/op/floor.cpp
     visitors/op/gather.cpp
+    visitors/op/gather_elements.cpp
+    visitors/op/gather_nd.cpp
     visitors/op/gather_tree.cpp
     visitors/op/gelu.cpp
     visitors/op/greater_equal.cpp
@@ -409,6 +411,10 @@ set(SRC
     util.cpp
 )
 
+# For type relaxed types
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Add include path to so_extension.hpp
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
@@ -473,19 +479,14 @@ set(MULTI_TEST_SRC
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/concat.in.cpp
-    backend/constant.in.cpp
     backend/ctc_greedy_decoder.in.cpp
     backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
     backend/experimental_detectron_topk_rois.in.cpp
-    backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
-    backend/gather.in.cpp
-    backend/gather_elements.in.cpp
-    backend/gather_nd.in.cpp
     backend/interpolate.in.cpp
     backend/matrix_nms.in.cpp
     backend/multiclass_nms.in.cpp
@@ -494,12 +495,8 @@ set(MULTI_TEST_SRC
     backend/node_name.in.cpp
     backend/non_max_suppression.in.cpp
     backend/one_hot.in.cpp
-    backend/pad.in.cpp
-    backend/prior_box_clustered.in.cpp
-    backend/prior_box.in.cpp
     backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
-    backend/reorg_yolo.in.cpp
     backend/roll.in.cpp
     backend/space_to_depth.in.cpp
     backend/shuffle_channels.in.cpp

@@ -10,7 +10,7 @@
 
 #include "frontend_manager_defs.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 /// \brief An interface for identifying a place in a graph and iterate over it; can refer to
 /// an operation node, tensor, port etc.
@@ -303,4 +303,4 @@ public:
     virtual bool is_equal_data(Ptr another) const;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

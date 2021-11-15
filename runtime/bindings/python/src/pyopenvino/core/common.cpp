@@ -211,6 +211,48 @@ bool is_TBlob(const py::handle& blob) {
     }
 }
 
+const ov::runtime::Tensor& cast_to_tensor(const py::handle& tensor) {
+    return tensor.cast<const ov::runtime::Tensor&>();
+}
+
+const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) {
+    Containers::TensorNameMap result_map;
+    for (auto&& input : inputs) {
+        std::string name;
+        if (py::isinstance<py::str>(input.first)) {
+            name = input.first.cast<std::string>();
+        } else {
+            throw py::type_error("incompatible function arguments!");
+        }
+        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+            auto tensor = Common::cast_to_tensor(input.second);
+            result_map[name] = tensor;
+        } else {
+            throw ov::Exception("Unable to cast tensor " + name + "!");
+        }
+    }
+    return result_map;
+}
+
+const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
+    Containers::TensorIndexMap result_map;
+    for (auto&& input : inputs) {
+        int idx;
+        if (py::isinstance<py::int_>(input.first)) {
+            idx = input.first.cast<int>();
+        } else {
+            throw py::type_error("incompatible function arguments!");
+        }
+        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+            auto tensor = Common::cast_to_tensor(input.second);
+            result_map[idx] = tensor;
+        } else {
+            throw ov::Exception("Unable to cast tensor " + std::to_string(idx) + "!");
+        }
+    }
+    return result_map;
+}
+
 const std::shared_ptr<InferenceEngine::Blob> cast_to_blob(const py::handle& blob) {
     if (py::isinstance<InferenceEngine::TBlob<float>>(blob)) {
         return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
@@ -243,6 +285,8 @@ void blob_from_numpy(const py::handle& arr, InferenceEngine::Blob::Ptr blob) {
         Common::fill_blob<float>(arr, blob);
     } else if (py::isinstance<py::array_t<double>>(arr)) {
         Common::fill_blob<double>(arr, blob);
+    } else if (py::isinstance<py::array_t<bool>>(arr)) {
+        Common::fill_blob<bool>(arr, blob);
     } else if (py::isinstance<py::array_t<int8_t>>(arr)) {
         Common::fill_blob<int8_t>(arr, blob);
     } else if (py::isinstance<py::array_t<int16_t>>(arr)) {
