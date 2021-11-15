@@ -28,6 +28,18 @@ public:
     NGRAPH_RTTI_DECLARATION;
     SwapInputMatMulWithFq();
 };
+
+class SwapInputMatMulWithAct: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SwapInputMatMulWithAct();
+};
+
+class SwapInputMatMulWithTrailingTranspose: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SwapInputMatMulWithTrailingTranspose();
+};
 } // namespace GNAPluginNS
 
 #endif // SWAP_INPUT_MATMUL_GNA_HPP

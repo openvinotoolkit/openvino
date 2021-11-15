@@ -31,10 +31,16 @@ constexpr uint32_t maxPoolMaxWindowSize = 6;
 constexpr uint32_t copyMaxGrouping = 8;
 constexpr uint32_t transposeMaxSize = 65528;
 
-inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
+inline bool IsTranspose2d(const std::vector<size_t>& shape) {
     auto shape_no_1 = shape;
     shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
-    if (shape_no_1.size() != 2) return false;
+    return shape_no_1.size() == 2;
+}
+
+inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
+    if (!IsTranspose2d(shape)) return false;
+    auto shape_no_1 = shape;
+    shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
     size_t min, max;
     std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
     return min <= 8 && max % 8 == 0 && max >= 8 && max <= transposeMaxSize;

@@ -20,9 +20,16 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
                                                               bool withBias,
                                                               bool withWeightsFq,
                                                               bool withOutFq,
+                                                              bool withAct,
                                                               bool swappedInputs,
                                                               bool needTranspose) {
     auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input2_shape);
+    std::shared_ptr<ngraph::Node> input = input_params;
+    if (input->get_output_shape(0).size() == 2 && needTranspose) {
+        auto transpose_order = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+                                                                std::vector<size_t>{1, 0});
+        input = std::make_shared<ngraph::opset8::Transpose>(input, transpose_order);
+    }
 
     auto constant = ngraph::opset8::Constant::create(ngraph::element::i64, input1_shape, {1});
     std::shared_ptr<ngraph::Node> const_input = constant;
@@ -34,8 +41,8 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
         const_input = std::make_shared<ngraph::opset8::FakeQuantize>(const_input, input_low, input_high,
                                                                      output_low, output_high, 11);
     }
-    auto matmul = swappedInputs ? std::make_shared<ngraph::opset8::MatMul>(input_params, const_input, needTranspose, needTranspose) :
-        std::make_shared<ngraph::opset8::MatMul>(const_input, input_params, needTranspose, needTranspose);
+    auto matmul = swappedInputs ? std::make_shared<ngraph::opset8::MatMul>(input, const_input, false, needTranspose) :
+        std::make_shared<ngraph::opset8::MatMul>(const_input, input, needTranspose, false);
 
     std::shared_ptr<ngraph::Node> final_node = matmul;
     if (withBias) {
@@ -58,7 +65,11 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
                                                                     output_low, output_high, 11);
     }
 
-    if (needTranspose) {
+    if (withAct) {
+        final_node = std::make_shared<ngraph::opset8::Relu>(final_node);
+    }
+
+    if (final_node->get_output_shape(0).size() == 2 && needTranspose) {
         auto transpose_order = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2},
                                                                 std::vector<size_t>{1, 0});
         final_node = std::make_shared<ngraph::opset8::Transpose>(final_node, transpose_order);
@@ -72,6 +83,8 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
 static void Execute(std::shared_ptr<ngraph::Function> function, std::shared_ptr<ngraph::Function> reference_function) {
     ngraph::pass::Manager m;
     m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<GNAPluginNS::SwapInputMatMulWithTrailingTranspose>();
+    m.register_pass<GNAPluginNS::SwapInputMatMulWithAct>();
     m.register_pass<GNAPluginNS::SwapInputMatMulWithFq>();
     m.register_pass<GNAPluginNS::SwapInputMatMulWithBias>();
     m.register_pass<GNAPluginNS::SwapInputMatMul>();
@@ -87,13 +100,15 @@ typedef std::tuple<
         std::vector<ngraph::Shape>,         // constant input shape, non-const input shape, bias shape
         bool,                               // with bias
         bool,                               // with weights FakeQuantize
-        bool                                // with output FakeQuantize
+        bool,                               // with output FakeQuantize
+        bool,                               // with activation after MatMul
+        bool                                // with transposes
 > SwapInputMatmulParams;
 
 static std::string getTestCaseName(testing::TestParamInfo<SwapInputMatmulParams> obj) {
     std::vector<ngraph::Shape> shapes;
-    bool withBias, withWeightsFq, withOutFq;
-    std::tie(shapes, withBias, withWeightsFq, withOutFq) = obj.param;
+    bool withBias, withWeightsFq, withOutFq, withAct, withTransposes;
+    std::tie(shapes, withBias, withWeightsFq, withOutFq, withAct, withTransposes) = obj.param;
 
     std::ostringstream result;
     result << "IS1=" << shapes[0] << "_";
@@ -101,7 +116,9 @@ static std::string getTestCaseName(testing::TestParamInfo<SwapInputMatmulParams>
     result << "BS=" << shapes[2] << "_";
     result << "bias=" << withBias << "_";
     result << "wFQ=" << withWeightsFq << "_";
-    result << "oFQ=" << withOutFq;
+    result << "oFQ=" << withOutFq << "_";
+    result << "act=" << withAct << "_";
+    result << "transposes=" << withTransposes;
     return result.str();
 }
 
@@ -116,8 +133,8 @@ class SwapInputMatmul : public CommonTestUtils::TestsCommon,
 public:
     void SetUp() override {
         std::vector<ngraph::Shape> shapes;
-        bool withBias, withWeightsFq, withOutFq;
-        std::tie(shapes, withBias, withWeightsFq, withOutFq) = this->GetParam();
+        bool withBias, withWeightsFq, withOutFq, withAct, withTransposes;
+        std::tie(shapes, withBias, withWeightsFq, withOutFq, withAct, withTransposes) = this->GetParam();
 
         bool swap_inputs = false;
         switch (E) {
@@ -128,9 +145,12 @@ public:
             break;
         }
 
-        function = CreateMatMulFunction(shapes[0], shapes[1], shapes[2], withBias, withWeightsFq, withOutFq, swap_inputs, false);
-        reference_function = CreateMatMulFunction(shapes[0], shapes[1], shapes[2], withBias, withWeightsFq,
-                                                  withOutFq, !swap_inputs, true);
+        auto input1 = withTransposes ? shapes[1] : shapes[0];
+        auto input2 = withTransposes ? shapes[0] : shapes[1];
+        function = CreateMatMulFunction(input1, input2, shapes[2], withBias, withWeightsFq, withOutFq,
+            withAct, swap_inputs, withTransposes);
+        reference_function = CreateMatMulFunction(input1, input2, shapes[2], withBias, withWeightsFq,
+                                                  withOutFq, withAct, !swap_inputs, !withTransposes);
     }
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
@@ -142,8 +162,8 @@ class SwapInputMatmulNotApplied : public CommonTestUtils::TestsCommon,
 public:
     void SetUp() override {
         std::vector<ngraph::Shape> shapes;
-        bool withBias, withWeightsFq, withOutFq;
-        std::tie(shapes, withBias, withWeightsFq, withOutFq) = this->GetParam();
+        bool withBias, withWeightsFq, withOutFq, withAct, withTransposes;
+        std::tie(shapes, withBias, withWeightsFq, withOutFq, withAct, withTransposes) = this->GetParam();
 
         bool swap_inputs = false;
         switch (E) {
@@ -154,7 +174,10 @@ public:
             break;
         }
 
-        function = CreateMatMulFunction(shapes[0], shapes[1], shapes[2], withBias, withWeightsFq, withOutFq, swap_inputs, false);
+        auto input1 = withTransposes ? shapes[1] : shapes[0];
+        auto input2 = withTransposes ? shapes[0] : shapes[1];
+        function = CreateMatMulFunction(input1, input2, shapes[2], withBias, withWeightsFq, withOutFq,
+            withAct, swap_inputs, withTransposes);
         reference_function = ngraph::clone_function(*function);
     }
 public:
@@ -209,12 +232,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_swap_input_matmul, SwapInputMatmulWithFirstInputC
         ::testing::ValuesIn(input_shapes_for_matmul_with_first_constant_applied),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true})),
     getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_swap_input_matmul, SwapInputMatmulWithFirstInputConstantNotApplied,
     ::testing::Combine(
         ::testing::ValuesIn(input_shapes_for_matmul_with_first_constant_not_applied),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true})),
@@ -225,12 +252,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_swap_input_matmul, SwapInputMatmulWithSecondInput
         ::testing::ValuesIn(input_shapes_for_matmul_with_second_constant_applied),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true})),
     getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_swap_input_matmul, SwapInputMatmulWithSecondInputConstantNotApplied,
     ::testing::Combine(
         ::testing::ValuesIn(input_shapes_for_matmul_with_second_constant_not_applied),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
+        ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true}),
         ::testing::ValuesIn(std::vector<bool>{false, true})),
