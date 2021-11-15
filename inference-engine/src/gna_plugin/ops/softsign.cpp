@@ -33,13 +33,6 @@ std::shared_ptr<ngraph::Node> SoftSign::clone_with_new_inputs(const ngraph::Outp
 }
 
 template <ngraph::element::Type_t ET>
-inline bool evaluate(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out, const size_t count) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    softsign<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
 inline bool evaluate(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out, const size_t count) {
     using T = typename ngraph::element_type_traits<ET>::value_type;
     softsign<T>(arg.data<T>(), out.data<T>(), count);
@@ -47,28 +40,8 @@ inline bool evaluate(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out, c
 }
 
 namespace {
-bool evaluate_softsign(const ngraph::HostTensorPtr& arg, const ngraph::HostTensorPtr& out) {
-    bool rc = true;
-    out->set_unary(arg);
-    size_t count = shape_size(arg->get_shape());
-
-    switch (arg->get_element_type()) {
-    case ov::element::Type_t::f16:
-        rc = evaluate<ov::element::Type_t::f16>(arg, out, count);
-        break;
-    case ov::element::Type_t::f32:
-        rc = evaluate<ov::element::Type_t::f32>(arg, out, count);
-        break;
-    default:
-        rc = false;
-        break;
-    }
-    return rc;
-}
-
 bool evaluate_softsign(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out) {
     bool rc = true;
-    //out->set_unary(arg); // FIXME
     size_t count = shape_size(arg.get_shape());
 
     switch (arg.get_element_type()) {
@@ -86,11 +59,9 @@ bool evaluate_softsign(const ov::runtime::Tensor& arg, ov::runtime::Tensor& out)
 }
 } // namespace
 
-bool SoftSign::evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const {
-    return evaluate_softsign(inputs[0], outputs[0]);
-}
-
-bool SoftSign::evaluate(const ngraph::HostTensorVector& outputs, const ngraph::HostTensorVector& inputs) const {
+bool SoftSign::evaluate(ov::runtime::TensorVector& outputs,
+                        const ov::runtime::TensorVector& inputs,
+                        const ov::EvaluationContext& evaluation_context) const {
     return evaluate_softsign(inputs[0], outputs[0]);
 }
 
