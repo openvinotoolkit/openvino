@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+#include <functional_test_utils/skip_tests_config.hpp>
 
 #include "openvino/op/pad.hpp"
 #include "openvino/op/constant.hpp"
@@ -43,6 +44,7 @@ struct PadParams {
 class ReferencePadTest : public testing::TestWithParam<PadParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData.data};
