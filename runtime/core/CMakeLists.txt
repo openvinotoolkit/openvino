@@ -19,16 +19,16 @@ add_subdirectory(runtime)
 add_subdirectory(legacy_api)
 add_subdirectory(preprocessing)
 
-# add a custom target to build all Inference Engine Core libraries
+# add a custom target to build all OpenVINO runtime libraries
 
-add_custom_target(ie_libraries ALL
+add_custom_target(ov_runtime_libraries ALL
                   DEPENDS inference_engine_legacy
                           openvino::runtime openvino::preprocessing
                           openvino::snippets)
 
 if(OV_IR_FRONTEND_ENABLE)
     if(BUILD_SHARED_LIBS)
-        add_dependencies(ie_libraries ir_ov_frontend)
+        add_dependencies(ov_runtime_libraries ir_ov_frontend)
     endif()
     # use this one once CVS-69781 is fixed
     # add_dependencies(ov_runtime ir_ov_frontend)
