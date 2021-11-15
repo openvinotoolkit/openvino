@@ -40,14 +40,13 @@ void regclass_Core(py::module m) {
         py::arg("device_name"),
         py::arg("config") = py::dict());
 
-    cls.def(
-        "compile_model",
-        (ov::runtime::ExecutableNetwork(
-            ov::runtime::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
-            ov::runtime::Core::compile_model,
-        py::arg("model_path"),
-        py::arg("device_name"),
-        py::arg("config") = py::dict());
+    cls.def("compile_model",
+            (ov::runtime::ExecutableNetwork(
+                ov::runtime::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
+                ov::runtime::Core::compile_model,
+            py::arg("model_path"),
+            py::arg("device_name"),
+            py::arg("config") = py::dict());
 
     cls.def("get_versions", &ov::runtime::Core::get_versions);
 

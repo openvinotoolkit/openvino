@@ -20,7 +20,10 @@ void regclass_ExecutableNetwork(py::module m) {
         m,
         "ExecutableNetwork");
 
-    cls.def(py::init([](ov::runtime::ExecutableNetwork& other) { return other; }), py::arg("other"));
+    cls.def(py::init([](ov::runtime::ExecutableNetwork& other) {
+                return other;
+            }),
+            py::arg("other"));
 
     cls.def("create_infer_request", [](ov::runtime::ExecutableNetwork& self) {
         return InferRequestWrapper(self.create_infer_request(), self.inputs(), self.outputs());

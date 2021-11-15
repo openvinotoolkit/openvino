@@ -21,7 +21,10 @@ namespace py = pybind11;
 void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
 
-    cls.def(py::init([](InferRequestWrapper& other) { return other; }), py::arg("other"));
+    cls.def(py::init([](InferRequestWrapper& other) {
+                return other;
+            }),
+            py::arg("other"));
 
     cls.def(
         "set_tensors",
@@ -62,7 +65,8 @@ void regclass_InferRequest(py::module m) {
                     if (py::isinstance<py::str>(input.first)) {
                         self._request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
                     } else if (py::isinstance<py::int_>(input.first)) {
-                        self._request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+                        self._request.set_input_tensor(input.first.cast<size_t>(),
+                                                       Common::cast_to_tensor(input.second));
                     } else {
                         throw ov::Exception("Incompatible key type for tensor!");
                     }
@@ -89,7 +93,8 @@ void regclass_InferRequest(py::module m) {
                     if (py::isinstance<py::str>(input.first)) {
                         self._request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
                     } else if (py::isinstance<py::int_>(input.first)) {
-                        self._request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+                        self._request.set_input_tensor(input.first.cast<size_t>(),
+                                                       Common::cast_to_tensor(input.second));
                     } else {
                         throw ov::Exception("Incompatible key type for tensor!");
                     }
