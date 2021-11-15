@@ -306,17 +306,14 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
     for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
             _loadContext[i].future.wait();
+            // check if loading is successful
+            if (_loadContext[i].isAlready) {
+                return;
+            }
         }
     }
 
-    // check if another loading is successful
-    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
-        if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
-            return;
-        }
-    }
-
-    // To Do need to print failed error mesage
+    // ToDo need to print failed error mesage
     IE_THROW() << "[AUTO] load all devices failed";
 }
 
