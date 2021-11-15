@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//#include "../../../transformations/src/itt.hpp"
-#include <legacy/transformations/convert_convolutions.hpp>
+#include "legacy/transformations/convert_opset1_to_legacy/convert_convolutions.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,7 +19,6 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolutions, "ConvertConvolutions",
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0);
 
 ngraph::pass::ConvertConvolution::ConvertConvolution() {
-    //MATCHER_SCOPE(ConvertConvolution);
     auto conv = ngraph::pattern::wrap_type<opset1::Convolution>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -51,7 +49,6 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
 
 ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
-    //MATCHER_SCOPE(ConvertGroupConvolution);
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -98,7 +95,6 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
 
 ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
-    //MATCHER_SCOPE(ConvertDeconvolution);
     auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -132,7 +128,6 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
 
 ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
-    //MATCHER_SCOPE(ConvertGroupDeconvolution);
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
