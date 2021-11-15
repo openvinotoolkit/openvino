@@ -5,7 +5,6 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/function.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/input_info.hpp"
 #include "openvino/core/preprocess/output_info.hpp"
