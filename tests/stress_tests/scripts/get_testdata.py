@@ -161,7 +161,6 @@ def main():
             continue
 
         log.info(f"info_dumper output: {out}")
-        log.info(f"json.dumps: {json.dumps[out]}")
         model_info = json.loads(json.dumps[out])[0]
 
         # update model record from test config with Open Model Zoo info
