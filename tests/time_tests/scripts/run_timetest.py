@@ -108,7 +108,7 @@ def run_timetest(args: dict, log=None):
         flatten_data = {}
         parse_stats(raw_data[0], flatten_data)
 
-        if run_iter > 0:
+        if run_iter > 0 and args["cache"]:
             flatten_data = get_cache_stats(flatten_data)
 
         log.debug(f"Statistics after run of executable #{run_iter}: {flatten_data}")
