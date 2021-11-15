@@ -4,7 +4,6 @@
 import numpy as np
 import copy
 from typing import Any, List, Union
-from pathlib import Path
 
 from openvino.pyopenvino import Function
 from openvino.pyopenvino import Core as CoreBase
