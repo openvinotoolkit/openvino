@@ -1,5 +1,117 @@
-// Copyright (C) 2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//// Copyright (C) 2021 Intel Corporation
+//// SPDX-License-Identifier: Apache-2.0
+////
+//
+//#include "shared_test_classes/base/ov_subgraph.hpp"
+//#include "test_utils/fusing_test_utils.hpp"
+//#include "ngraph_functions/builders.hpp"
+//
+//using namespace ngraph;
+//using namespace InferenceEngine;
+//using namespace CPUTestUtils;
+//using namespace ov::test;
+//
+//namespace CPULayerTestsDefinitions {
+//
+//enum class MatMulNodeType {
+//    MatMul,
+//    FullyConnected
+//};
+//
+//struct ShapeRelatedParams {
+//    std::vector<InputShape> inputShapes;
+//    std::pair<bool, bool> transpose;
+//};
+//
+//typedef std::tuple<
+//        ShapeRelatedParams,
+//        ElementType,        // Network precision
+//        ElementType,        // Input precision
+//        ElementType,        // Output precision
+//        ngraph::helpers::InputLayerType,   // Secondary input type
+//        TargetDevice,     // Device name
+//        std::map<std::string, std::string> // Additional network configuration
+//> MatMulLayerTestParamsSet;
+//
+//using MatMulLayerCPUTestParamSet = std::tuple<MatMulLayerTestParamsSet,
+//                                              MatMulNodeType,
+//                                              fusingSpecificParams>;
+//
+//class MatMulLayerCPUTest : public testing::WithParamInterface<MatMulLayerCPUTestParamSet>,
+//                           virtual public SubgraphBaseTest, public CpuTestWithFusing {
+//public:
+//    static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerCPUTestParamSet>& obj) {
+//        MatMulLayerTestParamsSet basicParamsSet;
+//        MatMulNodeType nodeType;
+//        fusingSpecificParams fusingParams;
+//
+//        std::tie(basicParamsSet, nodeType, fusingParams) = obj.param;
+//
+//        ElementType netType;
+//        ElementType inType, outType;
+//        ShapeRelatedParams shapeRelatedParams;
+//        ngraph::helpers::InputLayerType secondaryInputType;
+//        TargetDevice targetDevice;
+//        std::map<std::string, std::string> additionalConfig;
+//        std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) =
+//                basicParamsSet;
+//
+//        std::ostringstream result;
+//        result << (nodeType == MatMulNodeType::MatMul ? "MatMul_" : "FullyConnected_");
+//        result << "IS=";
+//        for (const auto& shape : shapeRelatedParams.inputShapes) {
+//            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+//        }
+//        result << "TS=";
+//        for (const auto& shape : shapeRelatedParams.inputShapes) {
+//            result << "(";
+//            if (!shape.second.empty()) {
+//                auto itr = shape.second.begin();
+//                do {
+//                    result << CommonTestUtils::vec2str(*itr);
+//                } while (++itr != shape.second.end() && result << "_");
+//            }
+//            result << ")_";
+//        }
+//        result << "transpose_a=" << shapeRelatedParams.transpose.first << "_";
+//        result << "transpose_b=" << shapeRelatedParams.transpose.second << "_";
+//        result << "secondaryInputType=" << secondaryInputType << "_";
+//        result << "netPRC=" << netType << "_";
+//        result << "inPRC=" << inType << "_";
+//        result << "outPRC=" << outType << "_";
+//        result << "trgDev=" << targetDevice;
+//        result << "config=(";
+//        for (const auto configEntry : additionalConfig) {
+//            result << configEntry.first << ", " << configEntry.second << ":";
+//        }
+//        result << ")";
+//        result << CpuTestWithFusing::getTestCaseName(fusingParams);
+//
+//        return result.str();
+//    }
+//
+//protected:
+//     std::string cpuNodeType;
+//
+//    template<typename T>
+//    void transpose(T& shape) {
+//        IE_ASSERT(shape.size() > 1);
+//        std::swap(*(shape.end() - 1), *(shape.end() - 2));
+//    }
+//
+//    void SetUp() override {
+//        MatMulLayerTestParamsSet basicParamsSet;
+//        MatMulNodeType nodeType;
+//        fusingSpecificParams fusingParams;
+//
+//        std::tie(basicParamsSet, nodeType, fusingParams) = this->GetParam();
+//
+//        ShapeRelatedParams shapeRelatedParams;
+//        ElementType netType;
+//        helpers::InputLayerType secondaryInputType;
+//        std::map<std::string, std::string> additionalConfig;
+//
+//        std::tie(shapeRelatedParams, netType, inType, outType, secondaryInputType, targetDevice, additionalConfig) = basicParamsSet;
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -247,8 +359,6 @@ const std::vector<ShapeRelatedParams> IS3D = {
     {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, false}},
     {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {false, true}},
     {static_shapes_to_test_representation({{1, 32, 120}, {120, 50}}), {true, true}},
-
-    {{{1, 429}, false}, {{1, 429, 1}, true}},
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3D {
