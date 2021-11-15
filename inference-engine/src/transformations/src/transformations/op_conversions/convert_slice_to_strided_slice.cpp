@@ -95,7 +95,8 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
 
         std::shared_ptr<opset8::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
-            axes_const = use_shapes ? get_constant_from_source(slice_node->input_value(4)) : std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+            axes_const = use_shapes ? get_constant_from_source(slice_node->input_value(4))
+                                    : std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(4).get_node_shared_ptr());
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }
