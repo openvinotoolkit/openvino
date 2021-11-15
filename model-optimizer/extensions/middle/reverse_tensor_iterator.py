@@ -33,12 +33,11 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
     @staticmethod
     def is_fusable_reverse_sequence(node: Node):
         sequence_lengths = node.in_port(1).data.get_value()
-        assert sequence_lengths is not None
         input_shape = node.in_port(0).data.get_shape()
         assert input_shape is not None
 
         seq_len = input_shape[node.seq_axis]
-        if is_fully_defined(sequence_lengths):
+        if sequence_lengths is not None and is_fully_defined(sequence_lengths):
             return np.all(sequence_lengths == seq_len)
         else:
             # check that we take sequence_length from input shape based on ReverseV2ToReverseSequence transformation
