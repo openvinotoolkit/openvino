@@ -14,7 +14,14 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE) : public Op {
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE);
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2);
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3);
+
+}  // namespace op
+}  // namespace ngraph
+
+class ngraph::op::NonMaxSuppressionIE : public Op {
 public:
     OPENVINO_OP("NonMaxSuppressionIE", "legacy");
     BWDCMP_RTTI_DECLARATION;
@@ -39,7 +46,7 @@ public:
     element::Type m_output_type;
 };
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2) : public NonMaxSuppressionIE {
+class ngraph::op::NonMaxSuppressionIE2 : public NonMaxSuppressionIE {
 public:
     OPENVINO_OP("NonMaxSuppressionIE2", "legacy");
     BWDCMP_RTTI_DECLARATION;
@@ -58,7 +65,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 };
 
-class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3) : public Op {
+class ngraph::op::NonMaxSuppressionIE3 : public Op {
 public:
     OPENVINO_OP("NonMaxSuppressionIE3", "legacy");
     BWDCMP_RTTI_DECLARATION;
@@ -95,6 +102,3 @@ public:
 private:
     int64_t max_boxes_output_from_input() const;
 };
-
-}  // namespace op
-}  // namespace ngraph

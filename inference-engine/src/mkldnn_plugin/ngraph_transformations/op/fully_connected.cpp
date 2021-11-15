@@ -4,14 +4,12 @@
 
 #include "fully_connected.hpp"
 
-constexpr ngraph::NodeTypeInfo MKLDNNPlugin::FullyConnectedNode::type_info;
-
 MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
                                                      const ngraph::Output<Node>& B,
                                                      const ngraph::Rank& output_rank,
                                                      const ngraph::element::Type output_type)
     : Op({A, B}), m_output_rank(output_rank), m_output_type(output_type) {
-    constructor_validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>& A,
@@ -20,7 +18,7 @@ MKLDNNPlugin::FullyConnectedNode::FullyConnectedNode(const ngraph::Output<Node>&
                                                      const ngraph::Rank& output_rank,
                                                      const ngraph::element::Type output_type)
     : Op({A, B, C}), m_output_rank(output_rank), m_output_type(output_type) {
-    constructor_validate_and_infer_types();
+    validate_and_infer_types();
 }
 
 std::shared_ptr<ngraph::Node> MKLDNNPlugin::FullyConnectedNode::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
@@ -42,13 +40,6 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
         input_size,
         ", expected: 2 or 3.");
 
-    const auto output_size = get_output_size();
-    NODE_VALIDATION_CHECK(this,
-        output_size == 1,
-        "Number of outputs is incorrect. Current value is: ",
-        output_size,
-        ", expected: 1.");
-
     // Weights shape: [O, I1, ..., Im];
     // O - output channels dimensions, Ik - input channels dimensions
     const auto weights_pshape = get_input_partial_shape(1);
@@ -57,12 +48,16 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
         "Weights pshape must be static");
     const auto weights_shape = weights_pshape.to_shape();
 
+    NODE_VALIDATION_CHECK(this,
+        weights_pshape.size() > 0,
+        "Weights rank must be greater than 0");
+
     const auto o_channels = weights_pshape[0];
     if (input_size == 3) {
         const auto bias_shape = get_input_partial_shape(2);
         const auto expected_bias_shape = ngraph::PartialShape{ o_channels };
         NODE_VALIDATION_CHECK(this,
-            bias_shape == expected_bias_shape,
+            bias_shape.is_static() && bias_shape.compatible(expected_bias_shape),
             "Bias shape is incorrect. Current value is: ",
             bias_shape,
             ", expected: ",
@@ -83,10 +78,12 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
         }
         output_pshape.push_back(o_channels);
 
-        if (m_output_rank.is_static()) {
-            while (output_pshape.rank().get_length() < m_output_rank.get_length()) {
-                output_pshape.insert(output_pshape.begin(), 1);
-            }
+        NODE_VALIDATION_CHECK(this,
+            m_output_rank.is_static(),
+            "Output rank must be static if activations rank is static.");
+
+        while (output_pshape.rank().get_length() < m_output_rank.get_length()) {
+            output_pshape.insert(output_pshape.begin(), 1);
         }
     } else {
         output_pshape = ngraph::PartialShape::dynamic();
@@ -97,10 +94,7 @@ void MKLDNNPlugin::FullyConnectedNode::validate_and_infer_types() {
 }
 
 bool MKLDNNPlugin::FullyConnectedNode::visit_attributes(ngraph::AttributeVisitor &visitor) {
-    if (m_output_rank.is_static()) {
-        std::int64_t value = m_output_rank.get_length();
-        visitor.on_attribute("out-rank", value);
-    }
+    visitor.on_attribute("out-rank", m_output_rank);
     visitor.on_attribute("out-type", m_output_type);
     return true;
 }

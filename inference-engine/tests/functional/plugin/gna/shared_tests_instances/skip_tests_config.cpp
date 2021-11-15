@@ -17,8 +17,9 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*ActivationLayerTest.CompareWithRefs/(Sigmoid|Tanh|Exp|Log).*)",
         R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
+        // TODO: Issue 68586
+        R"(.*EltwiseActFqTest.*act=Log.*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
@@ -62,11 +63,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanGetInputsInfoAndCheck.*)",
+        R"(.*OVExecutableNetworkBaseTest.*getOutputsFromSplitFunctionWithSeveralOutputs.*)",
         R"(.*OVClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*GetMetricNoThrow.*)",
         R"(.*Behavior.*OVExecutableNetworkBaseTest.*get(Inputs|Outputs)FromFunctionWithSeveral(Inputs|Outputs).*)",
         // TODO: Issue: 29577
         R"(.*QueryNetwork.*)",
         // TODO: GNA plugin does not support ExecGraph
-        R"(.*ExecGraphTests.*)"
+        R"(.*ExecGraphTests.*)",
+        // Issue connected with OV2.0
+        R"(.*EltwiseLayerTest.*NetType=f16.*)",
+        // TODO: Issue: CVS-69639
+        R"(.*EltwiseLayerTest.*OpType=Prod.*)",
+        R"(.*EltwiseLayerTest.*OpType=Sum.*PARAMETER.*VECTOR.*)",
+        // TODO: Issue:27391
+        // TODO: Issue:28036
+        R"(.*ActivationLayerGNATest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
     };
 }

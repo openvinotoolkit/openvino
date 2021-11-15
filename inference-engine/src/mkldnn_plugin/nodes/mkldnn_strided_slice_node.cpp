@@ -231,7 +231,9 @@ void MKLDNNStridedSliceNode::initSupportedPrimitiveDescriptors() {
     std::vector<LayoutType> supportedTypes;
     if (nDims > 2 && params.equalDims) {
         auto canUseBlocked = [=](const size_t blockSize) {
-            return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 && (begin[1] > srcDims[1] || begin[1] % blockSize == 0);
+            auto channelBeginNormalized = begin[1] > 0 ? begin[1] : begin[1] + srcDims[1];
+            return srcDims[1] % blockSize == 0 && abs(stride[1]) == 1 &&
+            (channelBeginNormalized > srcDims[1] || channelBeginNormalized % blockSize == 0 || channelBeginNormalized < 0 || beginMask[1] == 0);
         };
 
         supportedTypes.push_back(LayoutType::nspc);

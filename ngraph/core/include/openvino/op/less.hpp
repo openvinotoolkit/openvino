@@ -15,7 +15,7 @@ public:
     OPENVINO_OP("Less", "opset1", op::util::BinaryElementwiseComparison, 1);
     BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a less-than operation.
-    Less() : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY) {}
+    Less() : util::BinaryElementwiseComparison(AutoBroadcastType::NUMPY) {}
     /// \brief Constructs a less-than operation.
     ///
     /// \param arg0 Node that produces the first input tensor.

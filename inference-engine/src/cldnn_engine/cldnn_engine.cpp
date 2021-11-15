@@ -93,12 +93,8 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
 
     if (clonedNetwork.getFunction()) {
         auto nGraphFunc = clonedNetwork.getFunction();
-        auto transformation_config = CLDNNPlugin::Config(config);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        if (GetDeviceInfo(config.key_config_map).supports_immad)
-            transformation_config.enable_fp16_for_quantized_models = false;
-#endif
-        TransformationsPipeline transformations(transformation_config);
+        auto deviceInfo = GetDeviceInfo(config.key_config_map);
+        TransformationsPipeline transformations(config, deviceInfo);
         transformations.apply(nGraphFunc);
     }
 
@@ -244,7 +240,8 @@ IExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceE
                context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
                context_config.kernels_cache_dir == current_config.kernels_cache_dir &&
                context_config.device_id == current_config.device_id &&
-               context_config.n_threads == current_config.n_threads &&
+               context_config.task_exec_config._streams == current_config.task_exec_config._streams &&
+               context_config.task_exec_config._threadPreferredCoreType == current_config.task_exec_config._threadPreferredCoreType &&
                context_config.enable_loop_unrolling == current_config.enable_loop_unrolling;
     };
 
