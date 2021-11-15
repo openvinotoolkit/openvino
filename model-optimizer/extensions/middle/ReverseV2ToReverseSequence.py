@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.middle.InsertLayoutPropagationTransposes import mark_output_as_in_correct_layout, \
-    mark_input_as_in_correct_layout
 from extensions.ops.reverse_sequence import ReverseSequence
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -23,9 +21,8 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
         return [PartialInfer]
 
     def run_before(self):
-        from extensions.middle.reverse_tensor_iterator import ReverseTensorIteratorLSTM, \
-            ReverseTensorIteratorLSTMWithSqueeze
-        return [ReverseTensorIteratorLSTM, ReverseTensorIteratorLSTMWithSqueeze]
+        from extensions.middle.reverse_tensor_iterator import ReverseTensorIteratorLSTM
+        return [ReverseTensorIteratorLSTM]
 
     @staticmethod
     def pattern():
@@ -42,17 +39,20 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
 
         assert reverse.in_port(1).disconnected()
 
-        # add new dimension as batch
-        unsq_node = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
-                                                     {'name': reverse_name+"/Unsqueeze"})
-        reverse.in_port(0).get_source().connect(unsq_node.in_port(0))
-        # set layout as correct to avoid adding Transpose nodes
-        unsq_node.in_port(1).__setattr__('input_permutation', None)
-        mark_input_as_in_correct_layout(unsq_node, 0)
-        mark_output_as_in_correct_layout(unsq_node, 0)
-        new_in = unsq_node.out_port(0)
-        batch_axis = int64_array([0])
-        seq_axis = reverse['axis'] + 1 if reverse['axis'] >= 0 else reverse['axis']  # add 1 for newly added dimension
+        in_shape_rank = len(reverse.in_port(0).data.get_shape())
+        # add new dimension as batch for rank = 1
+        if in_shape_rank == 1:
+            unsq_node = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
+                                                         {'name': reverse_name+"/Unsqueeze"})
+            reverse.in_port(0).get_source().connect(unsq_node.in_port(0))
+            new_in = unsq_node.out_port(0)
+            batch_axis = 0
+            # add 1 for newly added dimension
+            seq_axis = reverse['axis'] + 1 if reverse['axis'] >= 0 else reverse['axis']
+        else:
+            new_in = reverse.in_port(0).get_source()
+            seq_axis = reverse['axis']
+            batch_axis = 0 if seq_axis != 0 else 1
 
         # 1. For ReverseSequence 1-port input is seq_lengths => create this input node
         reverse_name = reverse.soft_get('name',  reverse.id)
@@ -60,33 +60,26 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
 
         shape_node = Shape(graph, {'name': reverse_name + "/shape"}).create_node()
         new_in.connect(shape_node.in_port(0))
-        mark_input_as_in_correct_layout(shape_node, 0)
         seq_axis_node = node_to_get_shape_value_of_indices(shape_node, [seq_axis])
-        mark_input_as_in_correct_layout(seq_axis_node, 0)
-        batch_node = node_to_get_shape_value_of_indices(shape_node, batch_axis)
-        mark_input_as_in_correct_layout(batch_node, 0)
+        batch_node = node_to_get_shape_value_of_indices(shape_node, [batch_axis])
         broadcast_node = Broadcast(graph, {'name': reverse_name + "/broadcast"}).create_node()
         broadcast_node.in_port(0).connect(seq_axis_node.out_port(0))
         broadcast_node.in_port(1).connect(batch_node.out_port(0))
-        mark_input_as_in_correct_layout(broadcast_node, 0)
-        mark_input_as_in_correct_layout(broadcast_node, 1)
 
         # 2. Create new ReverseSequence node and reconnect all inputs/outputs to it
         reverse_sequence = ReverseSequence(graph, {'name':  reverse_name, 'seq_axis': seq_axis,
                                                    'batch_axis': batch_axis}).create_node()
         reverse_sequence.in_port(0).connect(new_in)
         reverse_sequence.in_port(1).connect(broadcast_node.out_port(0))
-        mark_input_as_in_correct_layout(reverse_sequence, 0)
-        mark_input_as_in_correct_layout(reverse_sequence, 1)
 
-        # remove added dimension
-        squeeze_node = create_op_node_with_second_input(graph, Squeeze, int64_array([0]),
-                                                        {'name': reverse_name + "/Squeeze"})
-        squeeze_node.in_port(0).connect(reverse_sequence.out_port(0))
-        mark_input_as_in_correct_layout(squeeze_node, 0)
-
-        reverse.out_port(0).get_connection().set_source(squeeze_node.out_port(0))
-        mark_output_as_in_correct_layout(squeeze_node, 0)
+        # remove added dimension for rank = 1
+        if in_shape_rank == 1:
+            squeeze_node = create_op_node_with_second_input(graph, Squeeze, int64_array([0]),
+                                                            {'name': reverse_name + "/Squeeze"})
+            squeeze_node.in_port(0).connect(reverse_sequence.out_port(0))
+            reverse.out_port(0).get_connection().set_source(squeeze_node.out_port(0))
+        else:
+            reverse.out_port(0).get_connection().set_source(reverse_sequence.out_port(0))
 
         # 3. Delete old Reverse node
         graph.remove_node(reverse.id)
