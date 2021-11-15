@@ -109,6 +109,8 @@ target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
 add_library(openvino::runtime::plugin_api ALIAS ${TARGET_NAME}_plugin_api)
+# Alias for backward compatibility
+add_library(IE::inference_engine_plugin_api ALIAS ${TARGET_NAME}_plugin_api)
 
 target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt openvino::util)
 
