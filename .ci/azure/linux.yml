@@ -217,7 +217,7 @@ jobs:
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
