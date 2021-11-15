@@ -83,7 +83,7 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
                Prepare new FakeQuantize that performs weights quantization.
                In this case input_low/high stays the same, but we need new output_low/high:
                  output_low = -levels / 2
-                 output_high = levels / 2 - 1
+                 output_high = levels - 1 + output_low
                The FakeQuantize result is converted to low precision type and then constant folded
             */
             std::shared_ptr<Node> new_input_low;
@@ -182,7 +182,7 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
 
         auto zp_value = zero_point->cast_vector<float>();
         if (std::all_of(zp_value.begin(), zp_value.end(), [] (float f) -> bool { return std::fabs(f) <= std::numeric_limits<float>::epsilon(); })) {
-            copy_runtime_info(sub, {convert});
+            copy_runtime_info(sub, convert);
             replace_node(sub, convert);
         }
 
@@ -225,7 +225,7 @@ ngraph::pass::ZeroPointOptimizer::ZeroPointOptimizer() {
         new_weights->set_friendly_name(weights->get_friendly_name());
         replace_node(weights, new_weights);
 
-        copy_runtime_info(sub, {convert});
+        copy_runtime_info(sub, convert);
         replace_node(sub, convert);
         return true;
     };
