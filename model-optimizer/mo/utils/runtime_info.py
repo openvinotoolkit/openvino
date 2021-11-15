@@ -29,6 +29,17 @@ class RTInfo:
         """
         self.info = defaultdict(dict)
 
+    def contains(self, attribute_name: str):
+        attr_count = [key[0] for key in list(self.info.keys())].count(attribute_name)
+        assert attr_count <= 1, 'Incorrect rt_info attribute, got more than one {}.'.format(attribute_name)
+        return attr_count > 0
+
+    def get_attribute_version(self, attribute_name: str):
+        for name, version in list(self.info.keys()):
+            if name == attribute_name:
+                return version
+        raise Exception("rt_info does not contain attribute with name {}".format(attribute_name))
+
 
 class RTInfoElement:
     """
