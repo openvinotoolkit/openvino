@@ -226,8 +226,7 @@ def run(args):
                                           [
                                               ('compile model time (ms)', duration_ms)
                                           ])
-            function = exe_network.get_runtime_function()
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.inputs, function.get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
             if batch_size == 0:
                 batch_size = 1
         elif not is_network_compiled:
@@ -248,7 +247,7 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean,  network.inputs, network.get_parameters())
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, network.get_parameters())
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.shape for info in app_inputs_info }
@@ -306,8 +305,7 @@ def run(args):
                                           [
                                               ('import model time (ms)', duration_ms)
                                           ])
-            function = exe_network.get_runtime_function()
-            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.inputs(), function.get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
             if batch_size == 0:
                 batch_size = 1
 

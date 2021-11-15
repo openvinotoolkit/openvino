@@ -164,7 +164,7 @@ def get_extension(file_path):
 
 
 def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, info, from_map=False):
-    shape = info.shape
+    shape = [len(d) for d in info.shape]
     images = np.ndarray(shape)
     if from_map:
         image_index = request_id * batch_size
@@ -221,8 +221,8 @@ def get_dtype(precision):
     raise Exception("Can't find data type for precision: " + precision)
 
 def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, info, from_map=False):
-    binaries = np.ndarray(info.shape)
-    shape = info.shape.copy()
+    binaries = np.ndarray([len(d) for d in info.shape])
+    shape = binaries.copy()
     if 'N' in info.layout:
         shape[info.layout.index('N')] = 1
     if from_map:
@@ -251,8 +251,8 @@ def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_
 
 
 def fill_blob_with_image_info(image_size, layer):
-    shape = layer.shape
-    im_info = np.ndarray(shape)
+    shape = [len(d) for d in layer.shape]
+    im_info = np.ndarray(shape.copy())
     for b in range(shape[0]):
         for i in range(shape[1]):
             im_info[b][i] = image_size[i] if i in [0, 1] else 1

@@ -138,20 +138,19 @@ def get_precision(element_type: Type):
     raise Exception("Can't find  precision for openvino element type: " + str(element_type))
 
 def print_inputs_and_outputs_info(function: Function):
-    inputs = function.inputs
     parameters = function.get_parameters()
-    input_names = get_input_output_names(inputs)
-    for i in range(len(inputs)):
-        logger.info(f"Network input '{input_names[i]}' precision {get_precision(inputs[i].get_element_type())}, "
+    input_names = get_input_output_names(parameters)
+    for i in range(len(parameters)):
+        logger.info(f"Network input '{input_names[i]}' precision {get_precision(parameters[i].get_element_type())}, "
                                                     f"dimensions ({str(parameters[i].get_layout())}): "
-                                                    f"{' '.join(str(x) for x in inputs[i].get_partial_shape())}")
-    outputs = function.outputs
-    output_names = get_input_output_names(outputs)
+                                                    f"{' '.join(str(x) for x in parameters[i].get_partial_shape())}")
     results = function.get_results()
-    for i in range(len(outputs)):
-        logger.info(f"Network output '{output_names[i]}' precision {get_precision(outputs[i].get_element_type())}, "
+    output_names = get_input_output_names(results)
+    results = function.get_results()
+    for i in range(len(results)):
+        logger.info(f"Network output '{output_names[i]}' precision {get_precision(results[i].get_element_type())}, "
                                         f"dimensions ({str(results[i].get_layout())}): "
-                                        f"{' '.join(str(x) for x in  outputs[i].get_partial_shape())}")
+                                        f"{' '.join(str(x) for x in  results[i].get_output_shape(0))}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
@@ -307,8 +306,8 @@ def get_command_line_arguments(argv):
     return parameters
 
 
-def get_input_output_names(output_nodes):
-    return [output_node.get_node().get_friendly_name() for output_node in output_nodes] # get_friendly_name() or get_name() ?
+def get_input_output_names(nodes):
+    return [node.get_friendly_name() for node in nodes] # get_friendly_name() or get_name() ?
 
 
 def parse_input_parameters(parameter_string, input_names):
@@ -396,13 +395,13 @@ class AppInputInfo:
         return self.getDimentionByLayout("D")
 
 
-def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_string, inputs, parameters):
-    input_names = get_input_output_names(inputs)
+def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
+    input_names = get_input_output_names(parameters)
     shape_map = parse_input_parameters(shape_string, input_names)
     layout_map = parse_input_parameters(layout_string, input_names)
     reshape = False
     input_info = []
-    for i in range(len(inputs)):
+    for i in range(len(parameters)):
         info = AppInputInfo()
         # Name
         info.name = input_names[i]
@@ -412,7 +411,7 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
             info.shape = parsed_shape
             reshape = True
         else:
-            info.shape = inputs[i].get_partial_shape()
+            info.shape = parameters[i].get_partial_shape()
         # Layout
         if info.name in layout_map.keys():
             info.layout = layout_map[info.name]
