@@ -84,15 +84,17 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
     user_precision_map = {}
     if input_output_precision:
         user_precision_map = _parse_arg_map(input_output_precision)
-        input_names = get_input_output_names(function.inputs)
-        output_names = get_input_output_names(function.outputs)
+        input_names = get_input_output_names(function.get_parameters())
+        output_names = get_input_output_names(function.get_results())
         for node_name, precision in user_precision_map.items():
             user_precision_map[node_name] = get_element_type(precision)
         for name, element_type in user_precision_map.items():
             if name in input_names:
-                pre_post_processor.input(InputInfo(name).tensor(InputTensorInfo().set_element_type(element_type)))
+                port = input_names.index(name)
+                pre_post_processor.input(InputInfo(port).tensor(InputTensorInfo().set_element_type(element_type)))
             elif name in output_names:
-                pre_post_processor.output(OutputInfo(name).tensor(OutputTensorInfo().set_element_type(element_type))) # TODO: check why it doesn't work with friendly names
+                port = output_names.index(name)
+                pre_post_processor.output(OutputInfo(port).tensor(OutputTensorInfo().set_element_type(element_type)))
             else:
                 raise Exception(f"Node '{name}' does not exist in network")
     # update app_inputs_info
