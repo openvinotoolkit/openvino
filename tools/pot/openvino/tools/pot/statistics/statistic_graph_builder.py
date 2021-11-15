@@ -6,7 +6,12 @@ from mo.ops.op import Op
 from mo.ops.result import Result
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.front.common.partial_infer.utils import int64_array
-from extensions.back.add_outputs_recursive import AddOutputRecursive
+
+try:
+    from extensions.back.add_outputs_recursive import AddOutputRecursive
+except ImportError:
+    pass  # we try to import AddOutputRecursive for subgraphs quantization
+
 from extensions.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
 from extensions.ops.activation_ops import Abs
 
