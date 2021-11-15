@@ -1184,7 +1184,16 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             const auto &srcShape = getInputShapeAtPort(i);
             portConfig.desc = createMemoryDesc(srcShape, inputPrecisions[i], offset);
             if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
-                portConfig.desc = portConfig.desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                const auto dOld = portConfig.desc->as<BlockedMemoryDesc>();
+                auto strides = dOld->getStrides();
+                strides[0] = Shape::UNDEFINED_DIM;
+                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(dOld->getPrecision(),
+                                                                         dOld->getShape(),
+                                                                         dOld->getBlockDims(),
+                                                                         dOld->getOrder(),
+                                                                         dOld->getOffsetPadding(),
+                                                                         dOld->getOffsetPaddingToData(),
+                                                                         strides);
             }
 
             config.inConfs.push_back(portConfig);
@@ -1197,7 +1206,16 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         const auto &dstShape = getOutputShapeAtPort(0);
         portConfig.desc = createMemoryDesc(dstShape, outputPrecision, offset);
         if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
-            portConfig.desc = portConfig.desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+            const auto dOld = portConfig.desc->as<BlockedMemoryDesc>();
+            auto strides = dOld->getStrides();
+            strides[0] = Shape::UNDEFINED_DIM;
+            portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(dOld->getPrecision(),
+                                                                     dOld->getShape(),
+                                                                     dOld->getBlockDims(),
+                                                                     dOld->getOrder(),
+                                                                     dOld->getOffsetPadding(),
+                                                                     dOld->getOffsetPaddingToData(),
+                                                                     strides);
         }
 
         config.outConfs.push_back(portConfig);
