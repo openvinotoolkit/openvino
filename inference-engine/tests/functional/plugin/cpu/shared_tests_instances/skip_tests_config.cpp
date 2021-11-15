@@ -152,6 +152,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
         // todo: [AV] issue
+        R"(.*ConvolutionLayerCPUTest.*K\(1.*S\(2.*zp.*)",
+        // todo: [AV] issue 70622
+        R"(.*ConvolutionLayerCPUTest.*PB\(1\.1\.1.*jit_gemm.*zp.*)",
+        // todo: [AV] issue
         R"(.*GroupConvolutionLayerCPUTest.*PB\(1.*zp.*)",
         // todo: [AV] issue
         R"(.*MatMulLayerCPUTest.*outPRC=(U8|I8).*Fused=(fusingBiasFC|Relu|Multiply).*)",

@@ -184,6 +184,13 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     }
 
     Run();
+//    auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[0]);
+//    const auto lockedMemory = memory->wmap();
+//    const auto buffer = lockedMemory.as<const std::uint8_t *>();
+//    std::cout << "SRC" << std::endl;
+//    for (int i = 0; i < memory->size(); i++) {
+//        std::cout << i << ". " << (int32_t)buffer[i] << std::endl;
+//    }
 
     if (isBias) {
         checkBiasFusing(executableNetwork);

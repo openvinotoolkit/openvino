@@ -63,6 +63,16 @@ std::shared_ptr<Node> makeConvolutionRelaxed(const ngraph::Output<Node> &in,
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
 
+//    auto constNode = std::dynamic_pointer_cast<ngraph::op::Constant>(filterWeightsNode);
+//    std::cout << "WEI" << std::endl;
+//    auto dataSize = 1;
+//    for (int i = 0; i < constNode->get_output_shape(0).size(); i++)
+//        dataSize *= constNode->get_output_shape(0)[i];
+//    auto *dataPtr = (const int8_t *)constNode->get_data_ptr();
+//    for (int i = 0; i < dataSize; i++) {
+//        std::cout << i << ". " << (int32_t)(dataPtr[i]) << std::endl;
+//    }
+
     auto newConvolution = convolutionNodeRelaxed->copy_with_new_inputs({in, filterWeightsNode});
 
     return newConvolution;
