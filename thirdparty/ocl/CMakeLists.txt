@@ -46,7 +46,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "")
 # OpenCL has absolute paths to include directories
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION OFF)
 
-add_subdirectory(icd_loader)
+add_subdirectory(icd_loader EXCLUDE_FROM_ALL)
 
 # override INTERFACE_INCLUDE_DIRECTORIES
 set_property(TARGET OpenCL PROPERTY INTERFACE_INCLUDE_DIRECTORIES

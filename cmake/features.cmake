@@ -14,6 +14,17 @@ ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependenc
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
+if (NOT ENABLE_CLDNN OR ANDROID OR
+    (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
+    # oneDNN doesn't support old compilers and android builds for now, so we'll
+    # build GPU plugin without oneDNN
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
+else()
+    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
+endif()
+
+ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "${ENABLE_ONEDNN_FOR_GPU_DEFAULT}" OFF)
+
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
 ie_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\
