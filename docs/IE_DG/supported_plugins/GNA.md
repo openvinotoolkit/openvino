@@ -358,7 +358,7 @@ The plugin supports the configuration parameters listed below. The parameter nam
 
    Normally, you do not need to select the execution target (``GNA_EXEC_TARGET``) and compilation target (``GNA_COMPILE_TARGET``). The default value for the execution target corresponds to available hardware, or latest hardware version supported by the plugin (i.e., GNA 3.0) if there is no GNA HW in the system. The compilation target is the same as the execution target by default. However, you may want to change the targets, for example, if you want to check how a model compiled for one generation would behave on the other generation (using the SW emulation mode), or if you are willing to export a model for a specific version of GNA HW.
 
-   You can change the ``GNA_DEVICE_MODE`` parameter at run time by sending a configuration dict to the `IECore.load_network <api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.load_network>`_ call, which works for any value excluding ``GNA_SW_FP32``. This enables you to switch the execution between software emulation mode and hardware emulation mode after the model is loaded.
+   You can change the ``GNA_DEVICE_MODE`` parameter at run time by sending a configuration dict to the `IECore.load_network <api/ie_python_api/_autosummary/openvino.inference_engine.IECore.html#openvino.inference_engine.IECore.load_network>`_ call, which works for any value excluding ``GNA_SW_FP32``. This enables you to switch the execution between software emulation mode and hardware execution mode after the model is loaded.
 
 @endsphinxdirective   
 ## How to Interpret Performance Counters
