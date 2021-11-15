@@ -8,10 +8,18 @@
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/common_optimizations/subtract_fusion.hpp"
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::FuseFilteringBoxesBySize, "FuseFilteringBoxesBySize", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveFilteringBoxesBySize, "RemoveFilteringBoxesBySize", 0);
+
+ngraph::pass::FuseFilteringBoxesBySize::FuseFilteringBoxesBySize() {
+    add_matcher<SubtractFusion>();
+    add_matcher<RemoveFilteringBoxesBySize>();
+}
 
 ngraph::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
     MATCHER_SCOPE(RemoveFilteringBoxesBySize);
@@ -85,9 +93,9 @@ ngraph::pass::RemoveFilteringBoxesBySize::RemoveFilteringBoxesBySize() {
         auto start = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({0}));
         auto step = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({1}));
 
-        auto pattern_map = m.get_pattern_map();
+        const auto & pattern_map = m.get_pattern_map();
 
-        auto input = pattern_map[data];
+        auto input = pattern_map.at(data);
         auto output = m.get_match_root();
 
         auto input_shape = std::make_shared<ngraph::opset3::ShapeOf>(input);

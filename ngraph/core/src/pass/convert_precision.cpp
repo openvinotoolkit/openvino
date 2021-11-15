@@ -33,6 +33,7 @@ bool fuse_type_to_nms5(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
 bool fuse_type_to_matrix_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_multiclass_nms(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_maxpool(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_ctc_greedy_decoder_seq_len(const std::shared_ptr<ngraph::Node>& node,
@@ -258,6 +259,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset8::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
         {opset6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
         {opset4::TopK::get_type_info_static(), fuse_type_to_topk},
+        {opset8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
         {opset4::NonZero::get_type_info_static(), fuse_type_to_nonzero},
         {opset4::Bucketize::get_type_info_static(), fuse_type_to_bucketize},
         {opset4::Equal::get_type_info_static(), fuse_type_to_binary_comparision<opset4::Equal>},
@@ -419,6 +421,16 @@ bool fuse_type_to_topk(const std::shared_ptr<ngraph::Node>& node, ngraph::elemen
     if (auto topk = ov::as_type_ptr<opset4::TopK>(node)) {
         if (idx == 1 && (to == element::i32 || to == element::i64)) {
             topk->set_index_element_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_maxpool(const std::shared_ptr<ngraph::Node>& node, ngraph::element::Type to, size_t idx) {
+    if (auto maxpool = ov::as_type_ptr<opset8::MaxPool>(node)) {
+        if (idx == 1 && (to == element::i32 || to == element::i64)) {
+            maxpool->set_index_element_type(to);
             return true;
         }
     }

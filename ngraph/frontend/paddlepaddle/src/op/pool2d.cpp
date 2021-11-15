@@ -8,7 +8,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <node_context.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -48,12 +48,12 @@ static void get_paddings(const NodeContext& node,
     // TODO: need to support NHWC input #55483
     switch (paddings.size()) {
     case 2:
-        pad_begin = Shape{static_cast<uint64_t>(paddings[0]), static_cast<uint64_t>(paddings[1])};
+        pad_begin = Shape{static_cast<size_t>(paddings[0]), static_cast<size_t>(paddings[1])};
         pad_end = pad_begin;
         break;
     case 4:
-        pad_begin = Shape{static_cast<uint64_t>(paddings[0]), static_cast<uint64_t>(paddings[2])};
-        pad_end = Shape{static_cast<uint64_t>(paddings[1]), static_cast<uint64_t>(paddings[3])};
+        pad_begin = Shape{static_cast<size_t>(paddings[0]), static_cast<size_t>(paddings[2])};
+        pad_end = Shape{static_cast<size_t>(paddings[1]), static_cast<size_t>(paddings[3])};
         break;
     default:
         throw std::runtime_error("Unsupported pooling paddings " + std::to_string(paddings.size()));
@@ -131,7 +131,7 @@ NamedOutputs pool2d(const NodeContext& node) {
         auto strides = node.get_attribute<std::vector<int32_t>>("strides");
         auto paddings = node.get_attribute<std::vector<int32_t>>("paddings");
 
-        uint64_t kernel_h, kernel_w;
+        size_t kernel_h, kernel_w;
         if (kernel_shape.size() == 1) {
             // Not tested: implemented according to spec, but can't generate real
             // model to test
@@ -185,4 +185,4 @@ NamedOutputs pool2d(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -4,9 +4,23 @@
 import numpy as np
 import pytest
 
-from tests.test_inference_engine.helpers import read_image
+from ..conftest import image_path
 from openvino import Tensor
 import openvino as ov
+
+
+def read_image():
+    import cv2
+
+    n, c, h, w = (1, 3, 32, 32)
+    image = cv2.imread(image_path())
+    if image is None:
+        raise FileNotFoundError("Input image not found")
+
+    image = cv2.resize(image, (h, w)) / 255
+    image = image.transpose((2, 0, 1)).astype(np.float32)
+    image = image.reshape((n, c, h, w))
+    return image
 
 
 @pytest.mark.parametrize("ov_type, numpy_dtype", [
