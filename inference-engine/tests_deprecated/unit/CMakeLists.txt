@@ -18,7 +18,8 @@ file(GLOB
         inference_engine_tests/*.cpp
         )
 
-if (ENABLE_GNA)
+# TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
+if (ENABLE_GNA AND BUILD_SHARED_LIBS)
     file(GLOB
             GNA_TESTS
             engines/gna/*cpp
@@ -39,7 +40,7 @@ if (ENABLE_GNA)
     set(gna_stub "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/gna_api_stub.cpp")
     list(REMOVE_ITEM TEST_SRC "${gna_stub}")
 
-    if(NOT BUILD_SHARED_LIBS)
+    if(BUILD_SHARED_LIBS)
         add_library(libGNAStubs SHARED "${gna_stub}")
 
         find_package(libGNA)
@@ -56,8 +57,6 @@ if (ENABLE_GNA)
             set_target_properties(libGNAStubs PROPERTIES CXX_VISIBILITY_PRESET default)
         endif()
         list(APPEND TEST_DEPS libGNAStubs)
-    else()
-        # actual libGNA.dll is linked
     endif()
 endif()
 
