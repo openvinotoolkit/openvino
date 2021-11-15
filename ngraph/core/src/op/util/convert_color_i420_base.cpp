@@ -4,17 +4,18 @@
 
 #include "openvino/op/util/convert_color_i420_base.hpp"
 
-#include <memory>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/runtime/reference/convert_color_nv12.hpp"
 #include "openvino/core/layout.hpp"
 
+namespace i420_op {
 static const size_t N_DIM = 0;
 static const size_t H_DIM = 1;
 static const size_t W_DIM = 2;
 static const size_t C_DIM = 3;
+}  // namespace i420_op
 
 ov::op::util::ConvertColorI420Base::ConvertColorI420Base(const Output<Node>& arg, ColorConversion format)
     : Op({arg}),
@@ -49,15 +50,15 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
     if (out_shape.rank().is_dynamic()) {
         out_shape = PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 3};
     }
-    out_shape[C_DIM] = 3;  // 3 is number of channels (R, G, B)
+    out_shape[i420_op::C_DIM] = 3;  // 3 is number of channels (R, G, B)
     if (single_plane) {
-        if (shape_y.rank().is_static() && shape_y[H_DIM].is_static()) {
+        if (shape_y.rank().is_static() && shape_y[i420_op::H_DIM].is_static()) {
             NODE_VALIDATION_CHECK(this,
-                                  shape_y[H_DIM].get_length() % 3 == 0,
+                                  shape_y[i420_op::H_DIM].get_length() % 3 == 0,
                                   "I420 image height shall be divisible by 3, but it is ",
-                                  shape_y[H_DIM].get_length());
+                                  shape_y[i420_op::H_DIM].get_length());
             // E.g. if input shape height is 720 for I420, then real image height is 720 * 2 / 3 = 480
-            out_shape[H_DIM] = shape_y[H_DIM].get_length() * 2 / 3;
+            out_shape[i420_op::H_DIM] = shape_y[i420_op::H_DIM].get_length() * 2 / 3;
         }
     } else {
         auto u_type = get_input_element_type(1);
@@ -93,11 +94,11 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
         auto shape_uv = shape_u;
         PartialShape::merge_into(shape_uv, shape_v);
         if (shape_uv.rank().is_static()) {
-            if (!shape_uv[H_DIM].is_dynamic()) {
-                shape_uv[H_DIM] *= 2;
+            if (!shape_uv[i420_op::H_DIM].is_dynamic()) {
+                shape_uv[i420_op::H_DIM] *= 2;
             }
-            if (!shape_uv[W_DIM].is_dynamic()) {
-                shape_uv[W_DIM] *= 2;
+            if (!shape_uv[i420_op::W_DIM].is_dynamic()) {
+                shape_uv[i420_op::W_DIM] *= 2;
             }
         }
         NODE_VALIDATION_CHECK(this,
@@ -109,13 +110,13 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
         PartialShape::merge_into(out_shape, shape_uv);
     }
     NODE_VALIDATION_CHECK(this,
-                          out_shape[H_DIM].is_dynamic() || out_shape[H_DIM].get_length() % 2 == 0,
+                          out_shape[i420_op::H_DIM].is_dynamic() || out_shape[i420_op::H_DIM].get_length() % 2 == 0,
                           "Image height must be even, but it is ",
-                          out_shape[H_DIM].get_length());
+                          out_shape[i420_op::H_DIM].get_length());
     NODE_VALIDATION_CHECK(this,
-                          out_shape[W_DIM].is_dynamic() || out_shape[W_DIM].get_length() % 2 == 0,
+                          out_shape[i420_op::W_DIM].is_dynamic() || out_shape[i420_op::W_DIM].get_length() % 2 == 0,
                           "Image width must be even, but it is ",
-                          out_shape[W_DIM].get_length());
+                          out_shape[i420_op::W_DIM].get_length());
     NODE_VALIDATION_CHECK(this,
                           is_type_supported(out_type),
                           "Input type shall have u8 or floating-point precision, got ",
@@ -123,7 +124,7 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
     set_output_type(0, out_type, out_shape);
 }
 
-namespace color_convert_i420_op {
+namespace i420_op {
 namespace {
 
 template <ov::element::Type_t ET>
@@ -186,7 +187,7 @@ bool evaluate_i420_convert(const ov::HostTensorVector& input_values,
 }
 
 }  // namespace
-}  // namespace color_convert_i420_op
+}  // namespace i420_op
 
 bool ov::op::util::ConvertColorI420Base::visit_attributes(AttributeVisitor& visitor) {
     return true;
@@ -201,7 +202,7 @@ bool ov::op::util::ConvertColorI420Base::evaluate(const HostTensorVector& output
                           "I420 conversion shall have one or 3 inputs, but it is ",
                           get_input_size());
     auto single_plane = get_input_size() == 1;
-    return color_convert_i420_op::evaluate_i420_convert(input_values, output_values[0], single_plane, m_format);
+    return i420_op::evaluate_i420_convert(input_values, output_values[0], single_plane, m_format);
 }
 
 bool ov::op::util::ConvertColorI420Base::has_evaluate() const {
