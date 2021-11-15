@@ -26,7 +26,7 @@ public:
     ///
     /// \param emb_table tensor containing the embedding lookup table of the module of
     /// shape [num_emb, emb_dim1, emb_dim2, ...] and  of type T
-    /// \param tensor of shape [num_indices] and of type T_IND. Required
+    /// \param indices tensor of shape [num_indices] and of type T_IND. Required
     /// \param offsets tensor of shape [batch] and of type T_IND containing the starting
     /// index positions of each "bag" in indices. Required.
     /// \param per_sample_weigths tensor of the same shape as indices and of type T.
