@@ -67,3 +67,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
 
     ie_cpack(pyopenvino_${PYTHON_VERSION})
 endif()
+
+if(TARGET ie_wheel)
+    add_dependencies(ie_wheel ${PROJECT_NAME})
+endif()
