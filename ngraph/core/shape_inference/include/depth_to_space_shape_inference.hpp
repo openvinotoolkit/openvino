@@ -22,36 +22,39 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
 
     const auto& data_shape = input_shapes[0];
     const ov::Rank data_rank = data_shape.rank();
+    const auto block_size = op->get_block_size();
+    size_t divider = 0;
+
     if (data_rank.is_static()) {
         NODE_VALIDATION_CHECK(op,
                               !(data_shape.size() < 3),
                               "The input tensor with rank lower than 3 is not supported (input rank: ",
                               data_shape.size(),
                               ")");
+
+        divider = std::pow(block_size, data_shape.size() - 2);
+        NODE_VALIDATION_CHECK(op, (divider), "DepthToSpace: The divider must not be 0");
     }
 
     if (data_shape.is_static()) {
-        const ov::Shape& data_sshape = data_shape.to_shape();
-        const auto block_size = op->get_block_size();
-
-        auto divider = std::pow(block_size, data_sshape.size() - 2);
-        NODE_VALIDATION_CHECK(op, (divider), "DepthToSpace: The divider must not be 0");
-
         NODE_VALIDATION_CHECK(op,
-                              block_size > 0 && !(data_sshape[1] % block_size),
+                              block_size > 0 && !(data_shape[1].get_length() % block_size),
                               "DepthToSpace: The input data's 'channels' axis size: ",
-                              data_sshape[1],
+                              data_shape[1],
                               " must be a equivalent to 'block_size'^'spatial_dims': ",
                               divider);
+        auto& output_shape = output_shapes[0];
 
-        auto out_shape = data_sshape;
-        out_shape[1] /= divider;
-        for (size_t i = 2; i < out_shape.size(); i++) {
-            out_shape[i] *= block_size;
+        output_shape.resize(data_shape.size());
+        output_shape[0] = data_shape[0].get_length();
+        output_shape[1] = data_shape[1].get_length() / divider;
+        for (size_t i = 2; i < output_shape.size(); i++) {
+            output_shape[i] = data_shape[i].get_length() * block_size;
         }
-        output_shapes[0] = T{out_shape};
     } else {
-        set_output_to_be_partial(data_rank, output_shapes[0]);
+        // For PartialShape, Set the output to be dynamic;
+        // For StaticShape, throw error caused by implicitly constructing StaticShape with PartialShape argument;
+        output_shapes[0] = ov::PartialShape::dynamic(data_rank);
     }
 }
 

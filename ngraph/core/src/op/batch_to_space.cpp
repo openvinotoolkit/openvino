@@ -68,7 +68,6 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                                                         get_input_partial_shape(2),
                                                         get_input_partial_shape(3)};
     shape_infer(this, input_shapes, output_shapes);
-    set_output_size(1);
     set_output_type(0, data_et, output_shapes[0]);
 }
 

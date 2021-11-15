@@ -34,37 +34,37 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
 
     std::vector<int64_t> block_val, pads_begin_val, pads_end_val;
 
-    if (get_data_as_int64<T>(1, op, block_val, constant_data) &&
+    if (data_shape.is_static() && get_data_as_int64<T>(1, op, block_val, constant_data) &&
         get_data_as_int64<T>(2, op, pads_begin_val, constant_data) &&
-        get_data_as_int64<T>(3, op, pads_end_val, constant_data) && data_shape.is_static()) {
-        const ov::Shape& data_sshape = data_shape.to_shape();
-
+        get_data_as_int64<T>(3, op, pads_end_val, constant_data)) {
         int64_t block_prod = 1;
         for (long idx : block_val)
             block_prod *= idx;
+        auto& output_shape = output_shapes[0];
+        output_shape.resize(data_shape.size());
+        output_shape[0] = data_shape[0].get_length() * block_prod;
 
-        ov::Shape output_shape = {static_cast<size_t>(data_sshape[0] * block_prod)};
-        for (size_t idx = 1; idx < data_sshape.size(); ++idx) {
-            NODE_VALIDATION_CHECK(op, block_val.at(idx) > 0, "block_shape values must be greater than 0");
+        for (size_t idx = 1; idx < output_shape.size(); ++idx) {
+            NODE_VALIDATION_CHECK(op, block_val[idx] > 0, "block_shape values must be greater than 0");
             NODE_VALIDATION_CHECK(
                 op,
-                (pads_begin_val.at(idx) + data_sshape.at(idx) + pads_end_val.at(idx)) % block_val.at(idx) == 0,
+                (pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx]) % block_val[idx] == 0,
                 "The dimension on position: ",
                 idx,
                 " equal to: ",
-                pads_begin_val.at(idx) + data_sshape.at(idx) + pads_end_val.at(idx),
+                pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx],
                 " must be a multiple of block_values[i]: ",
-                block_val.at(idx));
-            output_shape.push_back(static_cast<size_t>(pads_begin_val[idx] + data_sshape[idx] + pads_end_val[idx]) /
-                                   block_val[idx]);
+                block_val[idx]);
+            output_shape[idx] =
+                (pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx]) / block_val[idx];
         }
-
-        output_shapes[0] = T{output_shape};
     } else {
-        set_output_to_be_partial(data_rank, output_shapes[0]);
+        // For PartialShape, Set the output to be dynamic;
+        // For StaticShape, throw error caused by implicitly constructing StaticShape with PartialShape argument;
+        output_shapes[0] = ov::PartialShape::dynamic(data_rank);
     }
 }
 
-}
-}
-}
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

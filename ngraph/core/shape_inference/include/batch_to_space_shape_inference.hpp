@@ -36,11 +36,10 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                           " and ",
                           crops_end_shape);
 
-    const ov::Rank inputs_rank_one = inputs_same_ps.rank();
     NODE_VALIDATION_CHECK(op,
-                          inputs_rank_one.compatible(1),
+                          inputs_same_ps.rank().compatible(1),
                           "block_shape and crops inputs must have rank 1. Got: ",
-                          inputs_rank_one);
+                          inputs_same_ps.rank());
 
     const ov::Rank data_rank = data_shape.rank();
     if (data_rank.is_static()) {
@@ -48,7 +47,6 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                               (data_rank.get_length() >= 2),
                               "data input must have rank greater or equal than 2. Got: ",
                               data_rank.get_length());
-
         if (inputs_same_ps.is_static()) {
             NODE_VALIDATION_CHECK(op,
                                   data_rank.get_length() == inputs_same_ps[0].get_length(),
@@ -62,11 +60,9 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
 
     std::vector<int64_t> block_val, crops_begin_val, crops_end_val;
 
-    if (get_data_as_int64<T>(1, op, block_val, constant_data) &&
+    if (data_shape.is_static() && get_data_as_int64<T>(1, op, block_val, constant_data) &&
         get_data_as_int64<T>(2, op, crops_begin_val, constant_data) &&
-        get_data_as_int64<T>(3, op, crops_end_val, constant_data) && data_shape.is_static()) {
-        const ov::Shape& data_sshape = data_shape.to_shape();
-
+        get_data_as_int64<T>(3, op, crops_end_val, constant_data)) {
         bool block_vals_valid = std::all_of(begin(block_val), end(block_val), [](int64_t elem) {
             return elem >= 1;
         });
@@ -85,34 +81,36 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
         int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
 
         NODE_VALIDATION_CHECK(op,
-                              data_sshape[0] % block_prod == 0,
+                              data_shape[0].get_length() % block_prod == 0,
                               "The input data's 'batch' axis size: ",
-                              data_sshape[0],
+                              data_shape[0],
                               " must be a multiple of",
                               " product of block_shape values: ",
                               block_prod);
 
-        for (size_t idx = 0; idx < data_sshape.size(); idx++) {
+        for (size_t idx = 0; idx < data_shape.size(); idx++) {
             const bool is_valid_crops_and_shape =
-                crops_begin_val[idx] + crops_end_val[idx] <= block_val[idx] * static_cast<int64_t>(data_sshape[idx]);
+                crops_begin_val[idx] + crops_end_val[idx] <= block_val[idx] * data_shape[idx].get_length();
             NODE_VALIDATION_CHECK(op,
                                   is_valid_crops_and_shape,
                                   "crops_begin[i] + crops_end[i] must be less or equal to "
                                   "block_shape[i] * input_shape[i]");
         }
 
-        ov::Shape output_sshape = {static_cast<size_t>(data_sshape[0] / block_prod)};
-        for (size_t idx = 1; idx < data_sshape.size(); ++idx) {
-            output_sshape.push_back(
-                static_cast<size_t>(data_sshape[idx] * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx]));
+        auto& output_shape = output_shapes[0];
+        output_shape.resize(data_shape.size());
+        output_shape[0] = data_shape[0].get_length() / block_prod;
+        for (size_t idx = 1; idx < output_shape.size(); ++idx) {
+            output_shape[idx] =
+                data_shape[idx].get_length() * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx];
         }
-
-        output_shapes[0] = T{output_sshape};
     } else {
-        set_output_to_be_partial(data_rank, output_shapes[0]);
+        // For PartialShape, Set the output to be dynamic;
+        // For StaticShape, throw error caused by implicitly constructing StaticShape with PartialShape argument;
+        output_shapes[0] = ov::PartialShape::dynamic(data_rank);
     }
 }
 
-}
-}
-}
+}  // namespace v1
+}  // namespace op
+}  // namespace ov

@@ -33,13 +33,3 @@ inline bool get_data_as_int64<ov::PartialShape>(
     }
     return true;
 }
-
-template <class T>
-inline void set_output_to_be_partial(const ov::Rank& rank, T& output_shape) {
-    OPENVINO_UNREACHABLE("Shape Infer can't set partial shape");
-}
-
-template <>
-inline void set_output_to_be_partial<ov::PartialShape>(const ov::Rank& rank, ov::PartialShape& output_shape) {
-    output_shape = ov::PartialShape::dynamic(rank);
-}

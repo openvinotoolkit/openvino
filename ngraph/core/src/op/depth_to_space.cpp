@@ -51,7 +51,6 @@ void op::DepthToSpace::validate_and_infer_types() {
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
     shape_infer(this, input_shapes, output_shapes);
-    set_output_size(1);
     set_output_type(0, data_type, output_shapes[0]);
 }
 

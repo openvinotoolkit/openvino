@@ -31,27 +31,30 @@ void shape_infer(const ov::op::v0::SpaceToDepth* op,
     }
 
     if (data_shape.is_static()) {
-        const ov::Shape& data_sshape = data_shape.to_shape();
         const auto block_size = op->get_block_size();
-        auto multiplier = std::pow(block_size, data_sshape.size() - 2);
+        auto multiplier = std::pow(block_size, data_shape.size() - 2);
 
-        auto out_shape = data_sshape;
-        out_shape[1] *= multiplier;
+        auto& out_shape = output_shapes[0];
+        out_shape.resize(data_shape.size());
+
+        out_shape[0] = data_shape[0].get_length();
+        out_shape[1] = multiplier * data_shape[1].get_length();
         for (size_t i = 2; i < out_shape.size(); i++) {
             NODE_VALIDATION_CHECK(op,
-                                  block_size > 0 && !(out_shape[i] % block_size),
+                                  block_size > 0 && !(data_shape[i].get_length() % block_size),
                                   "The dimension on position: ",
                                   i,
                                   " equal to: ",
-                                  out_shape[i],
+                                  data_shape[i],
                                   " must be a multiple of m_blocksize: ",
                                   block_size);
 
-            out_shape[i] /= block_size;
+            out_shape[i] = data_shape[i].get_length() / block_size;
         }
-        output_shapes[0] = T{out_shape};
     } else {
-        set_output_to_be_partial(data_rank, output_shapes[0]);
+        // For PartialShape, Set the output to be dynamic;
+        // For StaticShape, will throw error caused by implicitly constructing StaticShape with PartialShape argument;
+        output_shapes[0] = ov::PartialShape::dynamic(data_rank);
     }
 }
 
