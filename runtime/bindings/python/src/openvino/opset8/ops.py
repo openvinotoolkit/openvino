@@ -140,18 +140,18 @@ def adaptive_max_pool(
 
 @nameable_op
 def multiclass_nms(
-    boxes: NodeInput,
-    scores: NodeInput,
-    sort_result_type: str = "none",
-    sort_result_across_batch: bool = False,
-    output_type: str = "i64",
-    iou_threshold: float = 0.0,
-    score_threshold: float = 0.0,
-    nms_top_k: int = -1,
-    keep_top_k: int = -1,
-    background_class: int = -1,
-    nms_eta: float = 1.0,
-    normalized: bool = True
+        boxes: NodeInput,
+        scores: NodeInput,
+        sort_result_type: str = "none",
+        sort_result_across_batch: bool = False,
+        output_type: str = "i64",
+        iou_threshold: float = 0.0,
+        score_threshold: float = 0.0,
+        nms_top_k: int = -1,
+        keep_top_k: int = -1,
+        background_class: int = -1,
+        nms_eta: float = 1.0,
+        normalized: bool = True
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -196,19 +196,19 @@ def multiclass_nms(
 
 @nameable_op
 def matrix_nms(
-    boxes: NodeInput,
-    scores: NodeInput,
-    sort_result_type: str = "none",
-    sort_result_across_batch: bool = False,
-    output_type: str = "i64",
-    score_threshold: float = 0.0,
-    nms_top_k: int = -1,
-    keep_top_k: int = -1,
-    background_class: int = -1,
-    decay_function: str = "linear",
-    gaussian_sigma: float = 2.0,
-    post_threshold: float = 0.0,
-    normalized: bool = True
+        boxes: NodeInput,
+        scores: NodeInput,
+        sort_result_type: str = "none",
+        sort_result_across_batch: bool = False,
+        output_type: str = "i64",
+        score_threshold: float = 0.0,
+        nms_top_k: int = -1,
+        keep_top_k: int = -1,
+        background_class: int = -1,
+        decay_function: str = "linear",
+        gaussian_sigma: float = 2.0,
+        post_threshold: float = 0.0,
+        normalized: bool = True
 ) -> Node:
     """Return a node which performs MatrixNms.
 
@@ -280,17 +280,17 @@ def gather(
 
 @nameable_op
 def max_pool(
-    data: NodeInput,
-    strides: List[int],
-    dilations: List[int],
-    pads_begin: List[int],
-    pads_end: List[int],
-    kernel_shape: TensorShape,
-    rounding_type: str = "floor",
-    auto_pad: Optional[str] = None,
-    index_element_type: Optional[str] = "i64",
-    axis: Optional[int] = 0,
-    name: Optional[str] = None,
+        data: NodeInput,
+        strides: List[int],
+        dilations: List[int],
+        pads_begin: List[int],
+        pads_end: List[int],
+        kernel_shape: TensorShape,
+        rounding_type: str = "floor",
+        auto_pad: Optional[str] = None,
+        index_element_type: Optional[str] = "i64",
+        axis: Optional[int] = 0,
+        name: Optional[str] = None,
 ) -> Node:
     """Perform max pooling operation and return both values and indices of the selected elements.
 
@@ -371,12 +371,12 @@ def random_uniform(
 
 @nameable_op
 def if_op(
-    condition: NodeInput,
-    inputs: List[Node],
-    bodies: Tuple[GraphBody, GraphBody],
-    input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
-    output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
-    name: Optional[str] = None,
+        condition: NodeInput,
+        inputs: List[Node],
+        bodies: Tuple[GraphBody, GraphBody],
+        input_desc: Tuple[List[TensorIteratorInvariantInputDesc], List[TensorIteratorInvariantInputDesc]],
+        output_desc: Tuple[List[TensorIteratorBodyOutputDesc], List[TensorIteratorBodyOutputDesc]],
+        name: Optional[str] = None,
 ) -> Node:
     """Execute one of the bodies depending on condtion value.
 
@@ -395,14 +395,14 @@ def if_op(
     attributes = {
         "then_body": bodies[0].serialize(),
         "else_body": bodies[1].serialize(),
-        "then_inputs": {"invariant_input_desc":[desc.serialize() for desc in input_desc[0]],
-                        "merged_input_desc":[], "slice_input_desc":[]},
-        "else_inputs": {"invariant_input_desc":[desc.serialize() for desc in input_desc[1]],
-                        "merged_input_desc":[], "slice_input_desc":[]},
-        "then_outputs": {"body_output_desc":[desc.serialize() for desc in output_desc[0]],
-                         "concat_output_desc":[]},
-        "else_outputs": {"body_output_desc":[desc.serialize() for desc in output_desc[1]],
-                         "concat_output_desc":[]}
+        "then_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[0]],
+                        "merged_input_desc": [], "slice_input_desc": []},
+        "else_inputs": {"invariant_input_desc": [desc.serialize() for desc in input_desc[1]],
+                        "merged_input_desc": [], "slice_input_desc": []},
+        "then_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[0]],
+                         "concat_output_desc": []},
+        "else_outputs": {"body_output_desc": [desc.serialize() for desc in output_desc[1]],
+                         "concat_output_desc": []}
     }
     return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
                                              attributes)
