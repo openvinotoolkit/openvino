@@ -55,13 +55,13 @@ protected:
             input_md,
             engine.get_onednn_engine(),
             output_md,
-            *get_primitive_attributes(arg));
+            *(arg.get_onednn_primitive_attributes()));
     }
 
 public:
     static primitive_impl* create(const reorder_node& arg) {
         auto desc = get_reorder_descriptor(arg);
-        auto attr = get_primitive_attributes(arg);
+        auto attr = arg.get_onednn_primitive_attributes();
 
         std::shared_ptr<void> dummy = nullptr;
 
