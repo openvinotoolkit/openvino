@@ -4,7 +4,7 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND ENABLE_TBBBIND_2_5)
+if(ENABLE_TBBBIND_2_5)
     # try to find prebuilt version of tbbbind_2_5
     find_package(TBBBIND_2_5 QUIET)
     if(TBBBIND_2_5_FOUND)

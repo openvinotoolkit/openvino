@@ -51,7 +51,9 @@ public:
         return load_impl({ov::make_variant(vars)...});
     }
 
-    InputModel::Ptr load(const ov::VariantVector& vars) const;
+    inline InputModel::Ptr load(const ov::VariantVector& vars) const {
+        return load_impl(vars);
+    }
 
     /// \brief Completely convert and normalize entire function, throws if it is not
     /// possible

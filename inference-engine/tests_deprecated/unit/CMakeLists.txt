@@ -37,10 +37,9 @@ if (ENABLE_GNA AND BUILD_SHARED_LIBS)
     endif()
 
     # TODO: fix GNA tests
-    set(gna_stub "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/gna_api_stub.cpp")
-    list(REMOVE_ITEM TEST_SRC "${gna_stub}")
-
-    if(BUILD_SHARED_LIBS)
+    if(OFF)
+        set(gna_stub "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/gna_api_stub.cpp")
+        list(REMOVE_ITEM TEST_SRC "${gna_stub}")
         add_library(libGNAStubs SHARED "${gna_stub}")
 
         find_package(libGNA)
