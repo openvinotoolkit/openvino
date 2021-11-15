@@ -362,7 +362,10 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             }
             devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         } else {
+            // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
             if (_loadContext[ACTUALDEVICE].isAlready) {
+                // ActualNetwork is ok, do not need to WaitActualNetworkReady(),
+                // but want to print ActualNetwork configure here if it haven't been printed
                 WaitActualNetworkReady();
                 devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
             } else {
