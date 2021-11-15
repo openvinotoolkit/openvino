@@ -69,8 +69,6 @@ protected:
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
         auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
 
-        concat->get_rt_info() = getCPUInfo();
-
         function = makeNgraphFunction(netPrecision, params, concat, "ConcatCPU");
     }
 };
