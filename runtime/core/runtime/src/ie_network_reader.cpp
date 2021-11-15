@@ -22,7 +22,7 @@
 #include "ie_input_info.hpp"
 #include "ie_ir_version.hpp"
 #include "ie_itt.hpp"
-#include "ie_reader.hpp"
+#include "legacy/ie_reader.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/variant.hpp"

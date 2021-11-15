@@ -143,7 +143,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:o
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
                                                       "${CMAKE_CURRENT_BINARY_DIR}" # for static ie_plugins.hpp
-                                                      "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader_v7" # for ie_ir_version.hpp
+                                                      "${IE_MAIN_SOURCE_DIR}/tests_deprecated/readers/ir_reader_v7" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -86,8 +86,6 @@ add_subdirectory(thirdparty)
 add_subdirectory(inference-engine/thirdparty)
 add_subdirectory(inference-engine/src)
 add_subdirectory(runtime)
-# FIXME: Register reader after ov runtime
-add_subdirectory(inference-engine/src/readers)
 add_subdirectory(inference-engine)
 
 include(cmake/extra_modules.cmake)
