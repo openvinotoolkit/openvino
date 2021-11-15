@@ -36,9 +36,10 @@ if (ENABLE_GNA)
     endif()
 
     # TODO: fix GNA tests
-    if(OFF)
-        set(gna_stub "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/gna_api_stub.cpp")
-        list(REMOVE_ITEM TEST_SRC "${gna_stub}")
+    set(gna_stub "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/gna_api_stub.cpp")
+    list(REMOVE_ITEM TEST_SRC "${gna_stub}")
+
+    if(NOT BUILD_SHARED_LIBS)
         add_library(libGNAStubs SHARED "${gna_stub}")
 
         find_package(libGNA)
@@ -55,6 +56,8 @@ if (ENABLE_GNA)
             set_target_properties(libGNAStubs PROPERTIES CXX_VISIBILITY_PRESET default)
         endif()
         list(APPEND TEST_DEPS libGNAStubs)
+    else()
+        # actual libGNA.dll is linked
     endif()
 endif()
 
