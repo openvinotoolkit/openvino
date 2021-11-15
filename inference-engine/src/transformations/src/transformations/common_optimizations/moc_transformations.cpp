@@ -49,7 +49,7 @@
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
-#include <transformations/common_optimizations/remove_loop_dangling_parameters.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include "transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
@@ -77,7 +77,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-    manager.register_pass<ov::pass::RemoveLoopDanglingParameters>();
+    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();

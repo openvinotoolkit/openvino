@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/remove_loop_dangling_parameters.hpp"
+#include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
@@ -15,10 +15,10 @@
 #include "itt.hpp"
 
 
-NGRAPH_RTTI_DEFINITION(ov::pass::RemoveLoopDanglingParameters, "RemoveLoopDanglingParameters", 0);
+NGRAPH_RTTI_DEFINITION(ov::pass::RemoveMultiSubGraphOpDanglingParams, "RemoveMultiSubGraphOpDanglingParams", 0);
 
-ov::pass::RemoveLoopDanglingParameters::RemoveLoopDanglingParameters() {
-    MATCHER_SCOPE(RemoveLoopDanglingParameters);
+ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingParams() {
+    MATCHER_SCOPE(RemoveMultiSubGraphOpDanglingParams);
     auto multi_subgraph_op_pattern = pattern::wrap_type<
         op::util::MultiSubGraphOp, opset8::Loop, opset8::TensorIterator, opset8::If>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {

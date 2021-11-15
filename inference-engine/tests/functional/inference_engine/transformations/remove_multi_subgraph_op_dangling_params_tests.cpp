@@ -10,7 +10,7 @@
 #include <openvino/core/function.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/remove_loop_dangling_parameters.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -45,7 +45,7 @@ TEST(TransformationTests, RemoveLoopDanglingParameters) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<pass::RemoveLoopDanglingParameters>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -93,7 +93,7 @@ TEST(TransformationTests, Remove2LoopDanglingParameters) {
 
         pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<pass::RemoveLoopDanglingParameters>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -138,7 +138,7 @@ TEST(TransformationTests, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
         pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<pass::RemoveConcatZeroDimInput>();
-        manager.register_pass<pass::RemoveLoopDanglingParameters>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

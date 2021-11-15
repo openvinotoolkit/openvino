@@ -13,20 +13,20 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API RemoveLoopDanglingParameters;
+class TRANSFORMATIONS_API RemoveMultiSubGraphOpDanglingParams;
 
 }  // namespace pass
 }  // namespace ov
 
 /*
  * @ingroup ie_transformation_common_api
- * @brief RemoveLoopDanglingParameters transformation
- * removed Loop inputs which are not connected to other nodes
- * in the body of a Loop
+ * @brief RemoveMultiSubGraphOpDanglingParams transformation
+ * removed MultiSubGraphOp inputs which are not connected to other nodes
+ * in the bodies of a MultiSubGraphOp
  */
 
-class ov::pass::RemoveLoopDanglingParameters: public ov::pass::MatcherPass {
+class ov::pass::RemoveMultiSubGraphOpDanglingParams: public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    RemoveLoopDanglingParameters();
+    RemoveMultiSubGraphOpDanglingParams();
 };
