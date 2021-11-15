@@ -144,4 +144,11 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
+if(TARGET libGNAStubs)
+    install(TARGETS libGNAStubs
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
+
 add_dependencies(${TARGET_NAME} mock_engine)
