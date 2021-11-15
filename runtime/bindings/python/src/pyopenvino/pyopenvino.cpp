@@ -23,7 +23,6 @@
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/core.hpp"
 #include "pyopenvino/core/executable_network.hpp"
-#include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
