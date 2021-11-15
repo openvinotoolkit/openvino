@@ -77,7 +77,8 @@ template <>
 class OPENVINO_API VariantWrapper<std::string> : public VariantImpl<std::string> {
 public:
     OPENVINO_RTTI("VariantWrapper<std::string>");
-    VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
+    VariantWrapper(const value_type& value);
+    ~VariantWrapper() override;
 };
 
 template <>

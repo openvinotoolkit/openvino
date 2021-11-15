@@ -26,3 +26,6 @@ bool Variant::is_copyable() const {
 template class ngraph::VariantImpl<std::string>;
 template class ngraph::VariantImpl<int64_t>;
 template class ngraph::VariantImpl<bool>;
+
+VariantWrapper<std::string>::VariantWrapper(const std::string& value) { }
+VariantWrapper<std::string>::~VariantWrapper() = default;
