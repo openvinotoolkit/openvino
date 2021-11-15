@@ -152,7 +152,7 @@ def get_nodes_by_type_recursively(graph: Graph, types: list):
     return nodes
 
 
-def add_fulname_for_nodes(graph: Graph):
+def add_fullname_for_nodes(graph: Graph):
     def set_fullname(graph, subgraphs=[]):
         for node in graph:
             node = Node(graph, node)
