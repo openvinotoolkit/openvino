@@ -25,6 +25,8 @@ endif()
 
 ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "${ENABLE_ONEDNN_FOR_GPU_DEFAULT}" OFF)
 
+ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ON "BUILD_SHARED_LIBS OR (LINUX AND X86_64)" OFF)
+
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
 ie_option_enum(ENABLE_PROFILING_FILTER "Enable or disable ITT counter groups.\

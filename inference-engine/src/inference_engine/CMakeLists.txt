@@ -4,25 +4,16 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    if(TARGET TBB::tbbbind_2_5)
-        # provided TBB has tbbbind_2_5 imported target
-        set(TBBBIND_2_5_IMPORTED_TARGETS TBB::tbbbind_2_5)
-        set(TBBBIND_2_5_FOUND ON)
-    else()
-        # try to find prebuilt version of tbbbind_2_5
-        find_package(TBBBIND_2_5 QUIET)
-        if(TBBBIND_2_5_FOUND)
-            message(STATUS "Static tbbbind_2_5 package is found")
-            if(NOT BUILD_SHARED_LIBS)
-                set(install_tbbbind ON)
-            endif()
-        endif()
-    endif()
-
-    if(TBBBIND_2_5_IMPORTED_TARGETS)
+if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND ENABLE_TBBBIND_2_5)
+    # try to find prebuilt version of tbbbind_2_5
+    find_package(TBBBIND_2_5 QUIET)
+    if(TBBBIND_2_5_FOUND)
+        message(STATUS "Static tbbbind_2_5 package is found")
         set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
             INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
+        if(NOT BUILD_SHARED_LIBS)
+            set(install_tbbbind ON)
+        endif()
     endif()
 endif()
 

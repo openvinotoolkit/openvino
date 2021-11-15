@@ -109,7 +109,7 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-        if(BUILD_SHARED_LIBS)
+        if(ENABLE_TBBBIND_2_5)
             RESOLVE_DEPENDENCY(TBBBIND_2_5
                     ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
                     TARGET_PATH "${TEMP}/tbbbind_2_5"
@@ -131,11 +131,13 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-        RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
-                TARGET_PATH "${TEMP}/tbbbind_2_5"
-                ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+        if(ENABLE_TBBBIND_2_5)
+            RESOLVE_DEPENDENCY(TBBBIND_2_5
+                    ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
+                    TARGET_PATH "${TEMP}/tbbbind_2_5"
+                    ENVIRONMENT "TBBBIND_2_5_ROOT"
+                    SHA256 "865e7894c58402233caf0d1b288056e0e6ab2bf7c9d00c9dc60561c484bc90f4")
+        endif()
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
