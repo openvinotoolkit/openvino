@@ -3151,11 +3151,9 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
     rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
     if (rc != 0) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         mvLog(MVLOG_WARN, "can't send command\n");
         rc = NC_ERROR;
     } else if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         mvLog(MVLOG_WARN, "myriad NACK\n");
         rc = NC_ERROR;
     }
@@ -3163,13 +3161,13 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
 
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
     if (deallocateFifo(handle)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
+        mvLog(MVLOG_WARN, "failed deallocateFifo\n");
         rc =  NC_INVALID_PARAMETERS;
     }
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
 
     FREE_AND_NULL(fh->private_data, fh->private_data, fh, *fifoHandle);
-    return NC_OK;
+    return rc;
 
 }
 
