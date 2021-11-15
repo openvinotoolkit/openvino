@@ -20,28 +20,26 @@ void regclass_ExecutableNetwork(py::module m) {
         m,
         "ExecutableNetwork");
 
+    cls.def(py::init([](ov::runtime::ExecutableNetwork& other) { return other; }), py::arg("other"));
+
     cls.def("create_infer_request", [](ov::runtime::ExecutableNetwork& self) {
         return InferRequestWrapper(self.create_infer_request(), self.inputs(), self.outputs());
     });
 
     cls.def(
-        "_infer_new_request",
+        "infer_new_request",
         [](ov::runtime::ExecutableNetwork& self, const py::dict& inputs) {
             auto request = self.create_infer_request();
             const auto key = inputs.begin()->first;
             if (!inputs.empty()) {
-                if (py::isinstance<py::str>(key)) {
-                    auto inputs_map = Common::cast_to_tensor_name_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        request.set_tensor(input.first, input.second);
+                for (auto&& input : inputs) {
+                    if (py::isinstance<py::str>(input.first)) {
+                        request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
+                    } else if (py::isinstance<py::int_>(input.first)) {
+                        request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+                    } else {
+                        throw ov::Exception("Incompatible key type for tensor!");
                     }
-                } else if (py::isinstance<py::int_>(key)) {
-                    auto inputs_map = Common::cast_to_tensor_index_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        request.set_input_tensor(input.first, input.second);
-                    }
-                } else {
-                    throw py::type_error("Incompatible key type! Supported types are string and int.");
                 }
             }
 

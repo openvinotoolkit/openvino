@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 
+#define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
+
 namespace Common {
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     static const std::map<ov::element::Type, py::dtype> ov_type_to_dtype_mapping = {
@@ -81,6 +83,76 @@ const std::string& get_layout_from_enum(const InferenceEngine::Layout& layout) {
                                                                                {194, "CN"},
                                                                                {200, "BLOCKED"}};
     return layout_int_to_str_map.at(layout);
+}
+
+ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
+    // Check if passed array has C-style contiguous memory layout.
+    bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
+    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
+    std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
+
+    // If memory is going to be shared it needs to be contiguous before
+    // passing to the constructor. This case should be handled by advanced
+    // users on their side of the code.
+    if (shared_memory) {
+        if (is_contiguous) {
+            std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
+            return ov::runtime::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
+        } else {
+            throw ov::Exception("Tensor with shared memory must be C contiguous!");
+        }
+    }
+    // Convert to contiguous array if not already C-style.
+    if (!is_contiguous) {
+        array = Common::as_contiguous(array, type);
+    }
+    // Create actual Tensor and copy data.
+    auto tensor = ov::runtime::Tensor(type, shape);
+    // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
+    // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
+    py::buffer_info buf = array.request();
+    std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
+    return tensor;
+}
+
+py::array as_contiguous(py::array& array, ov::element::Type type) {
+    switch (type) {
+    // floating
+    case ov::element::f64:
+        return array.cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
+    case ov::element::f32:
+        return array.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+    // signed
+    case ov::element::i64:
+        return array.cast<py::array_t<int64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i32:
+        return array.cast<py::array_t<int32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i16:
+        return array.cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i8:
+        return array.cast<py::array_t<int8_t, py::array::c_style | py::array::forcecast>>();
+    // unsigned
+    case ov::element::u64:
+        return array.cast<py::array_t<uint64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u32:
+        return array.cast<py::array_t<uint32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u16:
+        return array.cast<py::array_t<uint16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u8:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // other
+    case ov::element::boolean:
+        return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u1:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // need to create a view on array to cast it correctly
+    case ov::element::f16:
+    case ov::element::bf16:
+        return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    default:
+        throw ov::Exception("Tensor cannot be created as contiguous!");
+        break;
+    }
 }
 
 PyObject* parse_parameter(const InferenceEngine::Parameter& param) {

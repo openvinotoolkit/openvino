@@ -8,34 +8,33 @@ from sys import platform
 from pathlib import Path
 
 import openvino.opset8 as ov
-from openvino import Core, IENetwork, ExecutableNetwork, tensor_from_file
+from openvino import Core, IENetwork, ExecutableNetwork, tensor_from_file, compile_model
 from openvino.impl import Function
-from openvino import TensorDesc, Blob
 
-from ..conftest import model_path, model_onnx_path, plugins_path
+from ..conftest import model_path, model_onnx_path, plugins_path, read_image
+
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
-def test_blobs():
-    input_shape = [1, 3, 4, 4]
-    input_data_float32 = (np.random.rand(*input_shape) - 0.5).astype(np.float32)
+def test_compact_api_xml():
+    img = read_image()
 
-    td = TensorDesc("FP32", input_shape, "NCHW")
+    model = compile_model(test_net_xml)
+    assert(isinstance(model, ExecutableNetwork))
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results) == 2
 
-    input_blob_float32 = Blob(td, input_data_float32)
 
-    assert np.all(np.equal(input_blob_float32.buffer, input_data_float32))
+def test_compact_api_onnx():
+    img = read_image()
 
-    input_data_int16 = (np.random.rand(*input_shape) + 0.5).astype(np.int16)
-
-    td = TensorDesc("I16", input_shape, "NCHW")
-
-    input_blob_i16 = Blob(td, input_data_int16)
-
-    assert np.all(np.equal(input_blob_i16.buffer, input_data_int16))
+    model = compile_model(test_net_onnx)
+    assert(isinstance(model, ExecutableNetwork))
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results) == 2
 
 
 @pytest.mark.skip(reason="Fix")

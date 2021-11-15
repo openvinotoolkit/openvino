@@ -13,22 +13,17 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
-from openvino.ie_api import BlobWrapper
-from openvino.ie_api import infer
-from openvino.ie_api import start_async
-from openvino.ie_api import blob_from_file
-from openvino.ie_api import tensor_from_file
-from openvino.ie_api import infer_new_request
 
+# Openvino pybind bindings and python extended classes
 from openvino.impl import Dimension
 from openvino.impl import Function
 from openvino.impl import Node
 from openvino.impl import PartialShape
 from openvino.impl import Layout
 
-from openvino.pyopenvino import Core
+from openvino.ie_api import Core
 from openvino.pyopenvino import IENetwork
-from openvino.pyopenvino import ExecutableNetwork
+from openvino.ie_api import ExecutableNetwork
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
 from openvino.pyopenvino import InputInfoPtr
@@ -37,8 +32,7 @@ from openvino.pyopenvino import DataPtr
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
 #from openvino.pyopenvino import InferQueue
-from openvino.pyopenvino import InferRequest  # TODO: move to ie_api?
-from openvino.pyopenvino import Blob
+from openvino.ie_api import InferRequest
 from openvino.pyopenvino import PreProcessInfo
 from openvino.pyopenvino import MeanVariant
 from openvino.pyopenvino import ResizeAlgorithm
@@ -47,6 +41,7 @@ from openvino.pyopenvino import PreProcessChannel
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import ProfilingInfo
 
+# Import opsets
 from openvino import opset1
 from openvino import opset2
 from openvino import opset3
@@ -74,14 +69,6 @@ Node.__le__ = opset8.less_equal
 Node.__gt__ = opset8.greater
 Node.__ge__ = opset8.greater_equal
 
-# Patching for Blob class
-# flake8: noqa: F811
-# this class will be removed
-Blob = BlobWrapper
-# Patching ExecutableNetwork
-ExecutableNetwork.infer_new_request = infer_new_request
-# Patching InferRequest
-InferRequest.infer = infer
-InferRequest.start_async = start_async
-# Patching InferQueue
-#InferQueue.async_infer = async_infer
+# Helper functions for openvino module
+from openvino.ie_api import tensor_from_file
+from openvino.ie_api import compile_model

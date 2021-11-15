@@ -9,6 +9,8 @@
 #include <ie_plugin_config.hpp>
 #include <ie_blob.h>
 #include <ie_parameter.hpp>
+#include <openvino/core/type/element_type.hpp>
+#include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <string>
@@ -41,6 +43,9 @@ namespace Common
     InferenceEngine::Layout get_layout_from_string(const std::string& layout);
 
     const std::string& get_layout_from_enum(const InferenceEngine::Layout& layout);
+
+    ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
+    py::array as_contiguous(py::array& array, ov::element::Type type);
 
     PyObject* parse_parameter(const InferenceEngine::Parameter& param);
 
