@@ -170,7 +170,7 @@ ngraph::pass::ConvAddFusion::ConvAddFusion() {
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvAddFusion");
     register_matcher(m, callback);
 }
 
@@ -185,7 +185,7 @@ ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
         return conv_callback<op::ConvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvMultiplyFusion");
     register_matcher(m, callback);
 }
 
@@ -200,6 +200,6 @@ ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
         return conv_callback<op::DeconvolutionIE>(m);
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "DeconvAddFusion");
     register_matcher(m, callback);
 }

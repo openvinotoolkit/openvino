@@ -44,7 +44,7 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertConvolution");
     this->register_matcher(m, callback);
 }
 
@@ -91,7 +91,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupConvolution");
     this->register_matcher(m, callback);
 }
 
@@ -125,7 +125,7 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertDeconvolution");
     this->register_matcher(m, callback);
 }
 
@@ -171,6 +171,6 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupDeconvolution");
     this->register_matcher(m, callback);
 }
