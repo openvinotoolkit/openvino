@@ -39,7 +39,6 @@ from tests_compatibility import (
     xfail_issue_49207,
     xfail_issue_49750,
     xfail_issue_52463,
-    xfail_issue_55760,
     xfail_issue_58033,
     xfail_issue_63033,
     xfail_issue_63036,
@@ -128,13 +127,6 @@ tests_expected_to_fail = [
         xfail_issue_39662,
         "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
         "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
-    ),
-    (
-        xfail_issue_55760,
-        "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_example_select_last_index_cpu",
-        "OnnxBackendNodeModelTest.test_argmin_negative_axis_keepdims_example_select_last_index_cpu",
-        "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_random_select_last_index_cpu",
-        "OnnxBackendNodeModelTest.test_argmin_negative_axis_keepdims_random_select_last_index_cpu",
     ),
     (
         xfail_issue_38091,

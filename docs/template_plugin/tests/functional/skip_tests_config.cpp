@@ -75,6 +75,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferencePadTest.*pad_exterior_2d_0x0)",
         R"(.*ReferencePadTest.*pad_exterior_2d_0x3)",
         R"(.*ReferencePadTest.*pad_exterior_2d_3x0)",
+        // CVS-70975
+        R"(.*ReferencePadTestParamsTooLarge.*)",
     };
 
 #ifdef _WIN32
