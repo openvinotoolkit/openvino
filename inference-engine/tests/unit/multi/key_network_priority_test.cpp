@@ -39,7 +39,7 @@ using PriorityParams = std::tuple<unsigned int, std::string>; //{priority, devic
 
 using ConfigParams = std::tuple<
         std::string,                        // netPrecision
-        std::vector<PriorityParams>,
+        std::vector<PriorityParams>
         >;
 class KeyNetworkPriorityTest : public ::testing::TestWithParam<ConfigParams> {
 public:
@@ -74,19 +74,19 @@ public:
        plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
        // replace core with mock Icore
        plugin->SetCore(core);
-       metaDevices = {{CPU, {}, 2, "", "CPU_01"},
-           {GPU, {}, 2, "", "iGPU_01"},
-           {GPU, {}, 2, "", "dGPU_02"},
-           {MYRIAD, {}, 2, "", "MYRIAD_01" },
-           {VPUX, {}, 2, "", "VPUX_01"}};
+       metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01"},
+           {CommonTestUtils::DEVICE_GPU, {}, 2, "", "iGPU_01"},
+           {CommonTestUtils::DEVICE_GPU, {}, 2, "", "dGPU_02"},
+           {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "", "MYRIAD_01" },
+           {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "", "VPUX_01"}};
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, cpuAbility, {"FP32", "FP16", "INT8", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuAbility, {"FP32", "FP16", "BATCHED_BLOB", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadAbility, {"FP16"});
-       ON_CALL(*core, GetMetric(StrEq(CPU),StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
            .WillByDefault(Return(cpuAbility));
-       ON_CALL(*core, GetMetric(StrEq(GPU),StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
            .WillByDefault(Return(gpuAbility));
-       ON_CALL(*core, GetMetric(StrEq(GPU),StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
            .WillByDefault(Return(myriadAbility));
     }
 };
@@ -95,12 +95,13 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
     // get Parameter
     std::string netPrecision;
     std::vector<PriorityParams> PriorityConfigs;
-    std::tie(netPrecision, PriorityConfigs) = obj.param;
+    std::tie(netPrecision, PriorityConfigs) = this->GetParam();
     std::vector<DeviceInformation> resDevInfo;
+    std::vector<std::future<void>> futureVect;
     for (auto& item : PriorityConfigs) {
         resDevInfo.push_back(plugin->SelectDevice(metaDevices, netPrecision, std::get<0>(item)));
     }
-    for(unsigned int i = 0; i < PriorityConfigs.size(); i++) {
+    for (unsigned int i = 0; i < PriorityConfigs.size(); i++) {
         EXPECT_EQ(resDevInfo[i].uniqueName, std::get<1>(PriorityConfigs[i]));
         plugin->UnregisterPriority(std::get<0>(PriorityConfigs[i]), std::get<1>(PriorityConfigs[i]));
     }
