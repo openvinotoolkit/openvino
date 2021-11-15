@@ -15,9 +15,10 @@ except DistributionNotFound:
 
 from openvino.ie_api import BlobWrapper
 from openvino.ie_api import infer
-from openvino.ie_api import async_infer
-from openvino.ie_api import get_result
+from openvino.ie_api import start_async
 from openvino.ie_api import blob_from_file
+from openvino.ie_api import tensor_from_file
+from openvino.ie_api import infer_new_request
 
 from openvino.impl import Dimension
 from openvino.impl import Function
@@ -35,8 +36,7 @@ from openvino.pyopenvino import InputInfoCPtr
 from openvino.pyopenvino import DataPtr
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import get_version
-from openvino.pyopenvino import StatusCode
-from openvino.pyopenvino import InferQueue
+from openvino.pyopenvino import AsyncInferQueue
 from openvino.pyopenvino import InferRequest  # TODO: move to ie_api?
 from openvino.pyopenvino import Blob
 from openvino.pyopenvino import PreProcessInfo
@@ -45,6 +45,7 @@ from openvino.pyopenvino import ResizeAlgorithm
 from openvino.pyopenvino import ColorFormat
 from openvino.pyopenvino import PreProcessChannel
 from openvino.pyopenvino import Tensor
+from openvino.pyopenvino import ProfilingInfo
 
 from openvino import opset1
 from openvino import opset2
@@ -78,10 +79,9 @@ Node.__ge__ = opset8.greater_equal
 # this class will be removed
 Blob = BlobWrapper
 # Patching ExecutableNetwork
-ExecutableNetwork.infer = infer
+ExecutableNetwork.infer_new_request = infer_new_request
 # Patching InferRequest
 InferRequest.infer = infer
-InferRequest.async_infer = async_infer
-InferRequest.get_result = get_result
-# Patching InferQueue
-InferQueue.async_infer = async_infer
+InferRequest.start_async = start_async
+# Patching AsyncInferQueue
+AsyncInferQueue.start_async = start_async
