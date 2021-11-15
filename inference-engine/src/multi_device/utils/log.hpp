@@ -56,9 +56,7 @@ inline std::string getFileName(const std::string& filePath) {
 }
 
 inline int getDebugLevel() {
-    return 0;
-    //if want to set log level with env Variable, use below code.
-    //return parseInteger(std::getenv("AUTO_LOG_LEVEL"));
+    return parseInteger(std::getenv("AUTO_LOG_LEVEL"));
 }
 const int debug_level = getDebugLevel();
 
@@ -110,7 +108,7 @@ inline Log::Log()
     : logLevel(defaultLogLevel) {
     switch (debug_level) {
         case 0: {
-                    logLevel = static_cast<uint32_t>(LogLevel::LOG_FATAL);
+                    logLevel = static_cast<uint32_t>(LogLevel::LOG_NONE);
                     break;
                 }
         case 1: {
