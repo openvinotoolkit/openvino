@@ -10,6 +10,7 @@
 #include <ngraph/rt_info.hpp>
 
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "transformations/utils/utils.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -39,15 +40,14 @@ namespace {
     // expected_output_shape: {3, 3, 1, 1}
 
     const auto default_indices = ngraph::opset8::Constant::create(indices.get_element_type(), Shape{slice_indices_length}, {fill_in_value});
-    std::shared_ptr<ngraph::Node> adjusted_indices = std::make_shared<ngraph::opset8::ScatterUpdate>(default_indices,
+    std::shared_ptr<ngraph::Node> adjusted_indices = ngraph::op::util::make_try_fold<ngraph::opset8::ScatterUpdate>(
+                                                                                         default_indices,
                                                                                          slice_axes,
                                                                                          indices, // updates
                                                                                          scatter_axis);
-    std::shared_ptr<ngraph::Node> const_indices = get_constant_from_source(adjusted_indices);
-    if (const_indices) {
-        adjusted_indices = const_indices;
-    } else {
-        new_ops.insert(new_ops.end(), {default_indices, indices.get_node_shared_ptr()});
+
+    if (!ngraph::op::is_constant(adjusted_indices)) {
+        new_ops.push_back(default_indices);
     }
     return adjusted_indices;
 }
@@ -62,7 +62,7 @@ std::vector<int64_t> axes_to_mask(const std::vector<int64_t>& axes, size_t slice
 
 }  // namespace
 
-ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
+ngraph::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
     MATCHER_SCOPE(SliceToStridedSlice);
     auto slice = pattern::wrap_type<opset8::Slice>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
@@ -75,9 +75,19 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
 
         auto arg = slice_node->input_value(0);
 
-        const auto start_const = get_constant_from_source(slice_node->input_value(1));
-        const auto stop_const = get_constant_from_source(slice_node->input_value(2));
-        const auto step_const = get_constant_from_source(slice_node->input_value(3));
+        std::shared_ptr<opset8::Constant> start_const;
+        std::shared_ptr<opset8::Constant> stop_const;
+        std::shared_ptr<opset8::Constant> step_const;
+
+        if (use_shapes) {
+            start_const = get_constant_from_source(slice_node->input_value(1));
+            stop_const = get_constant_from_source(slice_node->input_value(2));
+            step_const = get_constant_from_source(slice_node->input_value(3));
+        } else {
+            start_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(1).get_node_shared_ptr());
+            stop_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(2).get_node_shared_ptr());
+            step_const = std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(3).get_node_shared_ptr());
+        }
 
         auto start_input = start_const ? start_const : slice_node->input_value(1);
         auto stop_input = stop_const ? stop_const : slice_node->input_value(2);
@@ -85,7 +95,7 @@ ngraph::pass::SliceToStridedSlice::SliceToStridedSlice() {
 
         std::shared_ptr<opset8::Constant> axes_const;
         if (slice_node->get_input_size() > 4) {
-            axes_const = get_constant_from_source(slice_node->input_value(4));
+            axes_const = use_shapes ? get_constant_from_source(slice_node->input_value(4)) : std::dynamic_pointer_cast<opset8::Constant>(slice_node->input_value(4).get_node_shared_ptr());
         } else {
             axes_const = slice_node->get_default_const_axes(start_input);
         }

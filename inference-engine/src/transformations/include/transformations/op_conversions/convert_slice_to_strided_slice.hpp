@@ -23,5 +23,5 @@ class TRANSFORMATIONS_API SliceToStridedSlice;
 class ngraph::pass::SliceToStridedSlice: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    SliceToStridedSlice();
+    SliceToStridedSlice(bool use_shapes);
 };
