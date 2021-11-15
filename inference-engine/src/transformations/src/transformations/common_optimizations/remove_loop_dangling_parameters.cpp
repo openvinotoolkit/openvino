@@ -19,48 +19,48 @@ NGRAPH_RTTI_DEFINITION(ov::pass::RemoveLoopDanglingParameters, "RemoveLoopDangli
 
 ov::pass::RemoveLoopDanglingParameters::RemoveLoopDanglingParameters() {
     MATCHER_SCOPE(RemoveLoopDanglingParameters);
-    auto loop_pattern = pattern::wrap_type<opset8::Loop>();
+    auto multi_subgraph_op_pattern = pattern::wrap_type<
+        op::util::MultiSubGraphOp, opset8::Loop, opset8::TensorIterator, opset8::If>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto loop = std::dynamic_pointer_cast<opset8::Loop>(m.get_match_root());
-        if (loop == nullptr) {
+        auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(m.get_match_root());
+        if (multi_subgraph_op == nullptr) {
             return false;
         }
-        auto& body_func = loop->get_function();
-        auto loop_inputs = loop->input_values();
-        bool pass_applied = false;
+        auto& body_func = multi_subgraph_op->get_function(0); // TODO CHECK ALL
+        auto& body_params = body_func->get_parameters();
+        auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(0); // TODO CHECK ALL
+        std::vector<size_t> to_remove_descriptors_indexes;
+        bool pass_required = false;
 
-        auto& body_inputs_descriptors = loop->get_input_descriptions();
-        using DescType = decltype(body_inputs_descriptors);
-        auto update_descriptors = [](DescType& descriptors, uint64_t removed_body_idx, uint64_t removed_loop_idx) {
-        for (auto& desc : descriptors) {
-            if (desc->m_body_parameter_index > removed_body_idx) {
-                desc->m_body_parameter_index--;
-            }
-            if (desc->m_input_index > removed_loop_idx) {
-                desc->m_input_index--;
-            }
-        }};
-
-        for (auto desc_it = body_inputs_descriptors.begin(); desc_it != body_inputs_descriptors.end();) {
-            auto& body_params = body_func->get_parameters();
-            auto body_param = body_params[(*desc_it)->m_body_parameter_index];
+        for (size_t i = 0; i < body_in_descriptors.size(); ++i) {
+            auto& body_param = body_params[body_in_descriptors[i]->m_body_parameter_index];
             if (body_param->get_output_target_inputs(0).size() == 0) {
-                body_func->remove_parameter(body_param);
-                loop_inputs.erase(loop_inputs.begin()+(*desc_it)->m_input_index);
-                // Move all next descriptors after removing input
-                update_descriptors(body_inputs_descriptors, (*desc_it)->m_body_parameter_index, (*desc_it)->m_input_index);
-                desc_it = body_inputs_descriptors.erase(desc_it);
-                pass_applied = true;
-            } else {
-                ++desc_it;
+                to_remove_descriptors_indexes.push_back(i);
+                pass_required = true;
             }
         }
-        if (pass_applied) {
-            loop->set_input_descriptions(0, body_inputs_descriptors);
-            loop->set_arguments(loop_inputs);
+        if (pass_required) {
+            auto updated_inputs = multi_subgraph_op->input_values();
+            op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector updated_body_in_descriptors;
+            for (size_t i = 0; i < body_in_descriptors.size(); ++i) {
+                if (std::count(std::begin(to_remove_descriptors_indexes), std::end(to_remove_descriptors_indexes), i) > 0) {
+                    auto& body_param = body_params[body_in_descriptors[i]->m_body_parameter_index];
+                    body_func->remove_parameter(body_param);
+                    updated_inputs.erase(std::next(updated_inputs.begin(), body_in_descriptors[i]->m_input_index));
+                    // Move all descriptors which are after these indicated by to_remove_descriptors_indexes
+                    for (size_t j=i+1; j < body_in_descriptors.size(); ++j) {
+                        body_in_descriptors[j]->m_body_parameter_index--;
+                        body_in_descriptors[j]->m_input_index--;
+                    }
+                } else {
+                    updated_body_in_descriptors.emplace_back(body_in_descriptors[i]);
+                }
+            }
+            multi_subgraph_op->set_input_descriptions(0, updated_body_in_descriptors);
+            multi_subgraph_op->set_arguments(updated_inputs);
         }
-        return pass_applied;
+        return pass_required;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(loop_pattern, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
