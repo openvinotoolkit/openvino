@@ -47,9 +47,15 @@ endif()
 target_include_directories(ngraph_backend PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-install(TARGETS ngraph_backend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ngraph_backend
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+else()
+    install(TARGETS ngraph_backend
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
 
 add_subdirectory(interpreter)
 add_subdirectory(ie)
