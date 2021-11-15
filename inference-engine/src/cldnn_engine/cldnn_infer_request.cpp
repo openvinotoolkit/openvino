@@ -450,10 +450,7 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 
 CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : IInferRequestInternal(networkInputs, networkOutputs)
-        , m_useProfiling(false)
-        , m_useStreams(false)
-        , m_useExternalQueue(false) {
+        : IInferRequestInternal(networkInputs, networkOutputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
@@ -461,9 +458,7 @@ CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap
 CLDNNInferRequest::CLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
                                      const std::vector<std::shared_ptr<const ov::Node>>& outputs,
                                      const CLDNNExecNetwork::Ptr& execNetwork)
-        : IInferRequestInternal(inputs, outputs)
-        , m_useProfiling(false)
-        , m_useStreams(false) {
+        : IInferRequestInternal(inputs, outputs) {
     IE_ASSERT(nullptr != execNetwork);
     streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
@@ -791,7 +786,9 @@ void CLDNNInferRequest::allocate_inputs() {
             } else {
                 auto blobPtr = create_device_blob(desc, litr->second);
                 _deviceInputs[name] = blobPtr;
-                _inputs[name] = blobPtr;
+                Blob::Ptr inputBlob = create_host_blob(desc);
+                inputBlob->allocate();
+                _inputs[name] = inputBlob;
             }
         }
     }
@@ -837,7 +834,9 @@ void CLDNNInferRequest::allocate_outputs() {
         }
         auto blobPtr = create_device_blob(desc, output_layout);
         _deviceOutputs[no.first] = blobPtr;
-        _outputs[no.first] = blobPtr;
+        Blob::Ptr outputBlob = create_host_blob(desc);
+        outputBlob->allocate();
+        _outputs[no.first] = outputBlob;
         outputsMap[no.first] = outputID;
     }
 }
