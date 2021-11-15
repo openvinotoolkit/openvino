@@ -3,10 +3,9 @@
 //
 
 #include <map>
-#include "default_opset.hpp"
 #include <node_context.hpp>
 
-#include "openvino/opsets/opset6.hpp"
+#include "default_opset.hpp"
 
 namespace ov {
 namespace frontend {
