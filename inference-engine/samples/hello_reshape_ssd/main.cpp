@@ -231,10 +231,9 @@ int main(int argc, char* argv[]) {
                 boxes[image_id].push_back(static_cast<int>(xmax - xmin));
                 boxes[image_id].push_back(static_cast<int>(ymax - ymin));
 
-                std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << "    ("
+                std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << ", bbox = ("
                           << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")"
-                          << " batch id = " << image_id;
-                std::cout << std::endl;
+                          << ", batch id = " << image_id << std::endl;
             }
         }
 
