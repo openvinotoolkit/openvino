@@ -17,6 +17,4 @@ add_subdirectory(frontends)
 # Enable tests because core tests depend on frontends
 add_subdirectory(core/core/test)
 
-if(ENABLE_PYTHON)
-    add_subdirectory(bindings/python)
-endif()
+add_subdirectory(bindings)

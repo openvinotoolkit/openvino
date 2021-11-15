@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME inference_engine_c_api)
+set(TARGET_NAME ov_runtime_c)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
@@ -11,6 +11,8 @@ file(GLOB HEADERS ${InferenceEngine_C_API_SOURCE_DIR}/include/*.h)
 
 add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
 add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
+# for backward compatibility
+add_library(inference_engine_c_api ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 

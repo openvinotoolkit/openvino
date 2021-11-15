@@ -25,7 +25,7 @@
         "runtime/lib/intel64/libov_runtime.so",
         "runtime/lib/intel64/libinference_engine_transformations.so",
         "runtime/lib/intel64/libov_preprocessing.so",
-        "runtime/lib/intel64/libinference_engine_c_api.so",
+        "runtime/lib/intel64/libov_runtime_c.so",
         "runtime/lib/intel64/libHeteroPlugin.so",
         "runtime/lib/intel64/libMultiDevicePlugin.so",
         "runtime/lib/intel64/libov_core.so",
