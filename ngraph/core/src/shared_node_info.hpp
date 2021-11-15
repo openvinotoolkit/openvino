@@ -12,32 +12,17 @@
 namespace ov {
 class SharedRTInfo {
 public:
-    SharedRTInfo() {
-        set_use_topological_cache(false);
-    }
-
-    const RTMap& get_rt_info() const {
-        return m_rt_info;
-    }
-
-    RTMap& get_rt_info() {
-        return m_rt_info;
-    }
+    SharedRTInfo() : m_use_topological_cache(false) {}
 
     void set_use_topological_cache(bool status) {
-        auto& info = get_rt_info();
-        info["use_topological_cache"] = std::make_shared<VariantWrapper<int64_t>>(status);
+        m_use_topological_cache = status;
     }
 
     bool get_use_topological_cache() const {
-        const auto& info = get_rt_info();
-        if (info.count("use_topological_cache") == 0) {
-            throw Exception("use_topological_cache is not set");
-        }
-        return std::dynamic_pointer_cast<VariantWrapper<int64_t>>(info.at("use_topological_cache"))->get();
+        return m_use_topological_cache;
     }
 
 private:
-    RTMap m_rt_info;
+    bool m_use_topological_cache;
 };
 }  // namespace ov
