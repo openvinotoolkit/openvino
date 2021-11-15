@@ -53,7 +53,6 @@ public:
         });
 
         return _idle_handles.front();
-        ;
     }
 
     void wait_all() {
@@ -135,7 +134,7 @@ void regclass_AsyncInferQueue(py::module m) {
             py::arg("jobs") = 0);
 
     cls.def(
-        "_start_async",
+        "start_async",
         [](AsyncInferQueue& self, const py::dict inputs, py::object userdata) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest

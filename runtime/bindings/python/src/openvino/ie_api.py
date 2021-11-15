@@ -71,6 +71,25 @@ class ExecutableNetwork(ExecutableNetworkBase):
         return [copy.deepcopy(tensor.data) for tensor in res]
 
 
+class AsyncInferQueue(AsyncInferQueueBase):
+    """AsyncInferQueue wrapper."""
+
+    def __getitem__(self, i: int) -> InferRequest:
+        """Return i-th InferRequest from AsyncInferQueue."""
+        return InferRequest(super().__getitem__(i))
+
+    def start_async(
+        self, inputs: dict = {}, userdata: Any = None  # noqa: B006
+    ) -> None:  # type: ignore
+        """Asynchronous infer wrapper for AsyncInferQueue."""
+        super().start_async(
+            inputs=normalize_inputs(
+                inputs, get_input_types(self[self.get_idle_request_id()])
+            ),
+            userdata=userdata,
+        )
+
+
 class Core(CoreBase):
     """Core wrapper."""
 

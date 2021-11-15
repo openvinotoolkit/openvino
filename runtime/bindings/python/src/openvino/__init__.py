@@ -23,13 +23,13 @@ from openvino.impl import Layout
 
 from openvino.ie_api import Core
 from openvino.ie_api import ExecutableNetwork
+from openvino.ie_api import InferRequest
+from openvino.ie_api import AsyncInferQueue
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
-from openvino.pyopenvino import get_version
-from openvino.pyopenvino import AsyncInferQueue
-from openvino.ie_api import InferRequest
 from openvino.pyopenvino import Tensor
 from openvino.pyopenvino import ProfilingInfo
+from openvino.pyopenvino import get_version
 
 # Import opsets
 from openvino import opset1
