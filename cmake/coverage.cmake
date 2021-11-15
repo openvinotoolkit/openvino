@@ -17,69 +17,63 @@ ie_coverage_extract(INPUT "openvino" OUTPUT "runtime"
 ie_coverage_genhtml(INFO_FILE "inference_engine"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_ir_v10_reader"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/readers/ir_reader/*"
-                             "${OV_COVERAGE_BASE_DIRECTORY}/readers/reader_api/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_ir_v10_reader"
-                    PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
-
 ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_legacy"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/legacy_api/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/legacy_api/*")
 ie_coverage_genhtml(INFO_FILE "inference_engine_legacy"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "hetero_plugin"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/hetero_plugin/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/hetero_plugin/*")
 ie_coverage_genhtml(INFO_FILE "hetero_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "multi_device"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/multi_device/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/multi_device/*")
 ie_coverage_genhtml(INFO_FILE "multi_device"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "preprocessing"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/preprocessing/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/preprocessing/*")
 ie_coverage_genhtml(INFO_FILE "preprocessing"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
-ie_coverage_extract(INPUT "openvino" OUTPUT "inference_engine_transformations"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference_engine_transformations/*")
-ie_coverage_genhtml(INFO_FILE "inference_engine_transformations"
+ie_coverage_extract(INPUT "openvino" OUTPUT "ov_transformations"
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/transformations/*")
+ie_coverage_genhtml(INFO_FILE "ov_transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "ov_snippets"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/snippets/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/snippets/*")
 ie_coverage_genhtml(INFO_FILE "ov_snippets"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "low_precision_transformations"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/low_precision_transformations/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/low_precision_transformations/*")
 ie_coverage_genhtml(INFO_FILE "low_precision_transformations"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "template_plugin"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/template_plugin/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/docs/template_plugin/*")
 ie_coverage_genhtml(INFO_FILE "template_plugin"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 if(ENABLE_MKL_DNN)
     ie_coverage_extract(INPUT "openvino" OUTPUT "mkldnn_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/mkldnn_plugin/*")
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/mkldnn_plugin/*")
     ie_coverage_genhtml(INFO_FILE "mkldnn_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
 if(ENABLE_CLDNN)
     ie_coverage_extract(INPUT "openvino" OUTPUT "cldnn_engine"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/cldnn_engine/*")
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/cldnn_engine/*")
     ie_coverage_genhtml(INFO_FILE "cldnn_engine"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
 
 if(ENABLE_GNA)
     ie_coverage_extract(INPUT "openvino" OUTPUT "gna_plugin"
-                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/gna_plugin/*")
+                        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/inference-engine/src/gna_plugin/*")
     ie_coverage_genhtml(INFO_FILE "gna_plugin"
                         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()
