@@ -169,7 +169,6 @@ InferenceEngine::Layout getLayoutFromString(const std::string& string_layout) {
         {"NHWC", InferenceEngine::Layout::NHWC},
         {"NCDHW", InferenceEngine::Layout::NCDHW},
         {"NDHWC", InferenceEngine::Layout::NDHWC},
-        {"OIHW", InferenceEngine::Layout::OIHW},
         {"C", InferenceEngine::Layout::C},
         {"CHW", InferenceEngine::Layout::CHW},
         {"HWC", InferenceEngine::Layout::HWC},

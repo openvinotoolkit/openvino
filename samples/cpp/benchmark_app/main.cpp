@@ -58,9 +58,6 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
-    if (FLAGS_b != 0 && !FLAGS_tensor_shape.empty()) {
-        throw std::logic_error("Batch size for dynamic models should be specified in tensor shape option.");
-    }
     if (FLAGS_latency_percentile > 100 || FLAGS_latency_percentile < 1) {
         showUsage();
         throw std::logic_error("The percentile value is incorrect. The applicable values range is [1, 100].");
@@ -130,7 +127,7 @@ std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::stri
 std::map<std::string, std::vector<std::string>> parseInputArguments() {
     std::vector<std::string> args = gflags::GetArgvs();
     const auto is_image_arg = [](const std::string& s) {
-        return s == "-i" || s == "--images";
+        return s == "-i";
     };
     const auto is_arg = [](const std::string& s) {
         return s.front() == '-';
