@@ -171,7 +171,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                        "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                        "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
                        "-DDNNL_ENABLE_JIT_PROFILING=OFF"
-                       "-DDNNL_ENABLE_ITT_TASKS=OFF"
+                       "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
                        "-DDNNL_BUILD_TESTS=OFF"
                        "-DDNNL_BUILD_EXAMPLES=OFF"
                        "-DDNNL_BLAS_VENDOR=NONE"
