@@ -39,7 +39,6 @@ std::string ClampActivationModel();
 std::string IdentityActivationModel();
 std::string maxpoolAfterRelu();
 std::string TFLeakyReluModel();
-std::string TFSoftsignUnfoldedModel();
 std::string cropWithoutOffsetModel();
 std::string cropWithAlignedOffsetModel();
 std::string cropWithOffsetModel();
