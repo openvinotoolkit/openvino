@@ -4,8 +4,6 @@
 
 #include <ngraph_functions/builders.hpp>
 #include <functional_test_utils/ov_tensor_utils.hpp>
-#include <random>
-#include <ctime>
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -16,55 +14,43 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions {
 
 using oneHotCPUTestParams = std::tuple<
-        std::vector<InputShape>,           // Input shape
-        int,                               // axis to extend
-        ngraph::helpers::InputLayerType,   // secondary input type
-        size_t,                            // depth
-        float,                             // on_value
-        float,                             // off_value
-        InferenceEngine::Precision,        // Net precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
+        InputShape,                                        // Input shape
+        int,                                               // axis to extend
+        std::pair<ngraph::helpers::InputLayerType, bool>,  // secondary input type && need to generate depth
+        size_t,                                            // depth
+        float,                                             // on_value
+        float,                                             // off_value
+        InferenceEngine::Precision,                        // Output precision
         CPUSpecificParams>;
 
 class OneHotLayerCPUTest : public testing::WithParamInterface<oneHotCPUTestParams>,
                            virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<oneHotCPUTestParams>& obj) {
-        std::vector<InputShape> inputShapes;
+        InputShape inputShape;
         int axis;
-        ngraph::helpers::InputLayerType inputType;
+        std::pair<ngraph::helpers::InputLayerType, bool> inputType;
         size_t depth;
         float onValue, offValue;
-        InferenceEngine::Precision netPrecision;
-        InferenceEngine::Precision inPrc, outPrc;
+        InferenceEngine::Precision outPrc;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, axis, inputType, depth, onValue, offValue, netPrecision, inPrc, outPrc, cpuParams) = obj.param;
+        std::tie(inputShape, axis, inputType, depth, onValue, offValue, outPrc, cpuParams) = obj.param;
 
         std::ostringstream result;
-        if (inputShapes.front().first.size() != 0) {
-            result << "IS=(";
-            for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
-            }
-            result.seekp(-1, result.cur);
-            result << ")_";
+        if (inputShape.first.size() != 0) {
+            result << "IS=(" << CommonTestUtils::partialShape2str({inputShape.first}) << "_";
         }
         result << "TS=";
-        for (const auto& shape : inputShapes) {
-            for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
-            }
+        for (const auto& shape : inputShape.second) {
+                result << CommonTestUtils::vec2str(shape) << "_";
         }
         result << "axis=" << axis << "_";
-        if (inputType == ngraph::helpers::InputLayerType::CONSTANT)
+        if (inputType.first == ngraph::helpers::InputLayerType::CONSTANT)
             result << "depth=" << depth << "_";
         else
             result << "depth=PARAMETER" << "_";
         result << "OnVal=" << onValue << "_";
         result << "OffVal=" << offValue << "_";
-        result << "netPRC=" << netPrecision.name() << "_";
-        result << "inPRC=" << inPrc.name() << "_";
         result << "outPRC=" << outPrc.name();
         result << CPUTestsBase::getTestCaseName(cpuParams);
         return result.str();
@@ -91,51 +77,43 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        std::vector<InputShape> inputShapes;
-        ngraph::helpers::InputLayerType inputType;
-        InferenceEngine::Precision netPrecision, inPrc, outPrc;
+        InputShape inputShape;
+        std::pair<ngraph::helpers::InputLayerType, bool> inputType;
+        InferenceEngine::Precision outPrc;
         CPUSpecificParams cpuParams;
-        std::tie(inputShapes, Axis, inputType, Depth, OnValue, OffValue, netPrecision, inPrc, outPrc, cpuParams) = this->GetParam();
+        std::tie(inputShape, Axis, inputType, Depth, OnValue, OffValue, outPrc, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        selectedType = std::string("ref_any_") + inPrc.name();
-        inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+        selectedType = std::string("ref_any_I32");
         outType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(outPrc);
 
-        init_input_shapes(inputShapes);
-        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        init_input_shapes({inputShape});
+        if (inputType.second) {
             for (auto &target : targetStaticShapes)
                 target.push_back({});
-            function = createFunctionWithParam();
-        } else {
-            function = createFunctionWithConst();
         }
+
+        function = createFunction(!inputType.second);
     }
-    std::shared_ptr<ngraph::Function> createFunctionWithConst() {
+    std::shared_ptr<ngraph::Function> createFunction(bool depthConst) {
         auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes.front()});
         params.front()->set_friendly_name("ParamsIndices");
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto depth_const = std::make_shared<ngraph::op::Constant>(ngraph::element::i32, ngraph::Shape{ }, Depth);
-        auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OnValue);
-        auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OffValue);
-        auto oneHot = std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], depth_const, on_value_const, off_value_const, Axis);
-        return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
-    }
-    std::shared_ptr<ngraph::Function> createFunctionWithParam() {
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes.front()});
-        params.front()->set_friendly_name("ParamsIndices");
         auto depth_param = std::make_shared<ngraph::op::Parameter>(ngraph::element::i32, ngraph::Shape{ });
         depth_param->set_friendly_name("ParamDepth");
-        params.push_back(depth_param);
+        if (!depthConst) {
+            params.push_back(depth_param);
+        }
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
         auto on_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OnValue);
         auto off_value_const = std::make_shared<ngraph::op::Constant>(outType, ngraph::Shape{ }, OffValue);
-        auto oneHot = std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], paramOuts[1], on_value_const, off_value_const, Axis);
+        auto oneHot = depthConst ? std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], depth_const, on_value_const, off_value_const, Axis) :
+                                   std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], paramOuts[1], on_value_const, off_value_const, Axis);
         return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
     }
     void generateDepth() {
-        std::mt19937 gen;
-        gen.seed(static_cast<unsigned int>(time(0)));
-        Depth = gen() % 9 + 1;
+        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(ov::element::Type_t::i32, {}, 10, 1, 1, time(0));
+        auto *dataPtr = tensor.data<int32_t>();
+        Depth = dataPtr[0];
     }
 
     int Axis;
@@ -155,7 +133,7 @@ TEST_P(OneHotLayerCPUTest, CompareWithRefs) {
                 generateDepth();
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
-                    functionRefs = createFunctionWithConst();
+                    functionRefs = createFunction(true);
                     auto inputs = functionRefs->inputs();
                     std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
                     if (inputs.size() > targetStaticShapeVec.size()) {
@@ -194,59 +172,47 @@ const std::vector<Precision> outPrc = {
         Precision::U8
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER
+std::vector<std::pair<ngraph::helpers::InputLayerType, bool>> secondaryInputTypes = {
+        {ngraph::helpers::InputLayerType::CONSTANT, false},
+        {ngraph::helpers::InputLayerType::PARAMETER, true}
 };
 
-const std::vector<std::vector<ov::Shape>> staticInputShapes0D = {
-        { {}, {{}} }
+const std::vector<ov::Shape> staticInputShapes0D = {
+        { }
 };
 
 // 0d -> 1d, depth
 const auto testCase_1d = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes0D)),
         ::testing::Values(-1, 0),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(std::pair<ngraph::helpers::InputLayerType, bool>(ngraph::helpers::InputLayerType::CONSTANT, false)),
         ::testing::Values(3),
         ::testing::Values(1.f),
         ::testing::Values(0.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_1D, OneHotLayerCPUTest, testCase_1d, OneHotLayerCPUTest::getTestCaseName);
 
-std::vector<std::vector<ov::Shape>> staticInputShapes1D = {
-        { {3} }
+const std::vector<ov::Shape> staticInputShapes1D = {
+        { 3 }
 };
 // 1d -> 2d, axis default
 const auto testCase_2d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes1D)),
         ::testing::Values(-1, 0, 1),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(std::pair<ngraph::helpers::InputLayerType, bool>(ngraph::helpers::InputLayerType::CONSTANT, false)),
         ::testing::Values(6),
         ::testing::Values(1.f),
         ::testing::Values(0.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_2D_Static, OneHotLayerCPUTest, testCase_2d_static, OneHotLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> dynamicInputShapes1D = {
-        {
-                {
-                        {{-1}, {{3}, {4}, {5}}}
-                }
-        },
-        {
-                {
-                        {{{1, 5}}, {{1}, {3}, {5}}}
-                }
-        }
+const std::vector<InputShape> dynamicInputShapes1D = {
+        {{-1}, {{3}, {4}, {5}}},
+        {{{1, 5}}, {{1}, {3}, {5}}},
 };
 // 1d -> 2d, axis default
 const auto testCase_2d_dynamic = ::testing::Combine(
@@ -256,47 +222,31 @@ const auto testCase_2d_dynamic = ::testing::Combine(
         ::testing::Values(6),
         ::testing::Values(1.f),
         ::testing::Values(0.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_2D_Dynamic, OneHotLayerCPUTest, testCase_2d_dynamic, OneHotLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<ov::Shape>> staticInputShapes2D = {
-        { {3, 2} }
+const std::vector<ov::Shape> staticInputShapes2D = {
+        { 3, 2 }
 };
 // 2d -> 3d, on_value, off_value
 const auto testCase_3d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes2D)),
         ::testing::Values(-1, 0, 1),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(std::pair<ngraph::helpers::InputLayerType, bool>(ngraph::helpers::InputLayerType::CONSTANT, false)),
         ::testing::Values(4),
         ::testing::Values(2.f),
         ::testing::Values(-1.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_3D_Static, OneHotLayerCPUTest, testCase_3d_static, OneHotLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> dynamicInputShapes2D = {
-        {
-                {
-                        {{-1, -1}, {{3, 2}, {2, 3}, {4, 4}}}
-                }
-        },
-        {
-                {
-                        {{-1, 3}, {{2, 3}, {3, 3}, {4, 3}}}
-                }
-        },
-        {
-                {
-                        {{{1, 5}, {3, 4}}, {{2, 3}, {3, 4}, {4, 3}}}
-                }
-        }
+const std::vector<InputShape> dynamicInputShapes2D = {
+        {{-1, -1}, {{3, 2}, {2, 3}, {4, 4}}},
+        {{-1, 3}, {{2, 3}, {3, 3}, {4, 3}}},
+        {{{1, 5}, {3, 4}}, {{2, 3}, {3, 4}, {4, 3}}}
 };
 // 2d -> 3d, on_value, off_value
 const auto testCase_3d_dynamic = ::testing::Combine(
@@ -306,47 +256,31 @@ const auto testCase_3d_dynamic = ::testing::Combine(
         ::testing::Values(4),
         ::testing::Values(2.f),
         ::testing::Values(-1.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_3D_Dynamic, OneHotLayerCPUTest, testCase_3d_dynamic, OneHotLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<ov::Shape>> staticInputShapes3D = {
-        { {1, 3, 2} }
+const std::vector<ov::Shape> staticInputShapes3D = {
+        { 1, 3, 2 }
 };
 // 3d -> 4d
 const auto testCase_4d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes3D)),
         ::testing::Values(-1, 0, 1, 2),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(std::pair<ngraph::helpers::InputLayerType, bool>(ngraph::helpers::InputLayerType::CONSTANT, false)),
         ::testing::Values(4),
         ::testing::Values(1.f),
         ::testing::Values(0.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_4D_Static, OneHotLayerCPUTest, testCase_4d_static, OneHotLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> dynamicInputShapes3D = {
-        {
-                {
-                        {{-1, -1, -1}, {{1, 3, 2}, {1, 2, 3}, {2, 4, 4}}}
-                }
-        },
-        {
-                {
-                        {{-1, 3, -1}, {{2, 3, 1}, {1, 3, 2}, {1, 3, 5}}}
-                }
-        },
-        {
-                {
-                        {{{1, 2}, 3, {1, 5}}, {{2, 3, 1}, {1, 3, 2}, {1, 3, 5}}}
-                }
-        }
+const std::vector<InputShape> dynamicInputShapes3D = {
+        {{-1, -1, -1}, {{1, 3, 2}, {1, 2, 3}, {2, 4, 4}}},
+        {{-1, 3, -1}, {{2, 3, 1}, {1, 3, 2}, {1, 3, 5}}},
+        {{{1, 2}, 3, {1, 5}}, {{2, 3, 1}, {1, 3, 2}, {1, 3, 5}}}
 };
 // 3d -> 4d
 const auto testCase_4d_dynamic = ::testing::Combine(
@@ -356,47 +290,31 @@ const auto testCase_4d_dynamic = ::testing::Combine(
         ::testing::Values(4),
         ::testing::Values(1.f),
         ::testing::Values(0.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_4D_Dynamic, OneHotLayerCPUTest, testCase_4d_dynamic, OneHotLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<ov::Shape>> staticInputShapes4D = {
-        { {1, 3, 2, 3} }
+const std::vector<ov::Shape> staticInputShapes4D = {
+        { 1, 3, 2, 3 }
 };
 // 4d -> 5d
 const auto testCase_5d_static = ::testing::Combine(
         ::testing::ValuesIn(static_shapes_to_test_representation(staticInputShapes4D)),
         ::testing::Values(-1, 0, 1, 2, 3),
-        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+        ::testing::Values(std::pair<ngraph::helpers::InputLayerType, bool>(ngraph::helpers::InputLayerType::CONSTANT, false)),
         ::testing::Values(4),
         ::testing::Values(1.f),
         ::testing::Values(0.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );
 INSTANTIATE_TEST_SUITE_P(smoke_OneHotCPU_5D_Static, OneHotLayerCPUTest, testCase_5d_static, OneHotLayerCPUTest::getTestCaseName);
 
-const std::vector<std::vector<InputShape>> dynamicInputShapes4D = {
-        {
-                {
-                        {{-1, -1, -1, -1}, {{1, 3, 2, 3}, {1, 2, 3, 2}, {2, 3, 4, 4}}}
-                }
-        },
-        {
-                {
-                        {{-1, 3, -1, {1, 3}}, {{1, 3, 3, 1}, {1, 3, 2, 2}, {1, 3, 5, 3}}}
-                }
-        },
-        {
-                {
-                        {{{1, 2}, 3, {2, 5}, {1, 3}}, {{1, 3, 3, 1}, {2, 3, 2, 2}, {1, 3, 5, 3}}}
-                }
-        }
+const std::vector<InputShape> dynamicInputShapes4D = {
+        {{-1, -1, -1, -1}, {{1, 3, 2, 3}, {1, 2, 3, 2}, {2, 3, 4, 4}}},
+        {{-1, 3, -1, {1, 3}}, {{1, 3, 3, 1}, {1, 3, 2, 2}, {1, 3, 5, 3}}},
+        {{{1, 2}, 3, {2, 5}, {1, 3}}, {{1, 3, 3, 1}, {2, 3, 2, 2}, {1, 3, 5, 3}}}
 };
 // 4d -> 5d
 const auto testCase_5d_dynamic = ::testing::Combine(
@@ -406,8 +324,6 @@ const auto testCase_5d_dynamic = ::testing::Combine(
         ::testing::Values(4),
         ::testing::Values(1.f),
         ::testing::Values(0.f),
-        ::testing::Values(Precision::I32),
-        ::testing::Values(Precision::I32),
         ::testing::ValuesIn(outPrc),
         ::testing::Values(emptyCPUSpec)
 );

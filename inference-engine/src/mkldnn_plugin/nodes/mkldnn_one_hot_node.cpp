@@ -102,18 +102,6 @@ std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
     std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
 
     depth = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr())[0];
-    VectorDims srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    if (ngraph::is_scalar(srcDims)) {
-        srcDims = SizeVector{1};
-    }
-    VectorDims dstDims = result[0];
-    if (ngraph::is_scalar(dstDims)) {
-        dstDims = SizeVector{1};
-    }
-    if (!(((1 + srcDims.size()) == dstDims.size()) ||
-          (srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1)))
-        IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions!";
-
     return result;
 }
 
