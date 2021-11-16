@@ -43,6 +43,7 @@ void gather_nd(const T* const params,
                T* const out,
                const Shape& params_shape,
                const Shape& indices_shape,
+               const Shape& out_shape,
                const int batch_dims = 0) {
     using std::begin;
     using std::end;
