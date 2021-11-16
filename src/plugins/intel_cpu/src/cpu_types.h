@@ -55,6 +55,7 @@ enum Type {
     DeformableConvolution,
     TensorIterator,
     Convert,
+    ColorConvert,
     MVN,
     NormalizeL2,
     ScatterUpdate,
@@ -220,10 +221,12 @@ enum Algorithm {
     MathSoftPlus,
     MathSoftsign,
     MathTan,
-
     // TensorIterator
     TensorIteratorCommon,
-    TensorIteratorLoop
+    TensorIteratorLoop,
+    // Color conversions
+    NV12toRGB,
+    NV12toBGR,
 };
 
 extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;

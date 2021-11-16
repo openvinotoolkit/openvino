@@ -127,6 +127,9 @@ private:
 
 class MKLDNNNode {
 public:
+    MKLDNNNode(const MKLDNNNode &) = delete;
+    MKLDNNNode & operator = (const MKLDNNNode &) = delete;
+
     using AttrPtr = std::shared_ptr<mkldnn::primitive_attr>;
 
 public:
@@ -444,7 +447,7 @@ public:
         return execIndex;
     }
 
-    std::string getTypeStr() const {
+    const std::string & getTypeStr() const {
         return typeStr;
     }
 
@@ -837,6 +840,8 @@ struct MKLDNNNodeImpl : public MKLDNNNodeType {
         MKLDNNNodeType::perfCounters().template buildClassCounters<MKLDNNNodeType>(NameFromType(MKLDNNNodeType::getType()));
     }
 };
+
+#define MKLDNN_NODE_THROW() IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
 
 }  // namespace MKLDNNPlugin
 
