@@ -32,7 +32,7 @@
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "transformations/rt_info/old_api_map_attribute.hpp"
+#include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -357,54 +357,66 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
         } else if (ir_version == 11 && !newAPI) {
-            const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
+            const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
+            const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 
             auto& parameters = function->get_parameters();
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto& parameter = parameters[i];
                 ov::RTMap& rtInfo = parameter->get_rt_info();
-                const auto it = rtInfo.find(old_api_map_key);
-                if (it == rtInfo.end())
-                    continue;
+                std::vector<uint64_t> order;
+                ngraph::element::Type type;
+                const auto it_type = rtInfo.find(old_api_map_key_type);
+                if (it_type != rtInfo.end()) {
+                    const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapElementType>(it_type->second);
+                    OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapElementType");
+                    type = old_api_map_attr->get();
 
-                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(it->second);
-                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMap");
-                const auto old_api_map_attr_val = old_api_map_attr->get();
-                auto old_api_type = old_api_map_attr_val.get_type();
-                const auto old_api_transpose_args = old_api_map_attr_val.get_order();
-
-                OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
-                // if no differences between IR v10 and IR v11, add identity convert which will be optimized out
-                if (old_api_type == ov::element::undefined)
-                    old_api_type = parameter->get_element_type();
-
-                prepost.input(ov::preprocess::InputInfo(i)
-                                  .tensor(InputTensorInfo().set_element_type(old_api_type))
-                                  .preprocess(PreProcessSteps().convert_layout(old_api_transpose_args)));
+                    OPENVINO_ASSERT(!type.is_dynamic(), "Old API map does not support dynamic type");
+                }
+                const auto it_order = rtInfo.find(old_api_map_key_order);
+                if (it_order != rtInfo.end()) {
+                    const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(it_order->second);
+                    OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
+                    const auto old_api_map_attr_val = old_api_map_attr->get();
+                    order = old_api_map_attr_val.get_order();
+                }
+                if (it_type != rtInfo.end() && it_order != rtInfo.end())
+                {
+                    prepost.input(ov::preprocess::InputInfo(i)
+                                          .tensor(InputTensorInfo().set_element_type(type))
+                                          .preprocess(PreProcessSteps().convert_layout(order)));
+                    rtInfo.erase(it_type);
+                    rtInfo.erase(it_order);
+                }
+                else if (it_type != rtInfo.end()) {
+                    prepost.input(ov::preprocess::InputInfo(i)
+                                          .tensor(InputTensorInfo().set_element_type(type)));
+                    rtInfo.erase(it_type);
+                }
+                else if (it_order != rtInfo.end()) {
+                    prepost.input(ov::preprocess::InputInfo(i)
+                                          .tensor(InputTensorInfo())
+                                          .preprocess(PreProcessSteps().convert_layout(order)));
+                    rtInfo.erase(it_order);
+                }
             }
 
             auto& results = function->get_results();
             for (size_t i = 0; i < results.size(); ++i) {
                 const auto& result = results[i];
                 ov::RTMap& rtInfo = result->get_rt_info();
-                const auto it = rtInfo.find(old_api_map_key);
+                const auto it = rtInfo.find(old_api_map_key_order);
                 if (it == rtInfo.end())
                     continue;
 
-                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(it->second);
-                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMap");
+                const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(it->second);
+                OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
                 const auto old_api_map_attr_val = old_api_map_attr->get();
-                auto old_api_type = old_api_map_attr_val.get_type();
                 const auto old_api_transpose_args = old_api_map_attr_val.get_order();
 
-                OPENVINO_ASSERT(!old_api_type.is_dynamic(), "Old API map does not support dynamic type");
-                // if no differences between IR v10 and IR v11, add identity convert which will be optimized out
-                if (old_api_type == ov::element::undefined)
-                    old_api_type = result->get_element_type();
-
                 prepost.output(OutputInfo(i)
-                                   .postprocess(PostProcessSteps().convert_layout(old_api_transpose_args))
-                                   .tensor(OutputTensorInfo().set_element_type(old_api_type)));
+                                   .postprocess(PostProcessSteps().convert_layout(old_api_transpose_args)));
 
                 // remove old api once we applied it
                 rtInfo.erase(it);
