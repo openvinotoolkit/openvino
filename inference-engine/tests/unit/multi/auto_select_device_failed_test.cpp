@@ -202,21 +202,22 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     }
 }
 
-//the test configure, for example
-//ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
-//              DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
-//               DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2},
+// the test configure, for example
+// ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+//               DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
+//                DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3, 2},
 //
-//every element for ConfigParams
-//{continueRun, selectThrowException, deviceLoadsuccessVector, selectCount, loadCount, loadSuccessCount}
+// every element for ConfigParams
+// {continueRun, selectThrowException, deviceLoadsuccessVector, selectCount, loadCount, loadSuccessCount}
+// {       true,                false,                3 device,           2,         3,                2}
 //
-//there are three devices for loading
-//CPU load for accelerator success, but GPU will faild and then select MYRIAD and load again
-//LoadExeNetworkImpl will not throw exception and can continue to run,
-//it will select twice, first select GPU, second select MYRIAD
-//it will load three time(CPU, GPU, MYRIAD)
-//inference request num is loadSuccessCount * optimalNum, in this test case optimalNum is 2
-//so inference request num is 4 (CPU create 2, GPU create 2)
+// there are three devices for loading
+// CPU load for accelerator success, but GPU will load faild and then select MYRIAD and load again
+// LoadExeNetworkImpl will not throw exception and can continue to run,
+// it will select twice, first select GPU, second select MYRIAD
+// it will load network three times(CPU, GPU, MYRIAD)
+// the inference request num is loadSuccessCount * optimalNum, in this test case optimalNum is 2
+// so inference request num is 4 (CPU 2, MYRIAD 2)
 //
 const std::vector<ConfigParams> testConfigs = {ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
