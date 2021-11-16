@@ -258,7 +258,8 @@ def test_unregister_plugin(device):
         ie.load_network(func, device)
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
-@pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so: undefined symbol: create_extensions")
+
+@pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so")
 @pytest.mark.template_extension
 def test_add_extension(device):
     model = bytes(b"""<net name="Network" version="10">
@@ -333,63 +334,63 @@ def test_add_extension(device):
 
 def test_read_model_from_buffer_no_weights(device):
     model = bytes(b"""<net name="add_model" version="10">
-	<layers>
-		<layer id="0" name="x" type="Parameter" version="opset1">
-			<data element_type="f32" shape="3,4,5"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>3</dim>
-					<dim>4</dim>
-					<dim>5</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="1" name="y" type="Parameter" version="opset1">
-			<data element_type="f32" shape="3,4,5"/>
-			<output>
-				<port id="0" precision="FP32">
-					<dim>3</dim>
-					<dim>4</dim>
-					<dim>5</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="2" name="sum" type="Add" version="opset1">
-			<input>
-				<port id="0">
-					<dim>3</dim>
-					<dim>4</dim>
-					<dim>5</dim>
-				</port>
-				<port id="1">
-					<dim>3</dim>
-					<dim>4</dim>
-					<dim>5</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>3</dim>
-					<dim>4</dim>
-					<dim>5</dim>
-				</port>
-			</output>
-		</layer>
-		<layer id="3" name="sum/sink_port_0" type="Result" version="opset1">
-			<input>
-				<port id="0">
-					<dim>3</dim>
-					<dim>4</dim>
-					<dim>5</dim>
-				</port>
-			</input>
-		</layer>
-	</layers>
-	<edges>
-		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-		<edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
-		<edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
-	</edges>
+    <layers>
+    <layer id="0" name="x" type="Parameter" version="opset1">
+        <data element_type="f32" shape="3,4,5"/>
+        <output>
+            <port id="0" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="1" name="y" type="Parameter" version="opset1">
+        <data element_type="f32" shape="3,4,5"/>
+        <output>
+            <port id="0" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="2" name="sum" type="Add" version="opset1">
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+            <port id="1">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </input>
+        <output>
+            <port id="2" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="3" name="sum/sink_port_0" type="Result" version="opset1">
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </input>
+    </layer>
+    </layers>
+    <edges>
+    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
 </net>""")
     core = Core()
     func = core.read_model(model=model)
