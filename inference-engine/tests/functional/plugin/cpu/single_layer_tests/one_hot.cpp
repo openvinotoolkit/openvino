@@ -94,6 +94,27 @@ protected:
 
         function = createFunction(!inputType.second);
     }
+    void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        if (function->get_parameters().size() == 2) {
+            // Generate depth
+            ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(ov::element::Type_t::i32, {}, 10, 1, 1, time(0));
+            auto *dataPtr = tensor.data<int32_t>();
+            Depth = dataPtr[0];
+            funcRef = createFunction(true);
+        }
+        ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+    }
+    void validate() override {
+        if (function->get_parameters().size() == 2) {
+            auto pos = std::find_if(inputs.begin(), inputs.end(),
+                                    [](const std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> &params) {
+                                        return params.first->get_friendly_name() == "ParamDepth";
+                                    });
+            IE_ASSERT(pos != inputs.end());
+            inputs.erase(pos);
+        }
+        SubgraphBaseTest::validate();
+    }
     std::shared_ptr<ngraph::Function> createFunction(bool depthConst) {
         auto params = ngraph::builder::makeDynamicParams(ngraph::element::i32, {inputDynamicShapes.front()});
         params.front()->set_friendly_name("ParamsIndices");
@@ -110,11 +131,6 @@ protected:
                                    std::make_shared<ngraph::opset5::OneHot>(paramOuts[0], paramOuts[1], on_value_const, off_value_const, Axis);
         return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
     }
-    void generateDepth() {
-        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(ov::element::Type_t::i32, {}, 10, 1, 1, time(0));
-        auto *dataPtr = tensor.data<int32_t>();
-        Depth = dataPtr[0];
-    }
 
     int Axis;
     size_t Depth;
@@ -124,41 +140,7 @@ protected:
 TEST_P(OneHotLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    if (function->get_parameters().size() == 1) {
-        run();
-    } else {
-        compile_model();
-        for (const auto& targetStaticShapeVec : targetStaticShapes) {
-            try {
-                generateDepth();
-                if (!inputDynamicShapes.empty()) {
-                    // resize ngraph function according new target shape
-                    functionRefs = createFunction(true);
-                    auto inputs = functionRefs->inputs();
-                    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
-                    if (inputs.size() > targetStaticShapeVec.size()) {
-                        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetStaticShapeVec.size()) +
-                                                 " != inputs.size() = " + std::to_string(inputs.size()));
-                    }
-                    for (size_t i = 0; i < inputs.size(); i++) {
-                        shapes.insert({inputs[i], targetStaticShapeVec[i]});
-                    }
-                    functionRefs->reshape(shapes);
-                }
-                generate_inputs(targetStaticShapeVec);
-                infer();
-                for (const auto& in : inputs) {
-                    if (strcmp(in.first->get_friendly_name().data(), "ParamDepth") == 0) {
-                        inputs.erase(in.first);
-                        break;
-                    }
-                }
-                validate();
-            } catch (const std::exception &ex) {
-                throw std::runtime_error("Incorrect target static shape: " + CommonTestUtils::vec2str(targetStaticShapeVec) + " " + ex.what());
-            }
-        }
-    }
+    run();
     // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
     // CheckPluginRelatedResults(executableNetwork, "OneHot");
 }
