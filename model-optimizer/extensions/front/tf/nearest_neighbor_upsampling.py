@@ -57,7 +57,6 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
             log.warning('Failed to determine scaling parameters from the topology. Do not apply pattern.')
             return
 
-        print("Started the transformation NearestNeighborUpsampling")
         reshape2_name = match['reshape_2'].name
         resample_op = Interpolate(graph,
                                   {'mode': 'nearest', 'antialias': 0, 'pads_begin': int64_array([0]),
