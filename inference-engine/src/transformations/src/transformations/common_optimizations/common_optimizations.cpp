@@ -152,7 +152,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // TransposeReshapeEliminationForMatmul must be after EinsumDecomposition
-    manager.register_pass<ngraph::pass::TransposeReshapeEliminationForMatmul, false>();
+    manager.register_pass<ngraph::pass::TransposeReshapeEliminationForMatmul>();
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
