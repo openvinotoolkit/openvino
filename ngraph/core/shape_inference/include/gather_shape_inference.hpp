@@ -15,9 +15,14 @@ void inline create_shape(RankT& rank, ShapeT& shape) {
     return;
 }
 
-template <>
-void inline create_shape(Rank& rank, PartialShape& shape) {
+template <class RankT>
+void inline create_shape(RankT& rank, PartialShape& shape) {
     shape = PartialShape::dynamic(rank);
+}
+
+template <class ShapeT, typename = typename std::enable_if<!std::is_same<ShapeT, PartialShape>::value>::type>
+void inline create_shape(int64_t& rank, ShapeT& shape) {
+    shape.resize(rank);
 }
 
 template <class T>
@@ -73,7 +78,8 @@ void shape_infer(GatherBase* op,
 
     if (data_rank.is_static() && indices_rank.is_static()) {
         auto out_rank = data_rank.get_length() + indices_rank.get_length() - 1 - batch_dims;
-        output_pshape.resize(out_rank);
+        // scalar has one
+        create_shape(out_rank, output_pshape);
 
         // implementation of out_shape formula
         // data.shape[:batch_dims] + data.shape[batch_dims:axis] + indices.shape[batch_dims:] +

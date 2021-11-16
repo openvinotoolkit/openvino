@@ -9,6 +9,16 @@
 namespace ov {
 namespace op {
 namespace v1 {
+void inline resolve_axis(OneHot* op) {
+    const auto& indices_shape = op->get_input_partial_shape(0);
+    int64_t axis = op->get_axis();
+    if (indices_shape.rank().is_static()) {
+        const auto indices_rank = indices_shape.rank().get_length();
+        axis = ov::normalize_axis(op, axis, indices_rank + 1, -indices_rank - 1, indices_rank);
+        op->set_axis(axis);
+    }
+}
+
 template <class T>
 void shape_infer(OneHot* op,
                  const std::vector<T>& input_shapes,
@@ -40,7 +50,7 @@ void shape_infer(OneHot* op,
     if (indices_shape.rank().is_static() && axis_is_set) {
         //decide result rank
         result_shape = indices_shape;
-        const auto indices_rank = indices_shape.size();
+        const auto indices_rank = indices_shape.rank().get_length();
         axis = ov::normalize_axis(op, axis, indices_rank + 1, -indices_rank - 1, indices_rank);
 
         NODE_VALIDATION_CHECK(op,

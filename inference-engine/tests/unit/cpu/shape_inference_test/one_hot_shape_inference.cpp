@@ -5,7 +5,6 @@
 
 #include <one_hot_shape_inference.hpp>
 #include <openvino/core/coordinate_diff.hpp>
-#include <openvino/op/gather.hpp>
 #include <openvino/op/ops.hpp>
 #include <openvino/op/parameter.hpp>
 
