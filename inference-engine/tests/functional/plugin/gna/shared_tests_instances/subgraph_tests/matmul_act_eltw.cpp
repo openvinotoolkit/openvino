@@ -4,10 +4,10 @@
 
 #include <vector>
 
-#include "single_layer_tests/matmul_multiple_outputs.hpp"
+#include "subgraph_tests/matmul_act_eltw.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 namespace {
 const std::vector<size_t> input_sizes = {
     25,
@@ -30,12 +30,12 @@ std::vector<std::map<std::string, std::string>> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulMultipleOutputs, MatMulMultipleOutputsTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulActEltw, MatMulActEltwTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_sizes),
                                 ::testing::ValuesIn(net_precisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                 ::testing::ValuesIn(additional_config)),
-                        MatMulMultipleOutputsTest::getTestCaseName);
+                        MatMulActEltwTest::getTestCaseName);
 
-} // namespace LayerTestsDefinitions
+} // namespace SubgraphTestsDefinitions

@@ -13,22 +13,22 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
         std::size_t,                        // Input Size
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
         std::map<std::string, std::string> //Configuration
-> MatMulMultipleOutputsParams;
+> MatMulActEltwParams;
 
-class MatMulMultipleOutputsTest:
-        public testing::WithParamInterface<MatMulMultipleOutputsParams>,
+class MatMulActEltwTest:
+        public testing::WithParamInterface<MatMulActEltwParams>,
         public LayerTestsUtils::LayerTestsCommon{
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MatMulMultipleOutputsParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulActEltwParams> &obj);
 protected:
     void SetUp() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions
