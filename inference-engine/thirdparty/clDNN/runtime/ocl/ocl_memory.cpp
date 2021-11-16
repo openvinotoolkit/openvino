@@ -400,7 +400,7 @@ shared_mem_params gpu_usm::get_internal_params() const {
 }
 
 allocation_type gpu_usm::detect_allocation_type(ocl_engine* engine, const cl::UsmMemory& buffer) {
-    auto cl_alloc_type = engine->get_usm_helper().get_allocation_type(buffer.get());
+    auto cl_alloc_type = engine->get_usm_helper().get_usm_allocation_type(buffer.get());
 
     allocation_type res = allocation_type::unknown;
     switch (cl_alloc_type) {

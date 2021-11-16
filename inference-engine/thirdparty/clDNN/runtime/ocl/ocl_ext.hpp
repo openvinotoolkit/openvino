@@ -622,7 +622,7 @@ public:
         return err;
     }
 
-    cl_unified_shared_memory_type_intel get_allocation_type(const void* usm_ptr) const {
+    cl_unified_shared_memory_type_intel get_usm_allocation_type(const void* usm_ptr) const {
         if (!_get_mem_alloc_info_fn) {
             throw std::runtime_error("[GPU] clGetMemAllocInfoINTEL is nullptr");
         }

@@ -133,9 +133,9 @@ public:
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
- * which can be shared with user-supplied OpenCL buffer.
+ * which can be shared with user-supplied USM pointer.
  * The plugin object derived from this class can be obtained with CreateBlob() call.
- * @note User can obtain OpenCL buffer handle from this class.
+ * @note User can obtain USM pointer from this class.
  */
 class USMBlob : public ClBlob, public details::param_map_obj_getter {
 public:

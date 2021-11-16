@@ -8,6 +8,7 @@
 #include <cldnn/runtime/engine.hpp>
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <blob_factory.hpp>
 #include <ie_remote_context.hpp>
 #include "cldnn_config.h"
 #include "cldnn_common_utils.h"
@@ -212,6 +213,57 @@ public:
     bool free(void* handle) noexcept override { return true; }
 };
 
+class USMHostAllocator : public InferenceEngine::IAllocator {
+protected:
+    InferenceEngine::gpu::USMBlob::Ptr _usm_host_blob = nullptr;
+    InferenceEngine::gpu::ClContext* _context = nullptr;
+
+public:
+    using Ptr = std::shared_ptr<USMHostAllocator>;
+
+    USMHostAllocator(InferenceEngine::gpu::ClContext* context) : _context(context) { }
+    /**
+    * @brief Maps handle to heap memory accessible by any memory manipulation routines.
+    * @return Generic pointer to memory
+    */
+    void* lock(void* handle, InferenceEngine::LockOp = InferenceEngine::LOCK_FOR_WRITE) noexcept override {
+        if (!_usm_host_blob)
+            return nullptr;
+        return _usm_host_blob->get();
+    };
+
+    /**
+    * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
+    * The multiple sequential mappings of the same handle are suppose to get the same
+    * result while there isn't a ref counter supported.
+    */
+    void unlock(void* handle) noexcept override {}
+
+    /**
+    * @brief Allocates memory
+    * @param size The size in bytes to allocate
+    * @return Handle to the allocated resource
+    */
+    void* alloc(size_t size) noexcept override {
+        auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::ANY);
+        InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
+        _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
+        return _usm_host_blob->get();
+    }
+
+    /**
+    * @brief Releases handle and all associated memory resources which invalidates the handle.
+    * @return false if handle cannot be released, otherwise - true.
+    */
+    bool free(void* handle) noexcept override {
+        try {
+            _usm_host_blob = nullptr;
+        } catch(...) { }
+        return true;
+    }
+};
+
+
 class CLDNNExecutionContextImpl : public InferenceEngine::gpu::details::param_map_obj_getter {
 public:
     enum ContextType {
@@ -387,6 +439,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI {
         auto& stream = _impl.GetEngine()->get_program_stream();
         auto blob_alloc_type = alloc_type == cldnn::allocation_type::usm_host ? CLDNNRemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL :
                                                                                 CLDNNRemoteBlobImpl::BlobType::BT_USM_DEVICE_INTERNAL;
+
         return std::make_shared<CLDNNRemoteUSMbuffer>(smart_this,
                                                       stream,
                                                       tensorDesc,
@@ -412,6 +465,13 @@ public:
     InferenceEngine::ParamMap getParams() const noexcept override { return _impl.getParams(); }
     std::string getDeviceName() const noexcept override { return _impl.getDeviceName(); }
 
+    InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {
+        if (_impl.GetEngine()->use_unified_shared_memory())
+            return InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, std::make_shared<USMHostAllocator>(this));
+        else
+            return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(make_blob_with_precision(tensorDesc));
+    }
+
     InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params = {}) override {
         using namespace InferenceEngine;
         using InferenceEngine::gpu::details::param_map_obj_getter;
@@ -421,6 +481,14 @@ public:
         } else {
             // user will supply shared object handle
             std::string memTypeStr = param_map_obj_getter::_StrFromParams(params, GPU_PARAM_KEY(SHARED_MEM_TYPE));
+
+            bool is_usm = memTypeStr == GPU_PARAM_VALUE(USM_HOST_BUFFER) ||
+                          memTypeStr == GPU_PARAM_VALUE(USM_DEVICE_BUFFER) ||
+                          memTypeStr == GPU_PARAM_VALUE(USM_USER_BUFFER);
+
+            if (is_usm && !_impl.GetEngine()->use_unified_shared_memory()) {
+                IE_THROW(NotAllocated) << "Can't create USM tensor as USM is not supported (or manually disabled) on current device";
+            }
 
             if (GPU_PARAM_VALUE(VA_SURFACE) == memTypeStr) {
                 check_if_shared();

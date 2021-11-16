@@ -136,6 +136,15 @@ public:
      * @return A map of name/parameter elements.
      */
     ParamMap get_params() const;
+
+
+    /**
+     * @brief This function is used to create host tensor object friendly for current device
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @return A Tensor instance
+     */
+    Tensor create_host_tensor(const element::Type type, const Shape& shape);
 };
 
 }  // namespace runtime

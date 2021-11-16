@@ -121,7 +121,8 @@ struct OpenCL {
         return _host_mem_alloc_fn != nullptr &&
                _device_mem_alloc_fn != nullptr &&
                _mem_free_fn != nullptr &&
-               _enqueue_memcpy_fn != nullptr;
+               _enqueue_memcpy_fn != nullptr &&
+               _get_mem_alloc_info_fn != nullptr;
     }
 
     void* allocate_usm_host_buffer(size_t size) const {

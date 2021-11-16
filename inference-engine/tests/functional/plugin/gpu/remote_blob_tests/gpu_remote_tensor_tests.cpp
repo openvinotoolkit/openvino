@@ -36,7 +36,8 @@ enum class RemoteTensorSharingType {
     USER_USM_HOST_TENSOR = 2,
     USER_USM_DEVICE_TENSOR = 3,
     PLUGIN_USM_HOST_TENSOR = 4,
-    PLUGIN_USM_DEVICE_TENSOR = 5
+    PLUGIN_USM_DEVICE_TENSOR = 5,
+    PLUGIN_HOST_TENSOR = 6
 };
 
 std::ostream& operator<<(std::ostream& stream, RemoteTensorSharingType sharing_type) {
@@ -47,6 +48,7 @@ std::ostream& operator<<(std::ostream& stream, RemoteTensorSharingType sharing_t
     case RemoteTensorSharingType::USER_USM_DEVICE_TENSOR: stream << "USER_USM_DEVICE_TENSOR"; break;
     case RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR: stream << "PLUGIN_USM_HOST_TENSOR"; break;
     case RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR: stream << "PLUGIN_USM_DEVICE_TENSOR"; break;
+    case RemoteTensorSharingType::PLUGIN_HOST_TENSOR: stream << "PLUGIN_HOST_TENSOR"; break;
     }
 
     return stream;
@@ -173,9 +175,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
             if (!ocl_instance->supports_usm())
                 GTEST_SKIP();
 
-            ov::runtime::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), {GPU_PARAM_VALUE(USM_HOST_BUFFER)}}};
-
-            auto cldnn_tensor = cldnn_context.create_tensor(input->get_element_type(), input->get_shape(), params);
+            auto cldnn_tensor = cldnn_context.create_usm_host_tensor(input->get_element_type(), input->get_shape());
             ASSERT_TRUE(cldnn_tensor.is<ov::runtime::gpu::ocl::USMTensor>());
             {
                 auto cl_tensor = cldnn_tensor.as<ov::runtime::gpu::ocl::USMTensor>();
@@ -194,9 +194,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
             if (!ocl_instance->supports_usm())
                 GTEST_SKIP();
 
-            ov::runtime::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), {GPU_PARAM_VALUE(USM_DEVICE_BUFFER)}}};
-
-            auto cldnn_tensor = cldnn_context.create_tensor(input->get_element_type(), input->get_shape(), params);
+            auto cldnn_tensor = cldnn_context.create_usm_device_tensor(input->get_element_type(), input->get_shape());
             ASSERT_TRUE(cldnn_tensor.is<ov::runtime::gpu::ocl::USMTensor>());
             {
                 auto cl_tensor = cldnn_tensor.as<ov::runtime::gpu::ocl::USMTensor>();
@@ -206,6 +204,22 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
                 err = ocl_instance->memcpy(ocl_instance->_queue, shared_buffer, buffer, imSize, true, nullptr, nullptr);
                 if (err != CL_SUCCESS)
                     FAIL() << "Failed to copy data from host buffer to USM device";
+            }
+
+            inf_req_shared.set_tensor(input, cldnn_tensor);
+            inf_req_shared.infer();
+
+            break;
+        }
+        case RemoteTensorSharingType::PLUGIN_HOST_TENSOR: {
+            auto cldnn_tensor = cldnn_context.create_host_tensor(input->get_element_type(), input->get_shape());
+            {
+                ASSERT_NO_THROW(cldnn_tensor.data());
+                void* shared_buffer = cldnn_tensor.data();
+                if (ocl_instance->supports_usm())
+                    ASSERT_EQ(ocl_instance->get_allocation_type(shared_buffer), CL_MEM_TYPE_HOST_INTEL);
+                void* buffer = fakeImageData.data();
+                std::memcpy(shared_buffer, buffer, imSize);
             }
 
             inf_req_shared.set_tensor(input, cldnn_tensor);
@@ -237,7 +251,8 @@ INSTANTIATE_TEST_SUITE_P(
                              RemoteTensorSharingType::USER_USM_HOST_TENSOR,
                              RemoteTensorSharingType::USER_USM_DEVICE_TENSOR,
                              RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR,
-                             RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR}),
+                             RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR,
+                             RemoteTensorSharingType::PLUGIN_HOST_TENSOR}),
         OVRemoteTensorInputBlob_Test::getTestCaseName);
 
 TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {
