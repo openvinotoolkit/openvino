@@ -33,20 +33,8 @@ void regclass_ExecutableNetwork(py::module m) {
         "infer_new_request",
         [](ov::runtime::ExecutableNetwork& self, const py::dict& inputs) {
             auto request = self.create_infer_request();
-
-            if (!inputs.empty()) {
-                for (auto&& input : inputs) {
-                    if (py::isinstance<py::str>(input.first)) {
-                        request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
-                    } else if (py::isinstance<py::int_>(input.first)) {
-                        request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
-                    } else {
-                        throw py::type_error("Incompatible key type for tensor named: " +
-                                             input.first.cast<std::string>());
-                    }
-                }
-            }
-
+            // Update inputs if there are any
+            Common::set_request_tensors(request, inputs);
             request.infer();
 
             Containers::InferResults results;

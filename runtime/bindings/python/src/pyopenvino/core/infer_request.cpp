@@ -60,18 +60,7 @@ void regclass_InferRequest(py::module m) {
         "infer",
         [](InferRequestWrapper& self, const py::dict& inputs) {
             // Update inputs if there are any
-            if (!inputs.empty()) {
-                for (auto&& input : inputs) {
-                    if (py::isinstance<py::str>(input.first)) {
-                        self._request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
-                    } else if (py::isinstance<py::int_>(input.first)) {
-                        self._request.set_input_tensor(input.first.cast<size_t>(),
-                                                       Common::cast_to_tensor(input.second));
-                    } else {
-                        throw ov::Exception("Incompatible key type for tensor!");
-                    }
-                }
-            }
+            Common::set_request_tensors(self._request, inputs);
             // Call Infer function
             self._start_time = Time::now();
             self._request.infer();
@@ -88,19 +77,8 @@ void regclass_InferRequest(py::module m) {
         "start_async",
         [](InferRequestWrapper& self, const py::dict& inputs, py::object& userdata) {
             // Update inputs if there are any
-            if (!inputs.empty()) {
-                for (auto&& input : inputs) {
-                    if (py::isinstance<py::str>(input.first)) {
-                        self._request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
-                    } else if (py::isinstance<py::int_>(input.first)) {
-                        self._request.set_input_tensor(input.first.cast<size_t>(),
-                                                       Common::cast_to_tensor(input.second));
-                    } else {
-                        throw ov::Exception("Incompatible key type for tensor!");
-                    }
-                }
-            }
-            if (userdata != py::none()) {
+            Common::set_request_tensors(self._request, inputs);
+            if (!userdata.is(py::none())) {
                 if (self.user_callback_defined) {
                     self.userdata = userdata;
                 } else {

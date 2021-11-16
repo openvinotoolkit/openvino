@@ -10,7 +10,6 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
-#include <cpp/ie_executable_network.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_parameter.hpp>
 #include <openvino/core/type/element_type.hpp>
@@ -18,6 +17,7 @@
 #include "ie_common.h"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/executable_network.hpp"
+#include "openvino/runtime/infer_request.hpp"
 #include "pyopenvino/core/containers.hpp"
 
 namespace py = pybind11;
@@ -37,6 +37,8 @@ namespace Common
     const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs);
 
     const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
+
+    void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs);
 
     PyObject* parse_parameter(const InferenceEngine::Parameter& param);
 

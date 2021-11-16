@@ -159,6 +159,20 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
     return result_map;
 }
 
+void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs) {
+    if (!inputs.empty()) {
+        for (auto&& input : inputs) {
+            if (py::isinstance<py::str>(input.first)) {
+                request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
+            } else if (py::isinstance<py::int_>(input.first)) {
+                request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+            } else {
+                throw py::type_error("Incompatible key type for tensor named: " + input.first.cast<std::string>());
+            }
+        }
+    }
+}
+
 PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     // Check for std::string
     if (param.is<std::string>()) {
