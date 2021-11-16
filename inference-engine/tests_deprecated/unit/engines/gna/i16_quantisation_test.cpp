@@ -218,12 +218,6 @@ TEST_F(I16QuantisationTest, canDetectLeakyRelu) {
         .gna().propagate_forward().called_with().pwl_inserted_into_nnet();
 }
 
-TEST_F(I16QuantisationTest, canDetectSoftWSignSubgraph) {
-    assert_that().onInferModel(TFSoftsignUnfoldedModel())
-        .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActSigmoid});
-}
-
 TEST_F(I16QuantisationTest, MaxPool_followedAfterActivation) {
     assert_that().onInferModel(maxpoolAfterRelu())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)

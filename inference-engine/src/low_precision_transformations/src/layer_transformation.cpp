@@ -320,7 +320,7 @@ bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const N
     return dequantization.subtract != nullptr;
 }
 
-bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return true;
 }
 
