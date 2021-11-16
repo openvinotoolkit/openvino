@@ -28,6 +28,7 @@ using ::testing::Return;
 using ::testing::Property;
 using ::testing::Eq;
 using ::testing::ReturnRef;
+using ::testing::AtLeast;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
@@ -172,6 +173,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         }
     }
 
+    EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(AtLeast(1));
     EXPECT_CALL(*plugin, SelectDevice(_, _)).Times(selectCount);
     EXPECT_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(_),
@@ -183,6 +185,20 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     }
 }
 
+//the test configure, for example
+//ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, false},
+//              DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
+//               DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 2, 3},
+//
+//every element for ConfigParams
+//{continueRun, selectThrowException, deviceLoadsuccessVector, selectCount, loadCount}
+//
+//there are three devices for loading
+//CPU load for accelerator success, but GPU will faild and then select MYRIAD and load again
+//LoadExeNetworkImpl will not throw exception and can continue to run,
+//it will select twice, first select GPU, second select MYRIAD
+//it will load three time(CPU, GPU, MYRIAD)
+//
 const std::vector<ConfigParams> testConfigs = {ConfigParams {true, false, {DeviceParams {CommonTestUtils::DEVICE_GPU, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_MYRIAD, true},
                                                         DeviceParams {CommonTestUtils::DEVICE_CPU, true}}, 1, 2},

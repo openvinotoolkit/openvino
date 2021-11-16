@@ -169,7 +169,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
     _loadContext[ACTUALDEVICE].deviceInfo = _multiPlugin->SelectDevice(metaDevices, _loadContext[ACTUALDEVICE].networkPrecision);
     bool isActualDevCPU =
         _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos;
-    // if Acutal device is CPU, diabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
+    // if Actual device is CPU, disabled _loadContext[CPU], only use _loadContext[ACTUALDEVICE]
     if (isActualDevCPU) {
         _loadContext[CPU].isEnabled = false;
     } else {
@@ -226,7 +226,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             // initialize containers before run async task
             _idleWorkerRequests[device.deviceName];
             _workerRequests[device.deviceName];
-            _inferPipelineTasksDeviceSpecific[device.deviceName] = NULL;
+            _inferPipelineTasksDeviceSpecific[device.deviceName] = nullptr;
         }
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
@@ -547,17 +547,21 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
             _devicePriorities = metaDevices;
 
             // update value in config
+            _confMutex.lock();
             _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = priorities->second;
+            _confMutex.unlock();
         }
     }
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::string &name) const {
-    std::lock_guard<std::mutex> confLock(_confMutex);
+    _confMutex.lock();
     auto it = _config.find(name);
     if (it != _config.end()) {
+        _confMutex.unlock();
         return it->second;
     } else {
+        _confMutex.unlock();
         // find config key among networks config keys
         for (const auto& desc : _networksPerDevice) {
             const auto& execNetwork = desc.second;
