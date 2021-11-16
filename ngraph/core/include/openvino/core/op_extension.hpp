@@ -14,7 +14,7 @@ namespace ov {
 /**
  * @brief The base interface for OpenVINO operation extensions
  */
-class OPENVINO_EXTENSION_API BaseOpExtension : public Extension {
+class OPENVINO_API BaseOpExtension : public Extension {
 public:
     using Ptr = std::shared_ptr<BaseOpExtension>;
     /**

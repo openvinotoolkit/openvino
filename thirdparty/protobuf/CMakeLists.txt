@@ -69,7 +69,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
         INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
 
-if(protobuf_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
+if(protobuf_VERSION VERSION_LESS "3.9")
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0 (provided ${protobuf_VERSION})")
 endif()
 

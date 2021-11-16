@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
 
 #include "ie_allocator.hpp"
 #include "details/ie_pre_allocator.hpp"
