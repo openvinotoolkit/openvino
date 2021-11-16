@@ -95,12 +95,11 @@ TEST_P(GatherNDLayerCPUTest, CompareWithRefs) {
     run();
 }
 
-// uncomment when evaluate method fot GatherND-8 will be completed
-//TEST_P(GatherND8LayerCPUTest, CompareWithRefs) {
-//    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-//
-//    run();
-//}
+TEST_P(GatherND8LayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    run();
+}
 
 namespace {
 

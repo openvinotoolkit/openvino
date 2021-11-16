@@ -42,7 +42,7 @@ private:
     struct GatherNDExecutor {
         GatherNDExecutor(const GatherNDAttributes& attrs);
         ~GatherNDExecutor() = default;
-        void exec(const MKLDNNMemoryPtr &srcMemPtr, const MKLDNNMemoryPtr &idxMemPtr, MKLDNNMemoryPtr &dstMemPtr);
+        void exec(const uint8_t* srcData, const int32_t* indices, uint8_t* dstData);
 
     private:
         size_t batchSize = 1lu;

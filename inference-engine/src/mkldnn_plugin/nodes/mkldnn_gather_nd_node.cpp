@@ -118,11 +118,7 @@ MKLDNNGatherNDNode::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes&
         srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * attrs.dataSize;
 }
 
-void MKLDNNGatherNDNode::GatherNDExecutor::exec(const MKLDNNMemoryPtr &srcMemPtr, const MKLDNNMemoryPtr &idxMemPtr, MKLDNNMemoryPtr &dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
-    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-
+void MKLDNNGatherNDNode::GatherNDExecutor::exec(const uint8_t* srcData, const int32_t* indices, uint8_t* dstData) {
     parallel_for2d(batchSize, cycles, [&](const size_t b, const size_t j) {
         const size_t srcStride = b * srcBatchStride;
         const size_t idxStride = b * idxBatchStride + j * attrs.sliceRank;
@@ -140,9 +136,11 @@ void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
-    execPtr->exec(getParentEdgeAt(GATHERND_DATA)->getMemoryPtr(),
-                  getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr(),
-                  getChildEdgeAt(0)->getMemoryPtr());
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHERND_DATA)->getMemoryPtr()->GetPtr());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+
+    execPtr->exec(srcData, indices, dstData);
 }
 
 void MKLDNNGatherNDNode::executeDynamicImpl(dnnl::stream strm) {
