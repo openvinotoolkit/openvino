@@ -91,9 +91,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
 
-    if (m_use_shapes) {
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
-    }
+    manager.register_pass<ngraph::pass::StridedSliceOptimization>(m_use_shapes);
 
     manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
 

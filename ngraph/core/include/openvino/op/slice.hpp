@@ -32,6 +32,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<Node>& start) const;
     PartialShape calculate_output_shape(const std::vector<int64_t>& starts,
                                         const std::vector<int64_t>& stops,
                                         const std::vector<int64_t>& steps,
