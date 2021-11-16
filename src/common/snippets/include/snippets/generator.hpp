@@ -62,13 +62,7 @@ public:
     }
 
 protected:
-    // Fall back to old compare funcion, since it guarantees transitivity
-    struct custom_less {
-        bool operator()(const DiscreteTypeInfo &a, const DiscreteTypeInfo &b) const {
-            return a.version < b.version || (a.version == b.version && strcmp(a.name, b.name) < 0);
-        }
-    };
-    std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>, custom_less> jitters;
+    std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;
 };
 
 /**
