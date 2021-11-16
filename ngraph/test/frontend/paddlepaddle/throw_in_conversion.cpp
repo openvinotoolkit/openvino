@@ -10,7 +10,7 @@
 #include "utils.hpp"
 
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 
 TEST(FrontEndConvertModelTest, throw_in_conversion) {
     FrontEndManager fem;

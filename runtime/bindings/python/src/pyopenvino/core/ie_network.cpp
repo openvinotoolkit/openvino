@@ -79,15 +79,6 @@ void regclass_IENetwork(py::module m) {
                      &InferenceEngine::CNNNetwork::getBatchSize,
                      &InferenceEngine::CNNNetwork::setBatchSize);
 
-    cls.def_property_readonly("input_info", [](InferenceEngine::CNNNetwork& self) {
-        Containers::PyInputsDataMap inputs;
-        const InferenceEngine::InputsDataMap& inputsInfo = self.getInputsInfo();
-        for (auto& in : inputsInfo) {
-            inputs[in.first] = in.second;
-        }
-        return inputs;
-    });
-
     cls.def_property_readonly("outputs", [](InferenceEngine::CNNNetwork& self) {
         return self.getOutputsInfo();
     });

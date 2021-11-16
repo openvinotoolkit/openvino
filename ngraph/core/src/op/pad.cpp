@@ -13,6 +13,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -26,6 +27,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, arg_pad_value}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -35,6 +38,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), ov::Shape{}, {0})}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -154,6 +159,18 @@ void op::v1::Pad::validate_and_infer_types() {
                                           "of at least 2 at each "
                                           "spatial axis.");
                 }
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::REFLECT || (pads_begin_coord[i] < arg_shape[i].get_length() &&
+                                                           pads_end_coord[i] < arg_shape[i].get_length()),
+                    "REFLECT padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D] - 1'.");
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::SYMMETRIC || (pads_begin_coord[i] <= arg_shape[i].get_length() &&
+                                                             pads_end_coord[i] <= arg_shape[i].get_length()),
+                    "SYMMETRIC padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D]'.");
             }
         }
         set_output_type(0, get_input_element_type(0), result_dims);
