@@ -61,7 +61,7 @@ class QuantizeModelFinetuning(LayerwiseModelFinetuning):
         quantized_model = model
 
         # Add first convolutions and their weight FQ's to tuning ignored scope
-        input_nodes = mu.get_nodes_by_type(model, ['Parameter'])
+        input_nodes = mu.get_nodes_by_type(model, ['Parameter'], recursively=False)
         input_convolutions = get_first_convolutions(input_nodes)
         input_convolutions_names = [node.fullname for node in input_convolutions]
         self._tconf['tuning_ignored_scope'].extend(input_convolutions_names)
@@ -136,14 +136,14 @@ class QuantizeModelFinetuning(LayerwiseModelFinetuning):
         ops_list = [op for op in modified_model.pseudo_topological_sort() if op.kind == 'op']
         for op in ops_list:
             if op.type == 'FakeQuantize' and nu.get_node_input(op, 0).type != 'Const':
-                nodes_to_tune[op.wrapped_ops] = {
+                nodes_to_tune[op.name] = {
                     'type': op.type,
                     'params': {
                         'asymmetric': self._tconf['asymmetric']
                     }
                 }
-            elif op.type in self._weighted_operations and op.wrapped_ops not in self._tconf['tuning_ignored_scope']:
-                nodes_to_tune[op.wrapped_ops] = {
+            elif op.type in self._weighted_operations and op.name not in self._tconf['tuning_ignored_scope']:
+                nodes_to_tune[op.name] = {
                     'type': op.type,
                     'params': {
                         'set_quantized_values_to_weight_parameter':

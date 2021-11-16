@@ -271,3 +271,7 @@ def get_node_data_type(node):
             and node.in_port(0).get_source().is_data_type_defined():
         return node.in_port(0).get_source().get_data_type()
     return None
+
+
+def reset_node_fullname(old_fullname, node_name):
+    return '|'.join(old_fullname.split('|')[:-1] + [node_name])

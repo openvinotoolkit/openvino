@@ -141,7 +141,7 @@ class NXModel:
     def get_final_output_nodes(self):
         """Returns list of Result nodes from the last model of cascade"""
         last_model = self._models[-1]['model']
-        return ge.get_nodes_by_type(last_model, ['Result'])
+        return ge.get_nodes_by_type(last_model, ['Result'], recursively=False)
 
     def clean_up(self):
         for model_dict in self._models:

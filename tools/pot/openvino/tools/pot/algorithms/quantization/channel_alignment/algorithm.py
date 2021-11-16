@@ -151,7 +151,7 @@ class ActivationChannelAlignment(Algorithm):
 
     def find_node_pairs(self, model):
         node_pairs_list = []
-        nodes = sorted([(n.fullname, n) for n in mu.get_nodes_by_type_recursively(model, ['Convolution'])])
+        nodes = sorted([(n.fullname, n) for n in mu.get_nodes_by_type(model, ['Convolution'])])
         for _, node_out in nodes:
             if not self.check_conv_node(node_out):
                 continue

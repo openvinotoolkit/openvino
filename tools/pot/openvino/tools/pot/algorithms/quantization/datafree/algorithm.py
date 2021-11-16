@@ -47,7 +47,7 @@ class DataFreeQuantization(Algorithm):
         # compute weights statistics
         weights_stats = fqut.compute_weights_stats(model, weights_stats_layout)
 
-        for fq_ in ge.get_nodes_by_type_recursively(model, ['FakeQuantize']):
+        for fq_ in ge.get_nodes_by_type(model, ['FakeQuantize']):
             # get zero parent because this is FakeQuantize node input
             _node_input = fqut.get_fake_quantize_input(fq_)
             if _node_input.type != 'Const':
@@ -87,7 +87,7 @@ class DataFreeQuantization(Algorithm):
             range_estimator_config = get_range_estimator_config(config, 'weights', scale_, q_mode_)
             return get_tensor_statistics(range_estimator_config, for_weights=True)
 
-        fq_nodes = ge.get_nodes_by_type_recursively(model, ['FakeQuantize'])
+        fq_nodes = ge.get_nodes_by_type(model, ['FakeQuantize'])
         weights_layout = {}
         for fq in fq_nodes:
             fq_input = fqut.get_fake_quantize_input(fq)

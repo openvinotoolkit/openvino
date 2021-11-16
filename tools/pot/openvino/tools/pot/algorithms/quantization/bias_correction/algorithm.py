@@ -143,7 +143,7 @@ class BiasCorrection(Algorithm):
         return subgraphs_data
 
     def _remove_fq_from_inputs(self, model):
-        fq_nodes = mu.get_nodes_by_type_recursively(model, ['FakeQuantize'])
+        fq_nodes = mu.get_nodes_by_type(model, ['FakeQuantize'])
         fq_names_to_cut = []
         for fq_node in fq_nodes:
             if nu.get_node_input(fq_node, 0).type != 'Const':
@@ -170,7 +170,7 @@ class BiasCorrection(Algorithm):
                     walk_to_parents(stat_node_parent)
 
         def fill_output_nodes():
-            assigns = ge.get_nodes_by_type(main_node.graph, ['Assign'])
+            assigns = ge.get_nodes_by_type(main_node.graph, ['Assign'], recursively=False)
             for node_name in checked_input_names:
                 node = ge.get_node_by_name(main_node.graph, node_name)
                 if node.type == 'ReadValue':
@@ -248,7 +248,7 @@ class BiasCorrection(Algorithm):
 
     @staticmethod
     def _remove_default_results(graph):
-        graph_outputs = ge.get_nodes_by_type(graph, ['Result'])
+        graph_outputs = ge.get_nodes_by_type(graph, ['Result'], recursively=False)
         for graph_output in graph_outputs:
             graph.remove_node(graph_output.id)
 
@@ -294,7 +294,7 @@ class BiasCorrection(Algorithm):
         return outputs_data
 
     def _update_split_subgraphs(self, model_copy):
-        for node_split in mu.get_nodes_by_type(model_copy, self._split_types):
+        for node_split in mu.get_nodes_by_type(model_copy, self._split_types, recursively=False):
             for port_id in node_split.out_ports():
                 split_result_name = '{}/result/{}'.format(node_split.name, port_id)
                 split_result = ge.create_node(node_split.graph, split_result_name, 'Result', {})
@@ -352,7 +352,7 @@ class BiasCorrection(Algorithm):
     def _collect_new_stats(self, model_copy, bias_is_updated, **params):
         if not model_copy.is_cascade and params['results_data_dict']:
             if not bias_is_updated:
-                fq_nodes = mu.get_nodes_by_type_recursively(model_copy, ['FakeQuantize'])
+                fq_nodes = mu.get_nodes_by_type(model_copy, ['FakeQuantize'])
                 self._graph_transformer.remove_fq_nodes(model_copy, fq_nodes)
             self._launcher.set_model(model_copy)
             for feed_dict in params['feed_dicts']:
@@ -396,13 +396,13 @@ class BiasCorrection(Algorithm):
         topological_biased_ops = self._get_topological_biased_ops(quantized_model)
 
         self._nodes_with_bias_names = [node.fullname for node in topological_biased_ops]
-        parameter_nodes = mu.get_nodes_by_type(model, ['Parameter'])
+        parameter_nodes = mu.get_nodes_by_type(model, ['Parameter'], recursively=False)
         biased_after_param_nodes = self._get_biased_after_params(parameter_nodes)
         for node in topological_biased_ops:
             add_node = self._get_add_node_for_bias(node)
             add_node_name = add_node.fullname
             if 'orig_node_name' in add_node:
-                add_node_name = add_node_name.split('|')[:-1] + add_node['orig_node_name']
+                add_node_name = nu.reset_node_fullname(add_node_name, add_node['orig_node_name'])
             axis = OPERATIONS_CHANNEL_AXIS[node.type]
             self._channel_axis[add_node_name] = axis
             if node.fullname in biased_after_param_nodes:

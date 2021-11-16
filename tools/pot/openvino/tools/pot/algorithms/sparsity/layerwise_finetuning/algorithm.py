@@ -142,7 +142,7 @@ class SparseModelFinetuning(LayerwiseModelFinetuning):
 
     def _collect_nodes_to_tune(self, modified_model):
         nodes_to_tune = {}
-        for op_node in mu.get_nodes_by_type_recursively(modified_model, self._weighted_operations):
+        for op_node in mu.get_nodes_by_type(modified_model, self._weighted_operations):
             if op_node.fullname not in self._tconf['tuning_ignored_scope']:
                 nodes_to_tune[op_node.fullname] = {
                     'type': op_node.type,

@@ -10,7 +10,7 @@ from addict import Dict
 
 from ....algorithms.quantization import utils as eu
 from ....engines.ac_engine import ACEngine
-from ....graph.model_utils import get_nodes_by_type_recursively
+from ....graph.model_utils import get_nodes_by_type
 from ....graph.node_utils import get_all_node_outputs
 from ....graph.utils import find_operation_matches
 from ....samplers.creator import create_sampler
@@ -239,7 +239,7 @@ def get_mixed_preset_config(config: Dict):
 def get_num_of_quantized_ops(model, quantizable_operations):
     quantized_ops = set()
     nodes_to_see = []
-    for fq_node in get_nodes_by_type_recursively(model, ['FakeQuantize']):
+    for fq_node in get_nodes_by_type(model, ['FakeQuantize']):
         nodes_to_see.extend(get_all_node_outputs(fq_node))
         while nodes_to_see:
             child = nodes_to_see.pop()

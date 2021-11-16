@@ -50,7 +50,7 @@ class FastBiasCorrection(Algorithm):
          :return with corrected biases for layers with bias
          """
         activations_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
-        nodes_with_bias = mu.get_nodes_by_type_recursively(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
+        nodes_with_bias = mu.get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
         self.find_channel_axis(model)
         launcher = IELauncher()
 
@@ -123,7 +123,7 @@ class FastBiasCorrection(Algorithm):
 
     def get_activations_statistics_layout(self, model):
         inplace_statistics = self._config['inplace_statistics']
-        nodes_with_bias = mu.get_nodes_by_type_recursively(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
+        nodes_with_bias = mu.get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
 
         inputs_outputs_layout = {}
         for op_node in nodes_with_bias:
@@ -173,7 +173,7 @@ class FastBiasCorrection(Algorithm):
         return bias_shift
 
     def find_channel_axis(self, model):
-        nodes_with_bias = mu.get_nodes_by_type_recursively(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
+        nodes_with_bias = mu.get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_BIAS])
         for op_node in nodes_with_bias:
             if not nu.node_with_quantized_weights(op_node) and not self._apply_for_all_nodes:
                 continue

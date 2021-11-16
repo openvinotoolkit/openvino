@@ -15,7 +15,7 @@ from ...algorithm import Algorithm
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ....algorithms.quantization import utils as eu
 from ....graph import node_utils as nu
-from ....graph.model_utils import save_model, get_nodes_by_type_recursively
+from ....graph.model_utils import save_model, get_nodes_by_type
 from ....graph.transformer import GraphTransformer
 from ....samplers.creator import create_sampler
 from ....statistics.statistics import TensorStatistic
@@ -295,7 +295,7 @@ class AccuracyAwareCommon(Algorithm):
             logger.info('Accuracy drop with the new quantization scope is %s', metrics_accuracy_drop)
 
             # removed all fake-quantize layers from the model
-            if not get_nodes_by_type_recursively(model, ['FakeQuantize']):
+            if not get_nodes_by_type(model, ['FakeQuantize']):
                 logger.info('Removed all FQ layers from the network!')
                 changed_all_fq = True
                 break
@@ -416,7 +416,7 @@ class AccuracyAwareCommon(Algorithm):
         node_importance_score = {}
         eu.select_evaluation_dataset(self._engine)
 
-        fake_quantize_nodes = get_nodes_by_type_recursively(model, ['FakeQuantize'])
+        fake_quantize_nodes = get_nodes_by_type(model, ['FakeQuantize'])
         for node in fake_quantize_nodes:
             if excluded_nodes and node.fullname in excluded_nodes:
                 continue
@@ -454,7 +454,7 @@ class AccuracyAwareCommon(Algorithm):
         # add dataset_size to total in case of conversion to mixed mode
         if self._config.convert_to_mixed_preset:
             total_steps += self._dataset_size
-        nodes_length = len(get_nodes_by_type_recursively(model, ['Convolution', 'MatMul']))
+        nodes_length = len(get_nodes_by_type(model, ['Convolution', 'MatMul']))
         num_steps = self._config['max_iter_num'] if self._config['max_iter_num'] < maxsize else nodes_length
 
         metric_computing_steps = nodes_length * self._config['ranking_subset_size']

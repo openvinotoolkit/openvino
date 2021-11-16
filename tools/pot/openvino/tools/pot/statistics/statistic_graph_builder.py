@@ -16,7 +16,7 @@ from extensions.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
 from extensions.ops.activation_ops import Abs
 
 from ..graph.model_utils import get_node_by_name
-from ..graph.node_utils import get_output_shape
+from ..graph.node_utils import get_output_shape, reset_node_fullname
 from ..statistics.statistics import Statistic, TensorStatistic, TensorStatisticAxis
 from ..statistics.function_selector import ACTIVATIONS, get_stats_function
 
@@ -87,16 +87,13 @@ class StatisticGraphBuilder:
 
         return model, nodes_names, output_to_node_names
 
-    def add_child_fullname(self, parent_node, child_node):
-        child_node['fullname'] = '|'.join(parent_node.fullname.split('|')[:-1] + [child_node.name])
-
     def insert_reduce(self, model_graph, insert_op, node, granularity, type_stat, node_name, axis=1):
         axis_const = self.find_axis(node, granularity, axis)
         if isinstance(axis_const, str):
             return (True, node.name)
         reduce_op = create_op_node_with_second_input(node.graph, insert_op, int64_array(axis_const),
                                                      dict(name=f'{type_stat}_{node_name}'))
-        self.add_child_fullname(node, reduce_op)
+        reduce_op['fullname'] = reset_node_fullname(node.fullname, reduce_op.name)
         if node.graph != model_graph:
             Op.create_data_node(reduce_op.graph, reduce_op, {'shape': [1]})
         node.out_port(0).connect(reduce_op.in_port(0))
@@ -122,7 +119,7 @@ class StatisticGraphBuilder:
 
         if node.graph != model_graph:
             Op.create_data_node(max_op.graph, max_op, {'shape': [1]})
-        self.add_child_fullname(node, max_op)
+        max_op['fullname'] = reset_node_fullname(node.fullname, max_op.name)
         abs_node.out_port(0).connect(max_op.in_port(0))
         return self.insert_result(model_graph, node, max_op, type_stat)
 

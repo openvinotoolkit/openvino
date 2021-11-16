@@ -40,7 +40,7 @@ class OverflowCorrection(Algorithm):
          """
         activation_statistics = self._stats_collector.get_statistics_for_algorithm(self.name)
 
-        weighted_nodes = mu.get_nodes_by_type_recursively(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
+        weighted_nodes = mu.get_nodes_by_type(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
         weighted_nodes = [n for n in weighted_nodes if nu.node_with_quantized_weights(n)]
         for weighted_node in weighted_nodes:
             bias_node = nu.get_bias_for_node(weighted_node)
@@ -65,7 +65,7 @@ class OverflowCorrection(Algorithm):
 
     def register_statistics(self, model, stats_collector):
         self._stats_collector = stats_collector
-        conv_nodes = mu.get_nodes_by_type_recursively(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
+        conv_nodes = mu.get_nodes_by_type(model, [n['type'] for n in OPERATIONS_WITH_WEIGHTS])
         stats_layout = {}
         for conv_node in conv_nodes:
             bias_node = nu.get_bias_for_node(conv_node)

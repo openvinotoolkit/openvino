@@ -69,7 +69,7 @@ class QuantNoiseEstimator(Algorithm):
         inputs_outputs_layout = {}
         stat_calculation_layers = {}
 
-        conv_nodes = mu.get_nodes_by_type_recursively(model, ['Convolution'])
+        conv_nodes = mu.get_nodes_by_type(model, ['Convolution'])
         sorted_conv_nodes = [
             node for node in model.pseudo_topological_sort() if node in conv_nodes
         ]
@@ -110,7 +110,7 @@ class QuantNoiseEstimator(Algorithm):
             fq_cut_node_list = fq_remover.find_fq_nodes_to_cut(fq_node)
             cut_fqs = []
             fq_names = [
-                node.fullname for node in mu.get_nodes_by_type_recursively(model, ['FakeQuantize'])
+                node.fullname for node in mu.get_nodes_by_type(model, ['FakeQuantize'])
             ]
             for node_name in fq_names:
                 if node_name not in cut_fqs and node_name not in fq_cut_node_list:
@@ -122,7 +122,7 @@ class QuantNoiseEstimator(Algorithm):
 
         qnoise_values = []
         node_names = []
-        conv_nodes = mu.get_nodes_by_type_recursively(fully_quantized_model, ['Convolution'])
+        conv_nodes = mu.get_nodes_by_type(fully_quantized_model, ['Convolution'])
         sorted_conv_nodes = [
             node
             for node in fully_quantized_model.pseudo_topological_sort()
@@ -181,7 +181,7 @@ class QuantNoiseEstimator(Algorithm):
     def get_nonquantized_model(self, model):
         cut_fqs = []
         cut_model = deepcopy(model)
-        for node in mu.get_nodes_by_type_recursively(model, ['FakeQuantize']):
+        for node in mu.get_nodes_by_type(model, ['FakeQuantize']):
             if node.fullname not in cut_fqs:
                 cut_model, cut_fq_layers, _ = self._graph_transformer.remove_fq_nodes(
                     cut_model, [node.fullname]

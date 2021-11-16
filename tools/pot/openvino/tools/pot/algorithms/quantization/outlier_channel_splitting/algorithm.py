@@ -85,7 +85,7 @@ class OutlierChannelSplitting(Algorithm):
 
     def get_conv_nodes(self, model):
         conv_nodes_list = []
-        nodes = sorted([(n.fullname, n) for n in mu.get_nodes_by_type_recursively(model, ['Convolution'])])
+        nodes = sorted([(n.fullname, n) for n in mu.get_nodes_by_type(model, ['Convolution'])])
         for _, node in nodes:
             if not self.check_conv_node(node):
                 continue

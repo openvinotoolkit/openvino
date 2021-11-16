@@ -59,7 +59,7 @@ class RangeOptimization(OptimizationAlgorithm):
         :return dictionary with FQ names as keys and ranges as values
         """
         out = OrderedDict()
-        for fq in mu.get_nodes_by_type_recursively(model, ['FakeQuantize']):
+        for fq in mu.get_nodes_by_type(model, ['FakeQuantize']):
             parents = nu.get_node_inputs(fq)
             if parents[0].type != 'Const':
                 if parents[0].type in ('Clamp', 'ReLU'):
@@ -72,7 +72,7 @@ class RangeOptimization(OptimizationAlgorithm):
         return out
 
     def _set_parameter_values(self, model, param_values):
-        for fq in mu.get_nodes_by_type_recursively(model, ['FakeQuantize']):
+        for fq in mu.get_nodes_by_type(model, ['FakeQuantize']):
             # get zero parent because this is FakeQuantize node input
             _node_input = nu.get_node_input(fq, 0)
             if _node_input.fullname in self._activation_ranges:

@@ -9,7 +9,7 @@ from openvino.tools.pot.algorithms.quantization import fake_quantize as fqut
 from openvino.tools.pot.algorithms.quantization import utils as ut
 from openvino.tools.pot.algorithms.quantization.fake_quantize_configuration import read_all_fake_quantize_configurations
 from openvino.tools.pot.algorithms.quantization.utils import load_hardware_config
-from openvino.tools.pot.graph.model_utils import get_nodes_by_type_recursively
+from openvino.tools.pot.graph.model_utils import get_nodes_by_type
 from openvino.tools.pot.graph.node_utils import get_node_input
 
 
@@ -69,7 +69,7 @@ class TunableQuantization(MinMaxQuantization):
         fq_configuration = read_all_fake_quantize_configurations(config, hardware_config, model)
 
         nodes_config = {}
-        for fq in get_nodes_by_type_recursively(model, ['FakeQuantize']):
+        for fq in get_nodes_by_type(model, ['FakeQuantize']):
             node_input = get_node_input(fq, 0)
             op_type = 'weights' if node_input.type == 'Const' else 'activations'
             fq_node_config = fq_configuration[fq.fullname][op_type]

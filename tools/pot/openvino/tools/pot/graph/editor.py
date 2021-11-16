@@ -125,30 +125,24 @@ def get_all_operation_nodes_recursively(graph: Graph):
     return get_all_op_nodes_func.results
 
 
-def get_nodes_by_type(graph: Graph, types: list):
+def get_nodes_by_type(graph: Graph, types: list, recursively: bool = True) -> list:
     """ Returns all nodes with type from types collection
      :param graph: NetworkX model to collect nodes
      :param types: list of required types
+     :param recurively: whether return all nodes from the graph
+     and each subgraph or only from the main graph
      :return list of nodes filtered by 'types' collection
       """
-    nodes = []
-    for t in types:
-        for node in graph.get_op_nodes(type=t):
-            nodes.append(node)
-    return nodes
+    def get_nodes_by_type_from_main_graph(graph, types):
+        return [node for t in types for node in graph.get_op_nodes(type=t)]
 
-
-def get_nodes_by_type_recursively(graph: Graph, types: list):
-    """ Returns all nodes in graph and each subgraph with type from types collection
-     :param graph: NetworkX model to collect nodes
-     :param types: list of required types
-     :return list of nodes filtered by 'types' collection and
-     unique node name containing all subgraphs names and original node name
-      """
-    partial_get_nodes_by_type = partial(get_nodes_by_type, types=types)
-    get_nodes_by_type_recursively = FunctionResultsAccumulator(partial_get_nodes_by_type)
-    for_graph_and_each_sub_graph_recursively(graph, get_nodes_by_type_recursively)
-    nodes = [node for node in get_nodes_by_type_recursively.results if node]
+    if recursively:
+        partial_get_nodes_by_type = partial(get_nodes_by_type_from_main_graph, types=types)
+        get_nodes_by_type_recursively = FunctionResultsAccumulator(partial_get_nodes_by_type)
+        for_graph_and_each_sub_graph_recursively(graph, get_nodes_by_type_recursively)
+        nodes = [node for node in get_nodes_by_type_recursively.results if node]
+    else:
+        nodes = get_nodes_by_type_from_main_graph(graph, types)
     return nodes
 
 

@@ -9,7 +9,7 @@ from addict import Dict
 from .fake_quantize_configuration import read_all_fake_quantize_configurations, get_configurations_by_preset, \
     get_configurations_by_qscheme, find_fqs_to_unify, add_range_estimator_configs
 from .utils import load_hardware_config, merge_nested_dicts, get_ignored_operations
-from ...graph.model_utils import get_nodes_by_type, get_nodes_by_type_recursively, get_node_by_name
+from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_node_input, set_node_value, \
     get_node_value, get_node_output, get_node_inputs, get_input_shape, \
     get_quantized_input_key, get_input_data_value, get_first_convolutions
@@ -124,7 +124,7 @@ def compute_stats_layouts(config, model, qscheme=None):
         fq_configuration = get_configurations_by_qscheme(fq_configuration, qscheme)
 
     # get all fake quantize nodes
-    fq_nodes = get_nodes_by_type_recursively(model, ['FakeQuantize'])
+    fq_nodes = get_nodes_by_type(model, ['FakeQuantize'])
 
     fake_quantize_config = {}
     for fq in fq_nodes:
@@ -395,18 +395,18 @@ def set_rescaling_factors(target_device, model, scaling_factor=2.0):
     """
     fqs_to_rescale = []
 
-    if target_device not in ['CPU', 'ANY'] or not get_nodes_by_type(model, ['Convolution', ]):
+    if target_device not in ['CPU', 'ANY'] or not get_nodes_by_type(model, ['Convolution'], recursively=False):
         return {'scaling_factor': 1.0,
                 'fqs_to_rescale': fqs_to_rescale}
 
-    input_nodes = get_nodes_by_type(model, ['Parameter'])
+    input_nodes = get_nodes_by_type(model, ['Parameter'], recursively=False)
 
     input_convolutions = get_first_convolutions(input_nodes)
 
     for node in input_convolutions:
         fqs_to_rescale.append(get_node_input(node, 1).name)
 
-    conv_nodes_to_rescale = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS])
+    conv_nodes_to_rescale = get_nodes_by_type(model, [op['type'] for op in OPERATIONS_WITH_WEIGHTS], recursively=False)
     conv_fqs_to_rescale = [get_node_input(node, 1).name for node in conv_nodes_to_rescale if
                            'need_rescale' in node and node['need_rescale']]
     fqs_to_rescale.extend(conv_fqs_to_rescale)
