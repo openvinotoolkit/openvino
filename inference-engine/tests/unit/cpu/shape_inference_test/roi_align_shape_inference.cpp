@@ -20,5 +20,7 @@ TEST(StaticShapeInferenceTest, ROIAlignTest) {
                                                        ov::StaticShape{7, 4},
                                                        ov::StaticShape{7}};
     std::vector<ov::StaticShape> output_shapes = {ov::StaticShape{}};
-    shape_inference(op.get(), input_shapes, output_shapes) ASSERT_EQ(output_shapes[0], (StaticShape{7, 3, 2, 2}));
+    shape_inference(op.get(), input_shapes, output_shapes);
+
+    ASSERT_EQ(output_shapes[0], (StaticShape{7, 3, 2, 2}));
 }

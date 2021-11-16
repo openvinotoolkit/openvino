@@ -82,5 +82,3 @@ void shape_inference(ov::Node* op,
       }
     }
 }
-
-op::v6::ExperimentalDetectronGenerateProposalsSingleImage

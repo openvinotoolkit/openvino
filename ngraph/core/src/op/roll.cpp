@@ -20,7 +20,6 @@ op::v7::Roll::Roll(const Output<Node>& data, const Output<Node>& shift, const Ou
 }
 
 void op::v7::Roll::validate_and_infer_types() {
-
     NGRAPH_OP_SCOPE(v7_Roll_validate_and_infer_types);
 
     const auto& shift_et = get_input_element_type(1);

@@ -47,14 +47,14 @@ void shape_infer(const ov::op::v7::Roll* op,
             const auto& data_rank = data_pshape.size();
             for (int64_t& axis : axes) {
                 NODE_VALIDATION_CHECK(op,
-                                      axis < data_rank,
+                                      axis < static_cast<int64_t>(data_rank),
                                       "Axes must be less than data tensor rank. Got "
                                       "data tensor rank: ",
                                       data_rank,
                                       ", axis: ",
                                       axis);
                 if (axis < 0) {
-                    axis += data_rank;
+                    axis += static_cast<int64_t>(data_rank);
                 }
                 NODE_VALIDATION_CHECK(op,
                                       axis >= 0,

@@ -24,10 +24,7 @@ void shape_infer(const ov::op::v3::ROIAlign* op, const std::vector<T>& input_sha
     const auto input_ps_rank = input_ps.rank();
     const auto batch_indices_ps_rank = batch_indices_ps.rank();
 
-    NODE_VALIDATION_CHECK(op,
-                          input_ps_rank.compatible(4),
-                          "Expected a 4D tensor for the input data. Got: ",
-                          input_ps);
+    NODE_VALIDATION_CHECK(op, input_ps_rank.compatible(4), "Expected a 4D tensor for the input data. Got: ", input_ps);
 
     NODE_VALIDATION_CHECK(op, rois_ps_rank.compatible(2), "Expected a 2D tensor for the ROIs input. Got: ", rois_ps);
 
