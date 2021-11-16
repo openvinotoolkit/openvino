@@ -17,11 +17,9 @@ namespace preprocess {
 /// \brief Postprocessing steps. Each step typically intends adding of some operation to output parameter
 /// User application can specify sequence of postprocessing steps in a builder-like manner
 /// \code{.cpp}
-/// auto proc = PrePostProcessor()
-///     .output(OutputInfo()
-///             .postprocess(PostProcessSteps()
-///                        .convert_element_type(element::u8)))
-///     );
+///     auto proc = PrePostProcessor(function);
+///     proc.output().postprocess().convert_element_type(element::u8);
+///     function = proc.build();
 /// \endcode
 class OPENVINO_API PostProcessSteps final {
     class PostProcessStepsImpl;
@@ -30,6 +28,8 @@ class OPENVINO_API PostProcessSteps final {
 
 public:
     /// \brief Default empty constructor
+    ///
+    /// \todo Consider remove it (don't allow user to create standalone objects)
     PostProcessSteps();
 
     /// \brief Default move constructor
@@ -64,7 +64,7 @@ public:
     /// interleaved output image ('NHWC', [1, 224, 224, 3]). Post-processing may look like this:
     ///
     /// \code{.cpp} auto proc =
-    /// PrePostProcessor()
+    /// PrePostProcessor(function)
     ///     .output(OutputInfo()
     ///            .network(OutputTensorInfo().set_layout("NCHW")) // Network output is NCHW
     ///            .postprocess(PostProcessSteps()
@@ -92,7 +92,7 @@ public:
     /// interleaved output image [1, 480, 640, 3]. Post-processing may look like this:
     ///
     /// \code{.cpp} auto proc =
-    /// PrePostProcessor()
+    /// PrePostProcessor(function)
     ///     .output(OutputInfo()
     ///            .postprocess(PostProcessSteps()
     ///                        .convert_layout({0, 2, 3, 1})

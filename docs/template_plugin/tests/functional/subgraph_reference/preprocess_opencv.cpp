@@ -72,11 +72,11 @@ TEST_F(PreprocessOpenCVReferenceTest_NV12, convert_nv12_full_color_range) {
 
     inputData.clear();
 
-    function = PrePostProcessor().input(InputInfo()
+    function = PrePostProcessor(function).input(InputInfo()
                                                 .tensor(InputTensorInfo().set_color_format(
                                                         ColorFormat::NV12_SINGLE_PLANE))
                                                 .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR)))
-            .build(function);
+            .build();
 
     const auto &param = function->get_parameters()[0];
     inputData.emplace_back(param->get_element_type(), param->get_shape(), ov20_input_yuv.data());
@@ -101,12 +101,12 @@ TEST_F(PreprocessOpenCVReferenceTest_NV12, convert_nv12_colored) {
 
     inputData.clear();
 
-    function = PrePostProcessor().input(InputInfo()
+    function = PrePostProcessor(function).input(InputInfo()
                                                 .tensor(InputTensorInfo().set_color_format(
                                                         ColorFormat::NV12_SINGLE_PLANE))
                                                 .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))
                                                 )
-            .build(function);
+            .build();
 
     const auto &param = function->get_parameters()[0];
     inputData.emplace_back(param->get_element_type(), param->get_shape(), input_yuv.data());
@@ -128,12 +128,12 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_u8_simple_linear) {
 
     inputData.clear();
 
-    function = PrePostProcessor().input(InputInfo()
+    function = PrePostProcessor(function).input(InputInfo()
                                                 .tensor(InputTensorInfo().set_spatial_static_shape(2, 2))
                                                 .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
                                                 .network(InputNetworkInfo().set_layout("NCHW"))
             )
-            .build(function);
+            .build();
 
     const auto &param = function->get_parameters()[0];
     inputData.emplace_back(param->get_element_type(), param->get_shape(), input_img.data());
@@ -167,12 +167,12 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_u8_large_picture_linear) {
 
     inputData.clear();
 
-    function = PrePostProcessor().input(InputInfo()
+    function = PrePostProcessor(function).input(InputInfo()
                                                 .tensor(InputTensorInfo().set_spatial_static_shape(input_height, input_width))
                                                 .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
                                                 .network(InputNetworkInfo().set_layout("NCHW"))
             )
-            .build(function);
+            .build();
 
     const auto &param = function->get_parameters()[0];
     inputData.emplace_back(param->get_element_type(), param->get_shape(), input_img.data());
@@ -205,12 +205,12 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_f32_large_picture_linear) {
 
     inputData.clear();
 
-    function = PrePostProcessor().input(InputInfo()
+    function = PrePostProcessor(function).input(InputInfo()
                                                 .tensor(InputTensorInfo().set_spatial_static_shape(input_height, input_width))
                                                 .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
                                                 .network(InputNetworkInfo().set_layout("NCHW"))
             )
-            .build(function);
+            .build();
 
     const auto &param = function->get_parameters()[0];
     inputData.emplace_back(param->get_element_type(), param->get_shape(), input_img.data());
@@ -234,12 +234,12 @@ TEST_F(PreprocessOpenCVReferenceTest, DISABLED_resize_f32_large_picture_cubic_sm
     auto element_type = element::f32;
     auto input_img = std::vector<float> {1.f, 2.f, 3.f, 4.f, 4.f, 3.f, 2.f, 1.f, 1.f, 2.f, 3.f, 4.f, 4.f, 3.f, 2.f, 1.f};
     function = create_simple_function(element_type, func_shape);
-    function = PrePostProcessor().input(InputInfo()
+    function = PrePostProcessor(function).input(InputInfo()
                                                 .tensor(InputTensorInfo().set_spatial_static_shape(input_height, input_width))
                                                 .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC))
                                                 .network(InputNetworkInfo().set_layout("NCHW"))
             )
-            .build(function);
+            .build();
 
     inputData.emplace_back(element_type, input_shape, input_img.data());
 

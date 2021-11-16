@@ -307,7 +307,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     // only for IR cases we need preprocessing or postprocessing steps
     if (is_ir) {
         using namespace ov::preprocess;
-        PrePostProcessor prepost;
+        PrePostProcessor prepost(function);
 
         auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
         OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
@@ -318,7 +318,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(ov::preprocess::InputInfo(i).tensor(InputTensorInfo().set_element_type(legacy_type)));
+                prepost.input(i).tensor().set_element_type(legacy_type);
             }
 
             // in order to support the following scenarios for IR v10 cases:
@@ -349,10 +349,10 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto ngraph_type = outputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);
 
-                prepost.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(legacy_type)));
+                prepost.output(i).tensor().set_element_type(legacy_type);
             }
 
-            function = prepost.build(function);
+            function = prepost.build();
 
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
@@ -378,9 +378,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (old_api_type == ov::element::undefined)
                     old_api_type = parameter->get_element_type();
 
-                prepost.input(ov::preprocess::InputInfo(i)
-                                  .tensor(InputTensorInfo().set_element_type(old_api_type))
-                                  .preprocess(PreProcessSteps().convert_layout(old_api_transpose_args)));
+                auto& pre_input = prepost.input(i);
+                pre_input.tensor().set_element_type(old_api_type);
+                pre_input.preprocess().convert_layout(old_api_transpose_args);
             }
 
             auto& results = function->get_results();
@@ -402,9 +402,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (old_api_type == ov::element::undefined)
                     old_api_type = result->get_element_type();
 
-                prepost.output(OutputInfo(i)
-                                   .postprocess(PostProcessSteps().convert_layout(old_api_transpose_args))
-                                   .tensor(OutputTensorInfo().set_element_type(old_api_type)));
+                auto& post_output = prepost.output(i);
+                post_output.postprocess().convert_layout(old_api_transpose_args);
+                post_output.tensor().set_element_type(old_api_type);
 
                 // remove old api once we applied it
                 rtInfo.erase(it);
@@ -413,7 +413,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
 
-            function = prepost.build(function);
+            function = prepost.build();
         }
     }
 

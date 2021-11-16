@@ -104,28 +104,22 @@ int main(int argc, char* argv[]) {
         // -------- Step 3. Apply preprocessing --------
         const ov::Layout tensor_layout{"NHWC"};
 
-        // clang-format off
-        model = PrePostProcessor().
-            // 1) InputInfo() with no args assumes a model has a single input
-            input(InputInfo().
-                // 2) Set input tensor information:
-                // - precision of tensor is supposed to be 'u8'
-                // - layout of data is 'NHWC'
-                tensor(InputTensorInfo().
-                    set_element_type(ov::element::u8).
-                    set_layout(tensor_layout)).
-                // 3) Here we suppose model has 'NCHW' layout for input
-                network(InputNetworkInfo().
-                    set_layout("NCHW"))).
-            output(OutputInfo().
-                // 4) Set output tensor information:
-                // - precision of tensor is supposed to be 'f32'
-                tensor(OutputTensorInfo().
-                    set_element_type(ov::element::f32))).
-            // 5) Once the build() method is called, the preprocessing steps
-            // for layout and precision conversions are inserted automatically
-        build(model);
-        // clang-format on
+        PrePostProcessor proc(model);
+        // 1) input() with no args assumes a model has a single input
+        InputInfo& input_info = proc.input();
+        // 2) Set input tensor information:
+        // - precision of tensor is supposed to be 'u8'
+        // - layout of data is 'NHWC'
+        input_info.tensor().set_element_type(ov::element::u8).set_layout(tensor_layout);
+        // 3) Here we suppose model has 'NCHW' layout for input
+        input_info.network().set_layout("NCHW");
+        // 4) output() with no args assumes a model has a single result
+        // - output() with no args assumes a model has a single result
+        // - precision of tensor is supposed to be 'f32'
+        proc.output().tensor().set_element_type(ov::element::f32);
+        // 5) Once the build() method is called, the pre(post)processing steps
+        // for layout and precision conversions are inserted automatically
+        model = proc.build();
 
         // -------- Step 4. read input images --------
         slog::info << "Read input images" << slog::endl;

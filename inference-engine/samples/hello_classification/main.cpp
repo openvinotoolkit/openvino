@@ -72,7 +72,7 @@ int tmain(int argc, tchar* argv[]) {
         // -------- Step 4. Apply preprocessing --------
 
         // clang-format off
-        model = PrePostProcessor().
+        model = PrePostProcessor(model).
             // 1) InputInfo() with no args assumes a model has a single input
             input(InputInfo().
                 // 2) Set input tensor information:
@@ -101,7 +101,7 @@ int tmain(int argc, tchar* argv[]) {
                 tensor(OutputTensorInfo().
                     set_element_type(ov::element::f32))).
             // 6) Apply preprocessing modifing the original 'model'
-            build(model);
+            build();
         // clang-format on
 
         // -------- Step 5. Loading a model to the device --------
