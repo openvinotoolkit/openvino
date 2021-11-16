@@ -392,6 +392,7 @@ def slice(
 
     return _get_node_factory_opset8().create("Slice", inputs)
 
+
 @nameable_op
 def gather_nd(
         data: NodeInput,
