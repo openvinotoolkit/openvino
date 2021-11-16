@@ -304,7 +304,7 @@ def test_ngraph_preprocess_reverse_channels():
 
 
 def test_ngraph_preprocess_resize_algorithm():
-    shape = [1, 2, 2, 2]
+    shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
     model = parameter_a
     function = Function(model, [parameter_a], "TestFunction")
@@ -316,15 +316,13 @@ def test_ngraph_preprocess_resize_algorithm():
                .tensor(InputTensorInfo()
                        .set_layout(layout1))
                .preprocess(PreProcessSteps()
-                           .mean(0.)
-                           .resize(resize_alg, 3, 3)
-                           .resize(resize_alg)
-                           )
+                           .mean(1.)
+                           .resize(resize_alg, 3, 3))
                )\
         .build(function)
 
-    input_data = np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]).astype(np.float32)
-    expected_output = np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]).astype(np.float32)
+    input_data = np.array([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]]).astype(np.float32)
+    expected_output = np.array([[[[0, 1, 2], [3, 4, 5], [6, 7, 8]]]]).astype(np.float32)
 
     runtime = get_runtime()
     computation = runtime.computation(function)
