@@ -35,8 +35,7 @@ ov::Node::Node(const Node& node)
       // skip m_outputs -- should be initialized outside
       ,
       m_op_annotations(node.m_op_annotations),
-      m_rt_info(node.m_rt_info),
-      m_shared_rt_info(node.m_shared_rt_info) {
+      m_rt_info(node.m_rt_info) {
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
         input = descriptor::Input(this, input.get_index(), input.get_output());
