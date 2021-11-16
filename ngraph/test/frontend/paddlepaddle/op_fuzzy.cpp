@@ -16,7 +16,7 @@
 using namespace ngraph;
 using namespace InferenceEngine;
 using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::frontend;
 using TestEngine = test::IE_CPU_Engine;
 
 using PDPDFuzzyOpTest = FrontEndFuzzyOpTest;
@@ -158,7 +158,6 @@ static const std::vector<std::string> models{std::string("argmax"),
                                              std::string("maxPool_test7"),
                                              std::string("maxPool_test8"),
                                              std::string("maxPool_test9"),
-                                             std::string("mul_fp32"),
                                              std::string("nearest_downsample_false_0"),
                                              std::string("nearest_downsample_false_1"),
                                              std::string("nearest_upsample_false_0"),

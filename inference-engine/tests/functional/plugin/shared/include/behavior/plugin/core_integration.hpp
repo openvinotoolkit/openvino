@@ -106,6 +106,9 @@ TEST(IEClassBasicTest, smoke_createDefault) {
     ASSERT_NO_THROW(InferenceEngine::Core  ie);
 }
 
+// TODO: CVS-68982
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST_P(IEClassBasicTestP, registerExistingPluginThrows) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     ASSERT_THROW(ie.RegisterPlugin(pluginName, deviceName), InferenceEngine::Exception);
@@ -193,6 +196,7 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+#endif // !OPENVINO_STATIC_LIBRARY
 
 //
 // GetVersions()

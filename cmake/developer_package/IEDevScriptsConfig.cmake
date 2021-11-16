@@ -208,6 +208,13 @@ endif()
 
 # General flags
 
+macro(ov_install_static_lib target comp)
+    if(NOT BUILD_SHARED_LIBS)
+        install(TARGETS ${target} EXPORT OpenVINOTargets
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp})
+    endif()
+endmacro()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 

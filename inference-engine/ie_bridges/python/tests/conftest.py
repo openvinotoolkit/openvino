@@ -45,9 +45,8 @@ def device():
 
 def pytest_configure(config):
     # register an additional markers
-    config.addinivalue_line(
-        "markers", "template_plugin"
-    )
+    config.addinivalue_line("markers", "template_plugin: Skip test on Template plugin")
+    config.addinivalue_line("markers", "dynamic_library: Runs tests only in dynamic libraries case")
 
 
 def create_encoder(input_shape, levels = 4):
