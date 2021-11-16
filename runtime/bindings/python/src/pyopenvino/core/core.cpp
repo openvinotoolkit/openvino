@@ -7,7 +7,6 @@
 #include <ie_extension.h>
 #include <pybind11/stl.h>
 
-#include <cstdint>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
 
