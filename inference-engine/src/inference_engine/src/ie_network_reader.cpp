@@ -20,7 +20,9 @@
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
-#include "ie_ir_version.hpp"
+#ifdef ENABLE_IR_V7_READER
+#    include "ie_ir_version.hpp"
+#endif
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
 #include "ngraph/function.hpp"
