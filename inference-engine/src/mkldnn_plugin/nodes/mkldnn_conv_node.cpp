@@ -416,7 +416,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     // attr[1] - binary
     mkldnn::primitive_attr attrs[1];
     setPostOps(attrs[0], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims());
-//    setPostOps(attrs[1], false, true);
+//    setPostOps(attrs[1], MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0)).getStaticDims(), false, true);
 
     bool containJitImpl = false;
 
