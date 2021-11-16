@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/experimental_detectron_generate_proposals.hpp"
+
 #include <experimental_detectron_generate_proposals_shape_inference.hpp>
 
 #include "itt.hpp"

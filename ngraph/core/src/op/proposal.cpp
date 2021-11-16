@@ -3,6 +3,7 @@
 //
 
 #include "ngraph/op/proposal.hpp"
+
 #include <proposal_shape_inference.hpp>
 
 #include "itt.hpp"

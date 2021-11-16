@@ -3,9 +3,9 @@
 //
 
 #include "ngraph/op/roll.hpp"
-#include <roll_shape_inference.hpp>
 
 #include <ngraph/validation_util.hpp>
+#include <roll_shape_inference.hpp>
 
 #include "itt.hpp"
 
