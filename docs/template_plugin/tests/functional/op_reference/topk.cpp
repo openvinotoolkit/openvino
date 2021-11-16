@@ -33,11 +33,6 @@ struct TopKParams {
     std::string testcaseName;
 };
 
-template <typename T>
-void copy_data(runtime::Tensor& t, const std::vector<T>& data) {
-    std::memcpy(t.data(), data.data(), data.size()*sizeof(T));
-}
-
 class ReferenceTopKTest : public testing::TestWithParam<TopKParams>, public CommonReferenceTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
