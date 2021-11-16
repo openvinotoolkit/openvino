@@ -31,6 +31,7 @@
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -161,6 +162,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+    manager.register_pass<ngraph::pass::TransposeSinking>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
