@@ -102,7 +102,7 @@ public:
     }
 
     void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) {
-        OV_PREPROC_PLUGIN_CALL_STATEMENT(return _ptr->isApplicable(src, dst));
+        OV_PREPROC_PLUGIN_CALL_STATEMENT(_ptr->isApplicable(src, dst));
     }
 };
 
