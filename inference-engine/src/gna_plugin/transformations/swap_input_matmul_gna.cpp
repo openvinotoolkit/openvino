@@ -68,9 +68,9 @@ static void SwapAndTransposeInputs(
 
     auto input1 = first_input_const ? transpose_matmul_input(1) : matmul_node->input_value(1);
     auto input2 = first_input_const ? matmul_node->input_value(0) : transpose_matmul_input(0);
-    bool transpose_a = first_input_const ? matmul_node->get_transpose_a() : !matmul_node->get_transpose_a();
-    bool transpose_b = first_input_const ? !matmul_node->get_transpose_b() : matmul_node->get_transpose_b();
-    std::shared_ptr<ngraph::Node> new_node = std::make_shared<ngraph::opset8::MatMul>(input1, input2, transpose_a, transpose_b);
+    bool transpose_1 = first_input_const ? matmul_node->get_transpose_b() : !matmul_node->get_transpose_b();
+    bool transpose_2 = first_input_const ? !matmul_node->get_transpose_a() : matmul_node->get_transpose_a();
+    std::shared_ptr<ngraph::Node> new_node = std::make_shared<ngraph::opset8::MatMul>(input1, input2, transpose_1, transpose_2);
     new_node->set_friendly_name(matmul_node->get_friendly_name() + "/swap_inputs");
     new_ops.push_back(new_node);
 
@@ -280,7 +280,7 @@ SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
 }
 
 SwapInputMatMulWithAct::SwapInputMatMulWithAct() {
-    MATCHER_SCOPE(SwapInputMatMulWithFq);
+    MATCHER_SCOPE(SwapInputMatMulWithAct);
     std::shared_ptr<ngraph::Node> matmul1;
     std::shared_ptr<ngraph::Node> matmul2;
     auto matmul = CreateMatmuls(matmul1, matmul2);
@@ -328,7 +328,7 @@ SwapInputMatMulWithAct::SwapInputMatMulWithAct() {
 }
 
 SwapInputMatMulWithTrailingTranspose::SwapInputMatMulWithTrailingTranspose() {
-    MATCHER_SCOPE(SwapInputMatMulWithFq);
+    MATCHER_SCOPE(SwapInputMatMulWithTrailingTranspose);
     std::shared_ptr<ngraph::Node> matmul1;
     std::shared_ptr<ngraph::Node> matmul2;
     auto matmul = CreateMatmuls(matmul1, matmul2);

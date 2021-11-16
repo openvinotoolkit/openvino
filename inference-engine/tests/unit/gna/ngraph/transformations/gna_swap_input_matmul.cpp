@@ -22,7 +22,8 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
                                                               bool withOutFq,
                                                               bool withAct,
                                                               bool swappedInputs,
-                                                              bool needTranspose) {
+                                                              bool needTranspose,
+                                                              bool expected = false) {
     auto input_params = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i64, input2_shape);
     std::shared_ptr<ngraph::Node> input = input_params;
     if (input->get_output_shape(0).size() == 2 && needTranspose) {
@@ -46,9 +47,13 @@ static std::shared_ptr<ngraph::Function> CreateMatMulFunction(const ngraph::Shap
 
     std::shared_ptr<ngraph::Node> final_node = matmul;
     if (withBias) {
-        auto bias = ngraph::opset8::Constant::create(ngraph::element::i64, bias_shape, {1});
+        auto shape = bias_shape;
+        if ((needTranspose && !expected || !needTranspose && expected) && bias_shape.size() > 1) {
+            std::swap(shape[0], shape[1]);
+        }
+        auto bias = ngraph::opset8::Constant::create(ngraph::element::i64, shape, {1});
         std::shared_ptr<ngraph::Node> bias_node = bias;
-        if (needTranspose && bias_shape.size() > 1) {
+        if (expected && bias_shape.size() > 1) {
             auto transpose_order = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{2},
                                                                     std::vector<size_t>{1, 0});
             bias_node = std::make_shared<ngraph::opset8::Transpose>(bias_node, transpose_order);
@@ -127,6 +132,18 @@ enum class MatmulInputType {
     SecondInputConstant
 }; // enum class MatmulInputType
 
+static void transposeInputShapes(std::vector<ngraph::Shape> &shapes) {
+    if (shapes[0].size() > 1) {
+        std::swap(shapes[0][0], shapes[0][1]);
+    }
+    if (shapes[1].size() > 1) {
+        std::swap(shapes[1][0], shapes[1][1]);
+    }
+    if (shapes[2].size() > 1) {
+        std::swap(shapes[2][0], shapes[2][1]);
+    }
+}
+
 template<MatmulInputType E>
 class SwapInputMatmul : public CommonTestUtils::TestsCommon,
                         public ::testing::WithParamInterface<SwapInputMatmulParams> {
@@ -145,12 +162,13 @@ public:
             break;
         }
 
-        auto input1 = withTransposes ? shapes[1] : shapes[0];
-        auto input2 = withTransposes ? shapes[0] : shapes[1];
-        function = CreateMatMulFunction(input1, input2, shapes[2], withBias, withWeightsFq, withOutFq,
-            withAct, swap_inputs, withTransposes);
-        reference_function = CreateMatMulFunction(input1, input2, shapes[2], withBias, withWeightsFq,
-                                                  withOutFq, withAct, !swap_inputs, !withTransposes);
+        if (withTransposes) {
+            transposeInputShapes(shapes);
+        }
+        function = CreateMatMulFunction(shapes[0], shapes[1], shapes[2], withBias, withWeightsFq, withOutFq,
+                                        withAct, swap_inputs, withTransposes);
+        reference_function = CreateMatMulFunction(shapes[0], shapes[1], shapes[2], withBias, withWeightsFq,
+                                                  withOutFq, withAct, !swap_inputs, !withTransposes, true);
     }
 public:
     std::shared_ptr<ngraph::Function> function, reference_function;
@@ -174,9 +192,10 @@ public:
             break;
         }
 
-        auto input1 = withTransposes ? shapes[1] : shapes[0];
-        auto input2 = withTransposes ? shapes[0] : shapes[1];
-        function = CreateMatMulFunction(input1, input2, shapes[2], withBias, withWeightsFq, withOutFq,
+        if (withTransposes) {
+            transposeInputShapes(shapes);
+        }
+        function = CreateMatMulFunction(shapes[0], shapes[1], shapes[2], withBias, withWeightsFq, withOutFq,
             withAct, swap_inputs, withTransposes);
         reference_function = ngraph::clone_function(*function);
     }
