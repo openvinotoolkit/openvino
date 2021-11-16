@@ -12,6 +12,9 @@
 
 #define CUSTOM_RELU_TYPE "CustomReLU"
 
+/* thickness of a line (in pixels) to be used for bounding boxes */
+#define BBOX_THICKNESS 2
+
 class CustomReLUImpl : public InferenceEngine::ILayerExecImpl {
 public:
     explicit CustomReLUImpl(const std::shared_ptr<ngraph::Node>& node) : _node(node) {}
