@@ -139,10 +139,17 @@ jobs:
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
+        -DNGRAPH_UNIT_TEST_ENABLE=OFF
+        -DENABLE_MKL_DNN=OFF
+        -DENABLE_CLDNN=OFF
+        -DENABLE_GNA=OFF
+        -DENABLE_VPU=OFF
+        -DNGRAPH_ONNX_FRONTEND_ENABLE=OFF
+        -DNGRAPH_TF_FRONTEND_ENABLE=OFF
+        -DNGRAPH_PDPD_FRONTEND_ENABLE=OFF
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
-        -DENABLE_TESTS=ON
-        -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
+        -DENABLE_TESTS=OFF
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
@@ -196,12 +203,12 @@ jobs:
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    continueOnError: true
 
   - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    continueOnError: true
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
