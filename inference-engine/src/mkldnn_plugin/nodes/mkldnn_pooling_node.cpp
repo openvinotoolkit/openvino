@@ -185,6 +185,28 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
 }
 
+std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> MKLDNNPoolingNode::getPaddingFromNode(std::shared_ptr<ngraph::Node> node) const {
+    const auto convertPadding = [](const VectorDims &newPads) {
+        std::vector<ptrdiff_t> pads(newPads.size());
+        for (int i = 0; i < newPads.size(); i++) {
+            pads[i] = static_cast<ptrdiff_t>(newPads[i]);
+        }
+        return pads;
+    };
+
+    VectorDims padsBegin, padsEnd;
+    if (getAlgorithm() == PoolingMax) {
+        const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(opToShapeInfer);
+        padsBegin = pool->get_pads_begin();
+        padsEnd = pool->get_pads_end();
+    } else if (getAlgorithm() == PoolingAvg) {
+        const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(opToShapeInfer);
+        padsBegin = pool->get_pads_begin();
+        padsEnd = pool->get_pads_end();
+    }
+    return {convertPadding(padsBegin), convertPadding(padsEnd)};
+}
+
 void MKLDNNPoolingNode::prepareParams() {
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -207,25 +229,7 @@ void MKLDNNPoolingNode::prepareParams() {
 
     if (isDynamicNode()) {
         if (auto_pad) {
-            const auto initPadding = [](const VectorDims &newPads, std::vector<ptrdiff_t> &pads) {
-                pads.resize(newPads.size());
-                for (int i = 0; i < newPads.size(); i++) {
-                    pads[i] = static_cast<ptrdiff_t>(newPads[i]);
-                }
-            };
-
-            VectorDims padsBegin, padsEnd;
-            if (getAlgorithm() == PoolingMax) {
-                const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(opToShapeInfer);
-                padsBegin = pool->get_pads_begin();
-                padsEnd = pool->get_pads_end();
-            } else if (getAlgorithm() == PoolingAvg) {
-                const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(opToShapeInfer);
-                padsBegin = pool->get_pads_begin();
-                padsEnd = pool->get_pads_end();
-            }
-            initPadding(padsBegin, data_pad_begin);
-            initPadding(padsEnd, data_pad_end);
+            std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
         }
         initEffectivePad(inDesc->getShape(), outDesc->getShape());
     }
@@ -332,9 +336,17 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
     auto dnnlInDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDesc);
     auto in_candidate = dnnlInDesc->getDnnlDesc();
 
-    auto outDesc = outputDesc[0]->isDefined() ? outputDesc[0] : MemoryDescUtils::makeDummyDesc(*outputDesc[0]);
-    auto dnnlOutDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outDesc);
-    auto out_candidate = dnnlOutDesc->getDnnlDesc();
+    auto outDesc = outputDesc[0];
+    if (!outDesc->isDefined()) {
+        auto outDims = shapeInferGeneric({Shape(inDesc->getShape().getStaticDims())});
+        outDesc = outDesc->cloneWithNewDims(outDims[0]);
+        if (auto_pad) {
+            std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
+        }
+        initEffectivePad(inDesc->getShape(), outDesc->getShape());
+    }
+    auto dnnlOutDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outDesc);
+    auto out_candidate = dnnlOutDesc.getDnnlDesc();
 
     mkldnn::algorithm alg = getPoolingAlgorithm();
     auto desc_ptr = createDescriptorInternal(in_candidate, out_candidate, alg);

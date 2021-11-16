@@ -8,28 +8,29 @@
 #include "shared_test_classes/single_layer/pooling.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+using namespace ov::test;
 using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using PoolingInputShapes = std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape>>;
-
 using poolLayerCpuTestParamsSet = std::tuple<LayerTestsDefinitions::poolSpecificParams,
-                                             PoolingInputShapes,
-                                             ov::test::ElementType,
+                                             InputShape,
+                                             ElementType,
+                                             bool,
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
 class PoolingLayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
-                            virtual public ov::test::SubgraphBaseTest, public CpuTestWithFusing {
+                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
         LayerTestsDefinitions::poolSpecificParams basicParamsSet;
-        PoolingInputShapes inputShapes;
-        ov::test::ElementType inPrc;
+        InputShape inputShapes;
+        ElementType inPrc;
+        bool isInt8;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, fusingParams) = obj.param;
+        std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = obj.param;
 
         ngraph::helpers::PoolingTypes poolType;
         std::vector<size_t> kernel, stride;
@@ -40,10 +41,8 @@ public:
         std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
 
         std::ostringstream results;
-        if (!inputShapes.first.empty()) {
-            results << "IS=(";
-            results << CommonTestUtils::partialShape2str(inputShapes.first) << ")_";
-        }
+        results << "IS=(";
+        results << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_";
         results << "TS=";
         for (const auto& shape : inputShapes.second) {
             results << CommonTestUtils::vec2str(shape) << "_";
@@ -64,6 +63,7 @@ public:
         results << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
         results << "Rounding=" << roundingType << "_";
         results << "AutoPad=" << padType << "_";
+        results << "INT8=" << isInt8 << "_";
 
         results << CPUTestsBase::getTestCaseName(cpuParams);
         results << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -77,11 +77,12 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
         LayerTestsDefinitions::poolSpecificParams basicParamsSet;
-        PoolingInputShapes inputShapes;
-        ov::test::ElementType inPrc;
+        InputShape inputShapes;
+        ElementType inPrc;
+        bool isInt8;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
-        std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, fusingParams) = this->GetParam();
+        std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = this->GetParam();
 
         ngraph::helpers::PoolingTypes poolType;
         std::vector<size_t> kernel, stride;
@@ -99,18 +100,17 @@ protected:
         }
         selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inPrc).name();
 
-        if (!inputShapes.first.empty()) {
-            inputDynamicShapes = inputShapes.first;
-        } else {
-            inputDynamicShapes = {inputShapes.second.front()};
-        }
-        for (size_t i = 0; i < inputShapes.second.size(); i++) {
-            targetStaticShapes.push_back(std::vector<ngraph::Shape>{inputShapes.second[i]});
-        }
+        init_input_shapes({inputShapes});
 
         auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
 
-        std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(params[0],
+        std::shared_ptr<ngraph::Node> poolInput = params[0];
+        if (isInt8) {
+            ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
+            poolInput = ngraph::builder::makeFakeQuantize(poolInput, inPrc, 256, newShape);
+        }
+
+        std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makePooling(poolInput,
                                                                              stride,
                                                                              padBegin,
                                                                              padEnd,
@@ -120,8 +120,7 @@ protected:
                                                                              excludePad,
                                                                              poolType);
 
-        function = std::make_shared<ngraph::Function>(pooling, params, "PoolingCPU");
-        // function = makeNgraphFunction(inPrc, params, pooling, "Pooling");
+        function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
     }
 };
 
@@ -140,9 +139,9 @@ const auto sse42 = CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
 const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 
 const std::vector<CPUSpecificParams> vecCpuConfigs = {ref, sse42, avx, avx512};
-const std::vector<ov::test::ElementType> inpOutPrecision = {ov::test::ElementType::f32/*, ov::test::ElementType::bf16*/};
+const std::vector<ElementType> inpOutPrecision = {ElementType::f32/*, ElementType::bf16*/};
 
-const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape>>> inputShapes4D = {
+const std::vector<InputShape> inputShapes4D = {
         { {}, {{3, 4, 64, 64}} },
         { {}, {{2, 8, 8, 12}} },
         { {}, {{1, 16, 16, 12}} },
@@ -150,7 +149,7 @@ const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape
         { {}, {{1, 32, 8, 8}} },
         {
             // dynamic
-            {{-1, -1, -1, -1}},
+            {-1, -1, -1, -1},
             // target
             {
                 {1, 32, 8, 8},
@@ -160,7 +159,7 @@ const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape
         },
         {
             // dynamic
-            {{{1, 5}, {4, 32}, {1, 64}, {1, 64}}},
+            {{1, 5}, {4, 32}, {1, 64}, {1, 64}},
             // target
             {
                 {3, 4, 64, 64},
@@ -170,7 +169,7 @@ const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape
         }
 };
 
-const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape>>> inputShapes5D = {
+const std::vector<InputShape> inputShapes5D = {
         { {}, {{1, 4, 16, 16, 16}} },
         { {}, {{2, 8, 8, 8, 8}} },
         { {}, {{2, 16, 12, 16, 20}} },
@@ -178,7 +177,7 @@ const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape
         { {}, {{1, 32, 16, 8, 12}} },
         {
             // dynamic
-            {{-1, -1, -1, -1, -1}},
+            {-1, -1, -1, -1, -1},
             // target
             {
                 {2, 8, 8, 8, 8},
@@ -188,7 +187,7 @@ const std::vector<std::pair<std::vector<ov::PartialShape>, std::vector<ov::Shape
         },
         {
             // dynamic
-            {{{1, 5}, {4, 32}, {1, 64}, {1, 64}, {1, 25}}},
+            {{1, 5}, {4, 32}, {1, 64}, {1, 64}, {1, 25}},
             // target
             {
                 {1, 4, 16, 16, 16},
@@ -234,6 +233,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::ValuesIn(paramsMax4D),
                             ::testing::ValuesIn(inputShapes4D),
                             ::testing::ValuesIn(inpOutPrecision),
+                            ::testing::Values(false),
                             ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
@@ -243,6 +243,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::ValuesIn(paramsAvg4D),
                             ::testing::ValuesIn(inputShapes4D),
                             ::testing::ValuesIn(inpOutPrecision),
+                            ::testing::Values(false),
                             ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
@@ -252,6 +253,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_NotOptimized, PoolingLayerCPUTest,
                             ::testing::ValuesIn(paramsAvg4D_RefOnly),
                             ::testing::ValuesIn(inputShapes4D),
                             ::testing::ValuesIn(inpOutPrecision),
+                            ::testing::Values(false),
                             ::testing::Values(ref),
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
@@ -294,6 +296,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                              ::testing::ValuesIn(paramsMax5D),
                              ::testing::ValuesIn(inputShapes5D),
                              ::testing::ValuesIn(inpOutPrecision),
+                             ::testing::Values(false),
                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
                              ::testing::Values(emptyFusingSpec)),
                          PoolingLayerCPUTest::getTestCaseName);
@@ -303,6 +306,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                               ::testing::ValuesIn(paramsAvg5D),
                               ::testing::ValuesIn(inputShapes5D),
                               ::testing::ValuesIn(inpOutPrecision),
+                              ::testing::Values(false),
                               ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
                               ::testing::Values(emptyFusingSpec)),
                           PoolingLayerCPUTest::getTestCaseName);
@@ -312,59 +316,106 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_NotOptimized, PoolingLayerCPUTest,
                               ::testing::ValuesIn(paramsAvg5D_RefOnly),
                               ::testing::ValuesIn(inputShapes5D),
                               ::testing::ValuesIn(inpOutPrecision),
+                              ::testing::Values(false),
                               ::testing::Values(ref),
                               ::testing::Values(emptyFusingSpec)),
                           PoolingLayerCPUTest::getTestCaseName);
 
-// /* === Fusing === */
+/* === Fusing === */
 
-// const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
-// const auto avx512_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512"}, "jit_avx512"};
+const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
+const auto avx512_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx512"}, "jit_avx512"};
 
-// const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
-// const auto avx2_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"};
+const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
+const auto avx2_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_avx2"}, "jit_avx2"};
 
-// const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
-// const auto sse42_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"};
+const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
+const auto sse42_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {"jit_sse42"}, "jit_sse42"};
 
-// const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc};
-// const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {sse42_ndhwc, avx2_ndhwc, avx512_ndhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc};
+const std::vector<CPUSpecificParams> vecCpuConfigsFusing_5D = {sse42_ndhwc, avx2_ndhwc, avx512_ndhwc};
 
-// std::vector<fusingSpecificParams> fusingParamsSet {
-//     emptyFusingSpec,
-//     fusingFakeQuantizePerTensor,
-//     fusingFakeQuantizePerChannel,
-// };
+std::vector<fusingSpecificParams> fusingParamsSet {
+    emptyFusingSpec,
+    fusingFakeQuantizePerTensor,
+    fusingFakeQuantizePerChannel,
+};
 
-// INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
-//                         ::testing::Combine(
-//                                 ::testing::Combine(
-//                                         ::testing::ValuesIn(paramsAvg4D),
-//                                         ::testing::Values(Precision::FP32),
-//                                         ::testing::Values(Precision::I8),
-//                                         ::testing::Values(Precision::FP32),
-//                                         ::testing::Values(Layout::ANY),
-//                                         ::testing::Values(Layout::ANY),
-//                                         ::testing::ValuesIn(inputShapes4D),
-//                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D)),
-//                                 ::testing::ValuesIn(fusingParamsSet)),
-//                         PoolingLayerCPUTest::getTestCaseName);
+const std::vector<InputShape> inputShapes4D_int8 = {
+        { {}, {{3, 4, 64, 64}} },
+        { {}, {{2, 8, 8, 12}} },
+        { {}, {{1, 16, 16, 12}} },
+        { {}, {{1, 21, 8, 4}} },
+        { {}, {{1, 32, 8, 8}} },
+        {
+            // dynamic
+            {-1, 32, -1, -1},
+            // target
+            {
+                {1, 32, 8, 8},
+                {1, 32, 8, 4},
+                {2, 32, 8, 12}
+            }
+        },
+        {
+            // dynamic
+            {{1, 5}, 16, {1, 64}, {1, 64}},
+            // target
+            {
+                {3, 16, 32, 32},
+                {1, 16, 16, 12},
+                {1, 16, 8, 8}
+            }
+        }
+};
 
-// INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
-//                         ::testing::Combine(
-//                                 ::testing::Combine(
-//                                         ::testing::ValuesIn(paramsAvg5D),
-//                                         ::testing::Values(Precision::FP32),
-//                                         ::testing::Values(Precision::I8),
-//                                         ::testing::Values(Precision::FP32),
-//                                         ::testing::Values(Layout::ANY),
-//                                         ::testing::Values(Layout::ANY),
-//                                         ::testing::ValuesIn(inputShapes5D),
-//                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-//                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
-//                                 ::testing::ValuesIn(fusingParamsSet)),
-//                         PoolingLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D_I8, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg4D),
+                              ::testing::ValuesIn(inputShapes4D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_4D)),
+                              ::testing::ValuesIn(fusingParamsSet)),
+                          PoolingLayerCPUTest::getTestCaseName);
+
+const std::vector<InputShape> inputShapes5D_int8 = {
+        { {}, {{1, 4, 16, 16, 16}} },
+        { {}, {{2, 8, 8, 8, 8}} },
+        { {}, {{2, 16, 12, 16, 20}} },
+        { {}, {{1, 19, 16, 20, 8}} },
+        { {}, {{1, 32, 16, 8, 12}} },
+        {
+            // dynamic
+            {-1, 32, -1, -1, -1},
+            // target
+            {
+                {2, 32, 8, 8, 8},
+                {1, 32, 16, 20, 8},
+                {1, 32, 16, 16, 16}
+            }
+        },
+        {
+            // dynamic
+            {{1, 5}, 16, {1, 64}, {1, 64}, {1, 25}},
+            // target
+            {
+                {1, 16, 16, 16, 16},
+                {1, 16, 16, 8, 12},
+                {2, 16, 8, 8, 8}
+            }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D_I8, PoolingLayerCPUTest,
+                         ::testing::Combine(
+                              ::testing::ValuesIn(paramsAvg5D),
+                              ::testing::ValuesIn(inputShapes5D_int8),
+                              ::testing::Values(ElementType::f32),
+                              ::testing::Values(true),
+                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
+                              ::testing::ValuesIn(fusingParamsSet)),
+                          PoolingLayerCPUTest::getTestCaseName);
 
 } // namespace
 
