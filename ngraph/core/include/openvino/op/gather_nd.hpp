@@ -25,7 +25,6 @@ public:
     GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims = 0);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v5
@@ -48,7 +47,6 @@ public:
     GatherND(const Output<Node>& data, const Output<Node>& indices, const size_t batch_dims = 0);
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v8

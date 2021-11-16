@@ -107,3 +107,8 @@ void ov::op::util::GatherNDBase::validate_inputs_and_infer_shape() {
         set_output_type(0, data_type, ov::PartialShape::dynamic());
     }
 }
+
+bool ov::op::util::GatherNDBase::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("batch_dims", m_batch_dims);
+    return true;
+}

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/util/gather_nd_base.hpp"
+#include "ngraph/op/op.hpp"
 #include "openvino/op/gather_nd.hpp"
 
 namespace ngraph {

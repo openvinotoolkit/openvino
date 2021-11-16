@@ -55,12 +55,6 @@ void op::v5::GatherND::validate_and_infer_types() {
     }
 }
 
-bool op::v5::GatherND::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v5_GatherND_visit_attributes);
-    visitor.on_attribute("batch_dims", m_batch_dims);
-    return true;
-}
-
 shared_ptr<Node> op::v5::GatherND::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v5_GatherND_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -78,12 +72,6 @@ op::v8::GatherND::GatherND(const Output<Node>& data, const Output<Node>& indices
 void op::v8::GatherND::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v8_GatherND_validate_and_infer_types);
     validate_inputs_and_infer_shape();
-}
-
-bool op::v8::GatherND::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_GatherND_visit_attributes);
-    visitor.on_attribute("batch_dims", m_batch_dims);
-    return true;
 }
 
 shared_ptr<Node> op::v8::GatherND::clone_with_new_inputs(const OutputVector& new_args) const {
