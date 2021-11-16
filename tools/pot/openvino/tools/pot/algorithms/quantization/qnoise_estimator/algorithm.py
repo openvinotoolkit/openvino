@@ -57,7 +57,7 @@ class QuantNoiseEstimator(Algorithm):
     def full_fq_noise_stats(self, model):
         fully_quantized_model = deepcopy(model)
         model = self.get_nonquantized_model(model)
-        for node in mu.get_all_operation_nodes_recursively(fully_quantized_model):
+        for node in mu.get_all_operation_nodes(fully_quantized_model):
             rename_node(node, node.name + self.q_suffix)
             node.fullname += self.q_suffix
 
@@ -141,7 +141,7 @@ class QuantNoiseEstimator(Algorithm):
                     deepcopy(fully_quantized_model), conv_input_node
                 )
 
-                for node in mu.get_all_operation_nodes_recursively(single_fq_layer_model):
+                for node in mu.get_all_operation_nodes(single_fq_layer_model):
                     rename_node(node, node.name + self.q_suffix)
                     node.fullname += self.q_suffix
 

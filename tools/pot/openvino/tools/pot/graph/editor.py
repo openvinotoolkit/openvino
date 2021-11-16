@@ -40,31 +40,27 @@ def find_node(graph: Graph, name):
     return None
 
 
-def get_node_by_name(graph: Graph, name: str) -> Node:
+def get_node_by_name(graph: Graph, name: str, recursively: bool = True) -> Node:
     """ Returns node by name
     :param graph: NetworkX model to take node
     :param name: name of the node
+    :param recursively: whether return all nodes from the graph
+    and each subgraph or only from the external graph
     :return node from NetworkX model (of type Node or None if there's no such node)
     """
-    node = graph.get_op_nodes(name=name)
+    if recursively:
+        def get_node_by_fullname(graph: Graph, name: str) -> Node:
+            nodes = graph.get_nodes_with_attributes(**dict(kind='op', fullname=name))
+            return [Node(graph, nodes[0])] if nodes else None
+
+        partial_get_node_by_fullname = partial(get_node_by_fullname, name=name)
+        get_node_by_fullname_func = FunctionResultsAccumulator(partial_get_node_by_fullname)
+        for_graph_and_each_sub_graph_recursively(graph, get_node_by_fullname_func)
+        node = get_node_by_fullname_func.results
+    else:
+        node = graph.get_op_nodes(name=name)
+
     return node[0] if node else None
-
-
-def get_node_by_name_recursively(graph: Graph, name: str) -> Node:
-    """ Returns node by name. Find node in main graph and each subgraph.
-    :param graph: NetworkX model to take node
-    :param name: node name contains all subgraph in path to node
-    :return node from NetworkX model (of type Node or None if there's no such node)
-    """
-    def get_node_by_fullname(graph: Graph, name: str) -> Node:
-        nodes = graph.get_nodes_with_attributes(**dict(kind='op', fullname=name))
-        return [Node(graph, nodes[0])] if nodes else None
-
-    partial_get_node_by_fullname = partial(get_node_by_fullname, name=name)
-    get_node_by_fullname_func = FunctionResultsAccumulator(partial_get_node_by_fullname)
-    for_graph_and_each_sub_graph_recursively(graph, get_node_by_fullname_func)
-    nodes = get_node_by_fullname_func.results
-    return nodes[0] if nodes else None
 
 
 def remove_node_by_name(graph: Graph, node_name: str) -> (list, list):
@@ -97,32 +93,29 @@ def connect_nodes_by_name(graph: Graph, src_node_name, src_port, dst_node_name, 
     :param dst_node_name: name of the destination node
     :param dst_port: index of the port for destination node
      """
-    src_node = get_node_by_name(graph, src_node_name)
+    src_node = get_node_by_name(graph, src_node_name, recursively=False)
     if src_node is None:
         raise Exception('There\'s no node with {} name'.format(src_node_name))
-    dst_node = get_node_by_name(graph, dst_node_name)
+    dst_node = get_node_by_name(graph, dst_node_name, recursively=False)
     if dst_node is None:
         raise Exception('There\'s no node with {} name'.format(dst_node_name))
 
     connect_nodes(src_node, src_port, dst_node, dst_port)
 
 
-def get_all_operation_nodes(graph: Graph):
+def get_all_operation_nodes(graph: Graph, recursively: bool = True):
     """ Returns sequence of all nodes in graph
     :param graph: NetworkX model to take nodes
+    :param recursively: whether return all nodes from the graph
+    and each subgraph or only from the external graph
     :return list of all nodes
     """
-    return graph.get_op_nodes()
-
-
-def get_all_operation_nodes_recursively(graph: Graph):
-    """ Returns sequence of all nodes in graph and each subgraph
-    :param graph: NetworkX model to take nodes
-    :return list of all nodes
-    """
-    get_all_op_nodes_func = FunctionResultsAccumulator(get_all_operation_nodes)
-    for_graph_and_each_sub_graph_recursively(graph, get_all_op_nodes_func)
-    return get_all_op_nodes_func.results
+    if recursively:
+        get_all_op_nodes_func = FunctionResultsAccumulator(lambda graph: graph.get_op_nodes())
+        for_graph_and_each_sub_graph_recursively(graph, get_all_op_nodes_func)
+        return get_all_op_nodes_func.results
+    else:
+        return graph.get_op_nodes()
 
 
 def get_nodes_by_type(graph: Graph, types: list, recursively: bool = True) -> list:

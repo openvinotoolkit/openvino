@@ -70,7 +70,7 @@ def get_node_by_name(model: NXModel, name: str) -> Node:
     :param name: name of the node
     :return node from model (of type Node or None if there's no such node)
     """
-    names = [ge.get_node_by_name_recursively(model_dict['model'], name)
+    names = [ge.get_node_by_name(model_dict['model'], name)
              for model_dict in model.models]
     names = [name for name in names if name is not None]
     if len(names) > 1:
@@ -79,22 +79,15 @@ def get_node_by_name(model: NXModel, name: str) -> Node:
     return names[0] if names else None
 
 
-def get_all_operation_nodes(model: NXModel):
+def get_all_operation_nodes(model: NXModel, recursively: bool = True):
     """ Returns sequence of all nodes in all graphs
     :param model: NXModel model
+    :param recursively: whether return all nodes from the model
+    and each subgraph or only from the external model
     :return list of all nodes
     """
     return [node for model_dict in model.models
-            for node in ge.get_all_operation_nodes(model_dict['model'])]
-
-
-def get_all_operation_nodes_recursively(model: NXModel):
-    """ Returns sequence of all nodes in all graphs and all subgraphs
-    :param model: NXModel model
-    :return list of all nodes
-    """
-    return [node for model_dict in model.models
-            for node in ge.get_all_operation_nodes_recursively(model_dict['model'])]
+            for node in ge.get_all_operation_nodes(model_dict['model'], recursively)]
 
 
 def build_model_for_node(nx_model, input_name, input_shape, node, remove_bias=False,

@@ -172,7 +172,7 @@ class BiasCorrection(Algorithm):
         def fill_output_nodes():
             assigns = ge.get_nodes_by_type(main_node.graph, ['Assign'], recursively=False)
             for node_name in checked_input_names:
-                node = ge.get_node_by_name(main_node.graph, node_name)
+                node = ge.get_node_by_name(main_node.graph, node_name, recursively=False)
                 if node.type == 'ReadValue':
                     output_nodes.extend(nu.get_lstm_ends(node, assigns, checked_input_names))
 

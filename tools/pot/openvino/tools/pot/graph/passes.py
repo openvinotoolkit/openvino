@@ -345,7 +345,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
                         _skip_multibranch_ascent_ops[name] = skip_ascent_map[name]
                     else:
                         _skip_multibranch_ascent_ops[name] = _is_node_skippable(
-                            ge.get_node_by_name(graph, name), skip_ascent_map)
+                            ge.get_node_by_name(graph, name, recursively=False), skip_ascent_map)
                 skip_ascent_map.update(_skip_multibranch_ascent_ops)
                 return any(_skip_multibranch_ascent_ops.values())
 
@@ -411,7 +411,7 @@ class FakeQuantizeOptimization(BackReplacementPattern):
 
 class RemoveFakeQuantize:
     def find_and_remove_node(self, graph, node_name, force=False):
-        node = ge.get_node_by_name(graph, node_name)
+        node = ge.get_node_by_name(graph, node_name, recursively=False)
         if not node:
             return [], []
 
@@ -508,7 +508,9 @@ class RemoveFakeQuantize:
     @staticmethod
     def undo_renaming(graph, fq_node):
         if 'orig_fq_name' in fq_node:
-            node = ge.get_node_by_name(graph, '{fq_name}/pre_fq_input'.format(fq_name=fq_node.fullname))
+            node = ge.get_node_by_name(graph,
+                                       '{fq_name}/pre_fq_input'.format(fq_name=fq_node.fullname),
+                                       recursively=False)
             rename_node(node, node['orig_node_name'])
             rename_node(fq_node, fq_node['orig_fq_name'])
 

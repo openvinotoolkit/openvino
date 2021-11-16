@@ -185,7 +185,7 @@ class NXModel:
             self._prefix_is_applied = True
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
-                for node in ge.get_all_operation_nodes(model):
+                for node in ge.get_all_operation_nodes(model, recursively=False):
                     rename_node(node, f'{model_name}_{node.name}')
 
     def _remove_models_prefix(self):
@@ -195,7 +195,7 @@ class NXModel:
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
                 self._cache.node_names[model_name] = []
-                for node in ge.get_all_operation_nodes(model):
+                for node in ge.get_all_operation_nodes(model, recursively=False):
                     if node.name.startswith(model_name):
                         rename_node(node, node.name.replace(model_name + '_', '', 1))
                         self._cache.node_names[model_name].append(node.name)
@@ -206,7 +206,7 @@ class NXModel:
             self._prefix_is_applied = True
             for model_dict in self._models:
                 model_name, model = model_dict['name'], model_dict['model']
-                for node in ge.get_all_operation_nodes(model):
+                for node in ge.get_all_operation_nodes(model, recursively=False):
                     if node.name in self._cache.node_names[model_name]:
                         rename_node(node, f'{model_name}_{node.name}')
             self._cache.pop('node_names')
