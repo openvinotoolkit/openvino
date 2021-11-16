@@ -190,18 +190,6 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::CreateInferRequest instead")
     InferRequest::Ptr CreateInferRequestPtr();
-
-    /**
-     * @deprecated Use InferRequest::QueryState instead
-     * @brief Gets state control interface for given executable network.
-     *
-     * State control essential for recurrent networks
-     *
-     * @return A vector of Memory State objects
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<VariableState> QueryState();
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace InferenceEngine

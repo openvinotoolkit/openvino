@@ -383,9 +383,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                   .preprocess(PreProcessSteps().convert_layout(old_api_transpose_args)));
             }
 
-            auto& resuls = function->get_results();
-            for (size_t i = 0; i < resuls.size(); ++i) {
-                const auto& result = resuls[i];
+            auto& results = function->get_results();
+            for (size_t i = 0; i < results.size(); ++i) {
+                const auto& result = results[i];
                 ov::RTMap& rtInfo = result->get_rt_info();
                 const auto it = rtInfo.find(old_api_map_key);
                 if (it == rtInfo.end())
@@ -422,8 +422,8 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-ngraph::frontend::FrontEndManager& get_frontend_manager() {
-    static ngraph::frontend::FrontEndManager manager;
+ov::frontend::FrontEndManager& get_frontend_manager() {
+    static ov::frontend::FrontEndManager manager;
     return manager;
 }
 
@@ -471,8 +471,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath,
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
-    ngraph::frontend::FrontEnd::Ptr FE;
-    ngraph::frontend::InputModel::Ptr inputModel;
+    ov::frontend::FrontEnd::Ptr FE;
+    ov::frontend::InputModel::Ptr inputModel;
 
     ov::VariantVector params{ov::make_variant(model_path)};
 
@@ -533,8 +533,8 @@ CNNNetwork details::ReadNetwork(const std::string& model,
 
     // Try to load with FrontEndManager
     auto& manager = get_frontend_manager();
-    ngraph::frontend::FrontEnd::Ptr FE;
-    ngraph::frontend::InputModel::Ptr inputModel;
+    ov::frontend::FrontEnd::Ptr FE;
+    ov::frontend::InputModel::Ptr inputModel;
 
     ov::VariantVector params{ov::make_variant(&modelStream)};
     if (weights) {

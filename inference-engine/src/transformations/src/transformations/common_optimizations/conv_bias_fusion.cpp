@@ -99,7 +99,7 @@ bool conv_callback(ngraph::pattern::Matcher &m) {
     auto expected_shape = Shape(output_rank, 1);
     expected_shape[1] = channel_dim;
 
-    if (op::util::check_for_broadcast(expected_shape, const_shape)) {
+    if (ngraph::op::util::check_for_broadcast(expected_shape, const_shape)) {
         return false;
     }
 
@@ -107,7 +107,7 @@ bool conv_callback(ngraph::pattern::Matcher &m) {
     // the number of weights dimensions.
     Output<Node> final_const = m_const;
     if (is_scalar_multiplier) {
-        final_const = op::util::broadcastTo(m_const, expected_shape);
+        final_const = ngraph::op::util::broadcastTo(m_const, expected_shape);
     }
 
     if (final_const.get_shape().size() > 1) {
