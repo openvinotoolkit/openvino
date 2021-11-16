@@ -59,6 +59,3 @@ __pycache__
 /model-optimizer/*.mapping
 /model-optimizer/*.dat
 /model-optimizer/*.svg
-gna_passes*
-*Gna2Operation*
-*kDnn*
