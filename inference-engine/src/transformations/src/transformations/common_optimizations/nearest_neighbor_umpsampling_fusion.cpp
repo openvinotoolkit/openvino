@@ -47,11 +47,21 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
     auto reshape_1 = pattern::wrap_type<ngraph::opset8::Reshape>({input, concat_1});
 
     auto mul_const = pattern::wrap_type<ngraph::opset8::Constant>();
-    auto mul = pattern::wrap_type<ngraph::opset8::Reshape>({reshape_1, mul_const});
+    auto mul = pattern::wrap_type<ngraph::opset8::Multiply>({reshape_1, mul_const});
 
     auto reshape_2 = pattern::wrap_type<ngraph::opset8::Reshape>({mul, concat_2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto &pattern_to_output = m.get_pattern_value_map();
+
+        const auto reshape_2_node = std::dynamic_pointer_cast<ngraph::opset8::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
+        const auto mul_node = std::dynamic_pointer_cast<ngraph::opset8::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
+        const auto mul_const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(pattern_to_output.at(mul_const).get_node_shared_ptr());
+
+        if (!reshape_2_node || !mul_node || !mul_const_node) return false;
+
+        const auto mul_const_value = mul_const_node->cast_vector<float>();
+        if (mul_const_value != std::vector<float>{1.0f, 1.0f, 1.0f, 1.0f}) return false;
         return true;
     };
 
