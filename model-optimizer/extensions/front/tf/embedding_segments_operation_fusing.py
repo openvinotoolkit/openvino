@@ -83,6 +83,10 @@ class EmbeddingSegmentsOperationSingleFeatureFusing(FrontReplacementSubgraph):
         squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
         split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)}, {'num_splits': 2})
         squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+
+        # TODO: remove Cast nodes once we start to support EmbeddingSegmentSum (new version) with segment_ids,
+        #  indices, and num_segments of different integer type.
+        #  Because the real cases show that it is possible to have it in TensorFlow
         cast_indices = Cast(graph, {'name': output_node_name + '/CastIndices', 'dst_type': np.int32}).create_node()
         cast_segment_ids = Cast(graph, {'name': output_node_name + '/CastSegmentIds',
                                         'dst_type': np.int32}).create_node()
@@ -104,17 +108,14 @@ class EmbeddingSegmentsOperationSingleFeatureFusing(FrontReplacementSubgraph):
         # split and connect segment ids
         gather0_1.in_port(0).get_connection().set_destination(split_for_indices.in_port(0))
         squeeze_for_indices.in_port(0).connect(split_for_indices.out_port(0))
-        # TODO: remove casting once we start to support I64 model input
         cast_segment_ids.in_port(0).connect(squeeze_for_indices.out_port(0))
         embedding_segments_op.in_port(2).connect(cast_segment_ids.out_port(0))
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
-        # TODO: remove casting once we start to support I64 model input
         cast_num_segments.in_port(0).connect(squeeze_to_scalar.out_port(0))
         embedding_segments_op.in_port(3).connect(cast_num_segments.out_port(0))
         # connect default value
-        # TODO: remove casting once we start to support I64 model input
         sparse_fill_empty_rows.in_port(3).get_connection().set_destination(cast_default_value.in_port(0))
         embedding_segments_op.in_port(4).connect(cast_default_value.out_port(0))
         # no input port for per_sample_weight

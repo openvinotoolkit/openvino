@@ -26,6 +26,16 @@ class EmbeddingSegmentsMeanDecomposition(FrontReplacementPattern):
     account that summed up embedding vectors for each vector must be normalized appropriately by a coefficient
     equal to a number of gathered embedding vectors for each object. If there is no gathered embedding vector
     for an object, the coefficient equals one.
+
+    Approximate computation scheme (Cast operations omitted) for the normalization coefficients:
+
+                                                                          Const(0)
+    segment_ids -> Unsqueeze(axis=1) -----------------\                     |
+                                                       \                   \/
+                                                        ---> Equal() --> Select --> ReduceSum(axis=0) --> Norm. Coeff.
+                                                       /                   /\
+    Range(0, num_segments) -> Unsqueeze(axis=0)------ /                    |
+                                                                        Const(1)
     """
     enabled = True
 
