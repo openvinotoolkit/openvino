@@ -64,6 +64,18 @@ std::shared_ptr<ngraph::Function> getFunction2() {
     return std::make_shared<ngraph::Function>(concat, params, "SplitAddConcat");
 }
 
+std::shared_ptr<ngraph::Function> getFunction3(ov::PartialShape shape) {
+    const ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32;
+
+    auto params = ngraph::builder::makeDynamicParams(ngPrc, {shape});
+    params.front()->set_friendly_name("Param_1");
+    params.front()->get_output_tensor(0).set_names({"input_tensor"});
+    auto Sin = std::make_shared<ngraph::opset1::Sin>(params[0]);
+    Sin->get_output_tensor(0).set_names({"Sin"});
+
+    return std::make_shared<ngraph::Function>(Sin, params, "Sin");
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_1, OVInferRequestDynamicTests,
                         ::testing::Combine(
                                 ::testing::Values(getFunction1()),
@@ -83,6 +95,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_2, OVInferRequestDynamicTests,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                                 ::testing::ValuesIn(configs)),
                         OVInferRequestDynamicTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_3, OVInferRequestDynamicTests,
+                         ::testing::Combine(
+                                 ::testing::Values(getFunction3({-1, -1, -1, -1})),
+                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
+                                         {{1, 4, 20, 20}, {1, 4, 20, 20}},
+                                         {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::ValuesIn(configs)),
+                         OVInferRequestDynamicTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestDynamicTests,
                         ::testing::Combine(

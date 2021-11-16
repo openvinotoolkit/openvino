@@ -27,6 +27,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "shared_test_classes/subgraph/basic_lstm.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -66,6 +67,94 @@ void OVInferRequestDynamicTests::TearDown() {
         PluginCache::get().reset();
     }
     function.reset();
+}
+
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetwork) {
+    std::vector<ov::Shape> vectorShapes{{1, 4, 20, 20}, {1, 4, 20, 20}, {1, 4, 10, 10}};
+    bool checkOutputValues = !strcmp(function->get_friendly_name().c_str(), "Sin");
+    const std::string tensor_name = "input_tensor";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = { ov::Dimension(1, 5), ov::Dimension(1, 5), ov::Dimension(10, 40), ov::Dimension(10, 40) };
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    for (auto& shape : vectorShapes) {
+        ov::runtime::Tensor inTensor = ov::test::utils::create_and_fill_tensor(element::f32, shape, 100, -50);
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+        OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", inTensor));
+        OV_ASSERT_NO_THROW(req.infer());
+        OV_ASSERT_NO_THROW(req.start_async());
+        OV_ASSERT_NO_THROW(req.wait());
+        if (checkOutputValues) {
+            ov::runtime::Tensor outTensor = req.get_tensor("Sin");
+            for (int i = 0; i < inTensor.get_size(); i++) {
+                ASSERT_LT(fabs(sin(inTensor.data<float>()[i]) - outTensor.data<float>()[i]), std::numeric_limits<float>::epsilon());
+            }
+        }
+    }
+}
+
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputTensorBeforeInfer) {
+    const std::string tensor_name = "input_tensor";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor, otensor;
+    const std::string outputname = function->outputs().back().get_any_name();
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
+    auto outShape = refOutShape;
+    outShape[0] += 1;
+    otensor = ov::test::utils::create_and_fill_tensor(element::f32, outShape, 100, 50);
+    OV_ASSERT_NO_THROW(req.set_tensor(outputname, otensor));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    ASSERT_EQ(otensor.get_shape(), refOutShape);
+    if (!strcmp(function->get_friendly_name().c_str(), "Sin")) {
+        for (int i = 0; i < otensor.get_size(); i++) {
+            ASSERT_LT(fabs(sin(tensor.data<float>()[i]) - otensor.data<float>()[i]), std::numeric_limits<float>::epsilon());
+        }
+    }
+}
+
+TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkSetOutputShapeBeforeInfer) {
+    const std::string tensor_name = "input_tensor";
+    const ov::Shape refShape = inOutShapes[0].first;
+    const ov::Shape refOutShape = inOutShapes[0].second;
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+    // Load ov::Model to target plugins
+    auto execNet = ie->compile_model(function, targetDevice, configuration);
+    // Create InferRequest
+    ov::runtime::InferRequest req;
+    ov::runtime::Tensor tensor, otensor;
+    const std::string outputname = function->outputs().back().get_any_name();
+    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+    tensor = ov::test::utils::create_and_fill_tensor(element::f32, refShape, 100, -50);
+    OV_ASSERT_NO_THROW(req.set_tensor("input_tensor", tensor));
+    OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
+    OV_ASSERT_NO_THROW(otensor.set_shape(refOutShape));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    OV_ASSERT_NO_THROW(otensor = req.get_tensor(outputname));
+    ASSERT_EQ(otensor.get_shape(), refOutShape);
+    if (!strcmp(function->get_friendly_name().c_str(), "Sin")) {
+        for (int i = 0; i < otensor.get_size(); i++) {
+            ASSERT_LT(fabs(sin(tensor.data<float>()[i]) - otensor.data<float>()[i]), std::numeric_limits<float>::epsilon());
+        }
+    }
 }
 
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithoutSetShape) {
