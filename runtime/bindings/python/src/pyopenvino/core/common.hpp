@@ -14,6 +14,9 @@
 #include <string>
 #include "Python.h"
 #include "ie_common.h"
+#include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/executable_network.hpp"
+#include "pyopenvino/core/containers.hpp"
 
 namespace py = pybind11;
 
@@ -33,10 +36,8 @@ namespace Common
         }
     }
 
-    extern const std::map<ov::element::Type, py::dtype> ov_type_to_dtype;
-    extern const std::map<py::str, ov::element::Type> dtype_to_ov_type;
-
-    ov::Strides to_numpy_strides(const ov::Strides& strides, const ov::element::Type& ov_type);
+    const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
+    const std::map<py::str, ov::element::Type>& dtype_to_ov_type();
 
     InferenceEngine::Layout get_layout_from_string(const std::string& layout);
 
@@ -50,9 +51,15 @@ namespace Common
 
     const std::shared_ptr<InferenceEngine::Blob> cast_to_blob(const py::handle& blob);
 
+    const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs);
+
+    const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs);
+
+    const ov::runtime::Tensor& cast_to_tensor(const py::handle& tensor);
+
     void blob_from_numpy(const py::handle& _arr, InferenceEngine::Blob::Ptr &blob);
 
     void set_request_blobs(InferenceEngine::InferRequest& request, const py::dict& dictonary);
 
-    uint32_t get_optimal_number_of_requests(const InferenceEngine::ExecutableNetwork& actual);
+    uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
 }; // namespace Common

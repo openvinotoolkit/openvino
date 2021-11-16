@@ -569,7 +569,7 @@ InferenceEngine::Blob::Ptr generateInput(const std::shared_ptr<ngraph::Node> nod
 
 InputsMap getInputMap() {
     static InputsMap inputsMap{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, generateInput<NAMESPACE::NAME>},
+#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
     #include "ngraph/opsets/opset1_tbl.hpp"
     #include "ngraph/opsets/opset2_tbl.hpp"
     #include "ngraph/opsets/opset3_tbl.hpp"

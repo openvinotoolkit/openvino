@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "op/reduce.hpp"
+
 #include <functional>
 #include <memory>
 

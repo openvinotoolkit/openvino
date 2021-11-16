@@ -190,6 +190,7 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val) {
 }
 
 namespace rangeop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& out,
               const HostTensorPtr& start,
@@ -253,6 +254,7 @@ bool evaluate_power(const HostTensorPtr& out,
     }
     return rc;
 }
+}  // namespace
 }  // namespace rangeop
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

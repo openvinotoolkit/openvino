@@ -380,6 +380,8 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
                 });
                 new_param_shape = PartialShape(dims);
             }
+        } else if (input->m_preprocess) {
+            new_param_shape = input->m_preprocess->calculate_param_shape(new_param_shape);
         }
         if (input->m_tensor_data->is_spatial_shape_set()) {
             auto height_idx = get_and_check_height_idx(input->m_tensor_data->get_layout(), new_param_shape);
@@ -540,10 +542,12 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         }
         // Apply post-processing
         node = result->get_input_source_output(0);
+        bool post_processing_applied = false;
         if (output->m_postprocess) {
             for (const auto& action : output->m_postprocess->actions()) {
                 auto action_result = action({node}, context);
                 node = std::get<0>(action_result);
+                post_processing_applied = true;
             }
         }
         // Implicit: Convert element type + layout to user's tensor implicitly
@@ -559,9 +563,17 @@ std::shared_ptr<Function> PrePostProcessor::build(const std::shared_ptr<Function
         for (const auto& action : implicit_steps.actions()) {
             auto action_result = action({node}, context);
             node = std::get<0>(action_result);
+            post_processing_applied = true;
         }
         node.get_node_shared_ptr()->set_friendly_name(
             result->get_input_source_output(0).get_node_shared_ptr()->get_friendly_name());
+
+        // Reset friendly name of input node to avoid names collision
+        // when there is at a new node inserted by post-processing steps
+        // If no new nodes are inserted by post-processing, then we need to preserve friendly name of input
+        // as it's required for old API correct work
+        if (post_processing_applied)
+            result->get_input_source_output(0).get_node_shared_ptr()->set_friendly_name("");
 
         // Create result
         auto new_result = std::make_shared<ov::op::v0::Result>(node);
@@ -754,6 +766,16 @@ PreProcessSteps&& PreProcessSteps::convert_layout(const Layout& dst_layout) && {
     return std::move(*this);
 }
 
+PreProcessSteps& PreProcessSteps::convert_layout(const std::vector<uint64_t>& dims) & {
+    m_impl->add_convert_layout_impl(dims);
+    return *this;
+}
+
+PreProcessSteps&& PreProcessSteps::convert_layout(const std::vector<uint64_t>& dims) && {
+    m_impl->add_convert_layout_impl(dims);
+    return std::move(*this);
+}
+
 PreProcessSteps& PreProcessSteps::convert_color(const ov::preprocess::ColorFormat& dst_format) & {
     m_impl->add_convert_color_impl(dst_format);
     return *this;
@@ -866,6 +888,16 @@ PostProcessSteps& PostProcessSteps::convert_layout(const Layout& dst_layout) & {
 
 PostProcessSteps&& PostProcessSteps::convert_layout(const Layout& dst_layout) && {
     m_impl->add_convert_layout_impl(dst_layout);
+    return std::move(*this);
+}
+
+PostProcessSteps& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) & {
+    m_impl->add_convert_layout_impl(dims);
+    return *this;
+}
+
+PostProcessSteps&& PostProcessSteps::convert_layout(const std::vector<uint64_t>& dims) && {
+    m_impl->add_convert_layout_impl(dims);
     return std::move(*this);
 }
 
