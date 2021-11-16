@@ -226,8 +226,9 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             hasNegative = true;
 
             if (outputHighValues[i] != 0.f) {
-                const float expectedRatio = (quantizationLevels == 256 || quantizationLevels == 65536 || quantizationLevels == 4294967296) ?
-                                            asymmetricIntervalSideRatio : -1.f;
+                const float expectedRatio =
+                        (quantizationLevels == 16 || quantizationLevels == 256 ||
+                         quantizationLevels == 65536 || quantizationLevels == 4294967296) ? asymmetricIntervalSideRatio : -1.f;
                 const float actualRatio = outputLowValues[i] / outputHighValues[i];
                 const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
                 if (actual > quantizationIntervalAsymmetryThreshold) {
@@ -273,6 +274,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             switch (quantizationLevels) {
                 case 256:
                 case 255:
+                case 16:
                     resultPrecision = element::i8;
                     break;
                 case 65536:
@@ -290,6 +292,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             switch (quantizationLevels) {
                 case 256:
                 case 255:
+                case 16:
                     resultPrecision = element::u8;
                     break;
                 case 65536:

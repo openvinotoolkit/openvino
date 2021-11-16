@@ -29,6 +29,7 @@ FakeQuantizeDecompositionTransformation::FakeQuantizeDecompositionTransformation
         if (transformation_callback(op)) {
             return false;
         }
+
         return transform(*context, m);
     };
 
