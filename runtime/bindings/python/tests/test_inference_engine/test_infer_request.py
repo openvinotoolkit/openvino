@@ -7,24 +7,11 @@ import pytest
 import datetime
 import time
 
-from ..conftest import image_path, model_path
+from ..conftest import model_path, read_image
 from openvino import Core, AsyncInferQueue, Tensor, ProfilingInfo
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
-
-
-def read_image():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(image_path())
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1)).astype(np.float32)
-    image = image.reshape((n, c, h, w))
-    return image
 
 
 def test_get_profiling_info(device):
@@ -48,8 +35,8 @@ def test_get_profiling_info(device):
 def test_tensor_setter(device):
     core = Core()
     func = core.read_model(test_net_xml, test_net_bin)
-    exec_net_1 = core.compile_model(network=func, device_name=device)
-    exec_net_2 = core.compile_model(network=func, device_name=device)
+    exec_net_1 = core.compile_model(model=func, device_name=device)
+    exec_net_2 = core.compile_model(model=func, device_name=device)
 
     img = read_image()
     tensor = Tensor(img)
@@ -177,18 +164,17 @@ def test_infer_mixed_keys(device):
     core = Core()
     func = core.read_model(test_net_xml, test_net_bin)
     core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = core.compile_model(func, device)
+    model = core.compile_model(func, device)
 
     img = read_image()
     tensor = Tensor(img)
 
-    data2 = np.ones(shape=(1, 10), dtype=np.float32)
+    data2 = np.ones(shape=img.shape, dtype=np.float32)
     tensor2 = Tensor(data2)
 
-    request = exec_net.create_infer_request()
-    with pytest.raises(TypeError) as e:
-        request.infer({0: tensor, "fc_out": tensor2})
-    assert "incompatible function arguments!" in str(e.value)
+    request = model.create_infer_request()
+    res = request.infer({0: tensor2, "data": tensor})
+    assert np.argmax(res) == 2
 
 
 def test_infer_queue(device):

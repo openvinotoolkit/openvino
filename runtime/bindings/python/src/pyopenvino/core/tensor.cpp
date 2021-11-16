@@ -10,28 +10,13 @@
 #include "openvino/runtime/tensor.hpp"
 #include "pyopenvino/core/common.hpp"
 
-#define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
-
 namespace py = pybind11;
 
 void regclass_Tensor(py::module m) {
     py::class_<ov::runtime::Tensor, std::shared_ptr<ov::runtime::Tensor>> cls(m, "Tensor");
 
     cls.def(py::init([](py::array& array, bool shared_memory) {
-                auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
-                std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
-                if (shared_memory) {
-                    if (C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS)) {
-                        std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
-                        return ov::runtime::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
-                    } else {
-                        IE_THROW() << "Tensor with shared memory must be C contiguous!";
-                    }
-                }
-                array = py::module::import("numpy").attr("ascontiguousarray")(array).cast<py::array>();
-                auto tensor = ov::runtime::Tensor(type, shape);
-                std::memcpy(tensor.data(), array.data(0), array.nbytes());
-                return tensor;
+                return Common::tensor_from_numpy(array, shared_memory);
             }),
             py::arg("array"),
             py::arg("shared_memory") = false);

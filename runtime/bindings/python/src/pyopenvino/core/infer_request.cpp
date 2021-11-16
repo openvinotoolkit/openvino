@@ -20,6 +20,12 @@ namespace py = pybind11;
 
 void regclass_InferRequest(py::module m) {
     py::class_<InferRequestWrapper, std::shared_ptr<InferRequestWrapper>> cls(m, "InferRequest");
+
+    cls.def(py::init([](InferRequestWrapper& other) {
+                return other;
+            }),
+            py::arg("other"));
+
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const py::dict& inputs) {
@@ -51,22 +57,10 @@ void regclass_InferRequest(py::module m) {
         py::arg("inputs"));
 
     cls.def(
-        "_infer",
+        "infer",
         [](InferRequestWrapper& self, const py::dict& inputs) {
             // Update inputs if there are any
-            if (!inputs.empty()) {
-                if (py::isinstance<py::str>(inputs.begin()->first)) {
-                    auto inputs_map = Common::cast_to_tensor_name_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        self._request.set_tensor(input.first, input.second);
-                    }
-                } else if (py::isinstance<py::int_>(inputs.begin()->first)) {
-                    auto inputs_map = Common::cast_to_tensor_index_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        self._request.set_input_tensor(input.first, input.second);
-                    }
-                }
-            }
+            Common::set_request_tensors(self._request, inputs);
             // Call Infer function
             self._start_time = Time::now();
             self._request.infer();
@@ -80,23 +74,11 @@ void regclass_InferRequest(py::module m) {
         py::arg("inputs"));
 
     cls.def(
-        "_start_async",
+        "start_async",
         [](InferRequestWrapper& self, const py::dict& inputs, py::object& userdata) {
             // Update inputs if there are any
-            if (!inputs.empty()) {
-                if (py::isinstance<std::string>(inputs.begin()->first)) {
-                    auto inputs_map = Common::cast_to_tensor_name_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        self._request.set_tensor(input.first, input.second);
-                    }
-                } else if (py::isinstance<int>(inputs.begin()->first)) {
-                    auto inputs_map = Common::cast_to_tensor_index_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        self._request.set_input_tensor(input.first, input.second);
-                    }
-                }
-            }
-            if (userdata != py::none()) {
+            Common::set_request_tensors(self._request, inputs);
+            if (!userdata.is(py::none())) {
                 if (self.user_callback_defined) {
                     self.userdata = userdata;
                 } else {

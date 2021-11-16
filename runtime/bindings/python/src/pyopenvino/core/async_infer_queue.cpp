@@ -53,7 +53,6 @@ public:
         });
 
         return _idle_handles.front();
-        ;
     }
 
     void wait_all() {
@@ -135,7 +134,7 @@ void regclass_AsyncInferQueue(py::module m) {
             py::arg("jobs") = 0);
 
     cls.def(
-        "_start_async",
+        "start_async",
         [](AsyncInferQueue& self, const py::dict inputs, py::object userdata) {
             // getIdleRequestId function has an intention to block InferQueue
             // until there is at least one idle (free to use) InferRequest
@@ -144,19 +143,7 @@ void regclass_AsyncInferQueue(py::module m) {
             // Set new inputs label/id from user
             self._user_ids[handle] = userdata;
             // Update inputs if there are any
-            if (!inputs.empty()) {
-                if (py::isinstance<std::string>(inputs.begin()->first)) {
-                    auto inputs_map = Common::cast_to_tensor_name_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        self._requests[handle]._request.set_tensor(input.first, input.second);
-                    }
-                } else if (py::isinstance<int>(inputs.begin()->first)) {
-                    auto inputs_map = Common::cast_to_tensor_index_map(inputs);
-                    for (auto&& input : inputs_map) {
-                        self._requests[handle]._request.set_input_tensor(input.first, input.second);
-                    }
-                }
-            }
+            Common::set_request_tensors(self._requests[handle]._request, inputs);
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
                 py::gil_scoped_release release;
