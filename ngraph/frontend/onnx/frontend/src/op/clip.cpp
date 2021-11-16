@@ -9,6 +9,7 @@
 
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
+#include "ngraph/validation_util.hpp"
 #include "onnx_import/core/null_node.hpp"
 
 namespace ngraph {
@@ -36,19 +37,19 @@ OutputVector clip(const Node& node) {
     Output<ngraph::Node> max;
 
     // If second input is provided, assign to min input, otherwise set lowest
-    // numeric limit of double as min input.
+    // numeric limit of data type as min input.
     if (inputs.size() > 1 && !ngraph::op::is_null(inputs.at(1))) {
         min = inputs.at(1);
     } else {
-        min = builder::make_constant_from_double(data_type, Shape{}, std::numeric_limits<double>::lowest());
+        min = ngraph::get_constant_lowest_of_type(data_type);
     }
 
     // If third input is provided, assign to max input, otherwise set maximum
-    // numeric limit of double as max input.
+    // numeric limit of data type as max input.
     if (inputs.size() == 3 && !ngraph::op::is_null(inputs.at(2))) {
         max = inputs.at(2);
     } else {
-        max = builder::make_constant_from_double(data_type, Shape{}, std::numeric_limits<double>::max());
+        max = ngraph::get_constant_max_of_type(data_type);
     }
 
     const auto max_of_min_and_data = std::make_shared<default_opset::Maximum>(min, data);
