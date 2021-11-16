@@ -146,6 +146,7 @@ bool pivot_search(std::vector<pwl_t>& result,
                 return false;
             }
 
+            gnalog() << "Iteration_number: " << j << ", segments number: " << result.size() << '\n';
             return true;
         }
 
@@ -400,7 +401,7 @@ bool pwl_search(const DnnActivation& activation_type,
                         allowed_err_pct,
                         samples,
                         pwl,
-                        pwl_max_num_segments,
+                        std::min(PWL_MAX_NUM_SEGMENTS/2, pwl_max_num_segments),
                         max_iteration_number)) {
             return false;
         }
@@ -414,7 +415,7 @@ bool pwl_search(const DnnActivation& activation_type,
                         allowed_err_pct,
                         samples,
                         pwl2,
-                        pwl_max_num_segments,
+                        std::min(PWL_MAX_NUM_SEGMENTS/2, pwl_max_num_segments),
                         max_iteration_number)) {
             return false;
         }
@@ -474,52 +475,44 @@ bool pwl_search(const DnnActivation& activation_type,
         } else {
             double err_pct = 0;
             double err = 0;
-            int n_segments_lower = 1;
-            int n_segments_upper = 1;
+            int n_segments_lower = 2;
+            int n_segments_upper = 2;
             do {
-                int n_segments = std::min(n_segments_upper * 2, pwl_max_num_segments);
-                if (!pivot_search(pwl, activation_type, n_segments, l_bound, u_bound, threshold, err, max_iteration_number)) {
+                n_segments_lower = n_segments_upper;
+                n_segments_upper = std::min(n_segments_upper * 2, pwl_max_num_segments == 0 ? n_segments_upper * 2 : pwl_max_num_segments);
+                if (!pivot_search(pwl, activation_type, n_segments_upper - 1, l_bound, u_bound, threshold, err, max_iteration_number)) {
                     break;
                 }
-                n_segments_lower = n_segments_upper;
-                n_segments_upper = n_segments;
                 err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
             } while (n_segments_upper != pwl_max_num_segments && allowed_err_pct < err_pct);
 
-            int n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower) / 2;
-            std::pair<double, int> previous_good_result(err_pct, n_segments_mid);
-            while (std::abs(n_segments_lower - n_segments_upper) > 1) {
-                if (!pivot_search(pwl, activation_type, n_segments_mid, l_bound, u_bound, threshold, err, max_iteration_number)) {
-                    n_segments_upper = n_segments_mid;
+            int n_segments_mid = 0;
+            const double epsilon = 1e-10;
+            do {
+                auto new_n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower + 1) / 2;
+                if (n_segments_mid == new_n_segments_mid)
+                    break;
+
+                n_segments_mid = new_n_segments_mid;
+                if (!pivot_search(pwl, activation_type, n_segments_mid - 1, l_bound, u_bound, threshold, err, max_iteration_number)) {
+                    n_segments_upper = n_segments_mid - 1;
                     err_pct = std::numeric_limits<double>::max();
                 } else {
                     err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
-                    if (allowed_err_pct == err_pct) {
-                        n_segments_lower = n_segments_mid;
+                    if (std::abs(allowed_err_pct - err_pct) < epsilon) {
                         break;
                     } else if (allowed_err_pct < err_pct) {
-                        n_segments_lower = n_segments_mid;
+                        n_segments_lower = n_segments_mid + 1;
                     } else {
                         n_segments_upper = n_segments_mid;
                     }
-
-                    if ((allowed_err_pct == 0 || allowed_err_pct >= err_pct) &&
-                        std::abs(err_pct - allowed_err_pct) < std::abs(previous_good_result.first - allowed_err_pct)) {
-                        previous_good_result = std::make_pair(err_pct, n_segments_mid);
-                    }
                 }
+            } while (n_segments_lower <= n_segments_upper);
 
-                n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower) / 2;
-            }
-
-            if ((allowed_err_pct == 0 || allowed_err_pct < err_pct) && err_pct > previous_good_result.first) {
-                pivot_search(pwl, activation_type, previous_good_result.second, l_bound, u_bound, threshold, err, max_iteration_number);
-                err_pct = previous_good_result.first;
-                gnalog() << err_pct << " is the best err_pct for range [" << l_bound << ", " << u_bound <<
-                    "] and allowed_err_pct = " << allowed_err_pct << '\n';
-            }
-
-            if (n_segments_lower >= pwl_max_num_segments || (allowed_err_pct > 0 && allowed_err_pct < err_pct)) {
+            gnalog() << "n_segments_mid: " << n_segments_mid << " (" << pwl.size() << "), err_pct: " <<
+                err_pct << ", allowed_err_pct: " << allowed_err_pct << ", l_bound: " << l_bound << ", u_bound: " << u_bound << '\n';
+            if (pwl_max_num_segments > 0 && n_segments_mid > pwl_max_num_segments ||
+                allowed_err_pct > 0 && allowed_err_pct < err_pct && std::abs(allowed_err_pct - err_pct) >= epsilon) {
                 gnalog() << "Failed to converge in pwl_search!\n";
                 return false;
             }
@@ -672,7 +665,7 @@ void PwlDesignOpt(const DnnActivation activation_type,
             x_max = std::min(x_max, POW_DOMAIN);
 
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
-                auto maxError = pwlMaxErrorPercent > 0.015f? 0.015f: pwlMaxErrorPercent;
+                auto maxError = pwlMaxErrorPercent > 0.015f ? 0.015f : pwlMaxErrorPercent;
                 IE_ASSERT(pwl_search(activation_type,
                                      x_min,
                                      x_max,
