@@ -16,16 +16,7 @@ struct TopKParams {
     TopKParams(
         const Tensor& A, const Tensor& k, const int64_t axis,
         const op::v1::TopK::Mode mode, const op::v1::TopK::SortType sort,
-        const Tensor& result0, const Tensor& result1,
-        const std::string& testcaseName = "") :
-        A(A), k(k), axis(axis), mode(mode), sort(sort),
-        result0(result0), result1(result1), outIdx(0),
-        testcaseName(testcaseName) {}
-
-    TopKParams(
-        const Tensor& A, const Tensor& k, const int64_t axis,
-        const op::v1::TopK::Mode mode, const op::v1::TopK::SortType sort,
-        const Tensor& result0, const Tensor& result1, size_t outIdx,
+        const Tensor& result0, const Tensor& result1, const size_t outIdx,
         const std::string& testcaseName = "") :
         A(A), k(k), axis(axis), mode(mode), sort(sort),
         result0(result0), result1(result1), outIdx(outIdx),
@@ -291,6 +282,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
                 }
                 return expected_index;
             }({128, 5}, {128, 1000})),
+            0,
             "topk_max_sort_none"),
 
         TopKParams(
@@ -329,6 +321,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
                 }
                 return expected_index;
             }({128, 5})),
+            0,
             "topk_min_sort_none"),
 
         TopKParams(
@@ -363,6 +356,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
                 }
                 return expected_index;
             }({128, 5}, {128, 1000})),
+            0,
             "topk_max_sort_value"),
 
         TopKParams(
@@ -397,6 +391,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
                 }
                 return expected_index;
             }({128, 5})),
+            0,
             "topk_min_sort_value"),
 
         TopKParams(
@@ -435,6 +430,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
                 }
                 return expected_index;
             }({128, 5}, {128, 1000})),
+            0,
             "topk_max_sort_index"),
 
         TopKParams(
@@ -469,6 +465,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
                 }
                 return expected_index;
             }({128, 5})),
+            0,
             "topk_min_sort_index"),
 
         TopKParams(
@@ -479,6 +476,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
             op::v1::TopK::SortType::SORT_VALUES,
             Tensor(ET, {3}, std::vector<T>{5, 4, 3}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{3, 4, 0}),
+            0,
             "topk_mode_sort_order"),
 
         TopKParams(
@@ -489,6 +487,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
             op::v1::TopK::SortType::SORT_INDICES,
             Tensor(ET, {3}, std::vector<T>{3, 5, 4}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 3, 4}),
+            0,
             "topk_mode_sort_order_1"),
 
         TopKParams(
@@ -499,6 +498,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
             op::v1::TopK::SortType::SORT_VALUES,
             Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{1, 2, 0}),
+            0,
             "topk_mode_sort_order_2"),
 
         TopKParams(
@@ -509,6 +509,7 @@ std::vector<TopKParams> generateParamsMaxMinSort() {
             op::v1::TopK::SortType::SORT_INDICES,
             Tensor(ET, {3}, std::vector<T>{3, 1, 2}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 1, 2}),
+            0,
             "topk_mode_sort_order_3"),
     };
     return params;
@@ -580,6 +581,7 @@ std::vector<TopKParams> generateParamsV3() {
             op::v1::TopK::SortType::SORT_VALUES,
             Tensor(ET, {3}, std::vector<T>{5, 4, 3}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{3, 4, 0}),
+            0,
             "topk_mode_sort_order"),
 
         TopKParams(
@@ -590,6 +592,7 @@ std::vector<TopKParams> generateParamsV3() {
             op::v1::TopK::SortType::SORT_INDICES,
             Tensor(ET, {3}, std::vector<T>{3, 5, 4}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 3, 4}),
+            0,
             "topk_mode_sort_order_1"),
 
         TopKParams(
@@ -600,6 +603,7 @@ std::vector<TopKParams> generateParamsV3() {
             op::v1::TopK::SortType::SORT_VALUES,
             Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{1, 2, 0}),
+            0,
             "topk_mode_sort_order_2"),
 
         TopKParams(
@@ -610,6 +614,7 @@ std::vector<TopKParams> generateParamsV3() {
             op::v1::TopK::SortType::SORT_INDICES,
             Tensor(ET, {3}, std::vector<T>{3, 1, 2}),
             Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 1, 2}),
+            0,
             "topk_mode_sort_order_3"),
     };
     return params;
@@ -1497,6 +1502,7 @@ std::vector<TopKParams> generateParamsSingleOutput() {
             op::v1::TopK::SortType::SORT_VALUES,
             Tensor(ET, {2, 2, 2}, std::vector<T>{}),
             Tensor(ET_OUT, {2, 2, 2}, std::vector<T_OUT>{2, 0, 1, 2, 1, 0, 0, 1}),
+            0,
             "topk_3d_single_output"),
     };
     return params;
