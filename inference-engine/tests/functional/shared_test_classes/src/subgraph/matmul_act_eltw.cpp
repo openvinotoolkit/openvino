@@ -42,7 +42,6 @@ void MatMulActEltwTest::SetUp() {
     auto tanh = std::make_shared<ngraph::op::Tanh>(matmul);
     auto eltw = std::make_shared<ngraph::opset8::Add>(matmul, tanh);
     auto res = std::make_shared<ngraph::op::Result>(eltw);
-    // ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(relu), std::make_shared<ngraph::op::Result>(relu)};
     function = std::make_shared<ngraph::Function>(res, params, "MatMul_Act_Eltw");
 }
 } // namespace SubgraphTestsDefinitions
