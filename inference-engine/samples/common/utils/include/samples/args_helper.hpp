@@ -38,3 +38,4 @@ void processLayout(InferenceEngine::CNNNetwork& network,
                    const std::string& iol);
 
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network);
+void printInputAndOutputsInfo(const ov::Function& network);
