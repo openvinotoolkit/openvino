@@ -49,7 +49,8 @@ void shape_infer(GatherBase* op,
     }
     int64_t batch_dims = op->get_batch_dims();
     if (indices_rank.is_static()) {
-        batch_dims = ov::normalize_axis(op, batch_dims, indices_rank);
+        const auto indices_rank_value = indices_rank.get_length();
+        batch_dims = ov::normalize_axis(op, batch_dims, indices_rank_value, -indices_rank_value, indices_rank_value);
     }
 
     std::vector<int64_t> axes_val;
