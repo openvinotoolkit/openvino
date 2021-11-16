@@ -40,17 +40,16 @@ target_compile_definitions(ngraph_backend
 )
 target_link_libraries(ngraph_backend PUBLIC ngraph
                                             ngraph::builder
-                                            ngraph::reference)
-if (NOT WIN32)
-    target_link_libraries(ngraph_backend PRIVATE ${CMAKE_DL_LIBS})
-endif()
-target_include_directories(ngraph_backend PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+                                            ngraph::reference
+                                     PRIVATE ${CMAKE_DL_LIBS})
 
+target_include_directories(ngraph_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+
+# used by Python API tests and dynamic libraries
 install(TARGETS ngraph_backend
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
-if(NOT BUILD_SHARED_LIBS)
+if(NOT BUILD_SHARED_LIBS AND WIN32)
     install(TARGETS ngraph_backend
             RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
             LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
