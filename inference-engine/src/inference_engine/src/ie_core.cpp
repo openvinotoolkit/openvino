@@ -550,11 +550,18 @@ public:
             auto optimalBatchSize = GetCPPPluginByName(DeviceIDParser(deviceNameOrig).getDeviceName())
                                         .get_metric(METRIC_KEY(OPTIMAL_BATCH), options)
                                         .as<unsigned int>();
-            const auto& reqs = config.find(KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-            if (reqs != config.end()) {
-                auto r = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
-                std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << r << std::endl;
-                optimalBatchSize = std::min(r, optimalBatchSize);
+            unsigned int requests = 0;
+            try {
+                auto res = GetConfig(deviceNameOrig, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
+                requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
+            } catch (...) {
+            }
+            const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+            if (reqs != config.end())
+                requests = (unsigned int)PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second);
+            if (requests) {
+                std::cout << "!!!!!!!!!!!!!!!Detected reqs_limitation: " << requests << std::endl;
+                optimalBatchSize = std::min(requests, optimalBatchSize);
             }
             auto function = network.getFunction();
             bool bDetectionOutput = false;
