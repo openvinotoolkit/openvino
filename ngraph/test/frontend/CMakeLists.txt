@@ -27,7 +27,7 @@ add_dependencies(unit-test mock1_ngraph_frontend)
 
 add_clang_format_target(mock1_ngraph_frontend_clang FOR_TARGETS mock1_ngraph_frontend)
 
-if(BUILD_SHARED_LIBS)
+if(BUILD_SHARED_LIBS OR NOT WIN32)
     install(TARGETS mock1_ngraph_frontend
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)

@@ -38,18 +38,16 @@ target_compile_definitions(ngraph_backend
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(ngraph_backend PUBLIC ngraph
-                                            ngraph::builder
-                                            ngraph::reference
-                                     PRIVATE ${CMAKE_DL_LIBS})
+target_link_libraries(ngraph_backend PUBLIC ngraph ngraph::builder ngraph::reference
+                                     PRIVATE ${CMAKE_DL_LIBS} openvino::util)
 
 target_include_directories(ngraph_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
-# used by Python API tests and dynamic libraries
-install(TARGETS ngraph_backend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
-if(NOT BUILD_SHARED_LIBS AND WIN32)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ngraph_backend
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+else()
     install(TARGETS ngraph_backend
             RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
             LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

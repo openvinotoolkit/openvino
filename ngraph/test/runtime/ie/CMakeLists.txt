@@ -28,11 +28,11 @@ endif()
 add_dependencies(ie_backend inference_engine)
 target_link_libraries(ie_backend PUBLIC ngraph_backend inference_engine)
 
-# used by Python API tests and dynamic libraries
-install(TARGETS ie_backend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
-if(NOT BUILD_SHARED_LIBS AND WIN32)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ie_backend
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+else()
     install(TARGETS ie_backend
             RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
             LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
