@@ -3,12 +3,12 @@
 //
 
 #include <ngraph/opsets/opset6.hpp>
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <node_context.hpp>
 #include "default_opset.hpp"
 #include <iostream>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
