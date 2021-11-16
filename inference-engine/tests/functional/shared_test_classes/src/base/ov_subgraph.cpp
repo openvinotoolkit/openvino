@@ -12,8 +12,6 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/core/preprocess/pre_post_process.hpp"
-#include "ngraph/op/convert.hpp"
 
 #include "graph_comparator.hpp"
 
@@ -190,7 +188,7 @@ void SubgraphBaseTest::infer() {
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     using namespace ov::preprocess;
-    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
+//    using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
 
     auto functionToProcess = ov::clone_function(*functionRefs);
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16 precisions
@@ -198,34 +196,34 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 
-    PrePostProcessor prePostProc;
-    const auto& inputNodes = functionToProcess->inputs();
-    for (size_t i = 0; i < inputNodes.size(); ++i) {
-        auto itr = std::find_if(inputs.begin(), inputs.end(),
-                                [&](const InputsMap::value_type& item) {
-                                    return item.first->get_friendly_name() == inputNodes[i].get_node_shared_ptr()->get_friendly_name();
-                                });
-        if (itr != inputs.end()) {
-            auto elementType = itr->second.get_element_type();
-            if (inputNodes[i].get_element_type() != elementType) {
-                prePostProc.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(elementType)));
-            }
-        } else {
-            std::stringstream errMsg;
-            errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
-            errMsg << " in the inputs map";
-            throw std::runtime_error(errMsg.str());
-        }
-    }
-
-    const auto& outputs = functionToProcess->outputs();
-    for (size_t i = 0; i < outputs.size(); ++i) {
-        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
-            prePostProc.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(outType)));
-        }
-    }
-
-    functionToProcess = prePostProc.build(functionToProcess);
+//    PrePostProcessor prePostProc;
+//    const auto& inputNodes = functionToProcess->inputs();
+//    for (size_t i = 0; i < inputNodes.size(); ++i) {
+//        auto itr = std::find_if(inputs.begin(), inputs.end(),
+//                                [&](const InputsMap::value_type& item) {
+//                                    return item.first->get_friendly_name() == inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+//                                });
+//        if (itr != inputs.end()) {
+//            auto elementType = itr->second.get_element_type();
+//            if (inputNodes[i].get_element_type() != elementType) {
+//                prePostProc.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(elementType)));
+//            }
+//        } else {
+//            std::stringstream errMsg;
+//            errMsg << "Couldn't find input with name " << inputNodes[i].get_node_shared_ptr()->get_friendly_name();
+//            errMsg << " in the inputs map";
+//            throw std::runtime_error(errMsg.str());
+//        }
+//    }
+//
+//    const auto& outputs = functionToProcess->outputs();
+//    for (size_t i = 0; i < outputs.size(); ++i) {
+//        if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
+//            prePostProc.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(outType)));
+//        }
+//    }
+//
+//    functionToProcess = prePostProc.build(functionToProcess);
 
     return ngraph::helpers::interpretFunction(functionToProcess, inputs);
 }
