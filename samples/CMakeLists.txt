@@ -2,6 +2,27 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+add_subdirectory(cpp)
+
+# TODO: remove this
+foreach(sample benchmark_app classification_sample_async hello_classification
+                hello_nv12_input_classification hello_query_device hello_reshape_ssd
+                ngraph_function_creation_sample object_detection_sample_ssd
+                speech_sample style_transfer_sample)
+    if(TARGET ${sample})
+        install(TARGETS ${sample}
+                RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    endif()
+endforeach()
+
+if(TARGET format_reader)
+    install(TARGETS format_reader
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
+
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader ie_samples_utils)
+
 add_subdirectory(c)
 
 # TODO: remove this
@@ -17,6 +38,31 @@ if(TARGET opencv_c_wrapper)
     install(TARGETS opencv_c_wrapper
             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+endif()
+#
+# Install
+#
+
+# install C++ samples
+
+ie_cpack_add_component(cpp_samples DEPENDS cpp_samples_deps core)
+
+if(UNIX)
+    install(DIRECTORY samples/
+            DESTINATION samples/cpp
+            COMPONENT cpp_samples
+            USE_SOURCE_PERMISSIONS
+            PATTERN *.bat EXCLUDE
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
+elseif(WIN32)
+    install(DIRECTORY samples/
+            DESTINATION samples/cpp
+            COMPONENT cpp_samples
+            USE_SOURCE_PERMISSIONS
+            PATTERN *.sh EXCLUDE
+            PATTERN speech_libs_and_demos EXCLUDE
+            PATTERN .clang-format EXCLUDE)
 endif()
 
 # install C samples
