@@ -68,7 +68,7 @@ std::vector<SliceSpecificParams> test_cases = {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-        smoke_MKLDNN, SliceLayerTest,
+        smoke_CompareWithRefs, SliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(test_cases),
             ::testing::ValuesIn(inputPrecision),
@@ -76,7 +76,7 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
             ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(InferenceEngine::Layout::ANY),
-            ::testing::Values(CommonTestUtils::DEVICE_CPU),
+            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
             ::testing::Values(std::map<std::string, std::string>())),
         SliceLayerTest::getTestCaseName);
 
