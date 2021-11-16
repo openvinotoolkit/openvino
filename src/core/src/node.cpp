@@ -689,8 +689,7 @@ inline ngraph::HostTensorVector create_tmp_tensors(const ov::runtime::TensorVect
     ngraph::HostTensorVector result;
     result.reserve(tensors.size());
     for (const auto& tensor : tensors) {
-        if (!tensor || tensor.get_element_type().is_dynamic() ||
-            ((tensor.get_shape() == ov::Shape{0}) && (!tensor.get_constant_flag()))) {
+        if (!tensor || tensor.get_shape() == ov::Shape{0}) {
             auto el_type = ov::element::dynamic;
             if (tensor)
                 el_type = tensor.get_element_type();
@@ -793,41 +792,26 @@ bool ov::Node::constant_fold(OutputVector& output_values, const OutputVector& in
     if (!all_constants)
         return false;
 
-    ov::runtime::TensorVector input_tensors;
+    HostTensorVector input_tensors;
     for (const auto& input : input_values) {
-        auto constant_node = ov::as_type<ngraph::op::v0::Constant>(input.get_node());
-        if (constant_node) {
-            auto host_tensor = ov::runtime::Tensor(constant_node->get_element_type(),
-                                                   constant_node->get_shape(),
-                                                   const_cast<void*>(constant_node->get_data_ptr()));
-            if (constant_node->get_shape() == ov::Shape{0})
-                host_tensor.set_constant_flag(true);
-
-            input_tensors.emplace_back(host_tensor);
-        }
+        auto host_tensor = make_shared<ngraph::runtime::HostTensor>(
+            ov::as_type_ptr<ngraph::op::v0::Constant>(input.get_node_shared_ptr()));
+        input_tensors.push_back(host_tensor);
     }
-
-    ov::runtime::TensorVector output_tensors;
+    HostTensorVector output_tensors;
+    OutputVector output_constants;
     for (const auto& output : outputs()) {
-        if (output.get_partial_shape().is_dynamic() || output.get_element_type().is_dynamic() ||
-            output.get_partial_shape().rank().is_dynamic()) {
-            auto host_tensor = ov::runtime::Tensor();
-            output_tensors.emplace_back(host_tensor);
-        } else {
-            auto host_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape());
-            output_tensors.emplace_back(host_tensor);
-        }
+        auto tensor = make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());
+        output_tensors.push_back(tensor);
     }
-
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (evaluate(output_tensors, input_tensors)) {
         for (size_t i = 0; i < output_tensors.size(); ++i) {
-            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i].get_element_type(),
-                                                                 output_tensors[i].get_shape(),
-                                                                 output_tensors[i].data());
+            output_values[i] = make_shared<ngraph::op::Constant>(output_tensors[i]);
         }
         return true;
     }
-
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

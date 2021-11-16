@@ -29,8 +29,7 @@ Tensor::Tensor(const std::shared_ptr<void>& so, const std::shared_ptr<ie::Blob>&
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 
-Tensor::Tensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
-    : m_constant_flag(false) {
+Tensor::Tensor(const element::Type element_type, const Shape& shape, const Allocator& allocator) {
     OPENVINO_ASSERT(allocator, "Allocator was not initialized");
     auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
     auto blob_allocator =
@@ -41,8 +40,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, const Alloc
     _impl->allocate();
 }
 
-Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_ptr, const Strides& byte_strides)
-    : m_constant_flag(false) {
+Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_ptr, const Strides& byte_strides) {
     ie::SizeVector blk_order(shape.size());
     std::iota(blk_order.begin(), blk_order.end(), 0);
     ie::SizeVector dim_offset(shape.size(), 0);
@@ -160,14 +158,6 @@ bool Tensor::operator!() const noexcept {
 
 Tensor::operator bool() const noexcept {
     return (!!_impl);
-}
-
-void Tensor::set_constant_flag(const bool& constant_flag) {
-    m_constant_flag = constant_flag;
-}
-
-bool Tensor::get_constant_flag() const {
-    return m_constant_flag;
 }
 
 }  // namespace runtime
