@@ -84,7 +84,8 @@ def set_node_value(node: Node, value: np.ndarray):
       """
     if node.type != 'Const':
         raise Exception('Can\'t set value for non-constant node {}'.format(node.name))
-    node.out_port(0).data.set_value(value)
+    destination_type = node.out_port(0).get_destination().get_data_type()
+    node.out_port(0).data.set_value(np.array(value).astype(destination_type))
 
 
 def get_node_value(node: Node):

@@ -5,6 +5,7 @@ from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
     SpecialBlocksMarker, FakeQuantizeNameSwapper
 from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params
+from mo.middle.passes.infer import type_infer
 
 
 class GraphTransformer:
@@ -41,6 +42,8 @@ class GraphTransformer:
     def _insert_fake_quantize(self, graph):
         if self.fq_insertion.ignored_params['skip_model']:
             return graph
+
+        type_infer(graph)
 
         self.nodes_marker.mark_ignored_blocks(graph, self.target_device)
         graph.clean_up()
