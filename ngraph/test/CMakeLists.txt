@@ -286,6 +286,8 @@ set(SRC
     visitors/op/convolution.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_greedy_decoder.cpp
+    visitors/op/ctc_greedy_decoder_seq_len.cpp
     visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
@@ -304,6 +306,7 @@ set(SRC
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -482,10 +485,7 @@ set(MULTI_TEST_SRC
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/concat.in.cpp
-    backend/ctc_greedy_decoder.in.cpp
-    backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/experimental_detectron_topk_rois.in.cpp
     backend/dynamic.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
@@ -496,8 +496,6 @@ set(MULTI_TEST_SRC
     backend/multiple_result.in.cpp
     backend/node_name.in.cpp
     backend/non_max_suppression.in.cpp
-    backend/one_hot.in.cpp
-    backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
     backend/tile.in.cpp
