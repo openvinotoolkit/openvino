@@ -16,6 +16,7 @@ primitive_type_id space_to_depth::type_id() {
 }
 
 layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node) {
+    // test
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();
