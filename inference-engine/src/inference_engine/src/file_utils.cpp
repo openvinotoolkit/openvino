@@ -101,7 +101,21 @@ static std::string getIELibraryPathA() {
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring getIELibraryPathW() {
-    return ov::util::get_ov_lib_path_w();
+#    ifdef _WIN32
+    WCHAR ie_library_path[MAX_PATH];
+    HMODULE hm = NULL;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(getIELibraryPath),
+                            &hm)) {
+        IE_THROW() << "GetModuleHandle returned " << GetLastError();
+    }
+    GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
+    return getPathName(std::wstring(ie_library_path));
+#    elif defined(__linux__) || defined(__APPLE__)
+    return ::ov::util::string_to_wstring(getIELibraryPathA().c_str());
+#    else
+#        error "Unsupported OS"
+#    endif
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
