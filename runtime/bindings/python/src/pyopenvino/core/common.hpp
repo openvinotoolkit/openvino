@@ -40,7 +40,5 @@ namespace Common
 
     PyObject* parse_parameter(const InferenceEngine::Parameter& param);
 
-    PyObject* parse_parameter(const InferenceEngine::Parameter& param);
-
     uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
 }; // namespace Common

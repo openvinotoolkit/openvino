@@ -278,5 +278,5 @@ def test_infer_tensor_wrong_input_data(device):
     tensor = Tensor(img, shared_memory=True)
     exec_net = ie.compile_model(func, device)
     with pytest.raises(TypeError) as e:
-        exec_net.infer_new_request({4.5: tensor})
-    assert "Incompatible key type for tensor named: 4.5" in str(e.value)
+        exec_net.infer_new_request({0.: tensor})
+    assert "Incompatible key type for tensor named: 0." in str(e.value)

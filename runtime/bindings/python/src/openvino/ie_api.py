@@ -22,7 +22,7 @@ def tensor_from_file(path: str) -> Tensor:
 
 def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
     """Normalize a dictionary of inputs to Tensors."""
-    for k, v in py_dict.items():
+    for k, val in py_dict.items():
         try:
             if isinstance(k, int):
                 ov_type = list(py_types.values())[k]
@@ -32,7 +32,7 @@ def normalize_inputs(py_dict: dict, py_types: dict) -> dict:
                 raise TypeError("Incompatible key type for tensor named: {}".format(k))
         except KeyError:
             raise KeyError("Port for tensor named {} was not found!".format(k))
-        py_dict[k] = v if isinstance(v, Tensor) else Tensor(np.array(v, get_dtype(ov_type)))
+        py_dict[k] = val if isinstance(val, Tensor) else Tensor(np.array(val, get_dtype(ov_type)))
     return py_dict
 
 

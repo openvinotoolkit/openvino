@@ -164,18 +164,17 @@ def test_infer_mixed_keys(device):
     core = Core()
     func = core.read_model(test_net_xml, test_net_bin)
     core.set_config({"PERF_COUNT": "YES"}, device)
-    exec_net = core.compile_model(func, device)
+    model = core.compile_model(func, device)
 
     img = read_image()
     tensor = Tensor(img)
 
-    data2 = np.ones(shape=(1, 10), dtype=np.float32)
+    data2 = np.ones(shape=img.shape, dtype=np.float32)
     tensor2 = Tensor(data2)
 
-    request = exec_net.create_infer_request()
-    with pytest.raises(KeyError) as e:
-        request.infer({0: tensor, "fc_out": tensor2})
-    assert "Port for tensor named fc_out was not found!" in str(e.value)
+    request = model.create_infer_request()
+    res = request.infer({0: tensor2, "data": tensor})
+    assert np.argmax(res) == 2
 
 
 def test_infer_queue(device):
