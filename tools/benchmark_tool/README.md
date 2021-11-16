@@ -3,7 +3,7 @@
 This topic demonstrates how to run the Benchmark Python* Tool, which performs inference using convolutional networks.
 Performance can be measured for two inference modes: latency- and throughput-oriented.
 
-> **NOTE:** This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../inference-engine/samples/benchmark_app/README.md).
+> **NOTE:** This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md).
 
 > **TIP**: You can quick start with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) (DL Workbench).
 > [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is the OpenVINO™ toolkit UI you to 
