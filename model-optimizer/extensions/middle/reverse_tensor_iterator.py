@@ -19,6 +19,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
     """
 
     enabled = True
+    force_clean_up = True
 
     def run_after(self):
         return [
@@ -67,15 +68,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
             nodes=[
                 ('input', dict(kind='data')),
 
-                ('shapeof', dict(op='ShapeOf')),
-                ('shapeof_d', dict(kind='data')),
-                ('gather_batch', dict(op='Gather')),
-                ('gather_batch_d', dict(kind='data')),
-                ('gather_seq', dict(op='Gather')),
-                ('gather_seq_d', dict(kind='data')),
-                ('broadcast', dict(op='Broadcast')),
-                ('broadcast_d', dict(kind='data')),
-
+                ('direct_seq_len_d', dict(kind='data')),
                 ('direct_reverse', dict(op='ReverseSequence')),
                 ('input_reversed', dict(kind='data')),
                 ('init_hidden', dict(kind='data')),
@@ -83,27 +76,13 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                 ('ti', dict(kind='op', op='TensorIterator')),
                 ('output_reversed', dict(kind='data')),
 
-                ('shapeof_1', dict(op='ShapeOf')),
-                ('shapeof_1_d', dict(kind='data')),
-                ('gather_batch_1', dict(op='Gather')),
-                ('gather_batch_1_d', dict(kind='data')),
-                ('gather_seq_1', dict(op='Gather')),
-                ('gather_seq_1_d', dict(kind='data')),
-                ('broadcast_1', dict(op='Broadcast')),
-                ('broadcast_1_d', dict(kind='data')),
-
+                ('inverse_seq_len_d', dict(kind='data')),
                 ('inverse_reverse', dict(op='ReverseSequence')),
                 ('output', dict(kind='data')),
             ],
             edges=[
                 ('input', 'direct_reverse', {'in': 0}),
-                ('input', 'shapeof'), ('shapeof', 'shapeof_d'),
-                ('shapeof_d', 'gather_batch'), ('shapeof_d', 'gather_seq'),
-                ('gather_batch', 'gather_batch_d'), ('gather_seq', 'gather_seq_d'),
-                ('gather_seq_d', 'broadcast', {'in': 0}),
-                ('gather_batch_d', 'broadcast', {'in': 1}),
-                ('broadcast', 'broadcast_d'),
-                ('broadcast_d', 'direct_reverse', {'in': 1}),
+                ('direct_seq_len_d', 'direct_reverse', {'in': 1}),
                 ('direct_reverse', 'input_reversed'),
 
                 ('input_reversed', 'ti', {'in': 0}),
@@ -111,13 +90,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                 ('ti', 'output_reversed', {'out': 0}),
 
                 ('output_reversed', 'inverse_reverse', {'in': 0}),
-                ('output_reversed', 'shapeof_1'), ('shapeof_1', 'shapeof_1_d'),
-                ('shapeof_1_d', 'gather_batch_1'), ('shapeof_1_d', 'gather_seq_1'),
-                ('gather_batch_1', 'gather_batch_1_d'), ('gather_seq_1', 'gather_seq_1_d'),
-                ('gather_seq_1_d', 'broadcast_1', {'in': 0}),
-                ('gather_batch_1_d', 'broadcast_1', {'in': 1}),
-                ('broadcast_1', 'broadcast_1_d'),
-                ('broadcast_1_d', 'inverse_reverse', {'in': 1}),
+                ('inverse_seq_len_d', 'inverse_reverse', {'in': 1}),
                 ('inverse_reverse', 'output'),
             ]
         )
@@ -153,6 +126,9 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                         port['start'] = None
                         port['end'] = None
 
+        # disconnect subgraph for seg length calculation
+        direct_reverse.in_port(1).disconnect()
+        inverse_reverse.in_port(1).disconnect()
         # Remove reverses
         remove_op_node_with_data_node(graph, direct_reverse)
         remove_op_node_with_data_node(graph, inverse_reverse)
