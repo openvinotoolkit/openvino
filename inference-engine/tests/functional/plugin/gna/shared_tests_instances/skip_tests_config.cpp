@@ -58,6 +58,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(CanCreateTwoExeNetworksAndCheckFunction).*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*(checkGetExecGraphInfoIsNotNullptr).*)",
+        // Not implemented yet (dynamic cases)
+        R"(.*Behavior.*OVInferenceChaining.*(StaticOutputToDynamicInput).*)",
+        R"(.*Behavior.*OVInferenceChaining.*(DynamicOutputToDynamicInput).*)",
+        R"(.*Behavior.*OVInferenceChaining.*(DynamicInputToDynamicOutput).*)",
+        R"(.*Behavior.*OVInferRequestDynamicTests.*)",
         // Not expected behavior
         R"(.*Behavior.*ExecNetSetPrecision.*canSetInputPrecisionForNetwork.*FP16.*)",
         R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
@@ -78,5 +83,9 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue:27391
         // TODO: Issue:28036
         R"(.*ActivationLayerGNATest.*(Log|Exp).*netPRC=(FP16|FP32).*)",
+        // TODO: Issue: CVS-71068
+        R"(.*OVInferRequestCancellationTests.*)",
+        // TODO: Issue: CVS-71070
+        R"(.*OVInferenceChaining.*(StaticOutputToStaticInput).*)"
     };
 }
