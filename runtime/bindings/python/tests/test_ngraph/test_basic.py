@@ -12,7 +12,7 @@ import openvino as ov
 from openvino.pyopenvino import VariantInt, VariantString
 
 from openvino.exceptions import UserInputError
-from openvino.impl import Function, PartialShape, Shape, Type
+from openvino.impl import Function, PartialShape, Shape, Type, layout_helpers
 from openvino.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -538,3 +538,56 @@ def test_layout():
     layout = ov.Layout("N...C")
     assert layout == "N...C"
     assert layout != "NC?"
+
+
+def test_layout_helpers():
+    layout = ov.Layout("NCHWD")
+    assert(layout_helpers.has_batch(layout))
+    assert(layout_helpers.has_channels(layout))
+    assert(layout_helpers.has_depth(layout))
+    assert(layout_helpers.has_height(layout))
+    assert(layout_helpers.has_width(layout))
+
+    assert layout_helpers.batch_idx(layout) == 0
+    assert layout_helpers.channels_idx(layout) == 1
+    assert layout_helpers.height_idx(layout) == 2
+    assert layout_helpers.width_idx(layout) == 3
+    assert layout_helpers.depth_idx(layout) == 4
+
+    layout = ov.Layout("N...C")
+    assert(layout_helpers.has_batch(layout))
+    assert(layout_helpers.has_channels(layout))
+    assert not(layout_helpers.has_depth(layout))
+    assert not(layout_helpers.has_height(layout))
+    assert not (layout_helpers.has_width(layout))
+
+    assert layout_helpers.batch_idx(layout) == 0
+    assert layout_helpers.channels_idx(layout) == -1
+
+    with pytest.raises(RuntimeError):
+        layout_helpers.height_idx(layout)
+
+    with pytest.raises(RuntimeError):
+        layout_helpers.width_idx(layout)
+
+    with pytest.raises(RuntimeError):
+        layout_helpers.depth_idx(layout)
+
+    layout = ov.Layout("NC?")
+    assert(layout_helpers.has_batch(layout))
+    assert(layout_helpers.has_channels(layout))
+    assert not(layout_helpers.has_depth(layout))
+    assert not(layout_helpers.has_height(layout))
+    assert not (layout_helpers.has_width(layout))
+
+    assert layout_helpers.batch_idx(layout) == 0
+    assert layout_helpers.channels_idx(layout) == 1
+
+    with pytest.raises(RuntimeError):
+        layout_helpers.height_idx(layout)
+
+    with pytest.raises(RuntimeError):
+        layout_helpers.width_idx(layout)
+
+    with pytest.raises(RuntimeError):
+        layout_helpers.depth_idx(layout)
