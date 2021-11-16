@@ -16,7 +16,6 @@ namespace MKLDNNPlugin {
 class MKLDNNBroadcastNode : public MKLDNNNode, public TileBroadcastCommon {
 public:
     MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNBroadcastNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -51,7 +50,6 @@ private:
     // TODO: make shapeInfer not constant?
     mutable std::vector<int32_t> targetShape;
     mutable std::vector<int32_t> axesMapping;
-    mutable bool needPrepareParamsVar = false;
 
     std::string errorPrefix;
 };

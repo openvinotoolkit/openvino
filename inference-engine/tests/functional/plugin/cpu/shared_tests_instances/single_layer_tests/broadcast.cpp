@@ -14,7 +14,15 @@ namespace {
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::BF16,
-        InferenceEngine::Precision::I8
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::I8,
+        InferenceEngine::Precision::U8
+};
+
+const std::vector<InferenceEngine::Precision> inputTPrecisions = {
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::BOOL
 };
 
 // NUMPY MODE //////////////////////////////////////////
@@ -39,6 +47,16 @@ const auto numpyBroadcast1DInputParams = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D, BroadcastLayerTest, numpyBroadcast1DInputParams, BroadcastLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
+        ::testing::Combine(
+            ::testing::Values(targetShapesNumpy1D[0]),
+            ::testing::Values(ngraph::AxisSet{}), //not used in numpy mode
+            ::testing::Values(ngraph::op::BroadcastType::NUMPY),
+            ::testing::Values(std::vector<size_t>{1}),
+            ::testing::ValuesIn(inputTPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        BroadcastLayerTest::getTestCaseName);
 
 // 2D
 std::vector<std::vector<size_t>> targetShapesNumpy2D = {

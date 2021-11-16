@@ -10,13 +10,16 @@ using namespace MKLDNNPlugin;
 
 bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
-                ov::op::v0::Tile::get_type_info_static())) {
+        if (!ov::is_type<ov::op::v0::Tile>(op)) {
             errorMessage = "Only opset1 Tile operation is supported.";
             return false;
         }
+        if (op->get_input_partial_shape(TILE_REPEATS).is_dynamic()) {
+            errorMessage = "Only constant shape is supported for tile repeats input.";
+            return false;
+        }
         if (!isDynamicNgraphNode(op) &&
-                op->get_input_node_ptr(TILE_REPEATS)->get_type_info() != ov::op::v0::Constant::get_type_info_static()) {
+                !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
             errorMessage = "Only constant 'Repeats' input is supported with static shapes.";
             return false;
         }
@@ -35,7 +38,7 @@ MKLDNNTileNode::MKLDNNTileNode(const std::shared_ptr<ov::Node>& op, const mkldnn
 
     errorPrefix = "Tile node with name '" + getName() + "'";
 
-    if (op->get_input_node_ptr(TILE_REPEATS)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
+    if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))) {
         constMap[TILE_REPEATS] = true;
         repeats = originRepeats = ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
         while (repeats.size() < getInputShapeAtPort(TILE_INPUT).getRank()) {
@@ -51,19 +54,23 @@ void MKLDNNTileNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << " has no output edges.";
     const auto& dstDims0 = getOutputShapeAtPort(0).getDims();
-    for (size_t i = 1; i < getChildEdges().size(); i++) {
+    for (size_t i = 1lu; i < outputShapes.size(); i++) {
         const auto& dstDims = getOutputShapeAtPort(i).getDims();
         if (dstDims.size() != dstDims0.size())
-            IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks.";
+            IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims.";
+                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: "
+                        << std::string(dstDims0.begin(), dstDims0.end()) << " and " << std::string(dstDims.begin(), dstDims.end());
             }
         }
     }
     if (constMap[TILE_REPEATS] && getInputShapeAtPort(TILE_INPUT).getRank() > getOutputShapeAtPort(0).getRank())
         IE_THROW() << errorPrefix << " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
                 "Actual input shape size: " << getInputShapeAtPort(TILE_INPUT).getRank() << ", output shape size: " << getOutputShapeAtPort(0).getRank();
+
+    if (!isDynamicNode())
+        needPrepareParamsVar = true;
 }
 
 void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
@@ -74,7 +81,6 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNTileNode::createPrimitive() {
-std::cout << "MKLDNNTileNode::createPrimitive" << std::endl;
     if (inputShapesDefined()) {
         if (needPrepareParams())
             prepareParams();
@@ -83,37 +89,10 @@ std::cout << "MKLDNNTileNode::createPrimitive" << std::endl;
 }
 
 bool MKLDNNTileNode::needPrepareParams() const {
-std::cout << "MKLDNNTileNode::needPrepareParams" << std::endl;
-    return MKLDNNNode::needPrepareParams();
+    return needPrepareParamsVar;
 }
 
 void MKLDNNTileNode::prepareParams() {
-std::cout << "MKLDNNTileNode::prepareParams" << std::endl;
-    auto srcBlockedDims = getParentEdgeAt(TILE_INPUT)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-
-    optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
-}
-
-bool MKLDNNTileNode::needShapeInfer() const {
-std::cout << "MKLDNNTileNode::needShapeInfer" << std::endl;
-    if (inputShapesModified()) {
-        return true;
-    }
-    if (!constMap[TILE_REPEATS]) {
-        if (originRepeats.empty())
-            return true;
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr());
-        for (size_t i = 0lu; i < originRepeats.size(); i++) {
-            if (originRepeats[i] != repeatsData[i])
-                return true;
-        }
-    }
-    return false;
-}
-
-std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
-std::cout << "MKLDNNTileNode::shapeInfer()" << std::endl;
     if (!constMap[TILE_REPEATS]) {
         const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
 
@@ -127,10 +106,38 @@ std::cout << "MKLDNNTileNode::shapeInfer()" << std::endl;
         }
     }
 
-    ngraph::OutputVector inputsForShapeInfer;
-    inputsForShapeInfer.push_back(std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(TILE_INPUT),
-                                                                              getParentEdgesAtPort(TILE_INPUT)[0]->getMemory().GetShape().toPartialShape()));
-    inputsForShapeInfer.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{ originRepeats.size() }, originRepeats));
+    auto srcBlockedDims = getParentEdgeAt(TILE_INPUT)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+    auto dstBlockedDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
+
+    optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
+}
+
+bool MKLDNNTileNode::needShapeInfer() const {
+    needPrepareParamsVar = true;
+    if (inputShapesModified()) {
+        return true;
+    }
+    if (!constMap[TILE_REPEATS]) {
+        if (originRepeats.empty())
+            return true;
+        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr());
+        for (size_t i = 0lu; i < originRepeats.size(); i++) {
+            if (originRepeats[i] != repeatsData[i])
+                return true;
+        }
+    }
+    needPrepareParamsVar = false;
+    return false;
+}
+
+std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
+    ngraph::OutputVector inputsForShapeInfer {
+        std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(TILE_INPUT),
+                                                getParentEdgesAtPort(TILE_INPUT)[0]->getMemory().GetShape().toPartialShape()),
+        std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
+                                               getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetShape().getDims(),
+                                               getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr())
+    };
     const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
 
     localShapeInferOp->validate_and_infer_types();
@@ -152,7 +159,6 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNTileNode::plainExecute(mkldnn::stream strm) {
-std::cout << "MKLDNNTileNode::plainExecute" << std::endl;
     if (noTiling) {
         return;
     }

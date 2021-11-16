@@ -13,12 +13,14 @@ namespace MKLDNNPlugin {
 class MKLDNNTileNode : public MKLDNNNode, public TileBroadcastCommon {
 public:
     MKLDNNTileNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    ~MKLDNNTileNode() override = default;
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override {
+        execute(strm);
+    }
     void plainExecute(mkldnn::stream strm);
     bool created() const override;
 

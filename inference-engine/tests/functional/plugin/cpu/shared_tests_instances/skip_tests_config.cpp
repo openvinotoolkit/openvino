@@ -71,9 +71,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NonZeroLayerTest.*)",
         // TODO: 69084 Not constant Axis input produces dynamic output shape.
         R"(.*GatherLayerTestCPU.*constAx=False.*)",
-        // Actual and expected output layouts are not equal, due to different orders.
-        R"(.*TileLayerCPUTest.*1,.*16,.*1,.*1.*\(2.1.1.1\).*nhwc.*)",
-        R"(.*TileLayerCPUTest.*1,.*16,.*1,.*1.*\(2.3.1.1\).*nchw.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",

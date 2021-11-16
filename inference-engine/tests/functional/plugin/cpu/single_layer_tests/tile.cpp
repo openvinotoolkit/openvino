@@ -4,17 +4,17 @@
 
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "functional_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
-using inputShapesPair = std::pair<std::vector<ov::PartialShape>, std::vector<std::vector<ov::Shape>>>;
-
 using TileLayerTestParamsSet = typename std::tuple<
-        inputShapesPair,                       // Input shapes
+        std::vector<ov::test::InputShape>,     // Input shapes
         std::vector<int64_t>,                  // Repeats
-        InferenceEngine::Precision,            // Network precision
+        ov::element::Type_t,                   // Network precision
         bool,                                  // Is Repeats input constant
         std::string>;                          // Device name
 
@@ -23,23 +23,31 @@ typedef std::tuple<
         CPUSpecificParams> TileLayerCPUTestParamsSet;
 
 class TileLayerCPUTest : public testing::WithParamInterface<TileLayerCPUTestParamsSet>,
-                         virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                         virtual public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<TileLayerCPUTestParamsSet> obj) {
         TileLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
 
-        inputShapesPair inputShapes;
+        std::vector<ov::test::InputShape> inputShapes;
         std::vector<int64_t> repeats;
-        InferenceEngine::Precision netPrecision;
+        ov::element::Type_t netPrecision;
         bool isRepeatsConst;
         std::string deviceName;
         std::tie(inputShapes, repeats, netPrecision, isRepeatsConst, deviceName) = basicParamsSet;
 
         std::ostringstream result;
-        result << "DynShapes=" << CommonTestUtils::partialShape2str(inputShapes.first) << "_";
-        result << "StatShapes=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
+        result << "IS=(";
+        for (const auto& shape : inputShapes) {
+            result << CommonTestUtils::partialShape2str({shape.first}) << "_";
+        }
+        result << ")_TS=(";
+        for (const auto& shape : inputShapes) {
+            for (const auto& item : shape.second) {
+                result << CommonTestUtils::vec2str(item) << "_";
+            }
+        }
         result << "Repeats=" << CommonTestUtils::vec2str(repeats)  << "_";
         result << "netPrec=" << netPrecision << "_";
         result << "constRepeats=" << (isRepeatsConst ? "True" : "False") << "_";
@@ -58,32 +66,38 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        inputShapesPair inputShapes;
-        InferenceEngine::Precision netPrecision;
+        std::vector<ov::test::InputShape> inputShapes;
+        ov::element::Type_t netPrecision;
         bool isRepeatsConst;
         std::tie(inputShapes, repeatsData, netPrecision, isRepeatsConst, targetDevice) = basicParamsSet;
 
-        selectedType += std::string("_") + netPrecision.name();
+        selectedType += std::string("_") + ov::element::Type(netPrecision).get_type_name();
 
-        const size_t dynShapesNum = std::min(inputShapes.first.size(), isRepeatsConst ? 1lu : 2lu);
-        for (size_t i = 0lu; i < dynShapesNum; i++) {
-            inputDynamicShapes.push_back(inputShapes.first[i]);
+        if (inputShapes.front().first.rank() != 0) {
+            inputDynamicShapes.push_back(inputShapes.front().first);
             if (!isRepeatsConst) {
                 inputDynamicShapes.push_back({ static_cast<int64_t>(repeatsData.size()) });
             }
         }
-        for (size_t i = 0lu; i < inputShapes.second.size(); i++) {
-            targetStaticShapes.push_back({inputShapes.second[i]});
+        const size_t targetStaticShapeSize = inputShapes.front().second.size();
+        targetStaticShapes.resize(targetStaticShapeSize);
+        for (size_t i = 0lu; i < targetStaticShapeSize; ++i) {
+            targetStaticShapes[i].push_back(inputShapes.front().second[i]);
             if (!isRepeatsConst)
                 targetStaticShapes[i].push_back({ repeatsData.size() });
         }
 
-        const auto& inputDataShape = targetStaticShapes.front().front();
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        ov::ParameterVector functionParams = ngraph::builder::makeParams(ngPrc, { {"data", inputDataShape} });
-        if (!isRepeatsConst) {
-            functionParams.push_back(ngraph::builder::makeParams(ov::element::i64, { {"repeats", { repeatsData.size() }} })[0]);
+        ov::ParameterVector functionParams;
+        if (inputDynamicShapes.empty()) {
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, targetStaticShapes.front().front()));
+        } else {
+            functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front()));
+            if (!isRepeatsConst) {
+                functionParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]));
+                functionParams.back()->set_friendly_name("repeats");
+            }
         }
+        functionParams.front()->set_friendly_name("data");
 
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
         std::shared_ptr<ov::Node> tileNode;
@@ -94,16 +108,30 @@ protected:
             tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0], paramOuts[1]);
         }
         tileNode->get_rt_info() = getCPUInfo();
-        ov::ResultVector results{ std::make_shared<ov::op::v0::Result>(tileNode) };
-        function = std::make_shared<ov::Function>(results, functionParams, "CPUTile");
+        function = makeNgraphFunction(netPrecision, functionParams, tileNode, "CPUTile");
     }
 
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &inputInfo) const override {
-        if (inputInfo.name() == "repeats") {
-            const auto& td = inputInfo.getTensorDesc();
-            return FuncTestUtils::createAndFillBlobWithFloatArray<int64_t>(td, repeatsData.data(), repeatsData.size());
-        } else {
-            return LayerTestsCommon::GenerateInput(inputInfo);
+    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (size_t i = 0lu; i < funcInputs.size(); i++) {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor;
+            if (funcInput.get_node()->get_friendly_name() == "repeats") {
+                tensor = ov::runtime::Tensor{ov::element::i64, targetInputStaticShapes[i]};
+                auto data = tensor.data<ov::element_type_traits<ov::element::i64>::value_type>();
+                for (size_t i = 0lu; i < repeatsData.size(); i++) {
+                    data[i] = repeatsData[i];
+                }
+            } else {
+                if (funcInput.get_element_type().is_real()) {
+                    tensor = ov::test::utils::create_and_fill_tensor(
+                        funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                } else {
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                }
+            }
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
@@ -113,8 +141,8 @@ protected:
 TEST_P(TileLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    Run();
-    CheckPluginRelatedResults(executableNetwork, "Tile");
+    run();
+//    CheckPluginRelatedResults(executableNetwork, "Tile");
 }
 
 namespace {
@@ -134,76 +162,79 @@ const auto cpuParams_ndhwc = CPUSpecificParams{{ndhwc}, {ndhwc}, {}, "ref"};
 /* ========== */
 
 /* PARAMS */
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::BF16,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::I8
+const std::vector<ov::element::Type_t> netPrecisions = {
+    ov::element::f32,
+    ov::element::bf16,
+    ov::element::i32,
+    ov::element::i8
 };
 
-const std::vector<inputShapesPair> staticInputShapes4D = {
+const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {
     {
-        {},
-        { // Static shapes
-            {{2, 16, 3, 4}}
+        {{},
+            { // Static shapes
+                {2, 16, 3, 4}
+            }
         }
     },
     {
-        {},
-        { // Static shapes
-            {{1, 16, 1, 1}}
+        {{},
+            { // Static shapes
+                {1, 16, 1, 1}
+            }
         }
     }
 };
-const std::vector<inputShapesPair> dynamicInputShapes4D = {
+const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
     {
         { // Origin dynamic shapes
-            {ov::Dimension(1, 20), ov::Dimension(10, 20), ov::Dimension(1, 20), ov::Dimension(1, 20)}
-        },
-        { // Dynamic shapes instances
-            {{2, 16, 3, 4}},
-            {{1, 16, 1, 1}},
-            {{1, 16, 2, 3}}
-        }
+            {ov::Dimension(1, 20), ov::Dimension(10, 20), ov::Dimension(1, 20), ov::Dimension(1, 20)},
+            { // Dynamic shapes instances
+                {2, 16, 3, 4},
+                {1, 16, 1, 1},
+                {1, 16, 2, 3}
+            }
+         }
     },
     {
         { // Origin dynamic shapes
-            {-1, -1, -1, -1}
-        },
-        { // Dynamic shapes instances
-            {{3, 15, 5, 7}},
-            {{4, 55, 8, 24}}
+            {-1, -1, -1, -1},
+            { // Dynamic shapes instances
+                {3, 15, 5, 7},
+                {4, 55, 8, 24}
+            }
         }
     }
 };
 
-const std::vector<inputShapesPair> staticInputShapes5D = {
+const std::vector<std::vector<ov::test::InputShape>> staticInputShapes5D = {
     {
-        {},
-        { // Static shapes
-            {{2, 16, 2, 3, 4}}
+        {{},
+            { // Static shapes
+                {2, 16, 2, 3, 4}
+            }
         }
     }
 };
-const std::vector<inputShapesPair> dynamicInputShapes5D = {
+const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes5D = {
     {
         { // Origin dynamic shapes
-            {ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 70)}
-        },
-        { // Dynamic shapes instances
-            {{2, 16, 2, 3, 4}},
-            {{1, 16, 8, 5, 4}},
-            {{8, 1, 2, 3, 64}}
+            {ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 20), ov::Dimension(1, 70)},
+            { // Dynamic shapes instances
+                {2, 16, 2, 3, 4},
+                {1, 16, 8, 5, 4},
+                {8, 1, 2, 3, 64}
+            }
         }
     },
     {
         { // Origin dynamic shapes
-            {-1, -1, -1, -1, -1}
-        },
-        { // Dynamic shapes instances
-            {{2, 16, 2, 3, 4}},
-            {{1, 16, 8, 5, 4}},
-            {{8, 1, 2, 3, 64}}
+            {-1, -1, -1, -1, -1},
+            { // Dynamic shapes instances
+                {2, 16, 2, 3, 4},
+                {1, 16, 8, 5, 4},
+                {8, 1, 2, 3, 64}
+            }
         }
     }
 };
@@ -215,8 +246,7 @@ const std::vector<std::vector<int64_t>> repeats4D = {
         {1, 1, 2, 3},
         {1, 2, 1, 3},
         {2, 1, 1, 1},
-        {2, 3, 1, 1},
-//        {2, 3, 2, 3, 2},
+        {2, 3, 1, 1}
 };
 const std::vector<std::vector<int64_t>> repeats5D = {
         {1, 2, 3},
@@ -224,8 +254,7 @@ const std::vector<std::vector<int64_t>> repeats5D = {
         {1, 1, 1, 2, 3},
         {1, 2, 1, 1, 3},
         {2, 1, 1, 1, 1},
-        {2, 3, 1, 1, 1},
-//        {2, 3, 2, 3, 2, 3},
+        {2, 3, 1, 1, 1}
 };
 
 const std::vector<CPUSpecificParams> CPUParams4D = {

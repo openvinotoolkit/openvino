@@ -11,27 +11,28 @@
 
 class TileBroadcastCommon {
 protected:
-    static InferenceEngine::SizeVector calculateStridesForDims(const InferenceEngine::SizeVector &dims);
-    std::vector<MKLDNNPlugin::NodeDesc> getSupportedConfigs(MKLDNNPlugin::MKLDNNNode *node);
-    bool prepareOptimizedParams(MKLDNNPlugin::MKLDNNNode *node, InferenceEngine::SizeVector& srcBlockedDims, InferenceEngine::SizeVector& dstBlockedDims);
+    static MKLDNNPlugin::VectorDims calculateDenseStrides(const MKLDNNPlugin::VectorDims &dims);
+    std::vector<MKLDNNPlugin::NodeDesc> getSupportedConfigs(const MKLDNNPlugin::MKLDNNNode *node);
+    bool prepareOptimizedParams(const MKLDNNPlugin::MKLDNNNode *node, MKLDNNPlugin::VectorDims& srcBlockedDims, MKLDNNPlugin::VectorDims& dstBlockedDims);
 
     void optimizedExecute(MKLDNNPlugin::MKLDNNNode *node);
 
-    mutable InferenceEngine::SizeVector repeats;
+    mutable MKLDNNPlugin::VectorDims repeats;
     bool optimizedCase = false;
     bool constMap[3] = { false };
+    mutable bool needPrepareParamsVar = false;
 
 private:
-    static void fillOptimizedDimsAndSrcStrides(const InferenceEngine::SizeVector &srcBlockedDims, const InferenceEngine::SizeVector &blockedRepeats,
-            InferenceEngine::SizeVector &optimizedDims, InferenceEngine::SizeVector &optimizedSrcStrides);
+    static void fillOptimizedDimsAndSrcStrides(const MKLDNNPlugin::VectorDims &srcBlockedDims, const MKLDNNPlugin::VectorDims &blockedRepeats,
+            MKLDNNPlugin::VectorDims &optimizedDims, MKLDNNPlugin::VectorDims &optimizedSrcStrides);
 
-    static bool canBeExecutedInBlockedLayout(const MKLDNNPlugin::VectorDims& srcDims, const InferenceEngine::SizeVector& repeats, const size_t elemsInBlock);
-    static bool canBeExecutedInNSPCLayout(const MKLDNNPlugin::VectorDims& srcDims, const InferenceEngine::SizeVector& repeats);
+    static bool canBeExecutedInBlockedLayout(MKLDNNPlugin::VectorDims srcDims, MKLDNNPlugin::VectorDims repeats, const size_t elemsInBlock);
+    static bool canBeExecutedInNSPCLayout(MKLDNNPlugin::VectorDims srcDims, MKLDNNPlugin::VectorDims repeats);
 
     struct {
-        std::vector<size_t> dims;
-        std::vector<size_t> srcStrides;
-        std::vector<size_t> dstStrides;
+        MKLDNNPlugin::VectorDims dims;
+        MKLDNNPlugin::VectorDims srcStrides;
+        MKLDNNPlugin::VectorDims dstStrides;
         size_t copySize;
     } optimizedParams;
 };
