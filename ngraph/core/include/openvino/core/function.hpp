@@ -39,8 +39,6 @@ public:
     OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
     static const ov::DiscreteTypeInfo type_info;
 
-    friend class ov::FunctionAccessor;
-
     Function(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
     Function(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
@@ -298,6 +296,8 @@ public:
     Function& operator=(Function&&) = delete;
 
 private:
+    friend class ov::FunctionAccessor;
+
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Function
     /// parameters/variables or finds all Parameters/Variables in a function and registers them.

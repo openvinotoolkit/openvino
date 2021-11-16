@@ -123,8 +123,6 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
 
     friend class Function;
 
-    friend class ov::NodeAccessor;
-
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
     descriptor::Output& get_output_descriptor(size_t position);
@@ -485,6 +483,7 @@ public:
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
 private:
+    friend class ov::NodeAccessor;
     std::vector<Node*> m_control_dependents;
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
