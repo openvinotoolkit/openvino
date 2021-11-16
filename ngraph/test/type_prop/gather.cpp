@@ -394,8 +394,8 @@ TEST(type_prop, gather_7_batch_dims_less_indices_rank_check) {
         auto G = make_shared<op::v7::Gather>(D, I, A, batch_dims);
         // Should have thrown, so fail if it didn't
         FAIL() << "batch_dims check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("batch_dims must be <= indices_rank"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
@@ -727,8 +727,8 @@ TEST(type_prop, gather_v8_batch_dims_less_indices_rank_check) {
         auto G = make_shared<op::v8::Gather>(D, I, A, batch_dims);
         // Should have thrown, so fail if it didn't
         FAIL() << "batch_dims check failed";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("batch_dims must be <= indices_rank"));
+    } catch (const ov::AssertFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }

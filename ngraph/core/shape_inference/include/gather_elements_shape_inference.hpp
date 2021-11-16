@@ -33,7 +33,7 @@ void shape_infer(GatherElements* op,
     auto& output_shape = output_shapes[0];
 
     int64_t axis = op->get_axis();
-    if (axis < 0 && data_rank.is_static())
+    if (data_rank.is_static())
         axis = ov::normalize_axis(op, axis, data_rank);
 
     output_shape = indices_pshape;

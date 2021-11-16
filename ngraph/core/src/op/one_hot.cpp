@@ -4,13 +4,14 @@
 
 #include "ngraph/op/one_hot.hpp"
 
+#include <one_hot_shape_inference.hpp>
+
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
-#include <one_hot_shape_inference.hpp>
 
 using namespace std;
 using namespace ngraph;

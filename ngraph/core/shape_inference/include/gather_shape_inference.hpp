@@ -3,18 +3,19 @@
 //
 #pragma once
 #include <openvino/op/util/gather_base.hpp>
+
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
 namespace util {
 
-template<class RankT, class ShapeT>
+template <class RankT, class ShapeT>
 void inline create_shape(RankT& rank, ShapeT& shape) {
     return;
 }
 
-template<>
+template <>
 void inline create_shape(Rank& rank, PartialShape& shape) {
     shape = PartialShape::dynamic(rank);
 }
@@ -42,8 +43,8 @@ void shape_infer(GatherBase* op,
                               axis_pshape);
     }
     int64_t batch_dims = op->get_batch_dims();
-    if (batch_dims < 0 && indices_rank.is_static()) {
-        batch_dims += indices_rank.get_length();
+    if (indices_rank.is_static()) {
+        batch_dims = ov::normalize_axis(op, batch_dims, indices_rank);
     }
 
     std::vector<int64_t> axes_val;
@@ -68,22 +69,6 @@ void shape_infer(GatherBase* op,
                               batch_dims,
                               ", axis = ",
                               axis);
-
-        NODE_VALIDATION_CHECK(op,
-                              data_rank.is_dynamic() || (axis >= 0 && axis < data_rank.get_length()),
-                              "Normalized axis must be >= 0 and < data_rank. But instead got axis = ",
-                              axis,
-                              " data_rank = ",
-                              data_rank.get_interval());
-    }
-
-    if (indices_rank.is_static() && batch_dims >= 0) {
-        NODE_VALIDATION_CHECK(op,
-                              batch_dims <= indices_rank.get_length(),
-                              "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
-                              batch_dims,
-                              ", indices_rank = ",
-                              indices_rank.get_length());
     }
 
     if (data_rank.is_static() && indices_rank.is_static()) {
