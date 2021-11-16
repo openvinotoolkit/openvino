@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from numpy import core
 import pytest
 
 import openvino as ov
@@ -12,7 +11,7 @@ from openvino.impl.preprocess import PrePostProcessor, InputInfo, PreProcessStep
     PostProcessSteps, ResizeAlgorithm
 from openvino.impl import Function, Output, Type
 from openvino.utils.decorators import custom_preprocess_function
-from tests.runtime import Runtime, get_runtime
+from tests.runtime import get_runtime
 
 
 def test_ngraph_preprocess_mean():
@@ -201,6 +200,7 @@ def test_ngraph_preprocess_spatial_static_shape():
     output = computation(input_data)
     assert np.equal(output, expected_output).all()
 
+
 @pytest.mark.parametrize(
     "algorithm, color_format1, color_format2, is_failing",
     [(ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
@@ -211,7 +211,7 @@ def test_ngraph_preprocess_spatial_static_shape():
      (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGB, False),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
-     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True),])
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True)])
 def test_ngraph_preprocess_steps(algorithm, color_format1, color_format2, is_failing):
     shape = [1, 1, 3, 3]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -220,17 +220,15 @@ def test_ngraph_preprocess_steps(algorithm, color_format1, color_format2, is_fai
     layout1 = ov.Layout("NCWH")
     layout2 = ov.Layout("NCHW")
     custom_processor = PrePostProcessor()\
-            .input(InputInfo()
-                .tensor(InputTensorInfo()
-                        .set_layout(layout1)
-                        .set_color_format(color_format1, []))
-                .preprocess(PreProcessSteps()
-                            .mean(1.)
-                            .resize(algorithm, 3, 3)
-                            .convert_layout(layout2)
-                            .convert_color(color_format2)
-                            )
-                )
+        .input(InputInfo()
+               .tensor(InputTensorInfo()
+                       .set_layout(layout1)
+                       .set_color_format(color_format1, []))
+               .preprocess(PreProcessSteps()
+                           .mean(1.)
+                           .resize(algorithm, 3, 3)
+                           .convert_layout(layout2)
+                           .convert_color(color_format2)))
     if is_failing:
         with pytest.raises(RuntimeError) as e:
             function = custom_processor.build(function)
@@ -332,59 +330,3 @@ def test_ngraph_preprocess_resize_algorithm():
     computation = runtime.computation(function)
     output = computation(input_data)
     assert np.equal(output, expected_output).all()
-
-
-def test_ngraph_preprocess_on_model():
-    model = bytes(b"""<net name="Network" version="10">
-    <layers>
-        <layer name="in1" type="Parameter" id="0" version="opset1">
-            <data element_type="f32" shape="2,2,2,1"/>
-            <output>
-                <port id="0" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>1</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="operation" id="1" type="Template" version="custom_opset">
-            <data  add="11"/>
-            <input>
-                <port id="1" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>1</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>1</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>2</dim>
-                    <dim>1</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-    </edges>
-</net>""")
-
-    core = ov.Core()
-    print(dir(ov.Core()))
-    func = core.read_model(model=model, init_from_buffer=True)
-    assert isinstance(func, Function)
