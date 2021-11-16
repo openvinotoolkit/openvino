@@ -315,11 +315,7 @@ private:
             // reduce
             reduce_main_loop();
             if (jcp_.reduce_mode == ReduceOr && isa != cpu::x64::avx512_common) {
-                if (isa == cpu::x64::avx2) {
-                    vcmpneqps(vmm_dst, vmm_dst, vmm_zero);
-                } else if (isa == cpu::x64::sse41) {
-                    cmpneqps(vmm_dst, vmm_zero);
-                }
+                uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
                 uni_vandps(vmm_dst, vmm_dst, vmm_aux);
             }
             // store
@@ -418,11 +414,7 @@ private:
 
                 reduce_kernel_scalar(xmm_src, xmm_dst);
                 if (jcp_.reduce_mode == ReduceOr) {
-                    if (isa == cpu::x64::sse41) {
-                        cmpneqps(xmm_dst, xmm_zero);
-                    } else {
-                        vcmpneqps(xmm_dst, xmm_dst, xmm_zero);
-                    }
+                    uni_cmpneqps(xmm_dst, xmm_dst, xmm_zero);
                     uni_vandps(xmm_dst, xmm_dst, xmm_aux);
                 }
 
@@ -653,11 +645,7 @@ private:
         load_scalar(xmm_src, ptr[reg_src], jcp_.src_dt);
         reduce_kernel_scalar(xmm_src, xmm_dst);
         if (jcp_.reduce_mode == ReduceOr) {
-            if (isa == cpu::x64::sse41) {
-                cmpneqps(xmm_dst, xmm_zero);
-            } else {
-                vcmpneqps(xmm_dst, xmm_dst, xmm_zero);
-            }
+            uni_cmpneqps(xmm_dst, xmm_dst, xmm_zero);
             uni_vandps(xmm_dst, xmm_dst, xmm_aux);
         }
     }
@@ -676,11 +664,7 @@ private:
             load_scalar(xmm_src, ptr[reg_src_aux], jcp_.src_dt);
             reduce_kernel_scalar(xmm_src, xmm_dst);
             if (jcp_.reduce_mode == ReduceOr) {
-                if (isa == cpu::x64::sse41) {
-                    cmpneqps(xmm_dst, xmm_zero);
-                } else {
-                    vcmpneqps(xmm_dst, xmm_dst, xmm_zero);
-                }
+                uni_cmpneqps(xmm_dst, xmm_dst, xmm_zero);
                 uni_vandps(xmm_dst, xmm_dst, xmm_aux);
             }
 
@@ -723,10 +707,8 @@ private:
                 if (isa == cpu::x64::avx512_common) {
                     vcmpps(k_mask, vmm_src, vmm_zero, _cmp_neq_uq);
                     vblendmps(vmm_src | k_mask, vmm_zero, vmm_aux);
-                } else if (isa == cpu::x64::avx2) {
-                    vcmpneqps(vmm_src, vmm_src, vmm_zero);
                 } else {
-                    cmpneqps(vmm_src, vmm_zero);
+                    uni_cmpneqps(vmm_src, vmm_src, vmm_zero);
                 }
                 uni_vandps(vmm_dst, vmm_dst, vmm_src);
                 break;
@@ -772,11 +754,7 @@ private:
     inline void reduce_kernel_scalar(Xmm xmm_src, Xmm xmm_dst) {
         switch (jcp_.reduce_mode) {
             case ReduceAnd:
-                if (isa == cpu::x64::sse41) {
-                    cmpneqps(xmm_src, xmm_zero);
-                } else {
-                    vcmpneqps(xmm_src, xmm_src, xmm_zero);
-                }
+                uni_cmpneqps(xmm_src, xmm_src, xmm_zero);
                 uni_vandps(xmm_dst, xmm_dst, xmm_src);
                 break;
             case ReduceL1:
@@ -822,15 +800,11 @@ private:
 
     inline void store_dst_vector() {
         if (jcp_.reduce_mode == ReduceOr && isa != cpu::x64::avx512_common) {
-            if (isa == cpu::x64::avx2) {
-                vcmpneqps(vmm_dst, vmm_dst, vmm_zero);
-            } else if (isa == cpu::x64::sse41) {
-                cmpneqps(vmm_dst, vmm_zero);
-            }
+            uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
             uni_vandps(vmm_dst, vmm_dst, vmm_aux);
 
             if (isa == cpu::x64::sse41) {
-                cmpneqps(vmm_dst_aux, vmm_zero);
+                uni_cmpneqps(vmm_dst_aux, vmm_dst_aux, vmm_zero);
                 uni_vandps(vmm_dst_aux, vmm_dst_aux, vmm_aux);
             }
         }
@@ -867,19 +841,19 @@ private:
         switch (src_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
                 assert(!"unknown src_dt");
@@ -922,7 +896,7 @@ private:
                     if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
-                        movd(op, xmm_dst);
+                        uni_vmovd(op, xmm_dst);
                 }
                 break;
             case memory::data_type::u8:
@@ -936,7 +910,7 @@ private:
                     if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
-                        movd(op, xmm_dst);
+                        uni_vmovd(op, xmm_dst);
                 }
                 break;
             default:
@@ -952,22 +926,22 @@ private:
         switch (dst_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
+                uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
             case memory::data_type::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
+                uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
             default:
@@ -998,10 +972,10 @@ private:
     }
 
     inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
+        uni_movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2,3,4),...
         if (load_embedded) {
             load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
             horiz_ps(xmm_dst, xmm_aux3);
@@ -1012,7 +986,7 @@ private:
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
             case ReduceAnd:
-                andps(xmm, op);
+                uni_vandps(xmm, xmm, op);
                 break;
             case ReduceL1:
             case ReduceL2:
@@ -1021,19 +995,19 @@ private:
             case ReduceSum:
             case ReduceSumSquare:
             case ReduceLogSumExp:
-                addps(xmm, op);
+                uni_vaddps(xmm, xmm, op);
                 break;
             case ReduceMax:
-                maxps(xmm, op);
+                uni_vmaxps(xmm, xmm, op);
                 break;
             case ReduceMin:
-                minps(xmm, op);
+                uni_vminps(xmm, xmm, op);
                 break;
             case ReduceOr:
-                orps(xmm, op);
+                uni_vorps(xmm, xmm, op);
                 break;
             case ReduceProd:
-                mulps(xmm, op);
+                uni_vmulps(xmm, xmm, op);
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -1479,19 +1453,19 @@ private:
         switch (src_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(xmm_src, op);
+                uni_vmovss(xmm_src, op);
                 break;
             case memory::data_type::bf16:
-                pinsrw(xmm_src, op, 0x0);
+                uni_vpinsrw(xmm_src, xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
                 break;
             case memory::data_type::s8:
                 movsx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             case memory::data_type::u8:
                 movzx(reg_tmp_32, op);
-                movq(xmm_src, reg_tmp_64);
+                uni_vmovq(xmm_src, reg_tmp_64);
                 break;
             default:
                 assert(!"unknown src_dt");
@@ -1534,7 +1508,7 @@ private:
                     if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
-                        movd(op, xmm_dst);
+                        uni_vmovd(op, xmm_dst);
                 }
                 break;
             case memory::data_type::u8:
@@ -1548,7 +1522,7 @@ private:
                     if (isa != cpu::x64::sse41)
                         vmovq(op, xmm_dst);
                     else
-                        movd(op, xmm_dst);
+                        uni_vmovd(op, xmm_dst);
                 }
                 break;
             default:
@@ -1564,22 +1538,22 @@ private:
         switch (dst_dt) {
             case memory::data_type::f32:
             case memory::data_type::s32:
-                movss(op, xmm_dst);
+                uni_vmovss(op, xmm_dst);
                 break;
             case memory::data_type::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
-                pextrw(op, xmm_dst, 0x0);
+                uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
+                uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
             case memory::data_type::u8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
-                movq(reg_tmp_64, xmm_dst);
+                uni_vmovq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
             default:
@@ -1610,10 +1584,10 @@ private:
     }
 
     inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
-        movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
-        horiz_ps(xmm_dst, xmm_aux3); // dst:f(1,2,3,4),...
+        uni_movshdup(xmm_aux3, xmm_dst); // dst:1,2,3,4; aux3:2,2,4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_movhlps(xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
+        horiz_ps(xmm_dst, xmm_aux3);     // dst:f(1,2,3,4),...
         if (load_embedded) {
             load_scalar(xmm_aux3, ptr[reg_dst], dst_dt);
             horiz_ps(xmm_dst, xmm_aux3);
@@ -1624,7 +1598,7 @@ private:
     inline void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
             case ReduceAnd:
-                andps(xmm, op);
+                uni_vandps(xmm, xmm, op);
                 break;
             case ReduceL1:
             case ReduceL2:
@@ -1633,19 +1607,19 @@ private:
             case ReduceSum:
             case ReduceSumSquare:
             case ReduceLogSumExp:
-                addps(xmm, op);
+                uni_vaddps(xmm, xmm, op);
                 break;
             case ReduceMax:
-                maxps(xmm, op);
+                uni_vmaxps(xmm, xmm, op);
                 break;
             case ReduceMin:
-                minps(xmm, op);
+                uni_vminps(xmm, xmm, op);
                 break;
             case ReduceOr:
-                orps(xmm, op);
+                uni_vorps(xmm, xmm, op);
                 break;
             case ReduceProd:
-                mulps(xmm, op);
+                uni_vmulps(xmm, xmm, op);
                 break;
             default:
                 assert(!"unsupported reduce mode");
