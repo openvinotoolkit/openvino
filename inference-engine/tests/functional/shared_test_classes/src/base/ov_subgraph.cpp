@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <fstream>
 #include <transformations/utils/utils.hpp>
+#include <transformations/convert_precision.hpp>
+#include <ngraph_functions/utils/ngraph_helpers.hpp>
 
 #ifdef _WIN32
 #include <process.h>
@@ -18,8 +20,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-
-#include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -187,16 +187,21 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
-    using namespace ov::preprocess;
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::runtime::Tensor>;
 
     auto functionToProcess = ov::clone_function(*functionRefs);
-    //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16 precisions
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionToProcess);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionToProcess);
+    //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
+    static const precisions_array precisions = {
+            { ngraph::element::bf16, ngraph::element::f32 },
+            { ngraph::element::f16, ngraph::element::f32}
+    };
+
+    pass::Manager manager;
+    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 
-    PrePostProcessor prePostProc;
+    ov::preprocess::PrePostProcessor prePostProc;
     const auto& inputNodes = functionToProcess->inputs();
     for (size_t i = 0; i < inputNodes.size(); ++i) {
         auto itr = std::find_if(inputs.begin(), inputs.end(),
@@ -206,7 +211,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
         if (itr != inputs.end()) {
             auto elementType = itr->second.get_element_type();
             if (inputNodes[i].get_element_type() != elementType) {
-                prePostProc.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(elementType)));
+                prePostProc.input(ov::preprocess::InputInfo(i).tensor(ov::preprocess::InputTensorInfo().set_element_type(elementType)));
             }
         } else {
             std::stringstream errMsg;
@@ -219,7 +224,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     const auto& outputs = functionToProcess->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
-            prePostProc.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(outType)));
+            prePostProc.output(ov::preprocess::OutputInfo(i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
         }
     }
 
