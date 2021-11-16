@@ -86,6 +86,8 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-64050
         R"(.*ReferenceSpaceToBatchLayerTest.*dType=i4.*)",
         R"(.*ReferenceSpaceToBatchLayerTest.*dType=u4.*)",
+        // CVS-64066
+        R"(.*ReferenceGRUCellTestHardsigmoidActivationFunction.*gru_cell_hardsigmoid_activation_function)",
     };
 
 #ifdef _WIN32
