@@ -75,6 +75,10 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
         translate_map.insert(TRANSLATE_OP_MAP.begin(), TRANSLATE_OP_MAP.end());
     }
 
+    if (m_telemetry) {
+        m_telemetry->send_event("Number of nodes in original graph: " + std::to_string(operation_places.size()));
+    }
+
     // fill ng_op_map with Constant outputs for frozen inputs
     for (const auto& frozen_input : model_frozen_inputs) {
         const auto& frozen_input_name = frozen_input.first;
@@ -346,4 +350,10 @@ void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
     ov::pass::Manager manager;
     manager.register_pass<ov::frontend::tf::pass::TransposeSinkingOVTF>();
     manager.run_passes(function);
+}
+
+void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
 }

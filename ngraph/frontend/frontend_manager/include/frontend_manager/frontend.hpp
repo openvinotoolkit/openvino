@@ -17,7 +17,6 @@
 
 namespace ov {
 namespace frontend {
-
 /// \brief An interface for identifying a frontend for a particular framework.
 /// Provides an ability to load and convert of input model
 class FRONTEND_API FrontEnd {

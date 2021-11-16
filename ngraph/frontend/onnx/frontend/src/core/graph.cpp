@@ -185,12 +185,6 @@ void Graph::decode_to_framework_nodes() {
                 std::make_shared<ngraph::frontend::ONNXSubgraphFrameworkNode>(shared_from_this(), node, inputs);
         } else {
             framework_node = std::make_shared<ngraph::frontend::ONNXFrameworkNode>(shared_from_this(), node);
-            ov::op::util::FrameworkNodeAttrs attrs;
-            for(auto a: node.get_attribute_names())
-            {
-                attrs[a] = "<NOT_PARSED>";
-            }
-            framework_node->set_attrs(attrs);
         }
         OutputVector ng_nodes{framework_node->outputs()};
         set_friendly_names(node, ng_nodes);

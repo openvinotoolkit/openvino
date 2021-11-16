@@ -5,6 +5,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/extension.hpp>
 
 #include "exceptions.hpp"
 #include "model.hpp"
@@ -47,6 +48,8 @@ public:
     /// \return Paddle frontend name.
     std::string get_name() const override;
 
+    void add_extension(const std::shared_ptr<ov::Extension>& extensions) override;
+
 protected:
     /// \brief Check if FrontEndPDPD can recognize model from given parts
     /// \param params Can be path to folder which contains __model__ file or path to
@@ -62,6 +65,7 @@ protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 
 private:
+    std::shared_ptr<TelemetryExtension> m_telemetry;
     static std::shared_ptr<Function> convert_each_node(
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,

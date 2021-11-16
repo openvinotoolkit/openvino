@@ -325,6 +325,12 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::decode(InputModel::Ptr model) co
 std::string FrontEndPDPD::get_name() const {
     return "paddle";
 }
+
+void FrontEndPDPD::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
+        m_telemetry = telemetry;
+    }
+}
 }  // namespace frontend
 }  // namespace ov
 

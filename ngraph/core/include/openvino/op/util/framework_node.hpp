@@ -69,9 +69,8 @@ private:
     std::unordered_map<std::string, std::string> m_attrs;
 };
 
-inline std::ostream& operator<< (std::ostream& os, const FrameworkNodeAttrs& attrs)
-{
-    for(auto a: attrs) {
+inline std::ostream& operator<<(std::ostream& os, const FrameworkNodeAttrs& attrs) {
+    for (auto a : attrs) {
         os << a.first << ":" << a.second << ", ";
     }
     return os;

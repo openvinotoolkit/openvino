@@ -7,6 +7,7 @@
 #include <functional>
 #include <map>
 
+#include "frontend_manager/extension.hpp"
 #include "frontend_manager/frontend.hpp"
 #include "frontend_manager/input_model.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -66,6 +67,8 @@ public:
         return "tf";
     }
 
+    void add_extension(const std::shared_ptr<ov::Extension>& extensions) override;
+
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
     bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
@@ -73,6 +76,7 @@ protected:
     ov::frontend::InputModel::Ptr load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
 private:
+    std::shared_ptr<TelemetryExtension> m_telemetry;
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
                          const std::string& model_name,
                          bool fail_fast,

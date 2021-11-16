@@ -25,9 +25,9 @@ public:
 
 protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
+
 private:
-    std::vector<std::shared_ptr<ov::Extension>> m_extensions;
-    std::shared_ptr<ov::Extension> m_telemetry;
+    std::shared_ptr<TelemetryExtension> m_telemetry;
 };
 
 }  // namespace frontend
