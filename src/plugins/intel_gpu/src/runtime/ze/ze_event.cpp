@@ -35,7 +35,7 @@ using namespace ze;
 
 void ze_event::wait_impl() {
     if (_event != nullptr) {
-        ZE_CHECK(zeEventHostSynchronize(_event, 0));
+        ZE_CHECK(zeEventHostSynchronize(_event, UINT32_MAX));
     }
 }
 
@@ -75,7 +75,7 @@ bool ze_event::get_profiling_info_impl(std::list<instrumentation::profiling_inte
 
 void ze_events::wait_impl() {
     if (_last_ze_event != nullptr) {
-        ZE_CHECK(zeEventHostSynchronize(_last_ze_event, 0));
+        ZE_CHECK(zeEventHostSynchronize(_last_ze_event, UINT32_MAX));
     }
 }
 

@@ -16,8 +16,9 @@ namespace ze {
 
 struct ze_event : public ze_base_event {
 public:
-    ze_event(ze_event_handle_t ev, uint64_t queue_stamp = 0)
+    ze_event(ze_event_pool_handle_t ev_pool, ze_event_handle_t ev, uint64_t queue_stamp = 0)
         : ze_base_event(queue_stamp)
+        , _event_pool(ev_pool)
         , _event(ev) {}
 
     ze_event_handle_t get() override { return _event; }
@@ -32,6 +33,7 @@ private:
 
 protected:
     ze_event_handle_t _event;
+    ze_event_pool_handle_t _event_pool;
 };
 
 struct ze_events : public ze_base_event {
