@@ -204,11 +204,6 @@ void ov::Function::prerequirements(bool detect_variables, bool detect_parameters
         m_variables = auto_detect_variables(ordered_ops);
     else
         check_all_variables_registered(ordered_ops, m_variables);
-
-    // Initialize shared rt info for all nodes related to Function
-    for_each(ordered_ops.cbegin(), ordered_ops.cend(), [this](const std::shared_ptr<ov::Node>& node) {
-        node->m_shared_rt_info.insert(m_shared_rt_info);
-    });
 }
 
 void ov::Function::validate_nodes_and_infer_types() const {
@@ -291,7 +286,7 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
     m_cached_ordered_ops.clear();
     for_each(order.cbegin(), order.cend(), [this](const shared_ptr<Node>& node) {
         m_cached_ordered_ops.push_back(node);
-        node->m_shared_rt_info.insert(m_shared_rt_info);
+        node->insert_info(m_shared_rt_info);
     });
     m_shared_rt_info->set_use_topological_cache(true);
 

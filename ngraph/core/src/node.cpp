@@ -51,13 +51,17 @@ ov::Node& ov::Node::operator=(const Node& node) {
     this->m_inputs = node.m_inputs;
     this->m_op_annotations = node.m_op_annotations;
     this->m_rt_info = node.m_rt_info;
-    this->m_shared_rt_info = node.m_shared_rt_info;
     // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
     for (auto& input : m_inputs) {
         input = descriptor::Input(this, input.get_index(), input.get_output());
         input.get_output().add_input(&input);
     }
     return *this;
+}
+
+void ov::Node::insert_info(std::shared_ptr<SharedRTInfo> info) {
+    std::lock_guard<std::mutex> lock(m_insert_mutex);
+    m_shared_rt_info.insert(std::move(info));
 }
 
 ov::Node::Node(size_t output_size) : Node() {

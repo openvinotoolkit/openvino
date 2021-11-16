@@ -503,6 +503,13 @@ private:
     // is used for internal purposes. For example: tracking changes
     // during graph transformations.
     std::set<std::shared_ptr<SharedRTInfo>> m_shared_rt_info;
+
+    // As node can be included into different Functions which
+    // can be executed into multiple threads means that m_shared_rt_info
+    // can be updated simultaneously, so we have to guaranty exclusive
+    // update of this field by having specific method with mutex.
+    void insert_info(std::shared_ptr<SharedRTInfo> info);
+    std::mutex m_insert_mutex;
 };
 
 using NodeTypeInfo = Node::type_info_t;
