@@ -200,6 +200,12 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
+  - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOConfig.cmake
+    displayName: 'Cat OpenVINOConfig'
+
+  - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOConfig-Release.cmake
+    displayName: 'Cat OpenVINOConfig targets'
+
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
