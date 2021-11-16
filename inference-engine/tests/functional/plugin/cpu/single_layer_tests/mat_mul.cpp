@@ -188,6 +188,8 @@ const std::vector<ShapeRelatedParams> IS3D = {
     {{{7, 32, 120}, true}, {{120, 50}, false}},
     {{{7, 32, 120}, false}, {{120, 50}, true}},
     {{{7, 32, 120}, true}, {{120, 50}, true}},
+
+    {{{1, 429}, false}, {{1, 429, 1}, true}},
 };
 
 std::vector<fusingSpecificParams> fusingParamsSet3D {
