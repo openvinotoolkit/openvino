@@ -6,7 +6,7 @@ import pytest
 
 import openvino.opset8 as ops
 
-from openvino import Function, Core
+from openvino import Function
 from openvino.impl import PartialShape
 
 
