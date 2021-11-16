@@ -70,11 +70,11 @@ endif()
 ie_cpack_add_component(c_samples DEPENDS core_c)
 
 if(UNIX)
-    install(PROGRAMS ${IE_MAIN_SOURCE_DIR}/samples/build_samples.sh
+    install(PROGRAMS cpp/build_samples.sh
             DESTINATION samples/c
             COMPONENT c_samples)
 elseif(WIN32)
-    install(PROGRAMS ${IE_MAIN_SOURCE_DIR}/samples/build_samples_msvc.bat
+    install(PROGRAMS cpp/samples/build_samples_msvc.bat
             DESTINATION samples/c
             COMPONENT c_samples)
 endif()
