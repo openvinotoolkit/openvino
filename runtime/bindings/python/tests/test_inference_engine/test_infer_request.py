@@ -7,7 +7,6 @@ import pytest
 import datetime
 import time
 
-import openvino as ov
 import openvino.opset8 as ops
 from openvino import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
 
@@ -234,10 +233,10 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
     mem_states = request.query_state()
     mem_state = mem_states[0]
 
-    assert mem_state.name == 'var_id_667'
+    assert mem_state.name == "var_id_667"
     # todo: Uncomment after fix 45611,
     #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
-    #assert mem_state.state.tensor_desc.precision == data_type
+    # assert mem_state.state.tensor_desc.precision == data_type
 
     for i in range(1, 10):
         if mode == "set_init_memory_state":
@@ -260,5 +259,5 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             res = exec_net.infer_new_request({"input_data": np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
 
-        assert np.allclose(res['MemoryAdd'], expected_res, atol=1e-6), \
+        assert np.allclose(res["MemoryAdd"], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)

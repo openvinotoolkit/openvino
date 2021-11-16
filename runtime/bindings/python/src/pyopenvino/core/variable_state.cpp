@@ -17,7 +17,5 @@ void regclass_VariableState(py::module m) {
 
     variable_st.def_property_readonly("name", &ov::runtime::VariableState::get_name);
 
-    variable_st.def_property("state",
-                             &ov::runtime::VariableState::get_state,
-                             &ov::runtime::VariableState::set_state);
+    variable_st.def_property("state", &ov::runtime::VariableState::get_state, &ov::runtime::VariableState::set_state);
 }
