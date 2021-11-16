@@ -249,14 +249,21 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
     return graph_rewritten;
 }
 
+ngraph::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
+    m_use_shapes = use_shapes;
+}
+
 bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
     ngraph::pass::Manager manager(get_pass_config());
-    manager.register_pass<ngraph::pass::SliceToStridedSlice>();
+    manager.register_pass<ngraph::pass::SliceToStridedSlice>(m_use_shapes);
     manager.run_passes(f);
 
-    bool rewritten = UselessStridedSliceEraser().run_on_function(f);
-    rewritten |= SharedStridedSliceEraser().run_on_function(f);
-    rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
+    bool rewritten = false;
+    if (m_use_shapes) {
+        rewritten = UselessStridedSliceEraser().run_on_function(f);
+        rewritten |= SharedStridedSliceEraser().run_on_function(f);
+        rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
+    }
     return rewritten;
 }

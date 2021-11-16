@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import copy
+from typing import List, Union
 
 from openvino.pyopenvino import TBlobFloat32
 from openvino.pyopenvino import TBlobFloat64
@@ -15,6 +17,9 @@ from openvino.pyopenvino import TBlobInt8
 from openvino.pyopenvino import TBlobUint8
 from openvino.pyopenvino import TensorDesc
 from openvino.pyopenvino import InferRequest
+from openvino.pyopenvino import AsyncInferQueue
+from openvino.pyopenvino import ExecutableNetwork
+from openvino.pyopenvino import Tensor
 
 
 precision_map = {"FP32": np.float32,
@@ -35,22 +40,26 @@ precision_map = {"FP32": np.float32,
 
 def normalize_inputs(py_dict: dict) -> dict:
     """Normalize a dictionary of inputs to contiguous numpy arrays."""
-    return {k: (np.ascontiguousarray(v) if isinstance(v, np.ndarray) else v)
+    return {k: (Tensor(v) if isinstance(v, np.ndarray) else v)
             for k, v in py_dict.items()}
 
 # flake8: noqa: D102
-def infer(request: InferRequest, inputs: dict = None) -> dict:
-    results = request._infer(inputs=normalize_inputs(inputs if inputs is not None else {}))
-    return {name: (blob.buffer.copy()) for name, blob in results.items()}
+def infer(request: InferRequest, inputs: dict = {}) -> np.ndarray:
+    res = request._infer(inputs=normalize_inputs(inputs))
+    # Required to return list since np.ndarray forces all of tensors data to match in
+    # dimensions. This results in errors when running ops like variadic split.
+    return [copy.deepcopy(tensor.data) for tensor in res]
+
+
+def infer_new_request(exec_net: ExecutableNetwork, inputs: dict = None) -> List[np.ndarray]:
+    res = exec_net._infer_new_request(inputs=normalize_inputs(inputs if inputs is not None else {}))
+    # Required to return list since np.ndarray forces all of tensors data to match in
+    # dimensions. This results in errors when running ops like variadic split.
+    return [copy.deepcopy(tensor.data) for tensor in res]
 
 # flake8: noqa: D102
-def get_result(request: InferRequest, name: str) -> np.ndarray:
-    return request.get_blob(name).buffer.copy()
-
-# flake8: noqa: D102
-def async_infer(request: InferRequest, inputs: dict = None, userdata=None) -> None:  # type: ignore
-    request._async_infer(inputs=normalize_inputs(inputs if inputs is not None else {}),
-                         userdata=userdata)
+def start_async(request: Union[InferRequest, AsyncInferQueue], inputs: dict = {}, userdata: dict = None) -> None:  # type: ignore
+    request._start_async(inputs=normalize_inputs(inputs), userdata=userdata)
 
 # flake8: noqa: C901
 # Dispatch Blob types on Python side.
@@ -112,3 +121,8 @@ def blob_from_file(path_to_bin_file: str) -> BlobWrapper:
     array = np.fromfile(path_to_bin_file, dtype=np.uint8)
     tensor_desc = TensorDesc("U8", array.shape, "C")
     return BlobWrapper(tensor_desc, array)
+
+# flake8: noqa: D102
+def tensor_from_file(path: str) -> Tensor:
+    """The data will be read with dtype of unit8"""
+    return Tensor(np.fromfile(path, dtype=np.uint8))
