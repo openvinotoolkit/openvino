@@ -51,6 +51,9 @@
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include "transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp"
+#include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/common_optimizations/divide_fusion.hpp>
+#include <transformations/common_optimizations/subtract_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -80,7 +83,10 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>();
+    // FusedFilteringBoxesBySize transformation has the complex pattern
+    // which can be affected by further transformations. So we have to
+    // execute it at the beginning of the pipeline.
+    manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     if (!m_use_shapes) {
@@ -126,6 +132,8 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::LeakyReluFusion>();
     common_fusions->add_matcher<ngraph::pass::RandomUniformFusion>();
     common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
+    common_fusions->add_matcher<ngraph::pass::DivideFusion>();
+    common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
@@ -133,6 +141,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 

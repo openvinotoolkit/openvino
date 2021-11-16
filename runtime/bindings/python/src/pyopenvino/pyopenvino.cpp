@@ -1,11 +1,10 @@
 // Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include <ie_common.h>
 #include <pybind11/pybind11.h>
 
-#include <ie_iinfer_request.hpp>
-#include <ie_version.hpp>
+#include <openvino/core/node.hpp>
+#include <openvino/core/version.hpp>
 #include <string>
 
 #include "pyopenvino/graph/axis_set.hpp"
@@ -20,21 +19,22 @@
 #if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
+#include "pyopenvino/core/async_infer_queue.hpp"
 #include "pyopenvino/core/containers.hpp"
+#include "pyopenvino/core/core.hpp"
+#include "pyopenvino/core/executable_network.hpp"
 #include "pyopenvino/core/ie_blob.hpp"
-#include "pyopenvino/core/ie_core.hpp"
 #include "pyopenvino/core/ie_data.hpp"
-#include "pyopenvino/core/ie_executable_network.hpp"
-#include "pyopenvino/core/ie_infer_queue.hpp"
-#include "pyopenvino/core/ie_infer_request.hpp"
 #include "pyopenvino/core/ie_input_info.hpp"
 #include "pyopenvino/core/ie_network.hpp"
 #include "pyopenvino/core/ie_parameter.hpp"
 #include "pyopenvino/core/ie_preprocess_info.hpp"
-#include "pyopenvino/core/ie_version.hpp"
+#include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/core/offline_transformations.hpp"
+#include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/tensor_description.hpp"
+#include "pyopenvino/core/version.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
@@ -53,9 +53,9 @@
 namespace py = pybind11;
 
 std::string get_version() {
-    auto version = InferenceEngine::GetInferenceEngineVersion();
-    std::string version_str = std::to_string(version->apiVersion.major) + ".";
-    version_str += std::to_string(version->apiVersion.minor) + ".";
+    auto version = ov::get_openvino_version();
+    std::string version_str = std::to_string(OPENVINO_VERSION_MAJOR) + ".";
+    version_str += std::to_string(OPENVINO_VERSION_MINOR) + ".";
     version_str += version->buildNumber;
     return version_str;
 }
@@ -63,26 +63,6 @@ std::string get_version() {
 PYBIND11_MODULE(pyopenvino, m) {
     m.doc() = "Package openvino.pyopenvino which wraps openvino C++ APIs";
     m.def("get_version", &get_version);
-    py::enum_<InferenceEngine::StatusCode>(m, "StatusCode")
-        .value("OK", InferenceEngine::StatusCode::OK)
-        .value("GENERAL_ERROR", InferenceEngine::StatusCode::GENERAL_ERROR)
-        .value("NOT_IMPLEMENTED", InferenceEngine::StatusCode::NOT_IMPLEMENTED)
-        .value("NETWORK_NOT_LOADED", InferenceEngine::StatusCode::NETWORK_NOT_LOADED)
-        .value("PARAMETER_MISMATCH", InferenceEngine::StatusCode::PARAMETER_MISMATCH)
-        .value("NOT_FOUND", InferenceEngine::StatusCode::NOT_FOUND)
-        .value("OUT_OF_BOUNDS", InferenceEngine::StatusCode::OUT_OF_BOUNDS)
-        .value("UNEXPECTED", InferenceEngine::StatusCode::UNEXPECTED)
-        .value("REQUEST_BUSY", InferenceEngine::StatusCode::REQUEST_BUSY)
-        .value("RESULT_NOT_READY", InferenceEngine::StatusCode::RESULT_NOT_READY)
-        .value("NOT_ALLOCATED", InferenceEngine::StatusCode::NOT_ALLOCATED)
-        .value("INFER_NOT_STARTED", InferenceEngine::StatusCode::INFER_NOT_STARTED)
-        .value("NETWORK_NOT_READ", InferenceEngine::StatusCode::NETWORK_NOT_READ)
-        .export_values();
-
-    py::enum_<InferenceEngine::IInferRequest::WaitMode>(m, "WaitMode")
-        .value("RESULT_READY", InferenceEngine::IInferRequest::WaitMode::RESULT_READY)
-        .value("STATUS_ONLY", InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY)
-        .export_values();
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
@@ -92,7 +72,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
     regclass_graph_Input(m);
-    regclass_graph_Output(m);
     regclass_graph_NodeFactory(m);
     regclass_graph_Strides(m);
     regclass_graph_CoordinateDiff(m);
@@ -113,6 +92,8 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_Variant(m);
     regclass_graph_VariantWrapper<std::string>(m, std::string("String"));
     regclass_graph_VariantWrapper<int64_t>(m, std::string("Int"));
+    regclass_graph_Output<ov::Node>(m, std::string(""));
+    regclass_graph_Output<const ov::Node>(m, std::string("Const"));
 
     regclass_Core(m);
     regclass_IENetwork(m);
@@ -138,17 +119,16 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_Tensor(m);
 
     // Registering specific types of containers
-    Containers::regclass_PyInputsDataMap(m);
-    Containers::regclass_PyConstInputsDataMap(m);
-    Containers::regclass_PyOutputsDataMap(m);
-    Containers::regclass_PyResults(m);
+    Containers::regclass_TensorIndexMap(m);
+    Containers::regclass_TensorNameMap(m);
 
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);
     regclass_Version(m);
     regclass_Parameter(m);
     regclass_InputInfo(m);
-    regclass_InferQueue(m);
+    regclass_AsyncInferQueue(m);
+    regclass_ProfilingInfo(m);
     regclass_PreProcessInfo(m);
 
     regmodule_offline_transformations(m);

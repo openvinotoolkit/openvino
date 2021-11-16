@@ -166,25 +166,26 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
         const auto size = std::abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
         if (resultSize > size) {
             resultSharedValue->minInterval = sharedValue->minInterval;
+            if (resultAttribute->levels != 0ul) {
+                float dequantizationMul;
+                float dequantizationSub;
+                float updatedOutputLowValue;
+                float updatedOutputHighValue;
 
-            float dequantizationMul;
-            float dequantizationSub;
-            float updatedOutputLowValue;
-            float updatedOutputHighValue;
+                const size_t minLevels = NetworkHelper::calculateLevels(
+                        0.f,
+                        DataPrecision::getMaxValue(resultAttribute->levels),
+                        resultSharedValue->combinedInterval.low,
+                        resultSharedValue->combinedInterval.high,
+                        resultSharedValue->minInterval.low,
+                        resultSharedValue->minInterval.high,
+                        dequantizationMul,
+                        dequantizationSub,
+                        updatedOutputLowValue,
+                        updatedOutputHighValue);
 
-            const size_t minLevels = NetworkHelper::calculateLevels(
-                0.f,
-                DataPrecision::getMaxValue(resultAttribute->levels),
-                resultSharedValue->combinedInterval.low,
-                resultSharedValue->combinedInterval.high,
-                resultSharedValue->minInterval.low,
-                resultSharedValue->minInterval.high,
-                dequantizationMul,
-                dequantizationSub,
-                updatedOutputLowValue,
-                updatedOutputHighValue);
-
-            resultSharedValue->minLevels = minLevels;
+                resultSharedValue->minLevels = minLevels;
+            }
 
 #ifdef LPT_DEBUG
             resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;
