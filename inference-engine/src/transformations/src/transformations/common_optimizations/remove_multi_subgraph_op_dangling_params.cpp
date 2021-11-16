@@ -64,8 +64,10 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
                         for (size_t i=desc_idx+1; i < body_in_descriptors.size(); ++i) {
                             body_in_descriptors[i]->m_body_parameter_index--;
                         }
-                        if (std::count(std::begin(required_inputs), std::end(required_inputs),
-                            op_inputs[body_in_descriptors[desc_idx]->m_input_index]) == 0) {
+                        // remove dangling input of MultiSubGraphOp which was not removed earlier
+                        auto& current_input = op_inputs[body_in_descriptors[desc_idx]->m_input_index];
+                        if (std::count(std::begin(required_inputs), std::end(required_inputs), current_input) == 0
+                            && std::count(std::begin(op_inputs), std::end(op_inputs), current_input) > 0) {
                             op_inputs.erase(std::next(op_inputs.begin(), body_in_descriptors[desc_idx]->m_input_index));
                             // Move all body_indexes which are after these indicated by to_remove_descriptors_indexes
                             // and are not used in any body

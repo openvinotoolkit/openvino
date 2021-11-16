@@ -65,7 +65,7 @@ TEST(TransformationTests, RemoveLoopDanglingParameters) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, Remove2LoopDanglingParameters) {
+TEST(TransformationTests, RemoveLoopManyDanglingParameters) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
     auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
@@ -113,6 +113,59 @@ TEST(TransformationTests, Remove2LoopDanglingParameters) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+TEST(TransformationTests, RemoveLoopManyDanglingParameters2) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+    auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
+
+    auto a = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto b = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto bi = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto c = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto ci = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto d = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto di = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+
+    auto mul = std::make_shared<Multiply>(bi, bi);
+    auto sub = std::make_shared<Multiply>(mul, di);
+    auto abs = std::make_shared<Abs>(sub);
+    {
+        auto body = std::make_shared<Function>(OutputVector{condition, abs}, ParameterVector{ai, bi, ci, di});
+        auto loop = std::make_shared<Loop>(trip_count, condition);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_function(body);
+        loop->set_invariant_input(ai, a);
+        loop->set_invariant_input(bi, b);
+        loop->set_invariant_input(ci, c);
+        loop->set_invariant_input(di, d);
+
+        auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
+        f = std::make_shared<Function>(OutputVector{loop_res}, ParameterVector{a, b, c, d});
+
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto body = std::make_shared<Function>(OutputVector{condition, abs}, ParameterVector{bi, di});
+        auto loop = std::make_shared<Loop>(trip_count, condition);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_function(body);
+        loop->set_invariant_input(bi, b);
+        loop->set_invariant_input(di, d);
+
+        auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs));
+        f_ref = std::make_shared<Function>(OutputVector{loop_res}, ParameterVector{a, b, c, d});
+    }
+
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 TEST(TransformationTests, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
@@ -151,6 +204,53 @@ TEST(TransformationTests, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
 
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(concat));
         f_ref = std::make_shared<Function>(OutputVector{loop_res}, ParameterVector{a, b});
+    }
+
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, RemoveIfDanglingParametersFromBodiesAndInputs) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
+    auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
+    auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);
+
+    auto Xte = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Yte = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto then_op = std::make_shared<Add>(Xte, Xte);
+    auto then_op_res = std::make_shared<Result>(then_op);
+
+    auto else_op = std::make_shared<Maximum>(Xte, Xte);
+    auto else_op_res = std::make_shared<Result>(else_op);
+    {
+        auto then_body = std::make_shared<Function>(OutputVector{then_op_res}, ParameterVector{Xte, Yte});
+        auto else_body = std::make_shared<Function>(OutputVector{else_op_res}, ParameterVector{Xte, Yte});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xte, Xte);
+        if_op->set_input(Y, Yte, Yte);
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        f = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y});
+
+        ov::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto then_body = std::make_shared<Function>(OutputVector{then_op_res}, ParameterVector{Xte});
+        auto else_body = std::make_shared<Function>(OutputVector{else_op_res}, ParameterVector{Xte});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xte, Xte);
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y});
     }
 
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
@@ -204,6 +304,151 @@ TEST(TransformationTests, RemoveIfDanglingParametersOnlyFromBodies) {
         f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y});
     }
 
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, RemoveIfManyDanglingParameters) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
+    auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
+    auto Z = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
+    auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);
+
+    auto Xt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Yt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Zt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto then_op = std::make_shared<Add>(Xt, Zt);
+    auto then_op_res = std::make_shared<Result>(then_op);
+
+    auto Xe = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Ye = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Ze = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto else_op = std::make_shared<Maximum>(Xe, Xe);
+    auto else_op_res = std::make_shared<Result>(else_op);
+    {
+        auto then_body = std::make_shared<Function>(OutputVector{then_op_res}, ParameterVector{Xt, Yt, Zt});
+        auto else_body = std::make_shared<Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye, Ze});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xt, Xe);
+        if_op->set_input(Y, Yt, Ye);
+        if_op->set_input(Z, Zt, Ze);
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        f = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, Z});
+
+        ov::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto then_body = std::make_shared<Function>(OutputVector{then_op_res}, ParameterVector{Xt, Zt});
+        auto else_body = std::make_shared<Function>(OutputVector{else_op_res}, ParameterVector{Xe});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xt, Xe);
+        if_op->set_input(Z, Zt, nullptr);
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Z});
+    }
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, RemoveTensorIteratorDanglingParameter) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto X = std::make_shared<Parameter>(element::f32, Shape{32, 40, 10});
+    auto Y = std::make_shared<Parameter>(element::f32, Shape{32, 40, 10});
+    auto M = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+
+    auto Xi = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto Yi = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto M_body = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto Zo = std::make_shared<Abs>(std::make_shared<Add>(Xi, Yi));
+    {
+        auto body = std::make_shared<Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
+        auto tensor_iterator = std::make_shared<TensorIterator>();
+        tensor_iterator->set_body(body);
+        tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
+        tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -1, 1);
+        tensor_iterator->set_invariant_input(M_body, M);
+
+        auto out = tensor_iterator->get_iter_value(Zo, -1);
+        auto res = std::make_shared<Result>(out);
+        f = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, M});
+
+        ov::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto body = std::make_shared<Function>(OutputVector{Zo}, ParameterVector{Xi, Yi});
+        auto tensor_iterator = std::make_shared<TensorIterator>();
+        tensor_iterator->set_body(body);
+        tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
+        tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -1, 1);
+
+        auto out = tensor_iterator->get_iter_value(Zo, -1);
+        auto res = std::make_shared<Result>(out);
+        f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, M});
+    }
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, RemoveTensorIteratorManyDanglingParameters) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto X = std::make_shared<Parameter>(element::f32, Shape{32, 40, 10});
+    auto Y = std::make_shared<Parameter>(element::f32, Shape{32, 40, 10});
+    auto Z = std::make_shared<Parameter>(element::f32, Shape{32, 40, 10});
+    auto M = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+
+    auto Xi = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto Yi = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto Zi = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto M_body = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto Zo = std::make_shared<Abs>(std::make_shared<Add>(Xi, Zi));
+    {
+        auto body = std::make_shared<Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, Zi, M_body});
+        auto tensor_iterator = std::make_shared<TensorIterator>();
+        tensor_iterator->set_body(body);
+        tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
+        tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -1, 1);
+        tensor_iterator->set_sliced_input(Zi, Z, 0, 2, 2, -1, 1);
+        tensor_iterator->set_invariant_input(M_body, M);
+
+        auto out = tensor_iterator->get_iter_value(Zo, -1);
+        auto res = std::make_shared<Result>(out);
+        f = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, Z, M});
+
+        ov::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto body = std::make_shared<Function>(OutputVector{Zo}, ParameterVector{Xi, Zi});
+        auto tensor_iterator = std::make_shared<TensorIterator>();
+        tensor_iterator->set_body(body);
+        tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
+        tensor_iterator->set_sliced_input(Zi, Z, 0, 2, 2, -1, 1);
+
+        auto out = tensor_iterator->get_iter_value(Zo, -1);
+        auto res = std::make_shared<Result>(out);
+        f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, Z, M});
+    }
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const auto res = fc.compare(f, f_ref);
     ASSERT_TRUE(res.valid) << res.message;

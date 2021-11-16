@@ -235,7 +235,11 @@ void op::v8::If::set_input(const Output<Node>& value,
                  "Missing parameter ",
                  else_parameter->get_friendly_name(),
                  " for \'else_body\'!");
-    set_invariant_inputs(value, {then_parameter, else_parameter});
+    if (then_parameter == else_parameter) {
+        set_invariant_inputs(value, {then_parameter});
+    } else {
+        set_invariant_inputs(value, {then_parameter, else_parameter});
+    }
 }
 
 Output<Node> op::v8::If::set_output(const std::shared_ptr<v0::Result>& then_result,
