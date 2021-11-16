@@ -19,7 +19,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NearestNeighborUpsamplingFusion, "NearestNe
 ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
     auto input = ngraph::pattern::any_input();
-    auto shape_of = std::make_shared<ngraph::opset8::ShapeOf>(input)
+    auto shape_of = std::make_shared<ngraph::opset8::ShapeOf>(input);
 
     auto slice_begin = pattern::wrap_type<ngraph::opset8::Constant>();
     auto slice_end = pattern::wrap_type<ngraph::opset8::Constant>();
