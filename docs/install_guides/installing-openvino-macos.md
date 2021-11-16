@@ -22,7 +22,7 @@ By default, the [OpenVINO™ Toolkit](https://docs.openvinotoolkit.org/latest/in
 
 > **NOTE**: The current version of the Intel® Distribution of OpenVINO™ toolkit for macOS* supports inference on Intel CPUs and Intel® Neural Compute Stick 2 devices only.
 
-* 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
+* 6th to 12th generation Intel® Core™ processors and Intel® Xeon® processors 
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
 * Intel® Neural Compute Stick 2
@@ -195,9 +195,8 @@ To uninstall, follow the steps on the [Uninstalling page](uninstalling_openvino.
 
 ## Additional Resources
 
-- Get started with samples and demos: [Get Started Guide](../get_started/get_started_guide.md)
+- Get started with samples and demos: [Get Started Guide](../get_started.md)
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
 - Convert models for use with OpenVINO™: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - Write your own OpenVINO™ applications: [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 - Information on sample applications: [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
