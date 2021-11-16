@@ -97,6 +97,7 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
+    std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
     virtual ~AutoBatchExecutableNetwork();
 
     std::atomic_bool                                            _terminate = {false};
