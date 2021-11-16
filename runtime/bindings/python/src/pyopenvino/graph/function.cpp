@@ -362,8 +362,12 @@ void regclass_graph_Function(py::module m) {
                         _outputs.append(outputs.cast<py::str>());
                     } else if (py::isinstance<py::tuple>(outputs)) {
                         _outputs.append(outputs.cast<py::tuple>());
+                    } else if (py::isinstance < ov::Output < ov::Node >> (outputs)) {
+                        _outputs.append(outputs.cast < ov::Output < ov::Node >> ());
+                    } else {
+                        throw py::type_error("Incorrect type for operation to add at index " + std::to_string(i) + ".");
                     }
-                } else {
+                } else (py::isinstance<py::list>(outputs)) {
                     _outputs = outputs.cast<py::list>();
                 }
 
@@ -371,14 +375,10 @@ void regclass_graph_Function(py::module m) {
                     if (py::isinstance<py::str>(_outputs[i])) {
                         self.add_output(output.cast<std::string>());
                     } else if (py::isinstance<py::tuple>(output)) {
-                        py::tuple output_tuple = outpu.cast<py::tuple>();
+                        py::tuple output_tuple = output.cast<py::tuple>();
                         self.add_output(output_tuple[0].cast<std::string>(), output_tuple[1].cast<int>());
-                    } else if (py::isinstance<const ov::Output<ov::Node>>(_outputs[i])) {
-                        self.add_output(output.cast<const ov::Output<ov::tNode>>());
-                    } else {
-                        throw ov::Exception("Incorrect type " + output.get_type() + "for layer to add at index " + i
-                                   + ". Expected string with layer name or tuple with two elements: layer name as "
-                                      "first element and port id as second");
+                    } else if (py::isinstance<ov::Output<ov::Node>>(_outputs[i])) {
+                        self.add_output(output.cast<ov::Output<ov::Node>>());
                     }
                     i++;
                 }
