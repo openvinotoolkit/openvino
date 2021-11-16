@@ -36,44 +36,45 @@ ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingPara
             auto& body_func = multi_subgraph_op->get_function(body_idx);
             auto& body_params = body_func->get_parameters();
             auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(body_idx);
-
+            // collect all descriptors which should be removed and reqired inputs
             for (size_t i = 0; i < body_in_descriptors.size(); ++i) {
                 auto& body_param = body_params[body_in_descriptors[i]->m_body_parameter_index];
                 if (body_param->get_output_target_inputs(0).size() == 0) {
                     to_remove_descriptors_indexes[body_idx].push_back(i);
                     pass_required = true;
                 } else {
+                    // collecting required inputs is needed to detect cases where the input
+                    // is not needed in a one body, but the other one uses it (for example If case)
                     required_inputs.insert(op_inputs[body_in_descriptors[i]->m_input_index]); // only unique
                 }
             }
         }
         if (pass_required) {
-            for (auto& i : required_inputs) {
-                std::cout << "req in: " << i << "\n";
-            }
+            // Remove dangling body params and input and update input descriptors
             for (size_t body_idx=0; body_idx < subgraphs_size; ++body_idx) {
                 auto& body_in_descriptors = multi_subgraph_op->get_input_descriptions(body_idx);
                 auto& body_func = multi_subgraph_op->get_function(body_idx);
                 auto& body_params = body_func->get_parameters();
                 op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector updated_body_in_descriptors;
-                for (size_t i = 0; i < body_in_descriptors.size(); ++i) {
-                    if (std::count(std::begin(to_remove_descriptors_indexes[body_idx]), std::end(to_remove_descriptors_indexes[body_idx]), i) > 0) {
-                        auto& body_param = body_params[body_in_descriptors[i]->m_body_parameter_index];
+                for (size_t desc_idx = 0; desc_idx < body_in_descriptors.size(); ++desc_idx) {
+                    if (std::count(std::begin(to_remove_descriptors_indexes[body_idx]), std::end(to_remove_descriptors_indexes[body_idx]), desc_idx) > 0) {
+                        auto& body_param = body_params[body_in_descriptors[desc_idx]->m_body_parameter_index];
                         body_func->remove_parameter(body_param);
                         // Move all body_indexes which are after these indicated by to_remove_descriptors_indexes
-                        for (size_t j=i+1; j < body_in_descriptors.size(); ++j) {
-                            body_in_descriptors[j]->m_body_parameter_index--;
+                        for (size_t i=desc_idx+1; i < body_in_descriptors.size(); ++i) {
+                            body_in_descriptors[i]->m_body_parameter_index--;
                         }
                         if (std::count(std::begin(required_inputs), std::end(required_inputs),
-                            op_inputs[body_in_descriptors[i]->m_input_index]) == 0) {
-                            std::cout << "removed input: " << body_in_descriptors[i]->m_input_index << "\n";
-                            op_inputs.erase(std::next(op_inputs.begin(), body_in_descriptors[i]->m_input_index));
-                            for (size_t j=i+1; j < body_in_descriptors.size(); ++j) {
-                                body_in_descriptors[j]->m_input_index--;
+                            op_inputs[body_in_descriptors[desc_idx]->m_input_index]) == 0) {
+                            op_inputs.erase(std::next(op_inputs.begin(), body_in_descriptors[desc_idx]->m_input_index));
+                            // Move all body_indexes which are after these indicated by to_remove_descriptors_indexes
+                            // and are not used in any body
+                            for (size_t i=desc_idx+1; i < body_in_descriptors.size(); ++i) {
+                                body_in_descriptors[i]->m_input_index--;
                             }
                         }
                     } else {
-                        updated_body_in_descriptors.emplace_back(body_in_descriptors[i]);
+                        updated_body_in_descriptors.emplace_back(body_in_descriptors[desc_idx]);
                     }
                 }
                 multi_subgraph_op->set_input_descriptions(body_idx, updated_body_in_descriptors);
