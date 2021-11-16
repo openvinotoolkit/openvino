@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
 
         // -------- Step 3. Add preprocessing  --------
         // clang-format off
-        model = PrePostProcessor().
+        model = PrePostProcessor(model).
             // 1) Select input with 'input_tensor_name' tensor name
             input(InputInfo(input_tensor_name).
                 // 2) Set input type
@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
                 network(InputNetworkInfo().
                     set_layout("NCHW"))).
             // 5) Apply preprocessing to a input with 'input_tensor_name' name of loaded model
-            build(model);
+            build();
         // clang-format on
 
         // -------- Step 4. Loading a model to the device --------
