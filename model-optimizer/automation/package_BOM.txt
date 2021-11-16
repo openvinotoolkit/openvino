@@ -26,6 +26,7 @@ openvino/tools/mo/analysis/tf_od_api.py
 openvino/tools/mo/analysis/tf_retinanet.py
 openvino/tools/mo/analysis/tf_yolo.py
 openvino/tools/mo/back/__init__.py
+openvino/tools/mo/back/add_outputs_recursive.py
 openvino/tools/mo/back/AvgPool.py
 openvino/tools/mo/back/blob_normalizer.py
 openvino/tools/mo/back/CellNormalizer.py
@@ -40,7 +41,6 @@ openvino/tools/mo/back/CutMemory.py
 openvino/tools/mo/back/EnableConstantStridedSlice.py
 openvino/tools/mo/back/FakeOutputResolver.py
 openvino/tools/mo/back/ForceStrictPrecision.py
-openvino/tools/mo/back/fuse_sub_div_min.py
 openvino/tools/mo/back/FuseTransposesSequence.py
 openvino/tools/mo/back/GatherNormalizer.py
 openvino/tools/mo/back/ie_ir_ver_2/__init__.py
@@ -567,6 +567,7 @@ openvino/tools/mo/front/tf/identityN_to_identity.py
 openvino/tools/mo/front/tf/if_ext.py
 openvino/tools/mo/front/tf/InterpolateTransposes.py
 openvino/tools/mo/front/tf/IteratorGetNext_ext.py
+openvino/tools/mo/front/tf/IteratorGetNextCut.py
 openvino/tools/mo/front/tf/loader.py
 openvino/tools/mo/front/tf/log_softmax_ext.py
 openvino/tools/mo/front/tf/LookupTableInsert_ext.py

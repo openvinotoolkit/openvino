@@ -383,9 +383,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                                   .preprocess(PreProcessSteps().convert_layout(old_api_transpose_args)));
             }
 
-            auto& resuls = function->get_results();
-            for (size_t i = 0; i < resuls.size(); ++i) {
-                const auto& result = resuls[i];
+            auto& results = function->get_results();
+            for (size_t i = 0; i < results.size(); ++i) {
+                const auto& result = results[i];
                 ov::RTMap& rtInfo = result->get_rt_info();
                 const auto it = rtInfo.find(old_api_map_key);
                 if (it == rtInfo.end())
