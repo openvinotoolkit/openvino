@@ -129,7 +129,7 @@ def get_nodes_by_type(graph: Graph, types: list, recursively: bool = True) -> li
     """ Returns all nodes with type from types collection
      :param graph: NetworkX model to collect nodes
      :param types: list of required types
-     :param recurively: whether return all nodes from the graph
+     :param recursively: whether return all nodes from the graph
      and each subgraph or only from the main graph
      :return list of nodes filtered by 'types' collection
       """

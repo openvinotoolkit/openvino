@@ -52,16 +52,16 @@ def compress_model_weights(model: NXModel):
         compress_weights(model_dict['model'])
 
 
-def get_nodes_by_type(model: NXModel, types: list, recurively=True):
+def get_nodes_by_type(model: NXModel, types: list, recursively=True):
     """ Returns all nodes with type from types collection
     :param model: NXModel model
     :param types: list of required types
-    :param recurively: whether return all nodes from the model
+    :param recursively: whether return all nodes from the model
     and each subgraph or only from the external model
     :return list of nodes filtered by 'types' collection
     """
     return [node for model_dict in model.models
-            for node in ge.get_nodes_by_type(model_dict['model'], types, recurively)]
+            for node in ge.get_nodes_by_type(model_dict['model'], types, recursively)]
 
 
 def get_node_by_name(model: NXModel, name: str) -> Node:
