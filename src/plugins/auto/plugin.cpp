@@ -416,9 +416,9 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         if (item.deviceName.find("GPU") == 0) {
             auto& gpuUniqueName = item.uniqueName;
             if (gpuUniqueName.find("iGPU") != std::string::npos) {
-                iGPU.push_back(std::move(item));
+                iGPU.push_back(item);
             } else if (gpuUniqueName.find("dGPU") != std::string::npos) {
-                dGPU.push_back(std::move(item));
+                dGPU.push_back(item);
             }
             continue;
         }
