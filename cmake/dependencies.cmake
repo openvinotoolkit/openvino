@@ -160,15 +160,15 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-    if(EXISTS "${TBBROOT}/lib/cmake/TBB/TBBConfig.cmake")
+    if(EXISTS "${TBBROOT}/lib/cmake/tbb/TBBConfig.cmake")
         # oneTBB case
-        update_deps_cache(TBB_DIR "${TBB}/lib/cmake/TBB" "Path to TBB cmake folder")
+        update_deps_cache(TBB_DIR "${TBB}/lib/cmake/tbb" "Path to TBB cmake folder")
     else()
         update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
     endif()
 
     update_deps_cache(TBBBIND_2_5_DIR "${TBBBIND_2_5}/cmake" "Path to TBBBIND_2_5 cmake folder")
-    debug_message(STATUS "tbb=" ${TBB})
+    message(STATUS "tbb=" ${TBB_DIR})
 
     if(DEFINED IE_PATH_TO_DEPS)
         unset(IE_PATH_TO_DEPS)
