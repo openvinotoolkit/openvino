@@ -20,8 +20,8 @@ class IteratorGetNextCut(FrontReplacementPattern):
     graph_condition = [lambda graph: graph.graph['cmd_params'].input is None]
 
     def run_before(self):
-        from extensions.front.output_cut import OutputCut
-        from extensions.front.input_cut import InputCut
+        from openvino.tools.mo.front.output_cut import OutputCut
+        from openvino.tools.mo.front.input_cut import InputCut
         return [OutputCut, InputCut]
 
     def run_after(self):
