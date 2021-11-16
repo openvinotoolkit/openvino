@@ -48,7 +48,7 @@ endif()
 ie_cpack_add_component(cpp_samples DEPENDS cpp_samples_deps core)
 
 if(UNIX)
-    install(DIRECTORY samples/
+    install(DIRECTORY cpp/
             DESTINATION samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
@@ -56,7 +56,7 @@ if(UNIX)
             PATTERN speech_libs_and_demos EXCLUDE
             PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
-    install(DIRECTORY samples/
+    install(DIRECTORY cpp/
             DESTINATION samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
