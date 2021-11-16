@@ -859,17 +859,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                 if (input_layout.size.batch[0] % 16 == 0) {
                     expected_format = cldnn::format::bs_fs_yx_bsv32_fsv32;
                 } else {
-                    if (data_type_traits::is_floating_point(output_layout.data_type))
-                        expected_format = cldnn::format::b_fs_yx_fsv16;
-                    else
-                        expected_format = cldnn::format::b_fs_yx_fsv32;
+                    expected_format = cldnn::format::b_fs_yx_fsv32;
                 }
             } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                        convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) && is_2d) {
-                if (is_dw)
-                    expected_format = cldnn::format::b_fs_yx_fsv32;
-                else
-                    expected_format = cldnn::format::b_fs_yx_fsv16;
+                // TODO: optimize clDNN kernels for good support of b_fs_yx_fsv32 format
+                expected_format = cldnn::format::b_fs_yx_fsv32;
             } else {
                 expected_format = imad_case(node);
             }
