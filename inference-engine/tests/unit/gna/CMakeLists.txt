@@ -13,6 +13,7 @@ addIeTargetTest(
             gmock
             commonTestUtils_s
             GNAPlugin_test_static
+            engines_test_util
         ADD_CPPLINT
         LABELS
             GNA
