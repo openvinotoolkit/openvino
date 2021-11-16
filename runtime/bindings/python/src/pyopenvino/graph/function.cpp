@@ -367,10 +367,9 @@ void regclass_graph_Function(py::module m) {
                 } else {
                     throw py::type_error("Incorrect type for operation to add at index " + std::to_string(i) + ".");
                 }
-            } else
-                (py::isinstance<py::list>(outputs)) {
-                    _outputs = outputs.cast<py::list>();
-                }
+            } else {
+                _outputs = outputs.cast<py::list>();
+            }
 
             for (py::handle output : _outputs) {
                 if (py::isinstance<py::str>(_outputs[i])) {

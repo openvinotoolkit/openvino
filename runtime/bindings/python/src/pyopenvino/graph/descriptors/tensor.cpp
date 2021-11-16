@@ -106,7 +106,9 @@ void regclass_graph_descriptor_Tensor(py::module m) {
 
     tensor.def_property_readonly("shape", &ov::descriptor::Tensor::get_shape);
 
-    tensor.def_property_readonly("rt_info");
+    tensor.def_property_readonly("rt_info",
+                                 (PyRTMap & (ov::descriptor::Tensor::*)()) & ov::descriptor::Tensor::get_rt_info,
+                                 py::return_value_policy::reference_internal);
 
     tensor.def_property_readonly("size", &ov::descriptor::Tensor::size);
 
