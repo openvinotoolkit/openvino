@@ -41,11 +41,18 @@ public:
     OPENVINO_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
     void set_name(const std::string& name);
 
+    std::string get_any_name() const;
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
+
+    OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
     void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
+    OPENVINO_DEPRECATED(
+        "set_element_type() is deprecated. To change Tensor element type please change the Parameter type")
     void set_element_type(const element::Type& elemenet_type);
+    OPENVINO_DEPRECATED(
+        "set_partial_shape() is deprecated. To change Tensor partial shape please change the Parameter partial shape")
     void set_partial_shape(const PartialShape& partial_shape);
 
     /// \brief sets lower bound value description
@@ -106,9 +113,7 @@ protected:
     ngraph::HostTensorPtr m_lower_value, m_upper_value;
     std::string m_name;
 
-    mutable std::atomic_bool m_names_changing{false};
-    mutable std::unordered_set<std::string> m_names;
-    static std::atomic<size_t> m_next_instance_id;
+    std::unordered_set<std::string> m_names;
     std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
 };
 

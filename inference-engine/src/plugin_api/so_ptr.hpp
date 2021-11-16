@@ -15,7 +15,6 @@
 #include <type_traits>
 
 #include "openvino/runtime/common.hpp"
-#include "shared_object.hpp"
 
 namespace ov {
 namespace runtime {

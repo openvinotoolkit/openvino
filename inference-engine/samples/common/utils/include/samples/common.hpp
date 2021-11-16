@@ -23,12 +23,44 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/openvino.hpp"
+
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
 #        define UNUSED
 #    else
 #        define UNUSED __attribute__((unused))
 #    endif
+#endif
+
+/**
+ * @brief Unicode string wrappers
+ */
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#    define tchar                wchar_t
+#    define tstring              std::wstring
+#    define tmain                wmain
+#    define TSTRING2STRING(tstr) wstring2string(tstr)
+#else
+#    define tchar                char
+#    define tstring              std::string
+#    define tmain                main
+#    define TSTRING2STRING(tstr) tstr
+#endif
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+
+/**
+ * @brief Convert wstring to string
+ * @param ref on wstring
+ * @return string
+ */
+inline std::string wstring2string(const std::wstring& wstr) {
+    std::string str;
+    for (auto&& wc : wstr)
+        str += static_cast<char>(wc);
+    return str;
+}
 #endif
 
 /**
@@ -98,6 +130,16 @@ inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version
     return os;
 }
 
+inline std::ostream& operator<<(std::ostream& os, const ov::Version& version) {
+    os << "\t" << version.description << " version ......... ";
+    os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
+
+    os << "\n\tBuild ........... ";
+    os << version.buildNumber;
+
+    return os;
+}
+
 inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version* version) {
     if (nullptr != version) {
         os << std::endl << *version;
@@ -106,6 +148,15 @@ inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version
 }
 
 inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, InferenceEngine::Version>& versions) {
+    for (auto&& version : versions) {
+        os << "\t" << version.first << std::endl;
+        os << version.second << std::endl;
+    }
+
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, ov::Version>& versions) {
     for (auto&& version : versions) {
         os << "\t" << version.first << std::endl;
         os << version.second << std::endl;

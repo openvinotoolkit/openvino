@@ -44,7 +44,8 @@ target_link_libraries(ngraph_backend PUBLIC ngraph
 if (NOT WIN32)
     target_link_libraries(ngraph_backend PRIVATE ${CMAKE_DL_LIBS})
 endif()
-target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(ngraph_backend PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
 
 install(TARGETS ngraph_backend
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL

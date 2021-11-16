@@ -12,6 +12,9 @@
 
 #define CUSTOM_RELU_TYPE "CustomReLU"
 
+/* thickness of a line (in pixels) to be used for bounding boxes */
+#define BBOX_THICKNESS 2
+
 class CustomReLUImpl : public InferenceEngine::ILayerExecImpl {
 public:
     explicit CustomReLUImpl(const std::shared_ptr<ngraph::Node>& node) : _node(node) {}
@@ -84,10 +87,7 @@ private:
 
 class CustomReluOp : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{CUSTOM_RELU_TYPE, 0};
-    const ngraph::NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("CustomReluOp", "experimental");
 
     CustomReluOp() = default;
     explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg) : Op({arg}) {
@@ -117,8 +117,6 @@ public:
         return true;
     }
 };
-
-constexpr ngraph::NodeTypeInfo CustomReluOp::type_info;
 
 class InPlaceExtension : public InferenceEngine::IExtension {
 public:

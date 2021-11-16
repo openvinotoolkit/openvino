@@ -33,9 +33,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ProposalLayerTest.*",
         // TODO: Issue 51804
         ".*InferRequestPreprocessConversionTest.*oPRC=U8.*",
-        // TODO: Issue: 56556
-        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
-        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
         // TODO: Issue 54163
         R"(.*ActivationLayerTest.*SoftPlus.*)",
         // TODO: Issue 54722
@@ -48,7 +45,21 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 58621
         R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
         R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
+        // Not implemented yet:
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+        R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
         // TODO: CVS-65013
         R"(.*LoadNetworkCreateDefaultExecGraphResult.*)",
+        // Not expected behavior
+        R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
+        R"(.*CoreThreadingTestsWithIterations.*)",
+        R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
+        R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
+        // TODO: Issue: CVS-69640
+        R"(.*EltwiseLayerTest.*OpType=Prod.*)",
+        R"(.*EltwiseLayerTest.*OpType=SqDiff.*PARAMETER.*SCALAR.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(16\.16\.96\)_\(96\)_\).*OpType=SqDiff.*)",
+        R"(.*EltwiseLayerTest.*TS=\(\(52\.1\.52\.3\.2\)_\(2\)_\).*OpType=SqDiff.*)",
     };
 }

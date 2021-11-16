@@ -27,10 +27,15 @@ namespace ov {
 /// A user-defined function.
 class OPENVINO_API Function : public std::enable_shared_from_this<Function> {
 public:
-    static constexpr ov::DiscreteTypeInfo type_info{"Function", 0};
-    const ov::DiscreteTypeInfo& get_type_info() const {
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
         return type_info;
     }
+    const ::ov::DiscreteTypeInfo& get_type_info() const {
+        return get_type_info_static();
+    }
+    OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
+    static const ov::DiscreteTypeInfo type_info;
     Function(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
     Function(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
@@ -107,7 +112,12 @@ public:
     ov::Output<const ov::Node> input(size_t i) const;
     ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
+    void add_output(const std::string& tensor_name);
+    void add_output(const std::string& op_name, size_t output_idx);
+    void add_output(const ov::Output<ov::Node>& port);
+
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
+    void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
 
     /// Return the element type of output i
     const ov::element::Type& get_output_element_type(size_t i) const;
@@ -140,7 +150,6 @@ public:
     std::vector<std::shared_ptr<ov::Node>> get_ordered_ops() const;
     void map_unordered_ops(std::function<void(ov::Node*)> f) const;
 
-    friend std::ostream& operator<<(std::ostream&, const Function&);
     // updates graph and m_results list
     void replace_node(std::shared_ptr<ov::Node> old, std::shared_ptr<ov::Node> repl);
 
@@ -183,11 +192,14 @@ public:
     /// Index for value or result referencing it, or -1
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
 
+    /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluate the function on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result
     /// \param input_tensors Tensors for the inputs. One for each inputs.
     /// \param evaluation_context Storage of additional settings and attributes that can be used
     /// when evaluating the function. This additional information can be shared across nodes.
+    OPENVINO_DEPRECATED(
+        "This method is deprecated and will be removed soon. Please use evaluate with ov::runtime::Tensor instead.")
     bool evaluate(const ov::HostTensorVector& output_tensors,
                   const ov::HostTensorVector& input_tensors,
                   ov::EvaluationContext evaluation_context = ov::EvaluationContext()) const;
@@ -275,11 +287,12 @@ public:
         return m_rt_info;
     }
 
-private:
     Function(const Function&) = delete;
-    Function(const Function&&) = delete;
+    Function(Function&&) = delete;
     Function& operator=(const Function&) = delete;
+    Function& operator=(Function&&) = delete;
 
+private:
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Function
     /// parameters/variables or finds all Parameters/Variables in a function and registers them.
@@ -303,6 +316,9 @@ private:
     ov::op::util::VariableVector m_variables;
     RTMap m_rt_info;
 };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream&, const Function&);
 
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Function>>

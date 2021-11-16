@@ -15,10 +15,12 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset8.hpp>
 
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <transformations/rt_info/attributes.hpp>
 
 namespace ngraph {
 namespace op {
@@ -50,7 +52,17 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
     return false;
 }
 
-inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+inline bool has_decompression_converts(const std::shared_ptr<const ngraph::Function>& function) {
+    for (const auto& op : function->get_ops()) {
+        if (std::dynamic_pointer_cast<ngraph::opset8::Convert>(op)) {
+            if (ov::is_decompression(op))
+                return true;
+        }
+    }
+    return false;
+}
+
+inline std::string create_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
     std::string out_name;
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto tensor_name = output.get_tensor().get_name();
@@ -65,6 +77,18 @@ inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& out
         }
     }
     return out_name;
+}
+
+inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+    return create_ie_output_name(ov::Output<const ngraph::Node>(output.get_node(), output.get_index()));
+}
+
+inline std::string get_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
+    return create_ie_output_name(output);
+}
+
+inline std::string get_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
+    return get_ie_output_name(ov::Output<const ngraph::Node>(output.get_node(), output.get_index()));
 }
 
 template <typename T>
@@ -143,6 +167,12 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
 }
 
 TRANSFORMATIONS_API std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node);
+
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_node(
+        const std::shared_ptr<ngraph::Node>& shape_node, const std::vector<size_t>& indices);
+
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> node_to_get_shape_value_of_indices_from_shape_source(
+        const ngraph::Output<ngraph::Node>& shape_source, const std::vector<size_t>& indices);
 }  // namespace util
 }  // namespace op
 }  // namespace ngraph

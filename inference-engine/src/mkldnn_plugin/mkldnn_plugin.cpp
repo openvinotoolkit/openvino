@@ -6,6 +6,7 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
+#include "mkldnn_extension.h"
 #include "mkldnn_itt.h"
 #include "mkldnn_serialize.h"
 
@@ -28,6 +29,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -68,7 +70,6 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/op_conversions/fq_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/serialize.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -115,7 +116,7 @@ using namespace InferenceEngine;
 
 Engine::Engine() {
     _pluginName = "CPU";
-    extensionManager->AddExtension(std::make_shared<Extensions::Cpu::MKLDNNExtensions>());
+    extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
 }
 
 Engine::~Engine() {
@@ -135,7 +136,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
-
     auto get_convert_precisions = []() {
         precisions_array array = {
             {ngraph::element::i64,     ngraph::element::i32},
@@ -158,7 +158,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
 
     static const auto precisions = get_convert_precisions();
 
-    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
@@ -185,6 +184,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ngraph::pass::EliminateConvert>();
 
     auto pass_config = manager.get_pass_config();
 
@@ -298,12 +298,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
             [](const_node_ptr &node) -> bool {
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::type_info) {
+                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
                             return false;
                         }
                     }
@@ -441,8 +442,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     for (const auto &ii : _networkInputs) {
         auto input_precision = ii.second->getPrecision();
-        if (input_precision != InferenceEngine::Precision::FP32 &&
+        if (input_precision != InferenceEngine::Precision::FP64 &&
+            input_precision != InferenceEngine::Precision::FP32 &&
             input_precision != InferenceEngine::Precision::I32 &&
+            input_precision != InferenceEngine::Precision::U32 &&
             input_precision != InferenceEngine::Precision::U16 &&
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::I8 &&

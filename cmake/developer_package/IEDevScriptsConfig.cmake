@@ -208,6 +208,13 @@ endif()
 
 # General flags
 
+macro(ov_install_static_lib target comp)
+    if(NOT BUILD_SHARED_LIBS)
+        install(TARGETS ${target} EXPORT OpenVINOTargets
+                ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${comp})
+    endif()
+endmacro()
+
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
@@ -235,7 +242,11 @@ endif()
 # macro to mark target as conditionally compiled
 
 function(ie_mark_target_as_cc TARGET_NAME)
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::conditional_compilation)
+    set(cc_library openvino::conditional_compilation)
+    if(TARGET IE::conditional_compilation)
+        set(cc_library IE::conditional_compilation)
+    endif()
+    target_link_libraries(${TARGET_NAME} PRIVATE ${cc_library})
 
     if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
         return()
@@ -280,8 +291,10 @@ function(ie_check_pip_package full_name message_type)
                 set(installed_version "${CMAKE_MATCH_1}")
             endif()
 
-            message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
-                "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            if(NOT req_version STREQUAL installed_version)
+                message(${message_type} "${name} package is installed, but may have different version (${installed_version}). "
+                    "Please use \"${PYTHON_EXECUTABLE} -m pip install ${full_name}\".")
+            endif()
         else()
             set(${name}_FOUND ON PARENT_SCOPE)
         endif()

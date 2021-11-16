@@ -50,7 +50,8 @@ public:
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
-                                                          const layout& out_layout);
+                                                          const layout& out_layout,
+                                                          bool needs_split_reorder = false);
 
     std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
         primitive_id input_id,
@@ -61,9 +62,11 @@ private:
     struct cache_key {
         primitive_id data_source;
         layout expected_layout;
+        bool needs_split_reorder;
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
+                   lhs.needs_split_reorder == rhs.needs_split_reorder;
         }
 
         friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
@@ -71,7 +74,9 @@ private:
         friend bool operator<(cache_key const& lhs, cache_key const& rhs) {
             if (lhs.data_source != rhs.data_source)
                 return (lhs.data_source < rhs.data_source);
-            return lhs.expected_layout < rhs.expected_layout;
+            else if (lhs.expected_layout != rhs.expected_layout)
+                return (lhs.expected_layout < rhs.expected_layout);
+            return lhs.needs_split_reorder < rhs.needs_split_reorder;
         }
     };
 
@@ -153,6 +158,10 @@ private:
                                               const layout& output_layout,
                                               const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
+    bool convolution_bs_fs_yx_bsv32_fsv32_opt(const layout &input_layout,
+                                              const layout& output_layout,
+                                              const layout& weights_layout,
+                                              std::shared_ptr<const convolution> conv);
     bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
                                        const layout& output_layout,
                                        const layout& weights_layout,
@@ -173,6 +182,7 @@ public:
     format get_preferred_format(program_node& node);
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
+    bool are_data_types_suitable_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next

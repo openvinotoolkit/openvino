@@ -116,13 +116,6 @@ public:
     virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     /**
-     * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
-     * @brief Queries memory states.
-     * @return Returns memory states
-     */
-    virtual std::vector<std::shared_ptr<IVariableStateInternal>> QueryState();
-
-    /**
      * @brief      Sets the pointer to plugin internal.
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.
@@ -168,6 +161,17 @@ protected:
      */
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
+    /**
+     * @brief      Creates an inference request internal implementation.
+     * @note       The method is called by IExecutableNetworkInternal::CreateInferRequest as
+     *             plugin-specific implementation.
+     * @param[in]  inputs   The function inputs
+     * @param[in]  outputs  The function outputs
+     * @return     A shared pointer to inference request object.
+     */
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data

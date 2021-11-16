@@ -23,8 +23,8 @@ if(NOT ENABLE_DOCKER)
     add_subdirectory(template_extension)
 
     set(all_docs_targets
-        ie_docs_snippets
-        template_extension templatePlugin templateFuncTests)
+        ie_docs_snippets templateFuncTests
+        template_extension template_ov_extension templatePlugin)
     foreach(target_name IN LISTS all_docs_targets)
         if(TARGET ${target_name})
             set_target_properties(${target_name} PROPERTIES FOLDER docs)
@@ -36,8 +36,14 @@ if(NOT ENABLE_DOCKER)
 
     # install
 
-    install(TARGETS templatePlugin template_extension
-            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+    foreach(target templatePlugin template_extension template_ov_extension)
+        if(TARGET ${target})
+            install(TARGETS ${target}
+                    LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH}
+                    COMPONENT tests
+                    EXCLUDE_FROM_ALL)
+        endif()
+    endforeach()
 endif()
 
 set(OMZ_DOCS_DIR "" CACHE PATH "Path to open_model_zoo documentation")
@@ -216,6 +222,14 @@ function(build_docs)
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.png"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.gif"
         "${OpenVINO_SOURCE_DIR}/inference-engine/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/runtime/*.md"
+        "${OpenVINO_SOURCE_DIR}/runtime/*.png"
+        "${OpenVINO_SOURCE_DIR}/runtime/*.gif"
+        "${OpenVINO_SOURCE_DIR}/runtime/*.jpg"
+        "${OpenVINO_SOURCE_DIR}/samples/*.md"
+        "${OpenVINO_SOURCE_DIR}/samples/*.png"
+        "${OpenVINO_SOURCE_DIR}/samples/*.gif"
+        "${OpenVINO_SOURCE_DIR}/samples/*.jpg"
         "${OpenVINO_SOURCE_DIR}/tools/*.md"
         "${OpenVINO_SOURCE_DIR}/tools/*.png"
         "${OpenVINO_SOURCE_DIR}/tools/*.gif"

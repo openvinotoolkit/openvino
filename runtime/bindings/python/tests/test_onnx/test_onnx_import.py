@@ -4,10 +4,9 @@
 import os
 
 import numpy as np
-import ngraph as ng
 import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
-from openvino.inference_engine import IECore
+from openvino import Core
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
@@ -15,10 +14,8 @@ from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
 def test_import_onnx_function():
     model_path = os.path.join(os.path.dirname(__file__), "models/add_abc.onnx")
-    ie = IECore()
-    ie_network = ie.read_network(model=model_path)
-
-    ng_function = ng.function_from_cnn(ie_network)
+    ie = Core()
+    func = ie.read_model(model=model_path)
 
     dtype = np.float32
     value_a = np.array([1.0], dtype=dtype)
@@ -26,7 +23,7 @@ def test_import_onnx_function():
     value_c = np.array([3.0], dtype=dtype)
 
     runtime = get_runtime()
-    computation = runtime.computation(ng_function)
+    computation = runtime.computation(func)
     result = computation(value_a, value_b, value_c)
     assert np.allclose(result, np.array([6], dtype=dtype))
 
@@ -50,5 +47,19 @@ def test_simple_graph():
 
     runtime = get_runtime()
     computation = runtime.computation(ng_model_function)
-    assert np.array_equal(computation(1, 2, 3)[0], np.array([6.0], dtype=np.float32))
-    assert np.array_equal(computation(4, 5, 6)[0], np.array([15.0], dtype=np.float32))
+    assert np.array_equal(
+        computation(
+            np.array([1], dtype=np.float32),
+            np.array([2], dtype=np.float32),
+            np.array([3], dtype=np.float32),
+        )[0],
+        np.array([6.0], dtype=np.float32),
+    )
+    assert np.array_equal(
+        computation(
+            np.array([4], dtype=np.float32),
+            np.array([5], dtype=np.float32),
+            np.array([6], dtype=np.float32),
+        )[0],
+        np.array([15.0], dtype=np.float32),
+    )

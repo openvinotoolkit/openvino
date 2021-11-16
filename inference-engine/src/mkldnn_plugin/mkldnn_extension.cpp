@@ -130,17 +130,3 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::s
 
 // Generate exported function
 IE_DEFINE_EXTENSION_CREATE_FUNCTION(MKLDNNPlugin::MKLDNNExtension)
-
-INFERENCE_EXTENSION_API(InferenceEngine::StatusCode)
-InferenceEngine::CreateExtension(InferenceEngine::IExtension*& ext, InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        ext = new MKLDNNPlugin::MKLDNNExtension();
-        return OK;
-    } catch (std::exception& ex) {
-        if (resp) {
-            std::string err = ((std::string) "Couldn't create extension: ") + ex.what();
-            err.copy(resp->msg, 255);
-        }
-        return InferenceEngine::GENERAL_ERROR;
-    }
-}

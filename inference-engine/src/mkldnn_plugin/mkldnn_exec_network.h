@@ -24,6 +24,10 @@ public:
     typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
 
     std::shared_ptr<InferenceEngine::IInferRequestInternal>
+    CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                           const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
+
+    std::shared_ptr<InferenceEngine::IInferRequestInternal>
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                            InferenceEngine::OutputsDataMap networkOutputs) override;
 
@@ -39,9 +43,6 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
     std::shared_ptr<ngraph::Function> GetExecGraphInfo() override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
     void Export(std::ostream& modelStream) override;
 

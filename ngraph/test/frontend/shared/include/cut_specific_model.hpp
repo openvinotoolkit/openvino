@@ -24,9 +24,9 @@ struct CutModelParam {
 class FrontEndCutModelTest : public ::testing::TestWithParam<CutModelParam> {
 public:
     CutModelParam m_param;
-    ngraph::frontend::FrontEndManager m_fem;
-    ngraph::frontend::FrontEnd::Ptr m_frontEnd;
-    ngraph::frontend::InputModel::Ptr m_inputModel;
+    ov::frontend::FrontEndManager m_fem;
+    ov::frontend::FrontEnd::Ptr m_frontEnd;
+    ov::frontend::InputModel::Ptr m_inputModel;
 
     static std::string getTestCaseName(const testing::TestParamInfo<CutModelParam>& obj);
 
@@ -37,7 +37,7 @@ protected:
 
     void doLoadFromFile();
 
-    std::vector<ngraph::frontend::Place::Ptr> constructNewInputs() const;
+    std::vector<ov::frontend::Place::Ptr> constructNewInputs() const;
 
-    std::vector<ngraph::frontend::Place::Ptr> constructNewOutputs() const;
+    std::vector<ov::frontend::Place::Ptr> constructNewOutputs() const;
 };

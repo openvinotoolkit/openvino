@@ -82,7 +82,6 @@ private:
             {"opset5", OpsetFunction(ngraph::get_opset5)},
             {"opset6", OpsetFunction(ngraph::get_opset6)},
             {"opset7", OpsetFunction(ngraph::get_opset7)},
-            {"opset8", OpsetFunction(ngraph::get_opset8)},
         };
 
         auto it = s_opsets.find(opset_ver);
@@ -98,7 +97,7 @@ private:
 }  // namespace
 
 void regclass_pyngraph_NodeFactory(py::module m) {
-    py::class_<NodeFactory> node_factory(m, "NodeFactory");
+    py::class_<NodeFactory> node_factory(m, "NodeFactory", py::module_local());
     node_factory.doc() = "NodeFactory creates nGraph nodes";
 
     node_factory.def(py::init());

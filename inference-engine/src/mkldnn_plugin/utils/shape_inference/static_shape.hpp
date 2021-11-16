@@ -11,6 +11,8 @@
 #include "static_dimension.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov {
 namespace op {
@@ -20,9 +22,14 @@ namespace op {
 /// \brief Class representing a shape that must be totally static.
 class StaticShape : public std::vector<StaticDimension>  {
 public:
+    StaticShape() = default;
     StaticShape(std::initializer_list<StaticDimension> init);
     StaticShape(const std::vector<StaticDimension::value_type>& dimensions);
     StaticShape(std::vector<StaticDimension> dimensions);
+
+    StaticShape(const PartialShape &) {
+        OPENVINO_UNREACHABLE("[shape infer] Shouldn't convert from PartialShape to StaticShape at runtime.");
+    }
 
     static bool is_static() { return true; }
     static bool is_dynamic() { return false; }
@@ -35,6 +42,7 @@ public:
     bool merge_rank(Rank r);
 
     Shape to_shape() const;
+    PartialShape to_partial_shape() const;
 
     friend std::ostream& operator<<(std::ostream& str, const StaticShape& shape);
     friend StaticShape operator+(const StaticShape& s1, const StaticShape& s2);

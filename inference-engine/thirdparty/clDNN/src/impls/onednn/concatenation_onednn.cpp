@@ -40,8 +40,7 @@ protected:
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dst_desc())});
         }
 
-        // TODO post operation
-        // configure_post_ops_arguments(instance, args);
+        configure_post_ops_arguments(instance, args);
 
         return args;
     }
@@ -74,7 +73,7 @@ protected:
 public:
     static primitive_impl* create(const concatenation_node& arg) {
         auto desc = get_concatenation_descriptor(arg);
-        auto attr = get_primitive_attributes(arg);
+        auto attr = arg.get_onednn_primitive_attributes();
 
         std::shared_ptr<void> dummy = nullptr;
 

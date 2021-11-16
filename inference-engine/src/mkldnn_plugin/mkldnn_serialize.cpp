@@ -3,7 +3,7 @@
 //
 #include "mkldnn_serialize.h"
 
-#include <transformations/serialize.hpp>
+#include <openvino/pass/serialize.hpp>
 
 #include <pugixml.hpp>
 
@@ -118,7 +118,9 @@ void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
     };
 
     // Serialize to old representation in case of old API
-    ngraph::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     serializer.run_on_function(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
 }
 
@@ -128,7 +130,7 @@ CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream & istream, cnn_netwo
 }
 
 void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network) {
-    using namespace ngraph::pass;
+    using namespace ov::pass;
 
     std::string xmlString, xmlInOutString;
     InferenceEngine::Blob::Ptr dataBlob;

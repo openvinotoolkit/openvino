@@ -14,12 +14,10 @@
 #include "exceptions.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/provenance.hpp"
 #include "onnx_framework_node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
 #include "utils/common.hpp"
-#include "utils/provenance_tag.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -48,41 +46,28 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
 
-void add_provenance_tag_to_initializer(const Tensor& tensor, std::shared_ptr<default_opset::Constant> node) {
-    if (!ngraph::get_provenance_enabled()) {
-        return;
-    }
-
-    const std::string tag = detail::build_input_provenance_tag(tensor.get_name(), tensor.get_shape());
-
-    node->add_provenance_tag(tag);
+bool preserve_op_name(const std::string& out_name, const ngraph::onnx_import::Model& model) {
+    // we eliminate Identity op (since it's a no-op) and therefore
+    // we must preserve its input name, unless Identity is connected
+    // to a graph's output - in that case Identity's input gets a new name
+    const auto& graph_outputs = model.get_graph().output();
+    bool is_identity_on_output = std::find_if(graph_outputs.begin(),
+                                              graph_outputs.end(),
+                                              [&out_name](const ONNX_NAMESPACE::ValueInfoProto& output) -> bool {
+                                                  return output.name() == out_name;
+                                              }) != graph_outputs.end();
+    return !is_identity_on_output;
 }
 
-void add_provenance_tag_to_input(const ValueInfo& input, std::shared_ptr<ngraph::Node> node) {
-    if (!ngraph::get_provenance_enabled()) {
-        return;
-    }
-
-    const std::string tag = detail::build_input_provenance_tag(input.get_name(), input.get_shape());
-
-    node->add_provenance_tag(tag);
-}
-
-void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vector) {
-    if (!ngraph::get_provenance_enabled()) {
-        return;
-    }
-
-    const auto tag = detail::build_op_provenance_tag(onnx_node);
-    const auto ng_inputs = onnx_node.get_ng_inputs();
-
-    ngraph::traverse_nodes(
-        as_node_vector(ng_node_vector),
-        [&tag](std::shared_ptr<ngraph::Node> ng_node) {
-            ng_node->add_provenance_tag(tag);
-        },
-        as_node_vector(ng_inputs));
-}
+bool common_node_for_all_outputs(const OutputVector& outputs) {
+    const auto first_out_node = outputs.at(0).get_node();
+    bool ret = std::all_of(std::next(std::begin(outputs)),
+                           std::end(outputs),
+                           [first_out_node](const OutputVector::value_type& output) {
+                               return output.get_node() == first_out_node;
+                           });
+    return ret;
+};
 }  // namespace detail
 
 Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
@@ -114,7 +99,6 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
 
             initializers.emplace(initializer_tensor.name(), tensor);
             ng_constant->get_output_tensor(0).set_names({initializer_tensor.name()});
-            detail::add_provenance_tag_to_initializer(tensor, ng_constant);
             m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
         }
     }
@@ -128,7 +112,6 @@ Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto, std::uniqu
 
         ValueInfo value_info{input};
         auto ng_node = value_info.get_ng_node(m_parameters, initializers);
-        detail::add_provenance_tag_to_input(value_info, ng_node);
         m_cache->emplace_node(input.name(), std::move(ng_node));
     }
 
@@ -289,7 +272,6 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
         std::rethrow_exception(std::current_exception());
     }
     set_friendly_names(onnx_node, ng_subgraph_outputs);
-    detail::add_provenance_tags(onnx_node, ng_subgraph_outputs);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
         auto ng_node_output = ng_subgraph_outputs.at(i);
@@ -300,18 +282,12 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
 }
 
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const {
-    const auto common_node_for_all_outputs = [](const OutputVector& outputs) {
-        const auto first_out_node = outputs.at(0).get_node();
-        bool ret = std::all_of(std::begin(outputs) + 1,
-                               std::end(outputs),
-                               [first_out_node](const OutputVector::value_type& output) {
-                                   return output.get_node() == first_out_node;
-                               });
-        return ret;
-    };
+    if (onnx_node.op_type() == "Identity" && detail::preserve_op_name(onnx_node.output(0), *m_model)) {
+        return;
+    }
 
     // indicates that all subgraph outputs come out of a single nG node (controls node naming below)
-    const auto common_node = common_node_for_all_outputs(ng_subgraph_outputs);
+    const auto common_node = detail::common_node_for_all_outputs(ng_subgraph_outputs);
 
     for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.

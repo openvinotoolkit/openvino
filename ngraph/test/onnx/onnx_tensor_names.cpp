@@ -41,7 +41,7 @@ NGRAPH_TEST(onnx_tensor_names, simple_model) {
     const auto ops = function->get_ordered_ops();
     EXPECT_TRUE(matching_node_found_in_graph<op::Parameter>(ops, "input", "input"));
     EXPECT_TRUE(matching_node_found_in_graph<op::Relu>(ops, "relu", "relu_t"));
-    EXPECT_TRUE(matching_node_found_in_graph<op::v1::Add>(ops, "ident", "final_output"));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Abs>(ops, "ident", "final_output"));
     EXPECT_TRUE(matching_node_found_in_graph<op::Result>(function->get_results(), "final_output", "final_output"));
 }
 

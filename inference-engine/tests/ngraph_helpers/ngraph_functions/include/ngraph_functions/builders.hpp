@@ -76,6 +76,9 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
 
+std::shared_ptr<ngraph::Node> makeDynamicInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
+                                                    const ov::PartialShape& shape);
+
 std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
                                             const ngraph::Output<Node> &target_shape,
                                             const ngraph::op::BroadcastType& mode,

@@ -125,7 +125,9 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
     ${__CLDNN_AllSources}
   )
 
-target_compile_options(${CLDNN_BUILD__PROJ} PRIVATE -Os)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  target_compile_options(${CLDNN_BUILD__PROJ} PRIVATE -Os)
+endif()
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 
@@ -166,5 +168,6 @@ add_custom_command(
     TARGET "${CLDNN_BUILD__PROJ}" POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${__CLDNN_Directory__core}/cache/cache.json ${CLDNN_CACHE_PATH}/cache.json)
 
+ov_install_static_lib("${CLDNN_BUILD__PROJ}" gpu)
 
 # ======================================================================================================

@@ -234,7 +234,10 @@ network::network(engine& engine,
     : network(program::build_program(engine, nodes, options, is_internal), engine.create_stream(), is_internal) {}
 
 network::network(program::ptr program, uint16_t stream_id)
-    : network(program, program->get_engine().create_stream(), false, stream_id ==0) {}
+    : network(program, program->get_engine().create_stream(), false, stream_id == 0) {}
+
+network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
+    : network(program, stream, false, stream_id == 0) {}
 
 network::~network() {
     _memory_pool->clear_pool_for_network(net_id);
@@ -418,8 +421,10 @@ void network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
 
     for (auto& prim : o_iter->second) {
         prim->set_output_memory(eng.reinterpret_buffer(*mem_new, prim->output_memory().get_layout()), false);
-        if (!_reset_arguments)
+        if (!_reset_arguments &&
+            (!prim->get_node().is_type<data>() && !(prim->get_node().is_type<mutable_data>() && prim->get_node().get_dependencies().empty()))) {
             prim->set_arguments();
+        }
     }
 }
 
@@ -470,6 +475,13 @@ void network::allocate_primitives() {
     for (auto node : _program->get_processing_order()) {
         nodes_to_allocate.push_back(_program->get_node_ptr(node->id()));
     }
+
+    std::sort(nodes_to_allocate.begin(),
+              nodes_to_allocate.end(),
+              [](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
+                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              });
+
     for (auto const& node : nodes_to_allocate) {
         allocate_primitive_instance(*node);
     }
@@ -481,8 +493,12 @@ void network::allocate_primitives() {
 
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.node->is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    auto eltw_in_layout = node->get_dependency(fused_op.dep_start_idx).get_output_layout();
+                    auto& eltw_in = node->get_dependency(fused_op.dep_start_idx);
+                    auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = node->get_output_layout();
+
+                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                        continue;
 
                     if (eltw_in_layout.size == out_layout.size &&
                         eltw_in_layout.format == out_layout.format &&
@@ -493,6 +509,17 @@ void network::allocate_primitives() {
                         }
                         eltw_dep = fused_op.dep_start_idx;
                         can_reuse_eltwise_mem = true;
+                    }
+
+                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
+                        auto& eltw_inst = _primitives.at(eltw_in.id());
+                        auto& prim_inst = _primitives.at(node->id());
+                        auto eltw_mem_type = eltw_inst->output_memory().get_allocation_type();
+                        auto prim_mem_type = prim_inst->output_memory().get_allocation_type();
+
+                        // Keep lockable memory type for `prim_inst` output if needed
+                        if (eltw_mem_type != prim_mem_type && eltw_mem_type != allocation_type::cl_mem && eltw_mem_type != allocation_type::usm_host)
+                            can_reuse_eltwise_mem = false;
                     }
 
                     if (fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout) && !can_reuse_eltwise_mem) {
@@ -513,6 +540,11 @@ void network::allocate_primitives() {
                 }
             }
         }
+    }
+    // allocate intermediate buffers
+    for (auto const& node : _program->get_processing_order()) {
+        auto prim = _primitives[node->id()];
+        prim->allocate_internal_buffers();
     }
 }
 
