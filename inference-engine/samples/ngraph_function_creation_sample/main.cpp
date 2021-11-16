@@ -278,7 +278,7 @@ int main(int argc, char* argv[]) {
         // apply preprocessing
         // clang-format off
         using namespace ov::preprocess;
-        model = PrePostProcessor()
+        model = PrePostProcessor(model)
             // 1) InputInfo() with no args assumes a model has a single input
             .input(InputInfo()
                 // 2) Set input tensor information:
@@ -292,7 +292,7 @@ int main(int argc, char* argv[]) {
                     .set_layout("NCHW")))
         // 4) Once the build() method is called, the preprocessing steps
         // for layout and precision conversions are inserted automatically
-        .build(model);
+        .build();
         // clang-format on
 
         // -------- Step 4. Read input images --------
