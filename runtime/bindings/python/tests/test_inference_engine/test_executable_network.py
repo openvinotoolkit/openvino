@@ -5,26 +5,13 @@ import os
 import pytest
 import numpy as np
 
-from ..conftest import model_path, image_path
+from ..conftest import model_path, read_image
 from openvino.impl import Function, ConstOutput, Shape
 
 from openvino import Core, Tensor
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
-
-
-def read_image():
-    import cv2
-    n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(image_path())
-    if image is None:
-        raise FileNotFoundError("Input image not found")
-
-    image = cv2.resize(image, (h, w)) / 255
-    image = image.transpose((2, 0, 1)).astype(np.float32)
-    image = image.reshape((n, c, h, w))
-    return image
 
 
 def test_get_metric(device):
@@ -278,9 +265,9 @@ def test_infer_new_request_wrong_port_name(device):
     img = read_image()
     tensor = Tensor(img)
     exec_net = ie.compile_model(func, device)
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(KeyError) as e:
         exec_net.infer_new_request({"_data_": tensor})
-    assert "Port for tensor name _data_ was not found." in str(e.value)
+    assert "Port for tensor named _data_ was not found!" in str(e.value)
 
 
 def test_infer_tensor_wrong_input_data(device):
@@ -291,5 +278,32 @@ def test_infer_tensor_wrong_input_data(device):
     tensor = Tensor(img, shared_memory=True)
     exec_net = ie.compile_model(func, device)
     with pytest.raises(TypeError) as e:
-        exec_net.infer_new_request({4.5: tensor})
-    assert "Incompatible key type!" in str(e.value)
+        exec_net.infer_new_request({0.: tensor})
+    assert "Incompatible key type for tensor named: 0." in str(e.value)
+
+
+def test_infer_numpy_model_from_buffer(device):
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        bin = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    func = core.read_model(model=xml, weights=bin)
+    img = read_image()
+    exec_net = core.compile_model(func, device)
+    res = exec_net.infer_new_request({"data": img})
+    assert np.argmax(res) == 2
+
+
+def test_infer_tensor_model_from_buffer(device):
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        bin = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    func = core.read_model(model=xml, weights=bin)
+    img = read_image()
+    tensor = Tensor(img)
+    exec_net = core.compile_model(func, device)
+    res = exec_net.infer_new_request({"data": tensor})
+    assert np.argmax(res) == 2

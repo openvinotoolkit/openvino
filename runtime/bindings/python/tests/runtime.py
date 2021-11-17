@@ -99,14 +99,7 @@ class Computation(object):
                 "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values)
             )
 
-        param_types = [param.get_element_type() for param in self.parameters]
         param_names = [param.friendly_name for param in self.parameters]
-
-        # ignore not needed input values
-        input_values = [
-            np.array(input_value[0], dtype=get_dtype(input_value[1]))
-            for input_value in zip(input_values[: len(self.parameters)], param_types)
-        ]
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
         if self.network_cache.get(str(input_shapes)) is None:
@@ -121,8 +114,8 @@ class Computation(object):
 
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
-            input_shape = PartialShape(input.shape)
-            if len(input.shape) > 0 and not parameter_shape.compatible(input_shape):
+            input_shape = PartialShape([]) if isinstance(input, (int, float)) else PartialShape(input.shape)
+            if not parameter_shape.compatible(input_shape):
                 raise UserInputError(
                     "Provided tensor's shape: %s does not match the expected: %s.",
                     input_shape,

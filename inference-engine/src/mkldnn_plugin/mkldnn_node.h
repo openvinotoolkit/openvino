@@ -725,7 +725,6 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims = {};
-
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
 private:
