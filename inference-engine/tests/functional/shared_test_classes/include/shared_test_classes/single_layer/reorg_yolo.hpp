@@ -4,29 +4,26 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+namespace ov {
+namespace test {
+namespace subgraph {
 
-namespace LayerTestsDefinitions {
-
-using ReorgYoloParamsTuple = typename std::tuple<
-        ngraph::Shape,                  // Input Shape
-        size_t,                         // stride
-        InferenceEngine::Precision,     // Network precision
-        std::string>;                   // Device name
+using ReorgYoloParamsTuple = typename std::tuple<InputShape,     // Input Shape
+                                                 size_t,         // stride
+                                                 ElementType,    // Network precision
+                                                 TargetDevice>;  // Device
 
 class ReorgYoloLayerTest : public testing::WithParamInterface<ReorgYoloParamsTuple>,
-                            virtual public LayerTestsUtils::LayerTestsCommon {
+                           virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReorgYoloParamsTuple>& obj);
 
 protected:
     void SetUp() override;
 };
 
-} // namespace LayerTestsDefinitions
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov

@@ -13,10 +13,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNReorgYoloNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto reorgYolo = std::dynamic_pointer_cast<const ngraph::opset2::ReorgYolo>(op);
         if (!reorgYolo) {
             errorMessage = "Only opset2 ReorgYolo operation is supported";

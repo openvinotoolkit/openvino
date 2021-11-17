@@ -6,10 +6,14 @@
 
 #include "shared_test_classes/single_layer/reorg_yolo.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 TEST_P(ReorgYoloLayerTest, CompareWithRefs) {
-    Run();
+    run();
 };
 
-} // namespace LayerTestsDefinitions
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov
