@@ -22,7 +22,8 @@ target_link_libraries(${TARGET_NAME}
         )
 
 target_compile_definitions(${TARGET_NAME}
-        PUBLIC ${ARGV}
+        PRIVATE
+        $<$<BOOL:ENABLE_GAPI_PREPROCESSING>:ENABLE_GAPI_PREPROCESSING>
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" )
 
