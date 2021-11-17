@@ -38,10 +38,10 @@ target_include_directories(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "FrontEnd to load and convert IR file format")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "FrontEnd to load and convert OpenVINO IR file format")
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
         ngraph::builder inference_engine_transformations
