@@ -60,26 +60,20 @@ void MKLDNNPlugin::MKLDNNInferRequest::CreateInferRequest() {
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
-    IE_SUPPRESS_DEPRECATED_START
-    if (execNetwork->_numRequests > 1 || execNetwork->QueryState().size() == 0) {
-        for (auto &node : graph->GetNodes()) {
-            if (node->getType() == MemoryInput) {
-                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
-                auto state_store = memoryNode->getStore();
-                auto state_name = memoryNode->getId();
+    for (auto& node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto state_store = memoryNode->getStore();
+            auto state_name = memoryNode->getId();
 
-                // Remove suffix with pair ID. Internal information.
-                auto suffix_idx = state_name.find("/id=");
-                if (suffix_idx != std::string::npos)
-                    state_name = state_name.substr(0, suffix_idx);
+            // Remove suffix with pair ID. Internal information.
+            auto suffix_idx = state_name.find("/id=");
+            if (suffix_idx != std::string::npos)
+                state_name = state_name.substr(0, suffix_idx);
 
-                memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
-           }
+            memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
         }
-    } else {
-        memoryStates = execNetwork->QueryState();
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
@@ -305,7 +299,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                                                                                                          desc.getShape().getRank()))
                                                                    : MemoryDescUtils::convertToTensorDesc(desc);
                         const auto &tensorDesc = data->getTensorDesc();
-                        if (expectedTensorDesc.getPrecision() != tensorDesc.getPrecision()) {
+                        if (expectedTensorDesc.getPrecision() != normalizeToSupportedPrecision(tensorDesc.getPrecision())) {
                             IE_THROW(ParameterMismatch)
                                     << "Network input and output use the same name: " << name << " but expect blobs with different precision: "
                                     << tensorDesc.getPrecision() << " for input and " << expectedTensorDesc.getPrecision()
@@ -431,10 +425,18 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                     IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
-            const auto &actualDesc = graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc();
-            if (blobDesc.getLayout() != InferenceEngine::Layout::ANY &&
-                actualDesc.isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
+            MemoryDescPtr actualDesc = graph->getInputNodeByName(name)->getBaseMemDescAtOutputPort(0);
+            bool blobHasAnyLayout = blobDesc.getLayout() == InferenceEngine::Layout::ANY;
+            if (!blobHasAnyLayout && !actualDesc->isDefined()) {
+                // we must define desc for dynamic case
+                // otherwise we got incorrect check on shape compatibility inside isCompatible
+                // because lower and upper bound will be compared
+                actualDesc = actualDesc->cloneWithNewDims(blobDesc.getLayout() == InferenceEngine::Layout::SCALAR ? InferenceEngine::SizeVector{1} :
+                                                                                                                    blobDesc.getDims());
+            }
+            if (!blobHasAnyLayout &&
+                actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
+                    graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);

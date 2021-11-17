@@ -21,7 +21,8 @@
 #define IDENTITY_NUM_SEGMENTS 3
 #define IDENTITY_DOMAIN 10.0f
 #define PWL_MAX_ERR_PERCENT 1.0f
-#define PWL_MAX_ITERATIONS 2000
+#define PWL_MAX_ITERATIONS_DEFAULT 2000
+#define PWL_MAX_ITERATIONS_LOG 5000
 #define PWL_MAX_NUM_SEGMENTS 128
 #define PWL_DESIGN_THRESHOLD 0.1f
 #define PWL_DESIGN_SAMPLES 500
@@ -74,7 +75,7 @@ bool pwl_search(const DnnActivation& activation_type,
                 const int samples,
                 std::vector<pwl_t>& pwl,
                 const int pwl_max_num_segments = PWL_MAX_NUM_SEGMENTS,
-                const int max_iteration_number = PWL_MAX_ITERATIONS);
+                const int max_iteration_number = PWL_MAX_ITERATIONS_DEFAULT);
 
 bool split_search(const DnnActivationType fun,
                   const double l_bound,

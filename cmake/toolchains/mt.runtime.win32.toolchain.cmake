@@ -29,6 +29,8 @@ onecoreuap_set_runtime(STATIC_CRT)
 onecoreuap_set_runtime(protobuf_MSVC_STATIC_RUNTIME)
 # clDNN
 onecoreuap_set_runtime(CLDNN__COMPILE_LINK_USE_STATIC_RUNTIME)
+# OpenCL
+onecoreuap_set_runtime(USE_DYNAMIC_VCXX_RUNTIME)
 # google-test
 if(use_static_runtime)
     set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE)

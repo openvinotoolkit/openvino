@@ -601,7 +601,9 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  PWL_DESIGN_THRESHOLD,
                                  pwlMaxErrorPercent,
                                  PWL_DESIGN_SAMPLES,
-                                 pwl));
+                                 pwl,
+                                 PWL_MAX_NUM_SEGMENTS,
+                                 PWL_MAX_ITERATIONS_LOG));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -614,7 +616,9 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  PWL_DESIGN_THRESHOLD,
                                  pwlMaxErrorPercent,
                                  PWL_DESIGN_SAMPLES,
-                                 pwl));
+                                 pwl,
+                                 PWL_MAX_NUM_SEGMENTS,
+                                 PWL_MAX_ITERATIONS_LOG));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -627,7 +631,9 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  PWL_DESIGN_THRESHOLD,
                                  pwlMaxErrorPercent,
                                  PWL_DESIGN_SAMPLES,
-                                 pwl));
+                                 pwl,
+                                 PWL_MAX_NUM_SEGMENTS,
+                                 PWL_MAX_ITERATIONS_LOG));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
