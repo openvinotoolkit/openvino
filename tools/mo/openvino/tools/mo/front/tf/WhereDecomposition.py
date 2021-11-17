@@ -3,12 +3,12 @@
 
 import numpy as np
 
-from openvino.tools.mo.ops.non_zero import NonZero
-from openvino.tools.mo.ops.transpose import Transpose
 from openvino.tools.mo.front.common.partial_infer.utils import int64_array
 from openvino.tools.mo.front.common.replacement import FrontReplacementOp
 from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
 from openvino.tools.mo.graph.graph import Node, Graph, rename_nodes
+from openvino.tools.mo.ops.non_zero import NonZero
+from openvino.tools.mo.ops.transpose import Transpose
 
 
 class WhereDecomposition(FrontReplacementOp):
@@ -20,9 +20,11 @@ class WhereDecomposition(FrontReplacementOp):
     enabled = True
 
     def run_after(self):
-        from openvino.tools.mo.front.tf.embedding_segments_sum import EmbeddingSegmentsSumFrontReplacer, EmbeddingSegmentsSumFrontReplacer2
+        from openvino.tools.mo.front.tf.embedding_segments_operation_fusing import \
+            EmbeddingSegmentsOperationMultipleFeaturesFusing, EmbeddingSegmentsOperationSingleFeatureFusing
         from openvino.tools.mo.front.TransposeOrderNormalizer import TransposeOrderNormalizer
-        return [EmbeddingSegmentsSumFrontReplacer, EmbeddingSegmentsSumFrontReplacer2, TransposeOrderNormalizer]
+        return [EmbeddingSegmentsOperationMultipleFeaturesFusing, EmbeddingSegmentsOperationSingleFeatureFusing,
+                TransposeOrderNormalizer]
 
     def replace_op(self, graph: Graph, node: Node):
         node_name = node.soft_get('name', node.id)

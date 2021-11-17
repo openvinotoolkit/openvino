@@ -85,6 +85,8 @@ protected:
         if (act == ngraph::helpers::ActivationTypes::Log) {
             // clamp not positive values
             inputDataMin = 1.0e-3;
+            // get error threshold value from PWL error
+            threshold = std::stof(configuration["GNA_PWL_MAX_ERROR_PERCENT"]);
         }
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -136,6 +138,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<std::map<std::string, std::string>> configs = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+        {"GNA_PWL_MAX_ERROR_PERCENT", "0.025"}
     }
 };
 
