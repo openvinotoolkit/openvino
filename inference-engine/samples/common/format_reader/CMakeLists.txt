@@ -18,7 +18,7 @@ add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
 # Find OpenCV components if exist
 find_package(OpenCV COMPONENTS core imgproc imgcodecs QUIET)
 if(NOT OpenCV_FOUND)
-    message(WARNING "OPENCV is disabled or not found, ${TARGET_NAME} will be built without OPENCV support")
+    message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support")
 else()
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES} ie_samples_utils)
     if(UNIX AND NOT APPLE)
