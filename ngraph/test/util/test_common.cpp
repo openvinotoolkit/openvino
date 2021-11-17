@@ -86,4 +86,17 @@ std::string TestsCommon::GetTestName() const {
 }
 
 }  // namespace test
+std::shared_ptr<SharedRTInfo> FunctionAccessor::get_shared_info() const {
+    if (auto f = m_function.lock()) {
+        return f->m_shared_rt_info;
+    }
+    throw ngraph::ngraph_error("Original function is not available");
+}
+
+std::set<std::shared_ptr<SharedRTInfo>> NodeAccessor::get_shared_info() const {
+    if (auto node = m_node.lock()) {
+        return node->m_shared_rt_info;
+    }
+    throw ngraph::ngraph_error("Original node is not available");
+}
 }  // namespace ov
