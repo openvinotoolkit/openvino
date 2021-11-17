@@ -50,6 +50,7 @@
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
 #include <transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 
@@ -136,6 +137,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::ConvertDivideWithConstant>();
+    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
 
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
