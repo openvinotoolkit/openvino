@@ -20,18 +20,14 @@ set (SRC
     pass/shape_relevance.hpp
     )
 
-add_library(ngraph_backend SHARED EXCLUDE_FROM_ALL ${SRC})
+add_library(ngraph_backend SHARED ${SRC})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ngraph_backend
-        UNITY
-    )
-endif()
+ie_faster_build(ngraph_backend UNITY)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ngraph_backend
-                           FILEDESCRIPTION "nGraph backend library")
-endif()
+ie_add_vs_version_file(NAME ngraph_backend
+                       FILEDESCRIPTION "nGraph backend library")
+
+ie_add_api_validator_post_build_step(TARGET ngraph_backend)
 
 target_compile_definitions(ngraph_backend
     PRIVATE
