@@ -53,7 +53,6 @@ if(UNIX)
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.bat EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE
             PATTERN .clang-format EXCLUDE)
 elseif(WIN32)
     install(DIRECTORY cpp/
@@ -61,7 +60,6 @@ elseif(WIN32)
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS
             PATTERN *.sh EXCLUDE
-            PATTERN speech_libs_and_demos EXCLUDE
             PATTERN .clang-format EXCLUDE)
 endif()
 
@@ -74,7 +72,7 @@ if(UNIX)
             DESTINATION samples/c
             COMPONENT c_samples)
 elseif(WIN32)
-    install(PROGRAMS cpp/samples/build_samples_msvc.bat
+    install(PROGRAMS cpp/build_samples_msvc.bat
             DESTINATION samples/c
             COMPONENT c_samples)
 endif()
@@ -85,7 +83,7 @@ install(DIRECTORY c
         PATTERN c/CMakeLists.txt EXCLUDE
         PATTERN c/.clang-format EXCLUDE)
 
-install(FILES ${IE_MAIN_SOURCE_DIR}/samples/CMakeLists.txt
+install(FILES cpp/CMakeLists.txt
         DESTINATION samples/c
         COMPONENT c_samples)
 
