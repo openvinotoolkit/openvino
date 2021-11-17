@@ -4,7 +4,7 @@
 
 set(FRONTEND_INSTALL_INCLUDE "runtime/include/ngraph/frontend")
 
-add_subdirectory(frontend_manager)
+add_subdirectory(manager)
 
 if (OV_ONNX_FRONTEND_ENABLE)
     add_subdirectory(onnx)
