@@ -105,18 +105,16 @@ def test_read_model_from_onnx_as_path():
     assert isinstance(func, Function)
 
 
-# @pytest.mark.xfail("68212")
-# def test_read_net_from_buffer():
-#     core = Core()
-#     with open(test_net_bin, "rb") as f:
-#         bin = f.read()
-#     with open(model_path()[0], "rb") as f:
-#         xml = f.read()
-#     func = core.read_model(model=xml, weights=bin)
-#     assert isinstance(func, IENetwork)
+def test_read_net_from_buffer():
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        bin = f.read()
+    with open(model_path()[0], "rb") as f:
+        xml = f.read()
+    func = core.read_model(model=xml, weights=bin)
+    assert isinstance(func, Function)
 
 
-@pytest.mark.xfail("68212")
 def test_net_from_buffer_valid():
     core = Core()
     with open(test_net_bin, "rb") as f:
@@ -125,14 +123,9 @@ def test_net_from_buffer_valid():
         xml = f.read()
     func = core.read_model(model=xml, weights=bin)
     ref_func = core.read_model(model=test_net_xml, weights=test_net_bin)
-    assert func.name == func.name
-    assert func.batch_size == ref_func.batch_size
-    ii_func = func.input_info
-    ii_func2 = ref_func.input_info
-    o_func = func.outputs
-    o_func2 = ref_func.outputs
-    assert ii_func.keys() == ii_func2.keys()
-    assert o_func.keys() == o_func2.keys()
+    assert func.get_parameters() == ref_func.get_parameters()
+    assert func.get_results() == ref_func.get_results()
+    assert func.get_ordered_ops() == ref_func.get_ordered_ops()
 
 
 def test_get_version(device):
@@ -252,7 +245,7 @@ def test_unregister_plugin(device):
     assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
-@pytest.mark.xfail("68212")
+@pytest.mark.skip(reason="dlSym cannot locate method 'create_extensions': libtemplate_extension.so")
 @pytest.mark.template_extension
 def test_add_extension(device):
     model = bytes(b"""<net name="Network" version="10">
@@ -306,9 +299,9 @@ def test_add_extension(device):
 
     core = Core()
     if platform == "win32":
-        core.add_extension(extension_path="template_extension.dll")
+        core.add_extension(library_path="template_extension.dll")
     else:
-        core.add_extension(extension_path="libtemplate_extension.so")
+        core.add_extension(library_path="libtemplate_extension.so")
     func = core.read_model(model=model, init_from_buffer=True)
     assert isinstance(func, Function)
 
@@ -323,3 +316,68 @@ def test_add_extension(device):
     # computed = exec_network.infer_new_request(inputs={input_blob : input_values})
     # output_blob = next(iter(network.outputs))
     # assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)
+
+
+def test_read_model_from_buffer_no_weights(device):
+    model = bytes(b"""<net name="add_model" version="10">
+    <layers>
+    <layer id="0" name="x" type="Parameter" version="opset1">
+        <data element_type="f32" shape="3,4,5"/>
+        <output>
+            <port id="0" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="1" name="y" type="Parameter" version="opset1">
+        <data element_type="f32" shape="3,4,5"/>
+        <output>
+            <port id="0" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="2" name="sum" type="Add" version="opset1">
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+            <port id="1">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </input>
+        <output>
+            <port id="2" precision="FP32">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </output>
+    </layer>
+    <layer id="3" name="sum/sink_port_0" type="Result" version="opset1">
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>4</dim>
+                <dim>5</dim>
+            </port>
+        </input>
+    </layer>
+    </layers>
+    <edges>
+    <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+    <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+    <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>""")
+    core = Core()
+    func = core.read_model(model=model)
+    assert isinstance(func, Function)

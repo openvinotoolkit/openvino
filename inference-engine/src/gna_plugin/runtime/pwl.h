@@ -21,7 +21,8 @@
 #define IDENTITY_NUM_SEGMENTS 3
 #define IDENTITY_DOMAIN 10.0f
 #define PWL_MAX_ERR_PERCENT 1.0f
-#define PWL_MAX_ITERATIONS 2000
+#define PWL_MAX_ITERATIONS_DEFAULT 2000
+#define PWL_MAX_ITERATIONS_LOG 5000
 #define PWL_MAX_NUM_SEGMENTS 128
 #define PWL_DESIGN_THRESHOLD 0.1f
 #define PWL_DESIGN_SAMPLES 500
@@ -61,7 +62,8 @@ double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
                     const double alpha_0,
                     const double alpha_N,
                     const double threshold,
-                    const bool negative);
+                    const bool negative,
+                    size_t iter_num);
 
 inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl);
 
