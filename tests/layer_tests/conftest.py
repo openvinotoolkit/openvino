@@ -62,7 +62,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--use_new_frontend",
         required=False,
-        action="store_true",
+        action="store_false",
         help="Use Model Optimizer with new FrontEnd")
 
 

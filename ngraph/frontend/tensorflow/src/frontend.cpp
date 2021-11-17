@@ -105,6 +105,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
+        std::cout << "TF FRONTEND OP = " << operation_name << std::endl;
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
