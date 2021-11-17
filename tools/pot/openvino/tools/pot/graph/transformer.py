@@ -1,11 +1,12 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
-from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
-    SpecialBlocksMarker, FakeQuantizeNameSwapper
-from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params
 from mo.middle.passes.infer import type_infer
+
+from .passes import FakeQuantizeNameSwapper, FakeQuantizeOptimization, FakeQuantizePropagation, \
+    InsertFakeQuantize, RemoveFakeQuantize, SpecialBlocksMarker
+from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
+from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params
 
 
 class GraphTransformer:
