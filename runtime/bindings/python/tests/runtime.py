@@ -12,7 +12,7 @@ from openvino import Core
 
 from openvino.exceptions import UserInputError
 from openvino.impl import Function, Node, PartialShape, Type
-from openvino.utils.types import NumericData, get_shape,
+from openvino.utils.types import NumericData, get_shape, get_dtype
 
 import tests
 
