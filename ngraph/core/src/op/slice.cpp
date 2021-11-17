@@ -346,6 +346,7 @@ bool op::v8::Slice::has_evaluate() const {
 bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v8_Slice_evaluate);
 
+    OPENVINO_ASSERT(inputs.size() >= 4, "Slice evaluate needs at least 4 inputs.");
     std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
     std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
     std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
