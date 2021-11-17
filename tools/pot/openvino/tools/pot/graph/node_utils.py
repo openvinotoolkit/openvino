@@ -261,3 +261,15 @@ def get_lstm_ends(read_value, assigns, ignore_nodes):
     lstm_outputs = [n for n in get_all_node_outputs(assign_input)
                     if n.name not in ignore_nodes]
     return lstm_outputs
+
+def create_node_name(input_node, mode=tuple):
+    """
+    Returns key for node input.
+    If input node has one output port -> key is name of input node.
+    Otherwise, key is tuple (input name, output port number)
+    """
+    key = input_node.name
+    if len(input_node.out_ports()) > 1:
+        port_number = input_node.in_port(0).get_source().out
+        key = (input_node.name, port_number) if mode == tuple else f"{input_node.name}.{port_number}"
+    return key
