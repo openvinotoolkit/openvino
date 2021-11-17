@@ -219,18 +219,18 @@ const auto fusingScaleShift = fusingSpecificParams{ std::make_shared<postNodesMg
 const auto fusingFakeQuantizePerTensor = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto localPrc = inpNode->get_element_type();
-                ngraph::Shape newShape(inpNode->get_shape().size(), 1);
+                ngraph::Shape newShape(inpNode->get_output_partial_shape(0).size(), 1);
                 return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
             }, "FakeQuantize(PerTensor)"}}), {"FakeQuantize"} };
 
 const auto fusingFakeQuantizePerChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto localPrc = inpNode->get_element_type();
-                auto shape = inpNode->get_shape();
+                auto shape = inpNode->get_output_partial_shape(0);
                 if (shape.size() == 1)
                     IE_THROW() << "If shape.size() == 1 then Granularity can be PerTensor only";
                 ngraph::Shape newShape(shape.size(), 1);
-                newShape[1] = shape[1];
+                newShape[1] = shape[1].get_length();
                 return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
             }, "FakeQuantize(PerChannel)"}}), {"FakeQuantize"}};
 

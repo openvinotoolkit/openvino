@@ -244,11 +244,22 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     {
         LayerTransformation::createParamsU8I8AndI8(),
         { 256ul, {}, { 0.f }, { 25.5f }, { -1.0686283872061019e-38 }, { 1.0686283872061019e-38 } },
-        { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 255.f } },
+        { 256ul, {}, { 0.f }, { 25.5f }, { -128.f }, { 127.f } },
+        ngraph::element::i8,
+        {
+            { ngraph::element::f32, {{ngraph::element::f32}, {}, { 1e-32f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, {}, { 1e-32f }} }
+        }
+    },
+    // denormal values
+    {
+        LayerTransformation::createParamsU8I8AndI8(),
+        { 256ul, {}, { 0.f }, { 25.5f }, { 0.0 }, { 1.0686283872061019e-38 } },
+        { 256ul, {}, { 0.f }, { 25.5f }, { 0.0 }, { 255 } },
         ngraph::element::u8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { 127.5 }, { 1e-32f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { 127.5 }, { 1e-32f }} }
+            { ngraph::element::f32, {{ngraph::element::f32}, {}, { 1e-32f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, {}, { 1e-32f }} }
         }
     },
     // U16
@@ -311,6 +322,28 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     //        { ngraph::element::f16, { {ngraph::element::f16}, {}, { {0.01f, 0.1f, 1.f} }} }
     //    }
     //},
+    // u4 through u8
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 1.5f } },
+        { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 15.f } },
+        ngraph::element::u8,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.1f }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { 0.1f }} }
+        }
+    },
+    // i4 through i8
+    {
+        LayerTransformation::createParamsI8I8(),
+        { 16ul, {}, { -0.8f }, { 0.7f }, { -0.8f }, { 0.7f } },
+        { 16ul, {}, { -0.8f }, { 0.7f }, { -8.f }, { 7.f } },
+        ngraph::element::i8,
+        {
+            { ngraph::element::f32, {{ngraph::element::f32}, { }, { 0.1f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, { }, { 0.1f }} }
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

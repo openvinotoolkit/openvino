@@ -36,4 +36,13 @@ protected:
     void SetUp() override;
 };
 
+class GatherND8LayerTest : public testing::WithParamInterface<GatherNDParams>,
+                           virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDParams> &obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace LayerTestsDefinitions

@@ -3,7 +3,7 @@
 //
 #include "op_table.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -47,7 +47,6 @@ OP_CONVERTER(log);
 OP_CONVERTER(logical_not);
 OP_CONVERTER(matmul);
 OP_CONVERTER(matmul_v2);
-OP_CONVERTER(mul);
 OP_CONVERTER(matrix_nms);
 OP_CONVERTER(multiclass_nms);
 OP_CONVERTER(nearest_interp_v2);
@@ -74,13 +73,6 @@ OP_CONVERTER(trilinear_interp_v2);
 OP_CONVERTER(unsqueeze);
 OP_CONVERTER(yolo_box);
 }  // namespace op
-}  // namespace pdpd
-}  // namespace frontend
-}  // namespace ngraph
-
-namespace ngraph {
-namespace frontend {
-namespace pdpd {
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
             {"assign_value", op::assign_value},
@@ -127,7 +119,6 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"matmul", op::matmul},
             {"matmul_v2", op::matmul_v2},
             {"max_pool2d_with_index", op::pool2d},
-            {"mul", op::mul},
             {"matrix_nms", op::matrix_nms},
             {"multiclass_nms3", op::multiclass_nms},
             {"nearest_interp_v2", op::nearest_interp_v2},
@@ -159,4 +150,4 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
 
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
