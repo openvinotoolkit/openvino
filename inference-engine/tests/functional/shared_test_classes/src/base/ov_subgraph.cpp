@@ -4,7 +4,6 @@
 
 #include <signal.h>
 #include <fstream>
-#include <transformations/utils/utils.hpp>
 
 #ifdef _WIN32
 #include <process.h>
@@ -12,14 +11,12 @@
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
-
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "graph_comparator.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-
-#include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
