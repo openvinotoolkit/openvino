@@ -2,7 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13)
+if(BUILD_SHARED_LIBS)
+    cmake_minimum_required(VERSION 3.13)
+else()
+    # cmake does not generate correct config for static libraries case
+    # because of cyclic dependencies on static libraries level, which is allowed
+    cmake_minimum_required(VERSION 3.17)
+endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
