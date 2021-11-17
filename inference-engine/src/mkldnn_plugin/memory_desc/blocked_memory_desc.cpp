@@ -19,10 +19,7 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
         return false;
     }
 
-    // this check needed to avoid inserting unnecessary reorders if the memory is used in place and the batch size is equal to 1
-    size_t skipAxis = this->getShape().getRank() > 0 && this->getShape().getDims().front() == 1 ? 0 :
-            Shape::UNDEFINED_DIM; //ignore batch axis if batch size == 1
-    if (!dimsEqualWeak(this->getStrides(), rhs.getStrides(), skipAxis)) {
+    if (!dimsEqualWeak(this->getStrides(), rhs.getStrides())) {
         return false;
     }
 

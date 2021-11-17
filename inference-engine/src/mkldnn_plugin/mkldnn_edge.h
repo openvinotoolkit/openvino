@@ -35,6 +35,12 @@ public:
         Validated
     };
 
+    enum class ReorderStatus {
+        Regular = 0,
+        Optimized = 1,
+        No = 2
+    };
+
     inline Status getStatus() const noexcept {
         return status;
     }
@@ -54,7 +60,7 @@ public:
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
-    bool needReorder();
+    ReorderStatus needReorder();
     bool isDropped() const;
     bool isUseExternalMemory() const;
 
@@ -87,6 +93,7 @@ private:
     const MemoryDesc& getInputDesc() const;
     const MemoryDesc& getOutputDesc() const;
     const MemoryDesc& getDesc() const;
+    bool enforceReorder();
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 

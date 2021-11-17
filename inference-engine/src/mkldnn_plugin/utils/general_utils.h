@@ -68,6 +68,26 @@ inline bool dimsEqualStrong(size_t lhs, size_t rhs) {
 }
 
 /**
+ * @brief Compares that two shapes are equal
+ * @param lhs
+ * first shape
+ * @param rhs
+ * second shape
+ * @return result of comparison
+ */
+inline bool dimsEqualStrong(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
+    if (lhs.size() != rhs.size())
+        return false;
+
+    for (size_t i = 0; i < lhs.size(); i++) {
+        if (i != skipAxis && !dimsEqualStrong(lhs[i], rhs[i]))
+            return false;
+    }
+
+    return true;
+}
+
+/**
  * @brief Compares that two dims are equal or undefined
  * @param lhs
  * first dim
@@ -87,7 +107,7 @@ inline bool dimsEqualWeak(size_t lhs, size_t rhs) {
  * second shape
  * @param skipAxis
  * marks shape axis which shouldn't be validated
- * @return order
+ * @return result of comparison
  */
 inline bool dimsEqualWeak(const std::vector<size_t>& lhs, const std::vector<size_t>& rhs, size_t skipAxis = Shape::UNDEFINED_DIM) {
     if (lhs.size() != rhs.size())

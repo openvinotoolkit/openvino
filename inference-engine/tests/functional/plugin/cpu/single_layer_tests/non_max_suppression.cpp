@@ -8,9 +8,11 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "functional_test_utils/ov_tensor_utils.hpp"
+#include "test_utils/cpu_test_utils.hpp"
 
 using namespace ov::test;
 using namespace ngraph;
+using namespace CPUTestUtils;
 
 namespace CPULayerTestsDefinitions {
 
@@ -45,7 +47,7 @@ using NmsParams = std::tuple<InputShapeParams,                                  
                              ngraph::element::Type,                              // Output type
                              std::string>;                                       // Device name
 
-class NmsLayerCPUTest : public testing::WithParamInterface<NmsParams>, virtual public SubgraphBaseTest {
+class NmsLayerCPUTest : public testing::WithParamInterface<NmsParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
         InputShapeParams inShapeParams;
@@ -183,17 +185,7 @@ protected:
         auto nms = std::make_shared<ngraph::op::v5::NonMaxSuppression>(params[0], params[1], maxOutBoxesPerClassNode, iouThrNode, scoreThrNode,
                                                                        softNmsSigmaNode, boxEncoding, sortResDescend, outType);
 
-        if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-            function = std::make_shared<Function>(nms, params, "NMS");
-        } else {
-            auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
-            auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(paramsPrec, Shape{1}, {1}));
-            auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
-            nms_0_identity->set_friendly_name("Multiply_0");
-            nms_1_identity->set_friendly_name("Multiply_1");
-            nms_2_identity->set_friendly_name("Multiply_2");
-            function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
-        }
+        function = makeNgraphFunction(paramsPrec, params, nms, "NMS");
     }
 
 private:
@@ -410,7 +402,10 @@ private:
 };
 
 TEST_P(NmsLayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     run();
+    // CheckPluginRelatedResults(executableNetwork, "NonMaxSuppression");
 };
 
 const std::vector<InputShapeParams> inShapeParams = {

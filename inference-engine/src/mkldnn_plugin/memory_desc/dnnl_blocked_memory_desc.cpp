@@ -236,7 +236,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
     if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
         return false;
 
-    int stride_start = wrappedThis.ndims() > 0 && wrappedThis.dims()[0] == 1 ? 1 : 0;  // ignore batch axis stride if batch size == 1
+    int stride_start = 0;
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
