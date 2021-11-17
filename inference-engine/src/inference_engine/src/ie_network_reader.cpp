@@ -20,7 +20,9 @@
 #include "ie_common.h"
 #include "ie_icnn_network.hpp"
 #include "ie_input_info.hpp"
-#include "ie_ir_version.hpp"
+#ifdef ENABLE_IR_V7_READER
+#    include "ie_ir_version.hpp"
+#endif
 #include "ie_itt.hpp"
 #include "ie_reader.hpp"
 #include "ngraph/function.hpp"
@@ -307,7 +309,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
     // only for IR cases we need preprocessing or postprocessing steps
     if (is_ir) {
         using namespace ov::preprocess;
-        PrePostProcessor prepost;
+        PrePostProcessor prepost(function);
 
         auto ir_version_impl = std::dynamic_pointer_cast<ngraph::VariantImpl<int64_t>>(it->second);
         OPENVINO_ASSERT(ir_version_impl != nullptr, "Failed to extract IR version from 'version' attribute");
@@ -318,7 +320,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             for (size_t i = 0; i < inputs.size(); ++i) {
                 const auto ngraph_type = inputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, true);
-                prepost.input(ov::preprocess::InputInfo(i).tensor(InputTensorInfo().set_element_type(legacy_type)));
+                prepost.input(i).tensor().set_element_type(legacy_type);
             }
 
             // in order to support the following scenarios for IR v10 cases:
@@ -349,10 +351,10 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 const auto ngraph_type = outputs[i].get_element_type();
                 const auto legacy_type = details::toLegacyType(ngraph_type, false);
 
-                prepost.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(legacy_type)));
+                prepost.output(i).tensor().set_element_type(legacy_type);
             }
 
-            function = prepost.build(function);
+            function = prepost.build();
 
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
@@ -414,7 +416,6 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
                 const auto old_api_map_attr_val = old_api_map_attr->get();
                 const auto old_api_transpose_args = old_api_map_attr_val.get_order();
-
                 prepost.output(OutputInfo(i)
                                    .postprocess(PostProcessSteps().convert_layout(old_api_transpose_args)));
 
@@ -425,7 +426,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // Set version to 10
             rt_info["version"] = std::make_shared<ov::VariantWrapper<int64_t>>(10);
 
-            function = prepost.build(function);
+            function = prepost.build();
         }
     }
 

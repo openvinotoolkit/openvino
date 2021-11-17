@@ -162,7 +162,7 @@ bool QuantizationDetails::empty() const noexcept {
 }
 
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
-    static const std::unordered_set<size_t> supported_levels = { 255, 256, 65536, 65535, static_cast<size_t>(4294967296), 4294967295 };
+    static const std::unordered_set<size_t> supported_levels = { 16, 255, 256, 65536, 65535, static_cast<size_t>(4294967296), 4294967295 };
     return supported_levels.find(level) != supported_levels.end();
 }
 
