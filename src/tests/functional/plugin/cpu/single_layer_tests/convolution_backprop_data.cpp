@@ -130,7 +130,7 @@ public:
     }
 
     void configure_model() override {
-        ov::preprocess::PrePostProcessor p;
+        ov::preprocess::PrePostProcessor p(function);
         {
             auto& params = function->get_parameters();
             for (size_t i = 0; i < params.size(); i++) {
@@ -152,7 +152,7 @@ public:
                 }
             }
         }
-        function = p.build(function);
+        function = p.build();
     }
 
     std::shared_ptr<ov::Function> createGraph(const std::vector<ov::PartialShape>& inShapes, ngraph::helpers::InputLayerType outShapeType) {
