@@ -6,10 +6,14 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/rt_info.hpp>
+
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOptimization", 0);
 
@@ -245,10 +249,21 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
     return graph_rewritten;
 }
 
+ngraph::pass::StridedSliceOptimization::StridedSliceOptimization(bool use_shapes) {
+    m_use_shapes = use_shapes;
+}
+
 bool ngraph::pass::StridedSliceOptimization::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(StridedSliceOptimization);
-    bool rewritten = UselessStridedSliceEraser().run_on_function(f);
-    rewritten |= SharedStridedSliceEraser().run_on_function(f);
-    rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
+    ngraph::pass::Manager manager(get_pass_config());
+    manager.register_pass<ngraph::pass::SliceToStridedSlice>(m_use_shapes);
+    manager.run_passes(f);
+
+    bool rewritten = false;
+    if (m_use_shapes) {
+        rewritten = UselessStridedSliceEraser().run_on_function(f);
+        rewritten |= SharedStridedSliceEraser().run_on_function(f);
+        rewritten |= GroupedStridedSliceOptimizer().run_on_function(f);
+    }
     return rewritten;
 }

@@ -34,6 +34,36 @@
 #endif
 
 /**
+ * @brief Unicode string wrappers
+ */
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#    define tchar                wchar_t
+#    define tstring              std::wstring
+#    define tmain                wmain
+#    define TSTRING2STRING(tstr) wstring2string(tstr)
+#else
+#    define tchar                char
+#    define tstring              std::string
+#    define tmain                main
+#    define TSTRING2STRING(tstr) tstr
+#endif
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+
+/**
+ * @brief Convert wstring to string
+ * @param ref on wstring
+ * @return string
+ */
+inline std::string wstring2string(const std::wstring& wstr) {
+    std::string str;
+    for (auto&& wc : wstr)
+        str += static_cast<char>(wc);
+    return str;
+}
+#endif
+
+/**
  * @brief trim from start (in place)
  * @param s - string to trim
  */

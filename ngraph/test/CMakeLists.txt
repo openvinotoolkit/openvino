@@ -12,6 +12,15 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 add_subdirectory(runtime)
 
+if(ENABLE_TESTS)
+    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
+    add_subdirectory(util)
+    add_subdirectory(engines_util)
+    if (NGRAPH_ONNX_FRONTEND_ENABLE)
+        add_subdirectory(onnx_test_util)
+    endif()
+endif()
+
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "nGraph unit tests disabled")
     return()
@@ -286,6 +295,8 @@ set(SRC
     visitors/op/convolution.cpp
     visitors/op/cos.cpp
     visitors/op/cosh.cpp
+    visitors/op/ctc_greedy_decoder.cpp
+    visitors/op/ctc_greedy_decoder_seq_len.cpp
     visitors/op/ctc_loss.cpp
     visitors/op/cum_sum.cpp
     visitors/op/deformable_convolution.cpp
@@ -296,11 +307,15 @@ set(SRC
     visitors/op/divide.cpp
     visitors/op/einsum.cpp
     visitors/op/elu.cpp
+    visitors/op/embedding_segments_sum.cpp
+    visitors/op/embeddingbag_offsetssum.cpp
+    visitors/op/embeddingbag_packedsum.cpp
     visitors/op/equal.cpp
     visitors/op/erf.cpp
     visitors/op/exp.cpp
     visitors/op/experimental_detectron_detection_output.cpp
     visitors/op/experimental_detectron_generate_proposals.cpp
+    visitors/op/experimental_detectron_topkrois.cpp
     visitors/op/extractimagepatches.cpp
     visitors/op/fake_quantize.cpp
     visitors/op/floor_mod.cpp
@@ -377,6 +392,7 @@ set(SRC
     visitors/op/rnn_cell.cpp
     visitors/op/rnn_sequence.cpp
     visitors/op/roi_pooling.cpp
+    visitors/op/roll.cpp
     visitors/op/round.cpp
     visitors/op/scatter_elements_update.cpp
     visitors/op/scatter_update.cpp
@@ -453,14 +469,6 @@ if (NGRAPH_UNIT_TEST_BACKENDS_ENABLE)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
 
-add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
-add_subdirectory(util)
-add_subdirectory(engines_util)
-if (NGRAPH_ONNX_FRONTEND_ENABLE)
-    add_subdirectory(onnx_test_util)
-endif()
-
-
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp
 # 2) They must be in the `test/backend` directory
@@ -475,19 +483,13 @@ set(MULTI_TEST_SRC
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/batch_to_space.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/concat.in.cpp
-    backend/ctc_greedy_decoder.in.cpp
-    backend/ctc_greedy_decoder_seq_len.in.cpp
-    backend/depth_to_space.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/experimental_detectron_topk_rois.in.cpp
     backend/dynamic.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
     backend/function_name.in.cpp
-    backend/gather.in.cpp
     backend/interpolate.in.cpp
     backend/matrix_nms.in.cpp
     backend/multiclass_nms.in.cpp
@@ -495,14 +497,7 @@ set(MULTI_TEST_SRC
     backend/multiple_result.in.cpp
     backend/node_name.in.cpp
     backend/non_max_suppression.in.cpp
-    backend/one_hot.in.cpp
-    backend/pad.in.cpp
-    backend/recurrent_cells.in.cpp
     backend/region_yolo.in.cpp
-    backend/roll.in.cpp
-    backend/space_to_depth.in.cpp
-    backend/shuffle_channels.in.cpp
-    backend/space_to_batch.in.cpp
     backend/sqrt.in.cpp
     backend/tile.in.cpp
     backend/topk.in.cpp

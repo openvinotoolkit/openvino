@@ -138,7 +138,7 @@ jobs:
         -DENABLE_PYTHON=ON
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS)
-        -DENABLE_CLDNN=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
@@ -217,7 +217,7 @@ jobs:
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
@@ -233,7 +233,6 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
-    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
     # . $(SETUPVARS) && python3 $(WORK_DIR)/gtest-parallel/gtest_parallel.py $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --workers=16 --dump_json_test_results=InferenceEngineUnitTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
