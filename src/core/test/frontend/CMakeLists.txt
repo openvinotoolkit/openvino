@@ -27,6 +27,12 @@ add_dependencies(ov_core_unit_tests mock1_ov_frontend)
 
 add_clang_format_target(mock1_ov_frontend_clang FOR_TARGETS mock1_ov_frontend)
 
-install(TARGETS mock1_ov_frontend
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+if(BUILD_SHARED_LIBS OR NOT WIN32)
+    install(TARGETS mock1_ngraph_frontend
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+else()
+    install(TARGETS mock1_ngraph_frontend
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+endif()

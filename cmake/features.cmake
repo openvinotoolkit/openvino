@@ -23,7 +23,7 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
-ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "${ENABLE_ONEDNN_FOR_GPU_DEFAULT}" OFF)
+ie_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ON "ENABLE_ONEDNN_FOR_GPU_DEFAULT" OFF)
 
 ie_option (ENABLE_PROFILING_ITT "Build with ITT tracing. Optionally configure pre-built ittnotify library though INTEL_VTUNE_DIR variable." OFF)
 
@@ -72,6 +72,15 @@ if (NOT THREADING STREQUAL "TBB" AND
     NOT THREADING STREQUAL "SEQ")
     message(FATAL_ERROR "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is ${THREADING_DEFAULT}")
 endif()
+
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND
+    (BUILD_SHARED_LIBS OR (LINUX AND X86_64)))
+    set(ENABLE_TBBBIND_2_5_DEFAULT ON)
+else()
+    set(ENABLE_TBBBIND_2_5_DEFAULT OFF)
+endif()
+
+ie_dependent_option (ENABLE_TBBBIND_2_5 "Enable TBBBind_2_5 static usage in OpenVINO runtime" ON "ENABLE_TBBBIND_2_5_DEFAULT" OFF)
 
 if (ENABLE_GNA)
     if (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)

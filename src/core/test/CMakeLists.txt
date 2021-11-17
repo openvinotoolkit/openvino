@@ -14,6 +14,15 @@ set(OV_ONNX_NAMESPACE ov_onnx)
 
 add_subdirectory(runtime)
 
+if(ENABLE_TESTS)
+    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
+    add_subdirectory(util)
+    add_subdirectory(engines_util)
+    if (NGRAPH_ONNX_FRONTEND_ENABLE)
+        add_subdirectory(onnx_test_util)
+    endif()
+endif()
+
 if(NOT OV_CORE_UNIT_TEST_ENABLE)
     message(STATUS "nGraph unit tests disabled")
     return()
@@ -461,14 +470,6 @@ if (OV_CORE_TEST_BACKENDS_ENABLE)
         backend_api.cpp)
     set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} INTERPRETER)
 endif()
-
-add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
-add_subdirectory(util)
-add_subdirectory(engines_util)
-if (OV_ONNX_FRONTEND_ENABLE)
-    add_subdirectory(onnx_test_util)
-endif()
-
 
 # backend specific test files must meet the following requirements:
 # 1) The must be named <name>.in.cpp

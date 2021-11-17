@@ -10,6 +10,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -34,19 +35,6 @@ op::v8::Slice::Slice(const Output<Node>& data,
 
 namespace {
 
-std::shared_ptr<ngraph::op::v0::Constant> get_default_const_axes(const Output<Node>& start) {
-    const auto start_pshape = start.get_partial_shape();
-    // Static case
-    if (start_pshape.rank().is_static() && start_pshape.rank().get_length() == 1 && start_pshape[0].is_static()) {
-        size_t axes_length = start_pshape[0].get_length();
-        std::vector<int64_t> axes(axes_length);
-        std::iota(axes.begin(), axes.end(), 0);
-        return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
-    }
-    // Dynamic case
-    return nullptr;
-}
-
 int64_t get_sliced_dim_size(int64_t start, int64_t stop, int64_t step, int64_t dim_size) {
     // Normalize index
     start = start < 0 ? dim_size + start : start;
@@ -64,7 +52,9 @@ int64_t get_sliced_dim_size(int64_t start, int64_t stop, int64_t step, int64_t d
         // Clip max stop index (last element exclusively)
         elements_in_range = std::max(int64_t(0), std::min(dim_size, stop) - start);
     }
-    const int64_t sliced_dim_size = std::ceil(elements_in_range / std::fabs(step));
+    const int64_t rest = elements_in_range % std::abs(step);
+    const int64_t integer_div = elements_in_range / std::abs(step);
+    const int64_t sliced_dim_size = !rest ? integer_div : integer_div + 1;
     return sliced_dim_size;
 }
 
@@ -73,6 +63,19 @@ int64_t get_sliced_dim_size(int64_t start, int64_t stop, int64_t step, int64_t d
 bool op::v8::Slice::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(v8_Slice_visit_attributes);
     return true;
+}
+
+std::shared_ptr<ngraph::op::v0::Constant> op::v8::Slice::get_default_const_axes(const Output<Node>& start) const {
+    const auto start_pshape = start.get_partial_shape();
+    // Static case
+    if (start_pshape.rank().is_static() && start_pshape.rank().get_length() == 1 && start_pshape[0].is_static()) {
+        size_t axes_length = start_pshape[0].get_length();
+        std::vector<int64_t> axes(axes_length);
+        std::iota(axes.begin(), axes.end(), 0);
+        return op::v0::Constant::create(element::i64, Shape{axes_length}, axes);
+    }
+    // Dynamic case
+    return nullptr;
 }
 
 void op::v8::Slice::validate_and_infer_types() {

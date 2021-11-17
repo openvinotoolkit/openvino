@@ -21,6 +21,7 @@
 #include "dynamic/dynamic_backend.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/util.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -45,7 +46,7 @@ static string find_my_pathname() {
 #elif defined(__linux) || defined(__APPLE__)
     Dl_info dl_info;
     dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
-    return dl_info.dli_fname;
+    return ov::util::get_absolute_file_path(dl_info.dli_fname);
 #else
 #    error "Unsupported OS"
 #endif

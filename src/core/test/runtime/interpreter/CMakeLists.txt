@@ -26,3 +26,8 @@ target_link_libraries(interpreter_backend PUBLIC ov_backend PRIVATE openvino::op
 install(TARGETS interpreter_backend
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
+if(NOT BUILD_SHARED_LIBS)
+    install(TARGETS interpreter_backend
+            RUNTIME DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL
+            LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+endif()

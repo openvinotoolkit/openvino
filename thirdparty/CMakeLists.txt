@@ -170,6 +170,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
                        "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
                        "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                        "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
+                       "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
+                       "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
                        "-DDNNL_BUILD_TESTS=OFF"
                        "-DDNNL_BUILD_EXAMPLES=OFF"
                        "-DDNNL_BLAS_VENDOR=NONE"
