@@ -23,6 +23,8 @@ def calculate_per_filter_stats(weights, fn, transpose=False):
         original_axes = np.array(range(len(weights.shape)))
         weights_shape.extend(original_axes[2:])
         weights = np.transpose(weights, weights_shape)
+    if len(weights.shape) == 0:
+        return fn(weights)
     t = np.reshape(weights, (weights.shape[0], -1))
     return fn(t, axis=1)
 
