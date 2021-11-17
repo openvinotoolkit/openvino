@@ -86,14 +86,14 @@ if(ENABLE_GNA)
 endif()
 
 ie_coverage_extract(INPUT "openvino" OUTPUT "core"
-                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/core/core/*")
+                    PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/core/*")
 ie_coverage_genhtml(INFO_FILE "core"
                     PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 
 if(OV_ONNX_FRONTEND_ENABLE)
     ie_coverage_extract(INPUT "openvino" OUTPUT "onnx_ov_frontend"
-        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/runtime/frontends/onnx/*"
-        "${OV_COVERAGE_BASE_DIRECTORY}/runtime/frontends/onnx/*")
+        PATTERNS "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*"
+        "${OV_COVERAGE_BASE_DIRECTORY}/src/frontends/onnx/*")
     ie_coverage_genhtml(INFO_FILE "onnx_ov_frontend"
         PREFIX "${OV_COVERAGE_BASE_DIRECTORY}")
 endif()

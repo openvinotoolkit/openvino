@@ -83,7 +83,7 @@ include(cmake/test_model_zoo.cmake)
 
 add_subdirectory(thirdparty)
 add_subdirectory(inference-engine)
-add_subdirectory(runtime)
+add_subdirectory(src)
 include(cmake/extra_modules.cmake)
 if(ENABLE_SAMPLES)
     add_subdirectory(samples)
