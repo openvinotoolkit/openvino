@@ -68,4 +68,6 @@ if(ENABLE_PYTHON)
         add_subdirectory(openvino_dev)
     endif()
 
+    add_subdirectory(mo)
+
 endif()
