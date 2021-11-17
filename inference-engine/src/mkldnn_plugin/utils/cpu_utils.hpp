@@ -38,7 +38,8 @@ inline std::vector<size_t> getNormalizedDimsBySize(const InferenceEngine::SizeVe
 */
 inline bool isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims, const InferenceEngine::SizeVector& secondInputDims,
                                                  bool weakComparison = false) {
-    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) : dimsEqualStrong;
+    bool (*dimsEqual)(size_t, size_t) = weakComparison ? static_cast<bool (*)(size_t, size_t)>(dimsEqualWeak) :
+                                                         static_cast<bool (*)(size_t, size_t)>(dimsEqualStrong);
     if (secondInputDims.size() > firstInputDims.size())
         return false;
     if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
@@ -72,12 +73,17 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
         case InferenceEngine::Precision::FP32: {
             break;
         }
+        case InferenceEngine::Precision::FP64: {
+            precision = InferenceEngine::Precision::FP32;
+            break;
+        }
         case InferenceEngine::Precision::BOOL: {
             precision = InferenceEngine::Precision::U8;
             break;
         }
         case InferenceEngine::Precision::U16:
         case InferenceEngine::Precision::I16:
+        case InferenceEngine::Precision::U32:
         case InferenceEngine::Precision::I64:
         case InferenceEngine::Precision::U64: {
             precision = InferenceEngine::Precision::I32;
