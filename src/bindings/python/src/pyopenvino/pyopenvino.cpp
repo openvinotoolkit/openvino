@@ -77,12 +77,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
-<<<<<<< HEAD:src/bindings/python/src/pyopenvino/pyopenvino.cpp
 #if defined(OV_ONNX_FRONTEND_ENABLE)
-=======
-
-#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
->>>>>>> upstream/master:runtime/bindings/python/src/pyopenvino/pyopenvino.cpp
     regmodule_graph_onnx_import(m);
 #endif
     regmodule_graph_op_util(m_op);
