@@ -205,7 +205,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     except Exception as e:
         raise_ie_not_found()
 
-    if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+    # temporary disable new FP16 generation
+    if False and 'data_type' in argv and argv.data_type in ['FP16', 'half']:
         argv.data_type = 'FP32'
         argv.compress_fp16 = True
     else:

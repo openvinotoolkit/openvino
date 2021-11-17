@@ -180,7 +180,9 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
         meta_info = {}
     graph.strict_mode = False
 
-    if not used_by_ir_reader:
+    # temporary disable new FP16 generation
+    # if not used_by_ir_reader:
+    if True:
         # convert Parameter data types
         convert_data_type.convert_parameters_data_type(graph, data_type)
         # convert blobs (usually weights and biases)
