@@ -212,8 +212,12 @@ def test_infer_queue(device):
     assert all(job["latency"] > 0 for job in jobs_done)
 
 
+@pytest.mark.parametrize("data_type",
+                         [np.float32,
+                          np.int32,
+                          pytest.param(np.float16,
+                                       marks=pytest.mark.xfail(reason="FP16 isn't supported in the CPU plugin"))])
 @pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
-@pytest.mark.parametrize("data_type", [np.float32, np.float16, np.int32])
 @pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
                     reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
@@ -246,18 +250,17 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             tensor = Tensor(init_array)
             mem_state.state = tensor
 
-            res = exec_net.infer_new_request({"input_data": np.full(input_shape, 1, dtype=data_type)})
+            res = exec_net.infer_new_request({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, 1 + const_init, dtype=data_type)
         elif mode == "reset_memory_state":
             # reset initial state of ReadValue to zero
             mem_state.reset()
-            res = exec_net.infer_new_request({"input_data": np.full(input_shape, 1, dtype=data_type)})
+            res = exec_net.infer_new_request({0: np.full(input_shape, 1, dtype=data_type)})
 
             # always ones
             expected_res = np.full(input_shape, 1, dtype=data_type)
         else:
-            res = exec_net.infer_new_request({"input_data": np.full(input_shape, 1, dtype=data_type)})
+            res = exec_net.infer_new_request({0: np.full(input_shape, 1, dtype=data_type)})
             expected_res = np.full(input_shape, i, dtype=data_type)
-
-        assert np.allclose(res["MemoryAdd"], expected_res, atol=1e-6), \
+        assert np.allclose(res[0], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
