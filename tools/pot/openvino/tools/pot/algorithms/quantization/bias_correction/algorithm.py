@@ -5,7 +5,6 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
-from numpy.lib.function_base import quantile
 
 from ..utils import load_hardware_config
 from ...algorithm import Algorithm
