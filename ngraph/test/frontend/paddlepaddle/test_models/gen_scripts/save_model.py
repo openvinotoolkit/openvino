@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import paddle as pdpd
 
@@ -53,6 +54,42 @@ def saveModel(name, exe, feedkeys:list, fetchlist:list, inputs:list, outputs:lis
     # composited model + scattered model
     pdpd.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe)
     pdpd.fluid.io.save_inference_model(model_dir, feedkeys, fetchlist, exe, model_filename=name+".pdmodel", params_filename=name+".pdiparams")   
+
+
+'''
+export dyn model, along with input and output for reference.
+input_data: list of all inputs
+'''
+def exportModel(name, dyn_func, input_data:list, target_dir:str):
+    model_dir = os.path.join(target_dir, name)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    save_path = '{}/{}'.format(model_dir, name)
+
+    input_specs = []
+    for idx, data in enumerate(input_data):
+        input_name = 'input{}'.format(idx)
+        input_specs.append(
+            pdpd.static.InputSpec(shape=data.shape, dtype=data.dtype, name=input_name)
+        )
+
+        # dump input
+        np.save(os.path.join(model_dir, "input{}".format(idx)), data)        
+
+    pdpd.jit.save(dyn_func, save_path, input_specs)
+    print('saved exported model to {}'.format(save_path))
+
+    # infer
+    model = pdpd.jit.load(save_path)
+
+    result = model(*[input[:] for input in input_data])
+   
+    # dump output for reference
+    if isinstance(result, (tuple, list)):
+        for idx, out in enumerate(result):
+            np.save(os.path.join(model_dir, "output{}".format(idx)), out.numpy())
+    else:       
+        np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
 
 
 if __name__ == "__main__":

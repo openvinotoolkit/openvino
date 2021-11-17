@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_InputInfo(py::module m);
+void regmodule_graph_layout_helpers(py::module m);
