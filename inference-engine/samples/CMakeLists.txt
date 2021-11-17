@@ -168,24 +168,14 @@ include(CMakeParseArguments)
 #               [HEADERS <header files>]
 #               [INCLUDE_DIRECTORIES <include dir>]
 #               [DEPENDENCIES <dependencies>]
-#               [OPENCV_DEPENDENCIES <opencv modules>]
 #               [EXCLUDE_CLANG_FORMAT]
 #
 macro(ie_add_sample)
     set(options EXCLUDE_CLANG_FORMAT)
     set(oneValueArgs NAME)
-    set(multiValueArgs SOURCES HEADERS DEPENDENCIES OPENCV_DEPENDENCIES INCLUDE_DIRECTORIES)
+    set(multiValueArgs SOURCES HEADERS DEPENDENCIES INCLUDE_DIRECTORIES)
     cmake_parse_arguments(IE_SAMPLE "${options}" "${oneValueArgs}"
                           "${multiValueArgs}" ${ARGN} )
-
-    # Find OpenCV components if exist
-    if(IE_SAMPLE_OPENCV_DEPENDENCIES)
-        find_package(OpenCV COMPONENTS ${IE_SAMPLE_OPENCV_DEPENDENCIES} QUIET)
-        if(NOT OpenCV_FOUND)
-            message(WARNING "OPENCV is disabled or not found, ${IE_SAMPLE_NAME} skipped")
-            return()
-        endif()
-    endif()
 
     # Create named folders for the sources within the .vcproj
     # Empty name lists them directly under the .vcproj
@@ -196,9 +186,6 @@ macro(ie_add_sample)
 
     # Create executable file from sources
     add_executable(${IE_SAMPLE_NAME} ${IE_SAMPLE_SOURCES} ${IE_SAMPLE_HEADERS})
-    if(IE_SAMPLE_OPENCV_DEPENDENCIES)
-        target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE USE_OPENCV)
-    endif()
 
     set(folder_name cpp_samples)
     if(IE_SAMPLE_NAME MATCHES ".*_c$")
@@ -221,8 +208,7 @@ macro(ie_add_sample)
     endif()
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
-    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${ov_link_libraries}
-                                                    ${IE_SAMPLE_DEPENDENCIES})
+    target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} ${IE_SAMPLE_DEPENDENCIES})
     if(NOT c_sample)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
     endif()
