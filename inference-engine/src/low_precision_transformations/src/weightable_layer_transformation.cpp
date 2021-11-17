@@ -42,7 +42,7 @@ bool WeightableLayerTransformation::canConvolutionBeTransformed(const Transforma
     if (dequantization.empty()) {
         const auto fqOnWeights = getFakeQuantizeOnWeights(layer);
         const auto dataPrecision = getDataPrecisionOnWeights(layer);
-        if (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision)) {
+        if ((dataPrecision.precision == ngraph::element::undefined) || (!NetworkHelper::checkZeroPoint(fqOnWeights, dataPrecision))) {
             return false;
         }
     } else {
@@ -96,7 +96,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             }
 
             const auto rankVal = rank.get_length();
-            if ((rankVal != 4) && (rankVal != 5)) {
+            if ((rankVal < 3) && (rankVal > 5)) {
                 return false;
             }
         }
@@ -391,7 +391,7 @@ bool WeightableLayerTransformation::isAsymmetricOnWeights(const std::shared_ptr<
             return true;
         }
     } else {
-        if (dequantization.subtract != nullptr) {
+        if ((dequantization.subtract != nullptr) && (NetworkHelper::optimizeSubtract(dequantization.subtract) != nullptr)) {
             return true;
         }
     }

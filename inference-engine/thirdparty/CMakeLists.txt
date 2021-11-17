@@ -24,9 +24,12 @@ if (ENABLE_CLDNN)
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     endif()
     add_subdirectory(clDNN)
+    ov_install_static_lib(clDNN_lib gpu)
 endif()
 
 function(ie_add_mkldnn)
+    set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+    set(DNNL_ENABLE_ITT_TASKS ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
     set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
@@ -53,6 +56,7 @@ function(ie_add_mkldnn)
 
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
+    ov_install_static_lib(dnnl cpu)
 endfunction()
 
 if(ENABLE_MKL_DNN)

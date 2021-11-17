@@ -967,7 +967,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {element::f32}, {}, { 0.01f } },
         }
     },
-    // unexpected quantization levels, concat
+    // INT4+INT8 quantization levels, concat
     {
         LayerTransformation::createParamsU8I8(),
         false,
@@ -990,16 +990,16 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::f32,
             {},
         },
-        false,
+        true,
         false,
     },
-    // unexpected quantization levels, concat multi channels
+    // INT4+INT8 quantization levels, concat multi channels
     {
         LayerTransformation::createParamsU8I8(),
         true,
         1,
         {
-            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {1.5f} },
             {},
             {},
             { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
@@ -1007,16 +1007,16 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {}
         },
         {
-            { 16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f} },
+            {16ul, {}, {0.f}, {1.5f}, {0.f}, {15.f}, ngraph::element::u8},
             {},
             {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f} },
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8},
             {},
             {},
-            ngraph::element::f32,
-            {},
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, {{ 0.1f, 0.1f, 0.1f, 0.01f, 0.01f, 0.01f }} }
         },
-        false,
+        true,
         false
     }
 };

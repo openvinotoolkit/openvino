@@ -199,8 +199,8 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     const size_t quantizationLevels,
     const std::vector<float>& outputLowValues,
     const std::vector<float>& outputHighValues) {
-    const float zeroThreshold = std::numeric_limits<float>::denorm_min();
     // TODO: workaround: hardcoded values
+    const float zeroThreshold = 1.e-6f;
     const float quantizationIntervalAsymmetryThreshold = 0.002f;
 
     float asymmetricIntervalSideRatio = -static_cast<float>(quantizationLevels) / (quantizationLevels - 2.f);
@@ -209,7 +209,15 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
     bool unsignedPrecision = true;
 
     bool hasZeroPoint = false;
+    bool thereIsAtLeastOneNormalValue = false;
     for (size_t i = 0; i < outputLowValues.size(); ++i) {
+        if ((std::fabs(outputLowValues[i]) < zeroThreshold) && (std::fabs(outputHighValues[i]) < zeroThreshold)) {
+            // both values are too small to identify preferable precision
+            continue;
+        }
+
+        thereIsAtLeastOneNormalValue = true;
+
         const bool signedInterval = std::signbit(outputLowValues[i]) != std::signbit(outputHighValues[i]);
         const bool outputLowValueIsNotZero = std::fabs(outputLowValues[i]) >= zeroThreshold;
         if (signedInterval && outputLowValueIsNotZero) {
@@ -218,8 +226,9 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             hasNegative = true;
 
             if (outputHighValues[i] != 0.f) {
-                const float expectedRatio = (quantizationLevels == 256 || quantizationLevels == 65536 || quantizationLevels == 4294967296) ?
-                                            asymmetricIntervalSideRatio : -1.f;
+                const float expectedRatio =
+                        (quantizationLevels == 16 || quantizationLevels == 256 ||
+                         quantizationLevels == 65536 || quantizationLevels == 4294967296) ? asymmetricIntervalSideRatio : -1.f;
                 const float actualRatio = outputLowValues[i] / outputHighValues[i];
                 const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
                 if (actual > quantizationIntervalAsymmetryThreshold) {
@@ -253,16 +262,11 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
         }
     }
 
-    // TODO: use this implementation after merge <= not aligned with master
-//    if (signedPrecision && (!unsignedPrecision)) {
-//        return LayerTransformation::PrecisionDetails(element::i8, hasNegative, hasZeroPoint);
-//    }
-//
-//    if ((!signedPrecision) && unsignedPrecision) {
-//        return LayerTransformation::PrecisionDetails(element::u8, hasNegative, hasZeroPoint);
-//    }
-//
-//    THROW_TRANSFORMATION_EXCEPTION << "unexpected interval";
+    if (!thereIsAtLeastOneNormalValue) {
+        // all values are small and didn't define 'signedPrecision'
+        signedPrecision = std::any_of(outputLowValues.begin(), outputLowValues.end(), [](const float& value) { return value < 0.f; });
+        unsignedPrecision = !signedPrecision;
+    }
 
     element::Type resultPrecision = element::undefined;
     if (!hasZeroPoint) {
@@ -270,6 +274,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             switch (quantizationLevels) {
                 case 256:
                 case 255:
+                case 16:
                     resultPrecision = element::i8;
                     break;
                 case 65536:
@@ -287,6 +292,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(
             switch (quantizationLevels) {
                 case 256:
                 case 255:
+                case 16:
                     resultPrecision = element::u8;
                     break;
                 case 65536:
@@ -317,7 +323,7 @@ bool LayerTransformation::isAsymmetricQuantization(const std::shared_ptr<const N
     return dequantization.subtract != nullptr;
 }
 
-bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool LayerTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return true;
 }
 

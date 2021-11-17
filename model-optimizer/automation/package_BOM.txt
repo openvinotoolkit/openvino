@@ -8,6 +8,7 @@ extensions/analysis/tf_od_api.py
 extensions/analysis/tf_retinanet.py
 extensions/analysis/tf_yolo.py
 extensions/back/__init__.py
+extensions/back/add_outputs_recursive.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
@@ -22,7 +23,6 @@ extensions/back/CutMemory.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
-extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
 extensions/back/GatherNormalizer.py
 extensions/back/insert_compatibility_l2normalization.py
@@ -403,7 +403,8 @@ extensions/front/tf/efficient_det_support_api_v2.0.json
 extensions/front/tf/efficient_det_support_api_v2.4.json
 extensions/front/tf/einsum_ext.py
 extensions/front/tf/elementwise_ext.py
-extensions/front/tf/embedding_segments_sum.py
+extensions/front/tf/embedding_segments_mean_decomposition.py
+extensions/front/tf/embedding_segments_operation_fusing.py
 extensions/front/tf/expand_dims_ext.py
 extensions/front/tf/extract_image_patches_ext.py
 extensions/front/tf/fake_const_ext.py
@@ -433,6 +434,7 @@ extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/if_ext.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/IteratorGetNextCut.py
 extensions/front/tf/log_softmax_ext.py
 extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
