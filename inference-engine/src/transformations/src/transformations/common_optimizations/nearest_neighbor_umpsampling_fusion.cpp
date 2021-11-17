@@ -17,10 +17,10 @@
 #include <ngraph/pattern/op/or.hpp>
 
 namespace {
-std::vector<size_t> get_scales_from_mul_const_shape(const Shape& s, uint64_t input_rank) {
+std::vector<size_t> get_scales_from_mul_const_shape(const ngraph::Shape& s, uint64_t input_rank) {
     if (input_rank < 4 || static_cast<uint64_t>(s.size()) != 2 + 2 * (input_rank - 2)) return {};
 
-    std::vector<size_t> expected_shape(2 + 2 * (input_rank - 2), static_cast<size_t>(1));
+    ngraph::Shape expected_shape(2 + 2 * (input_rank - 2), static_cast<size_t>(1));
     std::vector<size_t> scales(input_rank - 2);
     for (uint64_t i = 1; i <= input_rank - 2; ++i) {
         expected_shape[2 * i] = s[2 * i];
