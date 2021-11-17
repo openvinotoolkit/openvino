@@ -9,7 +9,7 @@ openvino/docs/HOWTO/Custom_Layers_Guide.md
 openvino/docs/install_guides/deployment-manager-tool.md
 openvino/docs/MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md
 openvino/docs/ovsa/ovsa_get_started.md
-openvino/inference-engine/ie_bridges/c/docs/api_overview.md
+openvino/src/bindings/c/docs/api_overview.md
 openvino/docs/benchmarks/performance_int8_vs_fp32.md
 openvino/docs/get_started/get_started_macos.md
 build/docs/openvino_docs.xml

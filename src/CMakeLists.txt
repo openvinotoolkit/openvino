@@ -45,6 +45,7 @@ if(OV_TF_FRONTEND_ENABLE)
     add_dependencies(ov_runtime_libraries tensorflow_ov_frontend)
 endif()
 
+add_subdirectory(bindings/c)
 if(ENABLE_PYTHON)
     add_subdirectory(bindings/python)
 endif()

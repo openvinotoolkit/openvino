@@ -4,8 +4,6 @@
 
 project(InferenceEngine)
 
-add_subdirectory(ie_bridges/c)
-
 if(ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
