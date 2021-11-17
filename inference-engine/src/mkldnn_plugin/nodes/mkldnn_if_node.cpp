@@ -84,7 +84,7 @@ void MKLDNNIfNode::getSupportedDescriptors() {
 
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
-        auto prev = out->get_input_node_shared_ptr(0);
+        const auto prev = out->input_value(0);
         const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
         auto outNode = outMapThen.find(inputID);
         if (outNode != outMapThen.end()) {
@@ -98,7 +98,7 @@ void MKLDNNIfNode::getSupportedDescriptors() {
 
     const auto &outMapElse = subGraphElse.GetOutputNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
-        auto prev = out->get_input_node_shared_ptr(0);
+        const auto prev = out->input_value(0);
         const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
         auto outNode = outMapElse.find(inputID);
         if (outNode != outMapElse.end()) {

@@ -271,6 +271,7 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
         NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
         std::rethrow_exception(std::current_exception());
     }
+
     set_friendly_names(onnx_node, ng_subgraph_outputs);
 
     for (std::size_t i{0}; i < onnx_node.get_outputs_size(); ++i) {
