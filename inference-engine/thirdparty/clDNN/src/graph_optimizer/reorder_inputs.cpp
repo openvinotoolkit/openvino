@@ -18,6 +18,8 @@
 #include <map>
 #include <set>
 
+#define ONEDNN_USAGE_STATISTIC_VERBOSE 1
+
 #define CLDNN_REORDER_INPUTS_VERBOSE 0
 
 // Prints overall statistics of performed selection, such as number of reorders required.
@@ -53,6 +55,42 @@ namespace {
 
 std::map<program_node*, format::type> get_preferred_formats(program& p, layout_optimizer& lo) {
     std::map<program_node*, format::type> fmt_map;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t onednn_impls_counter = 0;
+    size_t all_impls_counter = 0;
+    float onednn_min_threshold = 0.1f;
+
+    // Calculate onednn kernels number and all kernels number inside the network
+    for (auto n : p.get_processing_order()) {
+        if (!n->is_in_data_flow())
+            continue;
+
+        auto ex = lo.get_preferred_format(*n);
+        auto impl = lo.get_preferred_impl_type(*n, ex);
+
+        if (impl == impl_types::onednn)
+            onednn_impls_counter++;
+
+        all_impls_counter++;
+    }
+
+    float onednn_usage_ratio = all_impls_counter ? static_cast<float>(onednn_impls_counter) / static_cast<float>(all_impls_counter) : 0.f;
+#if ONEDNN_USAGE_STATISTIC_VERBOSE
+    std::cout << "Onednn kernels number: " << onednn_impls_counter << " from " << all_impls_counter << " (" << onednn_usage_ratio * 100.f << "%)" << std::endl;
+    std::cout << "Onednn usage threshold: " << onednn_min_threshold * 100.f << "%" << std::endl;
+#endif
+
+    // Reverted to cldnn way for cases when onednn kernels number inside the whole network is extremely low =>
+    // improvements from onednn usage less than losses due to unoptimized formats for cldnn kernels, extra reorders, etc.
+    if (onednn_usage_ratio < onednn_min_threshold && lo.get_optimization_attributes().use_onednn_impls) {
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
+#if ONEDNN_USAGE_STATISTIC_VERBOSE
+        std::cout << "Rollback to cldnn implementations" << std::endl;
+#endif
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+
     for (auto n : p.get_processing_order()) {
         if (!n->is_in_data_flow())
             continue;
