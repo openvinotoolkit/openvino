@@ -9,7 +9,7 @@ from sys import maxsize
 import numpy as np
 
 from .utils import create_metric_config, is_preset_performance, \
-    get_mixed_preset_config, evaluate_model, get_num_of_quantized_ops
+    get_mixed_preset_config, evaluate_model, get_num_of_quantized_ops, prepare_nodes_for_logger
 from ..utils import load_hardware_config
 from ...algorithm import Algorithm
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
@@ -356,7 +356,7 @@ class AccuracyAwareCommon(Algorithm):
             logger.debug('Changed FakeQuantize nodes:\n %s', '\n'.join(all_changed_nodes_names))
             logger.info(' %d out of %d layers have been reverted back to the %s precision: %s',
                         len(all_ops_in_targeted_prec), self._quantized_layers_num, self._precision_change_to,
-                        ', '.join(all_ops_in_targeted_prec))
+                        ', '.join(prepare_nodes_for_logger(all_ops_in_targeted_prec)))
             send_event("result_aa", self._get_result_aa(metrics_accuracy_drop, len(all_ops_in_targeted_prec)))
 
         logger.update_progress(self.total_exec_steps)
