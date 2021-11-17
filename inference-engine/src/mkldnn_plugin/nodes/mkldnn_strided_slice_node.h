@@ -15,6 +15,7 @@ class MKLDNNStridedSliceNode : public MKLDNNNode {
 public:
     MKLDNNStridedSliceNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
@@ -24,58 +25,71 @@ public:
         return false;
     }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    void prepareParams() override;
+
+protected:
+    void executeDynamicImpl(mkldnn::stream strm) override;
 
 private:
-    inline void stridedSlice();
+    void addHiddenDims(const size_t nSrcDims, int ellipsisPos1);
+    void orderParametersByLayouts(const MKLDNNMemoryPtr& srcMemPtr);
 
-    void addHiddenDims(const size_t nSrcDims);
-    void orderParametersByLayouts();
-    void dimsNormalization(InferenceEngine::SizeVector& newSrcDims, InferenceEngine::SizeVector& newDstDims);
-    void dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims);
-    void indicesCalculation();
-    void indicesCalculationForOptimized();
+    struct StridedSliceAttributes {
+        std::vector<int> begin;
+        std::vector<int> end;
+        std::vector<int> stride;
 
-    const size_t DATA_ID = 0;
-    const size_t BEGIN_ID = 1;
-    const size_t END_ID = 2;
-    const size_t STRIDE_ID = 3;
+        std::vector<int> beginMask;
+        std::vector<int> endMask;
+        std::vector<int> ellipsisMask;
+        std::vector<int> newAxisMask;
+        std::vector<int> shrinkAxisMask;
 
-    std::vector<int> begin;
-    std::vector<int> end;
-    std::vector<int> stride;
+        VectorDims beginDims;
+        VectorDims endDims;
+        VectorDims strideDims;
 
-    std::vector<int> beginMask;
-    std::vector<int> endMask;
-    std::vector<int> ellipsisMask;
-    std::vector<int> newAxisMask;
-    std::vector<int> shrinkAxisMask;
-
-    InferenceEngine::SizeVector beginDims;
-    InferenceEngine::SizeVector endDims;
-    InferenceEngine::SizeVector strideDims;
-
-    struct {
-        MKLDNNMemoryPtr srcMemPtr = nullptr;
-        MKLDNNMemoryPtr dstMemPtr = nullptr;
-        InferenceEngine::SizeVector srcDims;
-        InferenceEngine::SizeVector dstDims;
-        InferenceEngine::SizeVector srcStrides;
-        InferenceEngine::SizeVector dstStrides;
-        InferenceEngine::SizeVector srcIndices;
-        InferenceEngine::SizeVector dstIndices;
-        int ellipsisPos1 = -1;
-        int ellipsisPos2 = 0;
-        size_t nThreads = 0;
-        size_t nDimsForWork = 0;
-        size_t workAmount = 0;
-        size_t lastDstDim = 0;
-        size_t dataSize = 0;
-        size_t srcShift = 0;
-        bool isOptimized = false;
         bool equalDims = false;
-        bool parametersAreConstant = true;
-    } params;
+        size_t dataSize = 1lu;
+    } attrs;
+
+    struct StridedSliceExecutor {
+        StridedSliceExecutor(const StridedSliceAttributes& attrs, const VectorDims& srcBlockedDims, const VectorDims& dstBlockedDims);
+        void exec(const uint8_t* srcData, uint8_t* dstData);
+        ~StridedSliceExecutor() = default;
+
+    private:
+        struct StridedSliceParams {
+            StridedSliceAttributes attrs;
+            VectorDims srcBlockedDims;
+            VectorDims dstBlockedDims;
+            VectorDims srcStrides;
+            VectorDims dstStrides;
+            size_t nDimsForWork = 0lu;
+            bool isOptimized = false;
+        };
+
+        void dimsNormalization(StridedSliceParams& params);
+        void dimsGluing(StridedSliceParams& params, const size_t realNDims);
+        void indicesCalculation(const StridedSliceParams& params);
+        void indicesCalculationForOptimized(const StridedSliceParams& params);
+
+        VectorDims srcIndices;
+        VectorDims dstIndices;
+        size_t nThreads = 0lu;
+        size_t workAmount = 0lu;
+        size_t lastDstDim = 0lu;
+        size_t srcShift = 0lu;
+    };
+    using executorPtr = std::shared_ptr<StridedSliceExecutor>;
+    executorPtr execPtr = nullptr;
+
+    bool isStrideSpecified = false;
+
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t BEGIN_ID = 1;
+    static constexpr size_t END_ID = 2;
+    static constexpr size_t STRIDE_ID = 3;
 };
 
 }  // namespace MKLDNNPlugin
