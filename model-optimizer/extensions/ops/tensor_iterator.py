@@ -372,6 +372,10 @@ class TensorIterator(Op):
                 in_rec_end = in_shape[in_rec['axis']] if not check_field(in_rec, 'end') else \
                     in_shape[in_rec['axis']] + 1 + in_rec['end']
                 in_rec_start = in_rec['start']
+            elif check_field(in_rec, 'end') and in_rec['end'] < 0 and \
+                    check_field(in_rec, 'start') and in_rec['start'] < 0:
+                in_rec_end = in_rec['end']
+                in_rec_start = in_rec['start']
             else:
                 in_rec_end = ti_node.in_port(in_rec['external_port_id']).data.get_shape()[in_rec['axis']]
                 in_rec_start = 0
