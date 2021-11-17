@@ -43,20 +43,22 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
+#ifdef _WIN32
+        std::string ext = ".dll";
+#elif defined(__APPLE__)
+        std::string ext = ".dylib";
+#else
+        std::string ext = ".so";
+#endif
+        auto suffix = FRONTEND_LIB_SUFFIX + ext;
+        auto prefix = std::string(FRONTEND_LIB_PREFIX);
         ov::util::iterate_files(
             path,
-            [&res](const std::string& file, bool is_dir) {
-                if (!is_dir && file.find("_ngraph_frontend") != std::string::npos) {
-#ifdef _WIN32
-                    std::string ext = ".dll";
-#elif defined(__APPLE__)
-                    std::string ext = ".dylib";
-#else
-                    std::string ext = ".so";
-#endif
-                    if (file.find(ext) != std::string::npos) {
-                        res.push_back(file);
-                    }
+            [&res, &prefix, &suffix](const std::string& file_path, bool is_dir) {
+                auto file = ov::util::get_file_name(file_path);
+                if (!is_dir && file.compare(0, prefix.length(), prefix) == 0 && file.length() > suffix.length() &&
+                    file.rfind(suffix) == (file.length() - std::string(suffix).length())) {
+                    res.push_back(file);
                 }
             },
             // ilavreno: this is current solution for static runtime
