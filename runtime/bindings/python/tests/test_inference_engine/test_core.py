@@ -8,37 +8,34 @@ from sys import platform
 from pathlib import Path
 
 import openvino.opset8 as ov
-from openvino import Core, IENetwork, ExecutableNetwork, tensor_from_file
-from openvino.impl import Function
-from openvino import TensorDesc, Blob
+from openvino import Function, Core, ExecutableNetwork, Tensor, tensor_from_file, compile_model
 
-from ..conftest import model_path, model_onnx_path, plugins_path
+from ..conftest import model_path, model_onnx_path, plugins_path, read_image
+
 
 test_net_xml, test_net_bin = model_path()
 test_net_onnx = model_onnx_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
-def test_blobs():
-    input_shape = [1, 3, 4, 4]
-    input_data_float32 = (np.random.rand(*input_shape) - 0.5).astype(np.float32)
+def test_compact_api_xml():
+    img = read_image()
 
-    td = TensorDesc("FP32", input_shape, "NCHW")
-
-    input_blob_float32 = Blob(td, input_data_float32)
-
-    assert np.all(np.equal(input_blob_float32.buffer, input_data_float32))
-
-    input_data_int16 = (np.random.rand(*input_shape) + 0.5).astype(np.int16)
-
-    td = TensorDesc("I16", input_shape, "NCHW")
-
-    input_blob_i16 = Blob(td, input_data_int16)
-
-    assert np.all(np.equal(input_blob_i16.buffer, input_data_int16))
+    model = compile_model(test_net_xml)
+    assert(isinstance(model, ExecutableNetwork))
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results) == 2
 
 
-@pytest.mark.skip(reason="Fix")
+def test_compact_api_onnx():
+    img = read_image()
+
+    model = compile_model(test_net_onnx)
+    assert(isinstance(model, ExecutableNetwork))
+    results = model.infer_new_request({"data": img})
+    assert np.argmax(results) == 2
+
+
 def test_core_class():
     input_shape = [1, 3, 4, 4]
     param = ov.parameter(input_shape, np.float32, name="parameter")
@@ -46,29 +43,18 @@ def test_core_class():
     func = Function([relu], [param], "test")
     func.get_ordered_ops()[2].friendly_name = "friendly"
 
-    cnn_network = IENetwork(func)
-
     core = Core()
-    core.set_config({}, device_name="CPU")
-    executable_network = core.compile_model(cnn_network, "CPU", {})
+    model = core.compile_model(func, "CPU", {})
 
-    td = TensorDesc("FP32", input_shape, "NCHW")
-
-    # from IPython import embed; embed()
-
-    request = executable_network.create_infer_request()
-    input_data = np.random.rand(*input_shape) - 0.5
+    request = model.create_infer_request()
+    input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
 
     expected_output = np.maximum(0.0, input_data)
 
-    input_blob = Blob(td, input_data)
+    input_tensor = Tensor(input_data)
+    results = request.infer({"parameter": input_tensor})
 
-    request.set_input({"parameter": input_blob})
-    request.infer()
-
-    result = request.get_blob("relu").buffer
-
-    assert np.allclose(result, expected_output)
+    assert np.allclose(results, expected_output)
 
 
 def test_compile_model(device):
@@ -119,15 +105,15 @@ def test_read_model_from_onnx_as_path():
     assert isinstance(func, Function)
 
 
-@pytest.mark.xfail("68212")
-def test_read_net_from_buffer():
-    core = Core()
-    with open(test_net_bin, "rb") as f:
-        bin = f.read()
-    with open(model_path()[0], "rb") as f:
-        xml = f.read()
-    func = core.read_model(model=xml, weights=bin)
-    assert isinstance(func, IENetwork)
+# @pytest.mark.xfail("68212")
+# def test_read_net_from_buffer():
+#     core = Core()
+#     with open(test_net_bin, "rb") as f:
+#         bin = f.read()
+#     with open(model_path()[0], "rb") as f:
+#         xml = f.read()
+#     func = core.read_model(model=xml, weights=bin)
+#     assert isinstance(func, IENetwork)
 
 
 @pytest.mark.xfail("68212")
