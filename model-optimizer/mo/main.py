@@ -204,7 +204,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
     except Exception as e:
         raise_ie_not_found()
 
-    if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+    if not argv.legacy_ir_generation and 'data_type' in argv and argv.data_type in ['FP16', 'half']:
         argv.data_type = 'FP32'
         argv.compress_fp16 = True
     else:
@@ -344,7 +344,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                     mean_data=mean_data,
                     input_names=input_names,
                     meta_info=get_meta_info(argv),
-                    use_temporary_path=True)
+                    use_temporary_path=True,
+                    convert_types=argv.legacy_ir_generation)
 
     # This graph cleanup is required to avoid double memory consumption
     graph.clear()
