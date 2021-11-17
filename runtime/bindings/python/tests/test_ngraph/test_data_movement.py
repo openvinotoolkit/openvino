@@ -188,13 +188,13 @@ def test_select():
     assert np.allclose(result, excepted)
 
 
-def test_gather_nd():
+def test_gather_v8_nd():
     indices_type = np.int32
     data_dtype = np.float32
     data = ov.parameter([2, 10, 80, 30, 50], dtype=data_dtype, name="data")
     indices = ov.parameter([2, 10, 30, 40, 2], dtype=indices_type, name="indices")
     batch_dims = 2
-    expected_shape = [20, 30, 40, 50]
+    expected_shape = [2, 10, 30, 40, 50]
 
     node = ov.gather_nd(data, indices, batch_dims)
     assert node.get_type_name() == "GatherND"
