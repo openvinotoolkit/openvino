@@ -26,7 +26,7 @@
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
@@ -414,7 +414,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<NumberOfSHAVEsOption>();
     configuration.registerOption<NumberOfCMXSlicesOption>();
     configuration.registerOption<ThroughputStreamsOption>();
-    configuration.registerOption<IRWithScalesDirectoryOption>();
+    configuration.registerOption<VPUScalesOption>();
     configuration.registerOption<TensorStridesOption>();
     configuration.registerOption<IgnoreUnknownLayersOption>();
     configuration.registerOption<ForcePureTensorIteratorOption>();
