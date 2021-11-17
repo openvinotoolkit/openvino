@@ -41,10 +41,9 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "Manager of OpenVINO nGraph Frontends")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Manager of OpenVINO Frontends")
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # create static library if needed
 

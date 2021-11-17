@@ -44,21 +44,14 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
 
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ngraph
-        UNITY
-        PCH PRIVATE "src/precomp.hpp"
-    )
-endif()
+ie_faster_build(ngraph
+    UNITY
+    PCH PRIVATE "src/precomp.hpp")
 
-if(COMMAND ie_add_api_validator_post_build_step)
-    ie_add_api_validator_post_build_step(TARGET ngraph)
-endif()
+ie_add_api_validator_post_build_step(TARGET ngraph)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ngraph
-                           FILEDESCRIPTION "nGraph library")
-endif()
+ie_add_vs_version_file(NAME ngraph
+                       FILEDESCRIPTION "nGraph library")
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 

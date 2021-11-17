@@ -39,10 +39,10 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                    ADDITIONAL_INCLUDE_DIRECTORIES
                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "nGraph ONNX frontend library")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "nGraph ONNX frontend library")
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC ngraph PRIVATE frontend_manager ngraph::builder openvino::util onnx_common inference_engine_transformations)
 

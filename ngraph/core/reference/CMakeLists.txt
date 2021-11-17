@@ -18,12 +18,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create static library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(${TARGET_NAME}
-        UNITY
-        PCH PRIVATE "src/precomp.hpp"
-    )
-endif()
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(${TARGET_NAME} PUBLIC /wd4146)

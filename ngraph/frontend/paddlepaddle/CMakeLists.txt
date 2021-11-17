@@ -69,10 +69,10 @@ target_include_directories(${TARGET_NAME}
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
                                                          ${CMAKE_CURRENT_BINARY_DIR})
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
