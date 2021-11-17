@@ -641,6 +641,8 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
+#define DEBUG_USE_NEW_PASS 1
+
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
@@ -701,7 +703,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
-        manager.register_pass<TransposeNCHW>(); // DEBUG
+#ifdef DEBUG_USE_NEW_PASS
+        manager.register_pass<TransposeNCHW>();
+#endif
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -784,7 +788,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<RemoveSingleInputConcatPass>();
             passes->registerPass<BroadcastConstPass>();
             passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-            //passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>(); // DEBUG
+#ifdef DEBUG_USE_NEW_PASS
+            passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
+#endif
         }
 
         if (fake_quantized)
@@ -793,9 +799,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
-
-        //passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>(); // DEBUG
-
+#ifndef DEBUG_USE_NEW_PASS
+        passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
+#endif
         passes->registerPass<SubstitutePReluPass>();
 
         if (!isNgraphPassesUsed) {
