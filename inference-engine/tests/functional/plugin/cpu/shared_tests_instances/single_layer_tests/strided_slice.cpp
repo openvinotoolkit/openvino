@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 std::vector<StridedSliceSpecificParams> ss_only_test_cases = {
-        StridedSliceSpecificParams{ { 16 }, { 4 }, { 10 }, { 1 },
+        StridedSliceSpecificParams{ { 16 }, { 4 }, { 12 }, { 1 },
                                     { 0 }, { 0 },  { },  { },  { } },
         StridedSliceSpecificParams{ { 16 }, { 0 }, { 8 }, { 2 },
                                     { 1 }, { 0 },  { },  { },  { } },

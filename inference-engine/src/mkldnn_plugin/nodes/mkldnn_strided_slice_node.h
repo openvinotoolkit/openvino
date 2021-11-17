@@ -45,43 +45,41 @@ private:
         std::vector<int> newAxisMask;
         std::vector<int> shrinkAxisMask;
 
-        InferenceEngine::SizeVector beginDims;
-        InferenceEngine::SizeVector endDims;
-        InferenceEngine::SizeVector strideDims;
+        VectorDims beginDims;
+        VectorDims endDims;
+        VectorDims strideDims;
 
         bool equalDims = false;
         size_t dataSize = 1lu;
     } attrs;
 
     struct StridedSliceExecutor {
-        StridedSliceExecutor(const StridedSliceAttributes& attrs, const InferenceEngine::SizeVector& srcDims, const InferenceEngine::SizeVector& dstDims);
+        StridedSliceExecutor(const StridedSliceAttributes& attrs, const VectorDims& srcBlockedDims, const VectorDims& dstBlockedDims);
         void exec(const uint8_t* srcData, uint8_t* dstData);
         ~StridedSliceExecutor() = default;
 
     private:
-        void dimsNormalization(InferenceEngine::SizeVector& newSrcDims, InferenceEngine::SizeVector& newDstDims);
-        void dimsGluing(const size_t realNDims, const InferenceEngine::SizeVector& newSrcDims, const InferenceEngine::SizeVector& newDstDims);
-        void indicesCalculation();
-        void indicesCalculationForOptimized();
-
-        struct {
+        struct StridedSliceParams {
             StridedSliceAttributes attrs;
-
-            InferenceEngine::SizeVector srcDims;
-            InferenceEngine::SizeVector dstDims;
-            InferenceEngine::SizeVector srcStrides;
-            InferenceEngine::SizeVector dstStrides;
-            InferenceEngine::SizeVector srcIndices;
-            InferenceEngine::SizeVector dstIndices;
-
-            size_t nThreads = 0lu;
+            VectorDims srcBlockedDims;
+            VectorDims dstBlockedDims;
+            VectorDims srcStrides;
+            VectorDims dstStrides;
             size_t nDimsForWork = 0lu;
-            size_t workAmount = 0lu;
-            size_t lastDstDim = 0lu;
-            size_t srcShift = 0lu;
-
             bool isOptimized = false;
-        } params;
+        };
+
+        void dimsNormalization(StridedSliceParams& params);
+        void dimsGluing(StridedSliceParams& params, const size_t realNDims);
+        void indicesCalculation(const StridedSliceParams& params);
+        void indicesCalculationForOptimized(const StridedSliceParams& params);
+
+        VectorDims srcIndices;
+        VectorDims dstIndices;
+        size_t nThreads = 0lu;
+        size_t workAmount = 0lu;
+        size_t lastDstDim = 0lu;
+        size_t srcShift = 0lu;
     };
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;
