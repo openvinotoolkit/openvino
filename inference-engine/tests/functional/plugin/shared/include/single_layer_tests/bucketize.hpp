@@ -6,9 +6,14 @@
 
 #include "shared_test_classes/single_layer/bucketize.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ov {
+namespace test {
+namespace subgraph {
 
 TEST_P(BucketizeLayerTest, CompareWithRefs) {
-    Run();
+    run();
 }
-}  // namespace LayerTestsDefinitions
+
+}  // namespace subgraph
+}  // namespace test
+}  // namespace ov

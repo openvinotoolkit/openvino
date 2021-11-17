@@ -155,6 +155,37 @@ fill_data_random(T *pointer, std::size_t size, const uint32_t range = 10, int32_
     }
 }
 
+template <typename T>
+void inline fill_random_unique_sequence(T* rawBlobDataPtr,
+                                        std::size_t size,
+                                        uint64_t range,
+                                        int64_t start_from = 0,
+                                        const int64_t k = 1,
+                                        const int32_t seed = 1) {
+    if (start_from < 0 && !std::is_signed<T>::value) {
+        start_from = 0;
+    }
+
+    if (range < size) {
+        range = size * 2;
+    }
+
+    std::mt19937 generator(seed);
+    std::uniform_int_distribution<int64_t> dist(k * start_from, k * (start_from + range));
+
+    std::set<T> elems;
+    while (elems.size() != size) {
+        auto value = static_cast<float>(dist(generator));
+        value /= static_cast<float>(k);
+        if (std::is_same<ngraph::float16, T>::value) {
+            elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
+        } else {
+            elems.insert(static_cast<T>(value));
+        }
+    }
+    std::copy(elems.begin(), elems.end(), rawBlobDataPtr);
+}
+
 /** @brief Fill blob with random data.
  *
  * @param blob Target blob
