@@ -192,6 +192,9 @@ jobs:
   - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOConfig.cmake
     displayName: 'Cat OpenVINOConfig.cmake'
 
+  - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOTargets.cmake
+    displayName: 'Cat OpenVINOTargets.cmake'
+
   - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOTargets-release.cmake
     displayName: 'Cat OpenVINOTargets-release.cmake'
 
