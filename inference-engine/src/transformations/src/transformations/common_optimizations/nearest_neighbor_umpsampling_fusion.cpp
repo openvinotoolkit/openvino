@@ -17,6 +17,8 @@
 #include <ngraph/pattern/op/or.hpp>
 
 namespace {
+using namespace ngraph;
+
 std::vector<size_t> get_scales_from_mul_const_shape(const ngraph::Shape& s, uint64_t input_rank) {
     if (input_rank < 4 || static_cast<uint64_t>(s.size()) != 2 + 2 * (input_rank - 2)) return {};
 
@@ -119,9 +121,9 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         const auto concat_2_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
         if (!concat_2_node) return false;
 
-        std::shared_ptr<ngraph::opset8::Unsqueeze> unsqueeze_2;
-        std::vector<int64_t> new_spatial_shape;
-        std::tie(unsqueeze_2, new_spatial_shape) = get_input_unsqueeze_for_concat_2(concat_2_node, reshape_1_node->get_input_shape(0));
+        // std::shared_ptr<ngraph::opset8::Unsqueeze> unsqueeze_2;
+        // std::vector<int64_t> new_spatial_shape;
+        // std::tie(unsqueeze_2, new_spatial_shape) = get_input_unsqueeze_for_concat_2(concat_2_node, reshape_1_node->get_input_shape(0));
 
         return true;
     };
