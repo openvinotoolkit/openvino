@@ -46,7 +46,6 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 }  // namespace
 
 FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {
-    std::cout << "XXXxxxxXXXXX ctor FrontEndTF" << std::endl;
 }
 
 void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
@@ -389,9 +388,7 @@ void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) 
 }
 
 FrontEndTF::~FrontEndTF() {
-    std::cout << "XXXxxxxXXXXX ~FrontEndTF" << std::endl;
     if(m_telemetry) {
-        std::cout << "XXXxxxxXXXXX ~FrontEndTF telemetry" << std::endl;
         m_telemetry->end_session(m_telemetry_category);
     }
 }

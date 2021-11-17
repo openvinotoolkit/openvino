@@ -167,7 +167,6 @@ void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension
 
 FrontEndONNX::~FrontEndONNX() {
     if(m_telemetry) {
-        std::cout << "XXXxxxxXXXXX ~FrontEndTF telemetry" << std::endl;
         m_telemetry->end_session(m_telemetry_category);
     }
 }

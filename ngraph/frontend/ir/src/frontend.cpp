@@ -238,7 +238,6 @@ std::string FrontEndIR::get_name() const {
 
 FrontEndIR::~FrontEndIR() {
     if(m_telemetry) {
-        std::cout << "XXXxxxxXXXXX ~FrontEndID telemetry" << std::endl;
         m_telemetry->end_session(m_telemetry_category);
     }
 }

@@ -132,7 +132,6 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def arguments_post_parsing(argv: argparse.Namespace):
-    print("XXXXXX get moc frontends")
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
@@ -318,7 +317,6 @@ def prepare_ir(argv):
 
     graph = None
     ngraph_function = None
-    print("XXXXXXX MOC FRONTEND")
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     if moc_front_end:
