@@ -3,7 +3,7 @@
 
 import shutil
 
-from mo.utils.ir_engine.ir_engine import IREngine
+from openvino.tools.mo.utils.ir_engine.ir_engine import IREngine
 from openvino.tools.pot.graph.graph_utils import save_graph
 from tests.utils.path import REFERENCE_MODELS_PATH
 

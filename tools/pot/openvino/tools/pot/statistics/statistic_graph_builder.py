@@ -1,11 +1,11 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.ops.result import Result
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.front.common.partial_infer.utils import int64_array
-from extensions.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
-from extensions.ops.activation_ops import Abs
+from openvino.tools.mo.ops.result import Result
+from openvino.tools.mo.front.tf.graph_utils import create_op_node_with_second_input
+from openvino.tools.mo.front.common.partial_infer.utils import int64_array
+from openvino.tools.mo.ops.ReduceOps import ReduceMin, ReduceMax, ReduceMean
+from openvino.tools.mo.ops.activation_ops import Abs
 
 from ..graph.model_utils import get_node_by_name
 from ..graph.node_utils import get_output_shape
