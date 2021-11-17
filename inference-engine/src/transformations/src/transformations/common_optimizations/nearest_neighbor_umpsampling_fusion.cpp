@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 #include <ngraph/opsets/opset8.hpp>
@@ -73,7 +74,7 @@ std::shared_ptr<ngraph::opset8::Unsqueeze> get_input_unsqueeze_for_concat_1(cons
 
     return input0;
 }
-}
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NearestNeighborUpsamplingFusion, "NearestNeighborUpsamplingFusion", 0);
 
@@ -104,7 +105,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         uint64_t input_rank = static_cast<uint64_t>(reshape_1_node->get_input_partial_shape(0).rank().get_length());
         const auto mul_const_shape = mul_const_node->get_output_shape(0);
         const auto scales = get_scales_from_mul_const_shape(mul_const_shape, input_rank);
-        if (scales.empty()) return false;
+        if (scales.empty() || std::all_of(scales.begin(), scales.end(), [](size_t s) { return s == 1;})) { return false; }
 
         const auto mul_const_value = mul_const_node->cast_vector<float>();
         if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [](float x){ return x != 1.0f; })) { return false; }
@@ -114,6 +115,13 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
 
         const auto unsqueeze_1 = get_input_unsqueeze_for_concat_1(concat_1_node, reshape_1_node->get_input_shape(0));
         if (!unsqueeze_1) return false;
+
+        const auto concat_2_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
+        if (!concat_2_node) return false;
+
+        std::shared_ptr<ngraph::opset8::Unsqueeze> unsqueeze_2;
+        std::vector<int64_t> new_spatial_shape;
+        std::tie(unsqueeze_2, new_spatial_shape) = get_input_unsqueeze_for_concat_2(concat_2_node, reshape_1_node->get_input_shape(0));
 
         return true;
     };
