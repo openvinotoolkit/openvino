@@ -3,14 +3,14 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension, dynamic_dimension_value, is_fully_defined, shape_array
+from mo.front.common.partial_infer.utils import dynamic_dimension, is_fully_defined, shape_array, strict_compare_tensors
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class SparseReshape(Op):
     """
-    SparseReshape operation reshapes a sparse tensor. It recomputes indices for a new dense shape.
+    SparseReshape operation reshapes a sparse tensor in COO format. It recomputes indices for a new dense shape.
     """
     op = 'SparseReshape'
 
@@ -46,7 +46,8 @@ class SparseReshape(Op):
         num_of_output_elements = 1
         for index, x in enumerate(new_shape):
             if x is dynamic_dimension:
-                num_of_output_elements = dynamic_dimension_value
+                num_of_output_elements = dynamic_dimension
+                break
             elif x == 0 and node.has_and_set('special_zero'):
                 if input_shape[index] is not dynamic_dimension:
                     num_of_output_elements *= input_shape[index]
@@ -98,6 +99,7 @@ class SparseReshape(Op):
         output_indices_shape = np.concatenate((input_indices_shape[0:1], new_shape_shape))
         node.out_port(0).data.set_shape(output_indices_shape)
 
-        # TODO: implement constant value propagation for common case
-        if np.array_equal(input_shape, output_shape) and input_indices_value is not None:
+        # TODO: implement constant value propagation for common case with scipy.sparse.coo_matrix.reshape
+        # instead of compatible_shapes we intentionally use np.array_equal
+        if strict_compare_tensors(input_shape, output_shape) and input_indices_value is not None:
             node.out_port(0).data.set_value(input_indices_value)
