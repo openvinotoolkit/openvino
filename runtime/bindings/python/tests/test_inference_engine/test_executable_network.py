@@ -280,3 +280,30 @@ def test_infer_tensor_wrong_input_data(device):
     with pytest.raises(TypeError) as e:
         exec_net.infer_new_request({0.: tensor})
     assert "Incompatible key type for tensor named: 0." in str(e.value)
+
+
+def test_infer_numpy_model_from_buffer(device):
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        bin = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    func = core.read_model(model=xml, weights=bin)
+    img = read_image()
+    exec_net = core.compile_model(func, device)
+    res = exec_net.infer_new_request({"data": img})
+    assert np.argmax(res) == 2
+
+
+def test_infer_tensor_model_from_buffer(device):
+    core = Core()
+    with open(test_net_bin, "rb") as f:
+        bin = f.read()
+    with open(test_net_xml, "rb") as f:
+        xml = f.read()
+    func = core.read_model(model=xml, weights=bin)
+    img = read_image()
+    tensor = Tensor(img)
+    exec_net = core.compile_model(func, device)
+    res = exec_net.infer_new_request({"data": tensor})
+    assert np.argmax(res) == 2
