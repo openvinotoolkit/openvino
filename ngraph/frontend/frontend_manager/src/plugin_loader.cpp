@@ -30,7 +30,7 @@ using namespace ov::frontend;
 #    define DLOPEN(file_str) LoadLibrary(TEXT(file_str.c_str()))
 #    define DLSYM(obj, func) GetProcAddress(obj, func)
 #    define DLCLOSE(obj)     FreeLibrary(obj)
-#    define DLERROR()        ""
+#    define DLERROR()        std::to_string(GetLastError())
 #else
 #    define DLOPEN(file_str) dlopen(file_str.c_str(), RTLD_LAZY)
 #    define DLSYM(obj, func) dlsym(obj, func)
@@ -45,16 +45,13 @@ static std::vector<std::string> list_files(const std::string& path) {
     try {
         auto prefix = std::string(FRONTEND_LIB_PREFIX);
         auto suffix = std::string(FRONTEND_LIB_SUFFIX);
-        std::cout << "DON'T merge: CI debugging1: " << prefix << " " << suffix << "\n";
         ov::util::iterate_files(
             path,
             [&res, &prefix, &suffix](const std::string& file_path, bool is_dir) {
                 auto file = ov::util::get_file_name(file_path);
-                std::cout << "DON'T merge: CI debugging2: " << file << "\n";
                 if (!is_dir && (prefix.empty() || file.compare(0, prefix.length(), prefix) == 0) &&
                     file.length() > suffix.length() &&
                     file.rfind(suffix) == (file.length() - std::string(suffix).length())) {
-                    std::cout << "DON'T merge: CI debugging3: PUSH " << file << "\n";
                     res.push_back(file);
                 }
             },
@@ -79,6 +76,7 @@ std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) 
         auto shared_object = DLOPEN(file);
         if (!shared_object) {
             NGRAPH_DEBUG << "Error loading FrontEnd " << file << " " << DLERROR() << std::endl;
+            std::cout << "Error loading FrontEnd " << file << " " << DLERROR() << std::endl;
             continue;
         }
 
@@ -88,21 +86,25 @@ std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) 
 
         auto info_addr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetAPIVersion"));
         if (!info_addr) {
+            std::cout << "Error get FE plugin version " << file << " " << std::endl;
             continue;
         }
         FrontEndVersion plug_info{reinterpret_cast<FrontEndVersion>(info_addr())};
 
         if (plug_info != OV_FRONTEND_API_VERSION) {
             // Plugin has incompatible API version, do not load it
+            std::cout << "Error: FE plugin version is incompatible" << file << " " << plug_info << std::endl;
             continue;
         }
 
         auto creator_addr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetFrontEndData"));
         if (!creator_addr) {
+            std::cout << "Error get FE plugin data " << file << " " << std::endl;
             continue;
         }
 
         std::unique_ptr<FrontEndPluginInfo> fact{reinterpret_cast<FrontEndPluginInfo*>(creator_addr())};
+        std::cout << "Success loading frontend " << file << " " << fact->m_name << std::endl;
 
         res.push_back(PluginData(std::move(guard), std::move(*fact)));
     }
