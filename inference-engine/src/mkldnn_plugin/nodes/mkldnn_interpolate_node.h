@@ -104,49 +104,134 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    void prepareParams() override;
+
 private:
-    // nearest neighbor
-    void NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
-    void NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
-    void NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+    class InterpolateExecutor {
+        public:
+            InterpolateExecutor(InterpolateMode _mode,
+                                const VectorDims &srcDims,
+                                const VectorDims &dstDims,
+                                InferenceEngine::Precision inPrc,
+                                InferenceEngine::Precision outPrc,
+                                InterpolateLayoutType layout,
+                                InterpolateCoordTransMode _coordTransMode,
+                                InterpolateNearestMode nearestMode,
+                                const std::vector<int> &padBegin,
+                                const std::vector<int> &padEnd,
+                                const std::vector<float> &dataScales,
+                                bool antialias,
+                                float cubeCoeff);
 
-    // onnx linear
-    void linearOnnxCF(int outCoord, float scale, int inShape, int outShape, int& index0, int& index1, float& weight0, float& weight1);
-    void linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
-    void linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
-    void linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) = 0;
+            virtual ~InterpolateExecutor() = default;
 
-    // cubic
-    std::vector<float> getCubicCoeffs(float mantissa, float a);
-    void cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
-    void cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
-    void cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+        private:
+            void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
+            void buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, InterpolateLayoutType layout);
+            void buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, int kernel_width, bool antialias);
+            void buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff, InterpolateLayoutType layout);
 
-    // linear
-    void linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                          float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
+            float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
+            int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
+            void linearOnnxCF(int outCoord, float scale, int inShape, int outShape, int& index0, int& index1, float& weight0, float& weight1);
+            std::vector<float> getCubicCoeffs(float mantissa, float a);
 
-    void buildTblNN(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
-    void buildTblLinearOnnx(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
-    void buildTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, int kernel_width, bool antialias);
-    void buildTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff, InterpolateLayoutType layout);
+        protected:
+            InterpolateMode mode;
+            InterpolateCoordTransMode coordTransMode;
+            InterpolateLayoutType configured_for_layout;
+            VectorDims srcDimPad5d, dstDim5d;
+            InferenceEngine::Precision inputPrec, outputPrec;
+            size_t srcDataSize, dstDataSize;
+            int spatialDimSize;
+            size_t dataRank;
+            std::vector<int> indexTable;
+    };
+    std::shared_ptr<InterpolateExecutor> execPtr = nullptr;
 
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+    class InterpolateJitExecutor : public InterpolateExecutor {
+        public:
+            InterpolateJitExecutor(InterpolateMode _mode,
+                                   InferenceEngine::Precision inPrc,
+                                   InferenceEngine::Precision outPrc,
+                                   const VectorDims &srcDims,
+                                   const VectorDims &dstDims,
+                                   const std::vector<int> &padBegin,
+                                   const std::vector<int> &padEnd,
+                                   const std::vector<float> &dataScales,
+                                   InterpolateLayoutType layout,
+                                   InterpolateCoordTransMode _coordTransMode,
+                                   InterpolateNearestMode nearestMode,
+                                   const mkldnn::primitive_attr &attr,
+                                   bool antialias,
+                                   float cubeCoeff);
 
-    inline float coordTransToInput(int outCoord, float scale, int inShape, int outShape);
-    inline int nearestRound(float origin, bool isDownsample);
-    float getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec);
-    void setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec);
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
 
-    SizeVector getPaddedInputShape();
-    std::vector<float> getScales();
+        private:
+            // nearest neighbor
+            void NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
 
-    static const size_t DATA_ID = 0;
-    static const size_t TARGET_SHAPE_ID = 1;
-    static const size_t SCALES_ID = 2;
-    static const size_t AXES_ID = 3;
-    const int LINEAR_KERNEL = 2;
-    const int CUBIC_GRID_LEN = 4;
+            // onnx linear
+            void linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+
+            // cubic
+            void cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+            void cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+
+        private:
+            std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
+    };
+
+    class InterpolateRefExecutor : public InterpolateExecutor {
+        public:
+            InterpolateRefExecutor(InterpolateMode _mode,
+                                   InferenceEngine::Precision inPrc,
+                                   InferenceEngine::Precision outPrc,
+                                   const VectorDims &srcDims,
+                                   const VectorDims &dstDims,
+                                   const std::vector<int> &padBegin,
+                                   const std::vector<int> &padEnd,
+                                   const std::vector<float> &_dataScales,
+                                   InterpolateLayoutType layout,
+                                   InterpolateCoordTransMode _coordTransMode,
+                                   InterpolateNearestMode nearestMode,
+                                   bool _antialias,
+                                   float cubeCoeff) : dataScales(_dataScales), antialias(_antialias),
+                InterpolateExecutor(_mode, srcDims, dstDims, inPrc, outPrc, layout, _coordTransMode, nearestMode, padBegin, padEnd, _dataScales, antialias, cubeCoeff) {}
+
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
+
+        private:
+            void NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+            void linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
+
+            void cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW);
+            void linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+                                      float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
+
+            static float getValue(const uint8_t *base, size_t offset, InferenceEngine::Precision prec);
+            static void setValue(uint8_t *base, size_t offset, float value, InferenceEngine::Precision prec);
+
+        private:
+            bool antialias;
+            std::vector<float> dataScales;
+    };   
+
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
+
+    static SizeVector getPaddedInputShape(const VectorDims &srcDims, const std::vector<int> &padBegin, const std::vector<int> &padEnd);
+    std::vector<float> getScales(const VectorDims &srcDimPad, const VectorDims &dstDim);
+    static size_t getSpatialDimsNum(const Dim rank);
+
+    static constexpr size_t DATA_ID = 0;
+    static constexpr size_t TARGET_SHAPE_ID = 1;
+    static constexpr size_t SCALES_ID = 2;
+    static constexpr size_t AXES_ID = 3;
+    static constexpr int CUBIC_GRID_LEN = 4;
 
     InterpolateMode mode;
     InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
@@ -156,31 +241,14 @@ private:
     bool hasPad = false;
     InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
     InterpolateShapeCalcMode shapeCalcMode;
+    InterpolateLayoutType configured_for_layout;
 
     float cubeCoeff = -0.75;
 
     bool isAxesSpecified = false;
-    // axes and scales from buffer, partical size.
     std::vector<int> axes;
-    std::vector<float> scales;
-    // target shape is dst dim, full size.
-    SizeVector dstDim;
-    SizeVector srcDim;
-    SizeVector srcDimPad;
-    int spatialDimSize = 1;
 
     mkldnn::primitive_attr attr;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-
-    InferenceEngine::Precision inputPrec, outputPrec;
-    size_t srcDataSize = 0;
-    size_t dstDataSize = 0;
-
-    InterpolateLayoutType configured_for_layout = InterpolateLayoutType::planar;
-
-    std::vector<int> indexTable;
-
-    std::shared_ptr<jit_uni_interpolate_kernel> interpolateKernel = nullptr;
 
     std::string errorPrefix;
 };
