@@ -54,7 +54,7 @@ static std::shared_ptr<Function> create_simple_function_nv12(const PartialShape&
 
 TEST_F(ReferencePreprocessLegacyTest, mean) {
     function = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-    function = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().mean(1.f))).build(function);
+    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().mean(1.f))).build();
 
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 2, 2});
     legacy_network = InferenceEngine::CNNNetwork(f2);
@@ -72,7 +72,7 @@ TEST_F(ReferencePreprocessLegacyTest, mean) {
 
 TEST_F(ReferencePreprocessLegacyTest, mean_scale) {
     function = create_simple_function(element::f32, Shape{1, 3, 20, 20});
-    function = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().scale(2.f))).build(function);
+    function = PrePostProcessor(function).input(InputInfo().preprocess(PreProcessSteps().scale(2.f))).build();
 
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 20, 20});
     legacy_network = InferenceEngine::CNNNetwork(f2);
@@ -93,11 +93,11 @@ TEST_F(ReferencePreprocessLegacyTest, resize) {
     auto f2 = create_simple_function(element::f32, Shape{1, 3, 5, 5});
     legacy_network = InferenceEngine::CNNNetwork(f2);
 
-    function = PrePostProcessor().input(InputInfo()
+    function = PrePostProcessor(function).input(InputInfo()
             .tensor(InputTensorInfo().set_layout("NCHW").set_spatial_static_shape(42, 30))
             .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
             .network(InputNetworkInfo().set_layout("NCHW")))
-                    .build(function);
+                    .build();
 
     auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
@@ -114,12 +114,12 @@ public:
         inputData.clear();
         legacy_input_blobs.clear();
 
-        function = PrePostProcessor().input(InputInfo()
+        function = PrePostProcessor(function).input(InputInfo()
                                                     .tensor(InputTensorInfo().set_color_format(
                                                             ColorFormat::NV12_SINGLE_PLANE))
                                                     .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))
                                                     .network(InputNetworkInfo().set_layout("NCHW")))
-                .build(function);
+                .build();
 
         const auto &param = function->get_parameters()[0];
         inputData.emplace_back(param->get_element_type(), param->get_shape(), ov20_input_yuv.data());

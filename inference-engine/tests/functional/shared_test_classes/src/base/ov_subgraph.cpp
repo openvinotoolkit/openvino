@@ -130,7 +130,7 @@ void SubgraphBaseTest::compare(const std::vector<ov::runtime::Tensor>& expected,
 
 void SubgraphBaseTest::configure_model() {
     // configure input precision
-    ov::preprocess::PrePostProcessor p;
+    ov::preprocess::PrePostProcessor p(function);
     {
         auto& params = function->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
@@ -151,7 +151,7 @@ void SubgraphBaseTest::configure_model() {
             }
         }
     }
-    function = p.build(function);
+    function = p.build();
 }
 
 void SubgraphBaseTest::compile_model() {

@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <format_reader_ptr.h>
+
 #include <inference_engine.hpp>
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include <samples/ocv_common.hpp>
+#include <samples/common.hpp>
 #include <string>
 #include <vector>
 
@@ -54,12 +56,19 @@ int main(int argc, char* argv[]) {
         std::string input_name;
         SizeVector input_shape;
         std::tie(input_name, input_shape) = *input_shapes.begin();
-        cv::Mat image = cv::imread(input_image_path);
+        FormatReader::ReaderPtr reader(input_image_path.c_str());
+        if (reader.get() == nullptr) {
+            std::cout << "Image " + input_image_path + " cannot be read!" << std::endl;
+            return 1;
+        }
+        size_t image_width, image_height;
+        image_width = reader->width();
+        image_height = reader->height();
         input_shape[0] = batch_size;
-        input_shape[2] = static_cast<size_t>(image.rows);
-        input_shape[3] = static_cast<size_t>(image.cols);
+        input_shape[2] = image_height;
+        input_shape[3] = image_width;
         input_shapes[input_name] = input_shape;
-        std::cout << "Resizing network to the image size = [" << image.rows << "x" << image.cols << "] "
+        std::cout << "Resizing network to the image size = [" << image_height << "x" << image_width << "] "
                   << "with batch = " << batch_size << std::endl;
         network.reshape(input_shapes);
         // -----------------------------------------------------------------------------------------------------
@@ -132,10 +141,51 @@ int main(int argc, char* argv[]) {
 
         // --------------------------- Step 6. Prepare input
         // --------------------------------------------------------
-        Blob::Ptr input = infer_request.GetBlob(input_name);
-        for (size_t b = 0; b < batch_size; b++) {
-            matU8ToBlob<uint8_t>(image, input, b);
+        /** Collect images data ptrs **/
+        std::shared_ptr<unsigned char> image_data, original_image_data;
+        /** Store image data **/
+        std::shared_ptr<unsigned char> original_data(reader->getData());
+        std::shared_ptr<unsigned char> data_reader(
+            reader->getData(input_info->getTensorDesc().getDims()[3], input_info->getTensorDesc().getDims()[2]));
+        if (data_reader.get() != nullptr) {
+            original_image_data = original_data;
+            image_data = data_reader;
+        } else {
+            throw std::logic_error("Valid input images were not found!");
         }
+
+        /** Creating input blob **/
+        Blob::Ptr image_input = infer_request.GetBlob(input_name);
+
+        /** Filling input tensor with images. First b channel, then g and r channels **/
+        MemoryBlob::Ptr mimage = as<MemoryBlob>(image_input);
+        if (!mimage) {
+            std::cout << "We expect image blob to be inherited from MemoryBlob, but by fact we were not able "
+                         "to cast imageInput to MemoryBlob"
+                      << std::endl;
+            return 1;
+        }
+        // locked memory holder should be alive all time while access to its buffer happens
+        auto minputHolder = mimage->wmap();
+
+        size_t num_channels = mimage->getTensorDesc().getDims()[1];
+        size_t image_size = mimage->getTensorDesc().getDims()[3] * mimage->getTensorDesc().getDims()[2];
+
+        unsigned char* data = minputHolder.as<unsigned char*>();
+
+        /** Iterate over all input images **/
+        for (size_t image_id = 0; image_id < batch_size; ++image_id) {
+            /** Iterate over all pixel in image (b,g,r) **/
+            for (size_t pid = 0; pid < image_size; pid++) {
+                /** Iterate over all channels **/
+                for (size_t ch = 0; ch < num_channels; ++ch) {
+                    /**          [images stride + channels stride + pixel id ] all in bytes            **/
+                    data[image_id * image_size * num_channels + ch * image_size + pid] =
+                        image_data.get()[pid * num_channels + ch];
+                }
+            }
+        }
+
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 7. Do inference
@@ -156,37 +206,51 @@ int main(int argc, char* argv[]) {
         auto moutputHolder = moutput->rmap();
         const float* detection = moutputHolder.as<const float*>();
 
+        std::vector<std::vector<int>> boxes(batch_size);
+        std::vector<std::vector<int>> classes(batch_size);
+
         /* Each detection has image_id that denotes processed image */
         for (size_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
-            float image_id = detection[cur_proposal * object_size + 0];
-            float label = detection[cur_proposal * object_size + 1];
-            float confidence = detection[cur_proposal * object_size + 2];
-            /* CPU and GPU devices have difference in DetectionOutput layer, so we
-             * need both checks */
-            if (image_id < 0 || confidence == 0.0f) {
-                continue;
+            auto image_id = static_cast<int>(detection[cur_proposal * object_size + 0]);
+            if (image_id < 0) {
+                break;
             }
 
-            float xmin = detection[cur_proposal * object_size + 3] * image.cols;
-            float ymin = detection[cur_proposal * object_size + 4] * image.rows;
-            float xmax = detection[cur_proposal * object_size + 5] * image.cols;
-            float ymax = detection[cur_proposal * object_size + 6] * image.rows;
+            float confidence = detection[cur_proposal * object_size + 2];
+            auto label = static_cast<int>(detection[cur_proposal * object_size + 1]);
+            auto xmin = detection[cur_proposal * object_size + 3] * image_width;
+            auto ymin = detection[cur_proposal * object_size + 4] * image_height;
+            auto xmax = detection[cur_proposal * object_size + 5] * image_width;
+            auto ymax = detection[cur_proposal * object_size + 6] * image_height;
 
             if (confidence > 0.5f) {
                 /** Drawing only objects with >50% probability **/
-                std::ostringstream conf;
-                conf << ":" << std::fixed << std::setprecision(3) << confidence;
-                cv::rectangle(image, cv::Point2f(xmin, ymin), cv::Point2f(xmax, ymax), cv::Scalar(0, 0, 255));
+                classes[image_id].push_back(label);
+                boxes[image_id].push_back(static_cast<int>(xmin));
+                boxes[image_id].push_back(static_cast<int>(ymin));
+                boxes[image_id].push_back(static_cast<int>(xmax - xmin));
+                boxes[image_id].push_back(static_cast<int>(ymax - ymin));
+
                 std::cout << "[" << cur_proposal << "," << label << "] element, prob = " << confidence << ", bbox = ("
                           << xmin << "," << ymin << ")-(" << xmax << "," << ymax << ")"
                           << ", batch id = " << image_id << std::endl;
             }
         }
 
-        cv::imwrite("hello_reshape_ssd_output.jpg", image);
-        std::cout << "The resulting image was saved in the file: "
-                     "hello_reshape_ssd_output.jpg"
-                  << std::endl;
+        for (size_t batch_id = 0; batch_id < batch_size; ++batch_id) {
+            addRectangles(original_image_data.get(),
+                          image_height,
+                          image_width,
+                          boxes[batch_id],
+                          classes[batch_id],
+                          BBOX_THICKNESS);
+            const std::string image_path = "hello_reshape_ssd_output.bmp";
+            if (writeOutputBmp(image_path, original_image_data.get(), image_height, image_width)) {
+                std::cout << "The resulting image was saved in the file: " + image_path << std::endl;
+            } else {
+                throw std::logic_error(std::string("Can't create a file: ") + image_path);
+            }
+        }
         // -----------------------------------------------------------------------------------------------------
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;
