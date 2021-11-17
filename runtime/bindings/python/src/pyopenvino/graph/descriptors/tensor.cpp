@@ -22,7 +22,7 @@ void regclass_graph_descriptor_Tensor(py::module m) {
 
     tensor.def(py::init<const ov::element::Type, const ov::PartialShape, const std::string>(),
                py::arg("element_type"),
-               py::arg("shape"),
+               py::arg("partial_shape"),
                py::arg("name"));
 
     tensor.def("get_shape",

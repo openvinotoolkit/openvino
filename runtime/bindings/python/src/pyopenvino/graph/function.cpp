@@ -365,7 +365,7 @@ void regclass_graph_Function(py::module m) {
                 } else if (py::isinstance<ov::Output<ov::Node>>(outputs)) {
                     _outputs.append(outputs.cast<ov::Output<ov::Node>>());
                 } else {
-                    throw py::type_error("Incorrect type for operation to add at index " + std::to_string(i) + ".");
+                    throw py::type_error("Incorrect type of a value to add as output.");
                 }
             } else {
                 _outputs = outputs.cast<py::list>();
@@ -379,6 +379,9 @@ void regclass_graph_Function(py::module m) {
                     self.add_output(output_tuple[0].cast<std::string>(), output_tuple[1].cast<int>());
                 } else if (py::isinstance<ov::Output<ov::Node>>(_outputs[i])) {
                     self.add_output(output.cast<ov::Output<ov::Node>>());
+                } else {
+                    throw py::type_error("Incorrect type of a value to add as output at index " + std::to_string(i) +
+                                         ".");
                 }
                 i++;
             }

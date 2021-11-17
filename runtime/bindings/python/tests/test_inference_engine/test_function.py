@@ -15,6 +15,7 @@ def test_function_add_outputs_tensor_name():
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
     relu1.get_output_tensor(0).set_names({"relu_t1"})
+    assert "relu_t1" in relu1.get_output_tensor(0).names
     relu2 = ops.relu(relu1, name="relu2")
     function = Function(relu2, [param], "TestFunction")
     assert len(function.get_results()) == 1
@@ -123,4 +124,16 @@ def test_add_outputs_incorrect_value():
     assert len(function.get_results()) == 1
     with pytest.raises(TypeError) as e:
         function.add_outputs(0)
-    assert "Incorrect type for operation to add at index 0" in str(e.value)
+    assert "Incorrect type of a value to add as output." in str(e.value)
+
+
+def test_add_outputs_incorrect_outputs_list():
+    input_shape = PartialShape([1])
+    param = ops.parameter(input_shape, dtype=np.float32, name="data")
+    relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    function = Function(relu1, [param], "TestFunction")
+    assert len(function.get_results()) == 1
+    with pytest.raises(TypeError) as e:
+        function.add_outputs([0, 0])
+    assert "Incorrect type of a value to add as output at index 0" in str(e.value)
