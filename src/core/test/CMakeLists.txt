@@ -15,7 +15,7 @@ set(OV_ONNX_NAMESPACE ov_onnx)
 add_subdirectory(runtime)
 
 if(ENABLE_TESTS)
-    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/ngraph/files\"")
+    add_definitions("-DTEST_FILES=\"${TEST_MODEL_ZOO}/core/files\"")
     add_subdirectory(util)
     add_subdirectory(engines_util)
     if (OV_ONNX_FRONTEND_ENABLE)
