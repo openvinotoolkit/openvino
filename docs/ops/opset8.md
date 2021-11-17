@@ -103,7 +103,6 @@ declared in `namespace opset8`.
 * [MVN](normalization/MVN_6.md)
 * [MulticlassNMS](sort/MulticlassNMS_8.md)
 * [Multiply](arithmetic/Multiply_1.md)
-* [MVN](normalization/MVN_6.md)
 * [Negative](arithmetic/Negative_1.md)
 * [NonMaxSuppression](sort/NonMaxSuppression_5.md)
 * [NonZero](condition/NonZero_3.md)

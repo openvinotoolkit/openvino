@@ -50,6 +50,13 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
         IE_THROW(NotImplemented) << errorMessage;
     }
     m_errorPrefix = "MultiClassNms layer with name '" + getName() + "' ";
+
+    if (getOriginalInputsNumber() != 2)
+        IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
+
+    if (getOriginalOutputsNumber() != 3)
+        IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
+
     if (std::dynamic_pointer_cast<const MulticlassNmsIEInternal>(op))
         m_outStaticShape = true;
     const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MulticlassNms>(op);
