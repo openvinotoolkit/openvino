@@ -2,6 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(NOT ENABLE_SAMPLES)
+    set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
+    add_subdirectory(cpp/common/utils)
+    add_subdirectory(cpp/common/format_reader)
+    return()
+endif()
+
 add_subdirectory(cpp)
 
 # TODO: remove this
