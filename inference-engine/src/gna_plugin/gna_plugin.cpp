@@ -54,6 +54,7 @@
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
@@ -731,6 +732,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
+        pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
         pass_config->disable<ngraph::pass::FakeQuantizeMulFusion>();
         pass_config->disable<ngraph::pass::FakeQuantizeReshapeFusion>();
         pass_config->disable<ngraph::pass::PullTransposeThroughFQUp>();
