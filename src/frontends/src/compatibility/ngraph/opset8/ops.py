@@ -1,23 +1,23 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Factory functions for all openvino ops."""
+"""Factory functions for all ngraph ops."""
 from functools import partial
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
-from openvino.impl import Node, Shape
-from openvino.impl.op import Constant, Parameter
-from openvino.opset_utils import _get_node_factory
-from openvino.utils.decorators import binary_op, nameable_op, unary_op
-from openvino.utils.input_validation import (
+from ngraph.impl import Node, Shape
+from ngraph.impl.op import Constant, Parameter
+from ngraph.opset_utils import _get_node_factory
+from ngraph.utils.decorators import binary_op, nameable_op, unary_op
+from ngraph.utils.input_validation import (
     assert_list_of_ints,
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
 )
-from openvino.utils.node_factory import NodeFactory
-from openvino.utils.tensor_iterator_types import (
+from ngraph.utils.node_factory import NodeFactory
+from ngraph.utils.tensor_iterator_types import (
     GraphBody,
     TensorIteratorSliceInputDesc,
     TensorIteratorMergedInputDesc,
@@ -25,7 +25,7 @@ from openvino.utils.tensor_iterator_types import (
     TensorIteratorBodyOutputDesc,
     TensorIteratorConcatOutputDesc,
 )
-from openvino.utils.types import (
+from ngraph.utils.types import (
     NodeInput,
     NumericData,
     NumericType,
@@ -367,50 +367,3 @@ def random_uniform(
         "op_seed": op_seed,
     }
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
-
-
-@nameable_op
-def slice(
-        data: NodeInput,
-        start: NodeInput,
-        stop: NodeInput,
-        step: NodeInput,
-        axes: NodeInput = None
-) -> Node:
-    """Return a node which generates Slice operation.
-
-    @param  data: The node providing input data.
-    @param  start: The node providing start indices (inclusively).
-    @param  stop: The node providing stop indices (exclusively).
-    @param  step: The node providing step values.
-    @param  axes: The optional node providing axes to slice, default [0, 1, ..., len(start)-1].
-    """
-    if axes is None:
-        inputs = as_nodes(data, start, stop, step)
-    else:
-        inputs = as_nodes(data, start, stop, step, axes)
-
-    return _get_node_factory_opset8().create("Slice", inputs)
-
-
-@nameable_op
-def gather_nd(
-        data: NodeInput,
-        indices: NodeInput,
-        batch_dims: Optional[int] = 0,
-        name: Optional[str] = None,
-) -> Node:
-    """Return a node which performs GatherND.
-
-    @param data:       N-D tensor with data for gathering
-    @param indices:    K-D tensor of tuples with indices by which data is gathered
-    @param batch_dims: Scalar value of batch dimensions
-    @return: The new node which performs GatherND
-    """
-    inputs = as_nodes(data, indices)
-
-    attributes = {
-        "batch_dims": batch_dims
-    }
-
-    return _get_node_factory_opset8().create("GatherND", inputs, attributes)
