@@ -32,7 +32,7 @@ By default, if no frameworks are specified, dependencies to support ONNX\* and T
 [//]: <> (To be done)
 
 ## Converting models
-* [Converting Model]( ../docs/MO_DG/prepare_model/convert_model/Converting_Model.md)
+* [Converting Model](../../docs/MO_DG/prepare_model/convert_model/Converting_Model.md)
 
 ## Setup development environment
 If you want to contribute to Model Optimizer you will need to deploy developer environment. 

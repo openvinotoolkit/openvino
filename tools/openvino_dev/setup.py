@@ -28,7 +28,7 @@ SRC_DIR = SCRIPT_DIR / 'src'
 
 PKG_INSTALL_CFG = {
     'openvino-mo': {
-        'src_dir': OPENVINO_DIR / 'model-optimizer',
+        'src_dir': OPENVINO_DIR / 'tools' / 'mo',
         'black_list': ['*unit_tests*'],
         'prefix': 'mo',
         'extract_entry_points': True,
