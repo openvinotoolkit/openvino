@@ -77,7 +77,13 @@ def parse_args():
                            'Show progress bar (can affect performance measurement). Default values is \'False\'.')
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
-                           'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.')
+                           'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.'
+                           'This parameter affect model Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.')
+    args.add_argument('-tensor_shape', type=str, required=False, default='',
+                      help='Optional. '
+                           'Optional if network shapes are all static (original ones or set by -shape).'
+                           'Required if at least one input shape is dynamic.'
+                           'Set shape for input tensors. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224] in case of one input size.')
     args.add_argument('-layout', type=str, required=False, default='',
                       help='Optional. '
                            'Prompts how network layouts should be treated by application. '

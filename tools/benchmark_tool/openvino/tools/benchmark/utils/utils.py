@@ -312,6 +312,29 @@ def get_input_output_names(nodes):
     return [node.get_friendly_name() for node in nodes] # get_friendly_name() or get_name() ?
 
 
+def get_tensor_shapes_map(tensor_shape_string, input_names):
+    # Parse parameter string like "input0[shape1][shape2],input1[shape1]" or "[shape1][shape2]" (applied to all inputs)
+    return_value = {}
+    if tensor_shape_string:
+        tensor_shape_string += ','
+        matches = re.findall(r'(.*?\[.*?\]),', tensor_shape_string)
+        if matches:
+            for match in matches:
+                input_name = match[:match.find('[')]
+                shapes = re.findall(r'\[(.*?)\]', match[len(input_name):])
+                if input_name:
+                    return_value[input_name] = list(parse_partial_shape(shape_str) for shape_str in shapes)
+                elif len(input_names) == 1:
+                    return_value[input_names[0]] = list(parse_partial_shape(shape_str) for shape_str in shapes)
+                    return return_value
+                else:
+                    raise Exception(f"Model has several inputs, provide input names")
+        else:
+            raise Exception(f"Can't parse input parameter: {tensor_shape_string}")
+    return return_value
+
+
+
 def parse_input_parameters(parameter_string, input_names):
     # Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
     return_value = {}
@@ -355,9 +378,11 @@ class AppInputInfo:
         self.element_type = None
         self.layout = ""
         self.shape = None
+        self.tensor_shapes = []
         self.scale = []
         self.mean = []
         self.name = None
+        self.shape_id = 0
 
     @property
     def is_image(self):
@@ -374,7 +399,7 @@ class AppInputInfo:
     def getDimentionByLayout(self, character):
         if character not in self.layout:
             raise Exception(f"Error: Can't get {character} from layout {self.layout}")
-        return len(self.shape[self.layout.index(character)])
+        return len(self.tensor_shapes[self.shape_id][self.layout.index(character)])
 
     @property
     def width(self):
@@ -397,9 +422,24 @@ class AppInputInfo:
         return self.getDimentionByLayout("D")
 
 
-def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
+def parse_partial_shape(shape_str):
+    dims = []
+    for dim in shape_str.split(','):
+        if '.. ' in dim:
+            range = list(int(d) for d in dim.split(".. "))
+            assert len(range) == 2
+            dims.append(Dimension(range))
+        elif dim == '?':
+            dims.append(Dimension())
+        else:
+            dims.append(Dimension(int(dim)))
+    return PartialShape(dims)
+
+
+def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
     input_names = get_input_output_names(parameters)
     shape_map = parse_input_parameters(shape_string, input_names)
+    tensor_shape_map = get_tensor_shapes_map(tensor_shape_string, input_names)
     layout_map = parse_input_parameters(layout_string, input_names)
     reshape = False
     input_info = []
@@ -409,11 +449,22 @@ def get_inputs_info(shape_string, layout_string, batch_size, scale_string, mean_
         info.name = input_names[i]
         # Shape
         if info.name in shape_map.keys():
-            parsed_shape = PartialShape(list(int(dim) for dim in shape_map[info.name].split(','))) # TODO: update to support dynamic shapes
-            info.shape = parsed_shape
+            info.shape = parse_partial_shape(shape_map[info.name])
             reshape = True
         else:
             info.shape = parameters[i].get_partial_shape()
+        # Tensor shape
+        if info.name in tensor_shape_map.keys():
+            for shape in tensor_shape_map[info.name]:
+                if shape.is_dynamic:
+                    raise Exception(f"tensor_shape {shape} is not static.")
+                else:
+                    info.tensor_shapes.append(shape)
+        elif info.shape.is_static:
+            info.tensor_shapes.append(info.shape)
+        else:
+            raise Exception(f"tensor_shape is required for dynamic network.")
+
         # Layout
         if info.name in layout_map.keys():
             info.layout = layout_map[info.name]
