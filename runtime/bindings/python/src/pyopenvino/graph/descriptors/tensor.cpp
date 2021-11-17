@@ -104,6 +104,17 @@ void regclass_graph_descriptor_Tensor(py::module m) {
                     Set of names
              )");
 
+    tensor.def("get_any_name",
+               &ov::descriptor::Tensor::get_any_name,
+               R"(
+                Returns any of set name
+
+                Returns
+                ----------
+                get_any_name : string
+                    Any name
+             )");
+
     tensor.def_property_readonly("shape", &ov::descriptor::Tensor::get_shape);
 
     tensor.def_property_readonly("rt_info",
@@ -115,6 +126,8 @@ void regclass_graph_descriptor_Tensor(py::module m) {
     tensor.def_property_readonly("partial_shape", &ov::descriptor::Tensor::get_partial_shape);
 
     tensor.def_property_readonly("element_type", &ov::descriptor::Tensor::get_element_type);
+
+    tensor.def_property_readonly("any_name", &ov::descriptor::Tensor::get_any_name);
 
     tensor.def_property("names", &ov::descriptor::Tensor::get_names, &ov::descriptor::Tensor::set_names);
 }

@@ -1,7 +1,6 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-
 from openvino.descriptor import TensorDescriptor
 from openvino.impl import Type, PartialShape
 
@@ -15,3 +14,4 @@ def test_tensor_descriptor_api():
     assert td.partial_shape == PartialShape([1, 1, 1, 1])
     assert repr(td.shape) == "<Shape: {1, 1, 1, 1}>"
     assert td.size == 4
+    assert td.any_name == "tensor_name"
