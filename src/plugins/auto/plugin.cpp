@@ -145,8 +145,17 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         if (parsed.getDeviceID().empty())
             defaultDeviceID = getDefaultDeviceID(deviceName);
 
-        auto fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
-        auto uniqueName = fullDeviceName + "_" + defaultDeviceID;
+        std::string fullDeviceName = "";
+        std::string uniqueName = "";
+        std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+        if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
+            fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+        }
+        if (fullDeviceName.empty()) {
+            uniqueName = deviceName + "_" + defaultDeviceID;
+        } else {
+            uniqueName = fullDeviceName + "_" + defaultDeviceID;
+        }
 
         // create meta device
         metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
