@@ -67,7 +67,7 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         m_test_telemetry.trace_cnt = 0;
 
         EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
-        function = m_frontEnd->decode(m_inputModel);
+        function = m_frontEnd->convert(m_inputModel);
         //EXPECT_EQ(function->get_ops().size(), m_test_telemetry.event_cnt);
     }
     EXPECT_EQ(m_test_telemetry.start_session_cnt, 1);

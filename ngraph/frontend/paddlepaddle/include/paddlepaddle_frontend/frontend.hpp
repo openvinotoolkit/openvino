@@ -66,10 +66,10 @@ protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 
 private:
-    static std::shared_ptr<Function> convert_each_node(
+    std::shared_ptr<Function> convert_each_node(
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
-                                                          const std::shared_ptr<OpPlacePDPD>&)> func);
+                                                          const std::shared_ptr<OpPlacePDPD>&)> func) const;
     std::shared_ptr<TelemetryExtension> m_telemetry;
     const std::string m_telemetry_category = "PADDLE_FE";
 };

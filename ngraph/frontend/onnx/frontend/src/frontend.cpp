@@ -69,27 +69,38 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
 
+    auto f = model_onnx->convert();
     if (m_telemetry) {
+        auto ops_cnt = std::to_string(f->get_ops().size());
+        m_telemetry->send_event(m_telemetry_category, "convert", "ov_ops_cnt : " + ops_cnt);
+    }
+/*    if (m_telemetry) {
+        // TODO: do we need it?
         // at least one decoder transformation registered trigger alternative path with separate passes
         auto function = decode(model);
-        // m_telemetry->send_event("Number of nodes in original graph: ", std::to_string(function->get_ops().size()));
-        // manager.run_passes(function);
         convert(function);
-        // m_telemetry->send_event("Number of nodes in converted graph: ", std::to_string(function->get_ops().size()));
         return function;
-    }
+    }*/
 
-    return model_onnx->convert();
+    return f;
 }
 
 void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const {
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
+    if (m_telemetry) {
+        auto ops_cnt = std::to_string(partially_converted->get_ops().size());
+        m_telemetry->send_event(m_telemetry_category, "convert for partially", "ov_ops_cnt : " + ops_cnt);
+    }
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
-    return model_onnx->decode();
+    auto decoded = model_onnx->decode();
+    if (m_telemetry) {
+        auto ops_cnt = std::to_string(decoded->get_ops().size());
+        m_telemetry->send_event(m_telemetry_category, "decode", "fw_ops_cnt : " + ops_cnt);
+    }
 }
 
 std::string FrontEndONNX::get_name() const {

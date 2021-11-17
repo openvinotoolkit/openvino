@@ -138,7 +138,7 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
 std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
     const std::shared_ptr<InputModelPDPD>& model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
-                                                      const std::shared_ptr<OpPlacePDPD>&)> func) {
+                                                      const std::shared_ptr<OpPlacePDPD>&)> func) const {
     auto nodes_dict(model->get_tensor_values());
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
@@ -156,8 +156,13 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
     }
 
     const auto& op_places = model->get_op_places();
+    std::map<std::string, uint64_t> op_statistics;
     for (const auto& op_place : op_places) {
         const auto& op_desc = op_place->get_desc();
+
+        if (m_telemetry) {
+            op_statistics[op_desc.type()]++;
+        }
         if (op_desc.type() == "feed" || op_desc.type() == "fetch") {
             // inputs and outputs are stored in the model already
             continue;
@@ -189,6 +194,12 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
                     }
                 }
             }
+        }
+    }
+
+    if(m_telemetry) {
+        for (const auto& op : op_statistics) {
+            m_telemetry->send_event(m_telemetry_category, "op_statistics", op.first + " : " + std::to_string(op.second));
         }
     }
 
@@ -283,6 +294,10 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert(InputModel::Ptr model) c
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlacePDPD>& op_place) {
             return pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
         });
+    if (m_telemetry) {
+        auto ops_cnt = std::to_string(f->get_ops().size());
+        m_telemetry->send_event(m_telemetry_category, "convert", "ov_ops_cnt : " + ops_cnt);
+    }
     return f;
 }
 
@@ -295,6 +310,10 @@ void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted)
     }
     for (auto result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
+    }
+    if (m_telemetry) {
+        auto ops_cnt = std::to_string(partiallyConverted->get_ops().size());
+        m_telemetry->send_event(m_telemetry_category, "convert for partially", "ov_ops_cnt : " + ops_cnt);
     }
 }
 
@@ -312,6 +331,10 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_partially(InputModel::Pt
             }
             return named_outputs;
         });
+    if (m_telemetry) {
+        auto ops_cnt = std::to_string(f->get_ops().size());
+        m_telemetry->send_event(m_telemetry_category, "convert_partially", "ops_cnt : " + ops_cnt);
+    }
     return f;
 }
 
@@ -319,6 +342,10 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::decode(InputModel::Ptr model) co
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
+    if (m_telemetry) {
+        auto ops_cnt = std::to_string(f->get_ops().size());
+        m_telemetry->send_event(m_telemetry_category, "decode", "fw_ops_cnt : " + ops_cnt);
+    }
     return f;
 }
 
