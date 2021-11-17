@@ -43,21 +43,18 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
-#ifdef _WIN32
-        std::string ext = ".dll";
-#elif defined(__APPLE__)
-        std::string ext = ".dylib";
-#else
-        std::string ext = ".so";
-#endif
-        auto suffix = FRONTEND_LIB_SUFFIX + ext;
         auto prefix = std::string(FRONTEND_LIB_PREFIX);
+        auto suffix = std::string(FRONTEND_LIB_SUFFIX);
+        std::cout << "DON'T merge: CI debugging1: " << prefix << " " << suffix << "\n";
         ov::util::iterate_files(
             path,
             [&res, &prefix, &suffix](const std::string& file_path, bool is_dir) {
                 auto file = ov::util::get_file_name(file_path);
-                if (!is_dir && file.compare(0, prefix.length(), prefix) == 0 && file.length() > suffix.length() &&
+                std::cout << "DON'T merge: CI debugging2: " << file << "\n";
+                if (!is_dir && (prefix.empty() || file.compare(0, prefix.length(), prefix) == 0) &&
+                    file.length() > suffix.length() &&
                     file.rfind(suffix) == (file.length() - std::string(suffix).length())) {
+                    std::cout << "DON'T merge: CI debugging3: PUSH " << file << "\n";
                     res.push_back(file);
                 }
             },

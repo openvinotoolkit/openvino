@@ -127,6 +127,9 @@ function(ie_add_plugin)
             if(TARGET paddlepaddle_ov_frontend)
                 add_dependencies(${IE_PLUGIN_NAME} paddlepaddle_ov_frontend)
             endif()
+            if(TARGET tensorflow_ov_frontend)
+                add_dependencies(${IE_PLUGIN_NAME} tensorflow_ov_frontend)
+            endif()
         endif()
 
         # install rules
