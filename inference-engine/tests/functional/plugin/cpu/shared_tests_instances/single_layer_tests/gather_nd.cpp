@@ -31,7 +31,8 @@ const auto gatherNDArgsSubset1 = ::testing::Combine(
             {{2, 1}, {2, 1, 1}})),                                // Indices shape
         ::testing::ValuesIn(std::vector<int>({0, 1}))             // Batch dims
 );
-INSTANTIATE_TEST_SUITE_P(smoke_Set1, GatherNDLayerTest,
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_Set1, GatherNDLayerTest,
                         ::testing::Combine(
                             gatherNDArgsSubset1,
                             ::testing::ValuesIn(dPrecisions),
@@ -40,6 +41,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Set1, GatherNDLayerTest,
                             ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set1, GatherNDLayerTest,
+                         ::testing::Combine(
+                                 gatherNDArgsSubset1,
+                                 ::testing::ValuesIn(dPrecisions),
+                                 ::testing::ValuesIn(iPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values<Config>({})),
+                         GatherNDLayerTest::getTestCaseName);
+
 const auto gatherNDArgsSubset2 = ::testing::Combine(
         ::testing::ValuesIn(std::vector<std::vector<size_t>>(
             {{15, 12, 20, 15, 2}, {15, 12, 18, 7, 17}})),          // Data shape
@@ -47,7 +57,8 @@ const auto gatherNDArgsSubset2 = ::testing::Combine(
             {{15, 12, 2}, {15, 12, 5, 9, 1, 3}})),                 // Indices shape
         ::testing::ValuesIn(std::vector<int>({0, 1, 2}))           // Batch dims
 );
-INSTANTIATE_TEST_SUITE_P(smoke_Set2, GatherNDLayerTest,
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_Set2, GatherNDLayerTest,
                         ::testing::Combine(
                             gatherNDArgsSubset2,
                             ::testing::ValuesIn(dPrecisions),
@@ -55,4 +66,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Set2, GatherNDLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU),
                             ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set2, GatherNDLayerTest,
+                         ::testing::Combine(
+                                 gatherNDArgsSubset2,
+                                 ::testing::ValuesIn(dPrecisions),
+                                 ::testing::ValuesIn(iPrecisions),
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                 ::testing::Values<Config>({})),
+                         GatherNDLayerTest::getTestCaseName);
+
 }  // namespace

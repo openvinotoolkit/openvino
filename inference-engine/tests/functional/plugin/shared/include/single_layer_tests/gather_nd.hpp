@@ -12,4 +12,8 @@ TEST_P(GatherNDLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(GatherND8LayerTest, CompareWithRefs) {
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
