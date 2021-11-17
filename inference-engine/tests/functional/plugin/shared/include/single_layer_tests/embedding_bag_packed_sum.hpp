@@ -9,6 +9,6 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(EmbeddingBagPackedSumLayerTest, CompareWithRefs) {
-    Run();
+    run();
 }
 }  // namespace LayerTestsDefinitions

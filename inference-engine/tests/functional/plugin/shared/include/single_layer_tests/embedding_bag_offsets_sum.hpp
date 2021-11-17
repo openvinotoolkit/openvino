@@ -9,7 +9,7 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(EmbeddingBagOffsetsSumLayerTest, CompareWithRefs) {
-    Run();
+    run();
 }
 
 }  // namespace LayerTestsDefinitions

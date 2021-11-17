@@ -9,24 +9,25 @@
 #include <string>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        std::vector<size_t>, // emb_table_shape
+        ov::test::InputShape, // input_shapes
         std::vector<std::vector<size_t>>, // indices
         bool                 // with_weights
 > embeddingBagPackedSumParams;
 
 typedef std::tuple<
         embeddingBagPackedSumParams,
-        InferenceEngine::Precision, // embedding table
-        InferenceEngine::Precision, // indices
+        ov::test::ElementType, // embedding table
+        ov::test::ElementType, // indices
         LayerTestsUtils::TargetDevice> embeddingBagPackedSumLayerTestParamsSet;
 
 
 class EmbeddingBagPackedSumLayerTest : public testing::WithParamInterface<embeddingBagPackedSumLayerTestParamsSet>,
-            virtual public LayerTestsUtils::LayerTestsCommon {
+            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<embeddingBagPackedSumLayerTestParamsSet>& obj);
 

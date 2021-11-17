@@ -10,25 +10,30 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     TEST_P(EmbeddingBagPackedSumLayerTest, Serialize) {
-        Serialize();
+        serialize();
     }
 
-    const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::U8};
+    const std::vector<ov::test::ElementType> netPrecisions = {
+        ov::test::ElementType::f32,
+        ov::test::ElementType::i32,
+        ov::test::ElementType::u8};
 
-    const std::vector<InferenceEngine::Precision> indPrecisions = {
-        InferenceEngine::Precision::I64,
-        InferenceEngine::Precision::I32};
+    const std::vector<ov::test::ElementType> indPrecisions = {
+        ov::test::ElementType::i64,
+        ov::test::ElementType::i32};
 
-    const std::vector<std::vector<size_t>> emb_table_shape = {{5, 6}, {10, 35}, {5, 4, 16}};
+    const std::vector<ov::test::InputShape> input_shapes = {
+        {{5, 6}, {{5, 6}}},
+        {{10, 35}, {{10, 35}}},
+        {{5, 4, 16}, {{5, 4, 16}}}
+    };
+
     const std::vector<std::vector<std::vector<size_t>>> indices =
         {{{0, 1}, {2, 2}}, {{4, 4, 3}, {1, 0, 2}}, {{1, 2, 1, 2}}};
     const std::vector<bool> with_weights = {false, true};
 
     const auto EmbeddingBagPackedSumParams = ::testing::Combine(
-        ::testing::ValuesIn(emb_table_shape),
+        ::testing::ValuesIn(input_shapes),
         ::testing::ValuesIn(indices),
         ::testing::ValuesIn(with_weights));
 
