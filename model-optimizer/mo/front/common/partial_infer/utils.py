@@ -169,12 +169,19 @@ def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.nda
     return np.array(value, dtype=np.int64)
 
 
-def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
-    return np.array(value, dtype=np.float64)
-
-
 def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
     return np.array(value, dtype=np.float32)
+
+
+def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return float32_array(value)
+
+
+def mo_array(value: Union[Iterable[Union[float, int]], float, int], dtype=None) -> np.ndarray:
+    x = np.array(value, dtype=dtype)
+    if not isinstance(value, np.ndarray) and x.dtype == np.float64 and dtype != np.float64:
+        x = x.astype(np.float32)
+    return x
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
