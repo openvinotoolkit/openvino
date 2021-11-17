@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from math import ceil
 from typing import Union
-from openvino import Core, Function, get_version
+from openvino import Core, get_version, AsyncInferQueue
 
 from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
@@ -16,7 +16,7 @@ def percentile(values, percent):
     return values[ceil(len(values) * percent / 100) - 1]
 
 class Benchmark:
-    def __init__(self, device: str, number_infer_requests: int = None, number_iterations: int = None,
+    def __init__(self, device: str, number_infer_requests: int = 0, number_iterations: int = None,
                  duration_seconds: int = None, api_type: str = 'async'):
         self.device = device
         self.ie = Core()
@@ -58,6 +58,14 @@ class Benchmark:
         head, ext = os.path.splitext(model_filename)
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
         return self.ie.read_model(model_filename, weights_filename)
+
+    def create_infer_requests(self, exe_network):
+        if self.api_type == 'sync':
+            requests = [exe_network.create_infer_request()]
+        else:
+            requests = AsyncInferQueue(exe_network, self.nireq)
+            self.nireq = len(requests)
+        return requests
 
     def first_infer(self, requests):
         if self.api_type == 'sync':

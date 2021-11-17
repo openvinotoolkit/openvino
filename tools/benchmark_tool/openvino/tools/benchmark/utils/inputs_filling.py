@@ -10,15 +10,14 @@ from collections import defaultdict
 from pathlib import Path
 from itertools import chain
 
-from openvino.impl import Type
-
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
 
 
 def set_inputs(paths_to_input, batch_size, app_input_info, requests):
-  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, len(requests))
-  for i in range(len(requests)):
+  num_requests = len(requests)
+  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, num_requests)
+  for i in range(num_requests):
     for k, v in requests_input_data[i].items():
         requests[i].get_tensor(k).data[:] = v
 

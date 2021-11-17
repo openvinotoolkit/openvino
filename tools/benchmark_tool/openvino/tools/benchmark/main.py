@@ -5,8 +5,6 @@ import os
 import sys
 from datetime import datetime
 
-from openvino import AsyncInferQueue
-
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
@@ -234,8 +232,8 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            network = benchmark.read_model(args.path_to_model)
-            topology_name = network.get_name()
+            function = benchmark.read_model(args.path_to_model)
+            topology_name = function.get_name()
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Read model took {duration_ms} ms")
             if statistics:
@@ -247,13 +245,13 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, network.get_parameters())
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.get_parameters())
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.shape for info in app_inputs_info }
                 logger.info(
                     'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
-                network.reshape(shapes)
+                function.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
                 logger.info(f"Reshape network took {duration_ms} ms")
                 if statistics:
@@ -270,14 +268,14 @@ def run(args):
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
 
-            process_precision(network, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
-            print_inputs_and_outputs_info(network)
+            process_precision(function, app_inputs_info, args.input_precision, args.output_precision, args.input_output_precision)
+            print_inputs_and_outputs_info(function)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.ie.compile_model(network, benchmark.device)
+            exe_network = benchmark.ie.compile_model(function, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -327,14 +325,10 @@ def run(args):
         # ------------------------------------ 9. Creating infer requests and filling input blobs ----------------------
         next_step()
 
-        if benchmark.api_type == 'sync':
-            requests = [exe_network.create_infer_request()]
-        else:
-            requests = AsyncInferQueue(exe_network, benchmark.nireq if benchmark.nireq else 0)
-            benchmark.nireq = len(requests)
+        requests = benchmark.create_infer_requests(exe_network)
 
         # Iteration limit
-        benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, args.api_type)
+        benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, benchmark.api_type)
 
         paths_to_input = list()
         if args.paths_to_input:

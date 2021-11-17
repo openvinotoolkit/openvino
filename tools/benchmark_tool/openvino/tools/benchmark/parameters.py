@@ -60,7 +60,7 @@ def parse_args():
     args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')
-    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=None,
+    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=0,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
     args.add_argument('-b', '--batch_size', type=int, required=False, default=0,
                       help='Optional. ' +
