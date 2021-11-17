@@ -139,9 +139,9 @@ protected:
         return makeNgraphFunction(ngraph::element::i32, params, oneHot, "OneHot");
     }
     void generateDepth() {
-        ov::runtime::Tensor tensor = ov::test::utils::create_and_fill_tensor(ov::element::Type_t::i32, {}, 10, 1, 1, time(0));
-        auto *dataPtr = tensor.data<int32_t>();
-        Depth = dataPtr[0];
+        testing::internal::Random random(time(nullptr));
+        random.Generate(10);
+        Depth = static_cast<int64_t>(1 + static_cast<int64_t>(random.Generate(10)));
     }
 
     int Axis;

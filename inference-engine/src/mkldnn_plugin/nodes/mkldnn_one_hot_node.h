@@ -46,7 +46,7 @@ private:
         }
     };
 
-    mutable Dim depth;
+    mutable Dim depth = Shape::UNDEFINED_DIM;
     int32_t axis = -1;
 
     InferenceEngine::Precision output_precision;
