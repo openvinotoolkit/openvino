@@ -46,7 +46,7 @@ private:
         }
     };
 
-    mutable uint32_t depth;
+    mutable Dim depth;
     int32_t axis = -1;
 
     InferenceEngine::Precision output_precision;

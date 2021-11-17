@@ -92,8 +92,8 @@ std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
     };
     std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
             {1, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, VectorDims{ }, getParentEdgesAtPort(1)[0]->getMemory().GetPtr())},
-            {2, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::f32, VectorDims{ }, getParentEdgesAtPort(2)[0]->getMemory().GetPtr())},
-            {3, std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::f32, VectorDims{ }, getParentEdgesAtPort(3)[0]->getMemory().GetPtr())}
+            {2, std::make_shared<ngraph::runtime::HostTensor>(opToShapeInfer->get_input_node_shared_ptr(2))},
+            {3, std::make_shared<ngraph::runtime::HostTensor>(opToShapeInfer->get_input_node_shared_ptr(3))}
     };
     std::vector<ov::StaticShape> output_shapes = {{}};
     shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
