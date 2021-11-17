@@ -153,19 +153,21 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values("GPU")
 );
 
-using IEClassGetMetricTest_GPU_MEMORY_STATISTICS = BehaviorTestsUtils::IEClassBaseTestP;
-TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS, GetMetricAndPrintNoThrow) {
+using IEClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT, GetMetricAndPrintNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core ie;
     InferenceEngine::Parameter p;
 
-    InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+    InferenceEngine::ExecutableNetwork exec_net = ie.LoadNetwork(simpleCnnNetwork, deviceName);
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
     std::map<std::string, uint64_t> t = p;
 
+    ASSERT_FALSE(t.empty());
     std::cout << "Memory Statistics: " << std::endl;
     for (auto &&kv : t) {
+        ASSERT_NE(kv.second, 0);
         std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
     }
 
@@ -173,7 +175,119 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS, GetMetricAndPrintNoThrow) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_MEMORY_STATISTICS,
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT,
+        ::testing::Values("GPU")
+);
+
+using IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
+
+    InferenceEngine::ExecutableNetwork exec_net1 = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+    std::map<std::string, uint64_t> t1 = p;
+
+    ASSERT_FALSE(t1.empty());
+    std::cout << "Memory Statistics after the 1st network is loaded: " << std::endl;
+    for (auto &&kv : t1) {
+        ASSERT_NE(kv.second, 0);
+        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+    }
+
+    InferenceEngine::ExecutableNetwork exec_net2 = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+    std::map<std::string, uint64_t> t2 = p;
+
+    ASSERT_FALSE(t2.empty());
+    std::cout << "Memory Statistics after the 2nd network is loaded: " << std::endl;
+    for (auto &&kv : t2) {
+        ASSERT_NE(kv.second, 0);
+        auto iter = t1.find(kv.first);
+        if (iter != t1.end()) {
+            ASSERT_EQ(kv.second, t1[kv.first] * 2);
+        }
+        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+    }
+
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MEMORY_STATISTICS));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS,
+        ::testing::Values("GPU")
+);
+
+using IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+    std::map<std::string, uint64_t> t1 = p;
+    ASSERT_TRUE(t1.empty());
+
+    {
+        InferenceEngine::ExecutableNetwork exec_net1 = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+
+        ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+        std::map<std::string, uint64_t> t2 = p;
+
+        ASSERT_FALSE(t2.empty());
+        std::cout << "Memory Statistics after the 1st network is loaded: " << std::endl;
+        for (auto &&kv : t2) {
+            ASSERT_NE(kv.second, 0);
+            std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+        }
+        {
+            InferenceEngine::ExecutableNetwork exec_net2 = ie.LoadNetwork(actualCnnNetwork, deviceName);
+
+            ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+            std::map<std::string, uint64_t> t3 = p;
+
+            ASSERT_FALSE(t3.empty());
+            std::cout << "Memory Statistics after the 2nd network is loaded: " << std::endl;
+            for (auto &&kv : t3) {
+                ASSERT_NE(kv.second, 0);
+                std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+            }
+        }
+        ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+        std::map<std::string, uint64_t> t4 = p;
+
+        ASSERT_FALSE(t4.empty());
+        std::cout << "Memory Statistics after the 2nd LoadNetwork is released: " << std::endl;
+        for (auto &&kv : t4) {
+            ASSERT_NE(kv.second, 0);
+            if (kv.first.find("_cur") != std::string::npos) {
+                auto iter = t2.find(kv.first);
+                if (iter != t2.end()) {
+                    ASSERT_EQ(t2[kv.first], kv.second);
+                }
+            }
+            std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+        }
+    }
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+    std::map<std::string, uint64_t> t5 = p;
+
+    ASSERT_FALSE(t5.empty());
+    std::cout << "Memory Statistics after the 1st LoadNetwork is released: " << std::endl;
+    for (auto &&kv : t5) {
+        if (kv.first.find("_cur") != std::string::npos) {
+            ASSERT_EQ(kv.second, 0);
+        }
+        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
+    }
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MEMORY_STATISTICS));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES,
         ::testing::Values("GPU")
 );
 

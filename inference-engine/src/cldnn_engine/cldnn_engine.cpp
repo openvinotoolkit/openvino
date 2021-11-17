@@ -176,7 +176,7 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
     }
 }
 
-void clDNNEngine::UpdateStatistics(CLDNNRemoteCLContext::Ptr context) {
+void clDNNEngine::UpdateStatistics(const CLDNNRemoteCLContext::Ptr& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateStatistics");
     {
         std::lock_guard<std::mutex> lock(engine_mutex);
@@ -728,6 +728,8 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
     } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS)) {
         std::map<std::string, uint64_t> statistics;
         for (auto const &item : statistics_map) {
+            // Before collecting memory statistics of each context, it's updated with latest memory statistics from engine.
+            UpdateStatistics(item.first);
             for (auto const &kv : item.second) {
                 if (!statistics.count(kv.first)) {
                     statistics[kv.first] = kv.second;
