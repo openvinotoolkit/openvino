@@ -20,13 +20,14 @@ from mo.graph.graph import Graph, Node
 from mo.graph.port import Port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
+from mo.middle.passes.infer import type_infer
 
 from . import editor as ge
 from . import node_utils as nu
 from .pattern_utils import get_fq_result_pattern
 from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
-from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input
+from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, set_node_value
 from ..graph.special_patterns import get_ignored_patterns
 from ..utils.logger import get_logger
 
@@ -404,6 +405,12 @@ class FakeQuantizeOptimization(BackReplacementPattern):
                     fq.in_port(0).disconnect()
                     fq.out_port(0).get_connection().set_source(fq_consumers[0].out_port(0))
 
+    def set_precision_for_values(self, graph):
+        for fq in graph.get_op_nodes(type='FakeQuantize'):
+            fq_main_dtype = fq.in_port(0).get_data_type()
+            for port_id in [1, 2, 3, 4]:
+                fq_const = get_node_input(fq, port_id)
+                set_node_value(fq_const, 0.0, dtype=fq_main_dtype)
 
 class RemoveFakeQuantize:
     def find_and_remove_node(self, graph, node_name, force=False):
@@ -623,6 +630,7 @@ class ModelPreprocessor(BackReplacementPattern):
     enabled = False
 
     def find_and_replace_pattern(self, graph: Graph):
+        type_infer(graph)
         MatMulPreprocessing().find_and_replace_pattern(graph)
         IgnoreShapeSubgraph().find_and_replace_pattern(graph)
         InsertBiasNode().insert_null_biases(graph)
@@ -682,7 +690,7 @@ def create_bias_node(graph: Graph, src_node):
     add_bias_shape = [1] * len(bias_shape)
     add_bias_shape[1] = bias_shape[1]
     add_bias = Const(graph,
-                     {'value': np.zeros(add_bias_shape, dtype=src_node.get_data_type()),
+                     {'value': np.zeros(add_bias_shape, dtype=src_node.out_port(0).get_data_type()),
                       'shape': add_bias_shape,
                       'need_shape_inference': True
                       }).create_node()
@@ -700,14 +708,14 @@ def create_bias_node(graph: Graph, src_node):
         add_op.out_port(0).connect(destination_port)
 
 
-def create_fake_quantize_node(graph: Graph, name, data_type):
+def create_fake_quantize_node(graph: Graph, name):
     fq = FakeQuantize(graph, {'name': name, 'levels': 0,
                               'stop_value_propagation': True}).create_node()
 
-    input_low = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
-    input_height = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
-    output_low = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
-    output_height = Const(graph, {'value': np.array(0.0).astype(data_type)}).create_node()
+    input_low = Const(graph, {'value': 0.0}).create_node()
+    input_height = Const(graph, {'value': 0.0}).create_node()
+    output_low = Const(graph, {'value': 0.0}).create_node()
+    output_height = Const(graph, {'value': 0.0}).create_node()
 
     input_low.out_port(0).connect(fq.in_port(1))
     input_height.out_port(0).connect(fq.in_port(2))
@@ -751,10 +759,9 @@ def insert_fake_quantize(graph, node, ports=None, names=None):
         if port_name is not None and idx in port_name:
             name = port_name[idx]
 
-        input_type = port.get_data_type()
         # Create FakeQuantize operations
         fq_input = create_fake_quantize_node(
-            graph, '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx), input_type)
+            graph, '{node_name}/{name}_{idx}'.format(node_name=node.name, name=name, idx=idx))
 
         # Insert FakeQuantize after input
         if node.type == 'Result':

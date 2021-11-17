@@ -44,8 +44,6 @@ class GraphTransformer:
         if self.fq_insertion.ignored_params['skip_model']:
             return graph
 
-        type_infer(graph)
-
         self.nodes_marker.mark_ignored_blocks(graph, self.target_device)
         graph.clean_up()
 
@@ -58,11 +56,15 @@ class GraphTransformer:
         self.fq_optimization.find_and_replace_pattern(graph)
         graph.clean_up()
 
+        type_infer(graph)
+
         self.fq_propagation.delete_fq_non_quantizable_node_precision(graph)
         graph.clean_up()
 
         self.fq_name_swapper.rename_fqs_in_the_end(graph)
         graph.clean_up()
+
+        self.fq_optimization.set_precision_for_values(graph)
 
         return graph
 
