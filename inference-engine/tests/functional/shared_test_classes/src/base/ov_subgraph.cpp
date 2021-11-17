@@ -194,7 +194,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16 precisions
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionToProcess);
 //    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionToProcess);
-    functionToProcess->validate_nodes_and_infer_types();
+//    functionToProcess->validate_nodes_and_infer_types();
 
 //    PrePostProcessor prePostProc;
 //    const auto& inputNodes = functionToProcess->inputs();
