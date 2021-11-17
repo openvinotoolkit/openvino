@@ -30,24 +30,24 @@ namespace ov {
  */
 class TRANSFORMATIONS_API OldApiMapElementType : public VariantImpl<ngraph::element::Type> {
 public:
-OPENVINO_RTTI("old_api_map_element_type", "0");
+    OPENVINO_RTTI("old_api_map_element_type", "0");
 
-/**
- * A default constructor
- */
-OldApiMapElementType() = default;
+    /**
+     * A default constructor
+     */
+    OldApiMapElementType() = default;
 
-/**
- * Constructs a new OldApiMapElementType object.
- * @param[in]  value  The object that stores values of OldApiMapElementType.
- */
-OldApiMapElementType(const value_type& value) : VariantImpl<value_type>(value) {}
+    /**
+     * Constructs a new OldApiMapElementType object.
+     * @param[in]  value  The object that stores values of OldApiMapElementType.
+     */
+    OldApiMapElementType(const value_type& value) : VariantImpl<value_type>(value) {}
 
-bool is_copyable() const override {
-return false;
-}
+    bool is_copyable() const override {
+        return false;
+    }
 
-bool visit_attributes(AttributeVisitor& visitor) override;
+    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 inline bool has_old_api_map_element_type(const std::shared_ptr<Node>& node) {

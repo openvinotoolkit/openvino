@@ -10,4 +10,3 @@ bool OldApiMapOrder::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("value", m_value.m_order);
     return true;
 }
-

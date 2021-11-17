@@ -50,7 +50,7 @@ private:
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
-    auto init_info = [](RTMap & info) {
+    auto init_info = [](RTMap& info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
         info[ov::PrimitivesPriority::get_type_info_static()] =

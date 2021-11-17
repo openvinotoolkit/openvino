@@ -485,5 +485,5 @@ class IREngine(object):
         version = int(attr.attrib['version'])
         element_type = destination_type_to_np_data_type(attr.attrib['value'])
         old_api_map = OldAPIMapElementType(version=version)
-        old_api_map.old_api_convert(element_type)
+        old_api_map.set_legacy_type(element_type)
         return {('old_api_map_element_type', version): old_api_map}

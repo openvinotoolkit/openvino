@@ -99,8 +99,7 @@ ov::pass::AddOldApiMapToParameters::AddOldApiMapToParameters() {
             return false;
         auto p_type = param_node->get_element_type();
         if (p_type == ov::element::f32 || p_type == ov::element::f64) {
-            ov::set_old_api_map_element_type(node, ov::OldApiMapElementType(
-                    ov::element::Type_t::f16));
+            ov::set_old_api_map_element_type(node, ov::OldApiMapElementType(ov::element::Type_t::f16));
         } else {
             return false;
         }

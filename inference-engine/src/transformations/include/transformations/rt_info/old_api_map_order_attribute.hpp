@@ -55,14 +55,13 @@ public:
      * @brief      Constructs a new OldApiMapOrderAttr object.
      * @param[in]  order  Transpose order.
      */
-    explicit OldApiMapOrderAttr(std::vector<uint64_t> order)
-             : m_order(std::move(order)) {}
+    explicit OldApiMapOrderAttr(std::vector<uint64_t> order) : m_order(std::move(order)) {}
 
     /**
      * @brief Returns the transpose order that should be used for obtain a node with old API layout.
      * @return transpose order.
      */
-    const std::vector<uint64_t> & get_order() const {
+    const std::vector<uint64_t>& get_order() const {
         return m_order;
     }
 };

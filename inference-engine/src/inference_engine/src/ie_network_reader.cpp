@@ -366,40 +366,24 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             for (size_t i = 0; i < parameters.size(); ++i) {
                 const auto& parameter = parameters[i];
                 ov::RTMap& rtInfo = parameter->get_rt_info();
-                std::vector<uint64_t> order;
-                ngraph::element::Type type;
                 const auto it_type = rtInfo.find(old_api_map_key_type);
+                auto& pre_input = prepost.input(i);
                 if (it_type != rtInfo.end()) {
                     const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapElementType>(it_type->second);
                     OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapElementType");
-                    type = old_api_map_attr->get();
+                    const auto type = old_api_map_attr->get();
+                    pre_input.tensor().set_element_type(type);
 
                     OPENVINO_ASSERT(!type.is_dynamic(), "Old API map does not support dynamic type");
+                    rtInfo.erase(it_type);
                 }
                 const auto it_order = rtInfo.find(old_api_map_key_order);
                 if (it_order != rtInfo.end()) {
                     const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(it_order->second);
                     OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
                     const auto old_api_map_attr_val = old_api_map_attr->get();
-                    order = old_api_map_attr_val.get_order();
-                }
-                if (it_type != rtInfo.end() && it_order != rtInfo.end())
-                {
-                    prepost.input(ov::preprocess::InputInfo(i)
-                                          .tensor(InputTensorInfo().set_element_type(type))
-                                          .preprocess(PreProcessSteps().convert_layout(order)));
-                    rtInfo.erase(it_type);
-                    rtInfo.erase(it_order);
-                }
-                else if (it_type != rtInfo.end()) {
-                    prepost.input(ov::preprocess::InputInfo(i)
-                                          .tensor(InputTensorInfo().set_element_type(type)));
-                    rtInfo.erase(it_type);
-                }
-                else if (it_order != rtInfo.end()) {
-                    prepost.input(ov::preprocess::InputInfo(i)
-                                          .tensor(InputTensorInfo())
-                                          .preprocess(PreProcessSteps().convert_layout(order)));
+                    const auto order = old_api_map_attr_val.get_order();
+                    pre_input.preprocess().convert_layout(order);
                     rtInfo.erase(it_order);
                 }
             }
@@ -416,8 +400,8 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
                 const auto old_api_map_attr_val = old_api_map_attr->get();
                 const auto old_api_transpose_args = old_api_map_attr_val.get_order();
-                prepost.output(OutputInfo(i)
-                                   .postprocess(PostProcessSteps().convert_layout(old_api_transpose_args)));
+                auto& post_output = prepost.output(i);
+                post_output.postprocess().convert_layout(old_api_transpose_args);
 
                 // remove old api once we applied it
                 rtInfo.erase(it);
