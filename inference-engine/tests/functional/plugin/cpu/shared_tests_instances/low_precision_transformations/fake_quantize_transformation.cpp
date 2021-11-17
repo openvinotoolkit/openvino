@@ -46,14 +46,13 @@ const std::vector<FakeQuantizeTransformationParam> fakeQuantizeOnDataValues = {
         { 256ul, {}, { -127.5f }, { 0.f }, { -127.5f }, { 0.f } },
         "Pooling", "U8"
     },
-    // INT4 FQ's are not transformed and inferred via FP32
     {
         { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 1.5f } },
-        "Pooling", "FP32"
+        "Pooling", "U8"
     },
     {
-        { 16ul, {}, { -8.f }, { 7.f }, { -0.8f }, { 0.7f } },
-        "Pooling", "FP32"
+        { 16ul, {}, { -0.8f }, { 0.7f }, { -0.8f }, { 0.7f } },
+        "Pooling", "I8"
     },
     // INT16, INT32 FQ's are transformed, but updatePrecision = false for inference on CPU Plugin and inferred via FP32
     {

@@ -243,10 +243,28 @@ macro(ie_register_plugins)
     endif()
 endmacro()
 
+function(ie_target_link_plugins TARGET_NAME)
+    if(BUILD_SHARED_LIBS)
+        return()
+    endif()
+
+    foreach(name IN LISTS PLUGIN_FILES)
+        string(REPLACE ":" ";" name "${name}")
+        list(LENGTH name length)
+        if(NOT ${length} EQUAL 2)
+            message(FATAL_ERROR "Unexpected error, please, contact developer of this script")
+        endif()
+
+        # link plugin to ${TARGET_NAME} static version
+        list(GET name 1 plugin_name)
+        target_link_libraries(${TARGET_NAME} PRIVATE ${plugin_name})
+    endforeach()
+endfunction()
+
 #
 # ie_generate_plugins_hpp()
 #
-macro(ie_generate_plugins_hpp)
+function(ie_generate_plugins_hpp)
     if(BUILD_SHARED_LIBS)
         return()
     endif()
@@ -278,11 +296,13 @@ macro(ie_generate_plugins_hpp)
         if(${device_name}_CONFIG)
             list(APPEND device_configs -D "${device_name}_CONFIG=${${device_name}_CONFIG}")
         endif()
-
-        # link plugin to inference_engine static version
-        list(GET name 1 plugin_name)
-        target_link_libraries(inference_engine PRIVATE ${plugin_name})
     endforeach()
+
+    # add plugins to libraries including ie_plugins.hpp
+    ie_target_link_plugins(inference_engine)
+    if(TARGET inference_engine_s)
+        ie_target_link_plugins(inference_engine_s)
+    endif()
 
     set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/inference-engine/src/inference_engine/ie_plugins.hpp")
     set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
@@ -303,7 +323,7 @@ macro(ie_generate_plugins_hpp)
                          "Generate ie_plugins.hpp for static build"
                        VERBATIM)
 
-    # for some reason dependnency on source files does not work
+    # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for inference_engine
     add_custom_target(ie_generate_hpp DEPENDS ${ie_plugins_hpp})
     add_dependencies(inference_engine ie_generate_hpp)
@@ -324,4 +344,4 @@ macro(ie_generate_plugins_hpp)
 
     # add dependency on header file generation for all inference_engine source files
     set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ie_plugins_hpp})
-endmacro()
+endfunction()

@@ -4,6 +4,10 @@
 
 set(TARGET_NAME "benchmark_app")
 
+if(ENABLE_OPENCV)
+    set(OPENCV_MODULES core)
+endif()
+
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -11,7 +15,7 @@ ie_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
               DEPENDENCIES format_reader ie_samples_utils
-              OPENCV_DEPENDENCIES core)
+              OPENCV_DEPENDENCIES ${OPENCV_MODULES})
 
 find_package(OpenCL)
 
