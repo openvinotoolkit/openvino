@@ -201,7 +201,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 
-    ov::preprocess::PrePostProcessor prePostProc;
+    ov::preprocess::PrePostProcessor p(functionToProcess);
     const auto& inputNodes = functionToProcess->inputs();
     for (size_t i = 0; i < inputNodes.size(); ++i) {
         auto itr = std::find_if(inputs.begin(), inputs.end(),
@@ -211,7 +211,7 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
         if (itr != inputs.end()) {
             auto elementType = itr->second.get_element_type();
             if (inputNodes[i].get_element_type() != elementType) {
-                prePostProc.input(ov::preprocess::InputInfo(i).tensor(ov::preprocess::InputTensorInfo().set_element_type(elementType)));
+                p.input(ov::preprocess::InputInfo(i).tensor(ov::preprocess::InputTensorInfo().set_element_type(elementType)));
             }
         } else {
             std::stringstream errMsg;
@@ -224,11 +224,11 @@ std::vector<ov::runtime::Tensor> SubgraphBaseTest::calculate_refs() {
     const auto& outputs = functionToProcess->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         if (outType != ElementType::undefined && outType != outputs[i].get_element_type()) {
-            prePostProc.output(ov::preprocess::OutputInfo(i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+            p.output(ov::preprocess::OutputInfo(i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
         }
     }
 
-    functionToProcess = prePostProc.build(functionToProcess);
+    functionToProcess = p.build();
 
     return ngraph::helpers::interpretFunction(functionToProcess, inputs);
 }
