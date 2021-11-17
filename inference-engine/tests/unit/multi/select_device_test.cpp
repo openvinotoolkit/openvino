@@ -133,11 +133,14 @@ public:
         // netPrecision number is 5
         // device number is 5
         // combine devices is 5!/5! + 5!/(4!*1!) + 5!/(3!*2!) + 5!/(2!*3!) + 5(1!*4!) = 31
-        // total test config num is 31*5 = 155
+        // null device 1
+        // total test config num is 32*5 = 155
         for (auto netPrecision : netPrecisions) {
             for (int i = 1; i <= totalDevices.size(); i++) {
                 combine_device(totalDevices, 0, result, i, i, netPrecision);
             }
+            // test null device
+            testConfigs.push_back(ConfigParams{netPrecision, {}, {}, true});
         }
         delete result;
         return testConfigs;
@@ -189,7 +192,11 @@ TEST_P(SelectDeviceTest, SelectDevice) {
     std::tie(netPrecision, devices, expect, throwExcept) = this->GetParam();
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
-    EXPECT_CALL(*core, GetMetric(_, _)).Times(AtLeast(devices.size() - 1));
+    if (devices.size() >= 1) {
+        EXPECT_CALL(*core, GetMetric(_, _)).Times(AtLeast(devices.size() - 1));
+    } else {
+        EXPECT_CALL(*core, GetMetric(_, _)).Times(0);
+    }
 
     if (throwExcept) {
         ASSERT_THROW(plugin->SelectDevice(devices, netPrecision, 0), InferenceEngine::Exception);
