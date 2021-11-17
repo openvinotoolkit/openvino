@@ -307,3 +307,73 @@ PartialShape op::v8::Slice::calculate_output_shape(const std::vector<int64_t>& s
     }
     return output_shape;
 }
+
+bool op::v8::Slice::has_evaluate() const {
+    NGRAPH_OP_SCOPE(v8_Slice_has_evaluate);
+    switch (get_input_element_type(1)) {
+    case ngraph::element::i8:
+    case ngraph::element::i16:
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u8:
+    case ngraph::element::u16:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+        break;
+    default:
+        return false;
+    }
+
+    if (get_input_size() > 4) {
+        switch (get_input_element_type(4)) {
+        case ngraph::element::i8:
+        case ngraph::element::i16:
+        case ngraph::element::i32:
+        case ngraph::element::i64:
+        case ngraph::element::u8:
+        case ngraph::element::u16:
+        case ngraph::element::u32:
+        case ngraph::element::u64:
+            break;
+        default:
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool op::v8::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    NGRAPH_OP_SCOPE(v8_Slice_evaluate);
+
+    std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
+    std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
+    std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
+
+    std::vector<int64_t> axes(starts.size());
+    if (inputs.size() < 5) {
+        std::iota(axes.begin(), axes.end(), 0);
+    } else {
+        axes = host_tensor_2_vector<int64_t>(inputs[4]);
+    }
+
+    // Static HostTensor data shape is needed to clamp and normalize `start` values
+    const auto& data_shape = inputs[0]->get_partial_shape();
+    OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
+    // We need calculate static output shape based on HostTensor inputs
+    PartialShape output_shape = calculate_output_shape(starts, stops, steps, axes, data_shape);
+    OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
+
+    outputs[0]->set_shape(output_shape.to_shape());
+    outputs[0]->set_element_type(inputs[0]->get_element_type());
+
+    ngraph::runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
+                                      data_shape.to_shape(),
+                                      outputs[0]->get_data_ptr<char>(),
+                                      output_shape.to_shape(),
+                                      inputs[0]->get_element_type().size(),
+                                      starts,
+                                      steps,
+                                      axes);
+    return true;
+}
