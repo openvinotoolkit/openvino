@@ -159,7 +159,8 @@ public:
                                  const std::vector<DeviceInformation>&        metaDevices,
                                  const std::string&                           strDevices,
                                  MultiDeviceInferencePlugin*                  plugin,
-                                 const AutoContext&                           context);
+                                 const AutoContext&                           context,
+                                 const bool                                   needPerfCounters = false);
 
     void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;

@@ -149,10 +149,11 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                                            const std::vector<DeviceInformation>&      metaDevices,
                                                            const std::string&                         strDevices,
                                                            MultiDeviceInferencePlugin*                plugin,
-                                                           const AutoContext&                         context)
+                                                           const AutoContext&                         context,
+                                                           const bool                                 needPerfCounters)
                                                            : _devicePriorities{metaDevices}
                                                            , _devicePrioritiesInitial{metaDevices}
-                                                           , _needPerfCounters(context.needPerfCounters)
+                                                           , _needPerfCounters(needPerfCounters)
                                                            , _multiPlugin(plugin)
                                                            , _context(context)
                                                            , _workModeIsAUTO(true) {
