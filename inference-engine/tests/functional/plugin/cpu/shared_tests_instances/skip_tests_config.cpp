@@ -101,8 +101,6 @@ std::vector<std::string> disabledTestPatterns() {
 
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
-        // Issue 66685
-        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
         // CPU plugin does not support some precisions
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
@@ -151,6 +149,8 @@ std::vector<std::string> disabledTestPatterns() {
         // bad accuracy
         R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
             *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
+        // Issue: 71121
+        R"(.*smoke_Proposal*.*TS=\(2.*)",
     };
 
 #define FIX_62820 0

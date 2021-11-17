@@ -139,17 +139,10 @@ jobs:
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS)
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
-        -DNGRAPH_UNIT_TEST_ENABLE=OFF
-        -DENABLE_MKL_DNN=OFF
-        -DENABLE_CLDNN=OFF
-        -DENABLE_GNA=OFF
-        -DENABLE_VPU=OFF
-        -DNGRAPH_ONNX_FRONTEND_ENABLE=OFF
-        -DNGRAPH_TF_FRONTEND_ENABLE=OFF
-        -DNGRAPH_PDPD_FRONTEND_ENABLE=OFF
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
-        -DENABLE_TESTS=OFF
+        -DENABLE_TESTS=ON
+        -DNGRAPH_ONNX_FRONTEND_ENABLE=ON
         -DENABLE_FASTER_BUILD=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
@@ -189,24 +182,26 @@ jobs:
   - script: ls -alR $(INSTALL_DIR)
     displayName: 'List install files'
 
-  - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOConfig.cmake
-    displayName: 'Cat OpenVINOConfig.cmake'
+  - script: |
+      set -e
+      mkdir $(INSTALL_DIR)/opencv/
+      cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake
+      cp -R $(REPO_DIR)/inference-engine/temp/opencv_4.5.2_ubuntu20/opencv/* $(INSTALL_DIR)/opencv/
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install tests'
 
-  - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOTargets.cmake
-    displayName: 'Cat OpenVINOTargets.cmake'
-
-  - script: cat $(INSTALL_DIR)/runtime/cmake/OpenVINOTargets-release.cmake
-    displayName: 'Cat OpenVINOTargets-release.cmake'
+  - script: ls -alR $(INSTALL_DIR)
+    displayName: 'List install files'
 
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
-    continueOnError: true
+    continueOnError: false
 
   - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
-    continueOnError: true
+    continueOnError: false
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
