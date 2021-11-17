@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_reader.hpp"
+#include "legacy/ie_reader.hpp"
 #include "ie_ir_parser.hpp"
 #include "ie_cnn_net_reader_impl.h"
 

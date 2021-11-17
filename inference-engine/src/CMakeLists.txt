@@ -38,14 +38,9 @@ if(ENABLE_MULTI)
     add_subdirectory(multi_device)
 endif()
 
-add_subdirectory(readers)
-
 # add a custom target to build all Inference Engine Core libraries
 
 add_custom_target(ie_libraries ALL
                   DEPENDS inference_engine_transformations
                           inference_engine_lp_transformations)
 
-if(ENABLE_IR_V7_READER)
-    add_dependencies(ie_libraries inference_engine_ir_v7_reader)
-endif()
