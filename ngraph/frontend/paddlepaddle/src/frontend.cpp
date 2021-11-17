@@ -329,8 +329,15 @@ std::string FrontEndPDPD::get_name() const {
 void FrontEndPDPD::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+        m_telemetry->start_session(m_telemetry_category);
     }
 }
+
+    FrontEndPDPD::~FrontEndPDPD() {
+        if(m_telemetry) {
+            m_telemetry->end_session(m_telemetry_category);
+        }
+    }
 }  // namespace frontend
 }  // namespace ov
 

@@ -45,7 +45,9 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 }
 }  // namespace
 
-FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
+FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {
+    std::cout << "XXXxxxxXXXXX ctor FrontEndTF" << std::endl;
+}
 
 void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                  const std::string& model_name,
@@ -76,7 +78,8 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
     }
 
     if (m_telemetry) {
-        m_telemetry->send_event("Number of nodes in original graph: " + std::to_string(operation_places.size()));
+        auto op_cnt = "{" + std::to_string(operation_places.size()) + "}";
+        m_telemetry->send_event(m_telemetry_category, "original_op_count", "{count}=" + op_cnt);
     }
 
     // fill ng_op_map with Constant outputs for frozen inputs
@@ -355,5 +358,14 @@ void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
 void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+        m_telemetry->start_session(m_telemetry_category);
+    }
+}
+
+FrontEndTF::~FrontEndTF() {
+    std::cout << "XXXxxxxXXXXX ~FrontEndTF" << std::endl;
+    if(m_telemetry) {
+        std::cout << "XXXxxxxXXXXX ~FrontEndTF telemetry" << std::endl;
+        m_telemetry->end_session(m_telemetry_category);
     }
 }

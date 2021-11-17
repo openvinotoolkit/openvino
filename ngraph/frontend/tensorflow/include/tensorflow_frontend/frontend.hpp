@@ -34,6 +34,7 @@ private:
 
 public:
     FrontEndTF();
+    ~FrontEndTF();
 
     /// \brief Completely convert the model
     /// \return fully converted ov function
@@ -76,12 +77,14 @@ protected:
     ov::frontend::InputModel::Ptr load_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
 
 private:
-    std::shared_ptr<TelemetryExtension> m_telemetry;
     void translate_graph(const ov::frontend::InputModel::Ptr& model,
                          const std::string& model_name,
                          bool fail_fast,
                          bool no_conversion,
                          std::shared_ptr<ov::Function>& ng_function) const;
+
+    std::shared_ptr<TelemetryExtension> m_telemetry;
+    const std::string m_telemetry_category = "TF_FE";
 };
 }  // namespace frontend
 }  // namespace ov

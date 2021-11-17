@@ -34,7 +34,7 @@ def send_telemetry(mo_version: str, message: str, event_type: str):
     t.send_event(execution_type, event_type, message)
     if execution_type != "mo":
         t.end_session(execution_type)
-    t.force_shutdown(1.0)
+    #t.force_shutdown(1.0)
 
 
 def import_core_modules(silent: bool, path_to_module: str):

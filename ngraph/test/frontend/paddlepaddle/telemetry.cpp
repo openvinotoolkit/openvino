@@ -1,0 +1,25 @@
+// Copyright (C) 2018-2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "telemetry.hpp"
+
+#include "paddle_utils.hpp"
+
+using namespace ngraph;
+using namespace ov::frontend;
+
+using PDPDTelemetryTest = FrontEndTelemetryTest;
+
+static TelemetryFEParam getTestData_relu() {
+    TelemetryFEParam res;
+    res.m_frontEndName = PADDLE_FE;
+    res.m_modelsPath = std::string(TEST_PADDLE_MODELS_DIRNAME);
+    res.m_modelName = "relu/relu.pdmodel";
+    return res;
+}
+
+INSTANTIATE_TEST_SUITE_P(PDPDTelemetryTest,
+                         FrontEndTelemetryTest,
+                         ::testing::Values(getTestData_relu()),
+                         FrontEndTelemetryTest::getTestCaseName);

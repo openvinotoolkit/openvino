@@ -7,6 +7,7 @@ from typing import List
 
 from mo.moc_frontend.extractor import fe_user_data_repack
 from mo.middle.passes.infer import validate_batch_in_shape
+from mo.utils.telemetry_utils import get_tid
 
 try:
     import openvino_telemetry as tm
@@ -25,14 +26,13 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
-    t = tm.Telemetry()
+    t = tm.Telemetry(tid=get_tid(), app_name='FrontEnd', app_version="")
     moc_front_end.add_extension(TelemetryExtension(t.send_event,
                                                    t.send_error,
                                                    t.start_session,
                                                    t.end_session,
                                                    t.force_shutdown,
                                                    t.send_stack_trace))
-
     input_model = moc_front_end.load(argv.input_model)
 
     user_shapes, outputs, freeze_placeholder = fe_user_data_repack(

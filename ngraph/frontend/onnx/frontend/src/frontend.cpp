@@ -72,10 +72,10 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) c
     if (m_telemetry) {
         // at least one decoder transformation registered trigger alternative path with separate passes
         auto function = decode(model);
-        m_telemetry->send_event("Number of nodes in original graph: " + std::to_string(function->get_ops().size()));
+        // m_telemetry->send_event("Number of nodes in original graph: ", std::to_string(function->get_ops().size()));
         // manager.run_passes(function);
         convert(function);
-        m_telemetry->send_event("Number of nodes in converted graph: " + std::to_string(function->get_ops().size()));
+        // m_telemetry->send_event("Number of nodes in converted graph: ", std::to_string(function->get_ops().size()));
         return function;
     }
 
@@ -150,5 +150,13 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
 void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+        m_telemetry->start_session(m_telemetry_category);
+    }
+}
+
+FrontEndONNX::~FrontEndONNX() {
+    if(m_telemetry) {
+        std::cout << "XXXxxxxXXXXX ~FrontEndTF telemetry" << std::endl;
+        m_telemetry->end_session(m_telemetry_category);
     }
 }

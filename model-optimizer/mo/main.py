@@ -132,6 +132,7 @@ def get_moc_frontends(argv: argparse.Namespace):
 
 
 def arguments_post_parsing(argv: argparse.Namespace):
+    print("XXXXXX get moc frontends")
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx =\
@@ -317,6 +318,7 @@ def prepare_ir(argv):
 
     graph = None
     ngraph_function = None
+    print("XXXXXXX MOC FRONTEND")
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     if moc_front_end:
@@ -459,7 +461,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
             print(ov_update_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
-        telemetry.force_shutdown(1.0)
+        #telemetry.force_shutdown(1.0)
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -486,7 +488,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
     telemetry.send_event('mo', 'conversion_result', 'fail')
     telemetry.end_session('mo')
-    telemetry.force_shutdown(1.0)
+    #telemetry.force_shutdown(1.0)
     return 1
 
 

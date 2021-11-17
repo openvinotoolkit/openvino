@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
 #include <frontend_manager/extension.hpp>
+#include <frontend_manager/frontend_manager.hpp>
 
 #include "exceptions.hpp"
 #include "model.hpp"
@@ -17,6 +17,7 @@ class OpPlacePDPD;
 class PDPD_API FrontEndPDPD : public FrontEnd {
 public:
     FrontEndPDPD() = default;
+    ~FrontEndPDPD();
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted nGraph function
@@ -65,11 +66,12 @@ protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 
 private:
-    std::shared_ptr<TelemetryExtension> m_telemetry;
     static std::shared_ptr<Function> convert_each_node(
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlacePDPD>&)> func);
+    std::shared_ptr<TelemetryExtension> m_telemetry;
+    const std::string m_telemetry_category = "PADDLE_FE";
 };
 
 }  // namespace frontend

@@ -145,18 +145,22 @@ void regclass_pyngraph_FrontEnd(py::module m) {
     });
 }
 
+void regclass_pyngraph_Extension(py::module m) {
+    py::class_<ov::Extension, std::shared_ptr<ov::Extension>> ext(m, "Extension", py::dynamic_attr());
+}
+
 void regclass_pyngraph_TelemetryExtension(py::module m) {
     {
         py::class_<TelemetryExtension, std::shared_ptr<TelemetryExtension>, ov::Extension> ext(m,
                                                                                                "TelemetryExtension",
                                                                                                py::dynamic_attr());
 
-        ext.def(py::init([](TelemetryExtension::callback& send_event,
-                            TelemetryExtension::callback& send_error,
-                            TelemetryExtension::callback& start_session,
-                            TelemetryExtension::callback& end_session,
-                            TelemetryExtension::callback& force_shutdown,
-                            TelemetryExtension::callback& send_stack_trace) {
+        ext.def(py::init([](TelemetryExtension::event_callback& send_event,
+                            TelemetryExtension::error_callback& send_error,
+                            TelemetryExtension::session_callback& start_session,
+                            TelemetryExtension::session_callback& end_session,
+                            TelemetryExtension::shutdown_callback& force_shutdown,
+                            TelemetryExtension::error_callback& send_stack_trace) {
             return std::make_shared<TelemetryExtension>(send_event,
                                                         send_error,
                                                         start_session,
