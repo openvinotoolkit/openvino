@@ -48,8 +48,8 @@ public:
     std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
     MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,
             const std::string& networkPrecision = METRIC_VALUE(FP32), unsigned int priority = 0);
-    void UnregisterPriority(unsigned int& priority, std::string& deviceName);
-    void RegisterPriority(unsigned int& priority, std::string& deviceName);
+    void UnregisterPriority(const unsigned int& priority, const std::string& deviceName);
+    void RegisterPriority(const unsigned int& priority, const std::string& deviceName);
 
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,

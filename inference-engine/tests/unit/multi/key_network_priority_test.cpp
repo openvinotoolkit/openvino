@@ -131,8 +131,8 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     // selectdevice in multi threads, and UnregisterPriority them all, should not affect the
     // Priority Map
     for (auto& item : PriorityConfigs) {
-       auto priority = std::get<0>(item);
-       auto future = std::async(std::launch::async, [this, &netPrecision, priority]{
+       unsigned int priority = std::get<0>(item);
+       auto future = std::async(std::launch::async, [this, &netPrecision, priority] {
                auto deviceInfo = plugin->SelectDevice(metaDevices, netPrecision, priority);
                plugin->UnregisterPriority(priority, deviceInfo.uniqueName);
                });

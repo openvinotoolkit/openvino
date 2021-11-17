@@ -134,7 +134,7 @@ public:
         // device number is 5
         // combine devices is 5!/5! + 5!/(4!*1!) + 5!/(3!*2!) + 5!/(2!*3!) + 5(1!*4!) = 31
         // null device 1
-        // total test config num is 32*5 = 155
+        // total test config num is 32*5 = 160
         for (auto netPrecision : netPrecisions) {
             for (int i = 1; i <= totalDevices.size(); i++) {
                 combine_device(totalDevices, 0, result, i, i, netPrecision);

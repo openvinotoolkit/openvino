@@ -502,7 +502,8 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
     return *ptrSelectDevice;
 }
 
-void MultiDeviceInferencePlugin::UnregisterPriority(unsigned int& priority, std::string& deviceName) {
+void MultiDeviceInferencePlugin::UnregisterPriority(const unsigned int& priority,
+        const std::string& deviceName) {
     std::lock_guard<std::mutex> lck(_mtx);
     auto& priorityDevices = _priorityMap[priority];
     for (auto iter = priorityDevices.begin(); iter != priorityDevices.end();) {
@@ -514,7 +515,8 @@ void MultiDeviceInferencePlugin::UnregisterPriority(unsigned int& priority, std:
     }
 }
 
-void MultiDeviceInferencePlugin::RegisterPriority(unsigned int& priority, std::string& deviceName) {
+void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
+        const std::string& deviceName) {
     std::lock_guard<std::mutex> lck(_mtx);
     auto& priorityDevices = _priorityMap[priority];
     priorityDevices.push_back(deviceName);
