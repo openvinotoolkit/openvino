@@ -385,7 +385,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     if (_workModeIsAUTO) {
         if (!_networkFirstReady && _networkActualNeeded) {
             auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
-            if ( num < dev_requests.size()) {
+            if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             }
         }
@@ -415,7 +415,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     if (_workModeIsAUTO) {
         if (!_networkFirstReady && _networkActualNeeded) {
             auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
-            if ( num < dev_requests.size()) {
+            if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             }
         }
