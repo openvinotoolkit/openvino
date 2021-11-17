@@ -8,7 +8,7 @@ def process_ignored_scope(ignored_scope):
      """
     ignored_scope_with_fullnames = []
     for layer in ignored_scope:
-        if isinstance(layer, tuple) or isinstance(layer, list):
+        if isinstance(layer, (tuple, list)):
             ignored_scope_with_fullnames.append('|'.join(layer))
         else:
             ignored_scope_with_fullnames.append(layer)

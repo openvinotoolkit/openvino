@@ -114,8 +114,8 @@ def get_all_operation_nodes(graph: Graph, recursively: bool = True):
         get_all_op_nodes_func = FunctionResultsAccumulator(lambda graph: graph.get_op_nodes())
         for_graph_and_each_sub_graph_recursively(graph, get_all_op_nodes_func)
         return get_all_op_nodes_func.results
-    else:
-        return graph.get_op_nodes()
+
+    return graph.get_op_nodes()
 
 
 def get_nodes_by_type(graph: Graph, types: list, recursively: bool = True) -> list:
@@ -140,7 +140,9 @@ def get_nodes_by_type(graph: Graph, types: list, recursively: bool = True) -> li
 
 
 def add_fullname_for_nodes(graph: Graph):
-    def set_fullname(graph, subgraphs=[]):
+    def set_fullname(graph, subgraphs=None):
+        if subgraphs is None:
+            subgraphs = []
         for node in graph:
             node = Node(graph, node)
             if node.has_valid('sub_graphs'):

@@ -107,3 +107,27 @@ def update_stats(stats_layout: dict, stat_aliases: dict, old_key: str, new_key: 
     for algo_name in stat_aliases:
         if old_key in stat_aliases[algo_name]:
             stat_aliases[algo_name][new_key] = stat_aliases[algo_name].pop(old_key)
+
+
+def restore_original_node_names(result_names, accumulated_stats, stats_layout, stat_aliases):
+    for out_name, original_node_name in result_names.items():
+        accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
+        update_stats(stats_layout, stat_aliases, out_name, original_node_name)
+
+
+def align_stat_names_with_results(result_names, nodes_name, output2node, stats_layout, stat_aliases):
+    """ Change node name in stast to result name if in the original model the subgraph had 1 output,
+    but after adding outputs in the subgraph, the number of output ports increased.
+    For such nodes, it is necessary to add a '.0' to the original output name
+    :param: result_names: names of Result nodes
+    :param: nodes_name: node name in graph
+    :param: output2node: a dict storing the matching of the result to the node
+    :param: stats_layout: dict of stats collection functions
+    :param: stat_aliases: dict of algorithms collections stats
+    """
+    for original_out_name in nodes_name:
+        if original_out_name not in result_names and (original_out_name, 0) not in stats_layout:
+            out_name_with_port = original_out_name + '.0'
+            assert out_name_with_port in result_names
+            update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
+            output2node[out_name_with_port] = original_out_name

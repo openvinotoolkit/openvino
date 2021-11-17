@@ -127,8 +127,8 @@ class MinMaxQuantization(Algorithm):
             if fq.fullname not in fake_quantize_config:
                 continue
             for stat_type in fake_quantize_config[fq.fullname]['range_estimator']:
-                stat_config_keys[stat_type] = get_stat_name_by_config(fake_quantize_config[fq.fullname]['range_estimator'],
-                                                                      stat_type)
+                stat_config_keys[stat_type] = get_stat_name_by_config(
+                    fake_quantize_config[fq.fullname]['range_estimator'], stat_type)
             if fq_input.type != 'Const' and fq_input_value is None:
                 fq_input_key = nu.get_quantized_input_key(fq)
                 max_values = inputs_stats[fq_input_key][stat_config_keys['max']]

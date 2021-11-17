@@ -107,7 +107,13 @@ class StatisticGraphBuilder:
 
     def insert_mean(self, model_graph, node, type_stat, node_name, **kwargs):
         axis_channel = kwargs.get('channel', None).get(node.name, 1)
-        return self.insert_reduce(model_graph, ReduceMean, node, kwargs.get('granularity'), type_stat, node_name, axis_channel)
+        return self.insert_reduce(model_graph,
+                                  ReduceMean,
+                                  node,
+                                  kwargs.get('granularity'),
+                                  type_stat,
+                                  node_name,
+                                  axis_channel)
 
     def insert_abs_max(self, model_graph, node, type_stat, node_name, **kwargs):
         axis_const = self.find_axis(node, kwargs.get('granularity'))
@@ -128,12 +134,12 @@ class StatisticGraphBuilder:
         if node.graph != model_graph:
             model_graph.graph['additional_outputs'] = child_node.fullname.split('|')
             res_op = AddOutputRecursive().find_and_replace_pattern(model_graph)
-            return (False, res_op[0].name)
+            ie_result_name = res_op[0].name
         else:
             ie_result_name = f'{name}_{node.name}'
             res_op = Result(node.graph, {'name': f'Result_{ie_result_name}'}).create_node()
             child_node.out_port(0).connect(res_op.in_port(0))
-            return (False, ie_result_name)
+        return (False, ie_result_name)
 
     @staticmethod
     def find_axis(node, granularity, axis=1):

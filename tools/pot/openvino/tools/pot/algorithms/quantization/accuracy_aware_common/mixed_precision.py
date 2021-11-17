@@ -9,7 +9,6 @@ from addict import Dict
 from .algorithm import AccuracyAwareCommon
 from ...algorithm_selector import COMPRESSION_ALGORITHMS
 from ....algorithms.quantization import utils as eu
-from ....graph import editor as ge
 from ....graph import model_utils as mu
 from ....graph import node_utils as nu
 from ....graph import save_model

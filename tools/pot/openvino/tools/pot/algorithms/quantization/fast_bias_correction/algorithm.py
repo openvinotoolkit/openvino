@@ -102,7 +102,7 @@ class FastBiasCorrection(Algorithm):
                 bias_shift_magnitude = np.max(np.abs((bias_shift - current_bias_value) / current_bias_value))
             bias_original_value = nu.get_node_value(bias_node)
             if bias_original_value.shape != bias_shift.shape:
-                logger.debug('{} skipped because shift shape and original shape are inconsistent'.format(op_node.fullname))
+                logger.debug(f'{op_node.fullname} skipped because shift shape and original shape are inconsistent')
                 continue
 
             if bias_shift_magnitude < self._threshold:
