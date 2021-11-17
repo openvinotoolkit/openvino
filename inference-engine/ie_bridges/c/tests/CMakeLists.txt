@@ -18,7 +18,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_c_api ${OpenCV_LIB
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
-        $<$<BOOL:ENABLE_GAPI_PREPROCESSING>:ENABLE_GAPI_PREPROCESSING>
+        $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" )
 

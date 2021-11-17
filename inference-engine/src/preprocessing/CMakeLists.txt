@@ -101,7 +101,7 @@ ie_faster_build(${TARGET_NAME}_obj
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<$<BOOL:ENABLE_GAPI_PREPROCESSING>:ENABLE_GAPI_PREPROCESSING>)
+                                                      $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
