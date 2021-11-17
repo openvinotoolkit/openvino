@@ -161,7 +161,7 @@ add_custom_command(OUTPUT "${__CLDNN_Directory__cg_cache}/${__CLDNN_File__cg_cac
 if(WIN32)
   set(CLDNN_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIGURATION>")
 else((NOT ANDROID) AND (UNIX))
-  set(CLDNN_CACHE_PATH "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/")
+  set(CLDNN_CACHE_PATH "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/")
 endif()
 
 add_custom_command(
