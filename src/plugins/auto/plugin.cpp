@@ -497,16 +497,12 @@ DeviceInformation MultiDeviceInferencePlugin::SelectDevice(const std::vector<Dev
         // select the first device in the rest of available devices.
         ptrSelectDevice = &validDevices.front();
     }
-    {
-        //recode the device priority
-        std::lock_guard<std::mutex> lck(_mtx);
-        auto& priorityDevices = _priorityMap[priority];
-        priorityDevices.push_back(ptrSelectDevice->uniqueName);
-    }
+    //recode the device priority
+    RegisterPriority(priority, ptrSelectDevice->uniqueName);
     return *ptrSelectDevice;
 }
 
-void MultiDeviceInferencePlugin::UnregisterPriority(unsigned int priority, std::string deviceName) {
+void MultiDeviceInferencePlugin::UnregisterPriority(unsigned int& priority, std::string& deviceName) {
     std::lock_guard<std::mutex> lck(_mtx);
     auto& priorityDevices = _priorityMap[priority];
     for (auto iter = priorityDevices.begin(); iter != priorityDevices.end();) {
@@ -516,6 +512,12 @@ void MultiDeviceInferencePlugin::UnregisterPriority(unsigned int priority, std::
         }
         iter++;
     }
+}
+
+void MultiDeviceInferencePlugin::RegisterPriority(unsigned int& priority, std::string& deviceName) {
+    std::lock_guard<std::mutex> lck(_mtx);
+    auto& priorityDevices = _priorityMap[priority];
+    priorityDevices.push_back(deviceName);
 }
 
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
