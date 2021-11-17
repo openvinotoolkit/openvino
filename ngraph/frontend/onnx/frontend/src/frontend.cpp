@@ -101,6 +101,7 @@ std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) co
         auto ops_cnt = std::to_string(decoded->get_ops().size());
         m_telemetry->send_event(m_telemetry_category, "decode", "fw_ops_cnt : " + ops_cnt);
     }
+    return decoded;
 }
 
 std::string FrontEndONNX::get_name() const {
