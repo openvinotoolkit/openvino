@@ -52,7 +52,7 @@ static std::vector<std::string> list_files(const std::string& path) {
                 if (!is_dir && (prefix.empty() || file.compare(0, prefix.length(), prefix) == 0) &&
                     file.length() > suffix.length() &&
                     file.rfind(suffix) == (file.length() - std::string(suffix).length())) {
-                    res.push_back(file);
+                    res.push_back(file_path);
                 }
             },
             // ilavreno: this is current solution for static runtime
@@ -76,7 +76,6 @@ std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) 
         auto shared_object = DLOPEN(file);
         if (!shared_object) {
             NGRAPH_DEBUG << "Error loading FrontEnd " << file << " " << DLERROR() << std::endl;
-            std::cout << "Error loading FrontEnd " << file << " " << DLERROR() << std::endl;
             continue;
         }
 
@@ -86,25 +85,21 @@ std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) 
 
         auto info_addr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetAPIVersion"));
         if (!info_addr) {
-            std::cout << "Error get FE plugin version " << file << " " << std::endl;
             continue;
         }
         FrontEndVersion plug_info{reinterpret_cast<FrontEndVersion>(info_addr())};
 
         if (plug_info != OV_FRONTEND_API_VERSION) {
             // Plugin has incompatible API version, do not load it
-            std::cout << "Error: FE plugin version is incompatible" << file << " " << plug_info << std::endl;
             continue;
         }
 
         auto creator_addr = reinterpret_cast<void* (*)()>(DLSYM(shared_object, "GetFrontEndData"));
         if (!creator_addr) {
-            std::cout << "Error get FE plugin data " << file << " " << std::endl;
             continue;
         }
 
         std::unique_ptr<FrontEndPluginInfo> fact{reinterpret_cast<FrontEndPluginInfo*>(creator_addr())};
-        std::cout << "Success loading frontend " << file << " " << fact->m_name << std::endl;
 
         res.push_back(PluginData(std::move(guard), std::move(*fact)));
     }
