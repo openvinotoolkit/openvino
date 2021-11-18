@@ -205,7 +205,8 @@ def arguments_post_parsing(argv: argparse.Namespace):
     except Exception as e:
         raise_ie_not_found()
 
-    if 'data_type' in argv and argv.data_type in ['FP16', 'half']:
+    # temporary disable new FP16 generation
+    if False and 'data_type' in argv and argv.data_type in ['FP16', 'half']:
         argv.data_type = 'FP32'
         argv.compress_fp16 = True
     else:
@@ -365,7 +366,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                                          "--input_model", orig_model_name,
                                          "--framework", argv.framework,
                                          "--transform", argv.transform]
-                if argv.compress_fp16:
+                if "compress_fp16" in argv and argv.compress_fp16:
                     cmd += ["--compress_fp16"]
                     # restore data_type cmd parameter
                     argv.data_type = 'FP16'

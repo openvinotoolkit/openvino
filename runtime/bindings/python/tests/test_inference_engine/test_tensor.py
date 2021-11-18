@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from tests.test_inference_engine.helpers import read_image
+from ..conftest import read_image
 from openvino import Tensor
 import openvino as ov
 

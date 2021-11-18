@@ -159,6 +159,18 @@ void op::v1::Pad::validate_and_infer_types() {
                                           "of at least 2 at each "
                                           "spatial axis.");
                 }
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::REFLECT || (pads_begin_coord[i] < arg_shape[i].get_length() &&
+                                                           pads_end_coord[i] < arg_shape[i].get_length()),
+                    "REFLECT padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D] - 1'.");
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::SYMMETRIC || (pads_begin_coord[i] <= arg_shape[i].get_length() &&
+                                                             pads_end_coord[i] <= arg_shape[i].get_length()),
+                    "SYMMETRIC padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D]'.");
             }
         }
         set_output_type(0, get_input_element_type(0), result_dims);

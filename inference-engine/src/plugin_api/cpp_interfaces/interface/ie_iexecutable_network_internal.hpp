@@ -116,13 +116,6 @@ public:
     virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     /**
-     * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
-     * @brief Queries memory states.
-     * @return Returns memory states
-     */
-    virtual std::vector<std::shared_ptr<IVariableStateInternal>> QueryState();
-
-    /**
      * @brief      Sets the pointer to plugin internal.
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.

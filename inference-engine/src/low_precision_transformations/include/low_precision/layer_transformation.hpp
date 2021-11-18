@@ -80,28 +80,17 @@ public:
                 return -8.f;
             case element::i8:
                 switch (levels) {
+                    case 16:
+                        return -8.f;
                     case 255:
                         return -127.f;
-                    case 256:
+                    default:
                         return -128.f;
                 }
-                break;
             case element::i16:
-                switch (levels) {
-                    case 65536:
-                        return -32768.f;
-                    case 65535:
-                        return -32767.f;
-                }
-                break;
+                return levels == 65535 ? -32767.f : -32768.f;
             case element::i32:
-                switch (levels) {
-                    case static_cast<size_t>(4294967296):
-                        return -2147483648.f;
-                    case 4294967295:
-                        return -2147483647.f;
-                }
-                break;
+                return -2147483647.f; // -2147483647.f == -2147483648.f
             case element::f16:
                 return -1.0e15f;
             case element::f32:
@@ -117,19 +106,29 @@ public:
             case element::u4:
                 return 15.f;
             case element::u8:
-                return 255.f;
+                switch (levels) {
+                    case 16:
+                        return 15.f;
+                    default:
+                        return 255.f;
+                }
             case element::u16:
                 return 65535.f;
             case element::u32:
-                return 4294967296.f;
+                return 4294967296.f; // 4294967296.f == 4294967295.f
             case element::i4:
                 return 7.f;
             case element::i8:
-                return 127.f;
+                switch (levels) {
+                    case 16:
+                        return 7.f;
+                    default:
+                        return 127.f;
+                }
             case element::i16:
                 return 32767.f;
             case element::i32:
-                return 2147483647.f;
+                return 2147483648.f;  // 2147483648.f == 2147483647.f
             case element::f16:
                 return 1.0e15f;
             case element::f32:
@@ -145,6 +144,10 @@ public:
             return 254.f;
         } else if (maxLevelsForPrecision == 256ul) {
             return 255.f;
+        } else if (maxLevelsForPrecision == 16ul) {
+            return 15.f;
+        } else if (maxLevelsForPrecision == 15ul) {
+            return 14.f;
         } else {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected quantization level " << maxLevelsForPrecision;
         }
@@ -253,7 +256,7 @@ public:
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
-    virtual bool isQuantized(const std::shared_ptr<const Node>& layer) const noexcept;
+    virtual bool isQuantized(const std::shared_ptr<const Node>& layer) const;
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
