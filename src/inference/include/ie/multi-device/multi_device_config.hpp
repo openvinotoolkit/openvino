@@ -33,6 +33,14 @@ namespace MultiDeviceConfigParams {
  * @brief Device Priorities config option, with comma-separated devices listed in the desired priority
  */
 DECLARE_MULTI_CONFIG_KEY(DEVICE_PRIORITIES);
+
+/**
+ * @brief network priority config option, the range of value is from 0 to the max integer,
+ * when there are multi devices, the value is smaller, the prioriy is higher,
+ * 0 is the highest priority. Auto plugin dispatch the network to device
+ * according to priority value. when all devices are free, even if the priority value
+ * is not 0, the network will be dispatched to the strongest device.
+ */
 DECLARE_CONFIG_KEY(NETWORK_PRIORITY);
 }  // namespace MultiDeviceConfigParams
 }  // namespace InferenceEngine

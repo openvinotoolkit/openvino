@@ -40,7 +40,7 @@ using PriorityParams = std::tuple<unsigned int, std::string>; //{priority, devic
 
 using ConfigParams = std::tuple<
         std::string,                        // netPrecision
-        std::vector<PriorityParams>
+        std::vector<PriorityParams>         // {{priority, expect device uniqueName}}
         >;
 class KeyNetworkPriorityTest : public ::testing::TestWithParam<ConfigParams> {
 public:
@@ -151,6 +151,15 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
         plugin->UnregisterPriority(std::get<0>(PriorityConfigs[i]), std::get<1>(PriorityConfigs[i]));
     }
 }
+
+
+// ConfigParams details
+// example
+// ConfigParams {"FP32", {PriorityParams {0, "dGPU_01"},
+//                        PriorityParams {1, "iGPU_01"},
+//                        PriorityParams {2, "MYRIAD_01"},
+//                        PriorityParams {2, "MYRIAD_01"}}},
+//              {netPrecision, PriorityParamsVector{{priority, expect device uniqueName}}}
 
 const std::vector<ConfigParams> testConfigs = {
                                                ConfigParams {"FP32", {PriorityParams {0, "dGPU_01"},
