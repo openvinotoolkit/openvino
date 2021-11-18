@@ -46,19 +46,6 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
     return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
 }
 
-bool preserve_op_name(const std::string& out_name, const ngraph::onnx_import::Model& model) {
-    // we eliminate Identity op (since it's a no-op) and therefore
-    // we must preserve its input name, unless Identity is connected
-    // to a graph's output - in that case Identity's input gets a new name
-    const auto& graph_outputs = model.get_graph().output();
-    bool is_identity_on_output = std::find_if(graph_outputs.begin(),
-                                              graph_outputs.end(),
-                                              [&out_name](const ONNX_NAMESPACE::ValueInfoProto& output) -> bool {
-                                                  return output.name() == out_name;
-                                              }) != graph_outputs.end();
-    return !is_identity_on_output;
-}
-
 bool common_node_for_all_outputs(const OutputVector& outputs) {
     const auto first_out_node = outputs.at(0).get_node();
     bool ret = std::all_of(std::next(std::begin(outputs)),
@@ -158,8 +145,9 @@ void Graph::convert_to_ngraph_nodes() {
 
 void Graph::remove_dangling_parameters() {
     for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();) {
-        if ((*param_it)->get_output_target_inputs(0).size() == 0) {
-            const auto& name = (*param_it)->get_friendly_name();
+        auto output = (*param_it)->output(0);
+        if (output.get_target_inputs().size() == 0) {
+            const auto& name = output.get_tensor().get_any_name();
             const auto& onnx_outputs = m_model->get_graph().output();
             auto out_it = std::find_if(onnx_outputs.begin(),
                                        onnx_outputs.end(),
@@ -283,7 +271,13 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
 }
 
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const {
-    if (onnx_node.op_type() == "Identity" && detail::preserve_op_name(onnx_node.output(0), *m_model)) {
+    if (onnx_node.op_type() == "Identity") {
+        for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
+            NGRAPH_SUPPRESS_DEPRECATED_START
+            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
+            NGRAPH_SUPPRESS_DEPRECATED_END
+            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
+        }
         return;
     }
 
