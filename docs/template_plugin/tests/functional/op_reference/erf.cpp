@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "openvino/op/erf.hpp"
 #include "base_reference_test.hpp"
@@ -43,6 +44,7 @@ struct ErfParams {
 class ReferenceErfLayerTest : public testing::TestWithParam<ErfParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         auto params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType);
         inputData = {params.inputData};
