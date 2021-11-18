@@ -161,8 +161,7 @@ public:
             IE_THROW() << "Parameter of type " << GPU_PARAM_KEY(SHARED_MEM_TYPE) << " not found";
 
         auto mem_type = itrType->second.as<std::string>();
-        if (mem_type != GPU_PARAM_VALUE(USM_USER_BUFFER) &&
-            mem_type != GPU_PARAM_VALUE(USM_HOST_BUFFER) &&
+        if (mem_type != GPU_PARAM_VALUE(USM_USER_BUFFER) && mem_type != GPU_PARAM_VALUE(USM_HOST_BUFFER) &&
             mem_type != GPU_PARAM_VALUE(USM_DEVICE_BUFFER))
             IE_THROW() << "Unexpected USM blob type: " << mem_type;
 

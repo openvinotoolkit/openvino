@@ -431,21 +431,19 @@ class typedCLDNNExecutionContext : public TpublicContextAPI {
                                                      CLDNNRemoteBlobImpl::BlobType::BT_BUF_INTERNAL);
     }
 
-    InferenceEngine::RemoteBlob::Ptr create_usm(const InferenceEngine::TensorDesc& tensorDesc, cldnn::allocation_type alloc_type) {
+    InferenceEngine::RemoteBlob::Ptr create_usm(const InferenceEngine::TensorDesc& tensorDesc, CLDNNRemoteBlobImpl::BlobType alloc_type) {
         cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
                              FormatFromLayout(tensorDesc.getLayout()),
                              CldnnTensorFromIEDims(tensorDesc.getDims()));
         auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
         auto& stream = _impl.GetEngine()->get_program_stream();
-        auto blob_alloc_type = alloc_type == cldnn::allocation_type::usm_host ? CLDNNRemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL :
-                                                                                CLDNNRemoteBlobImpl::BlobType::BT_USM_DEVICE_INTERNAL;
 
         return std::make_shared<CLDNNRemoteUSMbuffer>(smart_this,
                                                       stream,
                                                       tensorDesc,
                                                       layout,
                                                       nullptr, 0, 0,
-                                                      blob_alloc_type);
+                                                      alloc_type);
     }
 
     void check_if_shared() {
@@ -494,9 +492,9 @@ public:
                 check_if_shared();
                 return reuse_surf(tensorDesc, params);
             } else if (GPU_PARAM_VALUE(USM_HOST_BUFFER) == memTypeStr) {
-                return create_usm(tensorDesc, cldnn::allocation_type::usm_host);
+                return create_usm(tensorDesc, CLDNNRemoteBlobImpl::BlobType::BT_USM_HOST_INTERNAL);
             } else if (GPU_PARAM_VALUE(USM_DEVICE_BUFFER) == memTypeStr) {
-                return create_usm(tensorDesc, cldnn::allocation_type::usm_device);
+                return create_usm(tensorDesc, CLDNNRemoteBlobImpl::BlobType::BT_USM_DEVICE_INTERNAL);
             } else {
                 CLDNNRemoteBlobImpl::BlobType blob_type;
                 cldnn::shared_handle mem = nullptr;

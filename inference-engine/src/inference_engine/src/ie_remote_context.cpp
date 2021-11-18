@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ie_remote_context.hpp"
+
 #include <memory>
 #include <string>
 
 #include "blob_factory.hpp"
-#include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
 

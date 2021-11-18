@@ -45,7 +45,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
     case BT_USM_HOST_INTERNAL:
-            return{
+        return{
             { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER) },
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }

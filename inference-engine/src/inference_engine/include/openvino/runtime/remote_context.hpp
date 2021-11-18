@@ -137,7 +137,6 @@ public:
      */
     ParamMap get_params() const;
 
-
     /**
      * @brief This function is used to create host tensor object friendly for current device
      * @param type Tensor element type

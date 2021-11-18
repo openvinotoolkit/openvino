@@ -130,12 +130,12 @@ public:
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
-        RemoteTensor::type_check(
-            tensor,
-            {{GPU_PARAM_KEY(MEM_HANDLE), {}},
-             {GPU_PARAM_KEY(SHARED_MEM_TYPE), {GPU_PARAM_VALUE(USM_USER_BUFFER),
-                                               GPU_PARAM_VALUE(USM_HOST_BUFFER),
-                                               GPU_PARAM_VALUE(USM_DEVICE_BUFFER)}}});
+        RemoteTensor::type_check(tensor,
+                                 {{GPU_PARAM_KEY(MEM_HANDLE), {}},
+                                  {GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                   {GPU_PARAM_VALUE(USM_USER_BUFFER),
+                                    GPU_PARAM_VALUE(USM_HOST_BUFFER),
+                                    GPU_PARAM_VALUE(USM_DEVICE_BUFFER)}}});
     }
 
     /**
@@ -318,7 +318,6 @@ public:
         return create_tensor(type, shape, params);
     }
 };
-
 
 }  // namespace ocl
 }  // namespace gpu
