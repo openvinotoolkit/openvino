@@ -774,18 +774,18 @@ void program::add_intermediate(program_node& node,
 }
 
 void program::add_intermediate(std::shared_ptr<primitive> prim,
-                                    program_node& next,
-                                    size_t prev_idx,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               size_t prev_idx,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     add_intermediate(get_or_create(prim), next, prev_idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
 void program::add_intermediate(program_node& node,
-                                    program_node& next,
-                                    program_node& prev,
-                                    bool connect_int_node_with_old_dep,
-                                    bool move_usrs_of_prev_to_node) {
+                               program_node& next,
+                               program_node& prev,
+                               bool connect_int_node_with_old_dep,
+                               bool move_usrs_of_prev_to_node) {
     bool node_found = false;
     size_t idx = 0;
     for (size_t i = 0; i < next.get_dependencies().size(); i++) {

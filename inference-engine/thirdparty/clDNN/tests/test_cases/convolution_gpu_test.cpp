@@ -9066,4 +9066,81 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
                 }
 }
 
+TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
+    auto& engine = get_onednn_test_engine();
+
+    int input_b = 1, input_f = 16, input_y = 3, input_x = 3;
+    int output_b = 1, output_f = 16, output_y = 6, output_x = 6;
+
+    auto input_size = tensor(input_b, input_f, input_x, input_y);
+    auto input_data = generate_random_4d<FLOAT16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(16, 16, 1, 1, 1);
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, 1, 1, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({data_types::f16, format::bfyx, weights_size});
+    set_values(weights_mem, weights_data_bfyx);
+
+    auto input = input_layout("input", input_mem->get_layout());
+    auto weights = data("weights", weights_mem);
+    auto input_reorder = reorder("input_fsv", "input", {data_types::f16, format::b_fs_yx_fsv16, input_size});
+    auto conv1 = convolution("conv1", "input_fsv", { "weights" });
+    auto conv2 = convolution("conv2", "conv1", { "weights" }, {1, 1, 1, 1}, {0, 0, -1, -1}, {1, 1, 1, 1}, {output_b, output_f, output_x, output_x});
+    auto output_reorder = reorder("reorder", "conv2", {data_types::f32, format::bfyx, {output_b, output_f, output_x, output_x}});
+
+    topology topology_test(input, weights, input_reorder, conv1, conv2, output_reorder);
+    topology topology_ref(input, weights, input_reorder, conv1, conv2, output_reorder);
+
+    build_options options_test;
+    implementation_desc conv1_impl_test = { format::b_fs_yx_fsv16, "", impl_types::onednn };
+    implementation_desc conv2_impl_test = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl };
+    options_test.set_option(build_option::force_implementations({ {"conv1", conv1_impl_test}, {"conv2", conv2_impl_test} }));
+    options_test.set_option(build_option::optimize_data(true));
+
+    build_options options_ref;
+    implementation_desc conv1_impl_ref = { format::bfyx, "", impl_types::ocl };
+    implementation_desc conv2_impl_ref = { format::bfyx, "", impl_types::ocl };
+    options_ref.set_option(build_option::force_implementations({ {"conv1", conv1_impl_ref}, {"conv2", conv2_impl_ref} }));
+    options_ref.set_option(build_option::optimize_data(true));
+
+    network network_test(engine, topology_test, options_test);
+    network network_ref(engine, topology_ref, options_ref);
+
+    network_test.set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test.execute();
+    auto outputs_ref = network_ref.execute();
+
+    EXPECT_EQ(outputs_test.size(), size_t(1));
+    EXPECT_EQ(outputs_test.begin()->first, "reorder");
+    EXPECT_EQ(outputs_ref.size(), size_t(1));
+    EXPECT_EQ(outputs_ref.begin()->first, "reorder");
+
+    auto output_memory_test = outputs_test.at("reorder").get_memory();
+    auto output_layout_test = output_memory_test->get_layout();
+    cldnn::mem_lock<float> output_ptr_test(output_memory_test, get_test_stream());
+
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    auto output_layout_ref = output_memory_ref->get_layout();
+    cldnn::mem_lock<float> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    EXPECT_EQ(output_layout_test.size.spatial[0], output_x);
+    EXPECT_EQ(output_layout_test.size.spatial[1], output_y);
+    EXPECT_EQ(output_layout_test.size.feature[0], output_f);
+    EXPECT_EQ(output_layout_test.size.batch[0], output_b);
+
+    EXPECT_EQ(output_layout_ref.size.spatial[0], output_x);
+    EXPECT_EQ(output_layout_ref.size.spatial[1], output_y);
+    EXPECT_EQ(output_layout_ref.size.feature[0], output_f);
+    EXPECT_EQ(output_layout_ref.size.batch[0], output_b);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test.data()[i]);
+    }
+}
+
 #endif   // ENABLE_ONEDNN_FOR_GPU
