@@ -170,7 +170,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         ov::runtime::Tensor tensor;
         if (funcInput.get_element_type().is_real()) {
             tensor = ov::test::utils::create_and_fill_tensor(
-                funcInput.get_element_type(), targetInputStaticShapes[i], 10, 0, 1000);
+                funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         }
