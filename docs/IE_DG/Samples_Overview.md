@@ -10,35 +10,35 @@ After installation of Intel® Distribution of OpenVINO™ toolkit, С, C++ and P
 Inference Engine sample applications include the following:
 
 - **Speech Sample** - Acoustic model inference based on Kaldi neural networks and speech feature vectors.
-   - [Automatic Speech Recognition C++ Sample](../../inference-engine/samples/speech_sample/README.md)
+   - [Automatic Speech Recognition C++ Sample](../../samples/cpp/speech_sample/README.md)
    - [Automatic Speech Recognition Python Sample](../../samples/python/speech_sample/README.md)
 - **Benchmark Application** – Estimates deep learning inference performance on supported devices for synchronous and asynchronous modes.
-   - [Benchmark C++ Tool](../../inference-engine/samples/benchmark_app/README.md)
+   - [Benchmark C++ Tool](../../samples/cpp/benchmark_app/README.md)
    - [Benchmark Python Tool](../../tools/benchmark_tool/README.md)
 - **Hello Classification Sample** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API. Input of any size and layout can be set to an infer request which will be pre-processed automatically during inference (the sample supports only images as inputs and supports Unicode paths).
-   - [Hello Classification C++ Sample](../../inference-engine/samples/hello_classification/README.md)
+   - [Hello Classification C++ Sample](../../samples/cpp/hello_classification/README.md)
    - [Hello Classification C Sample](../../samples/c/hello_classification/README.md)
    - [Hello Classification Python Sample](../../samples/python/hello_classification/README.md)
 - **Hello NV12 Input Classification Sample** – Input of any size and layout can be provided to an infer request. The sample transforms the input to the NV12 color format and pre-process it automatically during inference. The sample supports only images as inputs.
-   - [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md)
+   - [Hello NV12 Input Classification C++ Sample](../../samples/cpp/hello_nv12_input_classification/README.md)
    - [Hello NV12 Input Classification C Sample](../../samples/c/hello_nv12_input_classification/README.md)
 - **Hello Query Device Sample** – Query of available Inference Engine devices and their metrics, configuration values.
-   - [Hello Query Device C++ Sample](../../inference-engine/samples/hello_query_device/README.md)
+   - [Hello Query Device C++ Sample](../../samples/cpp/hello_query_device/README.md)
    - [Hello Query Device Python* Sample](../../samples/python/hello_query_device/README.md)
 - **Hello Reshape SSD Sample** – Inference of SSD networks resized by ShapeInfer API according to an input size.
-   - [Hello Reshape SSD C++ Sample**](../../inference-engine/samples/hello_reshape_ssd/README.md)
+   - [Hello Reshape SSD C++ Sample**](../../samples/cpp/hello_reshape_ssd/README.md)
    - [Hello Reshape SSD Python Sample**](../../samples/python/hello_reshape_ssd/README.md)
 - **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs).
-   - [Image Classification Async C++ Sample](../../inference-engine/samples/classification_sample_async/README.md)
+   - [Image Classification Async C++ Sample](../../samples/cpp/classification_sample_async/README.md)
    - [Image Classification Async Python* Sample](../../samples/python/classification_sample_async/README.md)
 - **Style Transfer Sample** – Style Transfer sample (the sample supports only images as inputs).
-   - [Style Transfer C++ Sample](../../inference-engine/samples/style_transfer_sample/README.md)
+   - [Style Transfer C++ Sample](../../samples/cpp/style_transfer_sample/README.md)
    - [Style Transfer Python* Sample](../../samples/python/style_transfer_sample/README.md)
 - **nGraph Function Creation Sample** – Construction of the LeNet network using the nGraph function creation sample.
-   - [nGraph Function Creation C++ Sample](../../inference-engine/samples/ngraph_function_creation_sample/README.md)
+   - [nGraph Function Creation C++ Sample](../../samples/cpp/ngraph_function_creation_sample/README.md)
    - [nGraph Function Creation Python Sample](../../samples/python/ngraph_function_creation_sample/README.md)
 - **Object Detection for SSD Sample** – Inference of object detection networks based on the SSD, this sample is simplified version that supports only images as inputs.
-   - [Object Detection SSD C++ Sample](../../inference-engine/samples/object_detection_sample_ssd/README.md)
+   - [Object Detection SSD C++ Sample](../../samples/cpp/object_detection_sample_ssd/README.md)
    - [Object Detection SSD C Sample](../../samples/c/object_detection_sample_ssd/README.md)
    - [Object Detection SSD Python* Sample](../../samples/python/object_detection_sample_ssd/README.md)
  

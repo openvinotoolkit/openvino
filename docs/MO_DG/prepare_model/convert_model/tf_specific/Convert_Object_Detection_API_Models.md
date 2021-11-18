@@ -59,7 +59,7 @@ For example, if you downloaded the [pre-trained SSD InceptionV2 topology](http:/
 
 Inference Engine comes with a number of samples to infer Object Detection API models including:
 
-* [Object Detection for SSD Sample](../../../../../inference-engine/samples/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
+* [Object Detection for SSD Sample](../../../../../samples/cpp/object_detection_sample_ssd/README.md) --- for RFCN, SSD and Faster R-CNNs
 * [Mask R-CNN Sample for TensorFlow* Object Detection API Models](@ref omz_demos_mask_rcnn_demo_cpp) --- for Mask R-CNNs
 
 There are several important notes about feeding input images to the samples:

@@ -1,4 +1,4 @@
-openvino/inference-engine/samples/hello_reshape_ssd/README.md
+openvino/samples/cpp/hello_reshape_ssd/README.md
 openvino/docs/index.md
 inference-engine/include/ie_icnn_network.hpp
 openvino/docs/get_started/get_started_dl_workbench.md

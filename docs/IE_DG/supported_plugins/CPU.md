@@ -99,7 +99,7 @@ CPU plugin removes a Power layer from a topology if it has the following paramet
 The plugin supports the configuration parameters listed below.
 All parameters must be set with the <code>InferenceEngine::Core::LoadNetwork()</code> method.
 When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
-Refer to the OpenVINO samples for usage examples: [Benchmark App](../../../inference-engine/samples/benchmark_app/README.md).
+Refer to the OpenVINO samples for usage examples: [Benchmark App](../../../samples/cpp/benchmark_app/README.md).
 
 These are general options, also supported by other plugins:
 

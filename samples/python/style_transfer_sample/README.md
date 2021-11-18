@@ -18,7 +18,7 @@ Basic Inference Engine API is covered by [Hello Classification Python* Sample](.
 | Validated Models           | [fast-neural-style-mosaic-onnx](@ref omz_models_model_fast_neural_style_mosaic_onnx) |
 | Model Format               | Inference Engine Intermediate Representation (.xml + .bin), ONNX (.onnx) |
 | Supported devices          | [All](../../../docs/IE_DG/supported_plugins/Supported_Devices.md) |
-| Other language realization | [C++](../../../inference-engine/samples/style_transfer_sample/README.md) |
+| Other language realization | [C++](../../../samples/cpp/style_transfer_sample/README.md) |
 
 ## How It Works
 

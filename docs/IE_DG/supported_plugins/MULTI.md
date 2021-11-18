@@ -38,7 +38,7 @@ Notice that the priorities of the devices can be changed in real time for the ex
 Finally, there is a way to specify number of requests that the multi-device will internally keep for each device. Suppose your original app was running 4 cameras with 4 inference requests. You would probably want to share these 4 requests between 2 devices used in the MULTI. The easiest way is to specify a number of requests for each device using parentheses: "MULTI:CPU(2),GPU(2)" and use the same 4 requests in your app. However, such an explicit configuration is not performance-portable and hence not recommended. Instead, the better way is to configure the individual devices and query the resulting number of requests to be used at the application level (see [Configuring the Individual Devices and Creating the Multi-Device On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top)).
 
 ## Enumerating Available Devices
-Inference Engine now features a dedicated API to enumerate devices and their capabilities. See [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md).  This is example output from the sample (truncated to the devices' names only):
+Inference Engine now features a dedicated API to enumerate devices and their capabilities. See [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md).  This is example output from the sample (truncated to the devices' names only):
 
 ```sh
 ./hello_query_device
@@ -86,7 +86,7 @@ Notice that until R2 you had to calculate number of requests in your application
 
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
 Notice that every OpenVINO sample that supports "-d" (which stands for "device") command-line option transparently accepts the multi-device.
-The [Benchmark Application](../../../inference-engine/samples/benchmark_app/README.md) is the best reference to the optimal usage of the multi-device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
+The [Benchmark Application](../../../samples/cpp/benchmark_app/README.md) is the best reference to the optimal usage of the multi-device. As discussed multiple times earlier, you don't need to setup number of requests, CPU streams or threads as the application provides optimal out of the box performance.
 Below is example command-line to evaluate HDDL+GPU performance with that:
 
 ```sh

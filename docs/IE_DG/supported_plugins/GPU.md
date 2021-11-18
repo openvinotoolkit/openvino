@@ -12,7 +12,7 @@ For an in-depth description of clDNN, see [Inference Engine source files](https:
 * "GPU" is an alias for "GPU.0"
 * If the system doesn't have an integrated GPU, then devices are enumerated starting from 0.
 
-For demonstration purposes, see the [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md) that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
+For demonstration purposes, see the [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
 ```sh
 ./hello_query_device

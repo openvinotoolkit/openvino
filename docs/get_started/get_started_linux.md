@@ -113,7 +113,7 @@ When the script completes, you see the label and confidence for the top-10 categ
 
 Top 10 results:
 
-Image /home/user/dldt/inference-engine/samples/sample_data/car.png
+Image /home/user/openvino/samples/cpp/sample_data/car.png
 
 classid probability label
 ------- ----------- -----
@@ -366,7 +366,7 @@ When the Sample Application completes, you see the label and confidence for the 
 ```sh
 Top 10 results:
 
-Image /home/user/dldt/inference-engine/samples/sample_data/car.png
+Image /home/user/openvino/samples/cpp/sample_data/car.png
 
 classid probability label
 ------- ----------- -----
