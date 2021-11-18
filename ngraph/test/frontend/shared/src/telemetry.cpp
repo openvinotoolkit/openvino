@@ -45,7 +45,7 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         std::string action = "test_action";
         std::string msg = "test_msg";
         int version = 2;
-        EXPECT_NO_THROW(telemetry_extension->send_event(category, action, msg));
+        EXPECT_NO_THROW(telemetry_extension->send_event(category, action, msg, version));
         EXPECT_NO_THROW(telemetry_extension->send_error(category, msg));
         EXPECT_NO_THROW(telemetry_extension->send_stack_trace(category, msg));
 
