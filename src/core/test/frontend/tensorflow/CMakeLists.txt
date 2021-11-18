@@ -63,6 +63,7 @@ else()
 endif()
 
 add_dependencies(${TARGET_NAME} tensorflow_test_models)
+add_dependencies(${TARGET_NAME} tensorflow_ov_frontend)
 
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR tensorflow_ov_frontend SOURCE_DIR)
 target_include_directories(${TARGET_NAME} PRIVATE ${TENSORFLOW_FRONTEND_SRC_DIR}/src/pass/)

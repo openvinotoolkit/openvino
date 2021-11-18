@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <openvino/core/visibility.hpp>
+
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef ir_ov_frontend_EXPORTS
 #    define IR_API OPENVINO_CORE_EXPORTS

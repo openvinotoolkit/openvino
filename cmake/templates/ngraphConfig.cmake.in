@@ -28,10 +28,10 @@
 #
 #   ngraph::frontend_manager               - nGraph frontend manager
 #
-#   onnx_ov_frontend_FOUND                 - True if the system has onnx_ov_frontend library
+#   ngraph_onnx_ov_frontend_FOUND          - True if the system has onnx_ov_frontend library
 #   ngraph::onnx_ov_frontend               - ONNX FrontEnd target (optional)
 #
-#   paddlepaddle_ov_frontend_FOUND         - True if the system has PDPD frontend
+#   ngraph_paddlepaddle_frontend_FOUND     - True if the system has PDPD frontend
 #   ngraph::paddlepaddle_ov_frontend       - nGraph PDPD frontend (optional)
 #
 
