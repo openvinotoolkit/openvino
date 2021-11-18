@@ -203,7 +203,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
         axis_to_size = sorted(list(dict(dims_and_scales_).items()), key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
         sizes = shape_array([z[1] for z in axis_to_size])
-        scales = np.ones(len(axis_to_size))
+        scales = np.ones(len(axis_to_size), dtype=np.float32)
     else:
         for interp in seq:
             dims_and_scales_.extend(zip(Interpolate.get_axes(interp),

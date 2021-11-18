@@ -33,8 +33,8 @@ class BatchNormalizationExtractor(FrontExtractorOp):
                 mean *= scale
                 variance *= scale
 
-            embed_input(attrs, 1, 'gamma', np.ones(mean.shape), 'gamma')
-            embed_input(attrs, 2, 'beta', np.zeros(variance.shape), 'beta')
+            embed_input(attrs, 1, 'gamma', np.ones(mean.shape, dtype=np.float32), 'gamma')
+            embed_input(attrs, 2, 'beta', np.zeros(variance.shape, dtype=np.float32), 'beta')
             embed_input(attrs, 3, 'mean', mean, 'biases')
             embed_input(attrs, 4, 'variance', variance, 'weights')
 

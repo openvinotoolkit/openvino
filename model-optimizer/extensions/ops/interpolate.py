@@ -95,7 +95,7 @@ def correct_pad(pad, rank):
 def correct_scales_using_dst_shape(node, dst_shape, src_shape, axes):
     scales_value = node.in_port(2).data.get_value()
     if scales_value is None or len(scales_value) != len(dst_shape):
-        corrected_scales = np.zeros(len(dst_shape))
+        corrected_scales = np.zeros(len(dst_shape), dtype=np.float32)
         for i, axis in enumerate(list(axes)):
             corrected_scales[i] = dst_shape[i] / src_shape[axis]
         node.in_port(2).data.set_value(corrected_scales)

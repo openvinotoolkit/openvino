@@ -85,7 +85,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             B_shape = mo_array(B.shape)
             B_shape[3] = 4
             B_shape[2] = 1
-            B_tmp = np.zeros(shape=B_shape)
+            B_tmp = np.zeros(shape=B_shape, dtype=np.float32)
             B_tmp[:, :, :, 0, :] = B[:, :, 0, 0, :] + B[:, :, 1, 0, :]
             B_tmp[:, :, :, 1, :] = B[:, :, 0, 1, :] + B[:, :, 1, 1, :]
             B_tmp[:, :, :, 2, :] = B[:, :, 0, 2, :][:, :, np.newaxis, :]

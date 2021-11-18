@@ -119,7 +119,7 @@ class Pooling(Op):
             node.window[node.spatial_dims] = input_spatial_shape
 
         if not node.has_valid('dilation'):
-            node['dilation'] = np.ones(len(input_shape))
+            node['dilation'] = np.ones(len(input_shape), dtype=np.float32)
 
         if not node.has_valid('axis'):
             node['axis'] = 0

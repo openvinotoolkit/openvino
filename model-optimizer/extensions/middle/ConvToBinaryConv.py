@@ -109,5 +109,5 @@ class ConvToBinaryConv(MiddleReplacementPattern):
         output_high = quantize.in_node(4)
 
         # Make sure that low/high values are exactly 0/1
-        output_low.value = np.zeros(output_low.shape)
-        output_high.value = np.ones(output_high.shape)
+        output_low.value = np.zeros(output_low.shape, dtype=np.float32)
+        output_high.value = np.ones(output_high.shape, dtype=np.float32)

@@ -119,7 +119,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         if input_rank_of_unsqueeze + 1 != len(second_input_of_tile.value):
             return False
 
-        expected_tile_constant = np.ones(input_rank_of_unsqueeze + 1)
+        expected_tile_constant = np.ones(input_rank_of_unsqueeze + 1, dtype=np.float32)
         expected_tile_constant[d_idx] = float(second_input_of_tile.value[d_idx])
 
         if not np.array_equal(expected_tile_constant, float32_array(second_input_of_tile.value)):

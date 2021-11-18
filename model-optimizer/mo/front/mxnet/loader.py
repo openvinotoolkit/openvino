@@ -105,7 +105,7 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
         elif node['name'] in model_params._aux_params and node['name'] not in input_names:
             node['value'] = mo_array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in names_rnn_states:
-            node['value'] = np.zeros(rnn_states[node['name']])
+            node['value'] = np.zeros(rnn_states[node['name']], dtype=np.float32)
         node_name = graph.unique_id(node['name'])
         graph.add_node(node_name, **symbol_attrs(node))
         if hasattr(graph, 'op_names_statistic') and 'op' in node:
