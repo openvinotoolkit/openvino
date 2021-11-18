@@ -27,7 +27,7 @@ from . import node_utils as nu
 from .pattern_utils import get_fq_result_pattern
 from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
-from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, set_node_value
+from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
 from ..utils.logger import get_logger
 
@@ -217,6 +217,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
     }
 
     def delete_fq_non_quantizable_node_precision(self, graph):
+        type_infer(graph)
         fq_removal = RemoveFakeQuantize()
         fq_removal.quantize_agnostic_operations = self.quantize_agnostic_operations
         fq_removal.quantize_operations = self.quantize_operations
@@ -405,12 +406,6 @@ class FakeQuantizeOptimization(BackReplacementPattern):
                     fq.in_port(0).disconnect()
                     fq.out_port(0).get_connection().set_source(fq_consumers[0].out_port(0))
 
-    def set_precision_for_values(self, graph):
-        for fq in graph.get_op_nodes(type='FakeQuantize'):
-            fq_main_dtype = fq.in_port(0).get_data_type()
-            for port_id in [1, 2, 3, 4]:
-                fq_const = get_node_input(fq, port_id)
-                set_node_value(fq_const, 0.0, dtype=fq_main_dtype)
 
 class RemoveFakeQuantize:
     def find_and_remove_node(self, graph, node_name, force=False):
@@ -630,7 +625,6 @@ class ModelPreprocessor(BackReplacementPattern):
     enabled = False
 
     def find_and_replace_pattern(self, graph: Graph):
-        type_infer(graph)
         MatMulPreprocessing().find_and_replace_pattern(graph)
         IgnoreShapeSubgraph().find_and_replace_pattern(graph)
         InsertBiasNode().insert_null_biases(graph)
@@ -689,8 +683,12 @@ def create_bias_node(graph: Graph, src_node):
     bias_shape = src_node.out_port(0).data.get_shape()
     add_bias_shape = [1] * len(bias_shape)
     add_bias_shape[1] = bias_shape[1]
+    weights = get_weights_for_node(src_node)
+    bias_dtype = np.float32
+    if weights and weights.out_port(0).is_data_type_defined():
+        bias_dtype = weights.out_port(0).get_data_type()
     add_bias = Const(graph,
-                     {'value': np.zeros(add_bias_shape, dtype=src_node.out_port(0).get_data_type()),
+                     {'value': np.zeros(add_bias_shape, dtype=bias_dtype),
                       'shape': add_bias_shape,
                       'need_shape_inference': True
                       }).create_node()
@@ -712,10 +710,10 @@ def create_fake_quantize_node(graph: Graph, name):
     fq = FakeQuantize(graph, {'name': name, 'levels': 0,
                               'stop_value_propagation': True}).create_node()
 
-    input_low = Const(graph, {'value': 0.0}).create_node()
-    input_height = Const(graph, {'value': 0.0}).create_node()
-    output_low = Const(graph, {'value': 0.0}).create_node()
-    output_height = Const(graph, {'value': 0.0}).create_node()
+    input_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    input_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    output_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    output_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
 
     input_low.out_port(0).connect(fq.in_port(1))
     input_height.out_port(0).connect(fq.in_port(2))
@@ -853,7 +851,6 @@ def find_shape_subgraph_endpoints(out_ports: List[Port], visited: set = None) ->
     """
     Searches for input ports of data dependent operations starting from output ports passed to the function.
     Condition for data dependent operations is absence of node output value.
-
     :param out_ports: list of output ports to start search from
     :param visited: set of input ports that were visited to avoid visiting them more than once
     :return: set of all nodes that are part of shape calculating subgraph

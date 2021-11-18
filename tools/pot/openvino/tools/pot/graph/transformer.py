@@ -1,11 +1,9 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.middle.passes.infer import type_infer
-
-from .passes import FakeQuantizeNameSwapper, FakeQuantizeOptimization, FakeQuantizePropagation, \
-    InsertFakeQuantize, RemoveFakeQuantize, SpecialBlocksMarker
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
+from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
+    SpecialBlocksMarker, FakeQuantizeNameSwapper
 from .utils import find_operation_matches, get_operation_list, preprocess_ignored_params
 
 
@@ -56,15 +54,11 @@ class GraphTransformer:
         self.fq_optimization.find_and_replace_pattern(graph)
         graph.clean_up()
 
-        type_infer(graph)
-
         self.fq_propagation.delete_fq_non_quantizable_node_precision(graph)
         graph.clean_up()
 
         self.fq_name_swapper.rename_fqs_in_the_end(graph)
         graph.clean_up()
-
-        self.fq_optimization.set_precision_for_values(graph)
 
         return graph
 

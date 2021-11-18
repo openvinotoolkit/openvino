@@ -75,7 +75,7 @@ def get_node_output(node: Node, out_port: int):
     return consumers
 
 
-def set_node_value(node: Node, value: np.ndarray, dtype = None):
+def set_node_value(node: Node, value: np.ndarray):
     """
     Set new value to Const node and recompute all necessary
      shapes in this node and data nodes
@@ -84,7 +84,9 @@ def set_node_value(node: Node, value: np.ndarray, dtype = None):
       """
     if node.type != 'Const':
         raise Exception('Can\'t set value for non-constant node {}'.format(node.name))
-    data_type = dtype if dtype else node.value.dtype
+    data_type = np.float32
+    if node.out_port(0).is_data_type_defined():
+        data_type = node.out_port(0).get_data_type()
     node.out_port(0).data.set_value(np.array(value).astype(data_type))
 
 
