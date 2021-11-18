@@ -14,6 +14,8 @@
 #include "base_reference_cnn_test.hpp"
 #include "ngraph_functions/builders.hpp"
 
+#ifdef ENABLE_GAPI_PREPROCESSING
+
 using namespace ov;
 using namespace ov::preprocess;
 using namespace reference_tests;
@@ -255,3 +257,5 @@ TEST_F(ConvertI420WithLegacyTest, convert_i420_full_color_range) {
 
     SetupAndExec(height * b_dim, width, ov20_input_yuv);
 }
+
+#endif // ENABLE_GAPI_PREPROCESSING
