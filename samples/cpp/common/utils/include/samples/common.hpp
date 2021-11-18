@@ -140,13 +140,6 @@ inline std::ostream& operator<<(std::ostream& os, const ov::Version& version) {
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version* version) {
-    if (nullptr != version) {
-        os << std::endl << *version;
-    }
-    return os;
-}
-
 inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, InferenceEngine::Version>& versions) {
     for (auto&& version : versions) {
         os << "\t" << version.first << std::endl;
