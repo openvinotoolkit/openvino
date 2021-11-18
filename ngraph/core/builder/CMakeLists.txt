@@ -18,12 +18,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create static library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(${TARGET_NAME}
-        UNITY
-        PCH PRIVATE "src/precomp.hpp"
-    )
-endif()
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp")
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${BUILDER_INCLUDE_DIR}>
