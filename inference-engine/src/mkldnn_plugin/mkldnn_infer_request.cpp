@@ -425,10 +425,18 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
                     IE_THROW(ParameterMismatch) << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
-            const auto &actualDesc = graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc();
-            if (blobDesc.getLayout() != InferenceEngine::Layout::ANY &&
-                actualDesc.isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
-                graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
+            MemoryDescPtr actualDesc = graph->getInputNodeByName(name)->getBaseMemDescAtOutputPort(0);
+            bool blobHasAnyLayout = blobDesc.getLayout() == InferenceEngine::Layout::ANY;
+            if (!blobHasAnyLayout && !actualDesc->isDefined()) {
+                // we must define desc for dynamic case
+                // otherwise we got incorrect check on shape compatibility inside isCompatible
+                // because lower and upper bound will be compared
+                actualDesc = actualDesc->cloneWithNewDims(blobDesc.getLayout() == InferenceEngine::Layout::SCALAR ? InferenceEngine::SizeVector{1} :
+                                                                                                                    blobDesc.getDims());
+            }
+            if (!blobHasAnyLayout &&
+                actualDesc->isCompatible(MemoryDescUtils::convertToCpuBlockedMemoryDesc(blobDesc)) &&
+                    graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);
