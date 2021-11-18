@@ -10,6 +10,7 @@ import numpy as np
 from extensions.ops.elementwise import Mul
 from extensions.ops.split import AttributedVariadicSplit
 from mo.front.common.partial_infer.utils import float_array, int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import add_outputs_identity
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \

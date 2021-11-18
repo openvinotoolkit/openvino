@@ -1,11 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.regionyolo import RegionYoloOp
 from mo.front.caffe.collect_attributes import merge_attrs
 from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 
 

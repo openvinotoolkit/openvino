@@ -4,9 +4,8 @@
 import inspect
 import logging as log
 
-import numpy as np
-
 from extensions.ops.elementwise import Mul, Add
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
 from mo.ops.const import Const

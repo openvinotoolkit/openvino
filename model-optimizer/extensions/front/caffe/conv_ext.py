@@ -5,6 +5,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import get_spatial_attr, get_list_from_container, weights_biases
 from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.convolution import Convolution
 from mo.utils.error import Error

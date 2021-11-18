@@ -3,8 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension_value, dynamic_dimension, \
-    is_fully_defined, shape_array, shape_insert
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_insert
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs

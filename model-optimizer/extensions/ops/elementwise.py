@@ -6,6 +6,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.infer import copy_type_infer
 from mo.ops.op import Op

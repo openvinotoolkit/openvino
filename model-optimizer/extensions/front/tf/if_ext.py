@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.ops.If import If
-from extensions.ops.parameter import Parameter
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.extractor import FrontExtractorOp, extract_node_attrs
 from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors
 from mo.front.tf.extractors.subgraph_utils import update_body_graph, convert_graph_inputs_to_parameters, \
     get_graph_proto, create_internal_graph
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node
 
 
 def extract_if(cls, if_node: Node):

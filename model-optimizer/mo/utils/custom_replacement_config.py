@@ -10,7 +10,7 @@ from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.graph import nodes_matching_name_pattern, sub_graph_between_nodes
 from mo.utils.json_schema import schema_dict
-from mo.utils.utils import get_mo_root_dir, refer_to_faq_msg
+from mo.utils.utils import refer_to_faq_msg
 
 
 class CustomReplacementDescriptor(object):

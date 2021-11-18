@@ -7,6 +7,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.fakequantize import FakeQuantize
 from mo.front.common.partial_infer.utils import float_array, int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern

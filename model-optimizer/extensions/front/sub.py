@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.elementwise import Mul, Add
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_node

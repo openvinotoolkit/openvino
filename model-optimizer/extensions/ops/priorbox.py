@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op

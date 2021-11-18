@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import compatible_dims
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op

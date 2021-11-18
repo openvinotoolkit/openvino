@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node
 from mo.ops.const import Const
 

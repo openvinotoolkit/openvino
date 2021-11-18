@@ -9,7 +9,7 @@ from mo.back.replacement import BackReplacementPattern
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.unsqueeze import Unsqueeze

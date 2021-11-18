@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_inputs

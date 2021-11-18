@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.bucketize import Bucketize
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 
 

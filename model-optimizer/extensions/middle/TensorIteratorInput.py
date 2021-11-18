@@ -7,6 +7,7 @@ import numpy as np
 
 from extensions.middle.AddIsCyclicAttribute import AddIsCyclicAttribute
 from extensions.ops.TensorIterator_ops import TensorIteratorInput
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 

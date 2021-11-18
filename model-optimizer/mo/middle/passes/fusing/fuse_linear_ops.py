@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import backward_bfs, forward_bfs, get_value_in_port, \
     get_tensor_in_port

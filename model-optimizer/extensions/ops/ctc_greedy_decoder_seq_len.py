@@ -3,7 +3,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, compatible_dims
+from mo.front.common.partial_infer.utils import compatible_dims
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type

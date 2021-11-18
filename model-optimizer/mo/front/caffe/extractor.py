@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
-from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import extension_op_extractor
 from mo.front.extractor import CaffePythonFrontExtractorOp
 from mo.graph.graph import Node

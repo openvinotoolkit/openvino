@@ -5,6 +5,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array, is_fully_defined
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error

@@ -8,6 +8,7 @@ import numpy as np
 from extensions.front.tf.WhileNormalize import WhileNormalize
 from extensions.ops.loop import Loop
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.custom_subgraph_call import skip_nodes_by_condition
 from mo.front.tf.graph_utils import create_op_with_const_inputs

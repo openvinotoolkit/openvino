@@ -8,6 +8,7 @@ import os
 import mxnet as mx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import add_outputs_identity
 from mo.front.mxnet.extractor import common_mxnet_fields
 from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states, create_mxnet_edge

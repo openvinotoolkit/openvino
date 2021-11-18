@@ -3,12 +3,13 @@
 
 import argparse
 import os
-from mo.pipeline.common import get_ir_version
-from mo.back.ie_ir_ver_2.emitter import append_ir_info
-from mo.utils.cli_parser import get_meta_info, parse_transform
 
-from ngraph import Function         # pylint: disable=no-name-in-module,import-error
+from ngraph import Function  # pylint: disable=no-name-in-module,import-error
 from ngraph import function_to_cnn  # pylint: disable=no-name-in-module,import-error
+
+from mo.back.ie_ir_ver_2.emitter import append_ir_info
+from mo.pipeline.common import get_ir_version
+from mo.utils.cli_parser import get_meta_info, parse_transform
 
 
 def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):

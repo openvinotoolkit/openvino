@@ -1,13 +1,12 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.hard_sigmoid import HardSigmoid
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.graph.graph import Node, Graph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Node, Graph
 
 
 class HardSigmoidFrontExtractor(FrontReplacementOp):

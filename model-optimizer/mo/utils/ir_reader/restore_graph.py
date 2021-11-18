@@ -4,8 +4,6 @@
 import logging as log
 from copy import copy
 
-import numpy as np
-
 from extensions.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
 from extensions.back.MarkNodesWithShapeValues import MarkNodesWithShapeValues
 from extensions.back.PackBinaryWeights import PackBinaryWeights

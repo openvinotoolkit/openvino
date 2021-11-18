@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.proposal import ProposalOp
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import MXNetCustomFrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 

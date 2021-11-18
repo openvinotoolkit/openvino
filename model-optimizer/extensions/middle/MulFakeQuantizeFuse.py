@@ -7,6 +7,7 @@ from typing import Dict, List
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.fusing.helpers import get_tensor_in_port, get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern

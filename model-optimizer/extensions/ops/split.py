@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension, shape_delete
+from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension, shape_delete
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs

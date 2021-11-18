@@ -9,6 +9,7 @@ from extensions.ops.gather import Gather
 from extensions.ops.split import Split
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.graph.graph import Node

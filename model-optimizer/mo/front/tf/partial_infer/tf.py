@@ -18,6 +18,7 @@ from mo.front.extractor import node_defs_to_str
 from mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, get_tf_node_port
 from mo.graph.graph import Node
 from mo.utils.graph import node_incoming_neighbourhood, node_outcoming_neighbourhood
+from mo.front.common.partial_infer.utils import mo_array
 
 
 def tf_native_tf_node_infer(node: Node):

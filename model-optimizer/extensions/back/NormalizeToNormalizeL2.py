@@ -8,6 +8,7 @@ from extensions.ops.elementwise import Mul
 from extensions.ops.normalize_l2 import NormalizeL2Op
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_node
 

@@ -6,9 +6,10 @@ from typing import Dict
 import numpy as np
 
 from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Sub, Div, Mul, Negative, Equal
+from extensions.ops.elementwise import Sub, Div, Mul, Equal
 from extensions.ops.select import Select
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, packed_I4
 from mo.ops.const import Const

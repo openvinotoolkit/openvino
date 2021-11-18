@@ -6,6 +6,7 @@ import numpy as np
 from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.ReverseInputChannels import ApplyReverseChannels
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.partial_infer.utils import shape_array, is_fully_defined, int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph, Node

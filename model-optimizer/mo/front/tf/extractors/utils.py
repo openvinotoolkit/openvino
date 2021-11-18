@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.partial_infer.utils import shape_array, dynamic_dimension_value
 from mo.front.tf.common import tf_data_type_decode
 from mo.utils.error import Error

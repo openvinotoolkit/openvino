@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import input_as_const
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.ops.scale_shift import ScaleShiftOp

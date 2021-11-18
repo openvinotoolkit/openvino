@@ -3,8 +3,8 @@
 
 import argparse
 
-from mo.utils.error import Error
 from mo.utils.cli_parser import parse_transform
+from mo.utils.error import Error
 
 
 def get_available_transformations():
@@ -44,7 +44,7 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
 
     from openvino.offline_transformations import GenerateMappingFile, Serialize  # pylint: disable=import-error,no-name-in-module
     from openvino.inference_engine import IENetwork  # pylint: disable=import-error,no-name-in-module
-    from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
+    from ngraph.frontend import FrontEndManager  # pylint: disable=no-name-in-module,import-error
     from ngraph.impl import Function  # pylint: disable=no-name-in-module,import-error
 
     fem = FrontEndManager()

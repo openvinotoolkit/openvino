@@ -3,7 +3,6 @@
 
 import logging as log
 
-from extensions.middle.TensorIteratorCondition import DynamicDecoderConditionMatcher
 from extensions.ops.TensorIterator_ops import TensorIteratorBackEdge, TensorIteratorOutput
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern

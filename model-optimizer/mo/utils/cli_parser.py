@@ -7,8 +7,8 @@ import logging as log
 import os
 import re
 from collections import OrderedDict
-from itertools import zip_longest
 from distutils.util import strtobool
+from itertools import zip_longest
 
 import numpy as np
 

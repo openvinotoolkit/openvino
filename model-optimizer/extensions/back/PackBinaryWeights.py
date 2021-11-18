@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph
 
 

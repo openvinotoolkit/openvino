@@ -1,8 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.activation_ops import SoftPlus
+from mo.front.extractor import FrontExtractorOp
 
 
 class SoftPlusExtractor(FrontExtractorOp):

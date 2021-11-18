@@ -3,10 +3,9 @@
 
 import logging as log
 
-import numpy as np
-
 from extensions.middle.TensorIteratorCondition import looking_for_op_in_list
 from extensions.ops.elementwise import Mul
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph
 from mo.ops.const import Const

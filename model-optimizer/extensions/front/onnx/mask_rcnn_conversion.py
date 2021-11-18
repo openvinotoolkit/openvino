@@ -9,6 +9,7 @@ from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOu
 from extensions.ops.parameter import Parameter
 from extensions.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph

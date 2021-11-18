@@ -5,6 +5,7 @@ import logging as log
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_next_operation
 

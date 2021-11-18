@@ -3,12 +3,11 @@
 
 import math
 
-import numpy as np
-
 from extensions.ops.MatMul import MatMul
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import create_op_with_const_inputs

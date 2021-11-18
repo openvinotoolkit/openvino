@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.common.partial_infer.utils import int64_array, shape_array
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.op import Op

@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from typing import Dict
 
 from extensions.front.mxnet.mx_reshape_to_reshape import MXReshapeToReshape
@@ -10,6 +8,7 @@ from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetec
 from extensions.ops.elementwise import Div, Add, Sub
 from extensions.ops.split import Split
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node

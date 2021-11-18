@@ -9,6 +9,7 @@ from extensions.ops.activation_ops import Tanh, Sigmoid
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.split import Split
 from mo.front.caffe.extractors.utils import input_as_const
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph

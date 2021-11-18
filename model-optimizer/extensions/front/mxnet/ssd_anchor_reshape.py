@@ -1,12 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.front.mxnet.eltwise_scalar_replacers import MulScalarFrontReplacer
 from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
 from extensions.front.split_normalizer import AttributedSplitToSplit
 from extensions.ops.slice_like import SliceLike
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import find_pattern_matches

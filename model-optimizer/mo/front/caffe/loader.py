@@ -3,14 +3,15 @@
 
 import importlib
 import logging as log
+import mmap
 import os
 import sys
 
-import mmap
 import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import add_outputs_identity
 from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError

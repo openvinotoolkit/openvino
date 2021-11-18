@@ -9,6 +9,7 @@ import numpy as np
 from extensions.middle.SliceConverter import ConvertSlice
 from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array, shape_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, Node, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const

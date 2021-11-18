@@ -4,7 +4,6 @@
 import numpy as np
 
 from mo.graph.graph import Graph
-from mo.middle.passes.eliminate import merge_data_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 

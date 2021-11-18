@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.front.eltwise_n import EltwiseNReplacement
 from extensions.ops.elementwise import Mul
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const

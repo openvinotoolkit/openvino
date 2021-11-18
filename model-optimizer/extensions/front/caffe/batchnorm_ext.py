@@ -5,6 +5,7 @@ import numpy as np
 
 from extensions.ops.BatchNormInference import BatchNormInference
 from mo.front.caffe.extractors.utils import embed_input
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 
 

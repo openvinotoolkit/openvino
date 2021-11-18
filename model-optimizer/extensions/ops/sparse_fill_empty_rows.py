@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import dynamic_dimension_value, is_fully_defined
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 

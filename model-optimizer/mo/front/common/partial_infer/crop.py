@@ -3,9 +3,8 @@
 
 import logging as log
 
-import numpy as np
-
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.common.partial_infer.utils import mo_array
 
 
 def crop_infer(node):

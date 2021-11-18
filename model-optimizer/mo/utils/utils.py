@@ -5,7 +5,6 @@ import functools
 import os
 import re
 import warnings
-
 from typing import Callable
 
 import numpy as np

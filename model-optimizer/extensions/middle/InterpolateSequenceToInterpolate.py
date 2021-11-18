@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-import numpy as np
 from typing import List
+
+import numpy as np
 
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array, shape_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern

@@ -166,11 +166,11 @@ def is_fully_defined(value):
 
 
 def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
-    return mo_array(value, dtype=np.int64)
+    return np.array(value, dtype=np.int64)
 
 
 def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
-    return mo_array(value, dtype=np.float32)
+    return np.array(value, dtype=np.float32)
 
 
 def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:

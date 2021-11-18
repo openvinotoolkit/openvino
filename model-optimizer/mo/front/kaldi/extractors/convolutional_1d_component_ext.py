@@ -5,6 +5,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import read_token_value, collect_until_whitespace, find_next_tag
 from mo.front.kaldi.utils import read_learning_info, read_binary_matrix, read_binary_vector

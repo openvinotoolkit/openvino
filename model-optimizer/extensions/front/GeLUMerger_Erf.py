@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-
 from math import sqrt, fabs
 
 from extensions.ops.gelu import GeLUOP

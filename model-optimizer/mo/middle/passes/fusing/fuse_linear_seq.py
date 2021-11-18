@@ -7,6 +7,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Mul, Add
 from mo.front.common.partial_infer.utils import compatible_shapes
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_value_in_port, get_tensor_in_port
 from mo.ops.const import Const

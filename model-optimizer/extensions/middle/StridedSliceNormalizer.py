@@ -6,6 +6,7 @@ import numpy as np
 from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value, \
     is_dynamic_slice
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs

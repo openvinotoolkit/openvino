@@ -6,6 +6,7 @@ import numpy as np
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, rename_nodes
 from mo.ops.const import Const

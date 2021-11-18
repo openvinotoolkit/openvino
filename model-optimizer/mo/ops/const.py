@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.middle.passes.convert_data_type import data_type_str_to_np, np_data_type_to_destination_type, \
     precision_to_destination_type
 from mo.ops.op import Op

@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import sys
 import platform
 import subprocess
+import sys
 
 lib_env_key = "PATH" if platform.system() == "Windows" else "LD_LIBRARY_PATH"
 if lib_env_key not in os.environ:

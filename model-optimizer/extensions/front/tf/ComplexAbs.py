@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from extensions.ops.elementwise import Pow
 from extensions.ops.ReduceOps import ReduceSum
+from extensions.ops.elementwise import Pow
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs

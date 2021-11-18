@@ -10,6 +10,7 @@ from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in
 from extensions.ops.activation_ops import Sigmoid
 from extensions.ops.elementwise import Add, Less, Mul
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
 from mo.ops.const import Const

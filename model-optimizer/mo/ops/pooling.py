@@ -3,14 +3,15 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, shape_array, \
     dynamic_dimension_value, dynamic_dimension
+from mo.front.extractor import bool_to_str
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
-from mo.front.extractor import bool_to_str
 
 
 class PoolingV2(Op):

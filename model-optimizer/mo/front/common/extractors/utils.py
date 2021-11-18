@@ -3,6 +3,8 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
+
 
 def layout_attrs():
     return {

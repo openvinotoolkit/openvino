@@ -6,6 +6,7 @@ from math import log
 import numpy as np
 
 from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 

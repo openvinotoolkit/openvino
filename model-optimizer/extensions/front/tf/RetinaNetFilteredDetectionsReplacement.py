@@ -9,6 +9,7 @@ from extensions.ops.elementwise import Mul, Sub, Pow
 from extensions.ops.gather import Gather
 from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array, float32_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.front.tf.replacement import FrontReplacementFromConfigFileSubGraph

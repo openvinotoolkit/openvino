@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.front.Pack import Pack
 from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
 from extensions.front.eltwise_n import EltwiseNReplacement
@@ -11,6 +9,7 @@ from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.activation_ops import Sigmoid
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.convert_data_type import data_type_str_to_np

@@ -6,6 +6,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.layout import get_batch_dim, get_features_dim
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import add_attrs_props
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph

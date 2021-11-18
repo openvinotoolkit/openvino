@@ -7,6 +7,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.layout import nhwc_to_nchw_permute
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.partial_infer.utils import shape_array, shape_insert
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Graph

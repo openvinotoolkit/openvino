@@ -5,6 +5,7 @@ import numpy as np
 
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array, shape_insert
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const

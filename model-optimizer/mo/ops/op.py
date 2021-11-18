@@ -9,6 +9,7 @@ import networkx as nx
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, strict_compare_tensors
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.utils import class_registration

@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import assign_dims_to_weights, int64_array, compatible_dims, compatible_shapes, \
+from mo.front.common.partial_infer.utils import assign_dims_to_weights, compatible_dims, compatible_shapes, \
     shape_array, is_fully_defined, shape_delete, shape_insert
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph

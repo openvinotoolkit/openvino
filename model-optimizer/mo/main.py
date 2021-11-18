@@ -12,8 +12,6 @@ import traceback
 from collections import OrderedDict
 from copy import deepcopy
 
-import numpy as np
-
 try:
     import openvino_telemetry as tm
 except ImportError:
@@ -43,6 +41,7 @@ from mo.utils.telemetry_utils import send_params_info, send_framework_info
 from mo.utils.version import get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements  # pylint: disable=no-name-in-module
 from mo.utils.telemetry_utils import get_tid
+from mo.front.common.partial_infer.utils import mo_array
 
 # pylint: disable=no-name-in-module,import-error
 from ngraph.frontend import FrontEndManager

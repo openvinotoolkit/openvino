@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+
 from extensions.middle.fusings import Fusing
 from extensions.middle.pass_separator import PostMiddleStart
 from extensions.ops.activation_ops import LeakyReLU

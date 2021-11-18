@@ -10,6 +10,7 @@ from extensions.ops.elementwise import Mul, Add
 from extensions.ops.mvn import MVN
 from extensions.ops.range import Range
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.convert_data_type import data_type_str_to_np

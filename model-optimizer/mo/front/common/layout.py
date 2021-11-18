@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import dynamic_dimension_value
+from mo.front.common.partial_infer.utils import mo_array
 from mo.utils.error import Error
 
 nchw_to_nhwc_permute = mo_array([0, 2, 3, 1], dtype=np.int64)

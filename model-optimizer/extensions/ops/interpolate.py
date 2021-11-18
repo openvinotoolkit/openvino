@@ -6,6 +6,7 @@ import math
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, dynamic_dimension, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs

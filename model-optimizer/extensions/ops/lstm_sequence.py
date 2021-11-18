@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, add_opoutput, Graph
 from mo.ops.op import Op
 

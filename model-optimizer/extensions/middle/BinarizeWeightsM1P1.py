@@ -9,6 +9,7 @@ from extensions.middle.CheckForCycle import CheckForCycle
 from extensions.middle.DeleteNotExecutable import DeleteNotExecutable
 from extensions.ops.elementwise import Mul, Pow
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const

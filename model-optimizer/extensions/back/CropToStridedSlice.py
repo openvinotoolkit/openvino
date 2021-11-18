@@ -7,6 +7,7 @@ from extensions.back.ForceStrictPrecision import ForceStrictPrecision
 from extensions.ops.elementwise import Add
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
 from mo.ops.shape import Shape

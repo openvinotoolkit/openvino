@@ -8,6 +8,7 @@ import numpy as np
 from extensions.front.Pack import Pack
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 from mo.ops.const import Const

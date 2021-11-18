@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.split import Split, VariadicSplit
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs

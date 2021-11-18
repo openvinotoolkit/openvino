@@ -3,8 +3,8 @@
 
 import os
 import re
-import sys
 import subprocess
+import sys
 
 
 def get_version_file_path():

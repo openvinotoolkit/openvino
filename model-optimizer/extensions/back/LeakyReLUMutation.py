@@ -1,11 +1,10 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision
 from extensions.ops.prelu import PReLU
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, rename_node
 from mo.ops.const import Const
 

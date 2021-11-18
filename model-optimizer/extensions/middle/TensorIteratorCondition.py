@@ -8,6 +8,7 @@ import numpy as np
 from extensions.middle.TensorIterator_utils import delete_selects_from
 from extensions.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
 from extensions.ops.identity import Identity
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 
