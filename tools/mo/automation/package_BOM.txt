@@ -528,7 +528,6 @@ openvino/tools/mo/front/tf/einsum_ext.py
 openvino/tools/mo/front/tf/elementwise_ext.py
 openvino/tools/mo/front/tf/embedding_segments_mean_decomposition.py
 openvino/tools/mo/front/tf/embedding_segments_operation_fusing.py
-openvino/tools/mo/front/tf/embedding_segments_sum.py
 openvino/tools/mo/front/tf/expand_dims_ext.py
 openvino/tools/mo/front/tf/extract_image_patches_ext.py
 openvino/tools/mo/front/tf/extractor.py

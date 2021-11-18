@@ -56,8 +56,7 @@ def collect_ops(path: str):
     :param path: Path to Model Optimizer folder
     :return:
     """
-    import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
-    import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
+    import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'], 'openvino.tools.')
     update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
                                  EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase, FFTBase],
                         enabled_transforms=[], disabled_transforms=[])
@@ -70,7 +69,7 @@ def collect_extenders(path: str):
     :return:
     """
     import_by_path(os.path.join(path, 'mo', 'utils', 'ir_reader', 'extenders'),
-                   ['mo', 'utils', 'ir_reader', 'extenders'])
+                   ['mo', 'utils', 'ir_reader', 'extenders'], 'openvino.tools.')
     update_registration(classes=[Extender], enabled_transforms=[], disabled_transforms=[])
 
 
