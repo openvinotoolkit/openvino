@@ -13,6 +13,7 @@ import numpy as np
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision
 from extensions.back.compress_quantized_weights import CompressQuantizeWeights
 from extensions.ops.elementwise import Add
+from extensions.ops.Cast import Cast
 from extensions.ops.fakequantize import FakeQuantize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.replacement import FrontReplacementSubgraph
@@ -20,6 +21,7 @@ from mo.graph.graph import Graph, Node
 from mo.graph.port import Port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
+from mo.middle.passes.eliminate import shape_inference
 from mo.middle.passes.infer import type_infer
 
 from . import editor as ge
@@ -874,3 +876,32 @@ def find_shape_subgraph_endpoints(out_ports: List[Port], visited: set = None) ->
             visited_nodes.add(in_port.node)
         visited.add(in_port)
     return visited_nodes
+
+def remove_converts(graph: Graph):
+    for op in graph.get_op_nodes(type='Convert'):
+        source_op = op.in_port(0).get_source().node
+        if source_op.type == 'Const':
+            # Get access to data node between Const and Convert operations and set Insert_Convert_operation_after
+            # to restore Convert operation
+            source_op.out_node(0)['Insert_Convert_operation_after'] = True
+            source_op['need_shape_inference'] = True
+            # Remove Convert operation from graph
+            source_op.out_port(0).disconnect()
+            op.out_port(0).get_connection().set_source(source_op.out_port(0))
+    shape_inference(graph)
+
+
+def add_removed_converts(graph: Graph):
+    for data_node_name in graph.get_nodes_with_attributes(Insert_Convert_operation_after=True):
+        # Get access to Const node connected to data node
+        data_node = Node(graph, data_node_name)
+        const_op = data_node.in_node(0)
+        assert const_op.data_type == np.float16, "Error when try to insert "
+        convert_op = Cast(graph, {'dst_type': np.float32,
+                                  'name': const_op.name + '/restored_convert',
+                                  'stop_value_propagation': True}).create_node()
+        # Insert Convert operation after Const operation
+        consumer_port = const_op.out_port(0).get_connection().get_destination()
+        const_op.out_port(0).get_connection().set_destination(convert_op.in_port(0))
+        convert_op.out_port(0).connect(consumer_port)
+
