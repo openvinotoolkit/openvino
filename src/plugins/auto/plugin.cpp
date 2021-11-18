@@ -256,8 +256,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
 
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
         AutoContext context;
-        context.needPerfCounters = false;
-        context.modelPriority = 0;
         std::map<std::string, std::string> filterConfig;
         CheckConfig(fullConfig, context, filterConfig);
         // filter the device that supports filter configure

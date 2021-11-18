@@ -47,8 +47,8 @@ struct DeviceInformation {
 };
 
 struct AutoContext {
-    bool           needPerfCounters;
-    unsigned int   modelPriority;
+    bool           needPerfCounters = {false};
+    unsigned int   modelPriority = 0;
 };
 
 struct AutoLoadContext {
