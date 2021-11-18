@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/relu.hpp"
+
 #include "unary_ops.hpp"
 
 using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Relu, ngraph::element::f32>>;

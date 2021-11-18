@@ -277,7 +277,7 @@ TEST(graph_util, clone_function_variables_validate_partially) {
 
     auto read_value = make_shared<opset3::ReadValue>(c_fp16, "var_1");
     auto assign = make_shared<opset3::Assign>(read_value, "var_1");
-    auto res = make_shared<opset3::Result>(read_value);
+    auto res = make_shared<op::v0::Result>(read_value);
     auto f = make_shared<Function>(ResultVector{res}, SinkVector{assign}, ParameterVector{});
     f->validate_nodes_and_infer_types();
     NodeMap nm;
@@ -291,7 +291,7 @@ TEST(graph_util, clone_rt_info) {
     {
         ngraph::PartialShape shape({1, 84});
         ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::opset6::Parameter>(type, shape);
+        auto param = std::make_shared<ngraph::op::v0::Parameter>(type, shape);
         auto matMulWeights = ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {10, 84}, {1});
         auto shapeOf = std::make_shared<ngraph::opset6::ShapeOf>(matMulWeights);
         auto gConst1 = ngraph::opset6::Constant::create(ngraph::element::Type_t::i32, {1}, {1});
@@ -304,7 +304,7 @@ TEST(graph_util, clone_rt_info) {
         auto matMul = std::make_shared<ngraph::opset6::MatMul>(reshape, matMulWeights, false, true);
         auto matMulBias = ngraph::opset6::Constant::create(ngraph::element::Type_t::f32, {1, 10}, {1});
         auto addBias = std::make_shared<ngraph::opset6::Add>(matMul, matMulBias);
-        auto result = std::make_shared<ngraph::opset6::Result>(addBias);
+        auto result = std::make_shared<ngraph::op::v0::Result>(addBias);
 
         ngraph::ParameterVector params = {param};
         ngraph::ResultVector results = {result};

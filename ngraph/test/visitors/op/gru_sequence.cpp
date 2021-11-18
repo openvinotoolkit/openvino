@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, gru_sequence_op) {
-    NodeBuilder::get_ops().register_factory<opset5::GRUSequence>();
+    NodeBuilder::get_ops().register_factory<op::v5::GRUSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;
@@ -41,7 +41,7 @@ TEST(attributes, gru_sequence_op) {
     const std::vector<std::string> activations = {"tanh", "sigmoid"};
     const float clip_threshold = 0.5f;
 
-    const auto gru_sequence = make_shared<opset5::GRUSequence>(X,
+    const auto gru_sequence = make_shared<op::v5::GRUSequence>(X,
                                                                initial_hidden_state,
                                                                sequence_lengths,
                                                                W,
@@ -54,7 +54,7 @@ TEST(attributes, gru_sequence_op) {
                                                                activations_beta,
                                                                clip_threshold);
     NodeBuilder builder(gru_sequence);
-    auto g_gru_sequence = ov::as_type_ptr<opset5::GRUSequence>(builder.create());
+    auto g_gru_sequence = ov::as_type_ptr<op::v5::GRUSequence>(builder.create());
 
     EXPECT_EQ(g_gru_sequence->get_hidden_size(), gru_sequence->get_hidden_size());
     EXPECT_EQ(g_gru_sequence->get_activations(), gru_sequence->get_activations());

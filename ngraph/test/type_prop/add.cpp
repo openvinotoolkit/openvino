@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/add.hpp"
+
 #include "arithmetic_ops.hpp"
 
 using Type = ::testing::Types<ngraph::op::v1::Add>;

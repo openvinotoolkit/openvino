@@ -41,7 +41,7 @@ std::shared_ptr<ov::Function> create_complex_function(size_t wide = 50) {
         return relu->output(0);
     };
 
-    auto parameter = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
     std::queue<ov::Output<ov::Node>> nodes;
     {
         auto outputs = split_subgraph(parameter->output(0));
@@ -69,14 +69,14 @@ std::shared_ptr<ov::Function> create_complex_function(size_t wide = 50) {
 
         nodes.push(out);
     }
-    auto result = std::make_shared<ov::opset8::Result>(nodes.front());
+    auto result = std::make_shared<ov::op::v0::Result>(nodes.front());
     return std::make_shared<Function>(ov::ResultVector{result}, ov::ParameterVector{parameter});
 }
 
 TEST(threading, get_friendly_name) {
     const size_t number = 20;
     Shape shape{};
-    auto a = make_shared<ov::opset8::Parameter>(element::i32, shape);
+    auto a = make_shared<ov::op::v0::Parameter>(element::i32, shape);
     auto iconst0 = ov::opset8::Constant::create(element::i32, Shape{}, {0});
     auto add_a1 = make_shared<ov::opset8::Add>(a, iconst0);
     auto add_a2 = make_shared<ov::opset8::Add>(add_a1, iconst0);
@@ -162,7 +162,7 @@ TEST(threading, clone_with_new_inputs) {
                     inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
                 } else {
                     inputsForShapeInfer.push_back(
-                        std::make_shared<ov::opset8::Parameter>(op->get_input_element_type(i),
+                        std::make_shared<ov::op::v0::Parameter>(op->get_input_element_type(i),
                                                                 op->get_input_partial_shape(i)));
                 }
             }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/sigmoid.hpp"
+
 #include "unary_ops.hpp"
 
 using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Sigmoid, ngraph::element::f32>>;

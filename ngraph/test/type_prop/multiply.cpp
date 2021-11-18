@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "arithmetic_ops.hpp"
-
 #include "ngraph/op/multiply.hpp"
+
+#include "arithmetic_ops.hpp"
 
 using Type = ::testing::Types<ngraph::op::v1::Multiply>;
 

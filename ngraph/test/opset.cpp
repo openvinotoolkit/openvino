@@ -17,7 +17,7 @@
 #include "openvino/opsets/opset8.hpp"
 
 TEST(opset, opset1) {
-    auto op = std::make_shared<ov::opset1::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
@@ -33,7 +33,7 @@ TEST(opset, opset1_dump) {
 }
 
 TEST(opset, opset2) {
-    auto op = std::make_shared<ov::opset2::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
@@ -49,7 +49,7 @@ TEST(opset, opset2_dump) {
 }
 
 TEST(opset, opset3) {
-    auto op = std::make_shared<ov::opset3::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
@@ -65,7 +65,7 @@ TEST(opset, opset3_dump) {
 }
 
 TEST(opset, opset4) {
-    auto op = std::make_shared<ov::opset4::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
@@ -81,7 +81,7 @@ TEST(opset, opset4_dump) {
 }
 
 TEST(opset, opset5) {
-    auto op = std::make_shared<ov::opset5::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
@@ -97,7 +97,7 @@ TEST(opset, opset5_dump) {
 }
 
 TEST(opset, opset6) {
-    auto op = std::make_shared<ov::opset6::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
@@ -113,7 +113,7 @@ TEST(opset, opset6_dump) {
 }
 
 TEST(opset, opset7) {
-    auto op = std::make_shared<ov::opset7::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }
@@ -129,7 +129,7 @@ TEST(opset, opset7_dump) {
 }
 
 TEST(opset, opset8) {
-    auto op = std::make_shared<ov::opset8::Parameter>();
+    auto op = std::make_shared<ov::op::v0::Parameter>();
     ASSERT_NE(nullptr, op);
     EXPECT_TRUE(ov::op::util::is_parameter(op));
 }

@@ -25,9 +25,9 @@ protected:
 
 namespace {
 std::shared_ptr<ngraph::Function> CreateTestFunction(const std::string& name, const ngraph::PartialShape& ps) {
-    const auto param = std::make_shared<ov::opset8::Parameter>(ov::element::f16, ps);
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ps);
     const auto convert = std::make_shared<ov::opset8::Convert>(param, ov::element::f32);
-    const auto result = std::make_shared<ov::opset8::Result>(convert);
+    const auto result = std::make_shared<ov::op::v0::Result>(convert);
     return std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{param}, name);
 }
 }  // namespace

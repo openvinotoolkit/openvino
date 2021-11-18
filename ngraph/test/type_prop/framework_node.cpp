@@ -12,7 +12,7 @@
 using namespace std;
 
 TEST(type_prop, framework_node) {
-    auto param = std::make_shared<ov::opset8::Parameter>(ov::element::i64, ov::Shape{1, 64});
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 64});
     auto f_node = std::make_shared<ov::op::util::FrameworkNode>(ov::OutputVector{param});
     f_node->set_output_type(0, ov::element::i64, ov::Shape{1, 64});
 

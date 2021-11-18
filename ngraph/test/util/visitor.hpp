@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/multi_subgraph_base.hpp"
+#include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
@@ -379,16 +381,7 @@ public:
     AttributeVisitor& get_node_loader() {
         return *this;
     }
-    static FactoryRegistry<Node>& get_ops() {
-        static FactoryRegistry<Node> registry = [] {
-            FactoryRegistry<Node> registry;
-#define NGRAPH_OP(NAME, NAMESPACE, VERSION) registry.register_factory<NAMESPACE::NAME>();
-#include "op_version_tbl.hpp"
-#undef NGRAPH_OP
-            return registry;
-        }();
-        return registry;
-    }
+    static FactoryRegistry<Node>& get_ops();
 
 protected:
     Node::type_info_t m_node_type_info;

@@ -342,16 +342,16 @@ TEST(copy, tanh) {
 
 TEST(copy, loop) {
     // That which we iterate over
-    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
-    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto X = make_shared<op::v0::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<op::v0::Parameter>(element::f32, Shape{32, 1, 10});
+    auto M = make_shared<op::v0::Parameter>(element::f32, Shape{32, 1, 10});
 
     // Set up the cell body, a function from (Xi, Yi) -> (Zo)
     // Body parameters
-    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{});
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+    auto current_iteration = make_shared<op::v0::Parameter>(element::i64, Shape{});
+    auto Xi = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
 
     auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
@@ -378,9 +378,9 @@ TEST(copy, loop) {
     auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
     loop->validate_and_infer_types();
     // That which we iterate over
-    auto X_new = make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5});
-    auto Y_new = make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5});
-    auto M_new = make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5});
+    auto X_new = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 5});
+    auto Y_new = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 5});
+    auto M_new = make_shared<op::v0::Parameter>(element::f32, Shape{3, 2, 5});
     OutputVector new_args = {trip_count, exec_condition, X_new, Y_new, M_new};
     auto loop_copy = loop->clone_with_new_inputs(new_args);
 

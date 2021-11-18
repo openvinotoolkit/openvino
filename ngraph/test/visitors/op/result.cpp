@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/result.hpp"
+
 #include "unary_ops.hpp"
 
 using Types = ::testing::Types<UnaryOperatorType<ngraph::op::v0::Result, ngraph::element::f32>,

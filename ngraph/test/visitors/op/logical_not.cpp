@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/not.hpp"
+
 #include "unary_ops.hpp"
 
 using Type = ::testing::Types<UnaryOperatorType<ngraph::op::v1::LogicalNot, ngraph::element::boolean>>;

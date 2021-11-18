@@ -17,7 +17,7 @@ using ngraph::test::NodeBuilder;
 using ngraph::test::ValueMap;
 
 TEST(attributes, rnn_sequence_op) {
-    NodeBuilder::get_ops().register_factory<opset5::RNNSequence>();
+    NodeBuilder::get_ops().register_factory<op::v5::RNNSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;
@@ -39,7 +39,7 @@ TEST(attributes, rnn_sequence_op) {
     const std::vector<std::string> activations = {"tanh", "sigmoid", "tanh"};
     const float clip_threshold = 0.5f;
 
-    const auto rnn_sequence = make_shared<opset5::RNNSequence>(X,
+    const auto rnn_sequence = make_shared<op::v5::RNNSequence>(X,
                                                                initial_hidden_state,
                                                                sequence_lengths,
                                                                W,
@@ -52,7 +52,7 @@ TEST(attributes, rnn_sequence_op) {
                                                                activations_beta,
                                                                clip_threshold);
     NodeBuilder builder(rnn_sequence);
-    auto g_rnn_sequence = ov::as_type_ptr<opset5::RNNSequence>(builder.create());
+    auto g_rnn_sequence = ov::as_type_ptr<op::v5::RNNSequence>(builder.create());
 
     EXPECT_EQ(g_rnn_sequence->get_hidden_size(), rnn_sequence->get_hidden_size());
     EXPECT_EQ(g_rnn_sequence->get_activations(), rnn_sequence->get_activations());

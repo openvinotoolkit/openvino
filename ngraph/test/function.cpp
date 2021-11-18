@@ -13,7 +13,7 @@
 #include "openvino/opsets/opset8.hpp"
 
 TEST(function, get_input_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -30,7 +30,7 @@ TEST(function, get_input_by_tensor_name) {
 }
 
 TEST(function, get_output_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -38,7 +38,7 @@ TEST(function, get_output_by_tensor_name) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names(out_names);
-    auto result = std::make_shared<ov::opset8::Result>(relu);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -52,7 +52,7 @@ TEST(function, get_output_by_tensor_name) {
 }
 
 TEST(function, get_input_by_tensor_index_without_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
@@ -68,12 +68,12 @@ TEST(function, get_input_by_tensor_index_without_name) {
 }
 
 TEST(function, get_output_by_tensor_index_without_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
-    auto result = std::make_shared<ov::opset8::Result>(relu);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -87,7 +87,7 @@ TEST(function, get_output_by_tensor_index_without_name) {
 }
 
 TEST(function, get_incorrect_output_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -101,7 +101,7 @@ TEST(function, get_incorrect_output_by_tensor_name) {
 }
 
 TEST(function, get_incorrect_input_by_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -115,7 +115,7 @@ TEST(function, get_incorrect_input_by_tensor_name) {
 }
 
 TEST(function, get_input_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -132,14 +132,14 @@ TEST(function, get_input_by_index) {
 }
 
 TEST(function, get_output_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    auto result = std::make_shared<ov::opset8::Result>(relu);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -150,7 +150,7 @@ TEST(function, get_output_by_index) {
 }
 
 TEST(function, get_input_without_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -167,14 +167,14 @@ TEST(function, get_input_without_index) {
 }
 
 TEST(function, get_output_without_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    auto result = std::make_shared<ov::opset8::Result>(relu);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -185,7 +185,7 @@ TEST(function, get_output_without_index) {
 }
 
 TEST(function, get_incorrect_output_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -199,7 +199,7 @@ TEST(function, get_incorrect_output_by_index) {
 }
 
 TEST(function, get_incorrect_input_by_index) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -213,23 +213,23 @@ TEST(function, get_incorrect_input_by_index) {
 }
 
 TEST(function, incorrect_multiple_inputs_outputs_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    auto arg1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg1->set_friendly_name("data1");
     arg1->get_output_tensor(0).set_names({"input2", "data1"});
 
     auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
     concat->set_friendly_name("concat");
     concat->get_output_tensor(0).set_names({"concat_t"});
-    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+    auto result1 = std::make_shared<ov::op::v0::Result>(concat);
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    auto result2 = std::make_shared<ov::opset8::Result>(relu);
+    auto result2 = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
 
     f->validate_nodes_and_infer_types();
@@ -239,23 +239,23 @@ TEST(function, incorrect_multiple_inputs_outputs_function) {
 }
 
 TEST(function, multiple_inputs_outputs_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    auto arg1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg1->set_friendly_name("data1");
     arg1->get_output_tensor(0).set_names({"input2", "data1"});
 
     auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
     concat->set_friendly_name("concat");
     concat->get_output_tensor(0).set_names({"concat_t"});
-    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+    auto result1 = std::make_shared<ov::op::v0::Result>(concat);
 
     auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
     shape_of->set_friendly_name("shape_of");
     shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
-    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto result2 = std::make_shared<ov::op::v0::Result>(shape_of);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
 
     f->validate_nodes_and_infer_types();
@@ -288,7 +288,7 @@ TEST(function, multiple_inputs_outputs_function) {
 }
 
 TEST(function, get_input_by_tensor_name_from_const) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -305,7 +305,7 @@ TEST(function, get_input_by_tensor_name_from_const) {
 }
 
 TEST(function, get_output_by_tensor_name_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -313,7 +313,7 @@ TEST(function, get_output_by_tensor_name_from_const_function) {
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names(out_names);
-    auto result = std::make_shared<ov::opset8::Result>(relu);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<const ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -327,7 +327,7 @@ TEST(function, get_output_by_tensor_name_from_const_function) {
 }
 
 TEST(function, get_incorrect_output_by_tensor_name_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -341,7 +341,7 @@ TEST(function, get_incorrect_output_by_tensor_name_from_const_function) {
 }
 
 TEST(function, get_incorrect_input_by_tensor_name_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -355,7 +355,7 @@ TEST(function, get_incorrect_input_by_tensor_name_from_const_function) {
 }
 
 TEST(function, get_input_by_index_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -372,14 +372,14 @@ TEST(function, get_input_by_index_from_const_function) {
 }
 
 TEST(function, get_output_by_index_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    auto result = std::make_shared<ov::opset8::Result>(relu);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<const ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -390,7 +390,7 @@ TEST(function, get_output_by_index_from_const_function) {
 }
 
 TEST(function, get_input_without_index_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -407,14 +407,14 @@ TEST(function, get_input_without_index_from_const_function) {
 }
 
 TEST(function, get_output_without_index_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    auto result = std::make_shared<ov::opset8::Result>(relu);
+    auto result = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<const ov::Function>(result, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -425,7 +425,7 @@ TEST(function, get_output_without_index_from_const_function) {
 }
 
 TEST(function, get_incorrect_output_by_index_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -439,7 +439,7 @@ TEST(function, get_incorrect_output_by_index_from_const_function) {
 }
 
 TEST(function, get_incorrect_input_by_index_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -453,23 +453,23 @@ TEST(function, get_incorrect_input_by_index_from_const_function) {
 }
 
 TEST(function, incorrect_multiple_inputs_outputs_function_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    auto arg1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg1->set_friendly_name("data1");
     arg1->get_output_tensor(0).set_names({"input2", "data1"});
 
     auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
     concat->set_friendly_name("concat");
     concat->get_output_tensor(0).set_names({"concat_t"});
-    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+    auto result1 = std::make_shared<ov::op::v0::Result>(concat);
 
     auto relu = std::make_shared<ov::opset8::Relu>(arg0);
     relu->set_friendly_name("relu");
     relu->get_output_tensor(0).set_names({"relu_t", "identity"});
-    auto result2 = std::make_shared<ov::opset8::Result>(relu);
+    auto result2 = std::make_shared<ov::op::v0::Result>(relu);
     auto f = std::make_shared<const ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
 
     f->validate_nodes_and_infer_types();
@@ -479,23 +479,23 @@ TEST(function, incorrect_multiple_inputs_outputs_function_from_const_function) {
 }
 
 TEST(function, multiple_inputs_outputs_function_from_const_function) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
+    auto arg1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3, 3});
     arg1->set_friendly_name("data1");
     arg1->get_output_tensor(0).set_names({"input2", "data1"});
 
     auto concat = std::make_shared<ov::opset8::Concat>(ov::NodeVector{arg0, arg1}, 1);
     concat->set_friendly_name("concat");
     concat->get_output_tensor(0).set_names({"concat_t"});
-    auto result1 = std::make_shared<ov::opset8::Result>(concat);
+    auto result1 = std::make_shared<ov::op::v0::Result>(concat);
 
     auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
     shape_of->set_friendly_name("shape_of");
     shape_of->get_output_tensor(0).set_names({"shape_of_t", "identity"});
-    auto result2 = std::make_shared<ov::opset8::Result>(shape_of);
+    auto result2 = std::make_shared<ov::op::v0::Result>(shape_of);
     auto f = std::make_shared<const ov::Function>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
 
     f->validate_nodes_and_infer_types();
@@ -814,7 +814,7 @@ TEST(function_reshape, ReshapeBatchReLUByPort) {
 }
 
 TEST(function, add_output_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -838,7 +838,7 @@ TEST(function, add_output_tensor_name) {
 }
 
 TEST(function, add_output_op_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -864,7 +864,7 @@ TEST(function, add_output_op_name) {
 }
 
 TEST(function, add_output_port) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -886,7 +886,7 @@ TEST(function, add_output_port) {
 }
 
 TEST(function, add_output_incorrect_tensor_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -907,7 +907,7 @@ TEST(function, add_output_incorrect_tensor_name) {
 }
 
 TEST(function, add_output_op_incorrect_name) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -928,7 +928,7 @@ TEST(function, add_output_op_incorrect_name) {
 }
 
 TEST(function, add_output_op_name_incorrect_idx) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -949,7 +949,7 @@ TEST(function, add_output_op_name_incorrect_idx) {
 }
 
 TEST(function, add_output_port_to_result) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input"});
 
@@ -960,7 +960,7 @@ TEST(function, add_output_port_to_result) {
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
     relu2->set_friendly_name("relu2");
     relu2->get_output_tensor(0).set_names({"relu_t2"});
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
     f->validate_nodes_and_infer_types();
 
@@ -983,10 +983,10 @@ bool all_ops_have_same_info(const std::shared_ptr<ov::Function>& f) {
 }  // namespace
 
 TEST(function, topological_sort_caching_basic) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1011,10 +1011,10 @@ TEST(function, topological_sort_caching_basic) {
 }
 
 TEST(function, topological_sort_caching_replace_node) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1036,10 +1036,10 @@ TEST(function, topological_sort_caching_replace_node) {
 }
 
 TEST(function, topological_sort_caching_replace_source_output) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1056,10 +1056,10 @@ TEST(function, topological_sort_caching_replace_source_output) {
 }
 
 TEST(function, topological_sort_caching_dangling_node) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1074,10 +1074,10 @@ TEST(function, topological_sort_caching_dangling_node) {
 }
 
 TEST(function, topological_sort_caching_replace_output) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1094,10 +1094,10 @@ TEST(function, topological_sort_caching_replace_output) {
 }
 
 TEST(function, topological_sort_caching_set_argument) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1113,10 +1113,10 @@ TEST(function, topological_sort_caching_set_argument) {
 }
 
 TEST(function, topological_sort_caching_set_arguments) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1132,10 +1132,10 @@ TEST(function, topological_sort_caching_set_arguments) {
 }
 
 TEST(function, topological_sort_caching_add_cf) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1151,10 +1151,10 @@ TEST(function, topological_sort_caching_add_cf) {
 }
 
 TEST(function, topological_sort_caching_result_parameter_sink) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
     auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
-    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    auto result = std::make_shared<ov::op::v0::Result>(relu2);
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result}, ov::ParameterVector{arg0});
 
     auto shared_info = ov::FunctionAccessor(f).get_shared_info();
@@ -1167,14 +1167,14 @@ TEST(function, topological_sort_caching_result_parameter_sink) {
         ASSERT_TRUE(all_ops_have_same_info(f));
     };
 
-    auto result2 = std::make_shared<ov::opset8::Result>(relu2);
+    auto result2 = std::make_shared<ov::op::v0::Result>(relu2);
     f->add_results({result2});
     check_caching_status(5);
 
     f->remove_result(result2);
     check_caching_status(4);
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>();
+    auto arg1 = std::make_shared<ov::op::v0::Parameter>();
     f->add_parameters({arg1});
     check_caching_status(5);
 
@@ -1190,13 +1190,13 @@ TEST(function, topological_sort_caching_result_parameter_sink) {
 }
 
 TEST(function, topological_sort_caching_multiple_components) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
-    auto result0 = std::make_shared<ov::opset8::Result>(relu0);
+    auto result0 = std::make_shared<ov::op::v0::Result>(relu0);
 
-    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg1);
-    auto result1 = std::make_shared<ov::opset8::Result>(relu1);
+    auto result1 = std::make_shared<ov::op::v0::Result>(relu1);
 
     auto f = std::make_shared<ov::Function>(ov::ResultVector{result0, result1}, ov::ParameterVector{arg0, arg1});
 
@@ -1206,9 +1206,9 @@ TEST(function, topological_sort_caching_multiple_components) {
 }
 
 TEST(function, topological_sort_caching_shared_nodes) {
-    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
-    auto result0 = std::make_shared<ov::opset8::Result>(relu0);
+    auto result0 = std::make_shared<ov::op::v0::Result>(relu0);
 
     auto f1 = std::make_shared<ov::Function>(ov::ResultVector{result0}, ov::ParameterVector{arg0});
     auto f2 = std::make_shared<ov::Function>(ov::ResultVector{result0}, ov::ParameterVector{arg0});

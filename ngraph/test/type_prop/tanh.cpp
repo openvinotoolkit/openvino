@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/tanh.hpp"
+
 #include "unary_ops.hpp"
 
 using Type = ::testing::Types<ngraph::op::Tanh>;

@@ -3193,8 +3193,8 @@ TEST(constant_folding, constant_loop) {
     auto Y = make_shared<opset5::Constant>(element::f32, Shape{1, 1, 3}, std::vector<int64_t>{1, 2, 3});
 
     // Body parameters
-    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+    auto Xi = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
     auto body_condition = std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
 
     auto trip_count = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{1}, 2);
@@ -3212,8 +3212,8 @@ TEST(constant_folding, constant_loop) {
     auto out0 = loop->get_iter_value(sum, -1);
     auto out1 = loop->get_concatenated_slices(sum, 0, 1, 1, -1, 0);
 
-    auto result0 = make_shared<opset5::Result>(out0);
-    auto result1 = make_shared<opset5::Result>(out1);
+    auto result0 = make_shared<op::v0::Result>(out0);
+    auto result1 = make_shared<op::v0::Result>(out1);
 
     auto results = ResultVector{result0, result1};
     auto f = make_shared<Function>(results, ParameterVector{});

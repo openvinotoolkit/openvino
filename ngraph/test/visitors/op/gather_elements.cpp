@@ -15,8 +15,8 @@ using ngraph::test::ValueMap;
 
 TEST(attributes, gather_elements_op) {
     NodeBuilder::get_ops().register_factory<opset6::GatherElements>();
-    auto arg1 = make_shared<opset1::Parameter>(element::i32, PartialShape{3});
-    auto arg2 = make_shared<opset1::Parameter>(element::i32, PartialShape{7});
+    auto arg1 = make_shared<op::v0::Parameter>(element::i32, PartialShape{3});
+    auto arg2 = make_shared<op::v0::Parameter>(element::i32, PartialShape{7});
     int64_t axis = 0;
 
     auto gather_el = make_shared<opset6::GatherElements>(arg1, arg2, axis);
