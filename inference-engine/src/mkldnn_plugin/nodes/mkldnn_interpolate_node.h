@@ -97,6 +97,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool canBeInPlace() const override {
         return false;
     }
@@ -104,6 +105,8 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
+    bool needShapeInfer() const override;
+    std::vector<VectorDims> shapeInfer() const override;
     void prepareParams() override;
 
 private:
@@ -127,10 +130,14 @@ private:
             virtual ~InterpolateExecutor() = default;
 
         private:
-            void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
-            void buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, InterpolateLayoutType layout);
-            void buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, int kernel_width, bool antialias);
-            void buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff, InterpolateLayoutType layout);
+            void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+                            InterpolateLayoutType layout, InterpolateNearestMode nearestMode);
+            void buildTblLinearOnnx(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
+                                    InterpolateLayoutType layout);
+            void buildTblLinear(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, int kernel_width,
+                                bool antialias);
+            void buildTblCubic(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales, float cubicCoeff,
+                               InterpolateLayoutType layout);
 
             float coordTransToInput(int outCoord, float scale, int inShape, int outShape) const;
             int nearestRound(float origin, bool isDownsample, InterpolateNearestMode nearestMode) const;
@@ -201,7 +208,8 @@ private:
                                    InterpolateNearestMode nearestMode,
                                    bool _antialias,
                                    float cubeCoeff) : dataScales(_dataScales), antialias(_antialias),
-                InterpolateExecutor(_mode, srcDims, dstDims, inPrc, outPrc, layout, _coordTransMode, nearestMode, padBegin, padEnd, _dataScales, antialias, cubeCoeff) {}
+                InterpolateExecutor(_mode, srcDims, dstDims, inPrc, outPrc, layout, _coordTransMode, nearestMode,
+                                    padBegin, padEnd, _dataScales, antialias, cubeCoeff) {}
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
 
@@ -219,7 +227,7 @@ private:
         private:
             bool antialias;
             std::vector<float> dataScales;
-    };   
+    };
 
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
 
@@ -249,6 +257,9 @@ private:
     std::vector<int> axes;
 
     mkldnn::primitive_attr attr;
+
+    mutable std::vector<float> scalesShapeInfer;
+    mutable std::vector<int32_t> sizesShapeInfer;
 
     std::string errorPrefix;
 };

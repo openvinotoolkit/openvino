@@ -25,6 +25,9 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <utils/shape_inference/static_shape.hpp>
+#include <utils/shape_inference/shape_inference.hpp>
+#include <ie_ngraph_utils.hpp>
 #include "utils/cpu_utils.hpp"
 
 using namespace mkldnn;
@@ -1920,6 +1923,76 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+bool MKLDNNInterpolateNode::needShapeInfer() const {
+    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+        if (scalesShapeInfer.empty()) {
+            return true;
+        }
+        static constexpr float epsilon = 1.0e-6f;
+        const float *scales = reinterpret_cast<const float *>(getParentEdgesAtPort(SCALES_ID)[0]->getMemory().GetPtr());
+        for (size_t i = 0; i < scalesShapeInfer.size(); i++) {
+            if (std::abs(scalesShapeInfer[i] - scales[i]) > epsilon) {
+                return true;
+            }
+        }
+    } else {
+        if (sizesShapeInfer.empty()) {
+            return true;
+        }
+        const int32_t *sizes = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetPtr());
+        for (size_t i = 0; i < sizesShapeInfer.size(); i++) {
+            if (sizes[i] != sizesShapeInfer[i]) {
+                return true;
+            }
+        }
+    }
+    return MKLDNNNode::inputShapesModified();
+}
+
+std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
+    std::vector<ov::StaticShape> input_shapes = {
+            getParentEdgesAtPort(DATA_ID)[0]->getMemory().GetShape().getStaticDims(),
+            getParentEdgesAtPort(TARGET_SHAPE_ID)[0]->getMemory().GetShape().getStaticDims(),
+            getParentEdgesAtPort(SCALES_ID)[0]->getMemory().GetShape().getStaticDims()
+    };
+
+    const size_t port = shapeCalcMode == InterpolateShapeCalcMode::sizes ? TARGET_SHAPE_ID : SCALES_ID;
+    const auto &memory = getParentEdgesAtPort(port)[0]->getMemory();
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> input_values = {
+            {port, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
+                                                                 memory.getStaticDims(), memory.GetPtr())}
+    };
+
+    if (getParentEdges().size() > AXES_ID) {
+        const auto &memory = getParentEdgesAtPort(AXES_ID)[0]->getMemory();
+        input_shapes.push_back(memory.getStaticDims());
+        input_values.insert({3, std::make_shared<ngraph::runtime::HostTensor>(InferenceEngine::details::convertPrecision(memory.getDesc().getPrecision()),
+                                                                              memory.getStaticDims(), memory.GetPtr())});
+    }
+
+    std::vector<ov::StaticShape> output_shapes;
+    shape_inference(opToShapeInfer.get(), input_shapes, output_shapes, input_values);
+
+    std::vector<VectorDims> result(output_shapes.size());
+    std::transform(output_shapes.begin(), output_shapes.end(), result.begin(), [](const ov::StaticShape& s){ return s.to_shape(); });
+
+    if (shapeCalcMode == InterpolateShapeCalcMode::scales) {
+        scalesShapeInfer.resize(memory.getDesc().getShape().getElementsCount());
+        const float *scales = reinterpret_cast<const float *>(memory.GetPtr());
+        for (size_t i = 0; i < scalesShapeInfer.size(); i++) {
+            scalesShapeInfer[i] = scales[i];
+        }
+    } else {
+        sizesShapeInfer.resize(memory.getDesc().getShape().getElementsCount());
+        const int32_t *sizes = reinterpret_cast<const int32_t *>(memory.GetPtr());
+        for (size_t i = 0; i < sizesShapeInfer.size(); i++) {
+            sizesShapeInfer[i] = sizes[i];
+        }
+    }
+
+    return result;
+}
+
 void MKLDNNInterpolateNode::prepareParams() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
@@ -2148,7 +2221,8 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C,
+                                                                int ID, int IH, int IW, int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
@@ -2201,7 +2275,8 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNCGathered(const uint8_t *i
     }  // batch end
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+                                                             int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
@@ -2230,7 +2305,8 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::NNPlanar(const uint8_t *in_p
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C,
+                                                                     int ID, int IH, int IW, int OD, int OH, int OW) {
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3, EndTopLeft:4,   EndTopRight:5,   EndBottomLeft:6,   EndBottomRight:7
     // weight: Left:0, ritht:1, top:2, bottom:3, front:4, end:5
     int *index = static_cast<int*>(&indexTable[0]);
@@ -2252,7 +2328,8 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxPlanar(const uint8
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+                                                                        int OD, int OH, int OW) {
     // left:OW right:OW Top:OH Bottom:OH Front:OD End:OD
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
@@ -2793,7 +2870,8 @@ void MKLDNNInterpolateNode::InterpolateExecutor::buildTblCubic(const SizeVector&
     }
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+                                                          int OD, int OH, int OW) {
     int *index_d = static_cast<int*>(&indexTable[0]);
     int *index_h = static_cast<int*>(&indexTable[OD]);
     int *index_w = static_cast<int*>(&indexTable[OD + OH]);
@@ -2814,7 +2892,8 @@ void MKLDNNInterpolateNode::InterpolateRefExecutor::NNRef(const uint8_t *in_ptr_
     });
 }
 
-void MKLDNNInterpolateNode::InterpolateRefExecutor::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW) {
+void MKLDNNInterpolateNode::InterpolateRefExecutor::linearOnnxRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW,
+                                                                  int OD, int OH, int OW) {
     std::vector<int*> indexPtr(MAX_INPUT_INTERPOLATE, 0);
     std::vector<float*> weightPtr(MAX_INPUT_INTERPOLATE, 0);
     // FrontTopLeft:0, FrontTopRight:1, FrontBottomLeft:2, FrontBottomRight:3,
@@ -3250,7 +3329,7 @@ void MKLDNNInterpolateNode::InterpolateJitExecutor::exec(const uint8_t *in_ptr_,
 }
 
 void MKLDNNInterpolateNode::InterpolateRefExecutor::exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW,
-                                                         int OD, int OH, int OW) {    
+                                                         int OD, int OH, int OW) {
     switch (mode) {
         case InterpolateMode::nearest: {
             NNRef(in_ptr_, out_ptr_, N, C, ID, IH, IW, OD, OH, OW);
