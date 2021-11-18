@@ -70,7 +70,7 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
+        selectedType = makeSelectedTypeStr("unknown", inType);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
@@ -101,8 +101,7 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
 
     run();
 
-    // TODO: need to uncomment when this method will be updated
-    // CheckPluginRelatedResults(executableNetwork, "NormalizeL2");
+    CheckPluginRelatedResults(executableNetwork, "NormalizeL2");
 }
 
 namespace {
@@ -142,7 +141,7 @@ const std::vector<ov::Shape> inputShapeStatic_2D = {
 
 const std::vector<InputShape> inputShapeDynamic_2D = {
         {{-1, -1},
-        {{2, 3}, {2, 10}, {5, 5}}},
+        {{2, 3}, {2, 3}, {5, 5}}},
 
         {{5, -1},
         {{5, 12}, {5, 7}, {5, 16}}},
@@ -192,7 +191,7 @@ const std::vector<InputShape> inputShapeDynamic_3D = {
          {{1, 5, 5}, {2, 5, 3}, {5, 5, 5}}},
 
         {{{1, 5}, {5, 10}, {5, 10}},
-         {{3, 8, 8}, {5, 5, 10}, {1, 5, 5}, {5, 10, 10}}}
+         {{3, 8, 8}, {5, 5, 10}, {5, 5, 10}, {5, 10, 10}}}
 };
 
 const std::vector<std::vector<int64_t>> axes_3D = {
@@ -236,7 +235,7 @@ const std::vector<InputShape> inputShapeDynamic_4D = {
          {{2, 3, 4, 5}, {2, 5, 5, 5}, {1, 16, 2, 4}}},
 
         {{-1, 5, -1, -1},
-        {{1, 5, 5, 8}, {1, 5, 3, 4}, {3, 5, 8, 8}}},
+        {{1, 5, 5, 8}, {1, 5, 5, 8}, {3, 5, 8, 8}}},
 
         {{{1, 5}, {5, 16}, {5, 10}, {5, 10}},
         {{3, 8, 8, 8}, {5, 7, 10, 10}, {1, 16, 7, 9}, {5, 9, 10, 5}}}

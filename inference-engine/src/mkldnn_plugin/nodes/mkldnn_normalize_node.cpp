@@ -779,17 +779,7 @@ void MKLDNNNormalizeL2Node::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.push_back({config, impl_type});
     };
 
-    impl_desc_type impl_type = impl_desc_type::ref;
-    if (mayiuse(cpu::x64::avx512_common)) {
-        impl_type = impl_desc_type::jit_avx512;
-        attrs.blk_size = 16;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-        attrs.blk_size = 8;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-        attrs.blk_size = 4;
-    }
+    impl_desc_type impl_type = impl_desc_type::unknown;
 
     // only plain layout support when w/o sse42
     if (getInputShapeAtPort(DATA).getRank() == 4 && !attrs.cornerCase) {
@@ -929,14 +919,17 @@ struct MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2N
         attrs.jcp.w = (dims_size > 3) ? attrs.dims[3] : 1lu;
 
         if (mayiuse(cpu::x64::avx512_common)) {
+            attrs.blk_size = 16;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(attrs.jcp));
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(attrs.jcp, *attrs.kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
+            attrs.blk_size = 8;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(attrs.jcp));
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(attrs.jcp, *attrs.kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
+            attrs.blk_size = 4;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(attrs.jcp));
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(attrs.jcp, *attrs.kernel_attrs.get()));
