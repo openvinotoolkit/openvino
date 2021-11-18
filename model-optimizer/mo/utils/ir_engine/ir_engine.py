@@ -18,7 +18,7 @@ from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_a
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.runtime_info import RTInfo, OldAPIMap
+from mo.utils.runtime_info import RTInfo, OldAPIMapOrder, OldAPIMapElementType
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
@@ -458,19 +458,19 @@ class IREngine(object):
 
         for attr in xml_rt_info:
             attr_name = attr.attrib['name']
-            if attr_name == 'old_api_map':
-                rt_info.info.update(self.__read_old_api_map(attr, layer.attrib['type']))
+            if attr_name == 'old_api_map_order':
+                rt_info.info.update(self.__read_old_api_map_order(attr, layer.attrib['type']))
+            if attr_name == 'old_api_map_element_type':
+                rt_info.info.update(self.__read_old_api_map_element_type(attr, layer.attrib['type']))
 
         layer_attrs.update({'rt_info': rt_info})
         return layer_attrs
 
     @staticmethod
-    def __read_old_api_map(attr, layer_type):
+    def __read_old_api_map_order(attr, layer_type):
         version = int(attr.attrib['version'])
-        order = list(map(int, attr.attrib['order'].split(',')))
-        element_type = destination_type_to_np_data_type(attr.attrib['element_type'])
-        old_api_map = OldAPIMap(version=version)
-        old_api_map.old_api_convert(element_type)
+        order = list(map(int, attr.attrib['value'].split(',')))
+        old_api_map = OldAPIMapOrder(version=version)
         if layer_type == 'Parameter':
             old_api_map.old_api_transpose_parameter(order)
         elif layer_type == 'Result':
@@ -478,4 +478,12 @@ class IREngine(object):
         else:
             raise AttributeError("Cannot read old_api_map for layer of type: {}".format(layer_type))
 
-        return {('old_api_map', version): old_api_map}
+        return {('old_api_map_order', version): old_api_map}
+
+    @staticmethod
+    def __read_old_api_map_element_type(attr, layer_type):
+        version = int(attr.attrib['version'])
+        element_type = destination_type_to_np_data_type(attr.attrib['value'])
+        old_api_map = OldAPIMapElementType(version=version)
+        old_api_map.set_legacy_type(element_type)
+        return {('old_api_map_element_type', version): old_api_map}
