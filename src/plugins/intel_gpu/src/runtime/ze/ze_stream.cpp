@@ -129,7 +129,7 @@ ze_stream::ze_stream(const ze_engine& engine) : stream(engine.configuration().qu
     if (sync_method == sync_methods::none && config.queue_type == queue_types::out_of_order) {
         throw std::runtime_error("[CLDNN] Unexpected sync method (none) is specified for out_of_order queue");
     }
-    //*
+    /*
     ze_command_queue_desc_t command_queue_desc = {};
     command_queue_desc.flags = 0;
     command_queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
@@ -209,8 +209,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     auto local = to_group_count(args_desc.workGroups.local);
     std::cout << local.groupCountX << "," << local.groupCountY << "," << local.groupCountZ << std::endl;
     std::cout << global.groupCountX << "," << global.groupCountY << "," << global.groupCountZ << std::endl;
-    //ze_group_count_t launchArgs = { global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ };
-    ze_group_count_t launchArgs = { global.groupCountX, global.groupCountY, global.groupCountZ };
+    ze_group_count_t launchArgs = { global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ };
     //ZE_CHECK(zeKernelSetGroupSize(kern, global.groupCountX/local.groupCountX, global.groupCountY/local.groupCountY, global.groupCountZ/local.groupCountZ));
     ZE_CHECK(zeKernelSetGroupSize(kern, local.groupCountX, local.groupCountY, local.groupCountZ));
     ZE_CHECK(zeCommandListAppendLaunchKernel(_command_list,
@@ -219,7 +218,7 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
                                     set_output_event ? std::dynamic_pointer_cast<ze_base_event>(ev)->get() : nullptr,
                                     dep_events_ptr == nullptr ? 0 : dep_events_ptr->size(),
                                     dep_events_ptr == nullptr ? 0 : &dep_events_ptr->at(0)));
-
+    std::cout << "-------------------------------------" << std::endl;
     // zeCommandListAppendBarrier(get_queue(), ret_ev2, 0, nullptr);
     // zeEventHostSynchronize(ret_ev2, 0);
     return ev;//std::make_shared<ze_event>(_event_pool, ret_ev, ++_queue_counter);
@@ -367,7 +366,7 @@ void ze_stream::flush() const {
     // ZE_CHECK(zeEventHostSynchronize(ret_ev, UINT32_MAX));
     // ZE_CHECK(zeCommandListReset(_command_list));
     // zeCommandQueueSynchronize();
-    // ZE_CHECK(zeCommandListReset(_command_list));
+    ZE_CHECK(zeCommandListReset(_command_list));
     // ZE_CHECK(zeFenceReset(hFence));
 }
 
