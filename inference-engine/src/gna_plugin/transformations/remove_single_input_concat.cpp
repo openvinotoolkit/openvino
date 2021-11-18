@@ -30,7 +30,10 @@ namespace GNAPluginNS {
 
         ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto concat_operation_node = pattern_map.find(concat_operation)->second.get_node_shared_ptr();
+            auto concat_operation_it = pattern_map.find(concat_operation);
+            if (concat_operation_it == pattern_map.end())
+                return false;
+            auto concat_operation_node = concat_operation_it->second.get_node_shared_ptr();
 
             NodeOutput prev_node_output = concat_operation_node->get_input_source_output(0);
 
