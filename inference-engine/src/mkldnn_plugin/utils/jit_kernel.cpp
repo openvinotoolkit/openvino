@@ -198,8 +198,10 @@ void jit_kernel::free<Zmm>(const Zmm & reg) {
 
 void jit_kernel::postamble() {
     jit_generator::postamble();
-    _load_emitter.emit_data();
-    _store_emitter.emit_data();
+    if (_is_load_emitter_used)
+        _load_emitter.emit_data();
+    if (_is_store_emitter_used)
+        _store_emitter.emit_data();
 }
 
 const AddressFrame & jit_kernel::address_frame(size_t size) const {

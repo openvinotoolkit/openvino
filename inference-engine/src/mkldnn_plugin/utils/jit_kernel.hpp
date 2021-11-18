@@ -39,7 +39,9 @@ struct reg_traits {
 
 template<typename T>
 struct reg_traits<T[1]> {
-    using type = Xbyak::Reg64;
+    using type = typename std::conditional<
+                            std::is_floating_point<T>::value,
+                            Xbyak::Fpu, Xbyak::Reg64>::type;
     constexpr static size_t size = std::is_floating_point<T>::value
                                     ? 10: 8;    // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
@@ -414,6 +416,8 @@ private:
 
     reg_indices _free_x64regs;
     reg_indices _free_rmmregs;
+    bool _is_load_emitter_used = false;
+    bool _is_store_emitter_used = false;
     jit_load_emitter _load_emitter;
     jit_store_emitter _store_emitter;
 };
@@ -468,6 +472,7 @@ void jit_kernel::load(const variable<DstT> & dst, const variable<SrcT> & src) {
             internal::type2precision<dst_type>(),
             static_cast<int>(length)),
         {}, {});
+    _is_load_emitter_used = true;
 }
 
 template<typename DstT, typename SrcT>
@@ -491,6 +496,7 @@ void jit_kernel::store(const variable<DstT> & dst, const variable<SrcT> & src) {
             internal::type2precision<dst_type>(),
             static_cast<int>(length)),
         {}, {});
+    _is_store_emitter_used = true;
 }
 
 template<typename B, typename E, typename S>
