@@ -13,21 +13,10 @@
 // clang-format off
 #include "openvino/openvino.hpp"
 #include "samples/common.hpp"
+#include "samples/slog.hpp"
 // clang-format on
 
 namespace {
-/**
- * @brief Overload output stream operator to print vectors in pretty form
- * [value1, value2, ...]
- */
-template <typename T>
-std::ostream& operator<<(std::ostream& stream, const std::vector<T>& v) {
-    stream << "[ ";
-    for (auto&& value : v)
-        stream << value << " ";
-    return stream << "]";
-}
-
 /**
  * @brief Print IE Parameters
  * @param reference on IE Parameter

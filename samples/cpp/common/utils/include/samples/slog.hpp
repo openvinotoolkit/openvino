@@ -11,6 +11,7 @@
 
 #include <ostream>
 #include <string>
+#include <vector>
 
 namespace slog {
 /**
@@ -65,6 +66,22 @@ public:
         }
 
         (*_log_stream) << arg;
+        return *this;
+    }
+
+    /**
+     * @brief Overload output stream operator to print vectors in pretty form
+     * [value1, value2, ...]
+     */
+    template <typename T>
+    LogStream& operator<<(const std::vector<T>& v) {
+        (*_log_stream) << "[ ";
+
+        for (auto&& value : v)
+            (*_log_stream) << value << " ";
+
+        (*_log_stream) << "]";
+
         return *this;
     }
 
