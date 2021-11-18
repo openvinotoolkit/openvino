@@ -25,7 +25,7 @@
 namespace ov {
 /**
  * @ingroup ie_runtime_attr_api
- * @brief OldApiMap class represents runtime info attribute that stores legacy type
+ * @brief OldApiMapElementType class represents runtime info attribute that stores legacy type
  * that is required for obtaining IR in old API.
  */
 class TRANSFORMATIONS_API OldApiMapElementType : public VariantImpl<ngraph::element::Type> {
