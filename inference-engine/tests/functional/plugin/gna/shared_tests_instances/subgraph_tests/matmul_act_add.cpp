@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "subgraph_tests/matmul_act_eltw.hpp"
+#include "subgraph_tests/matmul_act_add.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -30,12 +30,12 @@ std::vector<std::map<std::string, std::string>> additional_config = {
 };
 } // namespace
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulActEltw, MatMulActEltwTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulActAdd, MatMulActAddTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_sizes),
                                 ::testing::ValuesIn(net_precisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                 ::testing::ValuesIn(additional_config)),
-                        MatMulActEltwTest::getTestCaseName);
+                        MatMulActAddTest::getTestCaseName);
 
 } // namespace SubgraphTestsDefinitions

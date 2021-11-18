@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/subgraph/matmul_act_eltw.hpp"
+#include "shared_test_classes/subgraph/matmul_act_add.hpp"
 
 namespace SubgraphTestsDefinitions {
 
-TEST_P(MatMulActEltwTest, CompareWithRefs) {
+TEST_P(MatMulActAddTest, CompareWithRefs) {
     Run();
 };
 

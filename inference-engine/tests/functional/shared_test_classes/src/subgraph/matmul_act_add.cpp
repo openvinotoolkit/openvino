@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/matmul_act_eltw.hpp"
+#include "shared_test_classes/subgraph/matmul_act_add.hpp"
 
 namespace SubgraphTestsDefinitions {
-std::string MatMulActEltwTest::getTestCaseName(const testing::TestParamInfo<MatMulActEltwParams> &obj) {
+std::string MatMulActAddTest::getTestCaseName(const testing::TestParamInfo<MatMulActAddParams> &obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     size_t inputSize;
@@ -22,7 +22,7 @@ std::string MatMulActEltwTest::getTestCaseName(const testing::TestParamInfo<MatM
     return result.str();
 }
 
-void MatMulActEltwTest::SetUp() {
+void MatMulActAddTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     size_t inputSize;
     std::map<std::string, std::string> config;
@@ -42,6 +42,6 @@ void MatMulActEltwTest::SetUp() {
     auto tanh = std::make_shared<ngraph::op::Tanh>(matmul);
     auto eltw = std::make_shared<ngraph::opset8::Add>(matmul, tanh);
     auto res = std::make_shared<ngraph::op::Result>(eltw);
-    function = std::make_shared<ngraph::Function>(res, params, "MatMul_Act_Eltw");
+    function = std::make_shared<ngraph::Function>(res, params, "MatMul_Act_Add");
 }
 } // namespace SubgraphTestsDefinitions

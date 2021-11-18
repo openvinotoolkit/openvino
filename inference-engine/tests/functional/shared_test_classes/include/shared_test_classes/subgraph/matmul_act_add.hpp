@@ -20,13 +20,13 @@ typedef std::tuple<
         InferenceEngine::Precision,         // Network Precision
         std::string,                        // Target Device
         std::map<std::string, std::string> //Configuration
-> MatMulActEltwParams;
+> MatMulActAddParams;
 
-class MatMulActEltwTest:
-        public testing::WithParamInterface<MatMulActEltwParams>,
+class MatMulActAddTest:
+        public testing::WithParamInterface<MatMulActAddParams>,
         public LayerTestsUtils::LayerTestsCommon{
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MatMulActEltwParams> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MatMulActAddParams> &obj);
 protected:
     void SetUp() override;
 };
