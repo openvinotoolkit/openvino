@@ -77,7 +77,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ExecGraphTests.*)",
         // Issue connected with OV2.0
         R"(.*EltwiseLayerTest.*NetType=f16.*)",
-        // TODO: Issue: CVS-69639
+        // TODO: Issue: 69639
         R"(.*EltwiseLayerTest.*OpType=Prod.*)",
         R"(.*EltwiseLayerTest.*OpType=Sum.*PARAMETER.*VECTOR.*)",
         // TODO: Issue:27391
