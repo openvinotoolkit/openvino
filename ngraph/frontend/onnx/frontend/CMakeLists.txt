@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME onnx_ngraph_frontend)
+set(TARGET_NAME onnx_ov_frontend)
 
 set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
 set(ONNX_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)

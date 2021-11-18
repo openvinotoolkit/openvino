@@ -24,9 +24,9 @@
         "runtime/lib/intel64/libMultiDevicePlugin.so",
         "runtime/lib/intel64/libngraph.dylib",
         "runtime/lib/intel64/libfrontend_manager.dylib",
-        "runtime/lib/intel64/libir_ngraph_frontend.dylib",
-        "runtime/lib/intel64/libonnx_ngraph_frontend.dylib",
-        "runtime/lib/intel64/libpaddlepaddle_ngraph_frontend.dylib",
+        "runtime/lib/intel64/libir_ov_frontend.dylib",
+        "runtime/lib/intel64/libonnx_ov_frontend.dylib",
+        "runtime/lib/intel64/libpaddlepaddle_ov_frontend.dylib",
         "runtime/lib/intel64/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
