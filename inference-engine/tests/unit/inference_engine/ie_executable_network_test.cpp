@@ -88,26 +88,6 @@ TEST_F(ExecutableNetworkTests, GetInputsInfo) {
     ASSERT_EQ(info, InferenceEngine::ConstInputsDataMap{});
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
-TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
-    EXPECT_CALL(*mockIExeNet.get(), QueryState())
-            .Times(1)
-            .WillOnce(Throw(InferenceEngine::GeneralError{""}));
-    EXPECT_THROW(exeNetwork->QueryState(), InferenceEngine::Exception);
-}
-
-TEST_F(ExecutableNetworkTests, QueryState) {
-    auto mockIMemState_p = std::make_shared<MockIVariableStateInternal>();
-    EXPECT_CALL(*mockIExeNet.get(), QueryState())
-            .Times(1)
-            .WillOnce(Return(std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>>(1, mockIMemState_p)));
-    std::vector<InferenceEngine::IVariableStateInternal::Ptr> MemState_v;
-    EXPECT_NO_THROW(MemState_v = exeNetwork->QueryState());
-    EXPECT_EQ(MemState_v.size(), 1);
-}
-
-IE_SUPPRESS_DEPRECATED_END
 
 class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
 protected:
@@ -133,6 +113,29 @@ TEST_F(ExecutableNetworkWithIInferReqTests, CanCreateInferRequest) {
 TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestThrowsIfReturnNotOK) {
     EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Throw(InferenceEngine::GeneralError{""}));
     ASSERT_THROW(exeNetwork->CreateInferRequest(), InferenceEngine::Exception);
+}
+
+TEST_F(ExecutableNetworkWithIInferReqTests, QueryStateThrowsIfReturnErr) {
+    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(mockIInferReq_p));
+    IInferRequestInternal::Ptr actualInferReq;
+    ASSERT_NO_THROW(actualInferReq = exeNetwork->CreateInferRequest());
+    EXPECT_CALL(*mockIInferReq_p.get(), QueryState())
+            .Times(1)
+            .WillOnce(Throw(InferenceEngine::GeneralError{""}));
+    EXPECT_THROW(actualInferReq->QueryState(), InferenceEngine::Exception);
+}
+
+TEST_F(ExecutableNetworkWithIInferReqTests, QueryState) {
+    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(mockIInferReq_p));
+    IInferRequestInternal::Ptr actualInferReq;
+    ASSERT_NO_THROW(actualInferReq = exeNetwork->CreateInferRequest());
+    auto mockIMemState_p = std::make_shared<MockIVariableStateInternal>();
+    EXPECT_CALL(*mockIInferReq_p.get(), QueryState())
+            .Times(1)
+            .WillOnce(Return(std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>>(1, mockIMemState_p)));
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> MemState_v;
+    EXPECT_NO_THROW(MemState_v = actualInferReq->QueryState());
+    EXPECT_EQ(MemState_v.size(), 1);
 }
 
 IE_SUPPRESS_DEPRECATED_START

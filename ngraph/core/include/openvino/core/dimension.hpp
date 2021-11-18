@@ -28,7 +28,7 @@ public:
 
     /// \brief Construct a dynamic dimension with bounded range
     /// \param min_dimension The lower inclusive limit for the dimension
-    /// \param mas_dimension The upper inclusive limit for the dimension
+    /// \param max_dimension The upper inclusive limit for the dimension
     Dimension(value_type min_dimension, value_type max_dimension);
 
     /// \brief Construct a dynamic dimension with range [0, ...]

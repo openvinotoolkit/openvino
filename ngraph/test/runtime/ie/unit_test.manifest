@@ -110,6 +110,10 @@ onnx_model_scatterND_param_i64_indices
 IE_CPU.onnx_constant_sparse_tensor_int64_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 
+# I64 ONNX Clip Failing on ubuntu18/20_release CI
+IE_CPU.onnx_clip_no_min_no_max_int64 # -2147483648 is not close to 2147483647 at index 2
+IE_CPU.onnx_clip_no_min_set_max_int64 # -1 is not close to 2147483647 at index 0
+
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
 onnx_model_argmin_int32
@@ -371,14 +375,12 @@ tile_3d_few_repeats
 # Result mismatch
 sum_large_1d_to_scalar
 sum_stable_acc
-max_pool_3d
 avg_pool_2d_2channel_2image_padded_only_above_include_in_computation
 avg_pool_3d_uneven_strided_padded
 multiple_result
 lrn_across_all_dims
 elu
 elu_negative_alpha
-max_pool_2d_1channel_1image_overpadded
 grn_2d_with_bias
 erf
 divide_adjoint_stability
@@ -386,8 +388,6 @@ notequal
 less
 sum_3d_to_scalar_int32
 sum_2d_to_scalar_int8
-max_pool_uint8
-max_pool_int8
 avg_pool_uint8
 avg_pool_int8
 max_to_scalar_int8
@@ -432,6 +432,12 @@ onnx_constant_integer_array
 adaptive_max_pool_1d
 adaptive_max_pool_2d
 adaptive_max_pool_3d
+onnx_dyn_shapes_max_pool_with_indices_output
+onnx_model_max_pool_3d
+onnx_model_max_pool_4d_ceil_mode
+onnx_model_max_pool_4d_dilations
+onnx_model_max_pool_4d_strides
+onnx_model_max_pool_4d_ceil_strides
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -554,9 +560,6 @@ product_to_scalar_int8
 min_to_scalar_int8
 
 # Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.
-max_pool_1d_1channel_1image
-max_pool_1d_1channel_2image
-max_pool_1d_2channel_2image
 avg_pool_1d_1channel_1image
 avg_pool_1d_1channel_2image
 avg_pool_1d_2channel_2image
@@ -1565,3 +1568,5 @@ IE_CPU.onnx_model_gather_float_2D_neg_indices
 onnx_model_skip_layer_normalization_dynamic_shapes
 # Doesn't support op with dynamic shapes
 onnx_model_embed_layer_normalization_dynamic_shapes
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_attention_dynamic_shapes

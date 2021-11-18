@@ -21,6 +21,16 @@ resources:
 
 jobs:
 - job: Lin
+  strategy:
+    matrix:
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+        PYTHON_STATIC_ARGS:
+      Static:
+        CMAKE_BUILD_SHARED_LIBS: 'OFF'
+        PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+    maxParallel: 2
+
   # About 150% of total time
   timeoutInMinutes: 90
 
@@ -43,6 +53,9 @@ jobs:
     INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
     LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
     SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+    TMP_DIR: /mnt/tmp
+    SHARE_DIR: /mount/cinfsshare/onnxtestdata
+    CCACHE_DIR: $(SHARE_DIR)/ccache
 
   steps:
   - script: |
@@ -63,14 +76,20 @@ jobs:
       df
       lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
       free -h
+      echo TargetBranch: $(System.PullRequest.TargetBranch)
+      echo SourceBranch: $(Build.SourceBranch)
     displayName: 'System info'
 
   - script: |
+      set -e
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+      sudo mkdir -p $(SHARE_DIR)
+      sudo apt --assume-yes install nfs-common
+      sudo mount -vvv -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(SHARE_DIR) -o vers=4,minorversion=1,sec=sys
+      mkdir -p $(CCACHE_DIR)
     displayName: 'Make dir'
 
   - checkout: self
@@ -126,6 +145,9 @@ jobs:
         -DVERBOSE_BUILD=ON
         -DCMAKE_BUILD_TYPE=$(BUILD_TYPE)
         -DENABLE_PYTHON=ON
+        -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS)
+        -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS)
         -DPYTHON_EXECUTABLE=/usr/bin/python3.8
         -DENABLE_WHEEL=ON
         -DENABLE_TESTS=ON
@@ -134,15 +156,26 @@ jobs:
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DENABLE_REQUIREMENTS_INSTALL=OFF
         -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
+        -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        -DCMAKE_C_COMPILER_LAUNCHER=ccache
         $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
 
   - script: ls -alR $(REPO_DIR)/inference-engine/temp/
     displayName: 'List temp SDKs'
 
-  - script: ninja
+  - script: ccache --zero-stats --max-size=1T --show-config
+    displayName: 'Clean ccache stats'
+
+  - script: |
+      export CCACHE_DIR=$(CCACHE_DIR)
+      export CCACHE_TEMPDIR=$(TMP_DIR)/ccache
+      ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin'
+
+  - script: ccache --show-stats
+    displayName: 'Show ccache stats'
 
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
@@ -183,10 +216,12 @@ jobs:
   - script: $(INSTALL_DIR)/samples/cpp/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: $(INSTALL_DIR)/samples/c/build_samples.sh
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: rm -fr $(BUILD_DIR)
     displayName: 'Clean build dir'
@@ -196,13 +231,13 @@ jobs:
   - script: |
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_TEST_DIR)/pyngraph $(PYTHON_STATIC_ARGS) --junitxml=TEST-Pyngraph.xml --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_zoo_models.py --ignore=$(INSTALL_TEST_DIR)/pyngraph/tests/test_onnx/test_backend.py
     displayName: 'nGraph Python Bindings Tests'
     continueOnError: false
 
   - script: |
       export MO_ROOT=$(INSTALL_DIR)/tools/model_optimizer
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tools/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest -s $(INSTALL_DIR)/tests/model_optimizer/unit_tests --junitxml=TEST-ModelOptimizer.xml
     displayName: 'Model Optimizer UT'
     continueOnError: false
 
@@ -235,6 +270,7 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
@@ -255,6 +291,7 @@ jobs:
   - script: . $(SETUPVARS) && $(INSTALL_TEST_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
@@ -267,7 +304,7 @@ jobs:
       export DATA_PATH=$(MODELS_PATH)
       export MODELS_PATH=$(MODELS_PATH)
       cd $(REPO_DIR)/inference-engine/ie_bridges/python/tests
-      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml
+      . $(SETUPVARS) -pyver 3.8 && python3 -m pytest --junitxml=TEST-PythonAPI.xml $(PYTHON_STATIC_ARGS)
     displayName: 'Python API Tests'
     continueOnError: false
 

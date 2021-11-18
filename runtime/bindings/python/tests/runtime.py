@@ -7,11 +7,11 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-from openvino import Core, IENetwork, Blob, DataPtr
+
+from openvino import Core
 
 from openvino.exceptions import UserInputError
 from openvino.impl import Function, Node, PartialShape, Type
-from openvino.opset1.ops import result
 from openvino.utils.types import NumericData, get_shape, get_dtype
 
 import tests
@@ -30,46 +30,6 @@ def get_runtime():
         return runtime(backend_name=tests.BACKEND_NAME)
     else:
         return runtime()
-
-
-def _convert_inputs(cnn_network: IENetwork) -> None:
-    """WA converts unsupported input images formats."""
-    precision_map = {
-        "FP64": "FP32",
-        "I64": "I32",
-        "U32": "I32",
-    }
-
-    for cnn_input in cnn_network.input_info:
-        try:
-            _precision = precision_map[cnn_network.input_info[cnn_input].precision]
-            cnn_network.input_info[cnn_input].precision = _precision
-        except KeyError:
-            pass
-
-
-def _convert_val(val):
-    """WA converts unsupported input values."""
-    if type(val) is np.ndarray:
-        if val.dtype == np.float64:
-            return np.array(val, dtype=np.float32)
-        elif val.dtype == np.int64:
-            return np.array(val, dtype=np.int32)
-        return np.array(val)
-
-    return np.array(val, dtype=np.float32)
-
-
-def apply_ng_type(output: DataPtr, ng_type: Type):
-    ng_ie_supported_type_map = {
-        Type.boolean.get_type_name(): "BOOL",
-        Type.f32.get_type_name(): "FP32",
-        Type.i8.get_type_name(): "I8",
-        Type.i32.get_type_name(): "I32",
-        Type.u8.get_type_name(): "U8",
-    }
-    if ng_type.get_type_name() in ng_ie_supported_type_map:
-        output.precision = ng_ie_supported_type_map[ng_type.get_type_name()]
 
 
 class Runtime(object):
@@ -120,25 +80,6 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return "<Computation: {}({})>".format(self.function.get_name(), params_string)
 
-    def _get_ie_output_blob_name(self, outputs: Dict, ng_result: result) -> str:
-        if len(self.results) == 1:
-            return next(iter(outputs.keys()))
-        else:
-            prev_layer = ng_result.input(0).get_source_output()
-            out_name = prev_layer.get_node().get_friendly_name()
-            if prev_layer.get_node().get_output_size() != 1:
-                out_name += "." + str(prev_layer.get_index())
-            return out_name
-
-    def _get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
-        out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
-        out_blob = output_blobs[out_name]
-
-        if out_blob.tensor_desc.layout == "SCALAR":
-            return out_blob.buffer.reshape(())
-        else:
-            return out_blob.buffer
-
     def convert_buffers(self, source_buffers, target_dtypes):
         converted_buffers = []
         for i in range(len(source_buffers)):
@@ -157,35 +98,24 @@ class Computation(object):
             raise UserInputError(
                 "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values)
             )
-        # ignore not needed input values
-        input_values = input_values[:len(self.parameters)]
-
-        input_values = [_convert_val(input_value) for input_value in input_values]
-        input_shapes = [get_shape(input_value) for input_value in input_values]
 
         param_names = [param.friendly_name for param in self.parameters]
+        input_shapes = [get_shape(input_value) for input_value in input_values]
 
         if self.network_cache.get(str(input_shapes)) is None:
-            cnn_network = IENetwork(self.function)
+            function = self.function
             if self.function.is_dynamic():
-                cnn_network.reshape(dict(zip(param_names, input_shapes)))
-            # Convert unsupported inputs of the network
-            _convert_inputs(cnn_network)
-            self.network_cache[str(input_shapes)] = cnn_network
+                function.reshape(dict(zip(param_names, [PartialShape(i) for i in input_shapes])))
+            self.network_cache[str(input_shapes)] = function
         else:
-            cnn_network = self.network_cache[str(input_shapes)]
+            function = self.network_cache[str(input_shapes)]
 
-        # set output blobs precission based on nG results
-        for ng_result in self.results:
-            ie_out_name = self._get_ie_output_blob_name(cnn_network.outputs, ng_result)
-            apply_ng_type(cnn_network.outputs[ie_out_name], ng_result.get_output_element_type(0))
-
-        executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
+        executable_network = self.runtime.backend.compile_model(function, self.runtime.backend_name)
 
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
-            input_shape = PartialShape(input.shape)
-            if len(input.shape) > 0 and not parameter_shape.compatible(input_shape):
+            input_shape = PartialShape([]) if isinstance(input, (int, float)) else PartialShape(input.shape)
+            if not parameter_shape.compatible(input_shape):
                 raise UserInputError(
                     "Provided tensor's shape: %s does not match the expected: %s.",
                     input_shape,
@@ -193,13 +123,16 @@ class Computation(object):
                 )
 
         request = executable_network.create_infer_request()
-        request.infer(dict(zip(param_names, input_values)))
+        result_buffers = request.infer(dict(zip(param_names, input_values)))
+        # # Note: other methods to get result_buffers from request
+        # # First call infer with no return value:
+        # request.infer(dict(zip(param_names, input_values)))
+        # # Now use any of following options:
+        # result_buffers = [request.get_tensor(n).data for n in request.outputs]
+        # result_buffers = [request.get_output_tensor(i).data for i in range(len(request.outputs))]
+        # result_buffers = [t.data for t in request.output_tensors]
 
-        # Set order of output blobs compatible with nG Function
-        result_buffers = [self._get_ie_output_blob_buffer(request.output_blobs, result)
-                          for result in self.results]
-
-        # Since OV overwrite result data type we have to convert results to the original one.
+        # # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
         converted_buffers = self.convert_buffers(result_buffers, original_dtypes)
         return converted_buffers

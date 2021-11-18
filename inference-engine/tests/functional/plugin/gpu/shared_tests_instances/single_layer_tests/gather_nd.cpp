@@ -3,7 +3,6 @@
 //
 
 #include <vector>
-#include <ngraph/opsets/opset5.hpp>
 
 #include "single_layer_tests/gather_nd.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -33,15 +32,6 @@ const auto gatherNDArgsSubset1 = ::testing::Combine(
     ::testing::ValuesIn(std::vector<int>({ 0, 1 }))             // Batch dims
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_set1, GatherNDLayerTest,
-    ::testing::Combine(
-        gatherNDArgsSubset1,
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values<Config>({})),
-    GatherNDLayerTest::getTestCaseName);
-
 // set2
 const auto gatherNDArgsSubset2 = ::testing::Combine(
     ::testing::ValuesIn(std::vector<std::vector<size_t>>(
@@ -50,15 +40,6 @@ const auto gatherNDArgsSubset2 = ::testing::Combine(
         { {15, 12, 2}, {15, 12, 5, 9, 1, 3} })),                // Indices shape
     ::testing::ValuesIn(std::vector<int>({ 1, 2 }))             // Batch dims
 );
-
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_set2, GatherNDLayerTest,
-    ::testing::Combine(
-        gatherNDArgsSubset2,
-        ::testing::ValuesIn(inputPrecisions),
-        ::testing::ValuesIn(idxPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values<Config>({})),
-    GatherNDLayerTest::getTestCaseName);
 
 // set3
 const auto gatherNDArgsSubset3 = ::testing::Combine(
@@ -69,7 +50,27 @@ const auto gatherNDArgsSubset3 = ::testing::Combine(
     ::testing::ValuesIn(std::vector<int>({ 3, 4 }))             // Batch dims
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND_set3, GatherNDLayerTest,
+
+// -------------------------------- V5 --------------------------------
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_set1, GatherNDLayerTest,
+    ::testing::Combine(
+        gatherNDArgsSubset1,
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(idxPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values<Config>({})),
+    GatherNDLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_set2, GatherNDLayerTest,
+    ::testing::Combine(
+        gatherNDArgsSubset2,
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(idxPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values<Config>({})),
+    GatherNDLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_set3, GatherNDLayerTest,
     ::testing::Combine(
         gatherNDArgsSubset3,
         ::testing::ValuesIn(inputPrecisions),
@@ -77,5 +78,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND_set3, GatherNDLayerTest,
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values<Config>({})),
     GatherNDLayerTest::getTestCaseName);
+
+// -------------------------------- V8 --------------------------------
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_set1, GatherND8LayerTest,
+    ::testing::Combine(
+        gatherNDArgsSubset1,
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(idxPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values<Config>({})),
+    GatherND8LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_set2, GatherND8LayerTest,
+    ::testing::Combine(
+        gatherNDArgsSubset2,
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(idxPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values<Config>({})),
+    GatherND8LayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_set3, GatherND8LayerTest,
+    ::testing::Combine(
+        gatherNDArgsSubset3,
+        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(idxPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values<Config>({})),
+    GatherND8LayerTest::getTestCaseName);
 
 }  // namespace

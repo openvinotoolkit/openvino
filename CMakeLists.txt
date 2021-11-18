@@ -85,16 +85,10 @@ include(cmake/test_model_zoo.cmake)
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
 add_subdirectory(ngraph)
-add_subdirectory(runtime)
 add_subdirectory(inference-engine)
-
-# for Template plugin
-openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
+add_subdirectory(runtime)
+add_subdirectory(samples)
 include(cmake/extra_modules.cmake)
-
-if(ENABLE_SAMPLES)
-    add_subdirectory(samples)
-endif()
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 add_subdirectory(tools)
