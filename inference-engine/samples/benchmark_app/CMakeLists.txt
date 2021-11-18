@@ -4,18 +4,15 @@
 
 set(TARGET_NAME "benchmark_app")
 
-if(ENABLE_OPENCV)
-    set(OPENCV_MODULES core)
-endif()
-
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 ie_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES format_reader ie_samples_utils
-              OPENCV_DEPENDENCIES ${OPENCV_MODULES})
+              DEPENDENCIES format_reader ie_samples_utils)
+
+# Optional OpenCL dependnency
 
 find_package(OpenCL)
 
@@ -50,4 +47,14 @@ if(OpenCL_FOUND AND OpenCL_HEADERS)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCL_LIB})
     target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_HEADERS})
     target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_GPU_DEVICE_MEM_SUPPORT)
+endif()
+
+# Optional OpenCV dependnency
+
+find_package(OpenCV COMPONENTS core QUIET)
+if(NOT OpenCV_FOUND)
+    message(WARNING "OpenCV is disabled or not found, ${TARGET_NAME} will be built without OpenCV support. Set OpenCV_DIR")
+else()
+    target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
+    target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
