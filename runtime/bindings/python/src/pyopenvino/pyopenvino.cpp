@@ -28,6 +28,7 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/tensor.hpp"
+#include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/layout.hpp"
@@ -100,6 +101,7 @@ PYBIND11_MODULE(pyopenvino, m) {
 
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);
+    regclass_VariableState(m);
     regclass_Version(m);
     regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
