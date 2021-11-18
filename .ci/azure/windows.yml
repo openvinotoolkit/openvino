@@ -108,8 +108,8 @@ jobs:
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\ngraph\test\requirements_test_onnx.txt
       rem For MO unit tests
-      python -m pip install -r $(REPO_DIR)\model-optimizer\requirements.txt
-      python -m pip install -r $(REPO_DIR)\model-optimizer\requirements_dev.txt
+      python -m pip install -r $(REPO_DIR)\tools\mo\requirements.txt
+      python -m pip install -r $(REPO_DIR)\tools\mo\requirements_dev.txt
       rem Speed up build
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"

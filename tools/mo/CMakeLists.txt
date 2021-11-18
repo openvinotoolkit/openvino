@@ -23,7 +23,7 @@ configure_file(
     @ONLY)
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-        DESTINATION tools/model_optimizer
+        DESTINATION tools/mo
         USE_SOURCE_PERMISSIONS
         COMPONENT model_optimizer
         PATTERN ".*" EXCLUDE
@@ -46,21 +46,21 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
         )
 
 install(FILES requirements_dev.txt
-        DESTINATION tests/model_optimizer
+        DESTINATION tests/mo
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
 install(DIRECTORY unit_tests
-        DESTINATION tests/model_optimizer
+        DESTINATION tests/mo
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
 install(DIRECTORY automation
-        DESTINATION tests/model_optimizer
+        DESTINATION tests/mo
         COMPONENT tests
         EXCLUDE_FROM_ALL)
 
 install(FILES .coveragerc
-        DESTINATION tests/model_optimizer
+        DESTINATION tests/mo
         COMPONENT tests
         EXCLUDE_FROM_ALL)
