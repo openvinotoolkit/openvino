@@ -13,11 +13,7 @@
 #    define MOCK_API OPENVINO_CORE_EXPORTS
 #else
 #    define MOCK_API OPENVINO_CORE_IMPORTS
-<<<<<<< HEAD:src/bindings/python/tests/mock/mock_py_ov_frontend/mock_py_frontend.hpp
-#endif  // mock1_ov_frontend_EXPORTS
-=======
 #endif  // mock_py_ov_frontend_EXPORTS
->>>>>>> upstream/master:src/frontends/tests/mock/mock_py_ov_frontend/mock_py_frontend.hpp
 
 // OK to have 'using' in mock header
 
