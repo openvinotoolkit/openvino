@@ -5,11 +5,11 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <string>
 #include <sstream>
+#include <string>
 
-#include "ngraph/type/float16.hpp"
 #include "ngraph/type/bfloat16.hpp"
+#include "ngraph/type/float16.hpp"
 
 namespace ngraph {
 namespace test {

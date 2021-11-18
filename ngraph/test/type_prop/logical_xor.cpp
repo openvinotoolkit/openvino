@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/xor.hpp"
-
 #include "logical_ops.hpp"
+#include "ngraph/op/xor.hpp"
 #include "util/type_prop.hpp"
 
 using Type = ::testing::Types<LogicalOperatorType<ngraph::op::v1::LogicalXor, ngraph::element::boolean>>;

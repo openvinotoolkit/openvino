@@ -10,13 +10,13 @@
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/util/multi_subgraph_base.hpp"
-#include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/runtime/tensor.hpp"
+#include "ngraph/op/util/multi_subgraph_base.hpp"
+#include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/runtime/tensor.hpp"
 
 namespace ngraph {
 namespace test {

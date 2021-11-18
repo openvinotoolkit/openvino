@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/op/result.hpp"
+
 #include "gtest/gtest.h"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/result.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "util/type_prop.hpp"
 

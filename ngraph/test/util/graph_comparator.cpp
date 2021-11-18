@@ -669,8 +669,7 @@ void Comparator::compare_inputs(ngraph::Node* node1, ngraph::Node* node2, std::o
     for (size_t i = 0; i < node1->inputs().size(); ++i) {
         if (should_compare(CmpValues::CONST_VALUES)) {
             using Constant = ngraph::op::v0::Constant;
-            const auto equal_value =
-                ::attributes::detail::equal::Equal<std::shared_ptr<Constant>>::equal_value;
+            const auto equal_value = ::attributes::detail::equal::Equal<std::shared_ptr<Constant>>::equal_value;
 
             auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
             auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
