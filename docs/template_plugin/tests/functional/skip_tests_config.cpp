@@ -89,7 +89,8 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-64066
         R"(.*ReferenceGRUCellTestHardsigmoidActivationFunction.*gru_cell_hardsigmoid_activation_function)",
         // CVS-71381
-        R"(.*ReferenceExpLayerTest.*shape=.*8.*u.*)"
+        R"(.*ReferenceExpLayerTest.*u32.*)",
+        R"(.*ReferenceExpLayerTest.*u64.*)",
     };
 
 #ifdef _WIN32
