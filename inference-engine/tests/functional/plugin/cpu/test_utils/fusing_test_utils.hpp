@@ -64,8 +64,10 @@ protected:
                                               ngraph::ParameterVector &params,
                                               const std::shared_ptr<ngraph::Node> &lastNode) const override;
 
-    void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const override;
-    void CheckFusingResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
+    void CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const override;
+
+private:
+    void CheckFusingResults(std::shared_ptr<const ov::Function> function, std::string nodeType) const;
 
 protected:
     std::shared_ptr<postOpMgr> postOpMgrPtr;
