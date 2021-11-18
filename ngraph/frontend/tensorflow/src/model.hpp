@@ -7,6 +7,7 @@
 #include <frontend_manager/input_model.hpp>
 #include <frontend_manager/place.hpp>
 #include <tensorflow_frontend/graph_iterator.hpp>
+#include "frontend_manager/extension.hpp"
 
 namespace ov {
 namespace frontend {
@@ -18,13 +19,14 @@ class InputModelTF : public ov::frontend::InputModel {
     friend class FrontEndTF;
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
+    std::shared_ptr<TelemetryExtension> m_telemetry;
 
     std::vector<std::shared_ptr<OpPlaceTF>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
-
 public:
-    explicit InputModelTF(const GraphIterator::Ptr& graph_iterator);
+    explicit InputModelTF(const GraphIterator::Ptr& graph_iterator,
+                          const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;

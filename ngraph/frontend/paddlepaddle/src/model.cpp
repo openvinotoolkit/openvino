@@ -26,8 +26,8 @@ using namespace paddle::framework::proto;
 class InputModelPDPD::InputModelPDPDImpl {
 public:
     template <typename T>
-    InputModelPDPDImpl(const std::basic_string<T>& path, const InputModel& input_model);
-    InputModelPDPDImpl(const std::vector<std::istream*>& streams, const InputModel& input_model);
+    InputModelPDPDImpl(const std::basic_string<T>& path, const InputModel& input_model, const std::shared_ptr<TelemetryExtension>& telemetry);
+    InputModelPDPDImpl(const std::vector<std::istream*>& streams, const InputModel& input_model, const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> getInputs() const;
     std::vector<Place::Ptr> getOutputs() const;
     Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
@@ -62,6 +62,8 @@ private:
     std::vector<Place::Ptr> m_outputs;
     std::map<pdpd::TensorName, Output<Node>> m_tensor_values;
 
+    std::shared_ptr<TelemetryExtension> m_telemetry;
+
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
 };
@@ -69,6 +71,7 @@ private:
 void InputModelPDPD::InputModelPDPDImpl::loadPlaces() {
     const int cnt_of_blocks = m_fw_ptr->blocks_size();
     const auto& blocks = m_fw_ptr->blocks();
+    std::map<std::string, uint64_t> op_statistics;
 
     for (int block_idx = 0; block_idx < cnt_of_blocks; block_idx++) {
         const auto& block = blocks[block_idx];
@@ -79,6 +82,11 @@ void InputModelPDPD::InputModelPDPDImpl::loadPlaces() {
 
         for (const auto& op : block.ops()) {
             auto op_place = std::make_shared<OpPlacePDPD>(m_input_model, op);
+
+            if (m_telemetry) {
+                op_statistics[op.type()]++;
+            }
+
             m_op_places.push_back(op_place);
 
             for (const auto& output : op.outputs()) {
@@ -125,6 +133,11 @@ void InputModelPDPD::InputModelPDPDImpl::loadPlaces() {
                 auto place = op_place->get_input_port_pdpd("X", 0);
                 m_outputs.push_back(place->get_source_tensor_pdpd());
             }
+        }
+    }
+    if(m_telemetry) {
+        for (const auto& op : op_statistics) {
+            m_telemetry->send_event("Paddle_FE", "op_statistics", op.first + " : " + std::to_string(op.second));
         }
     }
 }
@@ -280,9 +293,12 @@ void InputModelPDPD::InputModelPDPDImpl::loadConsts(const std::basic_string<T>& 
 }
 
 template <typename T>
-InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T>& path, const InputModel& input_model)
+InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T>& path,
+                                                       const InputModel& input_model,
+                                                       const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
-      m_input_model(input_model) {
+      m_input_model(input_model),
+      m_telemetry(telemetry) {
     std::string empty_str = "";
     std::ifstream weights_stream;
     std::ifstream pb_stream(get_model_path<T>(path, &weights_stream), std::ios::in | std::ifstream::binary);
@@ -306,9 +322,11 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T
 }
 
 InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::vector<std::istream*>& streams,
-                                                       const InputModel& input_model)
+                                                       const InputModel& input_model,
+                                                       const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
-      m_input_model(input_model) {
+      m_input_model(input_model),
+      m_telemetry(telemetry) {
     if (streams.size() != 1) {
         FRONT_END_GENERAL_CHECK(streams.size() == 2,
                                 "Two streams are needed to load a model: model and weights streams");
@@ -401,14 +419,14 @@ void InputModelPDPD::InputModelPDPDImpl::setTensorValue(Place::Ptr place, const 
     m_tensor_values[name] = constant;
 }
 
-InputModelPDPD::InputModelPDPD(const std::string& path) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)} {}
+InputModelPDPD::InputModelPDPD(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this, telemetry)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModelPDPD::InputModelPDPD(const std::wstring& path) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this)} {}
+InputModelPDPD::InputModelPDPD(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this, telemetry)} {}
 #endif
 
-InputModelPDPD::InputModelPDPD(const std::vector<std::istream*>& streams)
-    : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this)} {}
+InputModelPDPD::InputModelPDPD(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
+    : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::get_op_places() const {
     return _impl->get_op_places();

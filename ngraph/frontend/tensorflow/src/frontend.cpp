@@ -101,15 +101,11 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
         ng_op_map[input_name] = {param};
     }
 
-    std::map<std::string, uint64_t> op_statistics;
     // create the nGraph ops from TensorFlow ops
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
 
-        if (m_telemetry) {
-            op_statistics[operation_decoder->get_op_type()]++;
-        }
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -198,12 +194,6 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                 }
                 ng_op_map[operation_name].push_back(output);
             }
-        }
-    }
-
-    if(m_telemetry) {
-        for (const auto& op : op_statistics) {
-            m_telemetry->send_event(m_telemetry_category, "op_statistics", op.first + " : " + std::to_string(op.second));
         }
     }
 
@@ -305,11 +295,11 @@ ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::share
             std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
             if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<InputModelTF>(
-                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path));
+                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path), m_telemetry);
             }
         } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
             auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
-            return std::make_shared<InputModelTF>(graph_iterator);
+            return std::make_shared<InputModelTF>(graph_iterator, m_telemetry);
         }
     }
     return nullptr;

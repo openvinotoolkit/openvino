@@ -34,8 +34,7 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         using namespace std::placeholders;
         ov::frontend::FrontEnd::Ptr m_frontEnd;
         ov::frontend::InputModel::Ptr m_inputModel;
-        std::tie(m_frontEnd, m_inputModel) = FrontEndTestUtils::load_from_file(m_fem, m_param.m_frontEndName,
-                                                                               m_param.m_modelName);
+        m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
         auto telemetry_extension = std::make_shared<TelemetryExtension>(
                 std::bind(&TelemetryMock::send_event, &m_test_telemetry, _1, _2, _3, _4),
                 std::bind(&TelemetryMock::send_error, &m_test_telemetry, _1, _2),
@@ -63,6 +62,7 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         m_test_telemetry.m_trace_cnt = 0;
 
         EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
+        m_inputModel = m_frontEnd->load(m_param.m_modelName);
         function = m_frontEnd->convert(m_inputModel);
         EXPECT_GT(m_test_telemetry.m_event_cnt, 0);
     }

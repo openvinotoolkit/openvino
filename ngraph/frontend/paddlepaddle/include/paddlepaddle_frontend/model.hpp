@@ -5,6 +5,7 @@
 #pragma once
 
 #include <frontend_manager/frontend_manager.hpp>
+#include <frontend_manager/extension.hpp>
 #include <paddlepaddle_frontend/utility.hpp>
 
 namespace ov {
@@ -15,17 +16,18 @@ class PDPD_API InputModelPDPD : public InputModel {
     friend class FrontEndPDPD;
     class InputModelPDPDImpl;
     std::shared_ptr<InputModelPDPDImpl> _impl;
+    std::shared_ptr<TelemetryExtension> m_telemetry;
 
     std::vector<std::shared_ptr<OpPlacePDPD>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlacePDPD>> get_var_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:
-    explicit InputModelPDPD(const std::string& path);
+    explicit InputModelPDPD(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    explicit InputModelPDPD(const std::wstring& path);
+    explicit InputModelPDPD(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
 #endif
-    explicit InputModelPDPD(const std::vector<std::istream*>& streams);
+    explicit InputModelPDPD(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
