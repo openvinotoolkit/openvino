@@ -24,6 +24,8 @@ def test_ngraph_function_api():
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
     model = (parameter_a + parameter_b) * parameter_c
+    assert parameter_a.element_type == Type.f32
+    assert parameter_a.partial_type == PartialShape([2, 2])
     function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
