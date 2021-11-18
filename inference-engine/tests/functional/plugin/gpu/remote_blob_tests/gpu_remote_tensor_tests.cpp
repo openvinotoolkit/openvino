@@ -242,17 +242,16 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
     }
 }
 
-
 INSTANTIATE_TEST_SUITE_P(
     smoke_GPU,
     OVRemoteTensorInputBlob_Test,
-        ::testing::ValuesIn({RemoteTensorSharingType::USER_CL_TENSOR,
-                             RemoteTensorSharingType::PLUGIN_CL_TENSOR,
-                             RemoteTensorSharingType::USER_USM_HOST_TENSOR,
-                             RemoteTensorSharingType::USER_USM_DEVICE_TENSOR,
-                             RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR,
-                             RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR,
-                             RemoteTensorSharingType::PLUGIN_HOST_TENSOR}),
+        ::testing::ValuesIn(std::vector<RemoteTensorSharingType>{RemoteTensorSharingType::USER_CL_TENSOR,
+                                                                 RemoteTensorSharingType::PLUGIN_CL_TENSOR,
+                                                                 RemoteTensorSharingType::USER_USM_HOST_TENSOR,
+                                                                 RemoteTensorSharingType::USER_USM_DEVICE_TENSOR,
+                                                                 RemoteTensorSharingType::PLUGIN_USM_HOST_TENSOR,
+                                                                 RemoteTensorSharingType::PLUGIN_USM_DEVICE_TENSOR,
+                                                                 RemoteTensorSharingType::PLUGIN_HOST_TENSOR}),
         OVRemoteTensorInputBlob_Test::getTestCaseName);
 
 TEST_F(OVRemoteTensor_Test, smoke_canInferOnUserContext) {

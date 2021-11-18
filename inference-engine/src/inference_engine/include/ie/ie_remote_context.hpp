@@ -111,10 +111,10 @@ public:
     virtual RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}) = 0;
 
     /**
-     * @brief Allocates host accesible memory blob
+     * @brief Allocates host accessible memory blob freiandly for the device in current context
      * Returns a pointer to the object which implements MemoryBlob interface.
      * @param tensorDesc Defines the layout and dims of the blob
-     * @return A pointer to host accesible MemoryBlob object
+     * @return A pointer to host accessible MemoryBlob object
      */
     virtual MemoryBlob::Ptr CreateHostBlob(const TensorDesc& tensorDesc);
 

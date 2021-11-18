@@ -138,10 +138,12 @@ public:
     ParamMap get_params() const;
 
     /**
-     * @brief This function is used to create host tensor object friendly for current device
+     * @brief This function is used to create host tensor object friendly for the device in current context
+     * For example, GPU context may allocate USM host memory (if corresponding extension is available)
+     * which could be more efficient then regular host memory.
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @return A Tensor instance
+     * @return A Tensor instance with device friendly memory
      */
     Tensor create_host_tensor(const element::Type type, const Shape& shape);
 };

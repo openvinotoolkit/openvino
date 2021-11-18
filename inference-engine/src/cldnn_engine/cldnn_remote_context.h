@@ -249,9 +249,10 @@ public:
     * @return Handle to the allocated resource
     */
     void* alloc(size_t size) noexcept override {
-        auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::ANY);
+        auto td = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, InferenceEngine::SizeVector{size}, InferenceEngine::Layout::C);
         InferenceEngine::ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
         _usm_host_blob = std::dynamic_pointer_cast<InferenceEngine::gpu::USMBlob>(_context->CreateBlob(td, params));
+        _usm_host_blob->allocate();
         return _usm_host_blob->get();
     }
 
@@ -469,7 +470,7 @@ public:
 
     InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {
         if (_impl.GetEngine()->use_unified_shared_memory())
-            return InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, std::make_shared<USMHostAllocator>(this));
+            return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(make_blob_with_precision(tensorDesc, std::make_shared<USMHostAllocator>(this)));
         else
             return std::dynamic_pointer_cast<InferenceEngine::MemoryBlob>(make_blob_with_precision(tensorDesc));
     }
