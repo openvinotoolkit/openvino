@@ -40,7 +40,9 @@ def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: st
 
     # memory safe value conversion to numpy;
     # previously we used `np.array(value)` and it was greedy for memory on caffe models especially
-    val = np.ndarray(shape=(len(value),))
+    # previously we always created float64 np.ndarray, now we force float32, we can't get data type from "value" for
+    # Caffe, because it comes as float64 from protobuf
+    val = np.ndarray(shape=(len(value),), dtype=np.float32)
     for i, item in enumerate(value):
         val[i] = item
     attrs[name] = val
