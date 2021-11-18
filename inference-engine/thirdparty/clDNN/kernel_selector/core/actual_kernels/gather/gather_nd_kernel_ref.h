@@ -11,11 +11,13 @@ namespace kernel_selector {
 // gather_nd_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gather_nd_params : public base_params {
-    gather_nd_params() : base_params(KernelType::GATHER_ND), indices_rank(0), batch_dims(0) {}
+    gather_nd_params() : base_params(KernelType::GATHER_ND), indices_rank(0), batch_dims(0), batch_merged_output(true) {}
 
     uint8_t indices_rank;
 
     uint8_t batch_dims;
+
+    bool batch_merged_output;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
