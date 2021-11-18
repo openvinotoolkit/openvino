@@ -194,11 +194,10 @@ void shape_infer(const GNAConvolution* op,
                           "Convolution shape_infer should be provided with correct num_spatial attribute");
 
     if (input_shape.rank().is_dynamic())
-        input_shape.resize(num_spatial + 2); // FIXME: may be + 1 ?
+        input_shape.resize(num_spatial + 2);
     if (filters_shape.rank().is_dynamic())
-        filters_shape.resize(num_spatial + 2); // FIXME: may be + 1 ?
+        filters_shape.resize(num_spatial + 2);
 
-    // FIXME: may be num_spatial + 1 ?
     NODE_VALIDATION_CHECK(op,
                           (static_cast<int64_t>(input_shape.size()) == (num_spatial + 2)) &&
                           (static_cast<int64_t>(filters_shape.size()) == (num_spatial + 2)),
@@ -210,10 +209,10 @@ void shape_infer(const GNAConvolution* op,
 
     // ranks are originally static or aligned with num_spatial, attributes assumed to be valid
     auto& output_shape = output_shapes[0];
-    output_shape.resize(num_spatial + 2); // FIXME: may be + 1 ?
+    output_shape.resize(num_spatial + 2);
     output_shape[0] = input_shape[0];
     // Channel is the last in NHWC layout
-    output_shape[1] = *(filters_shape.rbegin()); // instead of filters_shape[0] for NCHW layout
+    *(output_shape.rbegin()) = filters_shape[0]; // NHWC C is last instead of filters_shape[0] for NCHW layout
 
     NODE_VALIDATION_CHECK(
             op,
@@ -222,7 +221,7 @@ void shape_infer(const GNAConvolution* op,
             input_shape[1],
             ") does not match filter input ",
             "channel count (",
-            *(filters_shape.rbegin()), /* instead of filters_shape[1] */
+            filters_shape[1],
             ").");
 
     const auto& dilations = op->m_dilations;
@@ -252,6 +251,7 @@ void shape_infer(const GNAConvolution* op,
                                   i,
                                   ".");
             output_shape[i + 1] = (data_padded_dilated_dim - window_dilated_dim) / strides[i] + 1;
+
         }
     }
 }
@@ -267,6 +267,22 @@ GNAConvolution::GNAConvolution(const ngraph::Output<Node>& data_batch,
                                  const ngraph::Strides& dilations,
                                  const ov::op::PadType& auto_pad)
     : ov::op::Op({data_batch, filters, bias}),
+      m_strides(strides),
+      m_dilations(dilations),
+      m_pads_begin(pads_begin),
+      m_pads_end(pads_end),
+      m_auto_pad(auto_pad) {
+    constructor_validate_and_infer_types();
+}
+
+GNAConvolution::GNAConvolution(const ngraph::Output<Node>& data_batch,
+                                 const ngraph::Output<Node>& filters,
+                                 const ngraph::Strides& strides,
+                                 const ngraph::CoordinateDiff& pads_begin,
+                                 const ngraph::CoordinateDiff& pads_end,
+                                 const ngraph::Strides& dilations,
+                                 const ov::op::PadType& auto_pad)
+    : ov::op::Op({data_batch, filters}),
       m_strides(strides),
       m_dilations(dilations),
       m_pads_begin(pads_begin),

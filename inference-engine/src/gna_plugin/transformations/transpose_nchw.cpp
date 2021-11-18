@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ops/gna_convolution.hpp>
 
 #include <vector>
 
@@ -75,56 +76,45 @@ bool DoTransformation(Node convolution)
     auto convolution_input_data_node = convolution_node->input_value(0);
     auto convolution_input_const_node = convolution_node->input_value(1);
     const ngraph::Shape convolution_input_shape = convolution_node->get_input_shape(0);
+    const ngraph::Shape convolution_out_shape = convolution_node->get_output_shape(0);
 
     if (convolution_input_shape.size() < 3 || convolution_input_shape.size() > 5)
         return false;
 
     const ngraph::Shape transpose_before_order = GenerateTransposeOrderNCHW2NHWC(convolution_input_shape.size());
 
+    auto transpose_const = ngraph::opset8::Constant::create(ngraph::element::i64,
+                                                            ngraph::Shape{transpose_before_order.size()},
+                                                            transpose_before_order);
+
     auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(convolution_input_data_node,
-                                                                        ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                                                                         ngraph::Shape{transpose_before_order.size()},
-                                                                                                         transpose_before_order));
+                                                                        transpose_const);
 
     auto transpose_conv_constant = std::make_shared<ngraph::opset8::Transpose>(convolution_input_const_node,
-                                                                                ngraph::opset8::Constant::create(ngraph::element::i64,
-                                                                                                         ngraph::Shape{transpose_before_order.size()},
-                                                                                                         transpose_before_order));
-#if 0
-    auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(transpose_before,
-                                                                   transpose_conv_constant,
-                                                                   convolution_node->get_strides(),
-                                                                   convolution_node->get_dilations(),
-                                                                   convolution_node->get_pads_begin(),
-                                                                   convolution_node->get_pads_end(),
-                                                                   convolution_node->get_output_element_type(0),
-                                                                   1 /* groups */,
-                                                                   convolution_node->get_auto_pad());
-#else
-    auto conv_ie = std::make_shared<ngraph::opset8::Convolution>(transpose_before,
+                                                                               transpose_const);
+    auto conv_new = std::make_shared<GNAPluginNS::GNAConvolution>(transpose_before,
                                                                    transpose_conv_constant,
                                                                    convolution_node->get_strides(),
                                                                    convolution_node->get_pads_begin(),
                                                                    convolution_node->get_pads_end(),
                                                                    convolution_node->get_dilations(),
                                                                    convolution_node->get_auto_pad());
-#endif
 
-    const ngraph::Shape transpose_after_order = GenerateTransposeOrderNHWC2NCHW(conv_ie->get_output_shape(0).size());
+    const ngraph::Shape transpose_after_order = GenerateTransposeOrderNHWC2NCHW(conv_new->get_output_shape(0).size());
 
-    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(conv_ie,
+    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(conv_new,
                                                                        ngraph::opset8::Constant::create(ngraph::element::i64,
                                                                        ngraph::Shape{transpose_after_order.size()},
                                                                        transpose_after_order));    
 
     ngraph::copy_runtime_info(convolution_node, transpose_before);
-    transpose_before->set_friendly_name(convolution_node->get_friendly_name() + "/transpose_before");
+    transpose_before->set_friendly_name(convolution_node->get_friendly_name() + "/gna_conv_transpose_before");
 
-    ngraph::copy_runtime_info(convolution_node, conv_ie);
-    conv_ie->set_friendly_name(convolution_node->get_friendly_name() + "/convolution_ie");
+    ngraph::copy_runtime_info(convolution_node, conv_new);
+    conv_new->set_friendly_name(convolution_node->get_friendly_name() + "/gna_convolution");
 
     ngraph::copy_runtime_info(convolution_node, transpose_after);
-    transpose_after->set_friendly_name(convolution_node->get_friendly_name() + "/transpose_after");
+    transpose_after->set_friendly_name(convolution_node->get_friendly_name() + "/gna_conv_transpose_after");
 
     convolution->output(0).replace(transpose_after->output(0));
     return true;
