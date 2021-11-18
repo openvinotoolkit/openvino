@@ -460,7 +460,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
             print(ov_update_message)
         telemetry.send_event('mo', 'conversion_result', 'success')
         telemetry.end_session('mo')
-        #telemetry.force_shutdown(1.0)
+        telemetry.force_shutdown(1.0)
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -487,7 +487,7 @@ def main(cli_parser: argparse.ArgumentParser, fem: FrontEndManager, framework: s
 
     telemetry.send_event('mo', 'conversion_result', 'fail')
     telemetry.end_session('mo')
-    #telemetry.force_shutdown(1.0)
+    telemetry.force_shutdown(1.0)
     return 1
 
 

@@ -138,7 +138,7 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
 std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
     const std::shared_ptr<InputModelPDPD>& model,
     std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
-                                                      const std::shared_ptr<OpPlacePDPD>&)> func) const {
+                                                      const std::shared_ptr<OpPlacePDPD>&)> func) {
     auto nodes_dict(model->get_tensor_values());
     ParameterVector parameter_nodes;
     ResultVector result_nodes;
@@ -158,7 +158,6 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
     const auto& op_places = model->get_op_places();
     for (const auto& op_place : op_places) {
         const auto& op_desc = op_place->get_desc();
-
         if (op_desc.type() == "feed" || op_desc.type() == "fetch") {
             // inputs and outputs are stored in the model already
             continue;
@@ -270,7 +269,8 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Varian
         std::istream* p_model_stream = pdpd::variant_to_stream_ptr(variants[0], model_stream);
         std::istream* p_weights_stream = pdpd::variant_to_stream_ptr(variants[1], weights_stream);
         if (p_model_stream && p_weights_stream) {
-            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream, p_weights_stream}, m_telemetry);
+            return std::make_shared<InputModelPDPD>(std::vector<std::istream*>{p_model_stream, p_weights_stream},
+                                                    m_telemetry);
         }
     }
     PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");

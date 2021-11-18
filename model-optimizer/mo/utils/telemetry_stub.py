@@ -11,31 +11,19 @@ class Telemetry(object):
         pass
 
     def send_event(self, *arg, **kwargs):
-        print(arg)
-        print(kwargs)
         pass
 
     def send_error(self, *arg, **kwargs):
-        print(arg)
-        print(kwargs)
         pass
 
     def start_session(self, *arg, **kwargs):
-        print(arg)
-        print(kwargs)
         pass
 
     def end_session(self, *arg, **kwargs):
-        print(arg)
-        print(kwargs)
         pass
 
     def force_shutdown(self, *arg, **kwargs):
-        print(arg)
-        print(kwargs)
         pass
 
     def send_stack_trace(self, *arg, **kwargs):
-        print(arg)
-        print(kwargs)
         pass

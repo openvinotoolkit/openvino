@@ -15,8 +15,8 @@ except ImportError:
     import mo.utils.telemetry_stub as tm
 
 from ngraph import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
-from ngraph.frontend import FrontEnd, Place, TelemetryExtension     # pylint: disable=no-name-in-module,import-error
 from ngraph.utils.types import get_element_type   # pylint: disable=no-name-in-module,import-error
+from ngraph.frontend import FrontEnd, Place, TelemetryExtension     # pylint: disable=no-name-in-module,import-error
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -29,9 +29,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     t = tm.Telemetry(tid=get_tid(), app_name='FrontEnd', app_version="")
     moc_front_end.add_extension(TelemetryExtension(t.send_event,
                                                    t.send_error,
-                                                   t.start_session,
-                                                   t.end_session,
-                                                   t.force_shutdown,
                                                    t.send_stack_trace))
     input_model = moc_front_end.load(argv.input_model)
 

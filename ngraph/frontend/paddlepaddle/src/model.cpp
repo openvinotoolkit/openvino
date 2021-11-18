@@ -26,8 +26,12 @@ using namespace paddle::framework::proto;
 class InputModelPDPD::InputModelPDPDImpl {
 public:
     template <typename T>
-    InputModelPDPDImpl(const std::basic_string<T>& path, const InputModel& input_model, const std::shared_ptr<TelemetryExtension>& telemetry);
-    InputModelPDPDImpl(const std::vector<std::istream*>& streams, const InputModel& input_model, const std::shared_ptr<TelemetryExtension>& telemetry);
+    InputModelPDPDImpl(const std::basic_string<T>& path,
+                       const InputModel& input_model,
+                       const std::shared_ptr<TelemetryExtension>& telemetry);
+    InputModelPDPDImpl(const std::vector<std::istream*>& streams,
+                       const InputModel& input_model,
+                       const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<Place::Ptr> getInputs() const;
     std::vector<Place::Ptr> getOutputs() const;
     Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
@@ -135,7 +139,7 @@ void InputModelPDPD::InputModelPDPDImpl::loadPlaces() {
             }
         }
     }
-    if(m_telemetry) {
+    if (m_telemetry) {
         for (const auto& op : op_statistics) {
             m_telemetry->send_event("Paddle_FE", "op_statistics", op.first + " : " + std::to_string(op.second));
         }
@@ -419,13 +423,16 @@ void InputModelPDPD::InputModelPDPDImpl::setTensorValue(Place::Ptr place, const 
     m_tensor_values[name] = constant;
 }
 
-InputModelPDPD::InputModelPDPD(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this, telemetry)} {}
+InputModelPDPD::InputModelPDPD(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry)
+    : _impl{std::make_shared<InputModelPDPDImpl>(path, *this, telemetry)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModelPDPD::InputModelPDPD(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry) : _impl{std::make_shared<InputModelPDPDImpl>(path, *this, telemetry)} {}
+InputModelPDPD::InputModelPDPD(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry)
+    : _impl{std::make_shared<InputModelPDPDImpl>(path, *this, telemetry)} {}
 #endif
 
-InputModelPDPD::InputModelPDPD(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
+InputModelPDPD::InputModelPDPD(const std::vector<std::istream*>& streams,
+                               const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelPDPDImpl>(streams, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<OpPlacePDPD>> InputModelPDPD::get_op_places() const {

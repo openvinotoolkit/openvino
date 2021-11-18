@@ -55,7 +55,9 @@ void extract_operation_name_and_port(const std::string& port_name,
 class InputModelTF::InputModelTFImpl {
 public:
     InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model);
-    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator, const ov::frontend::InputModel& input_model, const std::shared_ptr<TelemetryExtension> &telemetry);
+    InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
+                     const ov::frontend::InputModel& input_model,
+                     const std::shared_ptr<TelemetryExtension>& telemetry);
     std::vector<ov::frontend::Place::Ptr> getInputs() const;
     std::vector<ov::frontend::Place::Ptr> getOutputs() const;
     ov::frontend::Place::Ptr getPlaceByTensorName(const std::string& tensorName) const;
@@ -140,7 +142,7 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
         }
     }
 
-    if(m_telemetry) {
+    if (m_telemetry) {
         for (const auto& op : op_statistics) {
             m_telemetry->send_event("TF_FE", "op_statistics", op.first + " : " + std::to_string(op.second));
         }
@@ -258,14 +260,15 @@ InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph
     loadPlaces();
 }
 
-InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr &graph_iterator,
-                                                 const InputModel &input_model,
-                                                 const std::shared_ptr<TelemetryExtension> &telemetry) :m_input_model(input_model),
-    m_graph_iterator(graph_iterator),
-    m_telemetry(telemetry) {
-        FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
-        loadPlaces();
-    }
+InputModelTF::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
+                                                 const InputModel& input_model,
+                                                 const std::shared_ptr<TelemetryExtension>& telemetry)
+    : m_input_model(input_model),
+      m_graph_iterator(graph_iterator),
+      m_telemetry(telemetry) {
+    FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
+    loadPlaces();
+}
 
 std::vector<ov::frontend::Place::Ptr> InputModelTF::InputModelTFImpl::getInputs() const {
     return m_inputs;
@@ -352,9 +355,9 @@ void InputModelTF::InputModelTFImpl::setTensorValue(ov::frontend::Place::Ptr pla
     m_tensor_values[name] = constant;
 }
 
-InputModelTF::InputModelTF(const GraphIterator::Ptr &graph_iterator,
-                           const std::shared_ptr<TelemetryExtension> &telemetry) :
-                           _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this, telemetry)} {}
+InputModelTF::InputModelTF(const GraphIterator::Ptr& graph_iterator,
+                           const std::shared_ptr<TelemetryExtension>& telemetry)
+    : _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this, telemetry)} {}
 
 std::vector<std::shared_ptr<OpPlaceTF>> InputModelTF::get_op_places() const {
     return _impl->get_op_places();

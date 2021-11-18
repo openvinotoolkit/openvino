@@ -158,9 +158,7 @@ void regclass_pyngraph_TelemetryExtension(py::module m) {
         ext.def(py::init([](TelemetryExtension::event_callback& send_event,
                             TelemetryExtension::error_callback& send_error,
                             TelemetryExtension::error_callback& send_stack_trace) {
-            return std::make_shared<TelemetryExtension>(send_event,
-                                                        send_error,
-                                                        send_stack_trace);
+            return std::make_shared<TelemetryExtension>(send_event, send_error, send_stack_trace);
         }));
 
         ext.def("send_event", &TelemetryExtension::send_event);

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <frontend_manager/extension.hpp>
+
 #include "frontend_manager/frontend.hpp"
 #include "openvino/core/variant.hpp"
 #include "utility.hpp"
@@ -15,6 +16,7 @@ namespace frontend {
 class IR_API FrontEndIR : public FrontEnd {
 public:
     FrontEndIR() = default;
+
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted nGraph function
     /// \return fully converted nGraph function

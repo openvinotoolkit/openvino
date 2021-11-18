@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <frontend_manager/extension.hpp>
 #include "telemetry.hpp"
+
+#include <frontend_manager/extension.hpp>
 
 #include "utils.hpp"
 
@@ -36,9 +37,9 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         ov::frontend::InputModel::Ptr m_inputModel;
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
         auto telemetry_extension = std::make_shared<TelemetryExtension>(
-                std::bind(&TelemetryMock::send_event, &m_test_telemetry, _1, _2, _3, _4),
-                std::bind(&TelemetryMock::send_error, &m_test_telemetry, _1, _2),
-                std::bind(&TelemetryMock::send_stack_trace, &m_test_telemetry, _1, _2));
+            std::bind(&TelemetryMock::send_event, &m_test_telemetry, _1, _2, _3, _4),
+            std::bind(&TelemetryMock::send_error, &m_test_telemetry, _1, _2),
+            std::bind(&TelemetryMock::send_stack_trace, &m_test_telemetry, _1, _2));
 
         std::string category = "test_category";
         std::string action = "test_action";

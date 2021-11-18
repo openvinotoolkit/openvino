@@ -105,7 +105,6 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
-
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -295,7 +294,8 @@ ov::frontend::InputModel::Ptr FrontEndTF::load_impl(const std::vector<std::share
             std::string model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
             if (ov::util::ends_with(model_path, suffix.c_str())) {
                 return std::make_shared<InputModelTF>(
-                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path), m_telemetry);
+                    std::make_shared<::ov::frontend::tf::GraphIteratorProto>(model_path),
+                    m_telemetry);
             }
         } else if (ov::is_type<VariantWrapper<GraphIterator::Ptr>>(variants[0])) {
             auto graph_iterator = ov::as_type_ptr<VariantWrapper<GraphIterator::Ptr>>(variants[0])->get();
@@ -311,6 +311,7 @@ std::shared_ptr<ov::Function> FrontEndTF::convert(ov::frontend::InputModel::Ptr 
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     normalize(f);
     // TODO: check that nGraph function does not contain operations which are not in the opset
+
     return f;
 }
 

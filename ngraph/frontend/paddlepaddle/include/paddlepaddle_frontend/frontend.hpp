@@ -65,7 +65,7 @@ protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;
 
 private:
-    std::shared_ptr<Function> convert_each_node(
+    static std::shared_ptr<Function> convert_each_node(
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
                                                           const std::shared_ptr<OpPlacePDPD>&)> func) const;
