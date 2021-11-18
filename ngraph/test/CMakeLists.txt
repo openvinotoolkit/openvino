@@ -133,6 +133,7 @@ set(SRC
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
+    type_prop/convert_color_i420.cpp
     type_prop/convert_color_nv12.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
@@ -290,6 +291,7 @@ set(SRC
     visitors/op/clamp.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convert_color_i420.cpp
     visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/convolution.cpp
