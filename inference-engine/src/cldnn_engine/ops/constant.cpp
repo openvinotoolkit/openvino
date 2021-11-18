@@ -78,7 +78,7 @@ static cldnn::tensor getConstTensor(const ngraph::Shape constDims) {
     return constTensor;
 }
 
-void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
+static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant>& op) {
     auto constDims = op->get_shape();
     cldnn::tensor constTensor = getConstTensor(constDims);
 
@@ -103,7 +103,7 @@ void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::Constant
                     bool all_inputs_1d = true;
                     for (size_t j = 0; j < outOp->get_input_size(); j++) {
                         auto& in_shape = outOp->get_input_shape(j);
-                        if (in_shape.size() != 1)
+                        if (in_shape.size() > 1)
                             all_inputs_1d = false;
                     }
                     needsBatchInterpretation = all_inputs_1d;

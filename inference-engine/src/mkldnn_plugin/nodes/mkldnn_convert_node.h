@@ -14,13 +14,14 @@ namespace MKLDNNPlugin {
 class MKLDNNConvertNode : public MKLDNNNode {
 public:
     MKLDNNConvertNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
-    MKLDNNConvertNode(const InferenceEngine::SizeVector &dims, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
+    MKLDNNConvertNode(const Shape &shape, const InferenceEngine::Precision &inPrc, const InferenceEngine::Precision &outPrc,
                       const std::string &nodeName, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -37,6 +38,9 @@ public:
 
     const MemoryDesc& getInput() const { return *input; }
     const MemoryDesc& getOutput() const { return *output; }
+
+    std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override { return false; }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

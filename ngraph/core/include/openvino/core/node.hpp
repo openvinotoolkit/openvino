@@ -71,6 +71,10 @@ class Output;
 
 class Node;
 
+class Function;
+
+class SharedRTInfo;
+
 /// EvaluationContext stores and manages a context (additional parameters, values and
 /// environment) for evaluating ov::Function.
 using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
@@ -100,6 +104,8 @@ std::string node_validation_failure_loc_string(const Node* node);
     case element::Type_t::a: \
         rc = evaluate<element::Type_t::a>
 
+class NodeAccessor;
+
 /// Nodes are the backbone of the graph of Value dataflow. Every node has
 /// zero or more nodes as arguments and one value, which is either a tensor
 /// or a (possibly empty) tuple of values.
@@ -115,18 +121,20 @@ class OPENVINO_API Node : public std::enable_shared_from_this<Node> {
     template <typename NodeType>
     friend class Output;
 
+    friend class Function;
+
 protected:
     descriptor::Input& get_input_descriptor(size_t position);
     descriptor::Output& get_output_descriptor(size_t position);
 
-    /// \brief Construct an unitialized Node
+    /// \brief Construct an uninitialized Node
     Node() = default;
     /// \brief Copying a node
     Node(const Node&);
     /// \brief Assignment operator
     Node& operator=(const Node&);
 
-    /// \brief Construct an unitialized Node
+    /// \brief Construct an uninitialized Node
     /// \param output_size Number of outputs for this node
     Node(size_t output_size);
 
@@ -383,9 +391,6 @@ public:
     OPENVINO_DEPRECATED("The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
     const std::string& get_input_tensor_name(size_t i) const;
 
-    std::unordered_set<descriptor::Tensor*> liveness_new_list;
-    std::unordered_set<descriptor::Tensor*> liveness_free_list;
-
     Node* get_input_node_ptr(size_t index) const;
     std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
     Output<Node> get_input_source_output(size_t i) const;
@@ -408,36 +413,6 @@ public:
     const RTMap& get_rt_info() const {
         return m_rt_info;
     }
-    const std::unordered_set<std::string>& get_provenance_tags() const;
-    void add_provenance_tag(const std::string& tag);
-    template <typename T>
-    void add_provenance_tags(T tag_set) {
-        for (auto tag : tag_set) {
-            add_provenance_tag(tag);
-        }
-    }
-    /// \brief Adds tag_set to this node and all intermediate nodes above base
-    void add_provenance_tags_above(const OutputVector& base, const std::unordered_set<std::string>& tag_set);
-    void remove_provenance_tag(const std::string& tag);
-    /// \brief Add node to additional nodes that receive tags
-    void add_provenance_group_member(const std::shared_ptr<Node>& node);
-    /// \brief Remove node to additional nodes that receive tags
-    void remove_provenance_group_member(const std::shared_ptr<Node>& node);
-    /// \brief Replace current_node with replacement_node and transfer tags
-    void replace_provenance_group_member(const std::shared_ptr<Node>& current_node,
-                                         const std::shared_ptr<Node>& replacement_node);
-    /// \return Provenance group nodes
-    const std::set<std::shared_ptr<Node>>& get_provenance_group_members() const;
-
-    /// \brief Add all nodes between this node and nodes in base as additional nodes to receive
-    /// provenance tags.
-    std::shared_ptr<Node> add_provenance_group_members_above(const OutputVector& base);
-
-    // to be used when nodes are replaced
-    void merge_provenance_tags_from(const std::shared_ptr<const Node>& source);
-
-    /// Transfer provenance tags to replacement
-    void transfer_provenance_tags(const std::shared_ptr<Node>& replacement);
 
     /// Get all the nodes that uses the current node
     NodeVector get_users(bool check_is_used = false) const;
@@ -508,22 +483,33 @@ public:
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
 private:
+    friend class ov::NodeAccessor;
     std::vector<Node*> m_control_dependents;
     std::vector<std::shared_ptr<Node>> m_control_dependencies;
-    std::string m_node_type;
     size_t m_instance_id{m_next_instance_id.fetch_add(1)};
     std::string m_friendly_name;
     mutable std::string m_unique_name;
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
-    std::unordered_set<std::string> m_provenance_tags;
-    std::set<std::shared_ptr<Node>> m_provenance_group;
     std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
     OPENVINO_SUPPRESS_DEPRECATED_START
     std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
     OPENVINO_SUPPRESS_DEPRECATED_END
-    std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
+    RTMap m_rt_info;
+
+    // The vector of SharedRTInfo attributes associated to Functions
+    // where this node belongs to. SharedRTInfo is private field which
+    // is used for internal purposes. For example: tracking changes
+    // during graph transformations.
+    std::set<std::shared_ptr<SharedRTInfo>> m_shared_rt_info;
+
+    // As node can be included into different Functions which
+    // can be executed into multiple threads means that m_shared_rt_info
+    // can be updated simultaneously, so we have to guaranty exclusive
+    // update of this field by having specific method with mutex.
+    void insert_info(std::shared_ptr<SharedRTInfo> info);
+    std::mutex m_insert_mutex;
 };
 
 using NodeTypeInfo = Node::type_info_t;

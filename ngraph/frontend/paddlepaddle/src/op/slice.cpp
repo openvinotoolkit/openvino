@@ -8,7 +8,7 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -77,15 +77,23 @@ NamedOutputs slice(const NodeContext& node) {
     auto decrease_axis = node.get_attribute<std::vector<int32_t>>("decrease_axis");
 
     if (decrease_axis.size() > 0) {
-        auto stride_slice_output_shape = stride_slice_node->get_output_partial_shape(0);
+        // according to paddle slice_op, when all axes are decreased, output shape is [1], instead of scalar.
+        // Ref: paddle/fluid/operators/slice_op.h
+        PartialShape input_shape = data.get_partial_shape();
+        PDPD_OP_VALIDATION_CHECK(node,
+                                 input_shape.rank().is_static(),
+                                 "input rank of slice must be static when decrease_axis is set.");
 
-        for (size_t i = 0; i < decrease_axis.size(); ++i)
-            PDPD_OP_VALIDATION_CHECK(node,
-                                     stride_slice_output_shape[decrease_axis[i]] == 1,
-                                     "decrease dim should be 1!");
-
-        auto squeeze_index_node = Constant::create(element::i32, {}, decrease_axis);
+        auto squeeze_index_node = Constant::create(element::i32, {decrease_axis.size()}, decrease_axis);
         auto decreased_node = std::make_shared<Squeeze>(stride_slice_node, squeeze_index_node);
+
+        auto input_rank = input_shape.rank().get_length();
+        if (input_rank == decrease_axis.size()) {
+            auto restore_node = std::make_shared<Reshape>(decreased_node,
+                                                          std::make_shared<Constant>(element::i64, Shape{1}, 1),
+                                                          false);  // restore to shape (1,)
+            return node.default_single_output_mapping({restore_node}, {"Out"});
+        }
 
         return node.default_single_output_mapping({decreased_node}, {"Out"});
     }
@@ -95,4 +103,4 @@ NamedOutputs slice(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

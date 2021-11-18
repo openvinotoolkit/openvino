@@ -10,8 +10,6 @@ import openvino.opset8 as ov
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
-from tests import xfail_issue_67415
-
 
 @pytest.mark.parametrize(
     "ng_api_helper,numpy_function",
@@ -84,7 +82,6 @@ def test_binary_op_with_scalar(ng_api_helper, numpy_function):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_67415
 @pytest.mark.parametrize(
     "ng_api_helper,numpy_function",
     [(ov.logical_and, np.logical_and), (ov.logical_or, np.logical_or), (ov.logical_xor, np.logical_xor)],
@@ -107,7 +104,6 @@ def test_binary_logical_op(ng_api_helper, numpy_function):
     assert np.allclose(result, expected)
 
 
-@xfail_issue_67415
 @pytest.mark.parametrize(
     "ng_api_helper,numpy_function",
     [(ov.logical_and, np.logical_and), (ov.logical_or, np.logical_or), (ov.logical_xor, np.logical_xor)],

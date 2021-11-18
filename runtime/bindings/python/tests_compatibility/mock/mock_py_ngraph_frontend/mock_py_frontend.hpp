@@ -9,11 +9,11 @@
 #include "ngraph/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
-#ifdef mock_py_ngraph_frontend_EXPORTS
-#    define MOCK_API NGRAPH_HELPER_DLL_EXPORT
+#ifdef mock_py_ov_frontend_EXPORTS
+#    define MOCK_API OPENVINO_CORE_EXPORTS
 #else
-#    define MOCK_API NGRAPH_HELPER_DLL_IMPORT
-#endif  // mock1_ngraph_frontend_EXPORTS
+#    define MOCK_API OPENVINO_CORE_IMPORTS
+#endif  // mock_py_ov_frontend_EXPORTS
 
 // OK to have 'using' in mock header
 

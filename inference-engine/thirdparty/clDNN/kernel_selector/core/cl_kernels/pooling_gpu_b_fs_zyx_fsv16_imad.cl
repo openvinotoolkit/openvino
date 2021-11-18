@@ -4,7 +4,6 @@
 
 #include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
 #define ALIGN_TO(val, multiple) (((val) + (multiple) - 1) / (multiple) * (multiple))
 
@@ -127,26 +126,45 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
         ACTIVATION_VEC16 pool_result;
 #if defined AVG_POOLING
 #if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
-        __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
-        for (uint i = 0; i < INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE; i++) {
-#else
-        __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
-        for (uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
-#endif
+        if (last_in_f_group) {
+            __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
+            for (uint i = 0; i < INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE; i++) {
 #if ENABLE_ROUND
 #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-            pool_result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
+                pool_result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
 #else
-            pool_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y)));
+                pool_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y)));
 #endif
 #else // ENABLE_ROUND
 #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-            pool_result[i] = (float)result[i] / max(num_elements, (uint)1);
+                pool_result[i] = (float)result[i] / max(num_elements, (uint)1);
 #else
-            pool_result[i] = (float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y);
+                pool_result[i] = (float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y);
 #endif
 #endif  // ENABLE_ROUND
+            }
+        } else {
+#endif
+            __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
+            for (uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
+// INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+#if ENABLE_ROUND
+#if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
+                pool_result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
+#else
+                pool_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y)));
+#endif
+#else // ENABLE_ROUND
+#if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
+                pool_result[i] = (float)result[i] / max(num_elements, (uint)1);
+#else
+                pool_result[i] = (float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y);
+#endif
+#endif  // ENABLE_ROUND
+            }
+#if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
         }
+#endif // INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
 #else   // AVG_POOLING
         pool_result = TO_ACTIVATION_VEC16(result);
 #endif  // AVG_POOLING

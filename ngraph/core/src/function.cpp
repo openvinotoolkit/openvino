@@ -25,6 +25,7 @@
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
+#include "shared_node_info.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -32,6 +33,8 @@ using namespace std;
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<std::shared_ptr<ov::Function>>);
 
 atomic<size_t> ov::Function::m_next_instance_id(0);
+
+namespace {
 
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                     const ov::op::util::VariableVector& variables) {
@@ -82,6 +85,12 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     }
     return parameter_vector;
 }
+
+}  // namespace
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+const ov::DiscreteTypeInfo ov::Function::type_info = ov::Function::get_type_info_static();
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::Function::Function(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
@@ -183,6 +192,8 @@ ov::Function::Function(const OutputVector& results, const string& name)
 void ov::Function::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::prerequirements");
 
+    m_shared_rt_info = std::make_shared<SharedRTInfo>();
+
     const auto& ordered_ops = get_ordered_ops();
     if (detect_parameters)
         m_parameters = auto_detect_parameters(ordered_ops);
@@ -205,8 +216,6 @@ void ov::Function::validate_nodes_and_infer_types() const {
     std::map<ov::op::util::Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
-    // TODO: enable tensor names check after fixes in transformations
-    // std::unordered_set<std::string> tensor_names;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
     for (auto& node : get_ordered_ops()) {
         node->revalidate_and_infer_types();
@@ -216,12 +225,6 @@ void ov::Function::validate_nodes_and_infer_types() const {
             if (tensors.count(&tensor))
                 continue;
             tensors.insert(&tensor);
-            // for (const auto& name : output.get_tensor().get_names()) {
-            //     if (tensor_names.count(name))
-            //         throw ov::Exception("Function is incorrect. All Tensors should have unique names. " + name +
-            //                             " is not unique.");
-            //     tensor_names.insert(name);
-            // }
         }
         if (op::util::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
@@ -254,10 +257,20 @@ void ov::Function::validate_nodes_and_infer_types() const {
 
 std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::get_ordered_ops");
+    lock_guard<mutex> lock(m_topological_sort_mutex);
 
-    vector<shared_ptr<Node>> nodes;
-    for (auto& r : get_results()) {
-        nodes.push_back(r);
+    NodeVector nodes;
+    if (m_shared_rt_info->get_use_topological_cache()) {
+        for (const auto& node : m_cached_ordered_ops) {
+            if (auto locked_node = node.lock()) {
+                nodes.emplace_back(locked_node);
+            }
+        }
+        return nodes;
+    }
+
+    for (const auto& r : get_results()) {
+        nodes.emplace_back(r);
     }
     for (auto& r : get_sinks()) {
         nodes.emplace_back(r);
@@ -266,7 +279,18 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
         nodes.push_back(param);
     }
 
-    return m_topological_sorter(nodes);
+    auto order = m_topological_sorter(nodes);
+
+    // Update nodes cache and update all nodes to have shared rt info
+    // which belongs to the current Function.
+    m_cached_ordered_ops.clear();
+    for_each(order.cbegin(), order.cend(), [this](const shared_ptr<Node>& node) {
+        m_cached_ordered_ops.push_back(node);
+        node->insert_info(m_shared_rt_info);
+    });
+    m_shared_rt_info->set_use_topological_cache(true);
+
+    return order;
 }
 
 void ov::Function::map_unordered_ops(std::function<void(Node*)> f) const {
@@ -312,7 +336,7 @@ void ov::Function::set_friendly_name(const string& name) {
     m_name = name;
 }
 
-std::ostream& operator<<(std::ostream& out, const ov::Function& f) {
+std::ostream& ov::operator<<(std::ostream& out, const ov::Function& f) {
     out << "Function(" << f.get_name() << ")";
     return out;
 }
@@ -396,6 +420,8 @@ void ov::Function::replace_parameter(size_t parameter_index, const shared_ptr<ng
 
 void ov::Function::set_topological_sort(topological_sort_t sorter) {
     m_topological_sorter = sorter;
+    // reset topological nodes order cache as new sorter can have different behaviour
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Parameter>& parameter) const {
@@ -558,6 +584,9 @@ void ov::Function::add_sinks(const ngraph::SinkVector& sinks) {
             }
         }
     }
+    // reset topological nodes order cache as new sinks/results/parameters
+    // can be in a separate connectivity component.
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::remove_sink(const std::shared_ptr<ngraph::op::Sink>& sink) {
@@ -567,10 +596,14 @@ void ov::Function::remove_sink(const std::shared_ptr<ngraph::op::Sink>& sink) {
                                      return s == sink;
                                  }),
                   m_sinks.end());
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::add_results(const ResultVector& results) {
     m_results.insert(m_results.end(), results.begin(), results.end());
+    // reset topological nodes order cache as new sinks/results/parameters
+    // can be in a separate connectivity component.
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::remove_result(const std::shared_ptr<ngraph::op::Result>& result) {
@@ -580,6 +613,7 @@ void ov::Function::remove_result(const std::shared_ptr<ngraph::op::Result>& resu
                                        return r == result;
                                    }),
                     m_results.end());
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::add_parameters(const ngraph::ParameterVector& params) {
@@ -593,6 +627,9 @@ void ov::Function::add_parameters(const ngraph::ParameterVector& params) {
         }
     }
     m_parameters.insert(m_parameters.end(), params.begin(), params.end());
+    // reset topological nodes order cache as new sinks/results/parameters
+    // can be in a separate connectivity component.
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::remove_parameter(const std::shared_ptr<ngraph::op::Parameter>& param) {
@@ -602,6 +639,7 @@ void ov::Function::remove_parameter(const std::shared_ptr<ngraph::op::Parameter>
                                           return r == param;
                                       }),
                        m_parameters.end());
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::add_variables(const op::util::VariableVector& variables) {
@@ -739,12 +777,35 @@ ov::Output<ov::Node> ov::Function::input(const std::string& tensor_name) {
 }
 
 void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partial_shapes) {
+    std::map<ov::Output<ov::Node>, ov::PartialShape> const_pshape;
+    std::unordered_map<ov::Node*, std::string> port_tensor_map;
+    for (const auto& it : partial_shapes) {
+        const auto port = input(it.first);
+        if (port_tensor_map.find(port.get_node()) != port_tensor_map.end()) {
+            OPENVINO_ASSERT(it.second == const_pshape.at(port),
+                            "Tensor with names {'",
+                            it.first,
+                            "', '",
+                            port_tensor_map[port.get_node()],
+                            "'} has "
+                            "conflicting shapes ",
+                            it.second,
+                            " and ",
+                            const_pshape.at(port),
+                            ", but they define the same tensor");
+        }
+        port_tensor_map[port.get_node()] = it.first;
+        const_pshape[port] = it.second;
+    }
+    reshape(const_pshape);
+}
+
+void ov::Function::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes) {
     if (partial_shapes.empty())
         return;
 
     const auto& params = get_parameters();
-    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Parameter>> tensor_param_map;
-    std::unordered_map<std::shared_ptr<ov::op::v0::Parameter>, std::string> param_tensor_map;
+    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> new_param_shapes;
 
     // Check that we need to do reshape only if input shapes will be changed
     bool need_reshape = false;
@@ -752,39 +813,22 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         bool shape_is_used = false;
 
         for (const auto& param : params) {
-            const auto& tensor_names = param->get_output_tensor(0).get_names();
-
-            if (tensor_names.count(partial_shape.first)) {
+            const auto port = param->output(0);
+            if (port == partial_shape.first) {
                 shape_is_used = true;
-                tensor_param_map[partial_shape.first] = param;
-                auto it = param_tensor_map.find(param);
-                if (it != param_tensor_map.end()) {
-                    OPENVINO_ASSERT(partial_shape.second == partial_shapes.at(it->second),
-                                    "Tensor with names {'",
-                                    partial_shape.first,
-                                    "', '",
-                                    it->second,
-                                    "'} has "
-                                    "conflicting shapes ",
-                                    partial_shape.second,
-                                    " and ",
-                                    partial_shapes.at(it->second),
-                                    ", but they define the same tensor");
-                } else {
-                    param_tensor_map[param] = partial_shape.first;
-                }
 
                 if (param->get_output_partial_shape(0).is_dynamic() ||
                     param->get_output_partial_shape(0) != partial_shape.second) {
                     need_reshape = true;
+                    new_param_shapes[param.get()] = partial_shape.second;
                 }
                 break;
             }
         }
 
         OPENVINO_ASSERT(shape_is_used,
-                        "PartialShape for tensor with name '",
-                        partial_shape.first,
+                        "PartialShape for port '",
+                        *partial_shape.first.get_node(),
                         "' is not used in ov::Function::reshape");
     }
 
@@ -792,15 +836,14 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         return;
 
     // save original parameters shape
-    std::map<std::string, ov::PartialShape> original_input_shapes;
+    std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape> original_input_shapes;
     for (const auto& param : params) {
-        std::string any_tensor_name = *param->get_output_tensor(0).get_names().begin();
-        original_input_shapes[any_tensor_name] = param->get_output_partial_shape(0);
+        original_input_shapes[param.get()] = param->get_output_partial_shape(0);
     }
 
-    auto reshape_only = [&](const std::map<std::string, ov::PartialShape>& pshapes) {
+    auto reshape_only = [&](const std::unordered_map<ov::op::v0::Parameter*, ov::PartialShape>& pshapes) {
         for (const auto& pshape : pshapes) {
-            tensor_param_map[pshape.first]->set_partial_shape(pshape.second);
+            pshape.first->set_partial_shape(pshape.second);
         }
 
         validate_nodes_and_infer_types();
@@ -811,7 +854,7 @@ void ov::Function::reshape(const std::map<std::string, ov::PartialShape>& partia
         ssr_manager.register_pass<ngraph::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
 
-        reshape_only(partial_shapes);
+        reshape_only(new_param_shapes);
     } catch (std::exception& ex) {
         // restore shapes to original ones
         reshape_only(original_input_shapes);

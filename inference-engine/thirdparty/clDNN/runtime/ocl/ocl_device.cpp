@@ -4,6 +4,7 @@
 
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
+#include "cldnn/runtime/debug_configuration.hpp"
 
 #include <map>
 #include <string>
@@ -250,6 +251,9 @@ device_info init_device_info(const cl::Device& device) {
 
         info.supports_imad = info.supports_imad || (features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL);
         info.supports_immad = info.supports_immad || (features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->disable_onednn)
+            info.supports_immad = false;
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
@@ -295,6 +299,14 @@ ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl_pl
 , _platform(platform)
 , _info(init_device_info(dev))
 , _mem_caps(init_memory_caps(dev, _info)) { }
+
+bool ocl_device::is_same(const device::ptr other) {
+    auto casted = downcast<ocl_device>(other.get());
+    if (!casted)
+        return false;
+
+    return _context == casted->get_context() && _device == casted->get_device() && _platform == casted->get_platform();
+}
 
 }  // namespace ocl
 }  // namespace cldnn

@@ -85,6 +85,7 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
     }
 }
 
+namespace {
 bool evaluate_space_to_depth(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,
                              const std::size_t block_size,
@@ -106,6 +107,8 @@ bool evaluate_space_to_depth(const HostTensorVector& outputs,
                                        elem_size);
     return true;
 }
+}  // namespace
+
 bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_SpaceToDepth_evaluate);
     return evaluate_space_to_depth(outputs, inputs, m_blocksize, m_mode);

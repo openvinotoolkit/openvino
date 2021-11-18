@@ -5,12 +5,12 @@
 #include "input_model.hpp"
 
 #include <frontend_manager/frontend_exceptions.hpp>
-#include <ngraph/file_util.hpp>
+#include <openvino/util/file_util.hpp>
 
 #include "place.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -28,8 +28,10 @@ InputModelONNX::InputModelONNX(std::istream& model_stream)
 InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& path)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 InputModelONNX::InputModelONNX(std::istream& model_stream, const std::wstring& path)
-    : InputModelONNX(model_stream, file_util::wstring_to_string(path)) {}
+    : InputModelONNX(model_stream, ov::util::wstring_to_string(path)) {}
+#endif
 
 std::vector<Place::Ptr> InputModelONNX::get_inputs() const {
     const auto& inputs = m_editor->model_inputs();
@@ -60,7 +62,8 @@ Place::Ptr InputModelONNX::get_place_by_tensor_name(const std::string& tensor_na
 
 Place::Ptr InputModelONNX::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
-        return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{operation_name}, m_editor);
+        const auto node_index = m_editor->get_node_index(onnx_editor::EditorNode{operation_name});
+        return std::make_shared<PlaceOpONNX>(onnx_editor::EditorNode{node_index}, m_editor);
     }
     return nullptr;
 }
@@ -81,6 +84,36 @@ Place::Ptr InputModelONNX::get_place_by_operation_name_and_output_port(const std
         return op->get_output_port(output_port_index);
     }
     return nullptr;
+}
+
+void InputModelONNX::set_name_for_tensor(Place::Ptr tensor, const std::string& new_name) {
+    const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(tensor);
+    FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
+    onnx_tensor->set_name(new_name);
+}
+
+void InputModelONNX::set_name_for_operation(Place::Ptr operation, const std::string& new_name) {
+    const auto onnx_operation = std::dynamic_pointer_cast<PlaceOpONNX>(operation);
+    FRONT_END_GENERAL_CHECK(onnx_operation, __FUNCTION__, " expects a pointer to place of ONNX operation type.");
+    onnx_operation->set_name(new_name);
+}
+
+void InputModelONNX::free_name_for_operation(const std::string& name) {
+    m_editor->clear_nodes_name(name);
+}
+
+void InputModelONNX::set_name_for_dimension(Place::Ptr tensor, size_t shape_dim_index, const std::string& dim_name) {
+    const auto onnx_tensor = std::dynamic_pointer_cast<PlaceTensorONNX>(tensor);
+    FRONT_END_GENERAL_CHECK(onnx_tensor, __FUNCTION__, " expects a pointer to place of ONNX tensor type.");
+    onnx_tensor->set_name_for_dimension(shape_dim_index, dim_name);
+}
+
+void InputModelONNX::add_name_for_tensor(Place::Ptr, const std::string&) {
+    FRONT_END_THROW("Method add_name_for_tensor is not applicable for ONNX model. ONNX tensor has just one name.");
+}
+
+void InputModelONNX::free_name_for_tensor(const std::string&) {
+    FRONT_END_THROW("Method free_name_for_tensor is not applicable for ONNX model. ONNX tensor name is an identifier.");
 }
 
 void InputModelONNX::set_partial_shape(Place::Ptr place, const ngraph::PartialShape& shape) {
