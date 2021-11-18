@@ -59,6 +59,19 @@ def pytest_addoption(parser):
         help="number of iterations to run executable and aggregate results",
         default=3
     )
+    test_args_parser.addoption(
+        '--cache',
+        dest="cache",
+        action='store_true',
+        help='Enable model cache usage'
+    )
+    test_args_parser.addoption(
+        "--vpu_mlir_compiler",
+        dest='vpu_mlir_compiler',
+        action='store_true',
+        help='Change VPUX compiler type to MLIR. Default compiler is MCM'
+    )
+
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
@@ -111,6 +124,17 @@ def niter(request):
     """Fixture function for command-line option."""
     return request.config.getoption('niter')
 
+
+@pytest.fixture(scope="session")
+def cache(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('cache')
+
+
+@pytest.fixture(scope="session")
+def vpu_mlir_compiler(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption('vpu_mlir_compiler')
 
 # -------------------- CLI options --------------------
 

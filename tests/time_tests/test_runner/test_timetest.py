@@ -35,7 +35,7 @@ REFS_FACTOR = 1.2      # 120%
 
 
 def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, test_info, temp_dir, validate_test_case,
-                  prepare_db_info):
+                  prepare_db_info, cache, vpu_mlir_compiler):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
@@ -63,7 +63,9 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, te
         "executable": Path(executable),
         "model": Path(model_path),
         "device": instance["device"]["name"],
-        "niter": niter
+        "niter": niter,
+        "cache": cache,
+        "vpu_mlir_compiler": vpu_mlir_compiler
     }
     logging.info("Run timetest once to generate any cache")
     retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
