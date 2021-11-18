@@ -375,7 +375,7 @@ def slice(
         start: NodeInput,
         stop: NodeInput,
         step: NodeInput,
-        axes: NodeInput = None,
+        axes: Optional[NodeInput] = None,
         name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates Slice operation.
