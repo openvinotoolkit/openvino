@@ -14,16 +14,12 @@ set(SRC
 
 add_library(ie_backend SHARED ${SRC})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ie_backend
-        UNITY
-    )
-endif()
+ie_faster_build(ie_backend UNITY)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ie_backend
-                           FILEDESCRIPTION "nGraph IE backend library")
-endif()
+ie_add_vs_version_file(NAME ie_backend
+                       FILEDESCRIPTION "nGraph IE backend library")
+
+ie_add_api_validator_post_build_step(TARGET ie_backend)
 
 add_dependencies(ie_backend inference_engine)
 target_link_libraries(ie_backend PUBLIC ngraph_backend inference_engine)
