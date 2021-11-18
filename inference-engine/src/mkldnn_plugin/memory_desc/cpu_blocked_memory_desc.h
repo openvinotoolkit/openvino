@@ -72,8 +72,6 @@ public:
 
     bool hasLayoutType(LayoutType layoutType) const override;
 
-    std::string serializeFormat() const override;
-
     size_t getMaxMemSize() const override;
 
     size_t getPaddedElementsCount() const override;
