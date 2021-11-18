@@ -33,6 +33,7 @@ if [ -f /etc/lsb-release ]; then
     sudo -E apt-get install -y \
             build-essential \
             cmake \
+            ccache \
             curl \
             wget \
             libssl-dev \
