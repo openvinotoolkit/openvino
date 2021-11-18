@@ -9,7 +9,6 @@
 #include <chrono>
 #include <cmath>
 #include <ie_ngraph_utils.hpp>
-#include <ngraph_ops/nms_static_shape_ie.hpp>
 #include <queue>
 #include <string>
 #include <utility>
@@ -22,7 +21,6 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
-using MulticlassNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>;
 
 bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -57,8 +55,6 @@ MKLDNNMultiClassNmsNode::MKLDNNMultiClassNmsNode(const std::shared_ptr<ngraph::N
     if (getOriginalOutputsNumber() != 3)
         IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
 
-    if (std::dynamic_pointer_cast<const MulticlassNmsIEInternal>(op))
-        m_outStaticShape = true;
     const auto nms = std::dynamic_pointer_cast<const ngraph::op::v8::MulticlassNms>(op);
 
     auto& atrri = nms->get_attrs();
@@ -259,7 +255,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     }
 
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-    if (!m_outStaticShape) {
+    if (isDynamicNode()) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), 0);
         selectedOutputsMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDOUTPUTS)->cloneWithNewDims({totalBox, 6}));
         selectedIndicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims({totalBox, 1}));
@@ -287,7 +283,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
             selected_base[5] = boxes[selected_indices[j + output_offset] * 4 + 3];
         }
         // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
-        if (m_outStaticShape) {
+        if (!isDynamicNode()) {
             std::fill_n(selected_outputs + (output_offset + real_boxes) * 6, (selectedBoxesNum_perBatch - real_boxes) * 6, -1);
             std::fill_n(selected_indices + (output_offset + real_boxes), selectedBoxesNum_perBatch - real_boxes, -1);
             output_offset += selectedBoxesNum_perBatch;

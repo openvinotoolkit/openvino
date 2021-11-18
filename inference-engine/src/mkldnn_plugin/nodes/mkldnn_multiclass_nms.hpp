@@ -31,7 +31,7 @@ public:
 
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
-    bool needShapeInfer() const override { return m_outStaticShape; }
+    bool needShapeInfer() const override { return false; }
     void prepareParams() override;
 
 private:
@@ -85,7 +85,6 @@ private:
     };
 
     std::vector<filteredBoxes> m_filtBoxes;
-    bool m_outStaticShape = false;
 
     void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
                         const std::string type);

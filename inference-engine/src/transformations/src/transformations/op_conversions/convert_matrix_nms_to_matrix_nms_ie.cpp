@@ -28,6 +28,11 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool 
             return false;
         }
 
+        // if input shape is dynamic force the output shape must be dynamic too
+        if (nms->get_input_partial_shape(0).is_dynamic() || nms->get_input_partial_shape(1).is_dynamic()) {
+            return false;
+        }
+
         const auto new_args = nms->input_values();
         // vector of new nGraph operations
         NodeVector new_ops;

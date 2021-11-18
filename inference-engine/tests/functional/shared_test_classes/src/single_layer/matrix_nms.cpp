@@ -276,13 +276,19 @@ void MatrixNmsLayerTest::SetUp() {
     auto nms = std::make_shared<opset8::MatrixNms>(paramOuts[0], paramOuts[1], m_attrs);
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         m_outStaticShape = false;
-        function = std::make_shared<Function>(nms, params, "MatrixNMS");
+        auto result = std::make_shared<opset5::Result>(nms);
+        function = std::make_shared<Function>(result, params, "MatrixNMS");
     } else {
         m_outStaticShape = true;
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(element::f32, Shape{1}, {1}));
         auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(m_attrs.output_type, Shape{1}, {1}));
         auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(m_attrs.output_type, Shape{1}, {1}));
-        function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "MatrixNMS");
+        OutputVector results = {
+            std::make_shared<opset5::Result>(nms_0_identity),
+            std::make_shared<opset5::Result>(nms_1_identity),
+            std::make_shared<opset5::Result>(nms_2_identity)
+        };
+        function = std::make_shared<Function>(results, params, "MatrixNMS");
     }
 }
 
