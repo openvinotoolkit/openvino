@@ -28,7 +28,6 @@ protected:
 
 private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
-    const std::string m_telemetry_category = "ONNX_FE";
 };
 
 }  // namespace frontend

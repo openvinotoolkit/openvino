@@ -24,30 +24,35 @@ public:
     using event_callback = const std::function<
         void(const std::string& category, const std::string& action, const std::string& label, int value)>;
     TelemetryExtension() = default;
-    TelemetryExtension(event_callback& send_event, error_callback& send_error, error_callback& send_stack_trace)
-        : m_send_event(send_event),
+    TelemetryExtension(std::string event_category,
+                       event_callback& send_event,
+                       error_callback& send_error,
+                       error_callback& send_stack_trace)
+        : m_event_category(event_category),
+          m_send_event(send_event),
           m_send_error(send_error),
           m_send_stack_trace(send_stack_trace) {}
 
-    void send_event(const std::string& category, const std::string& action, const std::string& label, int value = 1) {
+    void send_event(const std::string& action, const std::string& label, int value = 1) {
         if (m_send_event) {
-            m_send_event(category, action, label, value);
+            m_send_event(m_event_category, action, label, value);
         }
     }
 
-    void send_error(const std::string& category, const std::string& error_message) {
+    void send_error(const std::string& error_message) {
         if (m_send_error) {
-            m_send_error(category, error_message);
+            m_send_error(m_event_category, error_message);
         }
     }
 
-    void send_stack_trace(const std::string& category, const std::string& error_message) {
+    void send_stack_trace(const std::string& error_message) {
         if (m_send_stack_trace) {
-            m_send_stack_trace(category, error_message);
+            m_send_stack_trace(m_event_category, error_message);
         }
     }
 
 private:
+    std::string m_event_category;
     event_callback m_send_event;
     error_callback m_send_error;
     error_callback m_send_stack_trace;

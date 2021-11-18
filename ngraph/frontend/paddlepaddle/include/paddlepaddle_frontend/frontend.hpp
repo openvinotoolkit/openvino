@@ -68,9 +68,8 @@ private:
     static std::shared_ptr<Function> convert_each_node(
         const std::shared_ptr<InputModelPDPD>& model,
         std::function<std::map<std::string, OutputVector>(const std::map<std::string, Output<Node>>&,
-                                                          const std::shared_ptr<OpPlacePDPD>&)> func)1;
+                                                          const std::shared_ptr<OpPlacePDPD>&)> func);
     std::shared_ptr<TelemetryExtension> m_telemetry;
-    const std::string m_telemetry_category = "PADDLE_FE";
 };
 
 }  // namespace frontend

@@ -47,7 +47,6 @@ private:
     std::vector<std::shared_ptr<void>> shared_objects;
     std::vector<ov::Extension::Ptr> extensions;
     std::shared_ptr<TelemetryExtension> m_telemetry;
-    const std::string m_telemetry_category = "IR_FE";
 };
 
 }  // namespace frontend

@@ -144,7 +144,7 @@ void InputModelTF::InputModelTFImpl::loadPlaces() {
 
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
-            m_telemetry->send_event("TF_FE", "op_statistics", op.first + " : " + std::to_string(op.second));
+            m_telemetry->send_event("op_count", "tf_" + op.first, op.second);
         }
     }
 

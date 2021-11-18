@@ -141,7 +141,7 @@ void InputModelPDPD::InputModelPDPDImpl::loadPlaces() {
     }
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
-            m_telemetry->send_event("Paddle_FE", "op_statistics", op.first + " : " + std::to_string(op.second));
+            m_telemetry->send_event("op_count", "paddle_" + op.first, op.second);
         }
     }
 }

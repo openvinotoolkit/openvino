@@ -27,7 +27,8 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :return: converted nGraph function ready for serialization
     """
     t = tm.Telemetry(tid=get_tid(), app_name='FrontEnd', app_version="")
-    moc_front_end.add_extension(TelemetryExtension(t.send_event,
+    moc_front_end.add_extension(TelemetryExtension("mo",
+                                                   t.send_event,
                                                    t.send_error,
                                                    t.send_stack_trace))
     input_model = moc_front_end.load(argv.input_model)

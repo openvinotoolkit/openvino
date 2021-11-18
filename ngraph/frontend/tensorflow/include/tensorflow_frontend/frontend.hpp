@@ -83,7 +83,6 @@ private:
                          std::shared_ptr<ov::Function>& ng_function) const;
 
     std::shared_ptr<TelemetryExtension> m_telemetry;
-    const std::string m_telemetry_category = "TF_FE";
 };
 }  // namespace frontend
 }  // namespace ov

@@ -36,18 +36,19 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         ov::frontend::FrontEnd::Ptr m_frontEnd;
         ov::frontend::InputModel::Ptr m_inputModel;
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
+        std::string category = "test_category";
         auto telemetry_extension = std::make_shared<TelemetryExtension>(
+                category,
             std::bind(&TelemetryMock::send_event, &m_test_telemetry, _1, _2, _3, _4),
             std::bind(&TelemetryMock::send_error, &m_test_telemetry, _1, _2),
             std::bind(&TelemetryMock::send_stack_trace, &m_test_telemetry, _1, _2));
 
-        std::string category = "test_category";
         std::string action = "test_action";
         std::string msg = "test_msg";
         int version = 2;
-        EXPECT_NO_THROW(telemetry_extension->send_event(category, action, msg, version));
-        EXPECT_NO_THROW(telemetry_extension->send_error(category, msg));
-        EXPECT_NO_THROW(telemetry_extension->send_stack_trace(category, msg));
+        EXPECT_NO_THROW(telemetry_extension->send_event(action, msg, version));
+        EXPECT_NO_THROW(telemetry_extension->send_error(msg));
+        EXPECT_NO_THROW(telemetry_extension->send_stack_trace(msg));
 
         EXPECT_EQ(m_test_telemetry.m_event_cnt, 1);
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 1);
