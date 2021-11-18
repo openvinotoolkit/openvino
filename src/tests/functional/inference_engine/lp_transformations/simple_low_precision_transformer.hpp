@@ -7,6 +7,7 @@
 #include <map>
 
 #include <ngraph/ngraph.hpp>
+#include <low_precision/assign_and_read_value.hpp>
 
 #include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
@@ -23,6 +24,10 @@ public:
     template <class T, class Operation>
     void add(const TestTransformationParams& params) {
         commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
+    }
+    template <class T, class Operation>
+    void add(const std::shared_ptr<ngraph::Function> function, const TestTransformationParams& params) {
+        commonGraphRewrite->add_matcher<T>(function, TestTransformationParams::toParams(params));
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);

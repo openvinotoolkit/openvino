@@ -17,6 +17,7 @@
 #include <numeric>
 
 #include <ngraph/rt_info.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -1361,6 +1362,8 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
     if (convert != nullptr) {
         if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
             (convert->input(0).get_element_type() != element::i4) && (convert->input(0).get_element_type() != element::u4) &&
+            (convert->input(0).get_element_type() != element::i16) && (convert->input(0).get_element_type() != element::u16) &&
+            (convert->input(0).get_element_type() != element::i32) && (convert->input(0).get_element_type() != element::u32) &&
             (convert->output(0).get_element_type() != element::f32)) {
             return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
         }
