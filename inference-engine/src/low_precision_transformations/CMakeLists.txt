@@ -17,13 +17,11 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
 
-add_library(${TARGET_NAME}
+add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
-ie_faster_build(${TARGET_NAME}
-    UNITY
-)
+ie_faster_build(${TARGET_NAME} UNITY)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine LP transformations library")
@@ -31,7 +29,8 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations
                                      PRIVATE openvino::itt)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
@@ -47,6 +46,10 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # install
 
-install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+else()
+    ov_install_static_lib(${TARGET_NAME} core)
+endif()

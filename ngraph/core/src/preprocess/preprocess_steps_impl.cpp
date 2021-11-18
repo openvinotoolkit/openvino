@@ -83,19 +83,19 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
         if (t == element::Type{}) {
             t = ctxt.target_element_type();
         }
-        bool convert_added = false;
         for (const auto& node : nodes) {
             OPENVINO_ASSERT(node.get_element_type().is_static(),
                             "Can't insert 'convert_element_type' for dynamic source tensor type.");
             if (t != node.get_element_type()) {
                 auto convert = std::make_shared<op::v0::Convert>(node, t);
                 res.emplace_back(convert);
-                convert_added = true;
             } else {
                 res.emplace_back(node);
             }
         }
-        return std::make_tuple(res, convert_added);
+        // return false to avoid excess function revalidations as conversion of types
+        // doesn't require shape or type propagation.
+        return std::make_tuple(res, false);
     });
 }
 
@@ -173,7 +173,9 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
-        return std::make_tuple(std::vector<Output<Node>>{transpose}, true);
+        // return false to avoid excess function revalidations as layout conversion
+        // doesn't require shape or type propagation.
+        return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
     });
 }
 
@@ -192,9 +194,10 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         auto new_layout = layout::apply_permutation(context.layout(), dims);
         auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-        auto res = std::make_tuple(std::vector<Output<Node>>{transpose}, true);
         context.layout() = std::move(new_layout);  // Update context's current layout
-        return res;
+        // return false to avoid excess function revalidations as layout conversion
+        // doesn't require shape or type propagation.
+        return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
     });
 }
 
@@ -236,6 +239,42 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
             default:
                 OPENVINO_ASSERT(false,
                                 "Unsupported conversion from NV12 to '",
+                                color_format_name(dst_format),
+                                "' format:");
+            }
+            context.color_format() = dst_format;
+            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+        } else if (context.color_format() == ColorFormat::I420_SINGLE_PLANE) {
+            OPENVINO_ASSERT(nodes.size() == 1, "Internal error: single plane I420 image can't have multiple inputs");
+            std::shared_ptr<Node> convert;
+            switch (dst_format) {
+            case ColorFormat::RGB:
+                convert = std::make_shared<op::v8::I420toRGB>(nodes[0]);
+                break;
+            case ColorFormat::BGR:
+                convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
+                break;
+            default:
+                OPENVINO_ASSERT(false,
+                                "Unsupported conversion from I420 to '",
+                                color_format_name(dst_format),
+                                "' format:");
+            }
+            context.color_format() = dst_format;
+            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+        } else if (context.color_format() == ColorFormat::I420_THREE_PLANES) {
+            OPENVINO_ASSERT(nodes.size() == 3, "Internal error: three-plane I420 image must have exactly three inputs");
+            std::shared_ptr<Node> convert;
+            switch (dst_format) {
+            case ColorFormat::RGB:
+                convert = std::make_shared<op::v8::I420toRGB>(nodes[0], nodes[1], nodes[2]);
+                break;
+            case ColorFormat::BGR:
+                convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
+                break;
+            default:
+                OPENVINO_ASSERT(false,
+                                "Unsupported conversion from I420 to '",
                                 color_format_name(dst_format),
                                 "' format:");
             }

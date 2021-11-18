@@ -4,11 +4,11 @@
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
-from tensorflow_tests.permutation_utils import permute_nchw_to_nhwc
+from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestSelect(CommonTFLayerTest):
-    def create_select_net(self, shape_condition, shape_input, ir_version):
+    def create_select_net(self, shape_condition, shape_input, ir_version, use_new_frontend):
         """
             Tensorflow net                 IR net
 
@@ -56,9 +56,9 @@ class TestSelect(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_select_1D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_select_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_select_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_select_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_2D = [
         dict(shape_condition=[2], shape_input=[2, 3]),
@@ -67,9 +67,9 @@ class TestSelect(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_select_2D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_select_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_select_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_select_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_3D = [
         dict(shape_condition=[3], shape_input=[3, 4, 5]),
@@ -78,9 +78,9 @@ class TestSelect(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_select_3D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_select_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_select_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_select_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_4D = [
         dict(shape_condition=[3], shape_input=[3, 4, 5, 6]),
@@ -90,9 +90,9 @@ class TestSelect(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_select_4D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_select_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_select_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_select_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
 
     test_data_5D = [
         dict(shape_condition=[3], shape_input=[3, 4, 5, 6, 7]),
@@ -102,6 +102,6 @@ class TestSelect(CommonTFLayerTest):
     # TODO mark as precommit (after successfully passing in nightly)
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_select_5D(self, params, ie_device, precision, ir_version, temp_dir):
-        self._test(*self.create_select_net(**params, ir_version=ir_version),
-                   ie_device, precision, ir_version, temp_dir=temp_dir)
+    def test_select_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+        self._test(*self.create_select_net(**params, ir_version=ir_version, use_new_frontend=use_new_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)

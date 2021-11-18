@@ -27,6 +27,7 @@
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
+#include <ngraph/runtime/reference/exp.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp>
@@ -45,6 +46,7 @@
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/if.hpp>
+#include <ngraph/runtime/reference/log.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
 #include <ngraph/runtime/reference/lrn.hpp>
 #include <ngraph/runtime/reference/lstm_cell.hpp>
@@ -67,9 +69,10 @@
 #include <ngraph/runtime/reference/scatter_nd_update.hpp>
 #include <ngraph/runtime/reference/selu.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
+#include <ngraph/runtime/reference/sigmoid.hpp>
 #include <ngraph/runtime/reference/sign.hpp>
-#include <ngraph/runtime/reference/slice.hpp>
 #include <ngraph/runtime/reference/squared_difference.hpp>
+#include <ngraph/runtime/reference/tanh.hpp>
 #include <ngraph/runtime/reference/tensor_iterator.hpp>
 #include <ngraph/runtime/reference/utils/nms_common.hpp>
 
@@ -1501,43 +1504,6 @@ bool evaluate(const shared_ptr<op::v1::AvgPool>& op, const HostTensorVector& out
 }
 
 template <element::Type_t ET>
-bool evaluate(const std::shared_ptr<op::v8::Slice>& op,
-              const HostTensorVector& outputs,
-              const HostTensorVector& inputs) {
-    OPENVINO_ASSERT(inputs.size() >= 4, "Slice evaluate needs at least 4 inputs.");
-    std::vector<int64_t> starts = host_tensor_2_vector<int64_t>(inputs[1]);
-    std::vector<int64_t> stops = host_tensor_2_vector<int64_t>(inputs[2]);
-    std::vector<int64_t> steps = host_tensor_2_vector<int64_t>(inputs[3]);
-
-    std::vector<int64_t> axes(starts.size());
-    if (inputs.size() < 5) {
-        std::iota(axes.begin(), axes.end(), 0);
-    } else {
-        axes = host_tensor_2_vector<int64_t>(inputs[4]);
-    }
-
-    // Static HostTensor data shape is needed to clamp and normalize `start` values
-    const auto data_shape = inputs[0]->get_partial_shape();
-    OPENVINO_ASSERT(data_shape.is_static(), "Can't evaluate Slice elements without static HostTensor data shape.");
-    // We need calculate static output shape based on HostTensor inputs
-    PartialShape output_shape = op->calculate_output_shape(starts, stops, steps, axes, data_shape);
-    OPENVINO_ASSERT(output_shape.is_static(), "Can't calculate static output shape for Slice evaluation.");
-
-    outputs[0]->set_shape(output_shape.to_shape());
-    outputs[0]->set_element_type(inputs[0]->get_element_type());
-
-    runtime::reference::slice(inputs[0]->get_data_ptr<char>(),
-                              data_shape.to_shape(),
-                              outputs[0]->get_data_ptr<char>(),
-                              output_shape.to_shape(),
-                              inputs[0]->get_element_type().size(),
-                              starts,
-                              steps,
-                              axes);
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::HardSigmoid>& op,
               const HostTensorVector& outputs,
               const HostTensorVector& inputs) {
@@ -1679,6 +1645,42 @@ template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Abs>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::abs<T>(inputs[0]->get_data_ptr<T>(),
+                               outputs[0]->get_data_ptr<T>(),
+                               shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Sigmoid>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::sigmoid<T>(inputs[0]->get_data_ptr<T>(),
+                                   outputs[0]->get_data_ptr<T>(),
+                                   shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Exp>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::exp<T>(inputs[0]->get_data_ptr<T>(),
+                               outputs[0]->get_data_ptr<T>(),
+                               shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Tanh>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::tanh<T>(inputs[0]->get_data_ptr<T>(),
+                                outputs[0]->get_data_ptr<T>(),
+                                shape_size(inputs[0]->get_shape()));
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v0::Log>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    runtime::reference::log<T>(inputs[0]->get_data_ptr<T>(),
                                outputs[0]->get_data_ptr<T>(),
                                shape_size(inputs[0]->get_shape()));
     return true;
@@ -2476,17 +2478,42 @@ bool evaluate(const shared_ptr<op::v5::GatherND>& op, const HostTensorVector& ou
         runtime::reference::gather_nd<T, int64_t>(inputs[0]->get_data_ptr<T>(),
                                                   inputs[1]->get_data_ptr<int64_t>(),
                                                   outputs[0]->get_data_ptr<T>(),
-                                                  op->get_input_shape(0),
-                                                  op->get_input_shape(1),
-                                                  op->get_output_shape(0),
+                                                  inputs[0]->get_shape(),
+                                                  inputs[1]->get_shape(),
+                                                  outputs[0]->get_shape(),
                                                   op->get_batch_dims());
     } else if (op->get_input_element_type(1) == element::i32) {
         runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
                                                   inputs[1]->get_data_ptr<int32_t>(),
                                                   outputs[0]->get_data_ptr<T>(),
-                                                  op->get_input_shape(0),
-                                                  op->get_input_shape(1),
-                                                  op->get_output_shape(0),
+                                                  inputs[0]->get_shape(),
+                                                  inputs[1]->get_shape(),
+                                                  outputs[0]->get_shape(),
+                                                  op->get_batch_dims());
+    } else {
+        throw ngraph_error("Unexpected indices type for GatherND operation");
+    }
+    return true;
+}
+
+template <element::Type_t ET>
+bool evaluate(const shared_ptr<op::v8::GatherND>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    using T = typename element_type_traits<ET>::value_type;
+    if (op->get_input_element_type(1) == element::i64) {
+        runtime::reference::gather_nd<T, int64_t>(inputs[0]->get_data_ptr<T>(),
+                                                  inputs[1]->get_data_ptr<int64_t>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  inputs[0]->get_shape(),
+                                                  inputs[1]->get_shape(),
+                                                  outputs[0]->get_shape(),
+                                                  op->get_batch_dims());
+    } else if (op->get_input_element_type(1) == element::i32) {
+        runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
+                                                  inputs[1]->get_data_ptr<int32_t>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  inputs[0]->get_shape(),
+                                                  inputs[1]->get_shape(),
+                                                  outputs[0]->get_shape(),
                                                   op->get_batch_dims());
     } else {
         throw ngraph_error("Unexpected indices type for GatherND operation");
