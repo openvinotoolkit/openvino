@@ -163,8 +163,8 @@ void regclass_graph_Node(py::module m) {
 
                 Returns
                 ----------
-                get_output_tensor : TensorDescriptor
-                    TensorDescriptor of the output i
+                get_output_tensor : descriptor.Tensor
+                    Tensor of the output i
              )");
     node.def("get_type_name",
              &ov::Node::get_type_name,

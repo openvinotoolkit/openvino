@@ -88,7 +88,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 A reference to the tensor descriptor for this output.
                 Returns
                 ----------
-                get_tensor : TensorDescriptor
-                    TensorDescriptor of the output.
+                get_tensor : descriptor.Tensor
+                    Tensor of the output.
                )");
 }

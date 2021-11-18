@@ -18,7 +18,9 @@ using PyRTMap = std::map<std::string, std::shared_ptr<ov::Variant>>;
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void regclass_graph_descriptor_Tensor(py::module m) {
-    py::class_<ov::descriptor::Tensor, std::shared_ptr<ov::descriptor::Tensor>> tensor(m, "TensorDescriptor");
+    py::class_<ov::descriptor::Tensor, std::shared_ptr<ov::descriptor::Tensor>> tensor(m, "DescriptorTensor");
+
+    tensor.doc() = "openvino.descriptor.Tensor wraps ov::descriptor::Tensor";
 
     tensor.def(py::init<const ov::element::Type, const ov::PartialShape, const std::string>(),
                py::arg("element_type"),
