@@ -874,11 +874,50 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
 void MKLDNNNormalizeL2Node::prepareParams() {
     attrs.dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
     setPostOps(attrs.kernel_attrs, true);
-    execPtr = std::make_shared<NormalizeL2Executor>(attrs);
+    execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, attrs.input_prec, attrs.output_prec);
 }
 
-MKLDNNNormalizeL2Node::NormalizeL2Executor::NormalizeL2Executor(const NormalizeL2Attrs& attrs_) : attrs(attrs_) {
-    if (!attrs.cornerCase) {
+void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
+    if (!execPtr)
+        THROW_ERROR << "doesn't have a compiled executor.";
+
+    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
+    execPtr->exec(src_ptr, dst_ptr);
+}
+
+std::vector<VectorDims> MKLDNNNormalizeL2Node::shapeInfer() const {
+    return std::vector<VectorDims>{getParentEdgesAtPort(DATA)[0]->getMemory().getStaticDims()};
+}
+
+// *====================* CornerCase *===================*
+
+template <typename in_data_t, typename out_data_t>
+struct MKLDNNNormalizeL2Node::NormalizeL2CornerCaseExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+    NormalizeL2CornerCaseExecutor(const VectorDims& dims) {
+        workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
+    }
+
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) override {
+        normalize(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+    }
+private:
+    void normalize(const in_data_t* src_data, out_data_t* dst_data) {
+        parallel_for(workAmount, [&](size_t i) {
+            dst_data[i] = src_data[i] == 0 ? 0 : 1;
+        });
+    }
+
+    size_t workAmount = 0lu;
+};
+
+// *=================* *======* *=================*
+
+// *=================* JIT case *=================*
+
+template <typename in_data_t, typename out_data_t>
+struct MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_) : attrs(attrs_) {
         if (!attrs.jcp.is_nchw && !attrs.jcp.is_nhwc && !attrs.jcp.is_blk) {
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
@@ -891,19 +930,311 @@ MKLDNNNormalizeL2Node::NormalizeL2Executor::NormalizeL2Executor(const NormalizeL
 
         if (mayiuse(cpu::x64::avx512_common)) {
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(attrs.jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(attrs.jcp, *attrs.kernel_attrs.get()));
+            normalize_kernel.reset(
+                    new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(attrs.jcp, *attrs.kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(attrs.jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(attrs.jcp, *attrs.kernel_attrs.get()));
+            normalize_kernel.reset(
+                    new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(attrs.jcp, *attrs.kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(attrs.jcp));
-            normalize_kernel.reset(new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(attrs.jcp, *attrs.kernel_attrs.get()));
+            normalize_kernel.reset(
+                    new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(attrs.jcp, *attrs.kernel_attrs.get()));
         }
+
         if (normalize_kernel)
             normalize_kernel->create_ker();
 
         if (normalize_modulo_kernel)
             normalize_modulo_kernel->create_ker();
+    }
+
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) override {
+        if (attrs.jcp.is_nchw) {
+            normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+        } else if (attrs.jcp.is_nhwc) {
+            normalize_nhwc(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+        } else if (attrs.jcp.is_blk) {
+            normalize_blk(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
+        }
+    }
+
+private:
+    inline float epsApply(const float &modulo) const {
+        return attrs.epsMode == NormEpsMode::ADD ? modulo + attrs.eps : std::max(modulo, attrs.eps);
+    }
+
+    void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data) {
+        const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
+        for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+            const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
+            out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
+            if (attrs.across_spatial) {
+                // modulo
+                float addition_identity = 0.0f;
+                float modulo = 0.0f;
+                modulo = parallel_sum(attrs.jcp.c, addition_identity, [&](int ic) -> float {
+                    const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                    float modulo_kernel = 0.0f;
+                    float modulo_tail = 0.0f;
+                    size_t tail_start = 0;
+
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_bc;
+                    arg.modulo = static_cast<float*>(&modulo_kernel);
+                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                    arg.work_amount = (spatial_dims) / attrs.blk_size;
+                    (*normalize_modulo_kernel)(&arg);
+
+                    tail_start = (spatial_dims / attrs.blk_size) * attrs.blk_size;
+
+                    // tail
+                    for (size_t tail = tail_start; tail < spatial_dims; tail++) {
+                        modulo_tail += src_data_bc[tail] * src_data_bc[tail];
+                    }
+                    return modulo_kernel + modulo_tail;
+                });
+
+                modulo = std::sqrt(modulo);
+                float modulo_inv = 1.0f / (epsApply(modulo));
+
+                // normalize
+                parallel_for(attrs.jcp.c, [&](size_t ic) {
+                    const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                    out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_bc;
+                    arg.dst = dst_data_bc;
+                    arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
+                    arg.oc_off = ic * sizeof(float);
+                    arg.work_amount = static_cast<size_t>(spatial_dims);
+                    (*normalize_kernel)(&arg);
+                });
+            } else {  // across_spatial: false
+                // moduloM
+                std::vector<float> moduloM(spatial_dims, 0.f);
+                size_t blocks_num = div_up(spatial_dims, attrs.blk_size);
+                parallel_for(blocks_num, [&](size_t ib) {
+                    const in_data_t *src_data_b_ib = src_data_b + ib * attrs.blk_size;
+                    size_t min_cb = (std::min)(attrs.blk_size, spatial_dims - (ib * attrs.blk_size));
+                    if (min_cb == attrs.blk_size) {
+                        auto arg = jit_normalize_call_args();
+                        arg.src = src_data_b_ib;
+                        arg.modulo = static_cast<float*>(&moduloM[ib * attrs.blk_size]);
+                        arg.src_stride = spatial_dims * sizeof(in_data_t);
+                        arg.work_amount = attrs.jcp.c;
+                        (*normalize_modulo_kernel)(&arg);
+                    } else {
+                        for (size_t c = 0; c < attrs.jcp.c; c++) {
+                            const in_data_t *src_data_b_ib_c = src_data_b_ib + spatial_dims * c;
+                            for (size_t blk = 0; blk < min_cb; blk++) {
+                                moduloM[ib * attrs.blk_size + blk] += src_data_b_ib_c[blk] * src_data_b_ib_c[blk];
+                            }
+                        }
+                    }
+                });
+
+                for (size_t m = 0; m < spatial_dims; m++) {
+                    moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
+                }
+
+                // normalize
+                parallel_for(attrs.jcp.c, [&](size_t ic) {
+                    const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                    out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_bc;
+                    arg.dst = dst_data_bc;
+                    arg.fused_factor = static_cast<float*>(&moduloM[0]);  // ld dynamic
+                    arg.oc_off = ic * sizeof(float);
+                    arg.work_amount = static_cast<size_t>(spatial_dims);
+                    (*normalize_kernel)(&arg);
+                });
+            }
+        }
+    }
+
+    void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data) {
+        const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
+        const size_t c_w_dims = attrs.jcp.c * attrs.jcp.w;
+        for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+            const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
+            out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
+            if (attrs.across_spatial) {
+                // modulo
+                float addition_identity = 0;
+                float modulo = 0.0f;
+                modulo = parallel_sum(attrs.jcp.h, addition_identity, [&](int ih) -> float {
+                    size_t tail_start = 0;
+                    const in_data_t *src_data_bh = src_data_b + ih * c_w_dims;
+                    float modulo_kernel = 0.f;
+                    float modulo_tail = 0.f;
+
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_bh;
+                    arg.modulo = static_cast<float*>(&modulo_kernel);
+                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                    arg.work_amount = c_w_dims / attrs.blk_size;
+                    (*normalize_modulo_kernel)(&arg);
+
+                    tail_start = (c_w_dims / attrs.blk_size) * attrs.blk_size;
+
+                    // tail
+                    for (size_t tail = tail_start; tail < c_w_dims; tail++) {
+                        modulo_tail += src_data_bh[tail] * src_data_bh[tail];
+                    }
+                    return modulo_kernel + modulo_tail;
+                });
+                modulo = std::sqrt(modulo);
+                float modulo_inv = 1.0f / (epsApply(modulo));
+
+                // normalize
+                parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
+                    const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                    out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_bhw;
+                    arg.dst = dst_data_bhw;
+                    arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
+                    arg.oc_off = 0;
+                    arg.work_amount = static_cast<size_t>(attrs.jcp.c);
+                    (*normalize_kernel)(&arg);
+                });
+            } else {  // for across_spatial=false
+                parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
+                    // modulo
+                    float modulo = 0.f;
+                    const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                    out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_bhw;
+                    arg.modulo = static_cast<float*>(&modulo);
+                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                    arg.work_amount = attrs.jcp.c / attrs.blk_size;
+                    (*normalize_modulo_kernel)(&arg);
+
+                    size_t tail_start = (attrs.jcp.c / attrs.blk_size) * attrs.blk_size;
+
+                    // for tail
+                    for (size_t c = tail_start; c < attrs.jcp.c; c++) {
+                        modulo += src_data_bhw[c] * src_data_bhw[c];
+                    }
+
+                    modulo = std::sqrt(modulo);
+                    float modulo_inv = 1.0f / (epsApply(modulo));
+
+                    // normalize
+                    arg.dst = dst_data_bhw;
+                    arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
+                    arg.work_amount = attrs.jcp.c;
+                    arg.oc_off = 0;
+                    (*normalize_kernel)(&arg);
+                });
+            }
+        }
+    }
+
+    void normalize_blk(const in_data_t* src_data, out_data_t* dst_data) {
+        const size_t CB = div_up(attrs.jcp.c, attrs.blk_size);
+        const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
+        const size_t w_blk_dims = attrs.jcp.w * attrs.blk_size;
+        for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+            const in_data_t *src_data_b = src_data + b * CB * spatial_dims * attrs.blk_size;
+            out_data_t *dst_data_b = dst_data + b * CB * spatial_dims * attrs.blk_size;
+            if (attrs.across_spatial) {
+                // modulo
+                float modulo = 0.0f;
+                float addition_identity = 0.0f;
+                modulo = parallel_sum2d(CB, attrs.jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
+                    // handle W * blk_size data
+                    const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
+                    size_t min_cb = (std::min)(attrs.blk_size, attrs.jcp.c - cb * attrs.blk_size);
+                    float modulo_w_blk = 0.0f;
+                    if (min_cb == attrs.blk_size) {
+                        auto arg = jit_normalize_call_args();
+                        arg.src = src_data_b_cb_h;
+                        arg.modulo = static_cast<float*>(&modulo_w_blk);
+                        arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                        arg.work_amount = attrs.jcp.w;
+                        (*normalize_modulo_kernel)(&arg);
+                    } else {
+                        for (size_t w = 0; w < attrs.jcp.w; w++) {
+                            const in_data_t *src_data_b_cb_h_w = src_data_b_cb_h + w * attrs.blk_size;
+                            for (size_t c = 0; c < min_cb; c++) {
+                                modulo_w_blk += src_data_b_cb_h_w[c] * src_data_b_cb_h_w[c];
+                            }
+                        }
+                    }
+                    return modulo_w_blk;
+                });
+
+                modulo = std::sqrt(modulo);
+                float modulo_inv = 1.0f / (epsApply(modulo));
+
+                // normalize
+                parallel_for2d(CB, attrs.jcp.h, [&](size_t cb, size_t h) {
+                    const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
+                    out_data_t *dst_data_b_cb_h = dst_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_b_cb_h;
+                    arg.dst = dst_data_b_cb_h;
+                    arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
+                    arg.work_amount = static_cast<size_t>(attrs.jcp.w);
+                    arg.oc_off = cb * attrs.blk_size * sizeof(float);
+                    (*normalize_kernel)(&arg);
+                });
+            } else {  // across_spatial: false
+                parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](size_t ih, size_t iw) {
+                    // modulo
+                    float modulo = 0.0f;
+                    const in_data_t *src_data_bhw = src_data_b + ih * w_blk_dims + iw * attrs.blk_size;
+                    out_data_t *dst_data_bhw = dst_data_b + ih * w_blk_dims + iw * attrs.blk_size;
+                    auto arg = jit_normalize_call_args();
+                    arg.src = src_data_bhw;
+                    arg.modulo = static_cast<float*>(&modulo);
+                    arg.src_stride = attrs.blk_size * spatial_dims * sizeof(in_data_t);
+                    arg.work_amount = attrs.jcp.c / attrs.blk_size;  // CB or CB-1
+                    (*normalize_modulo_kernel)(&arg);
+                    // for tail
+                    size_t padding = CB * attrs.blk_size - attrs.jcp.c;
+                    if (padding > 0) {
+                        size_t tail = attrs.blk_size - padding;
+                        const in_data_t *src_data_bhw_lastCB = src_data_bhw + (CB - 1) * attrs.blk_size * spatial_dims;
+                        for (size_t c = 0; c < tail; c++) {
+                            modulo += src_data_bhw_lastCB[c] * src_data_bhw_lastCB[c];
+                        }
+                    }
+
+                    modulo = std::sqrt(modulo);
+                    float modulo_inv = 1.0f / (epsApply(modulo));
+
+                    // normalize
+                    arg.dst = dst_data_bhw;
+                    arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast
+                    arg.work_amount = CB;
+                    arg.oc_off = 0;
+                    (*normalize_kernel)(&arg);
+                });
+            }
+        }
+    }
+
+    NormalizeL2Attrs attrs;
+
+    std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
+    std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
+};
+
+// *=================* *======* *=================*
+
+// *=============* Reference case *===============*
+
+template <typename in_data_t, typename out_data_t>
+struct MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+    NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs) : attrs(attrs) {
+        if (!attrs.jcp.is_nchw) {
+            IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
+        }
 
         const auto &p = (*attrs.kernel_attrs.get()).post_ops_;
         for (int i = 0; i < p.len(); i++) {
@@ -917,439 +1248,170 @@ MKLDNNNormalizeL2Node::NormalizeL2Executor::NormalizeL2Executor(const NormalizeL
             }
         }
     }
-}
 
-inline float MKLDNNNormalizeL2Node::NormalizeL2Executor::epsApply(const float &modulo) const {
-    return attrs.epsMode == NormEpsMode::ADD ? modulo + attrs.eps : std::max(modulo, attrs.eps);
-}
-
-std::vector<VectorDims> MKLDNNNormalizeL2Node::shapeInfer() const {
-    return std::vector<VectorDims>{getParentEdgesAtPort(DATA)[0]->getMemory().getStaticDims()};
-}
-
-void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
-    if (!execPtr)
-        THROW_ERROR << "doesn't have a compiled executor.";
-
-    const uint8_t *src_ptr = reinterpret_cast<const uint8_t *>(getParentEdgeAt(DATA)->getMemoryPtr()->GetPtr());
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t *>(getChildEdgeAt(DATA)->getMemoryPtr()->GetPtr());
-    execPtr->exec(src_ptr, dst_ptr);
-}
-
-void MKLDNNNormalizeL2Node::NormalizeL2Executor::exec(const uint8_t* src_ptr, uint8_t* dst_ptr) {
-    NormalizeContext ctx = {
-        *this,
-        src_ptr,
-        dst_ptr
-    };
-
-    OV_SWITCH(MKLDNNPlugin, NormalizeExecute, ctx, std::tie(attrs.input_prec, attrs.output_prec),
-    OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
-    OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
-    OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),
-    OV_CASE2(Precision::U8, Precision::I8, uint8_t, int8_t),
-    OV_CASE2(Precision::I8, Precision::I8, int8_t, int8_t),
-    OV_CASE2(Precision::FP32, Precision::I8, float, int8_t),
-    OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
-    OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
-    OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-    OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
-}
-
-
-template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_function(const in_data_t* src_data, out_data_t* dst_data) {
-    if (attrs.cornerCase) {
-        const auto workAmount = std::accumulate(attrs.dims.begin(), attrs.dims.end(), 1, std::multiplies<size_t>());
-        parallel_for(workAmount, [&](size_t i) {
-            dst_data[i] = src_data[i] == 0 ? 0 : 1;
-        });
-    } else if (mayiuse(cpu::x64::sse41) && normalize_modulo_kernel && normalize_kernel) {
-        if (attrs.jcp.is_nchw) {
-            normalize_nchw(src_data, dst_data);
-        } else if (attrs.jcp.is_nhwc) {
-            normalize_nhwc(src_data, dst_data);
-        } else if (attrs.jcp.is_blk) {
-            normalize_blk(src_data, dst_data);
-        }
-    } else {
-        if (attrs.jcp.is_nchw) {
-            normalize_nchw_ref(src_data, dst_data);
-        } else {
-            IE_THROW() << "NormalizeL2 supports only plain layout on machine w/o sse42.";
-        }
+    void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) override {
+        normalize_nchw_ref(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
     }
-}
 
-template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_nchw(const in_data_t* src_data, out_data_t* dst_data) {
-    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
-    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
-        const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
-        out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
-        if (attrs.across_spatial) {
-            // modulo
-            float addition_identity = 0.0f;
-            float modulo = 0.0f;
-            modulo = parallel_sum(attrs.jcp.c, addition_identity, [&](int ic) -> float {
-                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
-                float modulo_kernel = 0.0f;
-                float modulo_tail = 0.0f;
-                size_t tail_start = 0;
-
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_bc;
-                arg.modulo = static_cast<float*>(&modulo_kernel);
-                arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                arg.work_amount = (spatial_dims) / attrs.blk_size;
-                (*normalize_modulo_kernel)(&arg);
-
-                tail_start = (spatial_dims / attrs.blk_size) * attrs.blk_size;
-
-                // tail
-                for (size_t tail = tail_start; tail < spatial_dims; tail++) {
-                    modulo_tail += src_data_bc[tail] * src_data_bc[tail];
-                }
-                return modulo_kernel + modulo_tail;
-            });
-
-            modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (epsApply(modulo));
-
-            // normalize
-            parallel_for(attrs.jcp.c, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
-                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_bc;
-                arg.dst = dst_data_bc;
-                arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
-                arg.oc_off = ic * sizeof(float);
-                arg.work_amount = static_cast<size_t>(spatial_dims);
-                (*normalize_kernel)(&arg);
-            });
-        } else {  // across_spatial: false
-            // moduloM
-            std::vector<float> moduloM(spatial_dims, 0.f);
-            size_t blocks_num = div_up(spatial_dims, attrs.blk_size);
-            parallel_for(blocks_num, [&](size_t ib) {
-                const in_data_t *src_data_b_ib = src_data_b + ib * attrs.blk_size;
-                size_t min_cb = (std::min)(attrs.blk_size, spatial_dims - (ib * attrs.blk_size));
-                if (min_cb == attrs.blk_size) {
-                    auto arg = jit_normalize_call_args();
-                    arg.src = src_data_b_ib;
-                    arg.modulo = static_cast<float*>(&moduloM[ib * attrs.blk_size]);
-                    arg.src_stride = spatial_dims * sizeof(in_data_t);
-                    arg.work_amount = attrs.jcp.c;
-                    (*normalize_modulo_kernel)(&arg);
-                } else {
-                    for (size_t c = 0; c < attrs.jcp.c; c++) {
-                        const in_data_t *src_data_b_ib_c = src_data_b_ib + spatial_dims * c;
-                        for (size_t blk = 0; blk < min_cb; blk++) {
-                            moduloM[ib * attrs.blk_size + blk] += src_data_b_ib_c[blk] * src_data_b_ib_c[blk];
-                        }
-                    }
-                }
-            });
-
-            for (size_t m = 0; m < spatial_dims; m++) {
-                moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
-            }
-
-            // normalize
-            parallel_for(attrs.jcp.c, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
-                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_bc;
-                arg.dst = dst_data_bc;
-                arg.fused_factor = static_cast<float*>(&moduloM[0]);  // ld dynamic
-                arg.oc_off = ic * sizeof(float);
-                arg.work_amount = static_cast<size_t>(spatial_dims);
-                (*normalize_kernel)(&arg);
-            });
-        }
+private:
+    inline float epsApply(const float &modulo) const {
+        return attrs.epsMode == NormEpsMode::ADD ? modulo + attrs.eps : std::max(modulo, attrs.eps);
     }
-}
 
-template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data) {
-    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
-    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
-        const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
-        out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
-        if (attrs.across_spatial) {
-            // modulo
-            float addition_identity = 0.0f;
-            float modulo = 0.0f;
-            modulo = parallel_sum(attrs.jcp.c, addition_identity, [&](int ic) -> float {
-                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
-                float modulo_c = 0.0f;
-                for (size_t m = 0; m < spatial_dims; m++) {
-                    modulo_c += src_data_bc[m] * src_data_bc[m];
-                }
-                return modulo_c;
-            });
-
-            modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (epsApply(modulo));
-
-            // normalize
-            parallel_for(attrs.jcp.c, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
-                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
-                for (size_t m = 0; m < spatial_dims; m++) {
-                    float dst_value = src_data_bc[m] * modulo_inv;
-                    apply_post_ops_scalar(dst_value, ic);
-                    if (attrs.output_prec == Precision::U8) {
-                        dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
-                    } else {
-                        dst_data_bc[m] = dst_value;
-                    }
-                }
-            });
-        } else {  // across_spatial: false
-            // moduloM
-            std::vector<float> moduloM(spatial_dims, 0.f);
-            parallel_for(attrs.jcp.h, [&](size_t ih) {
-                size_t offset_h = ih * attrs.jcp.w;
-                const in_data_t *src_data_b_ih = src_data_b + offset_h;
-                for (size_t c = 0; c < attrs.jcp.c; c++) {
-                    const in_data_t *src_data_b_ih_c = src_data_b_ih + spatial_dims * c;
-                    for (size_t w = 0; w < attrs.jcp.w; w++) {
-                        moduloM[offset_h + w] += src_data_b_ih_c[w] * src_data_b_ih_c[w];
-                    }
-                }
-            });
-
-            for (size_t m = 0; m < spatial_dims; m++) {
-                moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
-            }
-
-            // normalize
-            parallel_for(attrs.jcp.c, [&](size_t ic) {
-                const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
-                out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
-                for (size_t m = 0; m < spatial_dims; m++) {
-                    float dst_value = src_data_bc[m] * moduloM[m];
-                    apply_post_ops_scalar(dst_value, ic);
-                    if (attrs.output_prec == Precision::U8) {
-                        dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
-                    } else {
-                        dst_data_bc[m] = dst_value;
-                    }
-                }
-            });
-        }
-    }
-}
-
-template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data) {
-    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
-    const size_t c_w_dims = attrs.jcp.c * attrs.jcp.w;
-    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
-        const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
-        out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
-        if (attrs.across_spatial) {
-            // modulo
-            float addition_identity = 0;
-            float modulo = 0.0f;
-            modulo = parallel_sum(attrs.jcp.h, addition_identity, [&](int ih) -> float {
-                size_t tail_start = 0;
-                const in_data_t *src_data_bh = src_data_b + ih * c_w_dims;
-                float modulo_kernel = 0.f;
-                float modulo_tail = 0.f;
-
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_bh;
-                arg.modulo = static_cast<float*>(&modulo_kernel);
-                arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                arg.work_amount = c_w_dims / attrs.blk_size;
-                (*normalize_modulo_kernel)(&arg);
-
-                tail_start = (c_w_dims / attrs.blk_size) * attrs.blk_size;
-
-                // tail
-                for (size_t tail = tail_start; tail < c_w_dims; tail++) {
-                    modulo_tail += src_data_bh[tail] * src_data_bh[tail];
-                }
-                return modulo_kernel + modulo_tail;
-            });
-            modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (epsApply(modulo));
-
-            // normalize
-            parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
-                const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
-                out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_bhw;
-                arg.dst = dst_data_bhw;
-                arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
-                arg.oc_off = 0;
-                arg.work_amount = static_cast<size_t>(attrs.jcp.c);
-                (*normalize_kernel)(&arg);
-            });
-        } else {  // for across_spatial=false
-            parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
+    void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data) {
+        size_t dims_size = attrs.dims.size();
+        const size_t N = attrs.dims[0];
+        const size_t C = attrs.dims[1];
+        const size_t H = (dims_size > 2) ? attrs.dims[2] : 1lu;
+        const size_t W = (dims_size > 3) ? attrs.dims[3] : 1lu;
+        const size_t spatial_dims = H * W;
+        for (size_t b = 0lu; b < N; b++) {
+            const in_data_t *src_data_b = src_data + b * C * spatial_dims;
+            out_data_t *dst_data_b = dst_data + b * C * spatial_dims;
+            if (attrs.across_spatial) {
                 // modulo
-                float modulo = 0.f;
-                const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
-                out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_bhw;
-                arg.modulo = static_cast<float*>(&modulo);
-                arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                arg.work_amount = attrs.jcp.c / attrs.blk_size;
-                (*normalize_modulo_kernel)(&arg);
-
-                size_t tail_start = (attrs.jcp.c / attrs.blk_size) * attrs.blk_size;
-
-                // for tail
-                for (size_t c = tail_start; c < attrs.jcp.c; c++) {
-                    modulo += src_data_bhw[c] * src_data_bhw[c];
-                }
-
-                modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo));
-
-                // normalize
-                arg.dst = dst_data_bhw;
-                arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
-                arg.work_amount = attrs.jcp.c;
-                arg.oc_off = 0;
-                (*normalize_kernel)(&arg);
-            });
-        }
-    }
-}
-
-template <typename in_data_t, typename out_data_t>
-void MKLDNNNormalizeL2Node::NormalizeL2Executor::normalize_blk(const in_data_t* src_data, out_data_t* dst_data) {
-    const size_t CB = div_up(attrs.jcp.c, attrs.blk_size);
-    const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
-    const size_t w_blk_dims = attrs.jcp.w * attrs.blk_size;
-    for (size_t b = 0lu; b < attrs.jcp.n; b++) {
-        const in_data_t *src_data_b = src_data + b * CB * spatial_dims * attrs.blk_size;
-        out_data_t *dst_data_b = dst_data + b * CB * spatial_dims * attrs.blk_size;
-        if (attrs.across_spatial) {
-            // modulo
-            float modulo = 0.0f;
-            float addition_identity = 0.0f;
-            modulo = parallel_sum2d(CB, attrs.jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
-                // handle W * blk_size data
-                const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
-                size_t min_cb = (std::min)(attrs.blk_size, attrs.jcp.c - cb * attrs.blk_size);
-                float modulo_w_blk = 0.0f;
-                if (min_cb == attrs.blk_size) {
-                    auto arg = jit_normalize_call_args();
-                    arg.src = src_data_b_cb_h;
-                    arg.modulo = static_cast<float*>(&modulo_w_blk);
-                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                    arg.work_amount = attrs.jcp.w;
-                    (*normalize_modulo_kernel)(&arg);
-                } else {
-                    for (size_t w = 0; w < attrs.jcp.w; w++) {
-                        const in_data_t *src_data_b_cb_h_w = src_data_b_cb_h + w * attrs.blk_size;
-                        for (size_t c = 0; c < min_cb; c++) {
-                            modulo_w_blk += src_data_b_cb_h_w[c] * src_data_b_cb_h_w[c];
-                        }
-                    }
-                }
-                return modulo_w_blk;
-            });
-
-            modulo = std::sqrt(modulo);
-            float modulo_inv = 1.0f / (epsApply(modulo));
-
-            // normalize
-            parallel_for2d(CB, attrs.jcp.h, [&](size_t cb, size_t h) {
-                const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
-                out_data_t *dst_data_b_cb_h = dst_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_b_cb_h;
-                arg.dst = dst_data_b_cb_h;
-                arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
-                arg.work_amount = static_cast<size_t>(attrs.jcp.w);
-                arg.oc_off = cb * attrs.blk_size * sizeof(float);
-                (*normalize_kernel)(&arg);
-            });
-        } else {  // across_spatial: false
-            parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](size_t ih, size_t iw) {
-                // modulo
+                float addition_identity = 0.0f;
                 float modulo = 0.0f;
-                const in_data_t *src_data_bhw = src_data_b + ih * w_blk_dims + iw * attrs.blk_size;
-                out_data_t *dst_data_bhw = dst_data_b + ih * w_blk_dims + iw * attrs.blk_size;
-                auto arg = jit_normalize_call_args();
-                arg.src = src_data_bhw;
-                arg.modulo = static_cast<float*>(&modulo);
-                arg.src_stride = attrs.blk_size * spatial_dims * sizeof(in_data_t);
-                arg.work_amount = attrs.jcp.c / attrs.blk_size;  // CB or CB-1
-                (*normalize_modulo_kernel)(&arg);
-                // for tail
-                size_t padding = CB * attrs.blk_size - attrs.jcp.c;
-                if (padding > 0) {
-                    size_t tail = attrs.blk_size - padding;
-                    const in_data_t *src_data_bhw_lastCB = src_data_bhw + (CB - 1) * attrs.blk_size * spatial_dims;
-                    for (size_t c = 0; c < tail; c++) {
-                        modulo += src_data_bhw_lastCB[c] * src_data_bhw_lastCB[c];
+                modulo = parallel_sum(C, addition_identity, [&](int ic) -> float {
+                    const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                    float modulo_c = 0.0f;
+                    for (size_t m = 0; m < spatial_dims; m++) {
+                        modulo_c += src_data_bc[m] * src_data_bc[m];
                     }
-                }
+                    return modulo_c;
+                });
 
                 modulo = std::sqrt(modulo);
                 float modulo_inv = 1.0f / (epsApply(modulo));
 
                 // normalize
-                arg.dst = dst_data_bhw;
-                arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast
-                arg.work_amount = CB;
-                arg.oc_off = 0;
-                (*normalize_kernel)(&arg);
-            });
+                parallel_for(C, [&](size_t ic) {
+                    const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                    out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
+                    for (size_t m = 0; m < spatial_dims; m++) {
+                        float dst_value = src_data_bc[m] * modulo_inv;
+                        apply_post_ops_scalar(dst_value, ic);
+                        if (attrs.output_prec == Precision::U8) {
+                            dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
+                        } else {
+                            dst_data_bc[m] = dst_value;
+                        }
+                    }
+                });
+            } else {  // across_spatial: false
+                // moduloM
+                std::vector<float> moduloM(spatial_dims, 0.f);
+                parallel_for(H, [&](size_t ih) {
+                    size_t offset_h = ih * W;
+                    const in_data_t *src_data_b_ih = src_data_b + offset_h;
+                    for (size_t c = 0; c < C; c++) {
+                        const in_data_t *src_data_b_ih_c = src_data_b_ih + spatial_dims * c;
+                        for (size_t w = 0; w < W; w++) {
+                            moduloM[offset_h + w] += src_data_b_ih_c[w] * src_data_b_ih_c[w];
+                        }
+                    }
+                });
+
+                for (size_t m = 0; m < spatial_dims; m++) {
+                    moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
+                }
+
+                // normalize
+                parallel_for(C, [&](size_t ic) {
+                    const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
+                    out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
+                    for (size_t m = 0; m < spatial_dims; m++) {
+                        float dst_value = src_data_bc[m] * moduloM[m];
+                        apply_post_ops_scalar(dst_value, ic);
+                        if (attrs.output_prec == Precision::U8) {
+                            dst_data_bc[m] = (dst_value >= 0) ? dst_value : 0;
+                        } else {
+                            dst_data_bc[m] = dst_value;
+                        }
+                    }
+                });
+            }
         }
     }
+
+    inline void apply_post_ops_scalar(float &dst_value, int index_c) {
+        const auto &p = (*attrs.kernel_attrs.get()).post_ops_;
+        int eltwise_inj_idx = 0;
+        int depthwise_inj_idx = 0;
+        for (int i = 0; i < p.len(); i++) {
+            auto &post_op = p.entry_[i];
+            if (post_op.is_eltwise()) {
+                dst_value = eltwise_injectors_ref[eltwise_inj_idx]->compute_scalar(dst_value);
+                eltwise_inj_idx++;
+            } else if (post_op.is_depthwise()) {
+                auto depthwise_weights = post_op.depthwise.weights_data + index_c;
+                auto depthwise_bias = post_op.depthwise.biases_data + index_c;
+                dst_value = depthwise_injectors_ref[depthwise_inj_idx]->compute_scalar(dst_value, depthwise_weights, depthwise_bias);
+                depthwise_inj_idx++;
+            } else if (post_op.is_quantization()) {
+                bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
+                bool do_rounding = do_dequantization || attrs.output_prec == Precision::FP32 || i != p.len() - 1;
+
+                auto quant = post_op.quantization;
+
+                float crop_low = quant.crop_low_data->shifts_[quant.crop_low_data->count_ == 1 ? 0 : index_c];
+                float crop_high = quant.crop_high_data->shifts_[quant.crop_high_data->count_ == 1 ? 0 : index_c];
+                float input_scale = quant.input_scale_data->scales_[quant.input_scale_data->count_ == 1 ? 0 : index_c];
+                float input_shift = quant.input_shift_data->shifts_[quant.input_shift_data->count_ == 1 ? 0 : index_c];
+
+                dst_value = nstl::min(crop_high, nstl::max(crop_low, dst_value));
+                dst_value = dst_value * input_scale + input_shift;
+
+                if (do_rounding) {
+                    dst_value = roundf(dst_value);
+                }
+
+                if (do_dequantization) {
+                    float output_scale = quant.output_scale_data->scales_[quant.output_scale_data->count_ == 1 ? 0 : index_c];
+                    float output_shift = quant.output_shift_data->shifts_[quant.output_shift_data->count_ == 1 ? 0 : index_c];
+                    dst_value = dst_value * output_scale + output_shift;
+                }
+            }
+        }
+    }
+
+    NormalizeL2Attrs attrs;
+
+    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
+    std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
+};
+
+// *=================* *======* *=================*
+
+std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::getNormalizeL2Executor(
+        const NormalizeL2Attrs& attrs, const InferenceEngine::Precision& input_prec, const InferenceEngine::Precision& output_prec) {
+    NormalizeContext ctx = { nullptr, attrs };
+
+    OV_SWITCH(MKLDNNPlugin, NormalizeExecutorCreation, ctx, std::tie(input_prec, output_prec),
+              OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
+              OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
+              OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),
+              OV_CASE2(Precision::U8, Precision::I8, uint8_t, int8_t),
+              OV_CASE2(Precision::I8, Precision::I8, int8_t, int8_t),
+              OV_CASE2(Precision::FP32, Precision::I8, float, int8_t),
+              OV_CASE2(Precision::U8, Precision::FP32, uint8_t, float),
+              OV_CASE2(Precision::I8, Precision::FP32, int8_t, float),
+              OV_CASE2(Precision::FP32, Precision::FP32, float, float),
+              OV_CASE2(Precision::BF16, Precision::BF16, bfloat16_t, bfloat16_t));
+
+    return ctx.executor;
 }
 
-inline void MKLDNNNormalizeL2Node::NormalizeL2Executor::apply_post_ops_scalar(float &dst_value, int index_c) {
-    const auto &p = (*attrs.kernel_attrs.get()).post_ops_;
-    int eltwise_inj_idx = 0;
-    int depthwise_inj_idx = 0;
-    for (int i = 0; i < p.len(); i++) {
-        auto &post_op = p.entry_[i];
-        if (post_op.is_eltwise()) {
-            dst_value = eltwise_injectors_ref[eltwise_inj_idx]->compute_scalar(dst_value);
-            eltwise_inj_idx++;
-        } else if (post_op.is_depthwise()) {
-            auto depthwise_weights = post_op.depthwise.weights_data + index_c;
-            auto depthwise_bias = post_op.depthwise.biases_data + index_c;
-            dst_value = depthwise_injectors_ref[depthwise_inj_idx]->compute_scalar(dst_value, depthwise_weights, depthwise_bias);
-            depthwise_inj_idx++;
-        } else if (post_op.is_quantization()) {
-            bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-            bool do_rounding = do_dequantization || attrs.output_prec == Precision::FP32 || i != p.len() - 1;
-
-            auto quant = post_op.quantization;
-
-            float crop_low = quant.crop_low_data->shifts_[quant.crop_low_data->count_ == 1 ? 0 : index_c];
-            float crop_high = quant.crop_high_data->shifts_[quant.crop_high_data->count_ == 1 ? 0 : index_c];
-            float input_scale = quant.input_scale_data->scales_[quant.input_scale_data->count_ == 1 ? 0 : index_c];
-            float input_shift = quant.input_shift_data->shifts_[quant.input_shift_data->count_ == 1 ? 0 : index_c];
-
-            dst_value = nstl::min(crop_high, nstl::max(crop_low, dst_value));
-            dst_value = dst_value * input_scale + input_shift;
-
-            if (do_rounding) {
-                dst_value = roundf(dst_value);
-            }
-
-            if (do_dequantization) {
-                float output_scale = quant.output_scale_data->scales_[quant.output_scale_data->count_ == 1 ? 0 : index_c];
-                float output_shift = quant.output_shift_data->shifts_[quant.output_shift_data->count_ == 1 ? 0 : index_c];
-                dst_value = dst_value * output_scale + output_shift;
-            }
-        }
-    }
+template <typename in_data_t, typename out_data_t>
+std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::makeExecutor(const NormalizeL2Attrs& attrs) {
+    if (attrs.cornerCase)
+        return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(attrs.dims);
+    else if (mayiuse(cpu::x64::sse41))
+        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs);
+    else if (attrs.jcp.is_nchw)
+        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs);
+    else
+        IE_THROW() << "'NormalizeL2' cannot create Executor";
 }
 
 bool MKLDNNNormalizeL2Node::created() const {

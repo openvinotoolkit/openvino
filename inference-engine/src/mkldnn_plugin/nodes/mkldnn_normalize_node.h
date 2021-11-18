@@ -10,6 +10,9 @@
 
 #include <cpu/ref_eltwise.hpp>
 #include <cpu/ref_depthwise_injector.hpp>
+#include "utils/bfloat16.hpp"
+#include "utils/cpu_utils.hpp"
+#include "ie_parallel.hpp"
 
 using namespace InferenceEngine;
 
@@ -98,8 +101,8 @@ private:
 
     struct NormalizeL2Attrs {
         NormEpsMode epsMode = NormEpsMode::ADD;
-        bool cornerCase = false;
         bool across_spatial = true;
+        bool cornerCase = false;
         float eps = 1e-10f;
 
         VectorDims dims;
@@ -114,47 +117,37 @@ private:
     } attrs;
 
     struct NormalizeL2Executor {
-        NormalizeL2Executor(const NormalizeL2Attrs& attrs_);
-        void exec(const uint8_t* src_ptr, uint8_t* dst_ptr);
-        ~NormalizeL2Executor() = default;
+        NormalizeL2Executor() = default;
+        virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) = 0;
+        virtual ~NormalizeL2Executor() = default;
+
+        static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
+                                                                           const InferenceEngine::Precision& input_prec,
+                                                                           const InferenceEngine::Precision& output_prec);
 
     private:
-        inline float epsApply(const float &modulo) const;
+        template <typename in_data_t, typename out_data_t>
+        static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs);
 
         struct NormalizeContext {
-            NormalizeL2Executor &executor;
-            const uint8_t *src_ptr;
-            uint8_t *dst_ptr;
+            std::shared_ptr<NormalizeL2Executor> executor;
+            NormalizeL2Attrs attrs;
         };
 
         template<typename T>
-        struct NormalizeExecute {
+        struct NormalizeExecutorCreation {
             using src_t = typename std::tuple_element<0, T>::type;
             using dst_t = typename std::tuple_element<1, T>::type;
 
-            void operator()(NormalizeContext & ctx) {
-                auto src = reinterpret_cast<const src_t*>(ctx.src_ptr);
-                auto dst = reinterpret_cast<dst_t*>(ctx.dst_ptr);
-                ctx.executor.normalize_function<src_t, dst_t>(src, dst);
+            void operator()(NormalizeContext& ctx) {
+                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs);
             }
         };
-
-        template <typename in_data_t, typename out_data_t> void normalize_function(const in_data_t* src_data, out_data_t* dst_data);
-        template <typename in_data_t, typename out_data_t> void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data);
-        template <typename in_data_t, typename out_data_t> void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data);
-        template <typename in_data_t, typename out_data_t> void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data);
-        template <typename in_data_t, typename out_data_t> void normalize_blk(const in_data_t* src_data, out_data_t* dst_data);
-
-        inline void apply_post_ops_scalar(float &dst_value, int index_c);
-
-        NormalizeL2Attrs attrs;
-
-        std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
-        std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_depthwise_scalar_fwd_t>> depthwise_injectors_ref;
-
-        std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
-        std::shared_ptr<jit_uni_normalize_kernel> normalize_kernel;
     };
+
+    template <typename in_data_t, typename out_data_t> struct NormalizeL2CornerCaseExecutor;
+    template <typename in_data_t, typename out_data_t> struct NormalizeL2JitExecutor;
+    template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
