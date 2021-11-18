@@ -39,8 +39,13 @@ def _fuse_linear_sequence(graph: Graph, start_node: Node):
 
     init_dims_cnt = len(input_shape) - 2 if graph.graph['layout'] == 'NCHW' else 1
 
-    mul = np.ones([1 for x in range(init_dims_cnt)], dtype=np.float32)
-    add = np.zeros([1 for x in range(init_dims_cnt)], dtype=np.float32)
+    first_value = get_value_in_port(fnodes[0]).data.get_value()
+    if not isinstance(first_value, np.ndarray):
+        first_value = np.array(first_value)
+    first_value_type = first_value.dtype
+
+    mul = np.ones([1 for x in range(init_dims_cnt)], dtype=first_value_type)
+    add = np.zeros([1 for x in range(init_dims_cnt)], dtype=first_value_type)
 
     first_mul_name = None
     first_add_name = None
