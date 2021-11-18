@@ -10,6 +10,7 @@ from mo.front.common.partial_infer.utils import assign_dims_to_weights, compatib
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
+from mo.utils.type_utils import override_data_type_of_constant
 
 
 class MatMul(Op):
@@ -26,6 +27,7 @@ class MatMul(Op):
             'transpose_a': False,
             'transpose_b': False,
             'infer': self.infer,
+            'type_infer': self.type_infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
         }
@@ -146,6 +148,11 @@ class MatMul(Op):
         out_ch = 1 if not node.transpose_b else 0
         assign_dims_to_weights(node.in_node(1), None, in_ch, out_ch, node.in_port(1).data.get_shape().size)
         MatMul.value_propagation(node)
+
+    @staticmethod
+    def type_infer(node):
+        override_data_type_of_constant(node)
+        node.out_port(0).set_data_type(node.in_port(0).get_data_type())
 
 
 def transpose(value):

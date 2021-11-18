@@ -1085,6 +1085,7 @@ mo/utils/telemetry_params.py
 mo/utils/telemetry_stub.py
 mo/utils/telemetry_utils.py
 mo/utils/tensorboard_util.py
+mo/utils/type_utils.py
 mo/utils/unsupported_ops.py
 mo/utils/utils.py
 mo/utils/version.py
