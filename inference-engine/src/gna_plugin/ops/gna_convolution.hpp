@@ -78,6 +78,14 @@ public:
                 const ngraph::Strides& dilations,
                 const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT);
 
+    GNAConvolution(const ngraph::Output<ngraph::Node>& data_batch,
+                const ngraph::Output<ngraph::Node>& filters,
+                const ngraph::Strides& strides,
+                const ngraph::CoordinateDiff& pads_begin,
+                const ngraph::CoordinateDiff& pads_end,
+                const ngraph::Strides& dilations,
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT);
+
     void validate_and_infer_types() override;
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
