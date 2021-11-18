@@ -27,9 +27,8 @@ class L2NormToNorm(MiddleReplacementPattern):
         return [PostMiddleStart]
 
     def run_after(self):
-        from extensions.middle.DivisionToZeroFP16Resolver import DivisionToZeroFP16Resolver
-        # because DivisionToZeroFP16Resolver should match to Pow(x, -1)/Div part of L2Norm
-        return [DivisionToZeroFP16Resolver]
+        from extensions.middle.DivisionToZeroFP16Resolver import DivisionToZeroFP16ResolverMaximumEps, DivisionToZeroFP16ResolverAddEpsilon
+        return [DivisionToZeroFP16ResolverMaximumEps, DivisionToZeroFP16ResolverAddEpsilon]
 
     def pattern(self):
         return dict(
