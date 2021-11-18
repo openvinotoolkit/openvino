@@ -43,8 +43,6 @@ jobs:
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
       rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
-      echo TargetBranch: $(System.PullRequest.TargetBranch)
-      echo SourceBranch: $(Build.SourceBranch)
     displayName: 'Make dir'
 
   - checkout: self
@@ -89,7 +87,7 @@ jobs:
   - script: $(WORK_DIR)/cov-analysis*/bin/cov-build --dir $(BUILD_DIR)/cov-int ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Lin with Coverity'
-  
+
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List bin files'
 
