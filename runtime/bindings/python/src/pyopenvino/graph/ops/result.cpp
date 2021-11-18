@@ -19,7 +19,13 @@ void regclass_graph_op_Result(py::module m) {
 
     result.doc() = "openvino.impl.op.Result wraps ov::op::v0::Result";
 
+    result.def("get_output_partial_shape", &ov::Node::get_output_partial_shape, py::arg("index"));
+
+    result.def("get_output_element_type", &ov::Node::get_output_element_type, py::arg("index"));
+
     result.def("get_layout", &ov::op::v0::Result::get_layout);
+
     result.def("set_layout", &ov::op::v0::Result::set_layout);
+
     result.def_property("layout", &ov::op::v0::Result::get_layout, &ov::op::v0::Result::set_layout);
 }
