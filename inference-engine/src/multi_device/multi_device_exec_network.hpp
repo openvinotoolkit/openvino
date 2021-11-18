@@ -164,6 +164,7 @@ private:
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
+    bool EligibleForBlobHotSwap() { return _networkActualNeeded && _networkFirstReady && _eligibleForBlobHotSwap; }
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
@@ -180,6 +181,7 @@ private:
     DeviceInformation                                                   _cpuDevice;
     DeviceInformation                                                   _acceleratorDevice;
     mutable std::once_flag                                              _oc;
+    std::atomic_bool                                                    _eligibleForBlobHotSwap = {false};
 };
 
 }  // namespace MultiDevicePlugin

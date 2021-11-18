@@ -281,6 +281,7 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
             if (_alreadyActualNetwork) {
                 devices.push_back(_acceleratorDevice);
+                _eligibleForBlobHotSwap = (_numRequestsCreated <= _workerRequests[_acceleratorDevice.deviceName].size()) ? true : false;
             } else {
                 devices.push_back(_cpuDevice);
             }

@@ -78,8 +78,7 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         if (req->GetBlob(name) != blob) {
         //TODO: check the current hw ready status, and update the input to reuse the hw input if applicable
             auto exeNetwork = _exeNetwork.get();
-            if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkActualNeeded
-            && dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkFirstReady && !blob->is<RemoteBlob>()) {
+            if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->EligibleForBlobHotSwap() && !blob->is<RemoteBlob>()) {
                 auto it = _preProcData.find(name);
                 if (it != _preProcData.end()) {
                     req->SetBlob(name, blob);
@@ -99,8 +98,7 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         auto blob = GetBlob(name);
         if (req->GetBlob(name) != blob) {
             auto exeNetwork = _exeNetwork.get();
-            if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkActualNeeded
-            && dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkFirstReady && !blob->is<RemoteBlob>()) {
+            if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->EligibleForBlobHotSwap() && !blob->is<RemoteBlob>()) {
                 //TODO: is the output been consumed already?
                 SetBlob(name, req->GetBlob(name));
             } else {
