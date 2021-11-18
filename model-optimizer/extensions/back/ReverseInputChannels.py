@@ -56,11 +56,11 @@ class InsertReverseChannels(BackReplacementPattern):
             return idx
 
         rt_info = node.rt_info
-        if not rt_info.contains('old_api_map'):
+        if not rt_info.contains('old_api_map_order'):
             return idx
 
-        old_api_map_version = rt_info.get_attribute_version('old_api_map')
-        old_api_map = rt_info.info['old_api_map', old_api_map_version]
+        old_api_map_version = rt_info.get_attribute_version('old_api_map_order')
+        old_api_map = rt_info.info['old_api_map_order', old_api_map_version]
         if 'inverse_order' not in old_api_map.info:
             return idx
 

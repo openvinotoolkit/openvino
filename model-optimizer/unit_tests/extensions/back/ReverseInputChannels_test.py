@@ -8,7 +8,7 @@ from extensions.back.ReverseInputChannels import ReverseChannelsPropagationUp, R
 from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.graph.graph import Node, Graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.runtime_info import OldAPIMap, RTInfo
+from mo.utils.runtime_info import OldAPIMapOrder, RTInfo
 from unit_tests.utils.graph import build_graph, result, connect, regular_op_with_shaped_data, valued_const_with_data
 
 nodes = {
@@ -221,9 +221,9 @@ class ReverseInputChannelsTest(unittest.TestCase):
     def test_get_fw_index(self):
         graph = build_graph(nodes, [*connect('placeholder1', 'result')])
         node = Node(graph, 'placeholder1')
-        old_api_map = OldAPIMap(version=0)
-        node.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
-        node.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_transpose_parameter([0, 2, 3, 1])
+        old_api_map = OldAPIMapOrder(version=0)
+        node.rt_info.info[('old_api_map_order', old_api_map.get_version())] = old_api_map
+        node.rt_info.info[('old_api_map_order', old_api_map.get_version())].old_api_transpose_parameter([0, 2, 3, 1])
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 0) == 0)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 1) == 3)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 2) == 1)

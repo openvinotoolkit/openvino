@@ -8,12 +8,12 @@ from extensions.ops.transpose import Transpose
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.utils.runtime_info import OldAPIMap
+from mo.utils.runtime_info import OldAPIMapOrder
 
 
 class PreserveRuntimeInfo(MiddleReplacementPattern):
     """ This transformation preserves original layout for Parameter and Result nodes
-    and adds old_api_map attribute in rt_info which stores the following information:
+    and adds old_api_map_order attribute in rt_info which stores the following information:
 
     Parameter:
     Order of the transpose which should be applied to Parameter with old API layout to
@@ -54,10 +54,11 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
                 # rt info update
                 assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op_name)
 
-                old_api_map = OldAPIMap(version=0)
-                if ('old_api_map', old_api_map.get_version()) not in op.rt_info.info:
-                    op.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
-                op.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_transpose_parameter(permutation.inv)
+                old_api_map = OldAPIMapOrder(version=0)
+                attr_name = old_api_map.get_name()
+                if (attr_name, old_api_map.get_version()) not in op.rt_info.info:
+                    op.rt_info.info[(attr_name, old_api_map.get_version())] = old_api_map
+                op.rt_info.info[(attr_name, old_api_map.get_version())].old_api_transpose_parameter(permutation.inv)
 
                 # keep input in the framework format
                 transpose = create_op_node_with_second_input(
@@ -84,10 +85,11 @@ class PreserveRuntimeInfo(MiddleReplacementPattern):
 
                     # rt info update
                     assert op.has('rt_info'), 'Unable to preserve runtime information for node with name={}'.format(op)
-                    old_api_map = OldAPIMap(version=0)
-                    if ('old_api_map', old_api_map.get_version()) not in op.rt_info.info:
-                        op.rt_info.info[('old_api_map', old_api_map.get_version())] = old_api_map
-                    op.rt_info.info[('old_api_map', old_api_map.get_version())].old_api_transpose_result(permutation.perm)
+                    old_api_map = OldAPIMapOrder(version=0)
+                    attr_name = old_api_map.get_name()
+                    if (attr_name, old_api_map.get_version()) not in op.rt_info.info:
+                        op.rt_info.info[(attr_name, old_api_map.get_version())] = old_api_map
+                    op.rt_info.info[(attr_name, old_api_map.get_version())].old_api_transpose_result(permutation.perm)
 
                     # keep result in the framework format
                     transpose = create_op_node_with_second_input(graph, Transpose, permutation.inv)

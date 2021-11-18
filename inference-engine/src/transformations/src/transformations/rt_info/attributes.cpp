@@ -11,7 +11,8 @@ ov::pass::Attributes::Attributes() {
     register_factory<DisableFP16Compression>();
     register_factory<NmsSelectedIndices>();
     register_factory<StridesPropagation>();
-    register_factory<OldApiMap>();
+    register_factory<OldApiMapOrder>();
+    register_factory<OldApiMapElementType>();
     register_factory<LayoutAttribute>();
     register_factory<Decompression>();
 }

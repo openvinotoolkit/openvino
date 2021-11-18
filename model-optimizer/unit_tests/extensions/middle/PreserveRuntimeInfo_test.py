@@ -82,9 +82,9 @@ class PreserveRuntimeInfoTest(unittest.TestCase):
 
         if add_permutation_attrs:
             rt_info = param_node.rt_info.info
-            old_api_map = rt_info[('old_api_map', 0)].info
+            old_api_map = rt_info[('old_api_map_order', 0)].info
             self.assertTrue(np.array_equal(old_api_map['inverse_order'], nchw_to_nhwc_order))
 
             rt_info = result_node.rt_info.info
-            old_api_map = rt_info[('old_api_map', 0)].info
+            old_api_map = rt_info[('old_api_map_order', 0)].info
             self.assertTrue(np.array_equal(old_api_map['order'], nhwc_to_nchw_order))
