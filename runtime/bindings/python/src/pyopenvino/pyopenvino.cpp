@@ -28,10 +28,12 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/tensor.hpp"
+#include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/layout.hpp"
+#include "pyopenvino/graph/layout_helpers.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
@@ -78,6 +80,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
+
 #if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
     regmodule_graph_onnx_import(m);
 #endif
@@ -85,6 +88,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_Function(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
+    regmodule_graph_layout_helpers(m);
     regclass_graph_Variant(m);
     regclass_graph_VariantWrapper<std::string>(m, std::string("String"));
     regclass_graph_VariantWrapper<int64_t>(m, std::string("Int"));
@@ -99,6 +103,7 @@ PYBIND11_MODULE(pyopenvino, m) {
 
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);
+    regclass_VariableState(m);
     regclass_Version(m);
     regclass_Parameter(m);
     regclass_AsyncInferQueue(m);

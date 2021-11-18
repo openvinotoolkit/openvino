@@ -24,9 +24,9 @@
         "runtime/bin/intel64/Release/MultiDevicePlugin.dll",
         "runtime/bin/intel64/Release/ngraph.dll",
         "runtime/bin/intel64/Release/frontend_manager.dll",
-        "runtime/bin/intel64/Release/ir_ngraph_frontend.dll",
-        "runtime/bin/intel64/Release/onnx_ngraph_frontend.dll",
-        "runtime/bin/intel64/Release/paddlepaddle_ngraph_frontend.dll",
+        "runtime/bin/intel64/Release/ir_ov_frontend.dll",
+        "runtime/bin/intel64/Release/onnx_ov_frontend.dll",
+        "runtime/bin/intel64/Release/paddlepaddle_ov_frontend.dll",
         "runtime/bin/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]

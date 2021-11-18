@@ -74,6 +74,8 @@
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/hswish.hpp"
+#include "ngraph/op/i420_to_bgr.hpp"
+#include "ngraph/op/i420_to_rgb.hpp"
 #include "ngraph/op/idft.hpp"
 #include "ngraph/op/if.hpp"
 #include "ngraph/op/interpolate.hpp"
