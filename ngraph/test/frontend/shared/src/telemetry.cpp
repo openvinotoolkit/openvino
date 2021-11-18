@@ -38,7 +38,7 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
         std::string category = "test_category";
         auto telemetry_extension = std::make_shared<TelemetryExtension>(
-                category,
+            category,
             std::bind(&TelemetryMock::send_event, &m_test_telemetry, _1, _2, _3, _4),
             std::bind(&TelemetryMock::send_error, &m_test_telemetry, _1, _2),
             std::bind(&TelemetryMock::send_stack_trace, &m_test_telemetry, _1, _2));

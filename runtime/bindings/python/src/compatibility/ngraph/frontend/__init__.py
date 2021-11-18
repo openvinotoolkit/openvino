@@ -13,6 +13,7 @@ from _pyngraph import FrontEndManager
 from _pyngraph import FrontEnd
 from _pyngraph import InputModel
 from _pyngraph import Place
+
 from _pyngraph import TelemetryExtension
 
 # exceptions

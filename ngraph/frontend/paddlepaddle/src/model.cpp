@@ -303,7 +303,7 @@ InputModelPDPD::InputModelPDPDImpl::InputModelPDPDImpl(const std::basic_string<T
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model),
       m_telemetry(telemetry) {
-    std::string empty_str = "";
+    std::string empty_str;
     std::ifstream weights_stream;
     std::ifstream pb_stream(get_model_path<T>(path, &weights_stream), std::ios::in | std::ifstream::binary);
 
