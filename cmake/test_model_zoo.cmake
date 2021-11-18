@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
+
 function(ov_model_convert SRC DST OUT)
     set(onnx_gen_script ${OpenVINO_SOURCE_DIR}/ngraph/test/models/onnx/onnx_prototxt_converter.py)
 
@@ -43,6 +45,7 @@ function(ov_model_convert SRC DST OUT)
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Generate ${rel_out_name}"
+                JOB_POOL four_jobs
                 WORKING_DIRECTORY "${model_source_dir}")
         else()
             add_custom_command(OUTPUT ${full_out_name}
@@ -50,6 +53,7 @@ function(ov_model_convert SRC DST OUT)
                     "${SRC}/${in_file}" ${full_out_name}
                 DEPENDS ${onnx_gen_script} "${SRC}/${in_file}"
                 COMMENT "Copy ${rel_out_name}"
+                JOB_POOL four_jobs
                 WORKING_DIRECTORY "${model_source_dir}")
         endif()
         list(APPEND files "${full_out_name}")
@@ -61,6 +65,11 @@ endfunction()
 ov_model_convert("${CMAKE_CURRENT_SOURCE_DIR}/ngraph/test"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ngraph"
                   onnx_out_files)
+
+set(rel_path "inference-engine/tests/functional/plugin/shared/models")
+ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/func_tests/models"
+                 ft_out_files)
 
 set(rel_path "inference-engine/tests/functional/inference_engine/onnx_reader")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
@@ -76,6 +85,11 @@ set(rel_path "inference-engine/tests/unit/frontends/onnx_import/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_import"
                  ie_onnx_import_out_files)
+
+set(rel_path "docs/onnx_custom_op")
+ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
+                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/docs/models"
+                 docs_onnx_out_files)
 
 if(ENABLE_TESTS)
     if(NGRAPH_ONNX_FRONTEND_ENABLE AND ENABLE_REQUIREMENTS_INSTALL)
@@ -112,15 +126,17 @@ if(ENABLE_TESTS)
     endif()
 
     add_custom_target(test_model_zoo DEPENDS ${onnx_out_files}
+                                             ${ft_out_files}
                                              ${ie_onnx_out_files}
                                              ${ie_serialize_out_files}
-                                             ${ie_onnx_import_out_files})
+                                             ${ie_onnx_import_out_files}
+                                             ${docs_onnx_out_files})
 
     if(TARGET test_pip_prerequsites)
         add_dependencies(test_model_zoo test_pip_prerequsites)
     endif()
 
-    if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    if (NGRAPH_PDPD_FRONTEND_ENABLE AND NGRAPH_UNIT_TEST_ENABLE)
         add_dependencies(test_model_zoo paddlepaddle_test_models)
     endif()
 

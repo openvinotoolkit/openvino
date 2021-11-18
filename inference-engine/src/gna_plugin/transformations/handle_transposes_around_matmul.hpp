@@ -8,10 +8,6 @@
 
 namespace GNAPluginNS {
 
-struct VerifyReshape {
-    bool operator()(const ngraph::Output<ngraph::Node>& reshape_out) const;
-};
-
 /**
  * @brief Inserts Transpose before MatMul or removes it (if it exists) if there is Reshape
  * before MatMul which changes the batch size:
@@ -48,16 +44,16 @@ public:
  *       |                       |
  *    [1, A*B]                [1, A*B]
  */
-class HandleTransposeAfterMatMul : public ngraph::pass::MatcherPass {
-public:
-  NGRAPH_RTTI_DECLARATION;
-  HandleTransposeAfterMatMul();
-};
-
-class HandleTransposesAroundMatMul: public ngraph::pass::GraphRewrite {
+class HandleTransposeAfterMatMul: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    HandleTransposesAroundMatMul();
+    HandleTransposeAfterMatMul();
+};
+
+class HandleTransposesAroundMatMul : public ngraph::pass::GraphRewrite {
+public:
+  NGRAPH_RTTI_DECLARATION;
+  HandleTransposesAroundMatMul();
 };
 
 } // namespace GNAPluginNS

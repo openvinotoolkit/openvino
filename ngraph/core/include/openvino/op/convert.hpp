@@ -12,7 +12,8 @@ namespace v0 {
 /// \brief Elementwise type conversion operation.
 class OPENVINO_API Convert : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Convert", "opset1");
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     Convert() = default;
@@ -38,15 +39,18 @@ public:
         m_destination_type = destination_type;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     ov::element::Type m_destination_type;
 };
 }  // namespace v0
-using v0::Convert;
 }  // namespace op
 }  // namespace ov

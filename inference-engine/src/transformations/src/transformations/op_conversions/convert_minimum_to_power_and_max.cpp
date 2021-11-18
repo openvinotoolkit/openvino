@@ -20,7 +20,7 @@ ngraph::pass::ConvertMinimum::ConvertMinimum() {
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto minimum = std::dynamic_pointer_cast<ngraph::opset1::Minimum> (m.get_match_root());
-        if (!minimum  || transformation_callback(minimum)) {
+        if (!minimum  || transformation_callback(minimum) || !minimum->get_output_element_type(0).is_signed()) {
             return false;
         }
 

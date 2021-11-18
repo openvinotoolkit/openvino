@@ -5,15 +5,14 @@
 #include "ngraph/op/sign.hpp"
 
 #include "itt.hpp"
-
-using namespace std;
-using namespace ngraph;
-
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/validation_util.hpp"
 
-NGRAPH_RTTI_DEFINITION(op::v0::Sign, "Sign", 0, util::UnaryElementwiseArithmetic);
+using namespace std;
+using namespace ngraph;
+
+BWDCMP_RTTI_DEFINITION(op::v0::Sign);
 
 op::Sign::Sign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -31,6 +30,7 @@ shared_ptr<Node> op::Sign::clone_with_new_inputs(const OutputVector& new_args) c
 }
 
 namespace signop {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -55,6 +55,7 @@ bool evaluate_sign(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
     }
     return rc;
 }
+}  // namespace
 }  // namespace signop
 
 bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

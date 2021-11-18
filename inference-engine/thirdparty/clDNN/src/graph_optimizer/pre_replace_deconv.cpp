@@ -119,6 +119,7 @@ void pre_replace_deconv::run(program& p) {
                                                               input_offset,
                                                               tensor{ 1, 1, 1, 1 },
                                                               grouped_weights_shape,
+                                                              "",
                                                               output_padding);
                 } else {
                     conv_prim = std::make_shared<convolution>(deconv_node_id,
@@ -129,6 +130,7 @@ void pre_replace_deconv::run(program& p) {
                                                               input_offset,
                                                               tensor{ 1, 1, 1, 1 },
                                                               grouped_weights_shape,
+                                                              "",
                                                               output_padding);
                 }
                 program_node& new_node = p.get_or_create(conv_prim);
@@ -219,11 +221,11 @@ void pre_replace_deconv::run(program& p) {
                      std::vector<float> weights_vec_float;
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                         mem_lock<half_t, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
                      } else {
-                         mem_lock<float> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                         mem_lock<float, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(src.data()[i]);
                      }
@@ -238,10 +240,10 @@ void pre_replace_deconv::run(program& p) {
                          subpixel_weights);
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> dst{ data_to_allocate, stream};
+                         mem_lock<half_t, mem_lock_type::write> dst{ data_to_allocate, stream};
                          program_helpers::set_weights_values<half_t>(dst.data(), subpixel_weights);
                      } else if (weights_data_type == data_types::f32) {
-                         mem_lock<float> dst{ data_to_allocate, stream };
+                         mem_lock<float, mem_lock_type::write> dst{ data_to_allocate, stream };
                          program_helpers::set_weights_values<float>(dst.data(), subpixel_weights);
                      } else {
                          throw std::logic_error("Not supported data type.");
@@ -263,6 +265,7 @@ void pre_replace_deconv::run(program& p) {
                                                                input_offset,
                                                                tensor{ 1, 1, 1, 1 },
                                                                grouped_weights_shape,
+                                                               "",
                                                                output_padding);
                 program_node& created_node = p.get_or_create(conv_prim);
 
@@ -280,10 +283,10 @@ void pre_replace_deconv::run(program& p) {
                 float bias = 0;
 
                 if (bias_data_type == data_types::f16) {
-                    mem_lock<half_t> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                    mem_lock<half_t, mem_lock_type::read> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                     bias = static_cast<float>(src.data()[0]);
                 } else {
-                    mem_lock<float> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                    mem_lock<float, mem_lock_type::read> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
                     bias = src.data()[0];
                 }
                 auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_node_id, deconv_id_conv, 2, depth_to_space_mode::blocks_first);

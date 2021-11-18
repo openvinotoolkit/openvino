@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/fetch_data.cl"
 #include "include/unit_type.cl"
 
 // Kernel works only for sub_group size of 16 with 32 features slice size and process 2 features per WI

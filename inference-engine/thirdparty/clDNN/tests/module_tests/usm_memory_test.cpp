@@ -100,7 +100,7 @@ TEST_P(ctor_test, basic) {
 
 INSTANTIATE_TEST_SUITE_P(cldnn_usm, ctor_test, ::testing::ValuesIn(std::vector<usm_test_params>{
     usm_test_params{ allocation_type::usm_host},
-    usm_test_params{ allocation_type::usm_shared},
+//    usm_test_params{ allocation_type::usm_shared}, // Unsupported
     usm_test_params{ allocation_type::usm_device},
 }));
 
@@ -173,7 +173,7 @@ TEST_P(copy_and_read_buffer, basic) {
 
 INSTANTIATE_TEST_SUITE_P(cldnn_usm, copy_and_read_buffer, ::testing::ValuesIn(std::vector<usm_test_params>{
         usm_test_params{ allocation_type::usm_host },
-        usm_test_params{ allocation_type::usm_shared },
+//        usm_test_params{ allocation_type::usm_shared }, // Unsupported
         usm_test_params{ allocation_type::usm_device },
 }));
 
@@ -256,6 +256,6 @@ TEST_P(fill_buffer, DISABLED_basic) {
 
 INSTANTIATE_TEST_SUITE_P(cldnn_usm, fill_buffer, ::testing::ValuesIn(std::vector<usm_test_params>{
     usm_test_params{ allocation_type::usm_host },
-        usm_test_params{ allocation_type::usm_shared },
+//        usm_test_params{ allocation_type::usm_shared }, // Unsupported
         usm_test_params{ allocation_type::usm_device },
 }));

@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include "memory_desc/dnnl_blocked_memory_desc.h"
 
 namespace MKLDNNPlugin {
 
@@ -18,9 +19,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
+    std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
+    std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator& primitive_desc_it, size_t idx) override;
     bool created() const override;
-    void createDescriptor(const std::vector<const MemoryDesc*>& inputDesc,
-                          const std::vector<const MemoryDesc*>& outputDesc) override;
+    void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
+                          const std::vector<MemoryDescPtr>& outputDesc) override;
 
     void execute(mkldnn::stream strm) override;
 
@@ -44,8 +47,6 @@ private:
     void copyWeightsData();
 
 private:
-    using MKLDNNMemoryDescPtr = std::unique_ptr<MKLDNNMemoryDesc>;
-
     InferenceEngine::Precision runtimePrecision;
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
@@ -62,6 +63,9 @@ private:
     /** activation type for vanilla RNN cell */
     mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
 
+    /** Weights data and state memory format: ldigo or any */
+    mkldnn::memory::format_tag w_format = mkldnn::memory::format_tag::any;
+
     // Internal attributes
     size_t N = 0;   /**< Batch value */
     size_t T = 0;   /**< Sequence value */
@@ -73,18 +77,14 @@ private:
     const size_t L = 1;   /**< What is it??. Constant for mkldnn impl */
     const size_t D = 1;   /**< Num of direction. 1 or 2 */
 
-    std::vector<MKLDNNMemoryDesc> in_data_d;
-    std::vector<MKLDNNMemoryDesc> out_data_d;
+    std::vector<DnnlBlockedMemoryDesc> in_data_d;
+    std::vector<DnnlBlockedMemoryDesc> out_data_d;
 
     enum RNNInOutKind {
         Layer       = 0,
         HiddenState = 1,
         CellState   = 2
     };
-
-    MKLDNNMemoryDescPtr w_data_d;
-    MKLDNNMemoryDescPtr w_state_d;
-    MKLDNNMemoryDescPtr w_bias_d;
 
     std::vector<size_t > in_data_dims;
     std::vector<size_t > out_data_dims;

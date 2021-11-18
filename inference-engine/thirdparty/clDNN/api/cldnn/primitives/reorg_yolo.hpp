@@ -28,8 +28,9 @@ struct reorg_yolo : public primitive_base<reorg_yolo> {
     reorg_yolo(const primitive_id& id,
                const primitive_id& input,
                const uint32_t stride,
+               const primitive_id& ext_prim_id = "",
                const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding), stride(stride) {}
+        : primitive_base(id, {input}, ext_prim_id, output_padding), stride(stride) {}
 
     /// @brief Defines a scope of a reorg yolo normalization
     /// @details

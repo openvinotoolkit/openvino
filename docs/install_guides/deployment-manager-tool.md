@@ -2,7 +2,7 @@
 
 The Deployment Manager of Intel® Distribution of OpenVINO™ creates a deployment package by assembling the model, IR files, your application, and associated dependencies into a runtime package for your target device.
 
-The Deployment Manager is a Python\* command-line tool that is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux\* and Windows\* release packages and available after installation in the `<INSTALL_DIR>/deployment_tools/tools/deployment_manager` directory.
+The Deployment Manager is a Python\* command-line tool that is delivered within the Intel® Distribution of OpenVINO™ toolkit for Linux\* and Windows\* release packages and available after installation in the `<INSTALL_DIR>/tools/deployment_manager` directory.
 
 ## Pre-Requisites
 
@@ -32,7 +32,7 @@ Interactive mode provides a user-friendly command-line interface that will guide
 
 1. To launch the Deployment Manager in the interactive mode, open a new terminal window, go to the Deployment Manager tool directory and run the tool script without parameters:
    ```sh
-   <INSTALL_DIR>/deployment_tools/tools/deployment_manager
+   <INSTALL_DIR>/tools/deployment_manager
    ```
    ```sh
    ./deployment_manager.py
@@ -92,9 +92,9 @@ To deploy the Inference Engine components from the development machine to the ta
    ```
    * For Windows, use an archiver your prefer.  
    
-   The package is unpacked to the destination directory and the following subdirectories are created:
-      * `bin` — Snapshot of the `bin` directory from the OpenVINO installation directory.
-      * `deployment_tools/inference_engine` — Contains the Inference Engine binary files.
+   The package is unpacked to the destination directory and the following files and subdirectories are created:
+      * `setupvars.sh` — copy of `setupvars.sh`
+      * `runtime` — Contains the OpenVINO runtime binary files.
       * `install_dependencies` — Snapshot of the `install_dependencies` directory from the OpenVINO installation directory.
       * `<user_data>` — The directory with the user data (IRs, datasets, etc.) you specified while configuring the package.
 3. For Linux, to run inference on a target Intel® GPU, Intel® Movidius™ VPU, or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you need to install additional dependencies by running the `install_openvino_dependencies.sh` script:
@@ -110,14 +110,14 @@ To deploy the Inference Engine components from the development machine to the ta
    cd <destination_dir>/openvino/
    ```
    ```sh
-   source ./bin/setupvars.sh
+   source ./setupvars.sh
    ```
    * For Windows:
    ```
    cd <destination_dir>\openvino\
    ```
    ```
-   .\bin\setupvars.bat
+   .\setupvars.bat
    ```
 
 Congratulations, you have finished the deployment of the Inference Engine components to the target host. 

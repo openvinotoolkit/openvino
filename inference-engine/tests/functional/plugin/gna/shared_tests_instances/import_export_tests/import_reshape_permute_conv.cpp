@@ -90,7 +90,7 @@ const std::vector<std::string> appHeaders = {
         "APPLICATION_HEADER"
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelUnchanged,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA, ImportExportGNAModelUnchanged,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -99,7 +99,7 @@ INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelUnchanged,
                             ::testing::ValuesIn(appHeaders)),
                         ImportExportGNAModelUnchanged::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkGNA, ImportExportGNAModelChanged,
+INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkGNA, ImportExportGNAModelChanged,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

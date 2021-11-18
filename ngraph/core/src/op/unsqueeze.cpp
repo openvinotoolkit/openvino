@@ -19,7 +19,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Unsqueeze);
 
 op::v0::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
     constructor_validate_and_infer_types();
@@ -40,7 +40,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
                           axes_pshape.rank().get_length());
 
     if (data_rank.is_dynamic() || !axes_constant) {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic());
         return;
     }
 
@@ -58,7 +58,7 @@ void op::v0::Unsqueeze::validate_and_infer_types() {
 
         output_shape.insert(next(begin(output_shape), axis), 1);
     }
-    set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
+    set_output_type(0, get_input_element_type(0), ov::PartialShape{output_shape});
 }
 
 bool op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor) {
@@ -75,6 +75,7 @@ shared_ptr<Node> op::v0::Unsqueeze::clone_with_new_inputs(const OutputVector& ne
 }
 
 namespace unsqueeze {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
@@ -88,8 +89,8 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
     auto data_shape = arg0->get_shape();
     int64_t data_rank = static_cast<int64_t>(data_shape.size());
     auto axes_shape = arg1->get_shape();
-    NGRAPH_CHECK(axes_shape.size() == 1, "Axes to add must be a vector.");
-    NGRAPH_CHECK(axes_shape[0] > 0, "Axes cannot be empty.");
+    NGRAPH_CHECK(axes_shape.size() == 1 || axes_shape.empty(),
+                 "Axes to add must be a scalar or 1D tensor with 1 element");
 
     auto out_shape = data_shape;
     int64_t out_rank = data_rank + static_cast<int64_t>(shape_size(axes_shape));
@@ -122,6 +123,7 @@ bool evaluate_unsqueeze(const HostTensorPtr& arg0, const HostTensorPtr& arg1, co
     }
     return rc;
 }
+}  // namespace
 }  // namespace unsqueeze
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -166,8 +168,8 @@ bool op::v0::Unsqueeze::constant_fold(OutputVector& output_values, const OutputV
 
     const auto& shape = get_output_shape(0);
 
-    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(inputs_values[0].get_node_shared_ptr())) {
-        output_values[0] = std::make_shared<op::Constant>(*data_const, shape);
+    if (auto data_const = std::dynamic_pointer_cast<op::v0::Constant>(inputs_values[0].get_node_shared_ptr())) {
+        output_values[0] = std::make_shared<op::v0::Constant>(*data_const, shape);
         return true;
     }
     return false;

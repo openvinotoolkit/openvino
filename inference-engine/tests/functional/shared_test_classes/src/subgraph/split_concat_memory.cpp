@@ -10,7 +10,7 @@ namespace SubgraphTestsDefinitions {
 using namespace CommonTestUtils;
 using namespace InferenceEngine;
 
-std::string SplitConcatMemory::getTestCaseName(testing::TestParamInfo<ParamType> obj) {
+std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     int axis;
@@ -64,7 +64,7 @@ void SplitConcatMemory::SetUp() {
     auto spl = std::make_shared<ngraph::opset5::VariadicSplit>(cnc, axis_c, chunk_c);
 
     auto one = std::make_shared<ngraph::opset5::Constant>(ngPrc, ngraph::Shape{}, 1);
-    auto plus = std::make_shared<ngraph::opset5::Add>(cnc, one, ngraph::op::AutoBroadcastSpec::NUMPY);
+    auto plus = std::make_shared<ngraph::opset5::Add>(cnc, one, ngraph::op::AutoBroadcastType::NUMPY);
     plus->set_friendly_name("plus_one");
 
     auto mem_w = std::make_shared<ngraph::opset5::Assign>(spl->output(1), "id");

@@ -39,13 +39,16 @@ protected:
                   const BroadcastModeSpec& broadcast_mode = BroadcastType::NUMPY);
 
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("BroadcastBase", "util");
+    BWDCMP_RTTI_DECLARATION;
 
     void validate_and_infer_types() override;
     /// \return true and the AxisSet if broadcast axes can be fully determined.
     virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     BroadcastModeSpec m_mode;
@@ -53,12 +56,14 @@ protected:
     bool evaluate_broadcast(const HostTensorPtr& arg0,
                             const HostTensorPtr& out,
                             const std::pair<bool, AxisSet>& pair_broadcast_axes,
-                            const ngraph::Shape& output_shape) const;
+                            const Shape& output_shape) const;
 
     bool evaluate_broadcast(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisSet& broadcast_axes) const;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate_lower(const HostTensorVector& outputs) const override;
     bool evaluate_upper(const HostTensorVector& outputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     PartialShape get_result_shape_pdpd(const PartialShape& arg0_shape,
                                        const PartialShape& target_shape,
@@ -66,8 +71,8 @@ protected:
 
     void validate_target_shape_numpy(const PartialShape& arg_shape, const PartialShape& target_shape) const;
 
-    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const ngraph::Shape& arg_shape,
-                                                                  const ngraph::Shape& result_shape,
+    static std::pair<bool, AxisSet> get_broadcast_axes_numpy_pdpd(const Shape& arg_shape,
+                                                                  const Shape& result_shape,
                                                                   const op::BroadcastModeSpec& broadcast_spec);
 
     static std::pair<bool, AxisSet> get_broadcast_axes_none(const AxisVector& axes_mapping_val,
@@ -77,7 +82,7 @@ protected:
                                     const AxisVector& axes_mapping_val,
                                     const PartialShape& target_shape) const;
 
-    ngraph::Shape get_target_shape(const HostTensorPtr& input1) const;
+    Shape get_target_shape(const HostTensorPtr& input1) const;
 };
 }  // namespace util
 }  // namespace op

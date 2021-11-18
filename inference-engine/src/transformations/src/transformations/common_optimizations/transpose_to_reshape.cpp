@@ -18,6 +18,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeToReshape, "TransposeToReshape", 0
 
 using namespace ngraph;
 
+namespace {
+
 bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
     auto data = transpose->input_value(0);
     const auto input_shape = transpose->input(0).get_partial_shape();
@@ -100,6 +102,8 @@ bool replace_transpose_with_reshape(const std::shared_ptr<Node>& transpose) {
     replace_node(transpose, reshape_op);
     return true;
 }
+
+} // namespace
 
 ngraph::pass::TransposeToReshape::TransposeToReshape() {
     MATCHER_SCOPE(TransposeToReshape);

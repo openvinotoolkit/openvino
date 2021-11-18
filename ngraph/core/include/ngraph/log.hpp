@@ -120,7 +120,7 @@ void default_logger_handler_func(const std::string& s);
                       ngraph::default_logger_handler_func)                \
         .stream()
 
-#ifdef NGRAPH_DEBUG_ENABLE
+#ifdef OPENVINO_DEBUG_ENABLE
 #    define NGRAPH_DEBUG                                                      \
         ngraph::LogHelper(ngraph::LOG_TYPE::_LOG_TYPE_DEBUG,                  \
                           ngraph::trim_file_name(PROJECT_ROOT_DIR, __FILE__), \

@@ -6,11 +6,11 @@
 
 #include <cstddef>
 
-#include "ngraph/attribute_adapter.hpp"
-#include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rank.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace op {
@@ -59,9 +59,9 @@ public:
     /// \brief Constructs a static PartialShape with zero rank (the shape of a scalar).
     PartialShape();
 
-    /// \brief Constructs a static PartialShape from a Shape.
-    /// \param shape The Shape to convert into PartialShape.
-    PartialShape(const ngraph::Shape& shape);
+    /// \brief Constructs a static PartialShape from a PartialShape.
+    /// \param shape The PartialShape to convert into PartialShape.
+    PartialShape(const Shape& shape);
 
     /// \brief Check if this shape is static.
     /// \return `true` if this shape is static, else `false`.
@@ -153,10 +153,10 @@ public:
     /// \return `true` if this shape's rank is compatible with `r`, else `false`.
     bool merge_rank(Rank r);
 
-    /// \brief Convert a static PartialShape to a Shape.
-    /// \return A new Shape `s` where `s[i] = size_t((*this)[i])`.
+    /// \brief Convert a static PartialShape to a PartialShape.
+    /// \return A new PartialShape `s` where `s[i] = size_t((*this)[i])`.
     /// \throws std::invalid_argument If this PartialShape is dynamic.
-    ngraph::Shape to_shape() const;
+    Shape to_shape() const;
 
     /// \brief Returns `true` if all static dimensions of the tensor are non-negative, else
     ///        `false`.
@@ -175,15 +175,15 @@ public:
         return m_dimensions;
     }
     friend OPENVINO_API std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
-    friend PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
+    friend OPENVINO_API PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
     bool operator==(const PartialShape& partial_shape) const;
     bool operator!=(const PartialShape& partial_shape) const;
     /// Get the max bounding shape
-    ngraph::Shape get_max_shape() const;
+    Shape get_max_shape() const;
     /// Get the min bounding shape
-    ngraph::Shape get_min_shape() const;
+    Shape get_min_shape() const;
     /// Get the unique shape
-    ngraph::Shape get_shape() const;
+    Shape get_shape() const;
 
     /// \brief Try to merge one shape into another.
     /// \param[in,out] dst The shape that `src` will be merged into.
@@ -218,12 +218,13 @@ public:
     /// \brief Try to merge one shape into another along with implicit broadcasting
     static bool broadcast_merge_into(PartialShape& dst,
                                      const PartialShape& src,
-                                     const ngraph::op::AutoBroadcastSpec& autob);
+                                     const ov::op::AutoBroadcastSpec& autob);
 
     /// \brief Returns a read/write iterator that points to the first
     ///        element in the shape. Iteration is done in ordinary
     ///        element order.
     iterator begin() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.begin();
     }
     /// \brief Returns a read-only (constant) iterator that points to the
@@ -236,6 +237,7 @@ public:
     ///        element in the shape. Iteration is done in ordinary
     ///        element order.
     iterator end() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.end();
     }
     /// \brief Returns a read-only (constant) iterator that points one past
@@ -248,6 +250,7 @@ public:
     ///        last element in the shape. Iteration is done in reverse
     ///        element order.
     reverse_iterator rbegin() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.rbegin();
     }
     /// \brief Returns a read-only (constant) reverse iterator that points
@@ -260,6 +263,7 @@ public:
     ///        before the first element in the shape. Iteration is done
     ///        in reverse element order.
     reverse_iterator rend() noexcept {
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
         return m_dimensions.rend();
     }
     /// \brief Returns a read-only (constant) reverse iterator that points
@@ -293,6 +297,47 @@ public:
         return m_dimensions.crend();
     }
 
+    /// \brief Resizes dimensions container to contain count elements
+    void resize(size_t count) {
+        m_dimensions.resize(count);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Returns size of dimension vector. Requires rank to be static
+    size_t size() const {
+        OPENVINO_ASSERT(rank().is_static());
+        return m_dimensions.size();
+    }
+    /// \brief Returns a read/write iterator that points to the inserted element in the shape.
+    iterator insert(iterator position, const Dimension& val) {
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+        return m_dimensions.insert(position, val);
+    }
+    /// \brief Inserts count copies of the value before position
+    void insert(iterator position, size_t n, const Dimension& val) {
+        m_dimensions.insert(position, n, val);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Inserts elements from range [first, last) before position
+    template <class InputIterator>
+    void insert(iterator position, InputIterator first, InputIterator last) {
+        m_dimensions.insert(position, first, last);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+    /// \brief Requests that the dimensions vector capacity be enough to contain n elements
+    void reserve(size_t n) {
+        m_dimensions.reserve(n);
+    }
+    /// \brief push element to the end of partial shape
+    void push_back(const Dimension& val) {
+        m_dimensions.push_back(val);
+        m_rank_is_static = true;
+        m_shape_type = ShapeType::SHAPE_IS_UPDATED;
+    }
+
 private:
     // Private constructor for PartialShape::dynamic().
     PartialShape(bool rank_is_static, std::vector<Dimension> dimensions);
@@ -300,7 +345,7 @@ private:
     // True if the shape's rank is static.
     bool m_rank_is_static;
 
-    /// \brief Shape types. The shape type is lazily evaluated by calling the is_static()
+    /// \brief PartialShape types. The shape type is lazily evaluated by calling the is_static()
     /// method.
     ///
     /// \details It is highly recommended to avoid using the Dimension& operator[](size_t)
@@ -319,7 +364,7 @@ private:
                            // by non-constant reference.
     } m_shape_type{ShapeType::SHAPE_IS_UNKNOWN};
 
-    // Shape dimensions. This has no meaning if m_rank_is_static is false.
+    // PartialShape dimensions. This has no meaning if m_rank_is_static is false.
     Dimensions m_dimensions;
 };
 
@@ -334,7 +379,7 @@ private:
 ///     std::invalid_argument.
 /// \li If `s1` and `s2` both have static rank, and their ranks are equal,
 ///     returns a new shape whose `i`th dimension is `s1[i] + s2[i]`.
-PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
+OPENVINO_API PartialShape operator+(const PartialShape& s1, const PartialShape& s2);
 
 /// \brief Inserts a human-readable representation of a PartialShape into an output stream.
 /// \param str The output stream targeted for insertion.
@@ -378,13 +423,12 @@ public:
 
     const std::vector<int64_t>& get() override;
     void set(const std::vector<int64_t>& value) override;
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialShape>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
     operator ov::PartialShape&() {
         return m_ref;
     }
+
+    OPENVINO_RTTI("AttributeAdapter<PartialShape>");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     ov::PartialShape& m_ref;

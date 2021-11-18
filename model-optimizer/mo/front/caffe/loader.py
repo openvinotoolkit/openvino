@@ -93,7 +93,7 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
                            'Run: set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \n'
         except ImportError:
             # 3. cpp implementation is not available
-            message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit' \
+            message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit ' \
                        'or build protobuf library from sources. \n' \
                        'Navigate to "install_prerequisites" folder and run: ' \
                        'python -m easy_install protobuf-3.5.1-py($your_python_version)-win-amd64.egg \n' \

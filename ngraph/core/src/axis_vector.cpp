@@ -35,4 +35,4 @@ ov::AxisVector& ov::AxisVector::operator=(AxisVector&& v) noexcept {
     return *this;
 }
 
-constexpr ov::DiscreteTypeInfo ov::AttributeAdapter<ov::AxisVector>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::AxisVector>);

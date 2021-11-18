@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v5::HSigmoid, "HSigmoid", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::HSigmoid);
 
 op::v5::HSigmoid::HSigmoid(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();

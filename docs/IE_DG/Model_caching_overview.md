@@ -20,7 +20,7 @@ As described in [Inference Engine Developer Guide](Deep_Learning_Inference_Engin
 
 Step #5 can potentially perform several time-consuming device-specific optimizations and network compilations,
 and such delays can lead to bad user experience on application startup. To avoid this, some devices offer
-Import/Export network capability, and it is possible to either use [Compile tool](../../inference-engine/tools/compile_tool/README.md)
+Import/Export network capability, and it is possible to either use [Compile tool](../../tools/compile_tool/README.md)
 or enable model caching to export compiled network automatically. Reusing cached networks can significantly reduce load network time.
 
 

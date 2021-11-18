@@ -10,6 +10,7 @@
 #include <random>
 #include <string>
 
+#include "engines_util/execute_tools.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/ngraph.hpp"
@@ -19,7 +20,6 @@
 #include "util/all_close_f.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

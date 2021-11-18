@@ -20,7 +20,7 @@ namespace op {
  */
 class TRANSFORMATIONS_API BroadcastLoad : public BroadcastMove {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ngraph::snippets::op::BroadcastMove);
 
     BroadcastLoad(const Output<Node>& x, Shape output_shape);
     BroadcastLoad() = default;

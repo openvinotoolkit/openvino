@@ -3,7 +3,9 @@
 //
 
 #include "cpu_test_utils.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
+#include <cstdint>
 
 namespace CPUTestUtils {
 
@@ -116,9 +118,20 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
     if (nodeType.empty()) return;
 
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
-    bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
     auto function = execGraphInfo.getFunction();
+    CheckPluginRelatedResultsImpl(function, std::move(nodeType));
+}
+
+void CPUTestsBase::CheckPluginRelatedResults(ov::runtime::ExecutableNetwork &execNet, std::string nodeType) const {
+    if (nodeType.empty()) return;
+
+    ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
+    auto function = execNet.get_runtime_function();
+    CheckPluginRelatedResultsImpl(function, std::move(nodeType));
+}
+
+void CPUTestsBase::CheckPluginRelatedResultsImpl(std::shared_ptr<const ov::Function> function, std::string nodeType) const {
     ASSERT_NE(nullptr, function);
     for (const auto &node : function->get_ops()) {
         const auto & rtInfo = node->get_rt_info();
@@ -145,7 +158,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
         };
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
-            isNodeFound = true;
             ASSERT_LE(inFmts.size(), node->get_input_size());
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (int i = 0; i < inFmts.size(); i++) {
@@ -205,7 +217,6 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
             ASSERT_EQ(selectedType, primType);
         }
     }
-    ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -260,6 +271,8 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
     }
 
+    cpuInfo.insert({"enforceBF16evenForGraphTail", ov::make_variant<int64_t>(true)});
+
     return cpuInfo;
 }
 
@@ -279,6 +292,12 @@ std::shared_ptr<ngraph::Node>
 CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
     lastNode->get_rt_info() = getCPUInfo();
     return lastNode;
+}
+
+std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::element::Type_t elType) {
+    implString.push_back('_');
+    implString += InferenceEngine::details::convertPrecision(elType).name();
+    return implString;
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {

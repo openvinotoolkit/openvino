@@ -25,12 +25,19 @@ public:
     void withMeanImage();
     MKLDNNMemoryCPtr getMemoryPtr() const;
 
+    void executeDynamicImpl(mkldnn::stream strm) override {}
+    bool isExecutable() const override {
+        return false;
+    }
+
+    bool needShapeInfer() const override { return false; }
+    bool needPrepareParams() const override { return false; }
+
 private:
     void cloneBlobIfRequired();
 
 private:
     std::shared_ptr<ngraph::op::Constant> constOp;
-    InferenceEngine::Precision precision;
     MKLDNNMemoryCPtr memoryPtr;
     bool isMeanImage = false;
 };

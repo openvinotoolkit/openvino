@@ -18,7 +18,8 @@ file(GLOB
         inference_engine_tests/*.cpp
         )
 
-if (ENABLE_GNA)
+# TODO: fix CVS-71010 and remove BUILD_SHARED_LIBS
+if (ENABLE_GNA AND BUILD_SHARED_LIBS)
     file(GLOB
             GNA_TESTS
             engines/gna/*cpp
@@ -82,7 +83,7 @@ if (ENABLE_MYRIAD)
             )
     include_directories(
             engines/vpu/myriad_tests/helpers
-            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin
+            $<TARGET_PROPERTY:myriadPlugin,SOURCE_DIR>
             ${XLINK_INCLUDE}
             ${XLINK_PLATFORM_INCLUDE})
 
@@ -104,7 +105,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
 # because IE unit tests use plugin and IE object files compiled with LTO
-if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endif()
 
@@ -141,5 +142,12 @@ install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests
         COMPONENT tests
         EXCLUDE_FROM_ALL)
+
+if(TARGET libGNAStubs)
+    install(TARGETS libGNAStubs
+            RUNTIME DESTINATION tests
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
 
 add_dependencies(${TARGET_NAME} mock_engine)

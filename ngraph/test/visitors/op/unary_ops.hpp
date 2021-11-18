@@ -8,23 +8,18 @@
 #include "util/visitor.hpp"
 
 template <typename T, ngraph::element::Type_t ELEMENT_TYPE>
-class UnaryOperatorType
-{
+class UnaryOperatorType {
 public:
     using op_type = T;
     static constexpr ngraph::element::Type_t element_type = ELEMENT_TYPE;
 };
 template <typename T>
-class UnaryOperatorVisitor : public testing::Test
-{
-};
+class UnaryOperatorVisitor : public testing::Test {};
 
-class UnaryOperatorTypeName
-{
+class UnaryOperatorTypeName {
 public:
     template <typename T>
-    static std::string GetName(int)
-    {
+    static std::string GetName(int) {
         using OP_Type = typename T::op_type;
         constexpr ngraph::element::Type precision(T::element_type);
         const ngraph::Node::type_info_t typeinfo = OP_Type::get_type_info_static();
@@ -34,8 +29,7 @@ public:
 
 TYPED_TEST_SUITE_P(UnaryOperatorVisitor);
 
-TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D)
-{
+TYPED_TEST_P(UnaryOperatorVisitor, No_Attribute_4D) {
     using OP_Type = typename TypeParam::op_type;
     const ngraph::element::Type_t element_type = TypeParam::element_type;
 

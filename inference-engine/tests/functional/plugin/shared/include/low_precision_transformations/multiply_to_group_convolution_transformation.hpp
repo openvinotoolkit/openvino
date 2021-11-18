@@ -34,7 +34,7 @@ class MultiplyToGroupConvolutionTransformation :
     public testing::WithParamInterface<MultiplyToGroupConvolutionTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams>& obj);
 
 protected:
     void SetUp() override;

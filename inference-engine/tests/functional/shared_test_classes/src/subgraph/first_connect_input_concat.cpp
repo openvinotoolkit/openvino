@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string ConcatFirstInputTest::getTestCaseName(testing::TestParamInfo<concatFirstInputParams> obj) {
+std::string ConcatFirstInputTest::getTestCaseName(const testing::TestParamInfo<concatFirstInputParams>& obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -18,7 +18,9 @@ std::string ConcatFirstInputTest::getTestCaseName(testing::TestParamInfo<concatF
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
-
+    for (auto const& configItem : additional_config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 

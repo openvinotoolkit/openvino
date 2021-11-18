@@ -16,7 +16,8 @@ namespace v3 {
 ///        input as needed along the new axes.
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Broadcast", "opset3", op::util::BroadcastBase, 3);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -64,7 +65,9 @@ public:
 
     /// \return true and the AxisSet if broadcast axes can be fully determined.
     std::pair<bool, AxisSet> get_broadcast_axes() const override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 private:
@@ -77,7 +80,8 @@ namespace v1 {
 ///        input as needed along the new axes.
 class OPENVINO_API Broadcast : public util::BroadcastBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Broadcast", "opset1", op::util::BroadcastBase, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a broadcast operation.
     Broadcast() = default;
@@ -122,7 +126,9 @@ public:
     }
 
     void validate_and_infer_types() override;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:

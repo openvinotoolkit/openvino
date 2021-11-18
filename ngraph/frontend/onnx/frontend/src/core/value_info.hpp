@@ -30,8 +30,6 @@ public:
 
             if (onnx_tensor.has_shape()) {
                 m_partial_shape = onnx_common::to_ng_shape(onnx_tensor.shape());
-            } else {
-                m_partial_shape = PartialShape::dynamic();
             }
         }
     }
@@ -76,7 +74,7 @@ protected:
 
 private:
     const ONNX_NAMESPACE::ValueInfoProto* m_value_info_proto;
-    PartialShape m_partial_shape;
+    PartialShape m_partial_shape = PartialShape::dynamic();
 };
 
 inline std::ostream& operator<<(std::ostream& outs, const ValueInfo& info) {

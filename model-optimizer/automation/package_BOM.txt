@@ -8,10 +8,12 @@ extensions/analysis/tf_od_api.py
 extensions/analysis/tf_retinanet.py
 extensions/analysis/tf_yolo.py
 extensions/back/__init__.py
+extensions/back/add_outputs_recursive.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
 extensions/back/ChangeOutputTypeAttributes.py
+extensions/back/ChangeRandomUniformOutputType.py
 extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
@@ -21,7 +23,6 @@ extensions/back/CutMemory.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/FakeOutputResolver.py
 extensions/back/ForceStrictPrecision.py
-extensions/back/fuse_sub_div_min.py
 extensions/back/FuseTransposesSequence.py
 extensions/back/GatherNormalizer.py
 extensions/back/insert_compatibility_l2normalization.py
@@ -46,17 +47,14 @@ extensions/back/ReduceMerge.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
 extensions/back/RemoveUselessConvert.py
-extensions/back/Reshape0DToSqueeze.py
 extensions/back/ReshapeMutation.py
 extensions/back/ResultNormalizer.py
 extensions/back/ResultRename.py
 extensions/back/ReverseInputChannels.py
 extensions/back/RNNSequenceTypeRename.py
-extensions/back/ScalarConstNormalize.py
 extensions/back/SelectBroadcast.py
 extensions/back/ShapeOfConstFolding.py
 extensions/back/ShuffleChannelPatternOptimization.py
-extensions/back/ShufflenetReLUReorder.py
 extensions/back/SpecialNodesFinalization.py
 extensions/back/StridedSliceMasksNormalizer.py
 extensions/back/TopKNormalizer.py
@@ -69,6 +67,7 @@ extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
+extensions/front/AttributedRandomUniformToRandomUniform.py
 extensions/front/AttributedRollToRoll.py
 extensions/front/binary_quantize_normalization.py
 extensions/front/broadcast_with_range.py
@@ -127,7 +126,6 @@ extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
 extensions/front/disable_weights_quantize_value_propagation.py
 extensions/front/div.py
-extensions/front/DropoutWithRandomUniformReplacer.py
 extensions/front/eltwise_n.py
 extensions/front/ExpandDimsToUnsqueeze.py
 extensions/front/FillToBroadcast.py
@@ -152,6 +150,7 @@ extensions/front/kaldi/apply_counts.py
 extensions/front/kaldi/logsoftmax_component_ext.py
 extensions/front/kaldi/memory_offset_adjustment.py
 extensions/front/kaldi/memoryoffset_batch_update.py
+extensions/front/kaldi/replace_dropoutmask.py
 extensions/front/kaldi/replace_eltwise_nin1.py
 extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
@@ -213,6 +212,7 @@ extensions/front/mxnet/pad_ext.py
 extensions/front/mxnet/pooling_ext.py
 extensions/front/mxnet/proposal_ext.py
 extensions/front/mxnet/psroi_pooling_ext.py
+extensions/front/mxnet/random_uniform_ext.py
 extensions/front/mxnet/repeat_ext.py
 extensions/front/mxnet/reshape_ext.py
 extensions/front/mxnet/RNN_ext.py
@@ -321,6 +321,7 @@ extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/quantize_linear_ext.py
+extensions/front/onnx/random_uniform_ext.py
 extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/reshape_ext.py
@@ -402,7 +403,8 @@ extensions/front/tf/efficient_det_support_api_v2.0.json
 extensions/front/tf/efficient_det_support_api_v2.4.json
 extensions/front/tf/einsum_ext.py
 extensions/front/tf/elementwise_ext.py
-extensions/front/tf/embedding_segments_sum.py
+extensions/front/tf/embedding_segments_mean_decomposition.py
+extensions/front/tf/embedding_segments_operation_fusing.py
 extensions/front/tf/expand_dims_ext.py
 extensions/front/tf/extract_image_patches_ext.py
 extensions/front/tf/fake_const_ext.py
@@ -432,6 +434,7 @@ extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/if_ext.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/IteratorGetNextCut.py
 extensions/front/tf/log_softmax_ext.py
 extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
@@ -462,6 +465,8 @@ extensions/front/tf/placeholder_ext.py
 extensions/front/tf/placeholder_with_default_ext.py
 extensions/front/tf/pooling_ext.py
 extensions/front/tf/prelu.py
+extensions/front/tf/random_uniform_ext.py
+extensions/front/tf/random_uniform_int_ext.py
 extensions/front/tf/range_ext.py
 extensions/front/tf/reduce_ext.py
 extensions/front/tf/reshape_related_ext.py
@@ -596,6 +601,7 @@ extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MakeKaldiConstReshapable.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
+extensions/middle/MergeNodesPermutations.py
 extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
@@ -608,6 +614,7 @@ extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
 extensions/middle/PoolV2ToAttributedPool.py
 extensions/middle/preprocessing.py
+extensions/middle/PreserveRuntimeInfo.py
 extensions/middle/quantize_fuses.py
 extensions/middle/quantize_linear_resolver.py
 extensions/middle/ReluQuantizeFuse.py
@@ -729,6 +736,7 @@ extensions/ops/proposal_onnx.py
 extensions/ops/proposal_python_example.py
 extensions/ops/psroipooling.py
 extensions/ops/quantize_linear.py
+extensions/ops/random_uniform.py
 extensions/ops/range.py
 extensions/ops/rank.py
 extensions/ops/ReduceOps.py
@@ -831,7 +839,6 @@ mo/front/common/partial_infer/elemental.py
 mo/front/common/partial_infer/eltwise.py
 mo/front/common/partial_infer/multi_box_detection.py
 mo/front/common/partial_infer/multi_box_prior.py
-mo/front/common/partial_infer/random_uniform.py
 mo/front/common/partial_infer/roipooling.py
 mo/front/common/partial_infer/utils.py
 mo/front/common/register_custom_ops.py
@@ -856,6 +863,7 @@ mo/front/kaldi/extractors/convolutional_1d_component_ext.py
 mo/front/kaldi/extractors/convolutional_component_ext.py
 mo/front/kaldi/extractors/copy_ext.py
 mo/front/kaldi/extractors/crop_ext.py
+mo/front/kaldi/extractors/dropoutmask_ext.py
 mo/front/kaldi/extractors/elementwise_component_ext.py
 mo/front/kaldi/extractors/fixed_affine_component_ext.py
 mo/front/kaldi/extractors/generaldropout_ext.py
@@ -914,7 +922,6 @@ mo/front/tf/extractors/fused_bn.py
 mo/front/tf/extractors/identity.py
 mo/front/tf/extractors/native_tf.py
 mo/front/tf/extractors/pack.py
-mo/front/tf/extractors/random_uniform.py
 mo/front/tf/extractors/strided_slice.py
 mo/front/tf/extractors/subgraph_utils.py
 mo/front/tf/extractors/utils.py
@@ -970,6 +977,7 @@ mo/ops/convolution.py
 mo/ops/crop.py
 mo/ops/deconvolution.py
 mo/ops/deformable_convolution.py
+mo/ops/dropoutmask.py
 mo/ops/eltwise.py
 mo/ops/eltwise_n.py
 mo/ops/eltwise_ninputs_in_1.py
@@ -1044,6 +1052,7 @@ mo/utils/ir_reader/extenders/if_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
 mo/utils/ir_reader/extenders/loop_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
+mo/utils/ir_reader/extenders/LSTMSequence_extender.py
 mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 mo/utils/ir_reader/extenders/non_zero_extender.py
 mo/utils/ir_reader/extenders/pad_extender.py
@@ -1051,6 +1060,7 @@ mo/utils/ir_reader/extenders/parameter_extender.py
 mo/utils/ir_reader/extenders/pooling_extender.py
 mo/utils/ir_reader/extenders/priorbox_clustered_extender.py
 mo/utils/ir_reader/extenders/priorbox_extender.py
+mo/utils/ir_reader/extenders/random_uniform_extender.py
 mo/utils/ir_reader/extenders/range_extender.py
 mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 mo/utils/ir_reader/extenders/RNNCell_extender.py
@@ -1066,10 +1076,12 @@ mo/utils/logger.py
 mo/utils/model_analysis.py
 mo/utils/pipeline_config.py
 mo/utils/replacement_pattern.py
+mo/utils/runtime_info.py
 mo/utils/shape.py
 mo/utils/simple_proto_parser.py
 mo/utils/str_to.py
 mo/utils/summarize_graph.py
+mo/utils/telemetry_params.py
 mo/utils/telemetry_stub.py
 mo/utils/telemetry_utils.py
 mo/utils/tensorboard_util.py

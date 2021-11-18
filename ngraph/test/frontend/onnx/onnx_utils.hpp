@@ -6,4 +6,4 @@
 
 #include <string>
 
-static const std::string ONNX_FE = "onnx_experimental";
+static const std::string ONNX_FE = "onnx";

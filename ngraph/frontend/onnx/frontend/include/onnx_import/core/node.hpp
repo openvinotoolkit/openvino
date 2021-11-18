@@ -66,8 +66,8 @@ public:
 
     bool has_attribute(const std::string& name) const;
 
-    bool has_subgraph() const;
-    std::shared_ptr<Subgraph> get_subgraph() const;
+    bool has_subgraphs() const;
+    const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& get_subgraphs() const;
 
     template <typename T>
     T get_attribute_value(const std::string& name, T default_value) const;

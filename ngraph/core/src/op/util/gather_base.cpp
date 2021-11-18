@@ -16,7 +16,7 @@
 
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(ov::op::util::GatherBase, "GatherBase", 7);
+BWDCMP_RTTI_DEFINITION(ov::op::util::GatherBase);
 
 ov::op::util::GatherBase::GatherBase(const Output<Node>& data,
                                      const Output<Node>& indices,
@@ -144,6 +144,7 @@ int64_t ov::op::util::GatherBase::get_axis() const {
 }
 
 namespace gather {
+namespace {
 template <ov::element::Type_t ET>
 bool evaluate(const ngraph::HostTensorPtr& arg0,
               const ngraph::HostTensorPtr& arg1,
@@ -151,9 +152,9 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
               int64_t axis,
               int64_t batch_dims) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ngraph::Shape params_shape = arg0->get_shape();
-    ngraph::Shape indices_shape = arg1->get_shape();
-    ngraph::Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
+    ov::Shape params_shape = arg0->get_shape();
+    ov::Shape indices_shape = arg1->get_shape();
+    ov::Shape out_shape(params_shape.size() + indices_shape.size() - 1 - batch_dims);
     int64_t i = 0;
     for (; i < axis; i++) {
         out_shape[i] = params_shape[i];
@@ -261,7 +262,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
     auto gathered = gathered_concat_input;
     if (indices_shape.empty()) {
         // gathering a scalar
-        const auto axis_const = ngraph::op::Constant::create(ov::element::i64, ngraph::Shape{1}, {0});
+        const auto axis_const = ngraph::op::Constant::create(ov::element::i64, ov::Shape{1}, {0});
         gathered = make_shared<ngraph::op::v0::Squeeze>(gathered_concat_input, axis_const);
     }
 
@@ -269,6 +270,7 @@ bool cf_gather_with_subgraph(ov::OutputVector& output_values,
 
     return true;
 }
+}  // namespace
 }  // namespace gather
 
 bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

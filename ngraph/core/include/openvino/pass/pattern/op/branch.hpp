@@ -21,13 +21,13 @@ namespace op {
 /// from being deleted.
 class OPENVINO_API Branch : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternBranch", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternBranch");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Creates a Branch pattern
     /// \param pattern the destinationing pattern
     /// \param labels Labels where the destination may occur
     Branch() : Pattern(OutputVector{}) {
-        set_output_type(0, element::f32, ngraph::Shape{});
+        set_output_type(0, element::f32, Shape{});
     }
 
     void set_destination(const Output<Node>& destination) {

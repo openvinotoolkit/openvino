@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ROIAlign::type_info;
+BWDCMP_RTTI_DEFINITION(op::v3::ROIAlign);
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
@@ -107,10 +107,10 @@ void op::v3::ROIAlign::validate_and_infer_types() {
     }
 
     // the output shape should have the following format [NUM_ROIS, C, pooled_h, pooled_w]
-    auto output_shape = PartialShape{{Dimension::dynamic(),
-                                      input_ps[1],
-                                      Dimension{static_cast<int64_t>(m_pooled_h)},
-                                      Dimension{static_cast<int64_t>(m_pooled_w)}}};
+    auto output_shape = ov::PartialShape{{Dimension::dynamic(),
+                                          input_ps[1],
+                                          Dimension{static_cast<int64_t>(m_pooled_h)},
+                                          Dimension{static_cast<int64_t>(m_pooled_w)}}};
 
     // if either of those 2 dimensions is static its value will be used
     // for the first dimension of the output shape - 'NUM_ROIS'
@@ -162,7 +162,7 @@ shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace ov {
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::v3::ROIAlign::PoolingMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v3::ROIAlign::PoolingMode>);
 
 template <>
 NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>::get() {
@@ -174,11 +174,12 @@ NGRAPH_API EnumNames<ngraph::op::v3::ROIAlign::PoolingMode>& EnumNames<ngraph::o
 
 }  // namespace ov
 
-std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
+std::ostream& ov::operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& type) {
     return s << as_string(type);
 }
 
 namespace roi_alinop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& feature_maps,
               const HostTensorPtr& rois,
@@ -189,7 +190,7 @@ bool evaluate(const HostTensorPtr& feature_maps,
               const int sampling_ratio,
               const float spatial_scale,
               const op::v3::ROIAlign::PoolingMode& pooling_mode,
-              const Shape& batch_indices_shape) {
+              const ov::Shape& batch_indices_shape) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::roi_align<T>(feature_maps->get_data_ptr<ET>(),
                                      rois->get_data_ptr<ET>(),
@@ -264,6 +265,7 @@ bool evaluate_roi_align(const HostTensorVector& args,
 
     return rc;
 }
+}  // namespace
 }  // namespace roi_alinop
 
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

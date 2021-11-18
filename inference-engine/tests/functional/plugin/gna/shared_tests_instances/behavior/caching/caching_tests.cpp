@@ -9,8 +9,9 @@ using namespace LayerTestsDefinitions;
 namespace {
     static const std::vector<ngraph::element::Type> precisionsGNA = {
             ngraph::element::f32,
-            ngraph::element::u8,
-            ngraph::element::i16,
+            // integer weights are not supported by GNA so far
+            // ngraph::element::u8,
+            // ngraph::element::i16,
     };
 
     static const std::vector<std::size_t> batchSizesGNA = {

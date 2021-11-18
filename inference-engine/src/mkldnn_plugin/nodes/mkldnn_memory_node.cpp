@@ -8,6 +8,8 @@
 #include "mkldnn_memory_node.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/general_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/ngraph_utils.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -25,9 +27,14 @@ MKLDNNMemoryNode::MKLDNNMemoryNode(const std::shared_ptr<ngraph::Node>& op) {
 
 bool MKLDNNMemoryOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
-                ngraph::op::v3::Assign::type_info,
-                ngraph::op::v6::Assign::type_info)) {
+                ngraph::op::v3::Assign::get_type_info_static(),
+                ngraph::op::v6::Assign::get_type_info_static())) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
             return false;
         }
@@ -59,14 +66,12 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(0);
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     NodeConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(1);
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType,
-                                                           MKLDNNMemory::GetPlainFormatByRank(getParentEdgeAt(0)->getShape().getRank()));
+    config.inConfs[0].desc = std::make_shared<CpuBlockedMemoryDesc>(precision, getInputShapeAtPort(0));
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
@@ -80,9 +85,14 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
 
 bool MKLDNNMemoryInputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
+
         if (!MKLDNNPlugin::one_of(op->get_type_info(),
-                ngraph::op::v3::ReadValue::type_info,
-                ngraph::op::v6::ReadValue::type_info)) {
+                ngraph::op::v3::ReadValue::get_type_info_static(),
+                ngraph::op::v6::ReadValue::get_type_info_static())) {
             errorMessage = "Node is not an instance of ReadValue from the operation set v3 or v6.";
             return false;
         }
@@ -106,10 +116,11 @@ MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const std::shared_ptr<ngraph::Node>
 void MKLDNNMemoryInputNode::createPrimitive() {
     MKLDNNInputNode::createPrimitive();
 
-    dataStore->Create(getChildEdgeAt(0)->getMemory().GetDesc());
+    dataStore->Create(getChildEdgeAt(0)->getMemory().getDesc());
 
     // default memory state is zero filled
-    dataStore->FillZero();
+    if (dataStore->getDesc().hasDefinedMaxSize())
+        dataStore->FillZero();
 }
 
 /**

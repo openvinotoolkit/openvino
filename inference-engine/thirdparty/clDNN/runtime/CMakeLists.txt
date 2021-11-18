@@ -37,6 +37,7 @@ source_group("${__CLDNN_Label__main}"             FILES ${__CLDNN_Sources__main}
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
     "${__CLDNN_Directory__main}"
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
   )
 
 # =================================== Link targets and dependencies ====================================
@@ -45,6 +46,10 @@ include_directories(
 add_library("${CLDNN_BUILD__PROJ}" STATIC
     ${__CLDNN_AllSources}
   )
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  target_compile_options(${CLDNN_BUILD__PROJ} PRIVATE -Os)
+endif()
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 
@@ -61,10 +66,18 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     openvino::itt
   )
 
+if(ENABLE_ONEDNN_FOR_GPU)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu)
+endif()
+
 if(WIN32)
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
+
+target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE inference_engine)
+
+ov_install_static_lib("${CLDNN_BUILD__PROJ}" gpu)
 
 # ======================================================================================================

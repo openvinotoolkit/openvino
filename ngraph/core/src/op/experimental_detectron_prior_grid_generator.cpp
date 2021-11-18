@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator, "ExperimentalDetectronPriorGridGenerator", 6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronPriorGridGenerator);
 
 op::v6::ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator(
     const Output<Node>& priors,
@@ -60,10 +60,12 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate() {
 
     NODE_VALIDATION_CHECK(this, priors_shape.rank().get_length() == 2, "Priors rank must be equal to 2.");
 
-    NODE_VALIDATION_CHECK(this,
-                          priors_shape[1].is_static() && priors_shape[1].get_length() == 4u,
-                          "The last dimension of the 'priors' input must be equal to 4. Got: ",
-                          priors_shape[1]);
+    if (priors_shape[1].is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              priors_shape[1].is_static() && priors_shape[1].get_length() == 4u,
+                              "The last dimension of the 'priors' input must be equal to 4. Got: ",
+                              priors_shape[1]);
+    }
 
     NODE_VALIDATION_CHECK(this, featmap_shape.rank().get_length() == 4, "Feature_map rank must be equal to 4.");
 
@@ -94,9 +96,9 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     validate();
 
     set_output_size(1);
-    PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
+    ov::PartialShape out_shape = {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
     if (m_attrs.flatten) {
-        out_shape = PartialShape{Dimension::dynamic(), 4};
+        out_shape = ov::PartialShape{Dimension::dynamic(), 4};
     }
 
     if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
@@ -109,9 +111,9 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate_and_infer_types()
     auto featmap_width = featmap_shape[3];
 
     if (m_attrs.flatten) {
-        out_shape = PartialShape{featmap_height * featmap_width * num_priors, 4};
+        out_shape = ov::PartialShape{featmap_height * featmap_width * num_priors, 4};
     } else {
-        out_shape = PartialShape{featmap_height, featmap_width, num_priors, 4};
+        out_shape = ov::PartialShape{featmap_height, featmap_width, num_priors, 4};
     }
     set_output_type(0, input_et, out_shape);
 }

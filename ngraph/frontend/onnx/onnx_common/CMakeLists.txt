@@ -16,7 +16,6 @@ source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
 # Create static library
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-add_library(ngraph::onnx_common ALIAS ${TARGET_NAME})
 
 # TODO Add handling ie_faster_build
 
@@ -30,9 +29,4 @@ target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
 link_system_libraries(${TARGET_NAME} PUBLIC onnx_proto onnx ${Protobuf_LITE_LIBRARIES})
 
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
-
-if(NGRAPH_USE_PROTOBUF_LITE)
-    target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)
-endif()
-
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

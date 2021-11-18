@@ -14,9 +14,10 @@
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "network_utils.hpp"
+#include "openvino/runtime/core.hpp"
 
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 # define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 # include <codecvt>
 #endif
@@ -54,24 +55,17 @@ protected:
 };
 
 TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
-    InferenceEngine::Core ie;
+    ov::runtime::Core ie;
 
-    auto network = read(_modelPath, _weightsPath, ie);
-    auto network2 = read(_modelPath, _weightsPath, ie);
+    auto network = ie.read_model(_modelPath, _weightsPath);
+    auto network2 = ie.read_model(_modelPath, _weightsPath);
 
-    IE_SUPPRESS_DEPRECATED_START
-
-    auto& icnn = static_cast<InferenceEngine::ICNNNetwork &>(network);
-    auto& icnn2 = static_cast<InferenceEngine::ICNNNetwork &>(network2);
-
-    ASSERT_NE(&icnn,
-              &icnn2);
-    ASSERT_NO_THROW(FuncTestUtils::compareCNNNetworks(network, network2));
-
-    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_NE(network.get(), network2.get());
+    ASSERT_NO_THROW(FuncTestUtils::compareCNNNetworks(InferenceEngine::CNNNetwork(network),
+                InferenceEngine::CNNNetwork(network2)));
 }
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
     GTEST_COUT << "params.modelPath: '" << _modelPath << "'" << std::endl;
@@ -85,12 +79,12 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
             is_copy_successfully = CommonTestUtils::copyFile(_modelPath, modelPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _modelPath << "' to '"
-                       << FileUtils::wStringtoMBCSstringChar(modelPath) << "'";
+                       << ov::util::wstring_to_string(modelPath) << "'";
             }
             is_copy_successfully = CommonTestUtils::copyFile(_weightsPath, weightsPath);
             if (!is_copy_successfully) {
                 FAIL() << "Unable to copy from '" << _weightsPath << "' to '"
-                       << FileUtils::wStringtoMBCSstringChar(weightsPath) << "'";
+                       << ov::util::wstring_to_string(weightsPath) << "'";
             }
             GTEST_COUT << "Test " << testIndex << std::endl;
             InferenceEngine::Core ie;

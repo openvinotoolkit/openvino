@@ -20,8 +20,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/visibility.hpp>
-#include <ngraph_ops/framework_node.hpp>
 #include <onnx_import/core/node.hpp>
+#include <openvino/op/util/framework_node.hpp>
 
 namespace ONNX_NAMESPACE {
 // forward declaration
@@ -34,19 +34,19 @@ class Model;
 }
 
 namespace frontend {
-class ONNXFrameworkNode : public op::FrameworkNode {
+class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
 public:
     NGRAPH_RTTI_DECLARATION;
 
     ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph, const onnx_import::Node& node)
-        : FrameworkNode(node.get_ng_inputs(), node.get_outputs_size()),
+        : ov::op::util::FrameworkNode(node.get_ng_inputs(), node.get_outputs_size()),
           m_node(node),
           m_graph(graph) {}
 
     ONNXFrameworkNode(std::shared_ptr<onnx_import::Graph> graph,
                       const onnx_import::Node& node,
                       const OutputVector& inputs)
-        : FrameworkNode(inputs, node.get_outputs_size()),
+        : ov::op::util::FrameworkNode(inputs, node.get_outputs_size()),
           m_node(node),
           m_graph(graph) {}
 
@@ -86,14 +86,19 @@ public:
         : ONNXFrameworkNode(graph, node, inputs) {}
 
     void infer_inputs_from_parent() {
-        m_node.get_subgraph()->infer_inputs_from_parent();
+        for (auto& subgraph : m_node.get_subgraphs())
+            subgraph.second->infer_inputs_from_parent();
     }
 
-    std::shared_ptr<Function> get_subgraph_body() const {
-        auto subgraph = m_node.get_subgraph();
-        return std::make_shared<Function>(subgraph->get_ng_outputs(),
-                                          subgraph->get_ng_parameters(),
-                                          subgraph->get_name());
+    std::vector<std::shared_ptr<Function>> get_subgraph_functions() const {
+        std::vector<std::shared_ptr<Function>> ret;
+        for (const auto& kv : m_node.get_subgraphs()) {
+            auto& subgraph = kv.second;
+            ret.push_back(std::make_shared<Function>(subgraph->get_ng_outputs(),
+                                                     subgraph->get_ng_parameters(),
+                                                     subgraph->get_name()));
+        }
+        return ret;
     }
 };
 

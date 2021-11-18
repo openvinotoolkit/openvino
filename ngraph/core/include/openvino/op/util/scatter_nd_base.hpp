@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace op {
@@ -14,10 +14,8 @@ namespace util {
 ///
 class OPENVINO_API ScatterNDBase : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ScatterNDBase", 3};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("ScatterNDBase", "util");
+    BWDCMP_RTTI_DECLARATION;
     // Respective input ordinal number.
     static constexpr int INPUTS = 0;
     static constexpr int INDICES = 1;

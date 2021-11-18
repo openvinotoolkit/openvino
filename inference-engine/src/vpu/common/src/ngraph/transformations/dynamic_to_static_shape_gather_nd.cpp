@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_gather.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_gather_nd.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 #include "vpu/ngraph/utilities.hpp"
@@ -18,7 +18,7 @@ namespace vpu {
 void dynamicToStaticShapeGatherND(std::shared_ptr<ngraph::Node> target) {
     const auto gatherND = ngraph::as_type_ptr<ngraph::opset5::GatherND>(target);
     VPU_THROW_UNLESS(gatherND, "dynamicToStaticShapeGatherND transformation is not applicable for {}, it should be {} instead",
-                     target, ngraph::opset5::GatherND::type_info);
+                     target, ngraph::opset5::GatherND::get_type_info_static());
 
     const auto dataDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(0).get_node_shared_ptr());
     const auto indicesDSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(gatherND->input_value(1).get_node_shared_ptr());

@@ -10,7 +10,6 @@
 
 namespace ngraph {
 namespace op {
-TypeRelaxedBase::~TypeRelaxedBase() {}
-
+TypeRelaxedBase::~TypeRelaxedBase() = default;
 }  // namespace op
 }  // namespace ngraph

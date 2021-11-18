@@ -5,37 +5,12 @@
 #pragma once
 
 #include "ngraph/op/op.hpp"
+#include "openvino/op/reorg_yolo.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v0 {
-class NGRAPH_API ReorgYolo : public Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    ReorgYolo() = default;
-    /// \brief Constructs a ReorgYolo operation
-    ///
-    /// \param input          Input
-    /// \param stride         Stride to reorganize input by
-    ReorgYolo(const Output<Node>& input, const size_t stride);
-
-    // Constructor with `strides` for backward compatibility
-    ReorgYolo(const Output<Node>& input, const Strides& strides);
-
-    void validate_and_infer_types() override;
-
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    Strides get_strides() const {
-        return m_strides;
-    }
-
-private:
-    Strides m_strides;
-};
+using ov::op::v0::ReorgYolo;
 }  // namespace v0
 using v0::ReorgYolo;
 }  // namespace op

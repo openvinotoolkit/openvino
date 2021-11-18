@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ClampTransformation::getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj) {
+std::string ClampTransformation::getTestCaseName(const testing::TestParamInfo<ClampTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

@@ -45,32 +45,6 @@ public:
     Expected expected;
 };
 
-inline std::ostream& operator<<(std::ostream& os,
-    const std::vector<ngraph::builder::subgraph::DequantizationOperations>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os,
-    const std::vector<size_t>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 class VariadicSplitTransformation : public LayerTransformation, public testing::WithParamInterface<VariadicSplitTransformationTestValues> {
 public:
     void SetUp() override {
@@ -117,6 +91,8 @@ TEST_P(VariadicSplitTransformation, CompareFunctions) {
 
     auto res = compare_functions(referenceFunction, actualFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<VariadicSplitTransformationTestValues> testValues = {

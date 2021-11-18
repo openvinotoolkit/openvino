@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams> obj) {
+std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

@@ -76,7 +76,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     }
 }
 
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
     std::string win_dir_path = CommonTestUtils::getModelFromTestModelZoo(
@@ -86,7 +86,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     bool is_copy_successfully = CommonTestUtils::copyFile(win_dir_path, wmodel);
     if (!is_copy_successfully) {
         FAIL() << "Unable to copy from '" << win_dir_path << "' to '"
-                << FileUtils::wStringtoMBCSstringChar(wmodel) << "'";
+                << ov::util::wstring_to_string(wmodel) << "'";
     }
 
     auto cnnNetwork = ie.ReadNetwork(wmodel, L"");

@@ -12,9 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage,
-                       "ExperimentalDetectronGenerateProposalsSingleImage",
-                       6);
+BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronGenerateProposalsSingleImage);
 
 op::v6::ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerateProposalsSingleImage(
     const Output<Node>& im_info,
@@ -49,12 +47,12 @@ bool op::v6::ExperimentalDetectronGenerateProposalsSingleImage::visit_attributes
 
 void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v6_ExperimentalDetectronGenerateProposalsSingleImage_validate_and_infer_types);
-    size_t post_nms_count = static_cast<size_t>(m_attrs.post_nms_count);
+    auto post_nms_count = static_cast<size_t>(m_attrs.post_nms_count);
     auto input_et = get_input_element_type(0);
 
     set_output_size(2);
-    set_output_type(0, input_et, Shape{post_nms_count, 4});
-    set_output_type(1, input_et, Shape{post_nms_count});
+    set_output_type(0, input_et, ov::Shape{post_nms_count, 4});
+    set_output_type(1, input_et, ov::Shape{post_nms_count});
 
     auto im_info_shape = get_input_partial_shape(0);
     auto anchors_shape = get_input_partial_shape(1);

@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
+std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamInfo<NormalizeL2TransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     std::pair<ngraph::PartialShape, ngraph::Shape> shapes;
     std::string targetDevice;

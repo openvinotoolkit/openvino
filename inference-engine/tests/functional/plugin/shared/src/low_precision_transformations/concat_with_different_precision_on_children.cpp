@@ -19,7 +19,7 @@ using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams> obj) {
+std::string ConcatWithDifferentChildrenTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithDifferentChildrenTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;

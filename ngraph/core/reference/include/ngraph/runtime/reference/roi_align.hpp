@@ -158,22 +158,17 @@ void roi_align(const T* feature_maps,
                              pooling_points[sample_index + 3].first,
                              pooling_points[sample_index + 3].second})];
 
+                        T sample_value = pooling_weights[sample_index] * sample_part_1 +
+                                         pooling_weights[sample_index + 1] * sample_part_2 +
+                                         pooling_weights[sample_index + 2] * sample_part_3 +
+                                         pooling_weights[sample_index + 3] * sample_part_4;
                         switch (pooling_mode) {
                         case ROIPoolingMode::MAX: {
-                            T sample_value = std::max({pooling_weights[sample_index] * sample_part_1,
-                                                       pooling_weights[sample_index + 1] * sample_part_2,
-                                                       pooling_weights[sample_index + 2] * sample_part_3,
-                                                       pooling_weights[sample_index + 3] * sample_part_4});
-
                             pooled_value = sample_value > pooled_value ? sample_value : pooled_value;
                             break;
                         }
                         case ROIPoolingMode::AVG:
                         default: {
-                            T sample_value = pooling_weights[sample_index] * sample_part_1 +
-                                             pooling_weights[sample_index + 1] * sample_part_2 +
-                                             pooling_weights[sample_index + 2] * sample_part_3 +
-                                             pooling_weights[sample_index + 3] * sample_part_4;
                             pooled_value += sample_value / (num_samples_in_bin);
                         }
                         }

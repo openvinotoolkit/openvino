@@ -15,8 +15,8 @@ namespace op {
 /// and the arguments match, the match succeeds.
 class OPENVINO_API Any : public Pattern {
 public:
-    static constexpr NodeTypeInfo type_info{"patternAny", 0};
-    const NodeTypeInfo& get_type_info() const override;
+    OPENVINO_RTTI("patternAny");
+    BWDCMP_RTTI_DECLARATION;
     /// \brief creates a Any node containing a sub-pattern described by \sa type and \sa
     ///        shape.
     Any(const element::Type& type, const PartialShape& s, ValuePredicate pred, const OutputVector& wrapped_values)

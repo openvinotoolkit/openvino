@@ -13,8 +13,12 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto tile = std::dynamic_pointer_cast<const ngraph::opset1::Tile>(op);
         if (!tile) {
             errorMessage = "Only opset1 Tile operation is supported";
@@ -86,17 +90,12 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << " has unsupported input precision: " << precision;
     }
 
-    auto descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
-
-    NodeConfig config;
-    config.dynBatchSupport = true;
-    config.inConfs.resize(2);
-    config.outConfs.resize(1);
-    config.inConfs[TILE_INPUT].desc = descCreator->createUniqueDesc(precision, getParentEdgeAt(TILE_INPUT)->getShape().getStaticDims());
-    config.inConfs[TILE_REPEATS].desc = descCreator->createUniqueDesc(Precision::I32, getParentEdgeAt(TILE_REPEATS)->getShape().getStaticDims());
-    config.outConfs[0].desc = descCreator->createUniqueDesc(precision, getChildEdgeAt(0)->getShape().getStaticDims());
-    config.outConfs[0].inPlace = noTiling ? 0 : -1;
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+    int inPlace = noTiling ? 0 : -1;
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                           {LayoutType::ncsp, Precision::I32}},
+                          {{LayoutType::ncsp, precision, false, inPlace}},
+                           impl_desc_type::unknown,
+                           true);
 }
 
 void MKLDNNTileNode::createPrimitive() {
@@ -122,7 +121,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;
-    memory::dims inDims = srcMemory.GetDims();
+    auto inDims = srcMemory.getStaticDims();
     for (int i=0; i < axis; i++ ) m_outer_dim *= inDims[i];
     for (int i=axis; i < inDims.size(); i++ ) m_inner_dim *= inDims[i];
     if (axis > 0) {
@@ -133,13 +132,13 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_inner_dim *= batchToProcess();
     }
 
-    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().hasLayoutType(LayoutType::nCsp8c)) {
+    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.getDesc().hasLayoutType(LayoutType::nCsp8c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw8c)
          */
         m_inner_dim *= 8;
         m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().hasLayoutType(LayoutType::nCsp16c)) {
+    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.getDesc().hasLayoutType(LayoutType::nCsp16c)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw16c)
          */
@@ -147,7 +146,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_outer_dim /= 16;
     }
 
-    m_inner_dim *= srcMemory.GetDesc().getPrecision().size();
+    m_inner_dim *= srcMemory.getDesc().getPrecision().size();
     for (int i = 0; i < m_outer_dim; ++i) {
         for (int t = 0; t < tiles; ++t) {
             cpu_memcpy(dst_ptr, src_ptr, m_inner_dim);

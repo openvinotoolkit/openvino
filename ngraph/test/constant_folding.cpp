@@ -444,6 +444,26 @@ TEST(constant_folding, const_convert) {
         vector<int64_t> expected{1, 2, 3, 4, 5};
         test_const_convert(in, expected);
     }
+    {
+        vector<int8_t> in{-128, -2, 0, 1, 3, 127};
+        vector<float> expected{-128, -2, 0, 1, 3, 127};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<uint8_t> in{0, 1, 3, 127, 255};
+        vector<float> expected{0, 1, 3, 127, 255};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<float> in{-300, -128, -1, 0, 33, 127, 128};
+        vector<int8_t> expected{-44, -128, -1, 0, 33, 127, -128};
+        test_const_convert(in, expected);
+    }
+    {
+        vector<float> in{0, 33, 127, 255, 256};
+        vector<uint8_t> expected{0, 33, 127, 255, 0};
+        test_const_convert(in, expected);
+    }
 }
 
 TEST(constant_folding, shape_of_v0) {
@@ -3157,7 +3177,7 @@ TEST(constant_folding, disable_constant_folding) {
     auto constant_shape = op::Constant::create(element::i64, Shape{1}, {3});
     auto dyn_reshape = make_shared<op::v1::Reshape>(input, constant_shape, true);
     auto& rt_info = dyn_reshape->get_rt_info();
-    rt_info["DISABLED_CONSTANT_FOLDING"];
+    rt_info["disabled_constant_folding_0"];
     auto f = make_shared<Function>(dyn_reshape, ParameterVector{input});
 
     pass::Manager pass_manager;

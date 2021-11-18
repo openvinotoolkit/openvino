@@ -108,8 +108,8 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
         // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
         const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
-            broadcastedConst,
-            foldConvert(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
+            foldConvert(broadcastedConst, newMatMul->get_element_type()),
+            foldConvert(newMatMul->input_value(1), newMatMul->get_element_type()),
             newMatMul->get_transpose_a(),
             newMatMul->get_transpose_b()));
 
@@ -167,7 +167,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
     newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
 
-    replace_node(matMul, newMultiply);
+    NetworkHelper::insertDequantizationAfter(matMul, newMultiply, newMatMul);
     copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
     updateOutput(context, newMultiply, newMatMul);

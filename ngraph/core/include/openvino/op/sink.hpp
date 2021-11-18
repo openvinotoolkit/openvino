@@ -14,7 +14,8 @@ namespace op {
 class OPENVINO_API Sink : public Op {
 public:
     ~Sink() override = 0;
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Sink");
+    BWDCMP_RTTI_DECLARATION;
 
 protected:
     Sink() : Op() {}

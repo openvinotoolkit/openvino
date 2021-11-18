@@ -24,9 +24,9 @@ typedef std::tuple<
 > basicLstmParams;
 
 class Basic_LSTM_S : public testing::WithParamInterface<basicLstmParams>,
-                     public LayerTestsUtils::LayerTestsCommon {
+                     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<basicLstmParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<basicLstmParams>& obj);
 
     void Run() override;
     static std::shared_ptr<ngraph::Function> GetNetwork(size_t thirdDimOut,

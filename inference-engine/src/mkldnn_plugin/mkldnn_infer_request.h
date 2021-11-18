@@ -22,6 +22,10 @@ public:
                                 InferenceEngine::OutputsDataMap     networkOutputs,
                                 std::shared_ptr<MKLDNNExecNetwork>  execNetwork);
 
+    MKLDNNInferRequest(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                       const std::vector<std::shared_ptr<const ov::Node>>& outputs,
+                       std::shared_ptr<MKLDNNExecNetwork>                  execNetwork);
+
     ~MKLDNNInferRequest();
 
     void InferImpl() override;
@@ -48,9 +52,11 @@ public:
     void ThrowIfCanceled() const;
 
 private:
+    void CreateInferRequest();
     void PushInputData();
     void PushStates();
     void PullStates();
+    void redefineMemoryForInputNodes();
 
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 

@@ -7,11 +7,13 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/not_equal.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 namespace not_equalop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -46,11 +48,12 @@ bool evaluate_not_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace not_equalop
 
 // ----------------------------------- v1 --------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::NotEqual, "NotEqual", 1, op::util::BinaryElementwiseComparison);
+BWDCMP_RTTI_DEFINITION(op::v1::NotEqual);
 
 op::v1::NotEqual::NotEqual(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {
@@ -65,6 +68,7 @@ shared_ptr<Node> op::v1::NotEqual::clone_with_new_inputs(const OutputVector& new
 
 bool op::v1::NotEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_NotEqual_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return not_equalop::evaluate_not_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 

@@ -9,36 +9,12 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v3 {
-class NGRAPH_API ScatterElementsUpdate : public Op {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    ScatterElementsUpdate() = default;
-    /// \brief Constructs a ScatterElementsUpdate node
-
-    /// \param data            Input data
-    /// \param indices         Data entry index that will be updated
-    /// \param updates         Update values
-    /// \param axis            Axis to scatter on
-    ScatterElementsUpdate(const Output<Node>& data,
-                          const Output<Node>& indices,
-                          const Output<Node>& updates,
-                          const Output<Node>& axis);
-
-    virtual void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
-
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    bool has_evaluate() const override;
-
-private:
-    bool evaluate_scatter_element_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
-};
+using ov::op::v3::ScatterElementsUpdate;
 }  // namespace v3
 using v3::ScatterElementsUpdate;
 }  // namespace op

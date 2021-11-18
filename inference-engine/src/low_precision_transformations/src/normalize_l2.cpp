@@ -140,10 +140,10 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
 
-    replace_node(normalize, newMultiply);
+    NetworkHelper::insertDequantizationAfter(normalize, newMultiply, newNormalize);
     ngraph::copy_runtime_info({ normalize, newMultiply }, newMultiply);
 
-    updateOutput(context, newMultiply, normalize);
+    updateOutput(context, newMultiply, newNormalize);
     return true;
 }
 

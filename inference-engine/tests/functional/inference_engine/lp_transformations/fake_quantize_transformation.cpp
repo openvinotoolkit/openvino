@@ -14,6 +14,7 @@
 #include <low_precision/avg_pool.hpp>
 #include <low_precision/common/operation_precision_restriction.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
+#include <low_precision/low_precision.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 #include "lpt_ngraph_functions/fake_quantize_function.hpp"
@@ -53,18 +54,6 @@ public:
     bool addNotPrecisionPreservedOperation;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeTransformationTestValues& testValue) {
     return out << "_" << testValue.actual << "_" << testValue.expected;
 }
@@ -84,6 +73,14 @@ public:
         const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
 
         const auto params = TestTransformationParams(fakeQuantizeOnData.params).setUpdatePrecisions(updatePrecision);
+
+        if (fakeQuantizeOnData.actual.quantizationLevel != 256) {
+            low_precision::LowPrecision::setDefaultPrecisions({
+                 ngraph::element::u8, ngraph::element::i8,
+                 ngraph::element::u16, ngraph::element::i16,
+                 ngraph::element::u32, ngraph::element::i32
+            });
+        }
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
             TestTransformationParams::toParams(fakeQuantizeOnData.params),
@@ -131,6 +128,8 @@ TEST_P(FakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 namespace testValues1 {
@@ -245,14 +244,68 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     {
         LayerTransformation::createParamsU8I8AndI8(),
         { 256ul, {}, { 0.f }, { 25.5f }, { -1.0686283872061019e-38 }, { 1.0686283872061019e-38 } },
-        { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 255.f } },
-        ngraph::element::u8,
+        { 256ul, {}, { 0.f }, { 25.5f }, { -128.f }, { 127.f } },
+        ngraph::element::i8,
         {
-            { ngraph::element::f32, {{ngraph::element::f32}, { }, { 1e-32f }} },
-            { ngraph::element::f16, {{ngraph::element::f16}, { }, { 1e-32f }} }
+            { ngraph::element::f32, {{ngraph::element::f32}, {}, { 1e-32f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, {}, { 1e-32f }} }
         }
     },
-
+    // denormal values
+    {
+        LayerTransformation::createParamsU8I8AndI8(),
+        { 256ul, {}, { 0.f }, { 25.5f }, { 0.0 }, { 1.0686283872061019e-38 } },
+        { 256ul, {}, { 0.f }, { 25.5f }, { 0.0 }, { 255 } },
+        ngraph::element::u8,
+        {
+            { ngraph::element::f32, {{ngraph::element::f32}, {}, { 1e-32f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, {}, { 1e-32f }} }
+        }
+    },
+    // U16
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 65536ul, {}, { 0.f }, { 65.535f }, { 0.f }, { 65.535f } },
+        { 65536ul, {}, { 0.f }, { 65.535f }, { 0.f }, { 65535.f } },
+        ngraph::element::u16,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.001f }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { 0.001f }} }
+        }
+    },
+    // I16
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 65536ul, {}, { -32.768f }, { 32.767f }, { -32.768f }, { 32.767f } },
+        { 65536ul, {}, { -32.768f }, { 32.767f }, { -32768.f }, { 32767.f } },
+        ngraph::element::i16,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.001f }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { 0.001f }} }
+        }
+    },
+    // U32
+    {
+        LayerTransformation::createParamsU8I8(),
+        { static_cast<size_t>(4294967296), {}, { 0.f }, { 4.294967295f }, { 0.f }, { 4.294967295f } },
+        { static_cast<size_t>(4294967296), {}, { 0.f }, { 4.294967295f }, { 0.f }, { 4294967295.f } },
+        ngraph::element::u32,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.000000001f }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { 0.000000001f }} }
+        }
+    },
+    // I32
+    {
+        LayerTransformation::createParamsU8I8(),
+        { static_cast<size_t>(4294967296), {}, { -2.147483648f }, { 2.147483647f }, { -2.147483648f }, { 2.147483647f } },
+        { static_cast<size_t>(4294967296), {}, { -2.147483648f }, { 2.147483647f }, { -2147483648.f }, { 2147483647.f } },
+        ngraph::element::i32,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.000000001f }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { 0.000000001f }} }
+        }
+    },
     // Failed when updatePrecisions = false, U8 per-channel
     //{
     //    LayerTransformation::createParamsU8I8(),
@@ -269,6 +322,28 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
     //        { ngraph::element::f16, { {ngraph::element::f16}, {}, { {0.01f, 0.1f, 1.f} }} }
     //    }
     //},
+    // u4 through u8
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 1.5f } },
+        { 16ul, {}, { 0.f }, { 1.5f }, { 0.f }, { 15.f } },
+        ngraph::element::u8,
+        {
+            { ngraph::element::f32, { {ngraph::element::f32}, {}, { 0.1f }} },
+            { ngraph::element::f16, { {ngraph::element::f16}, {}, { 0.1f }} }
+        }
+    },
+    // i4 through i8
+    {
+        LayerTransformation::createParamsI8I8(),
+        { 16ul, {}, { -0.8f }, { 0.7f }, { -0.8f }, { 0.7f } },
+        { 16ul, {}, { -0.8f }, { 0.7f }, { -8.f }, { 7.f } },
+        ngraph::element::i8,
+        {
+            { ngraph::element::f32, {{ngraph::element::f32}, { }, { 0.1f }} },
+            { ngraph::element::f16, {{ngraph::element::f16}, { }, { 0.1f }} }
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

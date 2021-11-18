@@ -11,15 +11,24 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "details/ie_so_pointer.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "so_ptr.hpp"
 
+namespace ov {
+class Function;
+namespace op {
+namespace v0 {
+class Parameter;
+class Result;
+}  // namespace v0
+}  // namespace op
+}  // namespace ov
 namespace InferenceEngine {
 
 class IInferencePlugin;
 class IInferRequestInternal;
-class IRemoteContext;
+class RemoteContext;
 class IVariableStateInternal;
 
 /**
@@ -46,6 +55,25 @@ public:
      * @param[in]  networkOutputs  The network outputs
      */
     virtual void setNetworkOutputs(const OutputsDataMap& networkOutputs);
+
+    /**
+     * @brief      Sets the network parameters
+     * @param[in]  params  The network parameters
+     */
+    virtual void setInputs(const std::vector<std::shared_ptr<const ov::Node>>& params);
+    /**
+     * @brief      Returns the network parameters
+     */
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getInputs() const;
+    /**
+     * @brief      Sets the network results
+     * @param[in]  results  The network results
+     */
+    virtual void setOutputs(const std::vector<std::shared_ptr<const ov::Node>>& results);
+    /**
+     * @brief      Returns the network results
+     */
+    virtual const std::vector<std::shared_ptr<const ov::Node>>& getOutputs() const;
 
     /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data
@@ -88,13 +116,6 @@ public:
     virtual std::shared_ptr<ngraph::Function> GetExecGraphInfo();
 
     /**
-     * @deprecated Need to implement GetVariablesInfo for ExecutableNetwork
-     * @brief Queries memory states.
-     * @return Returns memory states
-     */
-    virtual std::vector<std::shared_ptr<IVariableStateInternal>> QueryState();
-
-    /**
      * @brief      Sets the pointer to plugin internal.
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.
@@ -125,7 +146,7 @@ public:
      * @brief Gets the remote context.
      * @return A reference to a context
      */
-    virtual std::shared_ptr<IRemoteContext> GetContext() const;
+    virtual std::shared_ptr<RemoteContext> GetContext() const;
 
 protected:
     ~IExecutableNetworkInternal() = default;
@@ -140,9 +161,22 @@ protected:
      */
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
+    /**
+     * @brief      Creates an inference request internal implementation.
+     * @note       The method is called by IExecutableNetworkInternal::CreateInferRequest as
+     *             plugin-specific implementation.
+     * @param[in]  inputs   The function inputs
+     * @param[in]  outputs  The function outputs
+     * @return     A shared pointer to inference request object.
+     */
+    virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(
+        const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+        const std::vector<std::shared_ptr<const ov::Node>>& outputs);
 
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    std::vector<std::shared_ptr<const ov::Node>> _parameters;
+    std::vector<std::shared_ptr<const ov::Node>> _results;
 
     /**
      * @brief A pointer to a IInferencePlugin interface.
@@ -152,8 +186,8 @@ protected:
 };
 
 /**
- * @brief SOPointer to IExecutableNetworkInternal.
+ * @brief SoPtr to IExecutableNetworkInternal.
  */
-using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
+using SoExecutableNetworkInternal = ov::runtime::SoPtr<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

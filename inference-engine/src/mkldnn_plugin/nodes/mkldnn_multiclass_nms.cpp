@@ -24,8 +24,12 @@ using namespace InferenceEngine;
 using ngNmsSortResultType = ngraph::op::util::NmsBase::SortResultType;
 using MulticlassNmsIEInternal = ngraph::op::internal::NmsStaticShapeIE<ngraph::op::v8::MulticlassNms>;
 
-bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNMultiClassNmsNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto nms = std::dynamic_pointer_cast<const MulticlassNmsIEInternal>(op);
         if (!nms) {
             errorMessage = "Only internal MulitClassNonMaxSuppression operation is supported";
@@ -135,7 +139,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->GetPtr());
     const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->GetPtr());
 
-    auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().GetDesc().getShape().getStaticDims();
+    auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
 
     if (max_output_boxes_per_class == 0)
         return;
@@ -146,8 +150,8 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     int* selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
 
-    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
-    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>().getStrides();
+    auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+    auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
 
     if ((nms_eta >= 0) && (nms_eta < 1)) {
         nmsWithEta(boxes, scores, boxesStrides, scoresStrides);
@@ -210,20 +214,20 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     }
 
     if (sort_result_across_batch) {
-        if (sort_result_type == SCORE) {
+        if (sort_result_type == MulticlassNmsSortResultType::SCORE) {
             parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
             });
-        } else if (sort_result_type == CLASSID) {
+        } else if (sort_result_type == MulticlassNmsSortResultType::CLASSID) {
             parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.class_index < r.class_index) || (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score > r.score) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score == r.score && l.box_index < r.box_index);
             });
         }
-    } else if (sort_result_type == CLASSID) {
+    } else if (sort_result_type == MulticlassNmsSortResultType::CLASSID) {
         parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
             return ((l.batch_index < r.batch_index) ||
                     ((l.batch_index == r.batch_index) &&
@@ -232,7 +236,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
         });
     }
 
-    const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getMemory().GetDesc().getShape().getStaticDims()[0];
+    const size_t selectedBoxesNum = getChildEdgeAt(NMS_SELECTEDINDICES)->getMemory().getStaticDims()[0];
     const size_t validOutputs = std::min(startOffset, selectedBoxesNum);
 
     std::vector<size_t> m_selected_num;
