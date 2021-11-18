@@ -46,22 +46,14 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create static or shared library depending on BUILD_SHARED_LIBS
 add_library(${TARGET_NAME} ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp")
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(${TARGET_NAME}
-        UNITY
-        PCH PRIVATE "src/precomp.hpp"
-    )
-endif()
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-if(COMMAND ie_add_api_validator_post_build_step)
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-endif()
-
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "OpenVINO core library")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "OpenVINO core library")
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 

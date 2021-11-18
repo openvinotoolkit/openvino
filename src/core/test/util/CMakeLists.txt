@@ -6,9 +6,7 @@ file(GLOB_RECURSE UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_
 
 add_library(ov_core_test_util STATIC ${UTIL_SRC})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ov_core_test_util UNITY)
-endif()
+ie_faster_build(ov_core_test_util UNITY)
 
 target_link_libraries(ov_core_test_util PUBLIC openvino::core gtest gmock)
 target_include_directories(ov_core_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

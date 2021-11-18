@@ -22,16 +22,11 @@ set (SRC
 
 add_library(ov_backend SHARED ${SRC})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ov_backend
-        UNITY
-    )
-endif()
+ie_faster_build(ov_backend UNITY)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ov_backend
-                           FILEDESCRIPTION "OpenVINO backend library")
-endif()
+ie_add_vs_version_file(NAME ov_backend
+                       FILEDESCRIPTION "OpenVINO backend library")
+ie_add_api_validator_post_build_step(TARGET ov_backend)
 
 target_compile_definitions(ov_backend
     PRIVATE
