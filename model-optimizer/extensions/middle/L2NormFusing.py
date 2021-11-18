@@ -22,13 +22,13 @@ class L2NormToNorm(MiddleReplacementPattern):
     enabled = True
     force_clean_up = True
 
-    def run_before(self):
-        from extensions.middle.pass_separator import PostMiddleStart
-        return [PostMiddleStart]
-
     def run_after(self):
-        from extensions.middle.DivisionToZeroFP16Resolver import DivisionToZeroFP16ResolverMaximumEps, DivisionToZeroFP16ResolverAddEpsilon
-        return [DivisionToZeroFP16ResolverMaximumEps, DivisionToZeroFP16ResolverAddEpsilon]
+        from extensions.middle.pass_separator import PreMiddleStart
+        return [PreMiddleStart]
+
+    def run_before(self):
+        from extensions.middle.pass_separator import MiddleStart
+        return [MiddleStart]
 
     def pattern(self):
         return dict(

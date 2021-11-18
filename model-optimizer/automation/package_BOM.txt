@@ -580,7 +580,6 @@ extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
 extensions/middle/dequantize_linear_resolver.py
 extensions/middle/DilatedConvolution.py
-extensions/middle/DivisionToZeroFP16Resolver.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputReshape.py
 extensions/middle/FakeSplitOutputs.py
