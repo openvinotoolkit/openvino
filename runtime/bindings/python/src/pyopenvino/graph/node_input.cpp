@@ -75,4 +75,14 @@ void regclass_graph_Input(py::module m) {
                 get_source_output : Output
                     Output that is connected to the input.
               )");
+    input.def("replace_source_output",
+              &ov::Input<ov::Node>::replace_source_output,
+              R"(
+                A handle to the output that is connected to this input.
+
+                Returns
+                ----------
+                get_source_output : Output
+                    Output that is connected to the input.
+              )");
 }

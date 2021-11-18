@@ -10,6 +10,8 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/validate.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
+#include "ngraph/pass/manager.hpp"
 #include "pyngraph/passes/manager.hpp"
 
 namespace py = pybind11;

@@ -228,6 +228,8 @@ void regclass_graph_Node(py::module m) {
                 input : Input
                     Input of this node.
              )");
+    node.def("input_value", &ov::Node::input_value,py::arg("input_index"));
+    node.def("input_values", &ov::Node::input_values);
     node.def("inputs",
              (std::vector<ov::Input<ov::Node>>(ov::Node::*)()) & ov::Node::inputs,
              R"(

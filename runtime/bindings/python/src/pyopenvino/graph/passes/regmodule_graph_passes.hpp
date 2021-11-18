@@ -6,6 +6,7 @@
 
 #include <pybind11/pybind11.h>
 #include "pyopenvino/graph/passes/manager.hpp"
+#include "pyopenvino/graph/passes/matcher.hpp"
 
 namespace py = pybind11;
 

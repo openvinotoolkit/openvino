@@ -32,12 +32,12 @@ public:
 }  // namespace
 
 void regclass_graph_passes_Manager(py::module m) {
-    py::class_<ManagerWrapper> manager(m, "Manager");
+    py::class_<ov::pass::Manager, std::shared_ptr<ov::pass::Manager>> manager(m, "Manager");
     manager.doc() = "openvino.impl.passes.Manager wraps ov::pass::Manager using ManagerWrapper";
 
     manager.def(py::init<>());
 
-    manager.def("set_per_pass_validation", &ManagerWrapper::set_per_pass_validation);
-    manager.def("run_passes", &ManagerWrapper::run_passes);
-    manager.def("register_pass", (void (ManagerWrapper::*)(std::string)) & ManagerWrapper::register_pass);
+    manager.def("set_per_pass_validation", &ov::pass::Manager::set_per_pass_validation);
+    manager.def("run_passes", &ov::pass::Manager::run_passes);
+    manager.def("register_pass", &ov::pass::Manager::register_pass_instance);
 }

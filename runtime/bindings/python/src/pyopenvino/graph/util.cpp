@@ -7,6 +7,7 @@
 #include <pybind11/numpy.h>
 
 #include "openvino/core/validation_util.hpp"
+#include "openvino/core/graph_util.hpp"
 
 namespace py = pybind11;
 
@@ -36,4 +37,8 @@ void regmodule_graph_util(py::module m) {
                         they are the same returns Constant operation
                         from the resulting bound, otherwise Null.
                 )");
+
+    // TODO: find a better place
+    mod.def("replace_node", [](const std::shared_ptr<ov::Node> & target,
+                               const std::shared_ptr<ov::Node> & replacement) { ov::replace_node(target, replacement);});
 }

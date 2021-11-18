@@ -92,8 +92,8 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_Variant(m);
     regclass_graph_VariantWrapper<std::string>(m, std::string("String"));
     regclass_graph_VariantWrapper<int64_t>(m, std::string("Int"));
-    regclass_graph_Output<ov::Node>(m, std::string(""));
-    regclass_graph_Output<const ov::Node>(m, std::string("Const"));
+    regclass_graph_Output(m, std::string(""));
+    regclass_graph_ConstOutput(m, std::string("Const"));
 
     regclass_Core(m);
     regclass_Tensor(m);

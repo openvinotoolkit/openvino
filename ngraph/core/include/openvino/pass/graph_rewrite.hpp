@@ -61,6 +61,12 @@ public:
         set_property(property, true);
     }
 
+    explicit MatcherPass(const std::shared_ptr<pattern::Matcher>& m,
+                         const graph_rewrite_callback & callback)
+            : PassBase() {
+        register_matcher(m, callback);
+    }
+
     bool apply(std::shared_ptr<ov::Node> node);
 
     template <typename T, class... Args>
@@ -74,6 +80,10 @@ public:
     std::shared_ptr<T> register_new_node(const std::shared_ptr<T>& node) {
         m_new_nodes.push_back(node);
         return node;
+    }
+
+    void register_node(const std::shared_ptr<Node>& node) {
+        m_new_nodes.push_back(node);
     }
 
     const std::vector<std::shared_ptr<ov::Node>>& get_new_nodes() {
