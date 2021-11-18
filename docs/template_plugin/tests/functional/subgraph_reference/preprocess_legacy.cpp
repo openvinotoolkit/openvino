@@ -13,6 +13,8 @@
 #include "base_reference_cnn_test.hpp"
 #include "ngraph_functions/builders.hpp"
 
+#ifdef ENABLE_GAPI_PREPROCESSING
+
 using namespace ov;
 using namespace ov::preprocess;
 using namespace reference_tests;
@@ -179,3 +181,5 @@ TEST_F(ConvertNV12WithLegacyTest, convert_nv12_colored) {
     auto input_yuv = std::vector<uint8_t> {235, 81, 235, 81, 109, 184};
     SetupAndExec(2, 2, input_yuv);
 }
+
+#endif // ENABLE_GAPI_PREPROCESSING

@@ -531,6 +531,12 @@ std::shared_ptr<ngraph::Node> makeGatherND(
                                       const element::Type& indicesType,
                                       const std::size_t batchDims);
 
+std::shared_ptr<ngraph::Node> makeGatherND8(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const std::size_t batchDims);
+
 std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
                                        const std::vector<int64_t>& repeats);
 
