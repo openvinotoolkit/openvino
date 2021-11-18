@@ -94,12 +94,8 @@ void ov::op::util::ConvertColorI420Base::validate_and_infer_types() {
         auto shape_uv = shape_u;
         PartialShape::merge_into(shape_uv, shape_v);
         if (shape_uv.rank().is_static()) {
-            if (!shape_uv[i420_op::H_DIM].is_dynamic()) {
-                shape_uv[i420_op::H_DIM] *= 2;
-            }
-            if (!shape_uv[i420_op::W_DIM].is_dynamic()) {
-                shape_uv[i420_op::W_DIM] *= 2;
-            }
+            shape_uv[i420_op::H_DIM] *= 2;
+            shape_uv[i420_op::W_DIM] *= 2;
         }
         NODE_VALIDATION_CHECK(this,
                               shape_y.compatible(shape_uv),
