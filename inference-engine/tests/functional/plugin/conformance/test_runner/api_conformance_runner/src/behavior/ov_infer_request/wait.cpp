@@ -4,36 +4,35 @@
 
 #include <vector>
 
-#include "behavior/infer_request/io_blob.hpp"
-#include "ie_plugin_config.hpp"
+#include "behavior/ov_infer_request/wait.hpp"
+
 #include "api_conformance_helpers.hpp"
 
-namespace {
+using namespace ov::test::behavior;
 using namespace ov::test::conformance;
-using namespace BehaviorTestsDefinitions;
-using namespace ConformanceTests;
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestIOBBlobTest,
+namespace {
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
-                                ::testing::Values(targetDevice),
+                                ::testing::Values(ConformanceTests::targetDevice),
                                 ::testing::ValuesIn(emptyConfig)),
-                         InferRequestIOBBlobTest::getTestCaseName);
+                            OVInferRequestWaitTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestIOBBlobTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
-                         InferRequestIOBBlobTest::getTestCaseName);
+                            OVInferRequestWaitTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestIOBBlobTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
-                         InferRequestIOBBlobTest::getTestCaseName);
+                            OVInferRequestWaitTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestIOBBlobTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVInferRequestWaitTests,
                          ::testing::Combine(
                                  ::testing::Values(CommonTestUtils::DEVICE_HETERO),
                                  ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
-                         InferRequestIOBBlobTest::getTestCaseName);
+                         OVInferRequestWaitTests::getTestCaseName);
 }  // namespace

@@ -6,41 +6,35 @@
 
 #include "behavior/infer_request/wait.hpp"
 #include "ie_plugin_config.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
-
+using namespace ov::test::conformance;
 using namespace ConformanceTests;
 using namespace BehaviorTestsDefinitions;
-
-const std::vector<std::map<std::string, std::string>> configsWait = {
-        {},
-};
-
-const std::vector<std::map<std::string, std::string>> MulticonfigsWait = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , targetDevice}}
-};
-
-const std::vector<std::map<std::string, std::string>> AutoconfigsWait = {
-        {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , targetDevice}}
-};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(configsWait)),
+                                ::testing::ValuesIn(emptyConfig)),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(MulticonfigsWait)),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_MULTI))),
                          InferRequestWaitTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, InferRequestWaitTests,
                         ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                ::testing::ValuesIn(AutoconfigsWait)),
+                                ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_AUTO))),
+                         InferRequestWaitTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, InferRequestWaitTests,
+                         ::testing::Combine(
+                                 ::testing::Values(CommonTestUtils::DEVICE_HETERO),
+                                 ::testing::ValuesIn(generateConfigs(CommonTestUtils::DEVICE_HETERO))),
                          InferRequestWaitTests::getTestCaseName);
 
 }  // namespace
