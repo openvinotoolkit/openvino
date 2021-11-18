@@ -39,7 +39,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
-        R"(.*BF16.*(jit_avx(?!5)|jit_sse|ref).*)",
+        R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse|ref).*)",
         // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)",
         R"(.*ClampLayerTest.*netPrc=(I64|I32).*)",
@@ -84,8 +84,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
         R"(.*OVExecutableNetworkBaseTest.*(CanGetInputsInfoAndCheck|CanSetConfigToExecNet|canLoadCorrectNetworkToGetExecutableWithIncorrectConfig).*)",
         R"(.*Behavior.*CorrectConfigCheck.*(canSetConfigAndCheckGetConfig|canSetConfigTwiceAndCheckGetConfig).*CPU_BIND_THREAD=YES.*)",
-        // azure is failing after #6199
-        R"(.*/NmsLayerTest.*)",
         // TODO: 56520 Accuracy mismatch
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=(I64|I32).*)",
         R"(.*ReduceOpsLayerTest.*type=Mean_.*netPRC=U64.*)",
@@ -103,11 +101,10 @@ std::vector<std::string> disabledTestPatterns() {
 
         // CPU plugin does not support some precisions
         R"(smoke_CachingSupportCase_CPU/LoadNetworkCacheTestBase.CompareWithRefImpl/ReadConcatSplitAssign_f32_batch1_CPU)",
-        // Issue 66685
-        R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
         // CPU plugin does not support some precisions
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(i8|u32).*)",
         R"(.*Behavior.*OVExecGraphImportExportTest.*elementType=(f16).*)",
+        R"(.*EltwiseLayerTest.*NetType=f16.*)",
 
         // TODO: CVS-66526 overrides i/o precisions in execution graph
         // as WA we used GetInputsInfo() precisions instead of ngraph ones
@@ -143,6 +140,17 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
         R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
         R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
+
+        // Issue: 69086
+        // need to add support convert BIN -> FP32
+        // if we set output precision as BIN, when we create output blob precision looks like UNSPECIFIED
+        R"(.*smoke_FakeQuantizeLayerCPUTest.*bin.*)",
+        // Issue: 69088
+        // bad accuracy
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.
+            *IS=_TS=\(\(4\.5\.6\.7\)\)_RS=\(\(1\.1\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.1\.1\.1\)\)_\(\(1\.1\.6\.1\)\).*)",
+        // Issue: 71121
+        R"(.*smoke_Proposal*.*TS=\(2.*)",
     };
 
 #define FIX_62820 0
@@ -157,7 +165,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
-        retVector.emplace_back(R"(.*BF16.*)");
+        retVector.emplace_back(R"(.*(BF|bf)16.*)");
         retVector.emplace_back(R"(.*bfloat16.*)");
     }
 

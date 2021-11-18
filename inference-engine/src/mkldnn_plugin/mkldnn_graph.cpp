@@ -219,10 +219,9 @@ void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionMana
             const auto inInfo = inputsInfo.find(node->getName());
             if (inInfo != inputsInfo.end()) {
                 inputNodesMap[node->getName()] = node;
-                IE_SUPPRESS_DEPRECATED_START
-                if (inInfo->second->getInputData()->isDynamic())
+                if (node->isDynamicNode()) {
                     graphHasDynamicInput = true;
-                IE_SUPPRESS_DEPRECATED_END
+                }
             }
         }
 
@@ -471,12 +470,34 @@ void MKLDNNGraph::InitEdges() {
         uniqueLayerNames.insert(node->getName());
     }
 
-    for (auto i = 0; i < numberOfEdges; i++) {
-        if (graphEdges[i]->needReorder()) {
-            auto edge = graphEdges[i];
-            bool insertReorder = true;
+    auto insertReorder = [&](MKLDNNEdgePtr& edge, bool isOptimized) {
+        std::string basicLayerName = edge->getParent()->getName() + "_" +
+                                     MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                     edge->getChild()->getName();
+        std::string layerName = basicLayerName;
+        int idx = 0;
+        while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+            idx++;
+            layerName = basicLayerName + "_" + std::to_string(idx);
+        }
+        uniqueLayerNames.insert(layerName);
 
-            // Check if there is a reorder that supports the type conversion
+        // optimized flag indicate that just desc update w/o actual physical memory movement.
+        InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc(), isOptimized);
+    };
+
+    auto updateEdge = [&](int& i) {
+        graphEdges.erase(graphEdges.begin() + i);
+        i--;
+        numberOfEdges--;
+    };
+
+    for (auto i = 0; i < numberOfEdges; i++) {
+        auto edge = graphEdges[i];
+        auto reorderStatus = graphEdges[i]->needReorder();
+        if (reorderStatus == MKLDNNEdge::ReorderStatus::Regular) {
+            MKLDNNEdge::ReorderStatus reorderStatusInternal = MKLDNNEdge::ReorderStatus::Regular;
+            // Check if there is a reorder that needs the precision conversion
             if (edge->getInputDesc().getPrecision() != edge->getOutputDesc().getPrecision() &&
                     !isReorderAvailable(edge->getInputDesc(), edge->getOutputDesc(), this->getEngine())) {
                 // If we are here, then we need to insert Convert, because there are no reorders that support such type conversion
@@ -486,35 +507,23 @@ void MKLDNNGraph::InitEdges() {
                 std::string convertName = edge->getParent()->getName() + "_" +
                                           inDesc.getPrecision().name() + "_" + outDesc.getPrecision().name();
 
-                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape().getStaticDims(), inDesc.getPrecision(), outDesc.getPrecision(),
+                auto convertNode = std::make_shared<MKLDNNConvertNode>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
                                                                        convertName, this->getEngine(), this->weightsCache);
                 convertNode->setDescs(inDesc, outDesc);
                 InsertNode(edge, convertNode, true);
 
                 //Check if reorder is still needed
-                if (convertNode->getChildEdgeAt(0)->needReorder()) {
+                reorderStatusInternal = convertNode->getChildEdgeAt(0)->needReorder();
+                if (reorderStatusInternal != MKLDNNEdge::ReorderStatus::No)
                     edge = convertNode->getChildEdgeAt(0);
-                } else {
-                    insertReorder = false;
-                }
             }
-
-            if (insertReorder) {
-                std::string basicLayerName = edge->getParent()->getName() + "_" +
-                                             MKLDNNReorderNode::getReorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
-                                             edge->getChild()->getName();
-                std::string layerName = basicLayerName;
-                int idx = 0;
-                while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
-                    idx++;
-                    layerName = basicLayerName + "_" + std::to_string(idx);
-                }
-                uniqueLayerNames.insert(layerName);
-                InsertReorder(edge, layerName, edge->getInputDesc(), edge->getOutputDesc());
+            if (reorderStatusInternal != MKLDNNEdge::ReorderStatus::No) {
+                insertReorder(edge, reorderStatusInternal == MKLDNNEdge::ReorderStatus::Optimized);
             }
-            graphEdges.erase(graphEdges.begin() + i);
-            i--;
-            numberOfEdges--;
+            updateEdge(i);
+        } else if (reorderStatus == MKLDNNEdge::ReorderStatus::Optimized) {
+            insertReorder(edge, true);
+            updateEdge(i);
         }
     }
 }
@@ -770,16 +779,19 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
                              std::accumulate(actualDesc.getDims().begin(), actualDesc.getDims().end(), (size_t)1, std::multiplies<size_t>()) == 1);
         }
 
-        if (out[name]->getTensorDesc().getDims() != intr_blob.getStaticDims() && !isScalarOutput) {
-            if (!node->isDynamicNode())
-                IE_THROW() << "Output blob and node dims mismatch for node with name: \"" << name << "\"";
-
+        const auto &outDims = intr_blob.getStaticDims();
+        if (out[name]->getTensorDesc().getDims() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
             if (expectedDesc.getLayout() == Layout::BLOCKED) {
                 expectedDesc = TensorDesc(expectedDesc.getPrecision(), expectedDesc.getLayout());
             }
-            out[name]->setShape(intr_blob.getStaticDims());
+            out[name]->setShape(outDims);
+        }
+
+        // check for empty output blob
+        if (std::any_of(outDims.begin(), outDims.end(), [](const Dim dim) {return dim == 0;})) {
+            return;
         }
 
         auto srcPrec = actualDesc.getPrecision();
@@ -795,7 +807,6 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
 
-        const auto &outDims = intr_blob.getStaticDims();
         size_t size_to_copy = intr_blob.GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         // TODO: Should we support InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT???
         // TODO [DS]: phase 2: should we support this behaviour? Looks obsolete in the dynamic shapes paradigm
@@ -1209,21 +1220,63 @@ bool MKLDNNGraph::InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNo
 void MKLDNNGraph::EnforceBF16() {
     // Floating point parts of FP32 + INT8 or FP32 + BIN mixed precision models will be executed in BF16 precision
     // only if enforceBF16 flag was set manually because current performance is not good enough to enable it by default
-    if (implication(isQuantized(), config.manualEnforceBF16)) {
-        for (auto &node : graphNodes) {
-            if (node->getType() != Input && node->getType() != Output) {
-                for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
-                    auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
-                    if (!(parent->getType() == Input && parent->isConstant()) &&       // exclude nodes after Constant Inputs
-                        !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
-                        node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
-                }
+    if (!implication(isQuantized(), config.manualEnforceBF16))
+        return;
+    /* list of node types that must be forced to be executed in BF16 precision
+     * because of performance gains */
+    static const std::unordered_set<Type, std::hash<int>> significantNodes { // std::hash<int> is necessary old compilers (defect in C++11 standart)
+        Convolution,    // conv nets
+        FullyConnected, // conv / bert nets
+        RNNCell,        // recurent nets
+        RNNSeq,         // recurent nets
+        MatMul,         // bert nets
+        ROIPooling,     // object detection nets
+        Interpolate,    // super resolution nets
+    };
 
-                for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-                    if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
-                        node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
-                }
+    std::function<void(const MKLDNNNodePtr&, std::unordered_set<MKLDNNNodePtr>& skipNodes)> searchForNodesToSkip;
+    searchForNodesToSkip = [&](const MKLDNNNodePtr& node, std::unordered_set<MKLDNNNodePtr>& skipNodes) -> void {
+        for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+            const auto& parent = node->getParentEdgeAt(i)->getParent();
+            if (significantNodes.count(parent->getType())) // stop at significant nodes
+                continue;
+
+            const auto res = skipNodes.insert(parent);
+            if (res.second) // node not visited yet
+                searchForNodesToSkip(parent, skipNodes);
+        }
+    };
+
+    /* Skip BF16 enforcement for tail of the graph by forming set of nodes to skip.
+     * Necessary to maintain accuracy.
+     * Experiments show zero peformance impact on average */
+    std::unordered_set<MKLDNNNodePtr> nodesToSkip;
+    // starting from output nodes
+    for (const auto& entry : outputNodesMap) {
+        const auto& node = entry.second;
+        searchForNodesToSkip(node, nodesToSkip);
+    }
+
+    for (const auto& node : graphNodes) {
+        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
+            continue;
+
+        if (node->getType() != Input && node->getType() != Output) {
+            for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
+                const auto &parent = node->getParentEdgesAtPort(i)[0]->getParent();
+                /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
+                 * Precision conversion to BF16 does automatically, if convolution follows up after Constant Inputs
+                 * and if activation is BF16 */
+                if (!(parent->getType() == Input && parent->isConstant() &&
+                      node->getType() != Concatenation) && // Concatenation node is exception because it doesn't change an accuracy for BF16 activation
+                    !(parent->getType() == Input && node->getType() == Eltwise) && // exclude Eltwise after Input since it supports conversion to BF16
+                    node->getOriginalInputPrecisionAtPort(i) == Precision::FP32)
+                    node->setOriginalInputPrecisionAtPort(i, Precision::BF16);
+            }
+
+            for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
+                if (node->getOriginalOutputPrecisionAtPort(i) == Precision::FP32)
+                    node->setOriginalOutputPrecisionAtPort(i, Precision::BF16);
             }
         }
     }

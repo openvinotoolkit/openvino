@@ -18,6 +18,7 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
 #include "openvino/core/descriptor/input.hpp"
+#include "shared_node_info.hpp"
 
 using namespace std;
 
@@ -25,9 +26,7 @@ atomic<size_t> ov::Node::m_next_instance_id(0);
 
 ov::Node::Node(const Node& node)
     : m_control_dependents(node.m_control_dependents),
-      m_control_dependencies(node.m_control_dependencies)
-      // skip m_node_type -- will be generated automatically
-      ,
+      m_control_dependencies(node.m_control_dependencies),
       m_instance_id(m_next_instance_id.fetch_add(1)),
       m_friendly_name(node.m_friendly_name)
       // skip m_unique_name -- will be generated automatically
@@ -60,6 +59,11 @@ ov::Node& ov::Node::operator=(const Node& node) {
     return *this;
 }
 
+void ov::Node::insert_info(std::shared_ptr<SharedRTInfo> info) {
+    std::lock_guard<std::mutex> lock(m_insert_mutex);
+    m_shared_rt_info.insert(std::move(info));
+}
+
 ov::Node::Node(size_t output_size) : Node() {
     set_output_size(output_size);
 }
@@ -70,6 +74,11 @@ ov::Node::Node(const OutputVector& arguments, size_t output_size) : Node() {
 }
 
 ov::Node::~Node() {
+    // raise a flag to reset nodes cache
+    for_each(m_shared_rt_info.cbegin(), m_shared_rt_info.cend(), [](const std::shared_ptr<SharedRTInfo>& info) {
+        info->set_use_topological_cache(false);
+    });
+
     for (descriptor::Input& input : m_inputs) {
         if (input.has_output()) {
             // This test adds 1 to the actual count, so a count of 2 means this input is the only
@@ -162,6 +171,11 @@ void ov::Node::set_arguments(const OutputVector& arguments) {
         auto& output_descriptor = output_node->m_outputs.at(output.get_index());
         m_inputs.emplace_back(this, i++, output_descriptor);
     }
+
+    // set_arguments doesn't use replace_output method, so we have to reset cache manually here
+    for_each(this->m_shared_rt_info.cbegin(), this->m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
+        info->set_use_topological_cache(false);
+    });
 }
 
 ov::descriptor::Input& ov::Node::get_input_descriptor(size_t position) {
@@ -222,7 +236,9 @@ void ov::Node::set_input_is_relevant_to_value(size_t i, bool relevant) {
 }
 
 void ov::Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::string ov::Node::description() const {
@@ -277,6 +293,12 @@ void ov::Node::add_control_dependency(std::shared_ptr<Node> node) {
             node->m_control_dependents.push_back(this);
         }
     }
+
+    // control dependency may change the topological order so we have to reset cache
+    // by setting a flag into shared node info.
+    for_each(node->m_shared_rt_info.cbegin(), node->m_shared_rt_info.cend(), [](std::shared_ptr<SharedRTInfo> info) {
+        info->set_use_topological_cache(false);
+    });
 }
 
 void ov::Node::add_node_control_dependencies(std::shared_ptr<Node> source_node) {

@@ -236,7 +236,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs) const
     if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any))
         return false;
 
-    int stride_start = wrappedThis.ndims() > 0 && wrappedThis.dims()[0] == 1 ? 1 : 0;  // ignore batch axis stride if batch size == 1
+    int stride_start = 0;
 
     const auto thisExtra = this->desc.data.extra;
     const auto rhsExtra = rhs.desc.data.extra;
@@ -704,7 +704,9 @@ size_t DnnlBlockedMemoryDesc::getMaxMemSize() const {
     }
 
     auto& maxDims = shape.getMaxDims();
-    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x; })) {
+    if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
+                                                                         // WA: for some nodes ngraph compute upper bound depending on precision max value
+                                                                         std::numeric_limits<int32_t>::max() == x; })) {
         return UNDEFINED_SIZE;
     }
 

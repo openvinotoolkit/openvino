@@ -391,3 +391,26 @@ def slice(
         inputs = as_nodes(data, start, stop, step, axes)
 
     return _get_node_factory_opset8().create("Slice", inputs)
+
+
+@nameable_op
+def gather_nd(
+        data: NodeInput,
+        indices: NodeInput,
+        batch_dims: Optional[int] = 0,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs GatherND.
+
+    @param data:       N-D tensor with data for gathering
+    @param indices:    K-D tensor of tuples with indices by which data is gathered
+    @param batch_dims: Scalar value of batch dimensions
+    @return: The new node which performs GatherND
+    """
+    inputs = as_nodes(data, indices)
+
+    attributes = {
+        "batch_dims": batch_dims
+    }
+
+    return _get_node_factory_opset8().create("GatherND", inputs, attributes)

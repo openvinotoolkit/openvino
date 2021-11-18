@@ -39,7 +39,7 @@
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
@@ -208,7 +208,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<NumberOfSHAVEsOption>();
     _parsedConfig.registerOption<NumberOfCMXSlicesOption>();
     _parsedConfig.registerOption<ThroughputStreamsOption>();
-    _parsedConfig.registerOption<IRWithScalesDirectoryOption>();
+    _parsedConfig.registerOption<VPUScalesOption>();
     _parsedConfig.registerOption<TensorStridesOption>();
     _parsedConfig.registerOption<IgnoreUnknownLayersOption>();
     _parsedConfig.registerOption<ForcePureTensorIteratorOption>();

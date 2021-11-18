@@ -9,10 +9,10 @@
 #include <string>
 
 #include "frontend_manager_defs.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 
@@ -56,8 +56,6 @@ public:
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
-using WeightsVariant = VariantWrapper<Weights>;
-
 using Extensions = std::map<std::string, ngraph::OpSet>;
 
 template <>
@@ -68,7 +66,5 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
-
-using ExtensionsVariant = VariantWrapper<Extensions>;
 
 }  // namespace ov

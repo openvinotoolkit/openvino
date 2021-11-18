@@ -11,6 +11,7 @@
 #include "nodes/mkldnn_concat_node.h"
 #include "nodes/mkldnn_reorder_node.h"
 #include "nodes/mkldnn_conv_node.h"
+#include "nodes/mkldnn_deconv_node.h"
 #include "nodes/mkldnn_bin_conv_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "nodes/mkldnn_mvn_node.h"
@@ -277,7 +278,25 @@ void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &grap
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Deconvolution && node->getChildEdges().size() == 1;
+        if (node->getType() != Deconvolution || node->getChildEdges().size() != 1)
+            return false;
+        const auto deconv = std::dynamic_pointer_cast<MKLDNNDeconvolutionNode>(node);
+        if (deconv == nullptr)
+            IE_THROW() << "Cannot cast to deconvolution node " << node->getName();
+
+        if (deconv->getAlgorithm() != DeconvolutionCommon) {
+            return true;
+        }
+
+        const auto& strides = deconv->getStride();
+        const auto& kernel = deconv->getWeightDims();
+        // WA oneDNN doesn't support fusing post ops after deconvolution with strides over kernel size
+        bool isSupportedParams = strides[strides.size() - 1] <= kernel[kernel.size() - 1];
+        if (strides.size() > 1)
+            isSupportedParams &= strides[strides.size() - 2] <= kernel[kernel.size() - 2];
+        if (strides.size() > 2)
+            isSupportedParams &= strides[strides.size() - 3] <= kernel[kernel.size() - 3];
+        return isSupportedParams;
     };
 
     auto parent = graphNodes.begin();
@@ -1609,7 +1628,30 @@ void MKLDNNGraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(MKLDNNGraph 
 
         std::vector<float> scalesBuffer;
         std::vector<float> shiftsBuffer;
-        parent->fillScalesAndShifts(parent->getParentEdgesAtPort(1 - getConstPort(parent))[0]->getParent().get(), scalesBuffer, shiftsBuffer, 1);
+        auto parentEltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(parent);
+        if (!parentEltwise) {
+            IE_THROW() << "Cannot cast " << parent->getName() << " to Eltwise node";
+        }
+
+        std::tie(scalesBuffer, shiftsBuffer) = parentEltwise->getScalesAndShifts(parent->getParentEdgesAtPort(1 - getConstPort(parent))[0]->getParent().get());
+
+        const auto &outputShape = child->getOutputShapeAtPort(0);
+        VectorDims outputDims = outputShape.getDims();
+        const size_t channelPos = outputDims.size() > 1 ? 1 : 0;
+        if (outputShape.isDynamic()) {
+            if (outputDims[channelPos] == Shape::UNDEFINED_DIM) {
+                if (scalesBuffer.size() > 1) {
+                    outputDims[channelPos] = scalesBuffer.size();
+                } else if (shiftsBuffer.size() > 1) {
+                    outputDims[channelPos] = shiftsBuffer.size();
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
+        shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
         for (int i = 0; i < scalesBuffer.size(); i++)
             if (scalesBuffer[i] == 0.f)

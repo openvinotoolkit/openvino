@@ -8,7 +8,7 @@
 
 #include "decoder.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class PDPDFrameworkNode : public ov::op::util::FrameworkNode {
 public:
@@ -50,4 +50,4 @@ private:
     std::vector<std::string> m_inputs_names;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
