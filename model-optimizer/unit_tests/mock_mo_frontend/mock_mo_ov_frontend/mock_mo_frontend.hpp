@@ -9,11 +9,11 @@
 #include "ngraph/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)
-#ifdef mock_mo_ngraph_frontend_EXPORTS
+#ifdef mock_mo_ov_frontend_EXPORTS
 #define MOCK_API OPENVINO_CORE_EXPORTS
 #else
 #define MOCK_API OPENVINO_CORE_IMPORTS
-#endif // mock_mo_ngraph_frontend_EXPORTS
+#endif // mock_mo_ov_frontend_EXPORTS
 
 // OK to have 'using' in mock header
 
@@ -450,6 +450,6 @@ private:
     std::string get_name() const override
     {
         m_stat.m_get_name++;
-        return "mock_mo_ngraph_frontend";
+        return "mock_mo_ov_frontend";
     }
 };
