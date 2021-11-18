@@ -4,7 +4,7 @@
 
 #include "model.hpp"
 
-#include <frontend_manager/frontend_exceptions.hpp>
+#include <common/frontend_exceptions.hpp>
 #include <fstream>
 #include <openvino/opsets/opset7.hpp>
 #include <queue>

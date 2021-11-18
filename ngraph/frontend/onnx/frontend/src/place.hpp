@@ -5,7 +5,7 @@
 #pragma once
 
 #include <editor.hpp>
-#include <frontend_manager/place.hpp>
+#include <common/place.hpp>
 #include <memory>
 #include <sstream>
 

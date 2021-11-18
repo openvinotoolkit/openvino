@@ -54,7 +54,7 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "../")
 
-target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::core openvino::frontend::manager)
+target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::core openvino::frontend::common)
 
 if(TARGET onnx_ov_frontend)
     add_dependencies(_${PROJECT_NAME} onnx_ov_frontend)

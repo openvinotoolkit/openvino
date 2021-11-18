@@ -5,7 +5,7 @@
 #pragma once
 
 #include <editor.hpp>
-#include <frontend_manager/input_model.hpp>
+#include <common/input_model.hpp>
 #include <fstream>
 
 namespace ov {
