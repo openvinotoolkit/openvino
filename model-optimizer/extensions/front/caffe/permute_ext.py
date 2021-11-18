@@ -14,5 +14,5 @@ class PermuteFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         order = node.pb.permute_param.order
-        Transpose.update_node_stat(node, {'order': np.array(order, dtype=np.int32)})
+        Transpose.update_node_stat(node, {'order': mo_array(order, dtype=np.int32)})
         return cls.enabled

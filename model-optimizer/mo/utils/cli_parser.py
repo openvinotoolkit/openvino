@@ -949,7 +949,7 @@ def parse_tuple_pairs(argv_values: str):
         dictionary with input name and tuple of values or list of values if mean/scale value is specified with input,
         e.g.:
         "data(10,20,30),info(11,22,33)" -> { 'data': [10,20,30], 'info': [11,22,33] }
-        "(10,20,30),(11,22,33)" -> [np.array(10,20,30), np.array(11,22,33)]
+        "(10,20,30),(11,22,33)" -> [mo_array(10,20,30), mo_array(11,22,33)]
     """
     res = {}
     if not argv_values:

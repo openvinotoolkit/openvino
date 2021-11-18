@@ -23,9 +23,9 @@ class PriorBoxFrontExtractor(FrontExtractorOp):
             variance = [0.1]
 
         update_attrs = {
-            'aspect_ratio': np.array(param.aspect_ratio),
-            'min_size': np.array(param.min_size),
-            'max_size': np.array(param.max_size),
+            'aspect_ratio': mo_array(param.aspect_ratio),
+            'min_size': mo_array(param.min_size),
+            'max_size': mo_array(param.max_size),
             'flip': int(param.flip),
             'clip': int(param.clip),
             'variance': list(variance),
@@ -42,11 +42,11 @@ class PriorBoxFrontExtractor(FrontExtractorOp):
         # so check if it is set or set to default
         fields = [field[0].name for field in param.ListFields()]
         if 'density' in fields:
-            update_attrs['density'] = np.array(param.density)
+            update_attrs['density'] = mo_array(param.density)
         if 'fixed_size' in fields:
-            update_attrs['fixed_size'] = np.array(param.fixed_size)
+            update_attrs['fixed_size'] = mo_array(param.fixed_size)
         if 'fixed_ratio' in fields:
-            update_attrs['fixed_ratio'] = np.array(param.fixed_ratio)
+            update_attrs['fixed_ratio'] = mo_array(param.fixed_ratio)
 
         mapping_rule = merge_attrs(param, update_attrs)
 

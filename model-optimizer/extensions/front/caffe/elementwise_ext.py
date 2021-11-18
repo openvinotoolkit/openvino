@@ -53,7 +53,7 @@ class EltwiseExtractor(FrontExtractorOp):
 
         lin_op_class = eltwise_caffe_map[operation]
 
-        mapping_rule = merge_attrs(param, {'coeff': np.array(param.coeff)})
+        mapping_rule = merge_attrs(param, {'coeff': mo_array(param.coeff)})
         mapping_rule.update(layout_attrs())
 
         assert len(param.coeff) <= input_len

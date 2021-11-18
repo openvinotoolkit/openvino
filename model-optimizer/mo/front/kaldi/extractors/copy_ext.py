@@ -25,7 +25,7 @@ class CopyFrontExtractor(FrontReplacementOp):
         node_name = node.soft_get('name', node.id)
         const_attrs = {
                        'name': node_name + '/indexes',
-                       'value': np.array(weights),
+                       'value': mo_array(weights),
                        'shape': [weights_size],
                        'data_type': np.int32
                       }

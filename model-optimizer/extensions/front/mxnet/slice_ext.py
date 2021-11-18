@@ -16,9 +16,9 @@ class SliceFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         node_attrs = {
-            'crop_begin': np.array(attrs.tuple("begin", int, ())),
-            'crop_end': np.array(attrs.tuple("end", int, ())),
-            'step': np.array(attrs.tuple("step", int, ())),
+            'crop_begin': mo_array(attrs.tuple("begin", int, ())),
+            'crop_end': mo_array(attrs.tuple("end", int, ())),
+            'step': mo_array(attrs.tuple("step", int, ())),
         }
 
         MXSlice.update_node_stat(node, node_attrs)

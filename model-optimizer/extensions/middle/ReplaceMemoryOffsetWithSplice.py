@@ -144,8 +144,8 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
         init_value_memory_out.out_port(0).connect(memory_out.in_port(0))
 
         if node_t > 1:
-            crop_concat = Crop(graph, {'name': 'Memory_crop', 'dim': np.array([in_shape[1]*(node_t-1)]),
-                                       'offset': np.array([in_shape[1]]), 'axis': np.array([1])}).create_node()
+            crop_concat = Crop(graph, {'name': 'Memory_crop', 'dim': mo_array([in_shape[1]*(node_t-1)]),
+                                       'offset': mo_array([in_shape[1]]), 'axis': mo_array([1])}).create_node()
             memory_out.out_port(0).connect(crop_concat.in_port(0))
             concat = Concat(graph, {'name': 'Memory_concat'}).create_node()
             concat.add_sequence_of_ports('in', range(2))
@@ -157,8 +157,8 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
             out = Result(graph, {'name': 'Memory_output'}).create_node()
             memory_in.out_port(0).connect(out.in_port(0))
 
-            crop_out = Crop(graph, {'name': 'Memory_crop_out', 'dim': np.array([in_shape[1]]),
-                                    'offset': np.array([0]), 'axis': np.array([1])}).create_node()
+            crop_out = Crop(graph, {'name': 'Memory_crop_out', 'dim': mo_array([in_shape[1]]),
+                                    'offset': mo_array([0]), 'axis': mo_array([1])}).create_node()
             memory_out.out_port(0).connect(crop_out.in_port(0))
             out_port.get_connection().set_source(crop_out.out_port(0))
         else:

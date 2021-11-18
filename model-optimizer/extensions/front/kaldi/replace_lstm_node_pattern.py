@@ -188,8 +188,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         join_forget_remember_sum.in_port(1).connect(join_remember_candidates_mul.out_port(0))
 
         # (7)Eltwise(sum) -> Clamp
-        join_forget_clamp = create_op_with_const_inputs(graph, Clamp, {1: np.array(-node.clip_value, dtype=np.float32),
-                                                                       2: np.array(node.clip_value, dtype=np.float32)},
+        join_forget_clamp = create_op_with_const_inputs(graph, Clamp, {1: mo_array(-node.clip_value, dtype=np.float32),
+                                                                       2: mo_array(node.clip_value, dtype=np.float32)},
                                                         {'name': 'join_forget_clamp'},
                                                         join_forget_remember_sum)
         #

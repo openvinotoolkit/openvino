@@ -28,10 +28,10 @@ class BNToScaleShift(FrontReplacementOp):
         if len(blobs) != 4:
             raise Error("Incorrect number of blobs in BN layer {}".format(node.id))
 
-        mean = np.array(blobs[0].data)
-        var = np.array(blobs[1].data)
-        betta = np.array(blobs[2].data)
-        gamma = np.array(blobs[3].data)
+        mean = mo_array(blobs[0].data)
+        var = mo_array(blobs[1].data)
+        betta = mo_array(blobs[2].data)
+        gamma = mo_array(blobs[3].data)
 
         gamma = gamma + np.repeat(param.eps, gamma.shape)
 

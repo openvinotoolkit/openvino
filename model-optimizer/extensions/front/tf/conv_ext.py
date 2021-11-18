@@ -39,7 +39,7 @@ class DepthwiseConv2dNativeFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = tf_create_attrs(node, 2, 2)
         attrs.update({'op': __class__.op,
-                      'kernel_spatial_idx': np.array([0, 1], dtype=np.int64),
+                      'kernel_spatial_idx': mo_array([0, 1], dtype=np.int64),
                       'get_group': lambda node: node.kernel_shape[node.output_feature_channel],
                       'get_output_feature_dim': lambda node: node.kernel_shape[-1] * node.kernel_shape[-2],
                       'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([2, 3, 0, 1]),

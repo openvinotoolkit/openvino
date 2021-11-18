@@ -139,7 +139,7 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
             output_hidden = Op._create_data_node(
                 rnn_layer.graph,
                 name=rnn_layer.out_node(1).name + '/LayerSplit/' + str(l),
-                attrs={'shape': np.array(state_size)}
+                attrs={'shape': mo_array(state_size)}
             )
 
             current_data_nodes = [output_data, output_hidden]
@@ -148,7 +148,7 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
                 output_cell = Op._create_data_node(
                     rnn_layer.graph,
                     name=rnn_layer.out_node(2).name + '/LayerSplit/' + str(l),
-                    attrs={'shape': np.array(state_size)}
+                    attrs={'shape': mo_array(state_size)}
                 )
                 current_data_nodes.append(output_cell)
 

@@ -20,8 +20,8 @@ class ProposalFrontExtractor(FrontExtractorOp):
             'feat_stride': param.feat_stride,
             'base_size': param.base_size,
             'min_size': param.min_size,
-            'ratio': np.array(param.ratio),
-            'scale': np.array(param.scale),
+            'ratio': mo_array(param.ratio),
+            'scale': mo_array(param.scale),
             'pre_nms_topn': param.pre_nms_topn,
             'post_nms_topn': param.post_nms_topn,
             'nms_thresh': param.nms_thresh

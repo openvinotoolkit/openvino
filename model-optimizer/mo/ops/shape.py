@@ -59,7 +59,7 @@ class Shape(Op):
         if node.has_and_set('stop_value_propagation'):
             node.out_port(0).data.set_shape(input_shape.shape)
         else:
-            node.out_port(0).data.set_value(shape_array(np.array(input_shape, dtype=node.output_type)))
+            node.out_port(0).data.set_value(shape_array(mo_array(input_shape, dtype=node.output_type)))
 
     @staticmethod
     def type_infer(node):

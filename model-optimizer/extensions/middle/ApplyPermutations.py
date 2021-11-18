@@ -59,7 +59,7 @@ class ApplyPermutation(MiddleReplacementPattern):
                 assert len(node.value.shape) == len(node.permutation.perm), \
                     'Node {} has shape {} and permutation {} that does not match. Their lengths should be equal' \
                     ''.format(node.name, node.value.shape, node.permutation.perm)
-                node.value = np.array(node.value.transpose(node.permutation.perm))
+                node.value = mo_array(node.value.transpose(node.permutation.perm))
 
     @staticmethod
     def permute_op_nodes_attrs(graph: Graph):

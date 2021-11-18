@@ -70,9 +70,9 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
                               'name': resample_node.name + '/axes',
                               'value': int64_array([2, 3]) if graph.graph['layout'] == 'NCHW' else int64_array([1, 2])
                           }).create_node()
-        sizes_node = Const(graph, {'value': np.array([input_height * height_scale, input_width * width_scale]),
+        sizes_node = Const(graph, {'value': mo_array([input_height * height_scale, input_width * width_scale]),
                                    'name': resample_node.name + '/target_shape'}).create_node()
-        scales_node = Const(graph, {'value': np.array([height_scale, width_scale], dtype=np.float32),
+        scales_node = Const(graph, {'value': mo_array([height_scale, width_scale], dtype=np.float32),
                                     'name': resample_node.name + '/scales'}).create_node()
 
         match['reshape_2'].replace_node(resample_node)

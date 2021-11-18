@@ -15,7 +15,7 @@ class GatherFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'axis': np.array(onnx_attr(node, 'axis', 'i', default=0), dtype=np.int64)
+            'axis': mo_array(onnx_attr(node, 'axis', 'i', default=0), dtype=np.int64)
         }
 
         AttributedGather.update_node_stat(node, attrs)

@@ -48,7 +48,7 @@ class TdnnComponentFrontExtractor(FrontExtractorOp):
         collect_until_token(pb, b'<RankInOut>')
         rank_in_out = read_binary_integer32_token(pb), read_binary_integer32_token(pb)
 
-        biases = np.array(bias_params) if len(bias_params) != 0 else None
+        biases = mo_array(bias_params) if len(bias_params) != 0 else None
         attrs = {
             'weights': np.reshape(weights, weights_shape),
             'biases': biases,

@@ -15,7 +15,7 @@ class ConstantOfShapeExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        fill_value = onnx_attr(node, 'value', 't', default=np.array([0.0]), dst_type=lambda x: numpy_helper.to_array(x))
+        fill_value = onnx_attr(node, 'value', 't', default=mo_array([0.0]), dst_type=lambda x: numpy_helper.to_array(x))
 
         ConstantOfShape.update_node_stat(node, {'fill_value': fill_value})
         return cls.enabled

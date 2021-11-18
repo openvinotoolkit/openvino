@@ -123,7 +123,7 @@ class Convolution(Op):
                           "    Possible reason is wrong channel number in input shape\n")
                 raise Error("Cannot reshape weights to kernel shape")
 
-            node.in_node(weights_index).shape = np.array(kernel_shape)
+            node.in_node(weights_index).shape = mo_array(kernel_shape)
             node.in_node(weights_index).value = np.reshape(node.in_node(weights_index).value, kernel_shape)
             node.reshape_kernel = False
 

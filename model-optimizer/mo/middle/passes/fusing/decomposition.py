@@ -14,7 +14,7 @@ from mo.ops.reshape import Reshape
 
 
 def expand_node_shape(port: Port, broadcast_dims_cnt):
-    value = np.array(port.data.get_value())
+    value = mo_array(port.data.get_value())
     for idx in range(broadcast_dims_cnt):
         value = np.expand_dims(value, axis=-1)
     port.data.set_value(value)
@@ -82,8 +82,8 @@ def _fused_batch_norm_decomposition(graph: Graph, tinput: Port, toutput: Port, g
     mul1_node = Mul(graph, dict(name=batch_norm_name + "/mean", can_be_fused=can_be_fused)).create_node()
     add1_node = Add(graph, dict(name=batch_norm_name + "/variance", can_be_fused=can_be_fused)).create_node()
 
-    const_mul1_node = Const(graph, dict(name="data_mul_", value=np.array(mean))).create_node()
-    const_add1_node = Const(graph, dict(name="data_add_", value=np.array(variance))).create_node()
+    const_mul1_node = Const(graph, dict(name="data_mul_", value=mo_array(mean))).create_node()
+    const_add1_node = Const(graph, dict(name="data_add_", value=mo_array(variance))).create_node()
 
     # Broadcast const from scalar
     # We can broadcast only when const.value is scalar
@@ -145,7 +145,7 @@ def convert_scale_shift_to_mul_add(graph: Graph):
         # In case if we have constant weights/biases we have to broadcast them according to graph layout
         # otherwise we insert Reshape with broadcast dim attribute.
         def broadcast_value(port):
-            value = np.array(port.data.get_value())
+            value = mo_array(port.data.get_value())
             for idx in range(broadcast_dims_cnt):
                 value = np.expand_dims(value, axis=-1)
             port.data.set_value(value)

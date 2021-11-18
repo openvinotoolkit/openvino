@@ -137,7 +137,7 @@ def _variance_from_pipeline_config(pipeline_config: PipelineConfig):
     :param pipeline_config: pipeline_config object to get variances from.
     :return: the numpy array with variances.
     """
-    return 1.0 / np.array([pipeline_config.get_param('frcnn_variance_x'),
+    return 1.0 / mo_array([pipeline_config.get_param('frcnn_variance_x'),
                            pipeline_config.get_param('frcnn_variance_y'),
                            pipeline_config.get_param('frcnn_variance_width'),
                            pipeline_config.get_param('frcnn_variance_height')])
@@ -246,7 +246,7 @@ def _create_prior_boxes_node(graph: Graph, pipeline_config: PipelineConfig):
         heights = [h * image_height * base_anchor_size[0] for h in heights]
 
         variance = _variance_from_pipeline_config(pipeline_config)
-        prior_box_op = PriorBoxClusteredOp(graph, {'width': np.array(widths), 'height': np.array(heights),
+        prior_box_op = PriorBoxClusteredOp(graph, {'width': mo_array(widths), 'height': mo_array(heights),
                                                    'clip': 0, 'flip': 0, 'variance': variance, 'offset': 0.5,
                                                    })
         # connect the PriorBoxClustered node with the "Cast" node of the Placeholder node because the pass that removes
@@ -291,7 +291,7 @@ def _create_multiscale_prior_boxes_node(graph: Graph, pipeline_config: PipelineC
         heights = [base_anchor_size * scale / sqrt(ar) for ar in aspect_ratios for scale in scales]
 
         variance = _variance_from_pipeline_config(pipeline_config)
-        prior_box_op = PriorBoxClusteredOp(graph, {'width': np.array(widths), 'height': np.array(heights),
+        prior_box_op = PriorBoxClusteredOp(graph, {'width': mo_array(widths), 'height': mo_array(heights),
                                                    'clip': 0, 'flip': 0, 'variance': variance,
                                                    'offset': 0.5,
                                                    })
@@ -1840,5 +1840,5 @@ class ObjectDetectionAPIConstValueOverride(FrontReplacementFromConfigFileGeneral
             if not node.has_valid('value'):
                 log.debug('Node with id {} does not have value'.format(node_id))
                 continue
-            node.value = np.array(pipeline_config.get_param(pipeline_config_name))
+            node.value = mo_array(pipeline_config.get_param(pipeline_config_name))
             node.value = node.value.reshape(node.shape)

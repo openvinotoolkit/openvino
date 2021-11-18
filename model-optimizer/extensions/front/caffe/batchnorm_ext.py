@@ -22,8 +22,8 @@ class BatchNormalizationExtractor(FrontExtractorOp):
         if pb_model:
             blobs = pb_model.blobs
             assert len(blobs) >= 2, 'BatchNorm accepts not less then two input blobs'
-            mean = np.array(blobs[0].data)
-            variance = np.array(blobs[1].data)
+            mean = mo_array(blobs[0].data)
+            variance = mo_array(blobs[1].data)
 
             if len(blobs) == 3:
                 scale = blobs[2].data[0]

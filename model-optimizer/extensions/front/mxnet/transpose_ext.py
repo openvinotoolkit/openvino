@@ -16,5 +16,5 @@ class TransposeFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         order = list(attrs.tuple("axes", int, None))
-        Transpose.update_node_stat(node, {'order': np.array(order, dtype=np.int32)})
+        Transpose.update_node_stat(node, {'order': mo_array(order, dtype=np.int32)})
         return cls.enabled

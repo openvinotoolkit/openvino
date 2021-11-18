@@ -31,11 +31,11 @@ def crop_infer(node):
     if any(s is None for s in shapes):
         return
 
-    input_shape = np.array(shapes[0])
+    input_shape = mo_array(shapes[0])
     start_axis = get_canonical_axis_index(input_shape, node.axis)
     node.axis = start_axis
 
-    reference_shape = np.array(shapes[1])
+    reference_shape = mo_array(shapes[1])
     input_dim = input_shape.size
 
     # set new shape to current shape

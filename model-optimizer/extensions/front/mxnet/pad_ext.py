@@ -15,7 +15,7 @@ class PadFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        pads = np.array(list(attrs.tuple('pad_width', int, None)))
+        pads = mo_array(list(attrs.tuple('pad_width', int, None)))
         pads = pads.reshape([-1, 2])
         value = attrs.float('constant_value', 0.0)
 

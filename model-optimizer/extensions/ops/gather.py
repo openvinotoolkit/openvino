@@ -149,7 +149,7 @@ class AttributedGather(Op):
         data_value = node.in_port(0).data.get_value()
         indices_value = node.in_port(1).data.get_value()
         if data_value is not None and indices_value is not None:
-            node.out_port(0).data.set_value(np.array(np.take(data_value, indices_value, axis), dtype=data_value.dtype))
+            node.out_port(0).data.set_value(mo_array(np.take(data_value, indices_value, axis), dtype=data_value.dtype))
             return
 
         shape = np.concatenate((data_shape[:axis], indices_shape))

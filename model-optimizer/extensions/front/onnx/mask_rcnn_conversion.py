@@ -53,7 +53,7 @@ def insert_do(graph: Graph, replacement_descriptions: dict):
 
     do_node = ExperimentalDetectronDetectionOutput(graph, {'name': 'DetectionOutput',
                                                            'class_agnostic_box_regression': 0,
-                                                           'deltas_weights': np.array([10.0, 10.0, 5.0, 5.0]),
+                                                           'deltas_weights': mo_array([10.0, 10.0, 5.0, 5.0]),
                                                            'max_delta_log_wh':
                                                                replacement_descriptions['max_delta_log_wh'],
                                                            'nms_threshold': replacement_descriptions['nms_threshold'],

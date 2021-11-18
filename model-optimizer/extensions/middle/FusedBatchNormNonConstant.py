@@ -51,7 +51,7 @@ class FusedBatchNormNonConstant(MiddleReplacementPattern):
         mean_add = Add(graph, dict(name=node.name + '/mean_add_'))
         variance_mul = Mul(graph, dict(name=node.name + '/variance_mul_'))
 
-        neg_const = Const(graph, dict(value=np.array(-1), name=node.name + '/mean_negate_'))
+        neg_const = Const(graph, dict(value=mo_array(-1), name=node.name + '/mean_negate_'))
         mean_negate = Mul(graph, dict(name=node.name + '/mean_negate_'))
         mean_arg = mean_add.create_node_with_data([
             node.in_node(0),

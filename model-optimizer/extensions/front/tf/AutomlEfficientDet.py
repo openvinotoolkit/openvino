@@ -89,8 +89,8 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
             if inp_name not in graph:
                 break
             widths, heights = priors_generator.get(i)
-            prior_box_op = PriorBoxClusteredOp(graph, {'width': np.array(widths),
-                                                       'height': np.array(heights),
+            prior_box_op = PriorBoxClusteredOp(graph, {'width': mo_array(widths),
+                                                       'height': mo_array(heights),
                                                        'clip': 0, 'flip': 0,
                                                        'variance': replacement_descriptions['variance'],
                                                        'offset': 0.5})

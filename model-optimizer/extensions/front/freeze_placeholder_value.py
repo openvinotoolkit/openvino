@@ -46,14 +46,14 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
             string_value = graph.graph['freeze_placeholder'][name]
             try:
                 if data_type != np.bool:
-                    value = np.array(string_value, dtype=data_type)
+                    value = mo_array(string_value, dtype=data_type)
                 elif data_type == np.bool and graph.graph['fw'] == 'tf':
                     from mo.front.tf.common import tf_data_type_cast
                     if isinstance(string_value, list):
                         casted_list = list()
-                        for v in np.array(string_value):
+                        for v in mo_array(string_value):
                             casted_list.append(tf_data_type_cast[ph.data_type](v))
-                        value = np.array(string_value, dtype=data_type)
+                        value = mo_array(string_value, dtype=data_type)
                     else:
                         value = tf_data_type_cast[ph.data_type](string_value)
                 else:

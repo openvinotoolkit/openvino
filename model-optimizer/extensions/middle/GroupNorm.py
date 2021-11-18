@@ -66,7 +66,7 @@ class GroupNormToMVN(MiddleReplacementPattern):
                                         'name': group_norm_node.name + '/GroupSize'}).create_node()
 
         # calculate "features // group_size" value
-        reciprocal_group_size_node = Const(graph, {'value': np.array([1.0 / group_norm_node.num_groups]),
+        reciprocal_group_size_node = Const(graph, {'value': mo_array([1.0 / group_norm_node.num_groups]),
                                                    'name': group_norm_node.name + '/ReciprocalGroupSize'}).create_node()
 
         c_div_g_node = Mul(graph, {}).create_node()

@@ -234,7 +234,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
                     refer_to_faq_msg(17))
     elif is_caffe and argv.mean_file and argv.mean_file_offsets:
         values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
-        mean_file_offsets = np.array([int(x) for x in values[0].split(',')])
+        mean_file_offsets = mo_array([int(x) for x in values[0].split(',')])
         if not all([offset >= 0 for offset in mean_file_offsets]):
             raise Error("Negative value specified for --mean_file_offsets option. "
                         "Please specify positive integer values in format '(x,y)'. " +

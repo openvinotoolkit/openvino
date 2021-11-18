@@ -50,7 +50,7 @@ class SparseFillEmptyRows(Op):
         assert shape.value is not None and shape.value.size == 2, \
             "SparseFillEmptyRows is supported only with constant shape value"
 
-        shape_value = np.array(shape.value, dtype=np.int64)
+        shape_value = mo_array(shape.value, dtype=np.int64)
 
         # check that default value is scalar
         default_value = node.in_node(3)

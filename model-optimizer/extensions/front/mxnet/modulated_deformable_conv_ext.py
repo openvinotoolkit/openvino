@@ -25,22 +25,22 @@ class ModulatedDeformableConvolutionExtractor(FrontExtractorOp):
         output = attr.int("num_filter", None)
         bias_term = attr.str("no_bias", 'False') == 'False'
 
-        final_dilations = np.array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
+        final_dilations = mo_array([1, 1, *[d for d in dilate]], dtype=np.int64) if dilate is not None else None
 
         node_attrs = {
             'op': __class__.op,
             'bias_addable': True,
             'bias_term': bias_term,
-            'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
+            'pad': mo_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
+            'pad_spatial_shape': mo_array([[pad, pad] for pad in padding], dtype=np.int64),
             'dilation': final_dilations,
             'output_spatial_shape': None,
             'output_shape': None,
-            'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
+            'stride': mo_array([1, 1, *[s for s in stride]], dtype=np.int64),
             'group': num_group,
             'deformable_group': num_deformable_group,
             'output': output,
-            'kernel_spatial': np.array([k for k in kernel], dtype=np.int64),
+            'kernel_spatial': mo_array([k for k in kernel], dtype=np.int64),
             'bilinear_interpolation_pad': True,
 
             'input_feature_channel': 1,
@@ -51,8 +51,8 @@ class ModulatedDeformableConvolutionExtractor(FrontExtractorOp):
             'in_ports_count': 4,
 
             'spatial_dims': None,
-            'channel_dims': np.array([1], dtype=np.int64),
-            'batch_dims': np.array([0], dtype=np.int64),
+            'channel_dims': mo_array([1], dtype=np.int64),
+            'batch_dims': mo_array([0], dtype=np.int64),
             'layout': 'NCHW',
         }
 

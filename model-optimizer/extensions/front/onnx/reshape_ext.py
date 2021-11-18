@@ -15,7 +15,7 @@ class ReshapeFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         dim = onnx_attr(node, 'shape', 'ints', None)
         if dim is not None:
-            dim = np.array(dim, dtype=np.int64)
+            dim = mo_array(dim, dtype=np.int64)
             Reshape.update_node_stat(node, {'dim': dim})
         else:
             Reshape.update_node_stat(node)

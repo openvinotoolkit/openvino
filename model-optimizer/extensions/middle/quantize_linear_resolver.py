@@ -47,7 +47,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
                 zerop = quantize_node.in_port(2).get_source().node
             else:
                 zerop = Const(graph,
-                              {'value': np.array(0, dtype=np.uint8), 'name': node_name + '/ZeroPoint'}).create_node()
+                              {'value': mo_array(0, dtype=np.uint8), 'name': node_name + '/ZeroPoint'}).create_node()
 
             assert zerop.soft_get('type') == 'Const', 'only constant for zero_point is supported for QuantizeLinear'
             zero_point_type = zerop.value.dtype

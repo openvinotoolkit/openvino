@@ -80,7 +80,7 @@ class ConvToBinaryConv(MiddleReplacementPattern):
 
             operator_name = operator.soft_get('name', operator.id)
             add = create_op_node_with_second_input(graph, Add, weights_reduced, {'name': operator_name + '/Add_'})
-            mul = create_op_node_with_second_input(graph, Mul, np.array(0.5), {'name': operator_name + '/Mul_'})
+            mul = create_op_node_with_second_input(graph, Mul, mo_array(0.5), {'name': operator_name + '/Mul_'})
 
             add.out_port(0).connect(mul.in_port(0))
 

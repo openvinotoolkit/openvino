@@ -68,7 +68,7 @@ class CutMemoryOutput(BackReplacementPattern):
         in_node_port = node.in_port(0).get_source()
         node.in_port(0).disconnect()
         node.out_port(0).disconnect()
-        crop = Crop(graph, {'name': 'Result_for_'+node_id, 'dim': np.array([1]), 'offset': np.array([0]),
-                            'axis': np.array([0])}).create_node()
+        crop = Crop(graph, {'name': 'Result_for_'+node_id, 'dim': mo_array([1]), 'offset': mo_array([0]),
+                            'axis': mo_array([0])}).create_node()
         in_node_port.connect(crop.in_port(0))
         crop.out_port(0).connect(out_node_port)

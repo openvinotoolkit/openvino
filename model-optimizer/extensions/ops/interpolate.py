@@ -86,9 +86,9 @@ def correct_pad(pad, rank):
     if pad_len < rank:
         return np.pad(pad, (0, rank - pad_len), 'constant').astype(np.int64)
     elif pad_len > rank:
-        return np.array(pad[: rank]).astype(np.int64)
+        return mo_array(pad[: rank]).astype(np.int64)
     else:
-        return np.array(pad, dtype=np.int64)
+        return mo_array(pad, dtype=np.int64)
 
 
 def correct_scales_using_dst_shape(node, dst_shape, src_shape, axes):

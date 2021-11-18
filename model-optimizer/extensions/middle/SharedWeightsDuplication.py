@@ -35,7 +35,7 @@ class SharedWeightsDuplication(MiddleReplacementPattern):
                     out_node = Node(graph, v)
                     e_attrs = d
                     graph.remove_edge(node.id, out_node.id)
-                    data = Op.create_input_data_node(graph, "Copy_{}".format(node.id), np.array(node.value),
+                    data = Op.create_input_data_node(graph, "Copy_{}".format(node.id), mo_array(node.value),
                                                      graph.node[node.id])
 
                     graph.add_edges_from([(data.id, out_node.id, e_attrs)])

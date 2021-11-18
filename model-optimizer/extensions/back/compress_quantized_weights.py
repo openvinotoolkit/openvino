@@ -120,8 +120,8 @@ class CompressQuantizeWeights(BackReplacementPattern):
         assert mode in ["signed", "unsigned"]
         i_min_value = -(levels // 2) if mode == "signed" else 0
 
-        i_min = np.array([i_min_value], dtype=dst_type)
-        i_max = np.array(levels + i_min - 1, dtype=dst_type)
+        i_min = mo_array([i_min_value], dtype=dst_type)
+        i_max = mo_array(levels + i_min - 1, dtype=dst_type)
 
         assert i_max - i_min == levels - 1
         out_low = Const(graph, dict(name=name + '/Copy/out_low', value=i_min)).create_node()
@@ -183,7 +183,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         shift.in_port(0).connect(in_low)
         shift.in_port(1).connect(descaled_output_low.out_port(0))
 
-        zero = Const(graph, {'name': name + '/zero', 'value': np.array(0, dtype=dst_type)}).create_node()
+        zero = Const(graph, {'name': name + '/zero', 'value': mo_array(0, dtype=dst_type)}).create_node()
         scale_eq_zero = Equal(graph, {'name': name + '/scale_eq_zero'}).create_node()
         scale_eq_zero.in_port(0).connect(scale.out_port(0))
         scale_eq_zero.in_port(1).connect(zero.out_port(0))

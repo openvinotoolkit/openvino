@@ -38,7 +38,7 @@ class CropToStridedSlice(BackReplacementPattern):
 
     @staticmethod
     def list_to_ndarray(val):
-        return np.array(val) if np.array(val).ndim != 0 else np.array([val])
+        return mo_array(val) if mo_array(val).ndim != 0 else mo_array([val])
 
     def replace_pattern(self, graph: Graph, match: [str, Node]):
         node = match['crop']
@@ -75,7 +75,7 @@ class CropToStridedSlice(BackReplacementPattern):
 
             begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node_axis, node_offset),
                                   'name': ss.name + '/begin'}).create_node()
-            end_values = np.array([node_offset[i] + node_dim[i] for i in range(len(node_dim))])
+            end_values = mo_array([node_offset[i] + node_dim[i] for i in range(len(node_dim))])
             end = Const(graph, {'value': self.mask_normalizer(shape_rank, node_axis, end_values),
                                 'name': ss.name + '/end'}).create_node()
         elif node.has_valid('crop_begin') and node.has_valid('crop_end'):

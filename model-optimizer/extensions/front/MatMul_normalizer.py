@@ -78,7 +78,7 @@ class GemmDecomposer(FrontReplacementSubgraph):
             name = node.soft_get('name', node.id)
             node_output_port = node.out_port(0)
             if node.has_valid('alpha') and not math.isclose(node.alpha, 1):
-                mul_alpha = create_op_with_const_inputs(graph, Mul, {1: np.array(node.alpha)},
+                mul_alpha = create_op_with_const_inputs(graph, Mul, {1: mo_array(node.alpha)},
                                                        {'name': name + '/Alpha', 'can_be_scaleshift': False})
                 node_output_port.get_connection().insert_node(mul_alpha)
                 node_output_port = mul_alpha.out_port(0)
@@ -93,7 +93,7 @@ class GemmDecomposer(FrontReplacementSubgraph):
                 node.in_port(2).get_connection().set_destination(bias_node.in_port(1))
                 node_output_port.connect(bias_node.in_port(0))
                 if node.has_valid('beta') and not math.isclose(node.beta, 1):
-                    bias_node.insert_op_on_input_port(in_port_idx=1, new_op_class=Mul, value=np.array(node.beta),
+                    bias_node.insert_op_on_input_port(in_port_idx=1, new_op_class=Mul, value=mo_array(node.beta),
                                                       new_op_attrs={'name': name + '/Beta',
                                                                     'can_be_scaleshift': False})
                     del node['beta']

@@ -20,7 +20,7 @@ class RNN(Op):
             'direction': 'forward',
             'infer': self.infer,
             'multiplier': 1,
-            'gate_order': np.array([0]),  # Only one gate in this cell
+            'gate_order': mo_array([0]),  # Only one gate in this cell
             'normalized': False,
 
             'activation_alpha': None,

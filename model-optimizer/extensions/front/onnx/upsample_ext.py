@@ -24,7 +24,7 @@ class UpsampleFrontExtractor(FrontExtractorOp):
             ONNXResize10.update_node_stat(node, {'mode': mode})
         else:
             mode = onnx_attr(node, 'mode', 's', default='nearest', dst_type=lambda x: x.decode())
-            scales = onnx_attr(node, 'scales', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32))
+            scales = onnx_attr(node, 'scales', 'floats', dst_type=lambda x: mo_array(x, dtype=np.float32))
             width_scale = onnx_attr(node, 'width_scale', 'f')
             height_scale = onnx_attr(node, 'height_scale', 'f')
 

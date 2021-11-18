@@ -69,4 +69,4 @@ class Bucketize(Op):
 
         # compute if all input is constant
         if input_value is not None and buckets_value is not None:
-            node.out_port(0).data.set_value(np.array(np.digitize(input_value, buckets_value, right=node.with_right_bound), dtype=node.output_type))
+            node.out_port(0).data.set_value(mo_array(np.digitize(input_value, buckets_value, right=node.with_right_bound), dtype=node.output_type))

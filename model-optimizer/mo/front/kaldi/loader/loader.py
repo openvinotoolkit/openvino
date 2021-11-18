@@ -157,7 +157,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
 
         prev_node = Node(graph, prev_layer_id)
         if prev_node.op == 'Parameter':
-            prev_node['shape'] = np.array([1, layer_i], dtype=np.int64)
+            prev_node['shape'] = mo_array([1, layer_i], dtype=np.int64)
 
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
@@ -190,7 +190,7 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
         if prev_node.op == 'Parameter':
             parameters = Node(graph, layer_id).parameters
             input_dim = read_token_value(parameters, b'<InputDim>')
-            prev_node['shape'] = np.array([1, input_dim], dtype=np.int64)
+            prev_node['shape'] = mo_array([1, input_dim], dtype=np.int64)
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))
@@ -323,7 +323,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
     if tokens[0] == b'input-node':
         in_name = s[s.find(b'name=') + len(b'name='):].split(b' ')[0]
         in_name = str(in_name).strip('b').replace('\'', "")
-        in_shape = np.array([1, s[s.find(b'dim=') + len(b'dim='):].split(b' ')[0]], dtype=np.int)
+        in_shape = mo_array([1, s[s.find(b'dim=') + len(b'dim='):].split(b' ')[0]], dtype=np.int)
 
         if in_name not in layer_node_map:
             graph.add_node(in_name, name=in_name, kind='op', op='Parameter', parameters=None, shape=in_shape)
@@ -399,12 +399,12 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         if layer_name in layer_node_map:
             node_name = layer_node_map[layer_name]
             node = Node(graph, node_name)
-            node['parameters'] = {'offset': np.array([offset]), 'dim': np.array([dim]), 'axis': np.array([1])}
+            node['parameters'] = {'offset': mo_array([offset]), 'dim': mo_array([dim]), 'axis': mo_array([1])}
             node['op'] = 'Crop'
         else:
             node_name = graph.unique_id(prefix=layer_name)
             graph.add_node(node_name,
-                           parameters={'offset': np.array([offset]), 'dim': np.array([dim]), 'axis': np.array([1])},
+                           parameters={'offset': mo_array([offset]), 'dim': mo_array([dim]), 'axis': mo_array([1])},
                            op='Crop',
                            kind='op')
             layer_node_map[layer_name] = node_name

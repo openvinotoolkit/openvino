@@ -33,7 +33,7 @@ class TensorArray(Op):
 
             out_node = node.out_node(0).id
             output_value = node.out_node(0).id
-            node.graph.node[out_node]['value'] = np.array(output_value)
+            node.graph.node[out_node]['value'] = mo_array(output_value)
 
             output_shape = node.graph.node[out_node]['value'].shape
             node.graph.node[out_node]['shape'] = shape_array(output_shape)
@@ -45,5 +45,5 @@ class TensorArray(Op):
             output_value = None
 
             out_node = node.out_node(1).id
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+            node.graph.node[out_node]['value'] = None if output_value is None else mo_array(output_value)
             node.graph.node[out_node]['shape'] = shape_array(output_shape)

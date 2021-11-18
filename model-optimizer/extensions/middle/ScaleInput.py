@@ -35,4 +35,4 @@ class ScaleInput(MiddleReplacementPattern):
             return
         assert (len(match['placeholder'].out_nodes()))
 
-        AddMeanScaleValues.apply_scale(graph, match['placeholder'], {'scale': np.array([scale])})
+        AddMeanScaleValues.apply_scale(graph, match['placeholder'], {'scale': mo_array([scale])})

@@ -33,7 +33,7 @@ class BinaryFakeQuantizeNormalization(FrontReplacementPattern):
         quantize = match['quantize']
 
         sum_node = Add(graph, dict()).create_node()
-        const = Const(graph, {'value': np.array(0.5)}).create_node()
+        const = Const(graph, {'value': mo_array(0.5)}).create_node()
         mul_node = Mul(graph, dict()).create_node()
 
         mul_node.in_port(0).connect(sum_node.out_port(0))

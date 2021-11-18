@@ -17,7 +17,7 @@ class MeanVarianceNormalizationExtractor(FrontExtractorOp):
     def extract(cls, node):
         axes = onnx_attr(node, 'axes', 'ints',
                          default=int64_array([0, 2, 3]),
-                         dst_type=lambda x: np.array(x, dtype=np.int64))
+                         dst_type=lambda x: mo_array(x, dtype=np.int64))
 
         attrs = {
             'eps': 1e-9,

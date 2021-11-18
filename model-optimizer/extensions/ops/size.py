@@ -41,6 +41,6 @@ class Size(Op):
             'Size `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
 
         if is_fully_defined(input_shape):
-            node.out_port(0).data.set_value(np.array(np.prod(input_shape), dtype=node.output_type))
+            node.out_port(0).data.set_value(mo_array(np.prod(input_shape), dtype=node.output_type))
         else:
             node.out_port(0).data.set_value(shape_array(dynamic_dimension_value))

@@ -151,6 +151,6 @@ class Unique(Op):
         # write result to output nodes
         j = 0
         for out_node_ind in node.out_nodes():
-            node.out_node(out_node_ind).value = np.array(unique_output[j], dtype=np.float)
-            node.out_node(out_node_ind).shape = np.array(node.out_node(out_node_ind).value.shape, dtype=np.int64)
+            node.out_node(out_node_ind).value = mo_array(unique_output[j], dtype=np.float)
+            node.out_node(out_node_ind).shape = mo_array(node.out_node(out_node_ind).value.shape, dtype=np.int64)
             j += 1

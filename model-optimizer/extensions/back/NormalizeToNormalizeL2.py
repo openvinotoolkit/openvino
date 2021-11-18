@@ -48,11 +48,11 @@ class NormalizeToNormalizeL2(BackReplacementPattern):
         # in the code below we intentionally use get_source() to get the out port. Because updating the out port will
         # update the Const node 'value' and 'shape' attributes
         if node.channel_shared or all(weights == weights[0]):
-            node.in_port(1).get_source().data.set_value(np.array([weights[0]]))
+            node.in_port(1).get_source().data.set_value(mo_array([weights[0]]))
         else:
             new_shape = np.ones((len(node.in_port(0).data.get_shape())), dtype=np.int64)
             new_shape[1] = -1
-            node.in_port(1).get_source().data.set_value(np.array(weights).reshape(new_shape))
+            node.in_port(1).get_source().data.set_value(mo_array(weights).reshape(new_shape))
 
         mul = Mul(graph, {'name': output_name}).create_node()
         rename_node(mul, output_name)

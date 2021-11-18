@@ -28,8 +28,8 @@ class RegionYoloFrontExtractor(FrontExtractorOp):
             'classes': classes,
             'num': num,
             'do_softmax': int(param.do_softmax),
-            'anchors': np.array(param.anchors),
-            'mask': np.array(param.mask)
+            'anchors': mo_array(param.anchors),
+            'mask': mo_array(param.mask)
         }
 
         flatten_attrs = {

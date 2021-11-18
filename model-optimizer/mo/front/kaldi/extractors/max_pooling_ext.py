@@ -35,12 +35,12 @@ class MaxPoolingComponentFrontExtractor(FrontExtractorOp):
             raise Error('Can not extract parameters for {}'.format(node))
 
         mapping_rule = {
-            'window': np.array([1, 1, 1, kernel], dtype=np.int64),
-            'stride': np.array([1, 1, 1, stride], dtype=np.int64),
+            'window': mo_array([1, 1, 1, kernel], dtype=np.int64),
+            'stride': mo_array([1, 1, 1, stride], dtype=np.int64),
             'pool_stride': pool_stride,
             'pool_step': pool_step,
-            'pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[0, 0], [0, 0]], dtype=np.int64),
+            'pad': mo_array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
+            'pad_spatial_shape': mo_array([[0, 0], [0, 0]], dtype=np.int64),
             'pool_method': 'max',
         }
         mapping_rule.update(layout_attrs())

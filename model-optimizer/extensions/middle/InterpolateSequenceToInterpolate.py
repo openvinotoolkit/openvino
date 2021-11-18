@@ -211,7 +211,7 @@ def replace_sequence(seq: List[Node], graph: Graph):
         axis_to_size = sorted(dims_and_scales_, key=lambda x: x[0])
         axes_of_node = int64_array([z[0] for z in axis_to_size])
         sizes = shape_array([z[1] for z in axis_to_size])
-        scales = np.array([z[2] for z in axis_to_size])
+        scales = mo_array([z[2] for z in axis_to_size])
 
     fst_interp_node = seq[0]
     last_interp_node = seq[-1]

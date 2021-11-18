@@ -21,7 +21,7 @@ class GRU(Op):
             'infer': __class__.infer,
             'multiplier': 3,
             'multilayers': False,
-            'gate_order': np.array([0, 1, 2]),  # TODO: change it later
+            'gate_order': mo_array([0, 1, 2]),  # TODO: change it later
             'normalized': False,
 
             'activation_alpha': None,

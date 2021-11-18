@@ -16,7 +16,7 @@ def dim_to_shape(dim):
     Returns:
         shape of the layer as np.array
     """
-    return np.array(dim, dtype=np.int64)
+    return mo_array(dim, dtype=np.int64)
 
 
 def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: str = None):

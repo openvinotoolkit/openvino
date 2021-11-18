@@ -81,7 +81,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
 
         # Sum component of B that correspond to W and R
         if lstm.op == 'GRU' and lstm.linear_before_reset:
-            B_shape = np.array(B.shape)
+            B_shape = mo_array(B.shape)
             B_shape[3] = 4
             B_shape[2] = 1
             B_tmp = np.zeros(shape=B_shape)
@@ -123,7 +123,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             Op.create_and_connect_input_data_node(
                 graph,
                 lstm,
-                {'value': blob, 'shape': np.array(blob.shape, dtype=np.int64)},
+                {'value': blob, 'shape': mo_array(blob.shape, dtype=np.int64)},
                 {'in': port, 'bin': name, 'permutation': None}
             )
 

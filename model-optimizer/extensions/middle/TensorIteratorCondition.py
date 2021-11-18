@@ -18,7 +18,7 @@ def make_nodes_1D(nodes: list):
     """
     for node in nodes:
         assert node.shape is None or len(node.shape) == 0
-        node.shape = np.array([1], dtype=np.int64)
+        node.shape = mo_array([1], dtype=np.int64)
         if node.value is not None:
             node.value = np.reshape(node.value, node.shape)
 
@@ -184,8 +184,8 @@ Shape -> StridedSlice -> Enter -|    LogicalAnd --> LoopCond (data)
     @staticmethod
     def looking_for_iteration_counter(graph: Graph, match: dict):
         types = ['TensorIteratorInput', 'TensorIteratorOutput']
-        candidates = np.array([match['Identity_1_data'], match['Identity_2_data']])
-        results = np.array([False for i in range(len(candidates))])
+        candidates = mo_array([match['Identity_1_data'], match['Identity_2_data']])
+        results = mo_array([False for i in range(len(candidates))])
         for i, candidat in enumerate(candidates):
             for node in candidat.out_nodes():
                 if node['op'] in types:

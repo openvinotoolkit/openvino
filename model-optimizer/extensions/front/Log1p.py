@@ -23,7 +23,7 @@ class Log1p(FrontReplacementOp):
         const_dtype = np.float32
         if node.has_valid('data_type'):
             const_dtype = node.data_type
-        const = Const(graph, {'value': np.array([1], dtype=const_dtype)}).create_node()
+        const = Const(graph, {'value': mo_array([1], dtype=const_dtype)}).create_node()
         add = Add(graph, {'name': node.name + '/Add_'}).create_node()
         log = Log(graph, {'name': node.name + '/Log_'}).create_node()
 

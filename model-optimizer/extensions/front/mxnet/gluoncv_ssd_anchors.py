@@ -33,7 +33,7 @@ def calculate_prior_box_value(value: Node, value_to_div: Port, value_to_add: Por
     graph = value.graph
     dtype = data_type_str_to_np(graph.graph['cmd_params'].data_type)
     _min = Sub(graph, dict(name=value.name + '/Sub')).create_node()
-    div = create_op_node_with_second_input(graph, Div, np.array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
+    div = create_op_node_with_second_input(graph, Div, mo_array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
     div.in_port(0).connect(value_to_div)
     _min.in_port(0).connect(value_to_add)
     _min.in_port(1).connect(div.out_port(0))

@@ -100,9 +100,9 @@ def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     fw_name_map = {}
     for i, node in enumerate(model_nodes):
         if node['name'] in model_params._arg_params and node['name'] not in input_names:
-            node['value'] = np.array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
+            node['value'] = mo_array(model_params._arg_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in model_params._aux_params and node['name'] not in input_names:
-            node['value'] = np.array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
+            node['value'] = mo_array(model_params._aux_params[node['name']].asnumpy(), dtype=np.float32)
         elif node['name'] in names_rnn_states:
             node['value'] = np.zeros(rnn_states[node['name']])
         node_name = graph.unique_id(node['name'])

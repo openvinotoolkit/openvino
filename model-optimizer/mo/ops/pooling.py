@@ -159,7 +159,7 @@ class Pooling(Op):
                 if padded_spatial_shape[idx] is not dynamic_dimension and stride_spatial[idx] is not dynamic_dimension:
                     output_spatial_shape[idx] = int(rounding(padded_spatial_shape[idx] / stride_spatial[idx])) + 1
 
-            original_pads = np.array([i[1] for i in node.pad_spatial_shape])
+            original_pads = mo_array([i[1] for i in node.pad_spatial_shape])
 
             for i in range(len(input_spatial_shape)):
                 if original_pads[i] and (output_spatial_shape[i] - 1) * stride_spatial[i] >= \

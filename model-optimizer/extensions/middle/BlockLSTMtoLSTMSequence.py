@@ -182,9 +182,9 @@ class BlockLSTMtoLSTMSequence(MiddleReplacementPattern):
         weights = weights.transpose()
 
         weights_node.value = weights
-        weights_node.shape = np.array(weights.shape, dtype=np.int64)
+        weights_node.shape = mo_array(weights.shape, dtype=np.int64)
         biases_node.value = biases
-        biases_node.shape = np.array(biases.shape, dtype=np.int64)
+        biases_node.shape = mo_array(biases.shape, dtype=np.int64)
 
         attrs = dict(graph.get_edge_data(match['gather_1'].id, match['gather_1_data'].id)[0])
         attrs.update({'out': 2})

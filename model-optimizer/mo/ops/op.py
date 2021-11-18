@@ -252,7 +252,7 @@ class Op(object):
         if attrs is None:
             attrs = {}
         data_node = graph.unique_id(name)
-        default_attrs = dict(kind='data', name=data_node, value=np.array(value), shape=np.array(value.shape),
+        default_attrs = dict(kind='data', name=data_node, value=mo_array(value), shape=mo_array(value.shape),
                              data_type=None, infer=None)
         default_attrs.update(attrs)
         graph.add_node(data_node, **add_attrs_props(default_attrs))
@@ -331,7 +331,7 @@ class Op(object):
             return
         for idx in range(dims_to_add):
             node.value = np.expand_dims(node.value, axis=-1)
-        node.shape = np.array(node.value.shape)
+        node.shape = mo_array(node.value.shape)
 
     @staticmethod
     def normalize_outputs(node: Node):

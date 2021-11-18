@@ -161,7 +161,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             for l, r, out in sorted_split_dims:
                 # Save missing tensor part
                 if l > prev_r:
-                    shape = np.array(input_shape)
+                    shape = mo_array(input_shape)
                     size_splits.append(l - prev_r)
                     shape[split_channel_dim] = l - prev_r
                     data_node = Op._create_data_node(graph, 'fake_data_'+out_nodes[0].name, {'shape': shape})
@@ -225,7 +225,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             return
 
         shape_out = ss_node.out_node().shape
-        dim = np.array(range(len(ss_node['shrink_axis_mask'])))[np.array(ss_node['shrink_axis_mask'], dtype=bool)]
+        dim = mo_array(range(len(ss_node['shrink_axis_mask'])))[mo_array(ss_node['shrink_axis_mask'], dtype=bool)]
         ss_shape = []
         i = 0
         k = 0
@@ -268,7 +268,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
             return
 
         shape_out = ss_node.out_node().shape
-        dim = np.array(range(len(ss_node['new_axis_mask'])))[np.array(ss_node['new_axis_mask'], dtype=bool)]
+        dim = mo_array(range(len(ss_node['new_axis_mask'])))[mo_array(ss_node['new_axis_mask'], dtype=bool)]
         ss_shape = []
         for i in range(0, len(ss_node['new_axis_mask'])):
             if not ss_node['new_axis_mask'][i]:

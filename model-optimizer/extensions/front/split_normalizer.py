@@ -30,7 +30,7 @@ class SqueezeAxis(FrontReplacementOp):
             name = node.soft_get('name', node.id)
             for out_port in node.out_ports().values():
                 if node.has_valid('axis'):
-                    squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: np.array(node.axis)},
+                    squeeze_node = create_op_with_const_inputs(graph, Squeeze, {1: mo_array(node.axis)},
                                                                {'name': name + '/Squeeze_'})
                     out_port.get_connection().insert_node(squeeze_node)
                 elif node.is_in_port_connected(1):

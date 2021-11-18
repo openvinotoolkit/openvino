@@ -24,5 +24,5 @@ class NextIteration(Op):
         output_shape = node.in_node(0).shape
         output_value = node.in_node(0).value
         for _, out_node in node.graph.out_edges(node.id):
-            node.graph.node[out_node]['shape'] = np.array(output_shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+            node.graph.node[out_node]['shape'] = mo_array(output_shape)
+            node.graph.node[out_node]['value'] = None if output_value is None else mo_array(output_value)

@@ -150,7 +150,7 @@ class InterpolateWithConcat(FrontReplacementPattern):
         shape = Shape(graph, {'name': src.node.soft_get('name', src.node.id) + '/Shape'}).create_node()
         shape.in_port(0).connect(src)
         gather = create_op_with_const_inputs(graph, Gather,
-                                             {1: np.array(interp_axes, dtype=np.int32), 2: int64_array(0)},
+                                             {1: mo_array(interp_axes, dtype=np.int32), 2: int64_array(0)},
                                              {'name': shape.name + '/Gathered'}, input_node=shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 

@@ -63,13 +63,13 @@ def create_const_with_batch_from_input(producer_port: Port, second_dim, value=0,
     init_value_prev_lstm_output = None
     for dest in mem_shape.out_port(0).get_destinations():
         if dest.node.soft_get('op') == "Broadcast" and \
-                dest.node.in_port(1).get_source().node.soft_get('value', []) == np.array([value], dtype=precision):
+                dest.node.in_port(1).get_source().node.soft_get('value', []) == mo_array([value], dtype=precision):
             init_value_prev_lstm_output = dest.node
             break
 
     if init_value_prev_lstm_output is None:
         init_value_prev_lstm_output = create_op_with_const_inputs(graph, Broadcast,
-                                                                  {0: np.array([value], dtype=precision)},
+                                                                  {0: mo_array([value], dtype=precision)},
                                                                   {'name': mem_shape.name + '/Broadcast'})
         init_value_prev_lstm_output.in_port(1).connect(mem_shape.out_port(0))
 

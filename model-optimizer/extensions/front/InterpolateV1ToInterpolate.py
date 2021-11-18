@@ -30,7 +30,7 @@ class InterpolateV1ToInterpolate(FrontReplacementPattern):
             interpolate1_name = node.soft_get('name', node.id)
             interpolate4 = create_op_with_const_inputs(graph, Interpolate,
                                                        {
-                                                           2: np.array([1.0, 1.0]),
+                                                           2: mo_array([1.0, 1.0]),
                                                            3: int64_array(node.axes)
                                                        },
                                                        {

@@ -103,7 +103,7 @@ class ScaleFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        scale = onnx_attr(node, 'scale', 'f', default=np.array(1.0), dst_type=lambda x: np.array(x))
+        scale = onnx_attr(node, 'scale', 'f', default=mo_array(1.0), dst_type=lambda x: mo_array(x))
         AttributedPower.update_node_stat(node, {'scale': scale})
         return cls.enabled
 

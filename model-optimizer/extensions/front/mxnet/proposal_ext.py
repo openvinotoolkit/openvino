@@ -25,9 +25,9 @@ class ProposalFrontExtractor(FrontExtractorOp):
 
         update_attrs = {
             'feat_stride': feat_stride,
-            'ratio': np.array(ratio),
+            'ratio': mo_array(ratio),
             'min_size': min_size,
-            'scale': np.array(scale),
+            'scale': mo_array(scale),
             'pre_nms_topn': pre_nms_topn,
             'post_nms_topn': post_nms_topn,
             'nms_thresh': nms_thresh,

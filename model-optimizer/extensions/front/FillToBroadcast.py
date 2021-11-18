@@ -30,7 +30,7 @@ class FillToBroadcast(FrontReplacementPattern):
             assert fill_node.has_valid('fill_value')
             assert fill_node.has_and_set('input_as_shape')
 
-            const = Const(graph, {'value': np.array(fill_node.fill_value), 'name': name + '/value'}).create_node()
+            const = Const(graph, {'value': mo_array(fill_node.fill_value), 'name': name + '/value'}).create_node()
             broadcast_node = Broadcast(graph, {'name': name + '/Broadcast'}).create_node()
             fill_node.in_port(0).get_connection().set_destination(broadcast_node.in_port(1))
             const.out_port(0).connect(broadcast_node.in_port(0))

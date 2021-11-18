@@ -247,4 +247,4 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                         res_slices[-1] is not None and not is_dynamic_slice(res_slices[-1]):
                     res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
                 in_idx += 1
-        node.slices = np.array(res_slices)
+        node.slices = mo_array(res_slices)

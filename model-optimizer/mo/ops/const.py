@@ -27,11 +27,11 @@ class Const(Op):
             'type_infer': self.type_infer,
         }, attrs)
         if not isinstance(self.attrs['value'], np.ndarray):
-            self.attrs['value'] = np.array(self.attrs['value'])
+            self.attrs['value'] = mo_array(self.attrs['value'])
 
-        self.attrs['shape'] = np.array(self.attrs['value'].shape, dtype=np.int64)
+        self.attrs['shape'] = mo_array(self.attrs['value'].shape, dtype=np.int64)
         if 'force_shape' in self.attrs and self.attrs['force_shape'] is not None:
-            self.attrs['shape'] = np.array(self.attrs['force_shape'], dtype=np.int64)
+            self.attrs['shape'] = mo_array(self.attrs['force_shape'], dtype=np.int64)
 
         self.attrs['data_type'] = self.attrs['value'].dtype
         if 'force_type' in self.attrs and self.attrs['force_type'] is not None:

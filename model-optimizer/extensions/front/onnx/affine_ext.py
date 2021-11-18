@@ -14,7 +14,7 @@ class AffineFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        dst_type = lambda x: np.array(x)
+        dst_type = lambda x: mo_array(x)
 
         scale = onnx_attr(node, 'alpha', 'f', default=None, dst_type=dst_type)
         bias = onnx_attr(node, 'beta', 'f', default=None, dst_type=dst_type)

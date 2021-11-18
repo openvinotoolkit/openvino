@@ -10,7 +10,7 @@ from mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 def tf_fused_bn_infer(node):
-    output_shape = np.array(node.in_node(0).shape)
+    output_shape = mo_array(node.in_node(0).shape)
     for port, out_node in node.out_nodes().items():
         out_node.shape = shape_array(output_shape)
 

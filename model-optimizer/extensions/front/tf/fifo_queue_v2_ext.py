@@ -23,8 +23,8 @@ class FIFOQueueV2Extractor(FrontExtractorOp):
         for shape_pb in shapes:
             shape = shape_pb.dim
             if len(shape) == 3:
-                result_shapes.append(np.array([1, shape[0].size, shape[1].size, shape[2].size], dtype=np.int64))
+                result_shapes.append(mo_array([1, shape[0].size, shape[1].size, shape[2].size], dtype=np.int64))
             else:
-                result_shapes.append(np.array([dim.size for dim in shape], dtype=np.int64))
+                result_shapes.append(mo_array([dim.size for dim in shape], dtype=np.int64))
         Op.update_node_stat(node, {'shapes': result_shapes, 'types': extracted_types})
         return cls.enabled

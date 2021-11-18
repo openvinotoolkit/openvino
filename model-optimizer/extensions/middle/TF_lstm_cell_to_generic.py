@@ -82,9 +82,9 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
         weights = weights.transpose()
 
         weights_node.value = weights
-        weights_node.shape = np.array(weights.shape, dtype=np.int64)
+        weights_node.shape = mo_array(weights.shape, dtype=np.int64)
         biases_node.value = biases
-        biases_node.shape = np.array(biases.shape, dtype=np.int64)
+        biases_node.shape = mo_array(biases.shape, dtype=np.int64)
 
         # Cut all extra inputs off
         for i in range(len(node.inputs), len(node.inputs) + len(node.extra_inputs)):

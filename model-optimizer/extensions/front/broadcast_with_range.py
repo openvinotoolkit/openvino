@@ -72,8 +72,8 @@ class ExpandRangeConstant(FrontReplacementSubgraph):
         const.out_port(0).connect(shapeof_node.in_port(0))
 
         range_node = create_op_with_const_inputs(graph, Range,
-                                                 {0: np.array(0, dtype=value.dtype),
-                                                  2: np.array(1, dtype=value.dtype)},
+                                                 {0: mo_array(0, dtype=value.dtype),
+                                                  2: mo_array(1, dtype=value.dtype)},
                                                  {'name': const_name + '/Range', 'dtype': value.dtype})
         select_node.out_port(0).connect(range_node.in_port(1))
 

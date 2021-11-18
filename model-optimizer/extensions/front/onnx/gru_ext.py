@@ -15,9 +15,9 @@ class GRUFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         activation_alpha = onnx_attr(node, 'activation_alpha', 'floats',
-                                     default=None, dst_type=lambda x: np.array(x, dtype=np.float32))
+                                     default=None, dst_type=lambda x: mo_array(x, dtype=np.float32))
         activation_beta = onnx_attr(node, 'activation_beta', 'floats',
-                                    default=None, dst_type=lambda x: np.array(x, dtype=np.float32))
+                                    default=None, dst_type=lambda x: mo_array(x, dtype=np.float32))
         activations = onnx_attr(node, 'activations', 'strings', default=None,
                                 dst_type=lambda x: list(map(lambda s: s.decode(encoding="utf-8").lower(), list(x))))
         clip = onnx_attr(node, 'clip', 'f', default=None)
@@ -39,7 +39,7 @@ class GRUFrontExtractor(FrontExtractorOp):
             'activations': activations,
             'clip': clip,
             'direction': onnx_attr(node, 'direction', 's', b'forward').decode().lower(),
-            'hidden_size': np.array(onnx_attr(node, 'hidden_size', 'i'), dtype=np.int64),
+            'hidden_size': mo_array(onnx_attr(node, 'hidden_size', 'i'), dtype=np.int64),
             'linear_before_reset': linear_before_reset,
         }
 

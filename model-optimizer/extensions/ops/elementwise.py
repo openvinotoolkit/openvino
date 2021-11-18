@@ -133,7 +133,7 @@ class Pow(Elementwise):
     @staticmethod
     def operation(a, b):
         if np.any(b < 0) and np.issubdtype(a.dtype, np.signedinteger):
-            return np.array(a.astype(np.float32) ** b, dtype=np.float32)
+            return mo_array(a.astype(np.float32) ** b, dtype=np.float32)
         return a ** b
 
 

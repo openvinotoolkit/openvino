@@ -14,7 +14,7 @@ class SqueezeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
+        axis = mo_array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
 
         attrs = {
             'squeeze_dims': axis if len(axis) != 0 else None

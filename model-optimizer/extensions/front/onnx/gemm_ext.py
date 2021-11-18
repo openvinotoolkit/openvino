@@ -21,7 +21,7 @@ class GemmFrontExtractor(FrontExtractorOp):
             'transpose_b': onnx_attr(node, 'transB', 'i', 0),
             'broadcast_c': onnx_attr(node, 'broadcast', 'i', 1),
             # TODO: there is no axis in onnx operators.md
-            'axis': np.array(onnx_attr(node, 'axis', 'i', default=0), dtype=np.int64)
+            'axis': mo_array(onnx_attr(node, 'axis', 'i', default=0), dtype=np.int64)
         }
         GemmONNX.update_node_stat(node, attrs)
         return cls.enabled
