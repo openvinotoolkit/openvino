@@ -41,24 +41,32 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
                 std::bind(&TelemetryMock::send_error, &m_test_telemetry, _1, _2),
                 std::bind(&TelemetryMock::send_stack_trace, &m_test_telemetry, _1, _2));
 
-        EXPECT_NO_THROW(telemetry_extension->send_event("test", "test", "test"));
-        EXPECT_NO_THROW(telemetry_extension->send_error("test", "test"));
-        EXPECT_NO_THROW(telemetry_extension->send_stack_trace("test", "test"));
+        std::string category = "test_category";
+        std::string action = "test_action";
+        std::string msg = "test_msg";
+        int version = 2;
+        EXPECT_NO_THROW(telemetry_extension->send_event(category, action, msg));
+        EXPECT_NO_THROW(telemetry_extension->send_error(category, msg));
+        EXPECT_NO_THROW(telemetry_extension->send_stack_trace(category, msg));
 
-        EXPECT_EQ(m_test_telemetry.event_cnt, 1);
-        EXPECT_EQ(m_test_telemetry.error_cnt, 1);
-        EXPECT_EQ(m_test_telemetry.trace_cnt, 1);
+        EXPECT_EQ(m_test_telemetry.m_event_cnt, 1);
+        EXPECT_EQ(m_test_telemetry.m_error_cnt, 1);
+        EXPECT_EQ(m_test_telemetry.m_trace_cnt, 1);
+
+        EXPECT_EQ(m_test_telemetry.m_last_event, std::make_tuple(category, action, msg, version));
+        EXPECT_EQ(m_test_telemetry.m_last_error, std::make_tuple(category, msg));
+        EXPECT_EQ(m_test_telemetry.m_last_trace, std::make_tuple(category, msg));
 
         // reset counters
-        m_test_telemetry.event_cnt = 0;
-        m_test_telemetry.error_cnt = 0;
-        m_test_telemetry.trace_cnt = 0;
+        m_test_telemetry.m_event_cnt = 0;
+        m_test_telemetry.m_error_cnt = 0;
+        m_test_telemetry.m_trace_cnt = 0;
 
         EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
         function = m_frontEnd->convert(m_inputModel);
-        EXPECT_GT(m_test_telemetry.event_cnt, 0);
+        EXPECT_GT(m_test_telemetry.m_event_cnt, 0);
     }
 
-    EXPECT_EQ(m_test_telemetry.trace_cnt, 0);
-    EXPECT_EQ(m_test_telemetry.error_cnt, 0);
+    EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
+    EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
 }
