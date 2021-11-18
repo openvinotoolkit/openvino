@@ -58,6 +58,10 @@ addIeTarget(
             ${DEPENDENCIES}
 )
 
+if(ENABLE_GAPI_PREPROCESSING)
+    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
+endif()
+
 # CVS-55376
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/low_precision_transformations/layer_transformation.cpp"
     PROPERTIES INCLUDE_DIRECTORIES

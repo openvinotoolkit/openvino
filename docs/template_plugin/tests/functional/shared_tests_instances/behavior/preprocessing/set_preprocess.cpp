@@ -4,6 +4,8 @@
 
 #include "behavior/preprocessing/set_preprocess.hpp"
 
+#ifdef ENABLE_GAPI_PREPROCESSING
+
 using namespace BehaviorTestsDefinitions;
 
 namespace {
@@ -90,3 +92,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessDynamicallyI
                         InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace
+
+#endif // ENABLE_GAPI_PREPROCESSING

@@ -5,6 +5,8 @@
 #include <base/behavior_test_utils.hpp>
 #include "behavior/preprocessing/set_preprocess.hpp"
 
+#ifdef ENABLE_GAPI_PREPROCESSING
+
 using namespace BehaviorTestsDefinitions;
 namespace {
     using PreprocessBehTest = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -78,3 +80,5 @@ namespace {
 
 
 }  // namespace
+
+#endif // ENABLE_GAPI_PREPROCESSING

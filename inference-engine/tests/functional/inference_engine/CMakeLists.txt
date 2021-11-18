@@ -200,6 +200,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_definitions(${target_name} PRIVATE
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
     else()
         # OpenCL headers if any
         if(OPENCL_HEADERS_DIR)
