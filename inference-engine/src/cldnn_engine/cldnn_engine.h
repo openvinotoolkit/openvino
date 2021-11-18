@@ -25,7 +25,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
-    // key : cldnn context, value: memory statistics
+    // key: cldnn context, value: memory statistics
     mutable std::map<CLDNNRemoteCLContext::Ptr, std::map<std::string, uint64_t>> statistics_map;
     mutable std::mutex engine_mutex;
 

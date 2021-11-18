@@ -191,10 +191,8 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAn
     std::map<std::string, uint64_t> t1 = p;
 
     ASSERT_FALSE(t1.empty());
-    std::cout << "Memory Statistics after the 1st network is loaded: " << std::endl;
     for (auto &&kv : t1) {
         ASSERT_NE(kv.second, 0);
-        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
     }
 
     InferenceEngine::ExecutableNetwork exec_net2 = ie.LoadNetwork(simpleCnnNetwork, deviceName);
@@ -203,14 +201,12 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAn
     std::map<std::string, uint64_t> t2 = p;
 
     ASSERT_FALSE(t2.empty());
-    std::cout << "Memory Statistics after the 2nd network is loaded: " << std::endl;
     for (auto &&kv : t2) {
         ASSERT_NE(kv.second, 0);
         auto iter = t1.find(kv.first);
         if (iter != t1.end()) {
             ASSERT_EQ(kv.second, t1[kv.first] * 2);
         }
-        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
     }
 
     ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MEMORY_STATISTICS));
@@ -238,10 +234,8 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
         std::map<std::string, uint64_t> t2 = p;
 
         ASSERT_FALSE(t2.empty());
-        std::cout << "Memory Statistics after the 1st network is loaded: " << std::endl;
         for (auto &&kv : t2) {
             ASSERT_NE(kv.second, 0);
-            std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
         }
         {
             InferenceEngine::ExecutableNetwork exec_net2 = ie.LoadNetwork(actualCnnNetwork, deviceName);
@@ -250,17 +244,14 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
             std::map<std::string, uint64_t> t3 = p;
 
             ASSERT_FALSE(t3.empty());
-            std::cout << "Memory Statistics after the 2nd network is loaded: " << std::endl;
             for (auto &&kv : t3) {
                 ASSERT_NE(kv.second, 0);
-                std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
             }
         }
         ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
         std::map<std::string, uint64_t> t4 = p;
 
         ASSERT_FALSE(t4.empty());
-        std::cout << "Memory Statistics after the 2nd LoadNetwork is released: " << std::endl;
         for (auto &&kv : t4) {
             ASSERT_NE(kv.second, 0);
             if (kv.first.find("_cur") != std::string::npos) {
@@ -269,25 +260,79 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
                     ASSERT_EQ(t2[kv.first], kv.second);
                 }
             }
-            std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
         }
     }
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
     std::map<std::string, uint64_t> t5 = p;
 
     ASSERT_FALSE(t5.empty());
-    std::cout << "Memory Statistics after the 1st LoadNetwork is released: " << std::endl;
     for (auto &&kv : t5) {
         if (kv.first.find("_cur") != std::string::npos) {
             ASSERT_EQ(kv.second, 0);
         }
-        std::cout << kv.first << ": " << kv.second << " bytes" << std::endl;
     }
     ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MEMORY_STATISTICS));
 }
 
 INSTANTIATE_TEST_SUITE_P(
         nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES,
+        ::testing::Values("GPU")
+);
+
+using IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS = BehaviorTestsUtils::IEClassBaseTestP;
+TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPrintNoThrow) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::Core ie;
+    InferenceEngine::Parameter p;
+
+    std::atomic<uint32_t> counter{0u};
+    std::vector<std::thread> threads(2);
+    // key: thread id, value: executable network
+    std::map<uint32_t, InferenceEngine::ExecutableNetwork> exec_net_map;
+    std::vector<InferenceEngine::CNNNetwork> networks;
+    networks.emplace_back(simpleCnnNetwork);
+    networks.emplace_back(simpleCnnNetwork);
+
+    InferenceEngine::ExecutableNetwork exec_net1 = ie.LoadNetwork(simpleCnnNetwork, deviceName);
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+    std::map<std::string, uint64_t> t1 = p;
+
+    ASSERT_FALSE(t1.empty());
+    for (auto &&kv : t1) {
+        ASSERT_NE(kv.second, 0);
+    }
+
+    for (auto & thread : threads) {
+        thread = std::thread([&](){
+            auto value = counter++;
+            exec_net_map[value] = ie.LoadNetwork(networks[value], deviceName);
+        });
+    }
+
+    for (auto & thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
+    ASSERT_NO_THROW(p = ie.GetMetric(deviceName, GPU_METRIC_KEY(MEMORY_STATISTICS)));
+    std::map<std::string, uint64_t> t2 = p;
+
+    ASSERT_FALSE(t2.empty());
+    for (auto &&kv : t2) {
+        ASSERT_NE(kv.second, 0);
+        auto iter = t1.find(kv.first);
+        if (iter != t1.end()) {
+            ASSERT_EQ(kv.second, t1[kv.first] * 3);
+        }
+    }
+
+    ASSERT_METRIC_SUPPORTED_IE(GPU_METRIC_KEY(MEMORY_STATISTICS));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        nightly_IEClassGetMetricTest, IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS,
         ::testing::Values("GPU")
 );
 
