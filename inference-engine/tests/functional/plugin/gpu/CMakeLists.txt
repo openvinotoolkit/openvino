@@ -12,7 +12,7 @@ addIeTargetTest(
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
-            clDNNPlugin
+            clDNNPlugin AutoBatchPlugin
         LINK_LIBRARIES
             funcSharedTests
             OpenCL
