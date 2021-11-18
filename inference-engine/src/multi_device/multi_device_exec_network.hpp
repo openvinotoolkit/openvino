@@ -164,7 +164,7 @@ private:
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
-    bool EligibleForBlobHotSwap() { return _networkActualNeeded && _networkFirstReady && _eligibleForBlobHotSwap; }
+    bool EligibleForBlobHotSwap() { return _alreadyActualNetwork && _networkFirstReady && _eligibleForBlobHotSwap; }
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
