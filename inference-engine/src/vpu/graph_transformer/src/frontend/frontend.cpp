@@ -37,6 +37,7 @@
 #include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
@@ -213,6 +214,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<vpu::MergeSubsequentDSROperations>();
 
     auto pass_config = manager.get_pass_config();
+    pass_config->enable<ov::pass::ConvertCompressedOnlyToLegacy>();
     pass_config->disable<ngraph::pass::ConvertGatherToGatherIEMatcher>();
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
