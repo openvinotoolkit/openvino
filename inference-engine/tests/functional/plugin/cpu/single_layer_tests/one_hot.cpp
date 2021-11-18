@@ -153,15 +153,13 @@ TEST_P(OneHotLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "OneHot");
+    CheckPluginRelatedResults(executableNetwork, "OneHot");
 }
 
 namespace {
 const std::vector<Precision> outPrc = {
         Precision::FP32,
-        // TODO: Should be uncommented after PR #8339 merge
-        // Precision::BF16,
+        Precision::BF16,
         Precision::I8,
         Precision::U8
 };
