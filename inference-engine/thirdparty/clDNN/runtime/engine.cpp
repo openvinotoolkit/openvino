@@ -149,17 +149,19 @@ uint64_t engine::get_used_device_memory(allocation_type type) const {
     return memory_usage;
 }
 
-void engine::get_memory_statistics(std::map<std::string, uint64_t>* statistics) const {
+std::map<std::string, uint64_t> engine::get_memory_statistics() const {
+    std::map<std::string, uint64_t> statistics;
     for (auto const& m : _memory_usage_map) {
         std::ostringstream oss;
         oss << m.first << "_current";
-        (*statistics)[oss.str()] = m.second.load();
+        statistics[oss.str()] = m.second.load();
     }
     for (auto const& m : _peak_memory_usage_map) {
         std::ostringstream oss;
         oss << m.first << "_peak";
-        (*statistics)[oss.str()] = m.second.load();
+        statistics[oss.str()] = m.second.load();
     }
+    return statistics;
 }
 
 void engine::add_memory_used(size_t bytes, allocation_type type) {

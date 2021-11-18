@@ -108,7 +108,7 @@ public:
 
     /// Returns statistics of GPU memory allocated by engine in current process for all allocation types.
     /// @note It contains information about both current and peak memory usage
-    void get_memory_statistics(std::map<std::string, uint64_t>* statistics) const;
+    std::map<std::string, uint64_t> get_memory_statistics() const;
 
     /// Adds @p bytes count to currently used memory size of the specified allocation @p type
     void add_memory_used(uint64_t bytes, allocation_type type);
