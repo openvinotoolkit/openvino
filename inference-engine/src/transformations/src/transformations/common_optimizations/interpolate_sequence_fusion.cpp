@@ -28,7 +28,7 @@ bool compatible_attrs(const opset8::Interpolate::InterpolateAttrs& fst_attrs, co
 
 bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vector<int64_t>& snd_axes_vector) {
     std::set<int64_t> fst_axes_set(fst_axes_vector.begin(), fst_axes_vector.end());
-    for (const auto a : snd_axes_vector) {
+    for (const auto& a : snd_axes_vector) {
         if (fst_axes_set.count(a) != 0) return false;
     }
     return true;
