@@ -25,6 +25,7 @@
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
+#include "shared_node_info.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -86,6 +87,10 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
 }
 
 }  // namespace
+
+OPENVINO_SUPPRESS_DEPRECATED_START
+const ov::DiscreteTypeInfo ov::Function::type_info = ov::Function::get_type_info_static();
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 ov::Function::Function(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
     : m_name(name),
@@ -187,6 +192,8 @@ ov::Function::Function(const OutputVector& results, const string& name)
 void ov::Function::prerequirements(bool detect_variables, bool detect_parameters) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::prerequirements");
 
+    m_shared_rt_info = std::make_shared<SharedRTInfo>();
+
     const auto& ordered_ops = get_ordered_ops();
     if (detect_parameters)
         m_parameters = auto_detect_parameters(ordered_ops);
@@ -250,10 +257,20 @@ void ov::Function::validate_nodes_and_infer_types() const {
 
 std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "Function::get_ordered_ops");
+    lock_guard<mutex> lock(m_topological_sort_mutex);
 
-    vector<shared_ptr<Node>> nodes;
-    for (auto& r : get_results()) {
-        nodes.push_back(r);
+    NodeVector nodes;
+    if (m_shared_rt_info->get_use_topological_cache()) {
+        for (const auto& node : m_cached_ordered_ops) {
+            if (auto locked_node = node.lock()) {
+                nodes.emplace_back(locked_node);
+            }
+        }
+        return nodes;
+    }
+
+    for (const auto& r : get_results()) {
+        nodes.emplace_back(r);
     }
     for (auto& r : get_sinks()) {
         nodes.emplace_back(r);
@@ -262,7 +279,18 @@ std::vector<shared_ptr<ov::Node>> ov::Function::get_ordered_ops() const {
         nodes.push_back(param);
     }
 
-    return m_topological_sorter(nodes);
+    auto order = m_topological_sorter(nodes);
+
+    // Update nodes cache and update all nodes to have shared rt info
+    // which belongs to the current Function.
+    m_cached_ordered_ops.clear();
+    for_each(order.cbegin(), order.cend(), [this](const shared_ptr<Node>& node) {
+        m_cached_ordered_ops.push_back(node);
+        node->insert_info(m_shared_rt_info);
+    });
+    m_shared_rt_info->set_use_topological_cache(true);
+
+    return order;
 }
 
 void ov::Function::map_unordered_ops(std::function<void(Node*)> f) const {
@@ -392,6 +420,8 @@ void ov::Function::replace_parameter(size_t parameter_index, const shared_ptr<ng
 
 void ov::Function::set_topological_sort(topological_sort_t sorter) {
     m_topological_sorter = sorter;
+    // reset topological nodes order cache as new sorter can have different behaviour
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Parameter>& parameter) const {
@@ -554,6 +584,9 @@ void ov::Function::add_sinks(const ngraph::SinkVector& sinks) {
             }
         }
     }
+    // reset topological nodes order cache as new sinks/results/parameters
+    // can be in a separate connectivity component.
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::remove_sink(const std::shared_ptr<ngraph::op::Sink>& sink) {
@@ -563,10 +596,14 @@ void ov::Function::remove_sink(const std::shared_ptr<ngraph::op::Sink>& sink) {
                                      return s == sink;
                                  }),
                   m_sinks.end());
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::add_results(const ResultVector& results) {
     m_results.insert(m_results.end(), results.begin(), results.end());
+    // reset topological nodes order cache as new sinks/results/parameters
+    // can be in a separate connectivity component.
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::remove_result(const std::shared_ptr<ngraph::op::Result>& result) {
@@ -576,6 +613,7 @@ void ov::Function::remove_result(const std::shared_ptr<ngraph::op::Result>& resu
                                        return r == result;
                                    }),
                     m_results.end());
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::add_parameters(const ngraph::ParameterVector& params) {
@@ -589,6 +627,9 @@ void ov::Function::add_parameters(const ngraph::ParameterVector& params) {
         }
     }
     m_parameters.insert(m_parameters.end(), params.begin(), params.end());
+    // reset topological nodes order cache as new sinks/results/parameters
+    // can be in a separate connectivity component.
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::remove_parameter(const std::shared_ptr<ngraph::op::Parameter>& param) {
@@ -598,6 +639,7 @@ void ov::Function::remove_parameter(const std::shared_ptr<ngraph::op::Parameter>
                                           return r == param;
                                       }),
                        m_parameters.end());
+    m_shared_rt_info->set_use_topological_cache(false);
 }
 
 void ov::Function::add_variables(const op::util::VariableVector& variables) {

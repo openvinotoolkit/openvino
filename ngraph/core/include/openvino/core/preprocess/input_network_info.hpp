@@ -21,7 +21,7 @@ namespace preprocess {
 /// \code{.cpp}
 /// <network has input parameter with shape {1, 3, 224, 224}>
 /// auto proc =
-/// PrePostProcessor()
+/// PrePostProcessor(function)
 ///     .input(InputInfo()
 ///            .tensor(<input tensor info>)
 ///            .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))

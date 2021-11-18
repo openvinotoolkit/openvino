@@ -11,6 +11,7 @@
 #include "nodes/mkldnn_concat_node.h"
 #include "nodes/mkldnn_reorder_node.h"
 #include "nodes/mkldnn_conv_node.h"
+#include "nodes/mkldnn_deconv_node.h"
 #include "nodes/mkldnn_bin_conv_node.h"
 #include "nodes/mkldnn_fake_quantize_node.h"
 #include "nodes/mkldnn_mvn_node.h"
@@ -277,7 +278,25 @@ void MKLDNNGraphOptimizer::FuseDeconvolutionAndSimpleOperation(MKLDNNGraph &grap
     auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](MKLDNNNodePtr node) {
-        return node->getType() == Deconvolution && node->getChildEdges().size() == 1;
+        if (node->getType() != Deconvolution || node->getChildEdges().size() != 1)
+            return false;
+        const auto deconv = std::dynamic_pointer_cast<MKLDNNDeconvolutionNode>(node);
+        if (deconv == nullptr)
+            IE_THROW() << "Cannot cast to deconvolution node " << node->getName();
+
+        if (deconv->getAlgorithm() != DeconvolutionCommon) {
+            return true;
+        }
+
+        const auto& strides = deconv->getStride();
+        const auto& kernel = deconv->getWeightDims();
+        // WA oneDNN doesn't support fusing post ops after deconvolution with strides over kernel size
+        bool isSupportedParams = strides[strides.size() - 1] <= kernel[kernel.size() - 1];
+        if (strides.size() > 1)
+            isSupportedParams &= strides[strides.size() - 2] <= kernel[kernel.size() - 2];
+        if (strides.size() > 2)
+            isSupportedParams &= strides[strides.size() - 3] <= kernel[kernel.size() - 3];
+        return isSupportedParams;
     };
 
     auto parent = graphNodes.begin();
