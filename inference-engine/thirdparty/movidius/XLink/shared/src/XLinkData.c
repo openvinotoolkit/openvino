@@ -332,6 +332,7 @@ XLinkError_t addEvent(xLinkEvent_t *event, unsigned int timeoutMs)
         {
             streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD,
                                                  event->header.streamId);
+            ASSERT_XLINK(stream);
             if (event->header.type == XLINK_READ_REQ)
             {
                 // XLINK_READ_REQ is a local event. It is safe to serve it.
