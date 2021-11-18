@@ -7,11 +7,23 @@ import pytest
 import datetime
 import time
 
+import openvino.opset8 as ops
+from openvino import Core, AsyncInferQueue, Tensor, ProfilingInfo, Function
+
 from ..conftest import model_path, read_image
-from openvino import Core, AsyncInferQueue, Tensor, ProfilingInfo
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
+
+
+def create_function_with_memory(input_shape, data_type):
+    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
+    rv = ops.read_value(input_data, "var_id_667")
+    add = ops.add(rv, input_data, name="MemoryAdd")
+    node = ops.assign(add, "var_id_667")
+    res = ops.result(add, "res")
+    func = Function(results=[res], sinks=[node], parameters=[input_data], name="name")
+    return func
 
 
 def test_get_profiling_info(device):
@@ -198,3 +210,58 @@ def test_infer_queue(device):
     infer_queue.wait_all()
     assert all(job["finished"] for job in jobs_done)
     assert all(job["latency"] > 0 for job in jobs_done)
+
+
+@pytest.mark.parametrize("data_type",
+                         [np.float32,
+                          np.int32,
+                          pytest.param(np.float16,
+                                       marks=pytest.mark.xfail(reason="FP16 isn't "
+                                                                      "supported in the CPU plugin"))])
+@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
+@pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                           "Memory layers fully supported only on CPU")
+def test_query_state_write_buffer(device, input_shape, data_type, mode):
+    core = Core()
+    if device == "CPU":
+        if core.get_metric(device, "FULL_DEVICE_NAME") == "arm_compute::NEON":
+            pytest.skip("Can't run on ARM plugin")
+
+    from openvino import Tensor
+    from openvino.utils.types import get_dtype
+
+    function = create_function_with_memory(input_shape, data_type)
+    exec_net = core.compile_model(model=function, device_name=device)
+    request = exec_net.create_infer_request()
+    mem_states = request.query_state()
+    mem_state = mem_states[0]
+
+    assert mem_state.name == "var_id_667"
+    # todo: Uncomment after fix 45611,
+    #  CPU plugin returns outputs and memory state in FP32 in case of FP16 original precision
+    # assert mem_state.state.tensor_desc.precision == data_type
+
+    for i in range(1, 10):
+        if mode == "set_init_memory_state":
+            # create initial value
+            const_init = 5
+            init_array = np.full(input_shape, const_init, dtype=get_dtype(mem_state.state.element_type))
+            tensor = Tensor(init_array)
+            mem_state.state = tensor
+
+            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
+            expected_res = np.full(input_shape, 1 + const_init, dtype=data_type)
+        elif mode == "reset_memory_state":
+            # reset initial state of ReadValue to zero
+            mem_state.reset()
+            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
+
+            # always ones
+            expected_res = np.full(input_shape, 1, dtype=data_type)
+        else:
+            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
+            expected_res = np.full(input_shape, i, dtype=data_type)
+        assert np.allclose(res[0], expected_res, atol=1e-6), \
+            "Expected values: {} \n Actual values: {} \n".format(expected_res, res)
