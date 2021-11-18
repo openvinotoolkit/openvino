@@ -2,7 +2,7 @@ Introduction to Inference Engine Device Query API {#openvino_docs_IE_DG_Inferenc
 ===============================
 
 This section provides a high-level description of the process of querying of different device properties and configuration values.
-Refer to the [Hello Query Device Sample](../../inference-engine/samples/hello_query_device/README.md) sources and [Multi-Device Plugin guide](supported_plugins/MULTI.md) for example of using the Inference Engine Query API in user applications.
+Refer to the [Hello Query Device Sample](../../samples/cpp/hello_query_device/README.md) sources and [Multi-Device Plugin guide](supported_plugins/MULTI.md) for example of using the Inference Engine Query API in user applications.
 
 ## Using the Inference Engine Query API in Your Code
 
