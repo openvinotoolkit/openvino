@@ -37,42 +37,28 @@ TEST_P(FrontEndTelemetryTest, testSetElementType) {
         std::tie(m_frontEnd, m_inputModel) = FrontEndTestUtils::load_from_file(m_fem, m_param.m_frontEndName,
                                                                                m_param.m_modelName);
         auto telemetry_extension = std::make_shared<TelemetryExtension>(
-                std::bind(&TestTelemetry::send_event, &m_test_telemetry, _1, _2, _3, _4),
-                std::bind(&TestTelemetry::send_error, &m_test_telemetry, _1, _2),
-                std::bind(&TestTelemetry::start_session, &m_test_telemetry, _1),
-                std::bind(&TestTelemetry::end_session, &m_test_telemetry, _1),
-                std::bind(&TestTelemetry::force_shutdown, &m_test_telemetry, _1),
-                std::bind(&TestTelemetry::send_stack_trace, &m_test_telemetry, _1, _2));
+                std::bind(&TelemetryMock::send_event, &m_test_telemetry, _1, _2, _3, _4),
+                std::bind(&TelemetryMock::send_error, &m_test_telemetry, _1, _2),
+                std::bind(&TelemetryMock::send_stack_trace, &m_test_telemetry, _1, _2));
 
         EXPECT_NO_THROW(telemetry_extension->send_event("test", "test", "test"));
         EXPECT_NO_THROW(telemetry_extension->send_error("test", "test"));
-        EXPECT_NO_THROW(telemetry_extension->start_session("test"));
-        EXPECT_NO_THROW(telemetry_extension->end_session("test"));
-        EXPECT_NO_THROW(telemetry_extension->force_shutdown());
         EXPECT_NO_THROW(telemetry_extension->send_stack_trace("test", "test"));
 
         EXPECT_EQ(m_test_telemetry.event_cnt, 1);
         EXPECT_EQ(m_test_telemetry.error_cnt, 1);
-        EXPECT_EQ(m_test_telemetry.start_session_cnt, 1);
-        EXPECT_EQ(m_test_telemetry.end_session_cnt, 1);
-        EXPECT_EQ(m_test_telemetry.shutdown_cnt, 1);
         EXPECT_EQ(m_test_telemetry.trace_cnt, 1);
 
         // reset counters
         m_test_telemetry.event_cnt = 0;
         m_test_telemetry.error_cnt = 0;
-        m_test_telemetry.start_session_cnt = 0;
-        m_test_telemetry.end_session_cnt = 0;
-        m_test_telemetry.shutdown_cnt = 0;
         m_test_telemetry.trace_cnt = 0;
 
         EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
         function = m_frontEnd->convert(m_inputModel);
-        //EXPECT_EQ(function->get_ops().size(), m_test_telemetry.event_cnt);
+        EXPECT_GT(m_test_telemetry.event_cnt, 0);
     }
-    EXPECT_EQ(m_test_telemetry.start_session_cnt, 1);
-    EXPECT_EQ(m_test_telemetry.end_session_cnt, 1);
-    EXPECT_EQ(m_test_telemetry.shutdown_cnt, 0);
+
     EXPECT_EQ(m_test_telemetry.trace_cnt, 0);
     EXPECT_EQ(m_test_telemetry.error_cnt, 0);
 }

@@ -69,13 +69,6 @@ private:
     std::unordered_map<std::string, std::string> m_attrs;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const FrameworkNodeAttrs& attrs) {
-    for (auto a : attrs) {
-        os << a.first << ":" << a.second << ", ";
-    }
-    return os;
-}
-
 class OPENVINO_API FrameworkNode : public Op {
 public:
     OPENVINO_OP("FrameworkNode", "util");

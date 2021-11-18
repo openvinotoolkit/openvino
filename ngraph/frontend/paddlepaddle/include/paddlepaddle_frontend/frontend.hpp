@@ -17,7 +17,6 @@ class OpPlacePDPD;
 class PDPD_API FrontEndPDPD : public FrontEnd {
 public:
     FrontEndPDPD() = default;
-    ~FrontEndPDPD();
 
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted nGraph function

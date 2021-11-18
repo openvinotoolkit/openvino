@@ -68,40 +68,17 @@ InputModel::Ptr FrontEndONNX::load_impl(const std::vector<std::shared_ptr<Varian
 std::shared_ptr<ngraph::Function> FrontEndONNX::convert(InputModel::Ptr model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
-
-    auto f = model_onnx->convert();
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(f->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert", "ov_ops_cnt : " + ops_cnt);
-    }
-/*    if (m_telemetry) {
-        // TODO: do we need it?
-        // at least one decoder transformation registered trigger alternative path with separate passes
-        auto function = decode(model);
-        convert(function);
-        return function;
-    }*/
-
-    return f;
+    return model_onnx->convert();
 }
 
 void FrontEndONNX::convert(std::shared_ptr<ngraph::Function> partially_converted) const {
     ngraph::onnx_import::detail::convert_decoded_function(partially_converted);
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(partially_converted->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert for partially", "ov_ops_cnt : " + ops_cnt);
-    }
 }
 
 std::shared_ptr<ngraph::Function> FrontEndONNX::decode(InputModel::Ptr model) const {
     auto model_onnx = std::dynamic_pointer_cast<InputModelONNX>(model);
     NGRAPH_CHECK(model_onnx != nullptr, "Invalid input model");
-    auto decoded = model_onnx->decode();
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(decoded->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "decode", "fw_ops_cnt : " + ops_cnt);
-    }
-    return decoded;
+    return model_onnx->decode();
 }
 
 std::string FrontEndONNX::get_name() const {
@@ -162,12 +139,5 @@ bool FrontEndONNX::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
 void FrontEndONNX::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
-        m_telemetry->start_session(m_telemetry_category);
-    }
-}
-
-FrontEndONNX::~FrontEndONNX() {
-    if(m_telemetry) {
-        m_telemetry->end_session(m_telemetry_category);
     }
 }

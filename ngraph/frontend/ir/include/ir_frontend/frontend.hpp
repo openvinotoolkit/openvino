@@ -15,7 +15,6 @@ namespace frontend {
 class IR_API FrontEndIR : public FrontEnd {
 public:
     FrontEndIR() = default;
-    ~FrontEndIR();
     /// \brief Completely convert the remaining, not converted part of a function.
     /// \param partiallyConverted partially converted nGraph function
     /// \return fully converted nGraph function

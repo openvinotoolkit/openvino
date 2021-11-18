@@ -45,8 +45,7 @@ void translate_framework_node(const std::shared_ptr<TFFrameworkNode>& node,
 }
 }  // namespace
 
-FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {
-}
+FrontEndTF::FrontEndTF() : m_op_translators(tf::op::get_supported_ops()) {}
 
 void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                  const std::string& model_name,
@@ -74,11 +73,6 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
         }
     } else {
         translate_map.insert(TRANSLATE_OP_MAP.begin(), TRANSLATE_OP_MAP.end());
-    }
-
-    if (m_telemetry) {
-        auto op_cnt = "{" + std::to_string(operation_places.size()) + "}";
-        m_telemetry->send_event(m_telemetry_category, "original_op_count", "{count}=" + op_cnt);
     }
 
     // fill ng_op_map with Constant outputs for frozen inputs
@@ -327,10 +321,6 @@ std::shared_ptr<ov::Function> FrontEndTF::convert(ov::frontend::InputModel::Ptr 
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     normalize(f);
     // TODO: check that nGraph function does not contain operations which are not in the opset
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(f->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert", "ov_ops_cnt : " + ops_cnt);
-    }
     return f;
 }
 
@@ -339,10 +329,6 @@ std::shared_ptr<ov::Function> FrontEndTF::convert_partially(ov::frontend::InputM
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, false, f);
     normalize(f);
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(f->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert_partially", "ops_cnt : " + ops_cnt);
-    }
     return f;
 }
 
@@ -350,10 +336,6 @@ std::shared_ptr<ov::Function> FrontEndTF::decode(ov::frontend::InputModel::Ptr m
     auto model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", false, true, f);
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(f->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "decode", "fw_ops_cnt : " + ops_cnt);
-    }
     return f;
 }
 
@@ -368,10 +350,6 @@ void FrontEndTF::convert(std::shared_ptr<ov::Function> partiallyConverted) const
     }
 
     normalize(partiallyConverted);
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(partiallyConverted->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert for partially", "ov_ops_cnt : " + ops_cnt);
-    }
 }
 
 void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
@@ -383,12 +361,5 @@ void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
 void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
-        m_telemetry->start_session(m_telemetry_category);
-    }
-}
-
-FrontEndTF::~FrontEndTF() {
-    if(m_telemetry) {
-        m_telemetry->end_session(m_telemetry_category);
     }
 }

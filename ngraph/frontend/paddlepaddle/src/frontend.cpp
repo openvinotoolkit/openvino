@@ -294,10 +294,6 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert(InputModel::Ptr model) c
         [&](const std::map<std::string, Output<Node>>& nodes_dict, const std::shared_ptr<OpPlacePDPD>& op_place) {
             return pdpd::make_ng_node(nodes_dict, op_place, CREATORS_MAP);
         });
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(f->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert", "ov_ops_cnt : " + ops_cnt);
-    }
     return f;
 }
 
@@ -310,10 +306,6 @@ void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted)
     }
     for (auto result : partiallyConverted->get_results()) {
         result->validate_and_infer_types();
-    }
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(partiallyConverted->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert for partially", "ov_ops_cnt : " + ops_cnt);
     }
 }
 
@@ -331,10 +323,6 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_partially(InputModel::Pt
             }
             return named_outputs;
         });
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(f->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "convert_partially", "ops_cnt : " + ops_cnt);
-    }
     return f;
 }
 
@@ -342,10 +330,6 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::decode(InputModel::Ptr model) co
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
-    if (m_telemetry) {
-        auto ops_cnt = std::to_string(f->get_ops().size());
-        m_telemetry->send_event(m_telemetry_category, "decode", "fw_ops_cnt : " + ops_cnt);
-    }
     return f;
 }
 
@@ -356,15 +340,9 @@ std::string FrontEndPDPD::get_name() const {
 void FrontEndPDPD::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
-        m_telemetry->start_session(m_telemetry_category);
     }
 }
 
-    FrontEndPDPD::~FrontEndPDPD() {
-        if(m_telemetry) {
-            m_telemetry->end_session(m_telemetry_category);
-        }
-    }
 }  // namespace frontend
 }  // namespace ov
 

@@ -157,23 +157,14 @@ void regclass_pyngraph_TelemetryExtension(py::module m) {
 
         ext.def(py::init([](TelemetryExtension::event_callback& send_event,
                             TelemetryExtension::error_callback& send_error,
-                            TelemetryExtension::session_callback& start_session,
-                            TelemetryExtension::session_callback& end_session,
-                            TelemetryExtension::shutdown_callback& force_shutdown,
                             TelemetryExtension::error_callback& send_stack_trace) {
             return std::make_shared<TelemetryExtension>(send_event,
                                                         send_error,
-                                                        start_session,
-                                                        end_session,
-                                                        force_shutdown,
                                                         send_stack_trace);
         }));
 
         ext.def("send_event", &TelemetryExtension::send_event);
         ext.def("send_error", &TelemetryExtension::send_error);
-        ext.def("start_session", &TelemetryExtension::start_session);
-        ext.def("end_session", &TelemetryExtension::end_session);
-        ext.def("force_shutdown", &TelemetryExtension::force_shutdown);
         ext.def("send_stack_trace", &TelemetryExtension::send_stack_trace);
     }
 }

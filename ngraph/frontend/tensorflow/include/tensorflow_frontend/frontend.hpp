@@ -34,7 +34,6 @@ private:
 
 public:
     FrontEndTF();
-    ~FrontEndTF();
 
     /// \brief Completely convert the model
     /// \return fully converted ov function

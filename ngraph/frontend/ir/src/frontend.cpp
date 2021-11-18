@@ -102,7 +102,6 @@ bool FrontEndIR::supported_impl(const std::vector<std::shared_ptr<Variant>>& var
 void FrontEndIR::add_extension(const ov::Extension::Ptr& ext) {
     if (auto telemetry = std::dynamic_pointer_cast<TelemetryExtension>(ext)) {
         m_telemetry = telemetry;
-        m_telemetry->start_session(m_telemetry_category);
     } else if (auto so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(ext)) {
         if (std::dynamic_pointer_cast<ov::BaseOpExtension>(so_ext->extension())) {
             shared_objects.emplace_back(so_ext->shared_object());
@@ -234,12 +233,6 @@ std::shared_ptr<ov::Function> FrontEndIR::convert(InputModel::Ptr model) const {
 
 std::string FrontEndIR::get_name() const {
     return "ir";
-}
-
-FrontEndIR::~FrontEndIR() {
-    if(m_telemetry) {
-        m_telemetry->end_session(m_telemetry_category);
-    }
 }
 }  // namespace frontend
 }  // namespace ov

@@ -8,10 +8,10 @@
 
 #include <frontend_manager/frontend_manager.hpp>
 
-class TestTelemetry {
+class TelemetryMock {
 public:
-    TestTelemetry() = default;
-    ~TestTelemetry() = default;
+    TelemetryMock() = default;
+    ~TelemetryMock() = default;
 
     void send_event(const std::string &category, const std::string &action, const std::string &label, int value = 1) {
         event_cnt++;
@@ -21,27 +21,12 @@ public:
         error_cnt++;
     }
 
-    void start_session(const std::string &category) {
-        start_session_cnt++;
-    }
-
-    void end_session(const std::string &category) {
-        end_session_cnt++;
-    }
-
-    void force_shutdown(float timeout = 1.0f) {
-        shutdown_cnt++;
-    }
-
     void send_stack_trace(const std::string &category, const std::string &error_message) {
         trace_cnt++;
     }
 
     uint64_t event_cnt = 0,
              error_cnt = 0,
-             start_session_cnt = 0,
-             end_session_cnt = 0,
-             shutdown_cnt = 0,
              trace_cnt = 0;
 };
 
@@ -53,7 +38,7 @@ struct TelemetryFEParam {
 
 class FrontEndTelemetryTest : public ::testing::TestWithParam<TelemetryFEParam> {
 public:
-    TestTelemetry m_test_telemetry;
+    TelemetryMock m_test_telemetry;
     TelemetryFEParam m_param;
     ov::frontend::FrontEndManager m_fem;
 
