@@ -46,6 +46,7 @@
 #include <vpu/ngraph/utilities.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
+#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
@@ -157,6 +158,55 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICo
         {"Round",                                              LAYER_PARSER(parseRound)},
         {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
         {"Abs",                                                LAYER_PARSER(parseAbs)}
+    }}, dynamicNodes{{
+        "VariadicSplit",
+        "Divide",
+        "Equal",
+        "Greater",
+        "Maximum",
+        "Minimum",
+        "Less",
+        "Select",
+        "NonMaxSuppression",
+        "NonZero",
+        "TopK",
+        "Transpose",
+        "Concat",
+        "Convert",
+        "Clamp",
+        "Ceiling",
+        "Round",
+        "Log",
+        "Relu",
+        "ScatterUpdate",
+        "Sigmoid",
+        "Softmax",
+        "Exp",
+        "Sqrt",
+        "LogicalNot",
+        "Abs",
+        "ScatterElementsUpdate",
+        "StridedSlice",
+        "Squeeze",
+        "Gather",
+        "Unsqueeze",
+        "ROIAlign",
+        "Reshape",
+        "Broadcast",
+        "MatMul",
+        "Split",
+        "GatherND",
+        "GatherElements",
+        "ExpGatherElements",
+        // reduction
+        "ReduceLogicalAnd",
+        "ReduceLogicalOr",
+        "ReduceMax",
+        "ReduceMean",
+        "ReduceMin",
+        "ReduceProd",
+        "ReduceSum",
+        "Loop"
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -383,7 +433,14 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     const bool isCustomLayer = customLayer != _customLayers.end() && getSuitableCustomLayer(customLayer->second, layer);
 
     const auto& type = isCustomLayer ? "Custom" : layer->type;
-    if (parsers.count(type) == 0) {
+    if (layer->getNode() && layer->getNode()->is_dynamic()) {
+        if (dynamicNodes.count(type) == 0) {
+            if (onUnsupported) {
+                onUnsupported(model, layer, inputs, outputs, formatString("unsupported layer type \"%v\"", type));
+            }
+            return;
+        }
+    } else if (parsers.count(type) == 0) {
         if (onUnsupported) {
             onUnsupported(model, layer, inputs, outputs, formatString("unsupported layer type \"%v\"", type));
         }
@@ -391,7 +448,9 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     }
 
     try {
-        parsers.at(type)(model, layer, inputs, outputs);
+        if (parsers.count(type) != 0) {
+            parsers.at(type)(model, layer, inputs, outputs);
+        }
         if (onSupported) {
             onSupported(layer);
         }

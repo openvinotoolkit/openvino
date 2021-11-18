@@ -227,6 +227,7 @@ private:
 
     using LayerParser = std::function<void(const Model&, const ie::CNNLayerPtr&, const DataVector&, const DataVector&)>;
     const ie::details::caseless_map<std::string, LayerParser> parsers;
+    const std::set<std::string> dynamicNodes;
 
     std::unordered_map<ie::DataPtr, Data> _ieToVpuMap;
     ie::details::caseless_map<std::string, Data> _kernelNodes;
