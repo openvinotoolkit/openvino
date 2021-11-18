@@ -751,6 +751,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
+    NetPass::ConvertPrecision(network, Precision::FP64, Precision::FP32);
 
     //  Check the input network
     std::string error;
