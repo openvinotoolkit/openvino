@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+#include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
 
 namespace ngraph {
@@ -18,9 +20,9 @@ public:
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 private:
-    std::shared_ptr<op::v0::FakeQuantize> handle(
+    std::shared_ptr<opset1::FakeQuantize> handle(
         TransformationContext& context,
-        const std::shared_ptr<op::v0::FakeQuantize>& fakeQuantize) const;
+        const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 };
 
 } // namespace low_precision

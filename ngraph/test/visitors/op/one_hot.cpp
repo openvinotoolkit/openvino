@@ -23,7 +23,7 @@ TEST(attributes, one_hot_op) {
 
     auto one_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
     NodeBuilder builder(one_hot);
-    auto g_one_hot = as_type_ptr<op::v1::OneHot>(builder.create());
+    auto g_one_hot = ov::as_type_ptr<op::v1::OneHot>(builder.create());
 
     EXPECT_EQ(g_one_hot->get_axis(), one_hot->get_axis());
 }

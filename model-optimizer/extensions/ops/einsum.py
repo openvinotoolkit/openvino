@@ -5,7 +5,7 @@ import re
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting
@@ -240,7 +240,7 @@ class Einsum(Op):
                     dim_ind += num_broadcasted_dims
                 else:
                     dim_size = input_shape[dim_ind]
-                    sub_shape = int64_array([dim_size])
+                    sub_shape = shape_array([dim_size])
                     assert label not in label_to_shape.keys() or np.array_equal(label_to_shape[label], sub_shape), \
                         "Sizes of dimensions with the same label of Einsum node {} " \
                         "must be compatible".format(node_name)
@@ -249,12 +249,12 @@ class Einsum(Op):
                 label_ind += 1
 
         # generate output shape based on the output subscript
-        output_shape = int64_array([])
+        output_shape = shape_array([])
         labels = Einsum.extract_subscript_labels(node_name, output_subscript)
         for label in labels:
             assert label in label_to_shape.keys(), "The label in the output subscript must appear" \
                                                    " in input subscripts in equation {} " \
                                                    "of Einsum node {}".format(equation, node_name)
-            output_shape = np.concatenate((output_shape, label_to_shape[label]))
+            output_shape = np.ma.concatenate((output_shape, label_to_shape[label]))
 
         node.out_port(0).data.set_shape(output_shape)

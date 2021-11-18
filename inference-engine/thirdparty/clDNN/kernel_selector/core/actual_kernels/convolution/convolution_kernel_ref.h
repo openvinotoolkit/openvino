@@ -11,8 +11,7 @@ namespace kernel_selector {
 
 class ConvolutionKernel_Ref : public ConvolutionKernelBase {
 public:
-    // The kernel is shared with fused_conv_eltwise_gpu_ref primitive.
-    ConvolutionKernel_Ref() : ConvolutionKernelBase("fused_conv_eltwise_gpu_ref") {}
+    ConvolutionKernel_Ref() : ConvolutionKernelBase("convolution_gpu_ref") {}
     virtual ~ConvolutionKernel_Ref() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
@@ -27,10 +26,15 @@ protected:
             return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        // FusedOpType::REORDER should be registered explicitly here
+        // only when fused_primitive_desc for reorder is added by optimization passes (e.g., remove_redundant_reorder) for corresponding primitive.
+        // The typical usage for fused_primitive_desc for convolution is to get original output layout from jitter,
+        // so that it can decide whether to fuse eltwise along with reorder.
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,
-                 FusedOpType::ACTIVATION };
+                 FusedOpType::ACTIVATION,
+                 FusedOpType::REORDER };
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;

@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReduceOpsLayerTest::getTestCaseName(testing::TestParamInfo<reduceMeanParams> obj) {
+std::string ReduceOpsLayerTest::getTestCaseName(const testing::TestParamInfo<reduceMeanParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
@@ -60,10 +60,10 @@ void ReduceOpsLayerTest::SetUp() {
             FAIL() << "Reduce op doesn't support operation type: " << opType;
     }
     auto reductionAxesNode = std::dynamic_pointer_cast<ngraph::Node>(
-                             std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
+                             std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape(shapeAxes), axes));
 
     const auto reduce = ngraph::builder::makeReduce(paramOuts[0], reductionAxesNode, keepDims, reductionType);
-    const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(reduce)};
+    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(reduce)};
     function = std::make_shared<ngraph::Function>(results, params, "Reduce");
 }
 InferenceEngine::Blob::Ptr ReduceOpsLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

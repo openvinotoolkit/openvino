@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import shape_insert
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -52,7 +53,7 @@ class OneHot(Op):
             output_shape = [depth]
         else:  # dim >= 1
             # vector/matrix indices case
-            output_shape = np.insert(indices_shape, axis, depth)
+            output_shape = shape_insert(indices_shape, axis, depth)
 
         node.out_port(0).data.set_shape(output_shape)
 

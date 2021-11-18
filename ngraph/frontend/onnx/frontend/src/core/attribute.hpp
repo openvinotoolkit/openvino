@@ -28,12 +28,7 @@ namespace error {
 namespace attribute {
 namespace detail {
 struct Attribute : ngraph_error {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
     Attribute(const std::string& msg, AttributeProto_AttributeType type) : ngraph_error{msg} {}
-#else
-    Attribute(const std::string& msg, AttributeProto_AttributeType type)
-        : ngraph_error{msg + ": " + ONNX_NAMESPACE::AttributeProto_AttributeType_Name(type)} {}
-#endif
 };
 
 }  // namespace detail
@@ -301,7 +296,7 @@ public:
     const std::string& get_string() const {
         return m_attribute_proto->s();
     }
-    Subgraph get_subgraph(const Graph& parent_graph) const;
+    Subgraph get_subgraph(const Graph* parent_graph) const;
 
     std::vector<Tensor> get_tensor_array() const {
         return {std::begin(m_attribute_proto->tensors()), std::end(m_attribute_proto->tensors())};

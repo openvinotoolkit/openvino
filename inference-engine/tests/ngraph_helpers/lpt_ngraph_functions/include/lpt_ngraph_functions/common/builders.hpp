@@ -5,10 +5,11 @@
 #pragma once
 
 #include <memory>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/ops.hpp>
 #include <ngraph/op/constant.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 
-#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
@@ -37,7 +38,7 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
         }
     }
 
-    const auto operationConst = std::make_shared<ngraph::op::v0::Constant>(
+    const auto operationConst = std::make_shared<ngraph::opset1::Constant>(
         description.outPrecision,
         shape,
         description.values);
@@ -53,10 +54,10 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(operation, description.outPrecision);
     }
 
-    if (is_type<ngraph::op::v1::Subtract>(operation) || is_type<ngraph::op::v1::Add>(operation)) {
+    if (ov::is_type<ngraph::opset1::Subtract>(operation) || ov::is_type<ngraph::opset1::Add>(operation)) {
         replace_node(
             operationConst,
-            ngraph::pass::low_precision::fold<ngraph::op::v0::Convert>(operationConst, data->get_output_element_type(0)));
+            ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(operationConst, data->get_output_element_type(0)));
     }
 
     return operation;
@@ -72,28 +73,26 @@ std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& resha
 
 std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& reshape);
 
-std::shared_ptr<ngraph::op::v0::FakeQuantize> makeFakeQuantize(
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
-std::shared_ptr<ngraph::op::v0::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const Output<ngraph::Node>& output,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData);
 
-std::shared_ptr<ngraph::op::v0::FakeQuantize> makeFakeQuantize(
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& input,
     const ngraph::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const bool subgraphOnConstantPath = false);
 
-std::shared_ptr<ngraph::op::v0::FakeQuantize> makeFakeQuantizeTypeRelaxed(
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData);
-
-std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op);
 
 template <typename ... Args>
 void addAttribute(std::vector<std::shared_ptr<ngraph::Node>> nodes, Args&& ... args) {

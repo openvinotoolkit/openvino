@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include <assert.h>
 #include <functional>
 #include <memory>
@@ -11,34 +13,13 @@
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
 #include <transformations_visibility.hpp>
+#include "openvino/pass/constant_folding.hpp"
 
+namespace ov {
 
-namespace ngraph {
+using pass::disable_constant_folding;
+using pass::enable_constant_folding;
+using pass::constant_folding_is_disabled;
+using pass::DisableConstantFolding;
 
-/**
- * @ingroup ie_runtime_attr_api
- * @brief DisableConstantFolding disable ConstantFolding for given operation
- */
-class TRANSFORMATIONS_API DisableConstantFolding {
-public:
-    DisableConstantFolding() = default;
-};
-
-extern template class TRANSFORMATIONS_API VariantImpl<DisableConstantFolding>;
-
-template<>
-class TRANSFORMATIONS_API VariantWrapper<DisableConstantFolding> : public VariantImpl<DisableConstantFolding> {
-public:
-    static constexpr VariantTypeInfo type_info{"DISABLED_CONSTANT_FOLDING", 0};
-
-    const VariantTypeInfo &get_type_info() const override {
-        return type_info;
-    }
-
-    VariantWrapper(const value_type &value) : VariantImpl<value_type>(value) {}
-
-    bool is_copyable() const override { return false; }
-};
-
-TRANSFORMATIONS_API void disable_constant_folding(const std::shared_ptr<Node>& node);
-}  // namespace ngraph
+}  // namespace ov

@@ -60,7 +60,7 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
     return jit;
 }
 
-int GetPartitionStep(int localWorkItemNum) {
+static inline int GetPartitionStep(int localWorkItemNum) {
     int step_size = 0;
     for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
         step_size++;
@@ -68,7 +68,7 @@ int GetPartitionStep(int localWorkItemNum) {
     return step_size;
 }
 
-size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
     const size_t optimal_values[] = {16, 8, 7, 6, 5, 4, 2, 1};
     const size_t splitNum = gws[2];
     const size_t globalClassNum = gws[1];
@@ -133,6 +133,21 @@ DetectionOutputKernelRef::DispatchData SetDefault(const detection_output_params&
     return dispatchData;
 }
 
+bool DetectionOutputKernelRef::Validate(const Params& p, const optional_params& o) const {
+    const detection_output_params& params = static_cast<const detection_output_params&>(p);
+
+    const auto input = params.inputs[0];
+    const auto batches = input.Batch().v;
+
+    const bool bSupportedBatch = batches <= params.engineInfo.maxWorkGroupSize;
+
+    if (!bSupportedBatch) {
+        return false;
+    }
+
+    return true;
+}
+
 void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
     if (params.detectOutParams.decrease_label_id) {
         if (idx == 0) {
@@ -182,6 +197,9 @@ void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params&
 KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::DETECTION_OUTPUT && options.GetType() == KernelType::DETECTION_OUTPUT);
 
+    if (!Validate(params, options))
+        return {};
+
     constexpr size_t kKernelsNum = 4;
     KernelData kd = KernelData::Default<detection_output_params>(params, kKernelsNum);
     const detection_output_params& detectOutParams = static_cast<const detection_output_params&>(params);
@@ -196,7 +214,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     constexpr size_t buffer_bytes = 10;  // The size of struct Scores in detection_output_gpu_ref.cl
     size_t buffer_stride = num_prior_boxes * buffer_bytes;
     size_t buffer_size = num_of_images * num_classes * buffer_stride;
-    size_t num_scores_size = num_of_images * (num_classes + 1) * sizeof(int);
+    size_t num_scores_size = num_of_images * (num_classes + 2) * sizeof(int);
 
     kd.internalBufferSizes.push_back(buffer_size);
     if (detectOutParams.detectOutParams.decrease_label_id) {
@@ -258,7 +276,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
 
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
         auto& kernel = kd.kernels[i];
-        KernelBase::CheckDispatchData(kernelName, dispatchData);
+        KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo.maxWorkGroupSize);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local  = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);

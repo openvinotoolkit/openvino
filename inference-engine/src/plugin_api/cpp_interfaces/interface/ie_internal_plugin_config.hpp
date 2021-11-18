@@ -27,6 +27,13 @@ namespace PluginConfigInternalParams {
 #define CONFIG_KEY_INTERNAL(name) ::InferenceEngine::PluginConfigInternalParams::_CONFIG_KEY(name)
 
 /**
+ * @def CONFIG_VALUE_INTERNAL(name)
+ * @ingroup ie_dev_api_plugin_api
+ * @brief Shortcut for defining internal configuration values
+ */
+#define CONFIG_VALUE_INTERNAL(name) ::InferenceEngine::PluginConfigInternalParams::name
+
+/**
  * @brief Defines a low precision mode key
  * @ingroup ie_dev_api_plugin_api
  */
@@ -44,6 +51,16 @@ DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
  * @ingroup ie_dev_api_plugin_api
  */
 DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
+
+/**
+ * @brief The name for setting work mode internal in MULTI device plugin option.
+ */
+DECLARE_CONFIG_KEY(MULTI_WORK_MODE_AS_AUTO);
+
+/**
+ * @brief Internal device id for particular device (like GPU.0, GPU.1 etc)
+ */
+DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
 
 }  // namespace PluginConfigInternalParams
 

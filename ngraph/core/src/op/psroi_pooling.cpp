@@ -10,16 +10,16 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::PSROIPooling, "PSROIPooling", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::v0::PSROIPooling);
 
-op::PSROIPooling::PSROIPooling(const Output<Node>& input,
-                               const Output<Node>& coords,
-                               const size_t output_dim,
-                               const size_t group_size,
-                               const float spatial_scale,
-                               int spatial_bins_x,
-                               int spatial_bins_y,
-                               const string& mode)
+ov::op::v0::PSROIPooling::PSROIPooling(const Output<Node>& input,
+                                       const Output<Node>& coords,
+                                       const size_t output_dim,
+                                       const size_t group_size,
+                                       const float spatial_scale,
+                                       int spatial_bins_x,
+                                       int spatial_bins_y,
+                                       const string& mode)
     : Op({input, coords}),
       m_output_dim(output_dim),
       m_group_size(group_size),
@@ -41,7 +41,7 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::PSROIPooling::validate_and_infer_types() {
+void ov::op::v0::PSROIPooling::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_PSROIPooling_validate_and_infer_types);
     auto feat_maps_et = get_input_element_type(0);
     auto coords_et = get_input_element_type(1);
@@ -60,10 +60,10 @@ void op::PSROIPooling::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, m_spatial_bins_y > 0, "spatial_bins_y has to be greater than 0");
     }
 
-    const PartialShape& feat_map_pshape = get_input_partial_shape(0);
-    const PartialShape& coords_pshape = get_input_partial_shape(1);
+    const ov::PartialShape& feat_map_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& coords_pshape = get_input_partial_shape(1);
     if (feat_map_pshape.rank().is_dynamic() || coords_pshape.rank().is_dynamic()) {
-        set_output_type(0, feat_maps_et, PartialShape::dynamic());
+        set_output_type(0, feat_maps_et, ov::PartialShape::dynamic());
     } else {
         NODE_VALIDATION_CHECK(this,
                               feat_map_pshape.rank().get_length() == 4,
@@ -104,7 +104,7 @@ void op::PSROIPooling::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<Node> ov::op::v0::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v0_PSROIPooling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PSROIPooling>(new_args.at(0),

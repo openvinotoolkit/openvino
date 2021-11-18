@@ -20,7 +20,7 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName(
-    testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams> obj) {
+    const testing::TestParamInfo<FakeQuantizeAndTwoOutputBranchesWithConvolutionParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

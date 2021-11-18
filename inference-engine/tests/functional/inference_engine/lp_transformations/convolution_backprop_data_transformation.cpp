@@ -39,7 +39,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         builder::subgraph::DequantizationOperations dequantizationOnWeights;
-        std::shared_ptr<ngraph::op::v0::Constant> weights;
+        std::shared_ptr<ngraph::opset1::Constant> weights;
         callback_function_type callback;
 
         Actual() = default;
@@ -47,7 +47,7 @@ public:
             const ngraph::element::Type& precisionBeforeDequantization,
             const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
             const builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-            const std::shared_ptr<ngraph::op::v0::Constant>& weights,
+            const std::shared_ptr<ngraph::opset1::Constant>& weights,
             const callback_function_type& callback = empty_callback) :
                 precisionBeforeDequantization(precisionBeforeDequantization),
                 dequantizationOnActivations(dequantizationOnActivations),
@@ -58,7 +58,7 @@ public:
             const  ngraph::element::Type& precisionBeforeDequantization,
             const  ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
             const  builder::subgraph::DequantizationOperations& dequantizationOnWeights,
-            const std::shared_ptr<ngraph::op::v0::Constant>& weights,
+            const std::shared_ptr<ngraph::opset1::Constant>& weights,
             const callback_function_type& callback = empty_callback) :
             precisionBeforeDequantization(precisionBeforeDequantization),
             dequantizationOnActivations(dequantizationOnActivations),
@@ -73,7 +73,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
-        std::shared_ptr<ngraph::op::v0::Constant> weights;
+        std::shared_ptr<ngraph::opset1::Constant> weights;
         bool transformed;
     };
 
@@ -107,9 +107,9 @@ public:
         bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
         const size_t inputChannels = channelsIsDynamic ? 8ul : static_cast<size_t>(inputShape[1].get_length());
 
-        std::shared_ptr<Node> actualWeights = pass::low_precision::fold<op::v3::Broadcast>(
+        std::shared_ptr<Node> actualWeights = pass::low_precision::fold<opset1::Broadcast>(
                 testValues.actual.weights,
-                op::v0::Constant::create(
+                opset1::Constant::create(
                         element::i64,
                         Shape{ outputShape.size() },
                         Shape{ inputChannels, outputShape[1], 1, 1 }));
@@ -118,13 +118,13 @@ public:
                     outputShape,
                     netPrecision,
                     testValues.actual.fakeQuantizeOnWeights,
-                    as_type_ptr<op::v0::Constant>(actualWeights));
+                    ov::as_type_ptr<opset1::Constant>(actualWeights));
         } else {
             actualWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                     outputShape,
                     netPrecision,
                     testValues.actual.dequantizationOnWeights,
-                    as_type_ptr<op::v0::Constant>(actualWeights));
+                    ov::as_type_ptr<opset1::Constant>(actualWeights));
         }
 
         actualFunction = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getOriginal(
@@ -136,13 +136,13 @@ public:
                 actualWeights);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::ConvolutionBackpropDataTransformation, op::v1::ConvolutionBackpropData>(testValues.params);
+        transform.add<low_precision::ConvolutionBackpropDataTransformation, opset1::ConvolutionBackpropData>(testValues.params);
         transform.get_pass_config()->set_callback<low_precision::ConvolutionBackpropDataTransformation>(testValues.actual.callback);
         transform.transform(actualFunction);
 
-        std::shared_ptr<Node> refWeights = low_precision::fold<op::v3::Broadcast>(
+        std::shared_ptr<Node> refWeights = low_precision::fold<opset1::Broadcast>(
                 testValues.expected.weights,
-                op::v0::Constant::create(
+                opset1::Constant::create(
                         element::i64,
                         Shape{ outputShape.size() },
                         Shape{ inputChannels, outputShape[1], 1, 1 }));
@@ -152,13 +152,13 @@ public:
                 outputShape,
                 netPrecision,
                 testValues.actual.fakeQuantizeOnWeights,
-                as_type_ptr<op::v0::Constant>(refWeights));
+                ov::as_type_ptr<opset1::Constant>(refWeights));
         } else {
             refWeights = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getWeights(
                 outputShape,
                 netPrecision,
                 testValues.expected.dequantizationOnWeights,
-                as_type_ptr<op::v0::Constant>(refWeights));
+                ov::as_type_ptr<opset1::Constant>(refWeights));
         }
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionBackpropDataFunction::getReference(
@@ -194,6 +194,8 @@ TEST_P(ConvolutionBackpropDataTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<element::Type> netPrecisions = {
@@ -223,7 +225,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -243,7 +245,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -263,7 +265,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -282,8 +284,8 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
         {
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, {}, false }, {}},
-            {{}, { { 2.f }, ngraph::element::f32, {1, 2, 1, 1}, true, 1ul, element::i8, false, { "DISABLED_CONSTANT_FOLDING" }  }, {}},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1 }}},
+            {{}, { { 2.f }, ngraph::element::f32, {1, 2, 1, 1}, true, 1ul, element::i8, false, { "disabled_constant_folding_0" }  }, {}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
             true
         }
@@ -303,7 +305,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -323,7 +325,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -343,7 +345,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {1}}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
             true
         }
@@ -363,7 +365,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -403,7 +405,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 2, 1, 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             true
         }
@@ -423,7 +425,7 @@ const std::vector<ConvolutionBackpropDataTransformationTestValues> testValues = 
             ngraph::element::u8,
             {},
             {},
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 2, 1, 1 }}},
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
             true
         }

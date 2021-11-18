@@ -2,7 +2,7 @@
 
 **Versioned name**: *StridedSlice-1*
 
-**Category**: Data movement operation
+**Category**: *Data movement*
 
 **Short description**: *StridedSlice* extracts a strided slice of a tensor.
 

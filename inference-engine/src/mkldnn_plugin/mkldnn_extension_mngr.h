@@ -19,6 +19,7 @@ public:
     InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ngraph::Node>& op);
     std::shared_ptr<InferenceEngine::ILayerImplFactory> CreateExtensionFactory(const std::shared_ptr<ngraph::Node>& op);
     void AddExtension(const InferenceEngine::IExtensionPtr& extension);
+    const std::vector<InferenceEngine::IExtensionPtr> & Extensions() const;
 
 private:
     std::vector<InferenceEngine::IExtensionPtr> _extensions;

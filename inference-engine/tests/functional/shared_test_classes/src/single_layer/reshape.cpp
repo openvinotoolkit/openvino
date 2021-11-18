@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/reshape.hpp"
 
 namespace LayerTestsDefinitions {
-std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapeParams> obj) {
+std::string ReshapeLayerTest::getTestCaseName(const testing::TestParamInfo<reshapeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -39,11 +39,11 @@ void ReshapeLayerTest::SetUp() {
     auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes});
     auto paramIn = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
-    auto constNode = std::make_shared<ngraph::op::v0::Constant>(
+    auto constNode = std::make_shared<ngraph::opset1::Constant>(
             ngraph::element::Type_t::i64, ngraph::Shape{outFormShapes.size()}, outFormShapes);
-    auto reshape = std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(
-            std::make_shared<ngraph::op::v1::Reshape>(paramIn[0], constNode, specialZero));
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(reshape)};
+    auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
+            std::make_shared<ngraph::opset1::Reshape>(paramIn[0], constNode, specialZero));
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
 }
 

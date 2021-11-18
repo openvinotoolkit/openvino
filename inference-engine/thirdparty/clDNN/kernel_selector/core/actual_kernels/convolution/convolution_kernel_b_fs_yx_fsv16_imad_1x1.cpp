@@ -20,6 +20,7 @@ namespace kernel_selector {
 
 Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Convolution_kernel_b_fs_yx_fsv16_imad_1x1()
     : ConvolutionKernelBase("convolution_gpu_b_fs_yx_fsv16_imad_1x1") {
+    // TODO: can be potentially improved for GPUs with support of LWS > 256
     constexpr size_t max_block_elements = 32;
     for (size_t bs = 1; bs <= 2 * simd; ++bs) {
         for (size_t bf = 1; bf <= 4; ++bf) {

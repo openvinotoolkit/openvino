@@ -104,7 +104,7 @@ auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
     auto inputs = node->inputs();
     for (auto input : inputs) {
         auto parent = input.get_source_output().get_node_shared_ptr();
-        if (!!as_type_ptr<snippets::op::Subgraph>(parent)) {
+        if (!!ov::as_type_ptr<snippets::op::Subgraph>(parent)) {
             return true;
         }
     }
@@ -114,66 +114,66 @@ auto has_subgraph_as_input(std::shared_ptr<Node> node) -> bool {
 auto is_lo(std::shared_ptr<Node> n) -> bool {
     auto is_lob = [](std::shared_ptr<Node> n) -> bool {
         using ngraph::as_type_ptr;
-        return !!as_type_ptr<opset1::Add>(n)
-            || !!as_type_ptr<opset1::Divide>(n)
-            || !!as_type_ptr<opset1::Equal>(n)
-            || !!as_type_ptr<opset1::FloorMod>(n)
-            || !!as_type_ptr<opset1::Greater>(n)
-            || !!as_type_ptr<opset1::GreaterEqual>(n)
-            || !!as_type_ptr<opset1::Less>(n)
-            || !!as_type_ptr<opset1::LessEqual>(n)
-            || !!as_type_ptr<opset1::LogicalAnd>(n)
-            || !!as_type_ptr<opset1::LogicalOr>(n)
-            || !!as_type_ptr<opset1::LogicalXor>(n)
-            || !!as_type_ptr<opset1::Maximum>(n)
-            || !!as_type_ptr<opset1::Minimum>(n)
-            || !!as_type_ptr<opset1::Mod>(n)
-            || !!as_type_ptr<opset1::Multiply>(n)
-            || !!as_type_ptr<opset1::NotEqual>(n)
-            || !!as_type_ptr<opset1::PRelu>(n)
-            || !!as_type_ptr<opset1::Power>(n)
-            || !!as_type_ptr<opset1::SquaredDifference>(n)
-            || !!as_type_ptr<opset1::Subtract>(n)
-            || !!as_type_ptr<opset1::Xor>(n);
+        return !!ov::as_type_ptr<opset1::Add>(n)
+            || !!ov::as_type_ptr<opset1::Divide>(n)
+            || !!ov::as_type_ptr<opset1::Equal>(n)
+            || !!ov::as_type_ptr<opset1::FloorMod>(n)
+            || !!ov::as_type_ptr<opset1::Greater>(n)
+            || !!ov::as_type_ptr<opset1::GreaterEqual>(n)
+            || !!ov::as_type_ptr<opset1::Less>(n)
+            || !!ov::as_type_ptr<opset1::LessEqual>(n)
+            || !!ov::as_type_ptr<opset1::LogicalAnd>(n)
+            || !!ov::as_type_ptr<opset1::LogicalOr>(n)
+            || !!ov::as_type_ptr<opset1::LogicalXor>(n)
+            || !!ov::as_type_ptr<opset1::Maximum>(n)
+            || !!ov::as_type_ptr<opset1::Minimum>(n)
+            || !!ov::as_type_ptr<opset1::Mod>(n)
+            || !!ov::as_type_ptr<opset1::Multiply>(n)
+            || !!ov::as_type_ptr<opset1::NotEqual>(n)
+            || !!ov::as_type_ptr<opset1::PRelu>(n)
+            || !!ov::as_type_ptr<opset1::Power>(n)
+            || !!ov::as_type_ptr<opset1::SquaredDifference>(n)
+            || !!ov::as_type_ptr<opset1::Subtract>(n)
+            || !!ov::as_type_ptr<opset1::Xor>(n);
     };
 
     auto is_lou = [](std::shared_ptr<Node> n) -> bool {
         using ngraph::as_type_ptr;
-        return !!as_type_ptr<opset1::Abs>(n)
-            // || !!as_type_ptr<opset1::Acos>(n)
-            // || !!as_type_ptr<opset1::Asin>(n)
-            // || !!as_type_ptr<opset1::Atan>(n)
-            // || !!as_type_ptr<opset1::Ceiling>(n) ?
-            || !!as_type_ptr<opset1::Clamp>(n)
-            // || !!as_type_ptr<opset1::Cos>(n)
-            // || !!as_type_ptr<opset1::Cosh>(n)
-            || !!as_type_ptr<opset1::Elu>(n)
-            || !!as_type_ptr<opset1::Erf>(n)
-            || !!as_type_ptr<opset1::Exp>(n)
-            // || !!as_type_ptr<opset1::Floor>(n) ?
-            // || !!as_type_ptr<opset1::Log>(n) ?
-            || !!as_type_ptr<opset1::LogicalNot>(n)
-            || !!as_type_ptr<opset1::Negative>(n)
-            || !!as_type_ptr<opset1::Relu>(n)
-            // || !!as_type_ptr<opset1::Sign>(n) ?
-            || !!as_type_ptr<opset1::Sigmoid>(n)
-            // || !!as_type_ptr<opset1::Sin>(n)
-            // || !!as_type_ptr<opset1::Sinh>(n)
-            || !!as_type_ptr<opset1::Sqrt>(n)
-            // || !!as_type_ptr<opset1::Tan>(n)
-            || !!as_type_ptr<opset1::Tanh>(n);
+        return !!ov::as_type_ptr<opset1::Abs>(n)
+            // || !!ov::as_type_ptr<opset1::Acos>(n)
+            // || !!ov::as_type_ptr<opset1::Asin>(n)
+            // || !!ov::as_type_ptr<opset1::Atan>(n)
+            // || !!ov::as_type_ptr<opset1::Ceiling>(n) ?
+            || !!ov::as_type_ptr<opset1::Clamp>(n)
+            // || !!ov::as_type_ptr<opset1::Cos>(n)
+            // || !!ov::as_type_ptr<opset1::Cosh>(n)
+            || !!ov::as_type_ptr<opset1::Elu>(n)
+            || !!ov::as_type_ptr<opset1::Erf>(n)
+            || !!ov::as_type_ptr<opset1::Exp>(n)
+            // || !!ov::as_type_ptr<opset1::Floor>(n) ?
+            // || !!ov::as_type_ptr<opset1::Log>(n) ?
+            || !!ov::as_type_ptr<opset1::LogicalNot>(n)
+            || !!ov::as_type_ptr<opset1::Negative>(n)
+            || !!ov::as_type_ptr<opset1::Relu>(n)
+            // || !!ov::as_type_ptr<opset1::Sign>(n) ?
+            || !!ov::as_type_ptr<opset1::Sigmoid>(n)
+            // || !!ov::as_type_ptr<opset1::Sin>(n)
+            // || !!ov::as_type_ptr<opset1::Sinh>(n)
+            || !!ov::as_type_ptr<opset1::Sqrt>(n)
+            // || !!ov::as_type_ptr<opset1::Tan>(n)
+            || !!ov::as_type_ptr<opset1::Tanh>(n);
     };
 
     auto is_lot = [](std::shared_ptr<Node> n) -> bool {
         using ngraph::as_type_ptr;
         return false;
-        // return !!as_type_ptr<opset1::HardSigmoid>(n) // ternary with 2 constants
-            // || !!as_type_ptr<opset1::Selu>(n); // ternary with 2 constants / or DW
+        // return !!ov::as_type_ptr<opset1::HardSigmoid>(n) // ternary with 2 constants
+            // || !!ov::as_type_ptr<opset1::Selu>(n); // ternary with 2 constants / or DW
     };
 
     auto is_fq = [](std::shared_ptr<Node> n) -> bool {
         using ngraph::as_type_ptr;
-        return false;//!!as_type_ptr<opset1::FakeQuantize>(n); // 4->1
+        return false;//!!ov::as_type_ptr<opset1::FakeQuantize>(n); // 4->1
     };
 
     return is_lou(n) || is_lob(n) ||is_lot(n) || is_fq(n);
@@ -208,11 +208,11 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
         }
 
         for (auto in_out : out.get_target_inputs()) {
-            if (!!as_type_ptr<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
+            if (!!ov::as_type_ptr<ngraph::op::v5::Loop>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
 
-            if (!!as_type_ptr<ngraph::op::v0::Result>(in_out.get_node()->shared_from_this())) {
+            if (!!ov::as_type_ptr<ngraph::op::v0::Result>(in_out.get_node()->shared_from_this())) {
                 return false;
             }
         }
@@ -305,7 +305,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
             for (auto& input : found.get_target_inputs()) {
                 remark(13) << input.get_node() << " " << input.get_source_output() << " vs "
                     << found << " : " << input.get_index() << " " << found.get_index() << std::endl;
-                if (as_type_ptr<op::Subgraph>(input.get_node()->shared_from_this()) != nullptr && input.get_source_output() == found) {
+                if (ov::as_type_ptr<op::Subgraph>(input.get_node()->shared_from_this()) != nullptr && input.get_source_output() == found) {
                     return input.get_index();
                 }
             }
@@ -315,7 +315,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
         for (auto input : inputs) {
             auto input_node = input.get_source_output().get_node_shared_ptr();
 
-            if (auto subgraph = as_type_ptr<op::Subgraph>(input_node)) {
+            if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!clones.count(input_node)) {
                     auto f = ngraph::clone_function(*subgraph->get_body().get());
                     f->set_friendly_name(subgraph->get_body()->get_friendly_name());
@@ -327,7 +327,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
         for (auto input : inputs) {
             auto input_node = input.get_source_output().get_node_shared_ptr();
 
-            if (auto subgraph = as_type_ptr<op::Subgraph>(input_node)) {
+            if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
                 if (!input_subgraphs.count(input_node)) {
                     input_subgraphs.insert(input_node);
 
@@ -356,7 +356,7 @@ ngraph::snippets::pass::AttachToSubgraph::AttachToSubgraph(bool tokenize_by_node
 
                             for (auto output : internal->outputs()) {
                                 for (auto consumer : output.get_target_inputs()) {
-                                    if (auto to_replace_with = as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
+                                    if (auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->input_value(i).get_node_shared_ptr())) {
                                         auto other_body = clones[subgraph->input_value(i).get_node_shared_ptr()];
                                         auto other_body_result = other_body->get_results()[consumer.get_source_output().get_index()];
                                         auto result_producer = other_body_result->input(0).get_source_output();

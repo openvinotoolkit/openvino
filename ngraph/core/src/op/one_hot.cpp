@@ -9,11 +9,12 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::OneHot, "OneHot", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::OneHot);
 
 op::v1::OneHot::OneHot(const Output<Node>& indices,
                        const Output<Node>& depth,
@@ -22,6 +23,7 @@ op::v1::OneHot::OneHot(const Output<Node>& indices,
                        int64_t axis)
     : Op({indices, depth, on_value, off_value}),
       m_axis(axis) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
@@ -50,18 +52,18 @@ void op::v1::OneHot::validate_and_infer_types() {
     const auto& off_value_shape = get_input_partial_shape(3);
 
     NODE_VALIDATION_CHECK(this,
-                          depth_shape.is_dynamic() || is_scalar(depth_shape.to_shape()),
+                          depth_shape.is_dynamic() || ngraph::is_scalar(depth_shape.to_shape()),
                           "depth input must be scalar.");
 
     NODE_VALIDATION_CHECK(this,
-                          on_value_shape.is_dynamic() || is_scalar(on_value_shape.to_shape()),
+                          on_value_shape.is_dynamic() || ngraph::is_scalar(on_value_shape.to_shape()),
                           "on_value input must be scalar.");
 
     NODE_VALIDATION_CHECK(this,
-                          off_value_shape.is_dynamic() || is_scalar(off_value_shape.to_shape()),
+                          off_value_shape.is_dynamic() || ngraph::is_scalar(off_value_shape.to_shape()),
                           "off_value input must be scalar.");
 
-    PartialShape result_shape{PartialShape::dynamic()};
+    ov::PartialShape result_shape{ov::PartialShape::dynamic()};
     const auto& depth = input_value(1).get_node_shared_ptr();
     const auto& depth_constant = get_constant_from_source(input_value(1));
     if (indices_shape.rank().is_static() && depth_constant) {
@@ -77,7 +79,7 @@ void op::v1::OneHot::validate_and_infer_types() {
                               ").");
 
         NODE_VALIDATION_CHECK(this,
-                              is_scalar(depth->get_shape()),
+                              ngraph::is_scalar(depth->get_shape()),
                               "A scalar input should be provided as 'depth' to OneHot",
                               " (got ",
                               depth->get_shape(),
@@ -110,6 +112,7 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
 }
 
 namespace one_hot {
+namespace {
 template <element::Type_t T>
 bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values, const int64_t axis) {
     using INPUT_TYPE = typename element_type_traits<T>::value_type;
@@ -138,6 +141,7 @@ bool evaluate_onehot(const HostTensorVector& output_values, const HostTensorVect
     }
     return rc;
 }
+}  // namespace
 }  // namespace one_hot
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {

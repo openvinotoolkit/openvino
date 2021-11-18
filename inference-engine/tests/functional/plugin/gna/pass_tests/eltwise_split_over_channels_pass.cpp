@@ -54,8 +54,8 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
         auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, inputShape, {-1.0f});
 
-        auto sum = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
-        function = std::make_shared<ngraph::Function>(sum, params, "EltwiseSplitOverChannelsPassTest");
+        auto mul = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        function = std::make_shared<ngraph::Function>(mul, params, "EltwiseSplitOverChannelsPassTest");
     }
 };
 
@@ -77,7 +77,8 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 const std::vector<std::vector<size_t>> inputShape = {
     {1, 67000},
-    {1, 500000}
+    {1, 500000},
+    {1, 936, 513}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,

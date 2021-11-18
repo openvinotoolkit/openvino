@@ -7,7 +7,7 @@ import numpy as np
 from generator import generator, generate
 
 from extensions.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, shape_array, dynamic_dimension_value
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.utils.graph import build_graph
@@ -762,6 +762,47 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
 
         pattern = ConvertGroupedStridedSlice()
         pattern.find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    # dynamic slice
+    def test_11(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'sslice_1'),
+                             ('sslice_1', 'sslice_1_data'),
+                             ('placeholder_1_data', 'sslice_2'),
+                             ('sslice_2', 'sslice_2_data'),
+                             ('placeholder_1_data', 'sslice_3'),
+                             ('sslice_3', 'sslice_3_data'),
+                             ('sslice_1_data', 'concat_1'),
+                             ('sslice_2_data', 'concat_1'),
+                             ('sslice_3_data', 'concat_1'),
+                             ('concat_1', 'concat_1_data'),
+                             ('concat_1_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
+
+                             'sslice_1': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(19, 39, 1)])},
+                             'sslice_1_data': {'shape': np.array([1, 227, 227, 20])},
+
+                             'sslice_2': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(37, 54, 1)])},
+                             'sslice_2_data': {'shape': np.array([1, 227, 227, 17])},
+
+                             'sslice_3': {'slices': [slice(0, 1, 1), slice(0, 227, 1), 12, slice(0, 19, 1)]},
+                             'sslice_3_data': {'shape': shape_array([1, 227, dynamic_dimension_value, 19])},
+
+                             'concat_1_data': {'shape': shape_array([1, 227, dynamic_dimension_value, 54])},
+                             })
+        graph.graph['layout'] = 'NHWC'
+
+        graph_ref = graph.copy()
+
+        pattern = ConvertGroupedStridedSlice()
+        pattern.find_and_replace_pattern(graph)
+
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 

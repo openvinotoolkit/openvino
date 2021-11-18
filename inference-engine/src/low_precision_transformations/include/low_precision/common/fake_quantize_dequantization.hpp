@@ -6,13 +6,9 @@
 
 #include <memory>
 #include <tuple>
-
+#include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <low_precision/lpt_visibility.hpp>
-
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/subtract.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/multiply.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -26,14 +22,14 @@ public:
 
     FakeQuantizeDequantization(
         const Output<Node>& data,
-        const std::shared_ptr<ngraph::op::Convert>& convert,
-        const std::shared_ptr<ngraph::op::v1::Subtract>& subtract,
-        const std::shared_ptr<ngraph::op::Convert>& subtractConvert,
-        const std::shared_ptr<ngraph::op::Constant>& subtractConstant,
-        const std::shared_ptr<ngraph::op::v1::Multiply>& multiply,
-        const std::shared_ptr<ngraph::op::Constant>& multiplyConstant);
+        const std::shared_ptr<ngraph::opset1::Convert>& convert,
+        const std::shared_ptr<ngraph::opset1::Subtract>& subtract,
+        const std::shared_ptr<ngraph::opset1::Convert>& subtractConvert,
+        const std::shared_ptr<ngraph::opset1::Constant>& subtractConstant,
+        const std::shared_ptr<ngraph::opset1::Multiply>& multiply,
+        const std::shared_ptr<ngraph::opset1::Constant>& multiplyConstant);
 
-    bool empty() const;
+    bool empty() const noexcept;
     bool multiplyHasZeroOrDenormal() const;
     bool isShared() const;
     bool isLowPrecision() const;
@@ -44,20 +40,20 @@ public:
 
     static int fillDequantizationParams(
         const std::shared_ptr<ngraph::Node>& elementwise,
-        std::shared_ptr<ngraph::op::Convert>& convert,
-        std::shared_ptr<ngraph::op::Constant>& constant) noexcept;
+        std::shared_ptr<ngraph::opset1::Convert>& convert,
+        std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept;
 
     static int fillDequantizationParams(
         const std::shared_ptr<ngraph::Node>& elementwise,
-        std::shared_ptr<ngraph::op::Constant>& constant) noexcept;
+        std::shared_ptr<ngraph::opset1::Constant>& constant) noexcept;
 
     Output<Node> data;
-    std::shared_ptr<op::Convert> convert;
-    std::shared_ptr<op::v1::Subtract> subtract;
-    std::shared_ptr<ngraph::op::Convert> subtractConvert;
-    std::shared_ptr<ngraph::op::Constant> subtractConstant;
-    std::shared_ptr<op::v1::Multiply> multiply;
-    std::shared_ptr<ngraph::op::Constant> multiplyConstant;
+    std::shared_ptr<opset1::Convert> convert;
+    std::shared_ptr<opset1::Subtract> subtract;
+    std::shared_ptr<ngraph::opset1::Convert> subtractConvert;
+    std::shared_ptr<ngraph::opset1::Constant> subtractConstant;
+    std::shared_ptr<opset1::Multiply> multiply;
+    std::shared_ptr<ngraph::opset1::Constant> multiplyConstant;
 };
 
 } // namespace low_precision

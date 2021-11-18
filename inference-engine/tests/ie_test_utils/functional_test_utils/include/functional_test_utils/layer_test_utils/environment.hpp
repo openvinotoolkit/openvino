@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include "ngraph/ngraph.hpp"
+
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 
 namespace LayerTestsUtils {

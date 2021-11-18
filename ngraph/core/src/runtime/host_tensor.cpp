@@ -42,6 +42,7 @@ runtime::HostTensor::HostTensor(const Output<Node>& value)
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 void runtime::HostTensor::allocate_buffer() {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(get_partial_shape().is_static(),
                  "Attempt to allocate buffer for tensor with partial shape: ",
                  get_partial_shape());
@@ -63,6 +64,7 @@ void runtime::HostTensor::allocate_buffer() {
             m_aligned_buffer_pool = (allocated_buffer_pool + alignment - mod);
         }
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -78,9 +80,11 @@ void runtime::HostTensor::initialize(const std::shared_ptr<op::v0::Constant>& co
 }
 
 runtime::HostTensor::~HostTensor() {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     if (m_allocated_buffer_pool != nullptr) {
         ngraph_free(m_allocated_buffer_pool);
     }
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 void* runtime::HostTensor::get_data_ptr() {
@@ -126,9 +130,11 @@ bool runtime::HostTensor::get_is_allocated() const {
 }
 
 void runtime::HostTensor::set_element_type(const element::Type& element_type) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
                  "Can not change a static element type");
     m_descriptor->set_element_type(element_type);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void runtime::HostTensor::set_shape(const Shape& shape) {
@@ -137,7 +143,9 @@ void runtime::HostTensor::set_shape(const Shape& shape) {
                  shape,
                  " must be compatible with the partial shape: ",
                  get_partial_shape());
+    OPENVINO_SUPPRESS_DEPRECATED_START
     m_descriptor->set_partial_shape(shape);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 void runtime::HostTensor::set_unary(const HostTensorPtr& arg) {

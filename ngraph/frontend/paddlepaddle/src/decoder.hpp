@@ -9,6 +9,8 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <paddlepaddle_frontend/frontend.hpp>
+#include <paddlepaddle_frontend/place.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,7 +21,7 @@
 #include "paddlepaddle_frontend/frontend.hpp"
 #include "paddlepaddle_frontend/place.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 extern std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP;
 
@@ -51,4 +53,4 @@ private:
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

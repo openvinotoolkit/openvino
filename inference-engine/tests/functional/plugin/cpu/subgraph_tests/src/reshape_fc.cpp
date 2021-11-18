@@ -54,12 +54,15 @@ protected:
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
 
         auto constNode = builder::makeConstant(element::i64, {isA.size()}, isA);
-        auto reshape = std::make_shared<op::v1::Reshape>(paramOuts[0], constNode, true);
+        auto reshape = std::make_shared<opset1::Reshape>(paramOuts[0], constNode, true);
 
         auto matrixB = builder::makeConstant<float>(element::f32, isB, {}, true);
         auto matMul = builder::makeMatMul(reshape, matrixB, false, transpB);
 
-        function = makeNgraphFunction(element::f32, inputParams, matMul, "ReshapeFC");
+        const auto netType = element::f32;
+        selectedType = makeSelectedTypeStr("jit_gemm", netType);
+
+        function = makeNgraphFunction(netType, inputParams, matMul, "ReshapeFC");
     }
 };
 
@@ -68,7 +71,7 @@ TEST_P(ReshapeFCTest, CompareWithRefs) {
 
     Run();
     CheckNodeOfTypeCount(executableNetwork, "Reshape", 0);
-    CheckFusingResults(executableNetwork, "FullyConnected");
+    CheckPluginRelatedResults(executableNetwork, "FullyConnected");
 }
 
 namespace {

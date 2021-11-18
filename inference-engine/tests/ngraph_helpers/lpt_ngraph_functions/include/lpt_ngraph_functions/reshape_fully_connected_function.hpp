@@ -5,6 +5,8 @@
 #pragma once
 
 #include <sstream>
+#include <vector>
+#include <ngraph/ngraph.hpp>
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 

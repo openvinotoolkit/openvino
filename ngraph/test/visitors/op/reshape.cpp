@@ -21,7 +21,7 @@ TEST(attributes, reshape_op) {
 
     auto reshape = make_shared<op::v1::Reshape>(data, pattern, special_zero);
     NodeBuilder builder(reshape);
-    auto g_reshape = as_type_ptr<op::v1::Reshape>(builder.create());
+    auto g_reshape = ov::as_type_ptr<op::v1::Reshape>(builder.create());
 
     const auto expected_attr_count = 1;
 

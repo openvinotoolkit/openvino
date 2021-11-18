@@ -69,7 +69,7 @@ union {
     uint8_t  c[2];
 } constexpr static  LECheck {1};
 
-bool is_little_endian() {
+inline bool is_little_endian() {
     return LECheck.c[0] == 1;
 }
 
@@ -195,7 +195,7 @@ getOffsetFromBase(field, #field)
 
 #if GNA_LIB_VER == 2
 
-bool IsEmptyTensor(const Gna2Tensor& t) {
+inline bool IsEmptyTensor(const Gna2Tensor& t) {
     return t.Type == Gna2DataTypeNone &&
         t.Data == nullptr &&
         t.Layout[0] == '\0' &&
@@ -203,7 +203,7 @@ bool IsEmptyTensor(const Gna2Tensor& t) {
         t.Shape.NumberOfDimensions == 0;
 }
 
-const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
+static const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
     {Gna2OperationTypeFullyConnectedAffine, {sizeof(Gna2BiasMode), sizeof(uint32_t)}},
     {Gna2OperationTypeConvolution, {
         sizeof(Gna2Shape),
@@ -831,14 +831,13 @@ std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeOutputs(cons
         }
         uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(outputDims.begin(), outputDims.end()));
         InferenceEngine::Layout outputLayout = output.second->getLayout();
-        InferenceEngine::Precision::ePrecision outputPrecision = InferenceEngine::Precision::FP32;
         HeaderLatest::RuntimeEndPoint endPoint(outputsDesc[outputIndex].scale_factor,
                                                  outputsDesc[outputIndex].ptrs[0],
                                                  outputsDesc[outputIndex].num_bytes_per_element,
                                                  elementsCount,
                                                  outputShape,
                                                  outputLayout,
-                                                 outputPrecision,
+                                                 outputsDesc[outputIndex].precision,
                                                  outputsDesc[outputIndex].orientation);
         endPoints.push_back(endPoint);
         outputIndex++;
@@ -866,7 +865,7 @@ std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeInputs(const
         uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(inputDims.begin(), inputDims.end()));
         intel_dnn_orientation_t orientation = inputDesc->getOrientation(inputName);
         InferenceEngine::Layout inputLayout = input.second->getLayout();
-        InferenceEngine::Precision::ePrecision inputPrecision = InferenceEngine::Precision::FP32;
+        uint8_t inputPrecision = inputDesc->inputPrecisions.at(inputIndex);
         HeaderLatest::RuntimeEndPoint endPoint(scaleFactor,
                                                  descriptor_ptr[0],
                                                  element_size,
@@ -886,7 +885,6 @@ void GNAModelSerial::ImportInputs(std::istream &is,
         std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
         InferenceEngine::InputsDataMap& dataMap) {
     dataMap.clear();
-
     for (uint32_t inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                 ? inputNames.at(inputIndex) : std::string("input" + std::to_string(inputIndex));

@@ -64,7 +64,7 @@ public:
             testValues.group);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ShuffleChannelsTransformation, ngraph::op::v0::ShuffleChannels>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ShuffleChannelsTransformation, ngraph::opset1::ShuffleChannels>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ShuffleChannelsFunction::getReference(
@@ -95,6 +95,8 @@ TEST_P(ShuffleChannelsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 namespace testValues1 {

@@ -19,7 +19,7 @@ TEST(attributes, bucketize_v3_op_default_attributes) {
     auto bucketize = make_shared<op::v3::Bucketize>(data, buckets);
     NodeBuilder builder(bucketize);
 
-    auto g_bucketize = as_type_ptr<op::v3::Bucketize>(builder.create());
+    auto g_bucketize = ov::as_type_ptr<op::v3::Bucketize>(builder.create());
 
     EXPECT_EQ(g_bucketize->get_output_type(), bucketize->get_output_type());
     EXPECT_EQ(g_bucketize->get_with_right_bound(), bucketize->get_with_right_bound());
@@ -35,7 +35,7 @@ TEST(attributes, bucketize_v3_op_custom_attributes) {
     auto bucketize = make_shared<op::v3::Bucketize>(data, buckets, output_type, with_right_bound);
     NodeBuilder builder(bucketize);
 
-    auto g_bucketize = as_type_ptr<op::v3::Bucketize>(builder.create());
+    auto g_bucketize = ov::as_type_ptr<op::v3::Bucketize>(builder.create());
 
     EXPECT_EQ(g_bucketize->get_output_type(), bucketize->get_output_type());
     EXPECT_EQ(g_bucketize->get_with_right_bound(), bucketize->get_with_right_bound());

@@ -2,7 +2,7 @@
 
 **Versioned name**: *Reshape-1*
 
-**Category**: Shape manipulation
+**Category**: *Shape manipulation*
 
 **Short description**: *Reshape* operation changes dimensions of the input tensor according to the specified order. Input tensor volume is equal to output tensor volume, where volume is the product of dimensions.
 

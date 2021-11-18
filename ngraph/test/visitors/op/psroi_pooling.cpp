@@ -33,7 +33,7 @@ TEST(attributes, psroi_pooling_op) {
                                                         spatial_bins_y,
                                                         mode);
     NodeBuilder builder(psroi_pool);
-    auto g_psroi_pool = as_type_ptr<op::v0::PSROIPooling>(builder.create());
+    auto g_psroi_pool = ov::as_type_ptr<op::v0::PSROIPooling>(builder.create());
 
     EXPECT_EQ(g_psroi_pool->get_output_dim(), psroi_pool->get_output_dim());
     EXPECT_EQ(g_psroi_pool->get_group_size(), psroi_pool->get_group_size());

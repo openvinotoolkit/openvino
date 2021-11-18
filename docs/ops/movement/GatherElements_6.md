@@ -2,7 +2,7 @@
 
 **Versioned name**: *GatherElements-6*
 
-**Category**: Data movement operations
+**Category**: *Data movement*
 
 **Short description**: *GatherElements* takes elements from the input `data` tensor at positions specified in the `indices` tensor.
 

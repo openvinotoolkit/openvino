@@ -28,7 +28,7 @@ class ConcatTransformation :
     public testing::WithParamInterface<ConcatTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatTransformationParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

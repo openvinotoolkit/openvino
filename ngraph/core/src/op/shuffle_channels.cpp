@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::ShuffleChannels, "ShuffleChannels", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::ShuffleChannels);
 
 op::ShuffleChannels::ShuffleChannels(const Output<Node>& data, const int64_t axis, const int64_t group)
     : Op({data}),
@@ -89,7 +89,7 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
     outputs[0]->set_element_type(inputs[0]->get_element_type());
     outputs[0]->set_shape(data_shape);
 
-    runtime::reference::shuffle_channels(arg, out, data_shape, elem_size, m_axis, m_group);
+    ngraph::runtime::reference::shuffle_channels(arg, out, data_shape, elem_size, m_axis, m_group);
 
     return true;
 }

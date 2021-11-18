@@ -23,6 +23,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const CTensorDesc& getTensorDesc()  except +
         size_t element_size()  except +
         void allocate()
+        void setShape(const SizeVector& dims) except +
 
     cdef TBlob[Type].Ptr make_shared_blob[Type](const CTensorDesc& tensorDesc)
 
@@ -47,6 +48,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const Layout getLayout() except +
         void setLayout(Layout layout) except +
         const bool isInitialized() except +
+        bool isDynamic() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr
@@ -159,26 +161,27 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void exportNetwork(const string & model_file) except +
         object getMetric(const string & metric_name) except +
         object getConfig(const string & metric_name) except +
+        void setConfig(const map[string, string]& config) except +
         int wait(int num_requests, int64_t timeout) nogil
-        int getIdleRequestId() nogil
+        int getIdleRequestId()
         shared_ptr[CExecutableNetwork] getPluginLink() except +
 
     cdef cppclass IENetwork:
         IENetwork() nogil except +
-        IENetwork(object) nogil except +
+        IENetwork(object) except +
         string name
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
-        const map[string, InputInfo.Ptr] getInputsInfo() nogil except +
-        map[string, DataPtr] getOutputs() nogil except +
+        const map[string, InputInfo.Ptr] getInputsInfo() except +
+        map[string, DataPtr] getOutputs() except +
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
         size_t getBatch() except +
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
-        void reshape(map[string, vector[size_t]] input_shapes) except +
+        void reshape(map[string, vector[vector[int64_t]]] input_shapes) except +
         object getFunction() except +
         void convertToOldRepresentation() except +
         string getOVNameForTensor(const string &) except +
@@ -191,8 +194,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
         const CPreProcessInfo& getPreProcess(const string& blob_name) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
-        void infer() nogil except +
-        void infer_async() nogil except +
+        void infer() except +
+        void infer_async() except +
         int wait(int64_t timeout) nogil except +
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
@@ -217,7 +220,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void unregisterPlugin(const string & deviceName) except +
         void registerPlugins(const string & xmlConfigFile) except +
         void addExtension(const string & ext_lib_path, const string & deviceName) except +
-        vector[string] getAvailableDevices() nogil except +
+        vector[string] getAvailableDevices() except +
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +
 
@@ -226,3 +229,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef string get_version()
 
     cdef IENetwork read_network(string path_to_xml, string path_to_bin)
+
+    cdef object getPartialShape_capsule(DataPtr)
+
+    cdef const size_t product(const SizeVector& dims)

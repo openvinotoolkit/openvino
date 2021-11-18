@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v5::LogSoftmax, "LogSoftmax", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::LogSoftmax);
 
 op::v5::LogSoftmax::LogSoftmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -24,7 +24,7 @@ bool op::v5::LogSoftmax::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v5::LogSoftmax::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v5_LogSoftmax_validate_and_infer_types);
-    const PartialShape& input_shape = get_input_partial_shape(0);
+    const ov::PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
                               m_axis < input_shape.rank().get_length() && m_axis >= -input_shape.rank().get_length(),

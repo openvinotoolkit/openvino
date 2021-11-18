@@ -42,23 +42,11 @@ public:
     };
 
     ngraph::PartialShape inputShape;
-    std::vector<int> reshapeConstValues;
+    std::vector<int> reshapeConstValues; // if empty then create shapeOf
     TestTransformationParams params;
     Actual actual;
     Expected expected;
 };
-
-inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 
 class ReshapeTransformation : public LayerTransformation, public testing::WithParamInterface<ReshapeTransformationTestValues> {
 public:
@@ -72,7 +60,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::op::v1::Reshape>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::opset1::Reshape>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ReshapeFunction::getReference(
@@ -105,6 +93,8 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ReshapeTransformationTestValues> testValues = {
@@ -329,6 +319,26 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
                 {ngraph::element::f32},
                 {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
                 {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+            }
+        }
+    },
+    // U8: no subtract 4D -> 3D: rfcn-resnet101-coco
+    {
+        { 100, 4, 1, 1 },
+        { -1, 1, 400},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32}, {}, {{0.1f, 0.1f, 0.1f, 0.1f}, ngraph::element::f32, {1, 4, 1, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}
             }
         }
     },
@@ -887,7 +897,103 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
                 {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3, 1}}
             }
         }
-    }
+    },
+    // U8: without subtract 2D -> 2D
+    {
+        { 1, 3 },
+        { 1, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.01f, 0.1f}, ngraph::element::f32, {1, 3}}
+            }
+        }
+    },
+    // U8: without subtract 2D -> 2D
+    {
+        { Dimension::dynamic(), 2 },
+        { -1, 6 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f, 0.02f}, ngraph::element::f32, {1, 2}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{0.1f,  0.02f, 0.1f, 0.02f, 0.1f, 0.02f}, ngraph::element::f32, {1, 6}}
+            }
+        }
+    },
+    // Nondequantization multiply (I32 precision)
+    {
+        { 1, 384, 1024 },
+        { 1, 384, 16, 64 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}}
+        },
+        {
+            ngraph::element::i32,
+            {{}, {}, {2}},
+            ngraph::element::i32,
+            {}
+        }
+    },
+    // U8: non-const reshape pattern and per-tensor dequantization
+    {
+        { -1, -1, -1, -1 },
+        {},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128.f}, {0.1f}}
+        }
+    },
+    // U8: non-const reshape pattern and per-channel dequantization
+    {
+        { -1, 3, -1, -1 },
+        {},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 124.f, 120.f}}, {{0.1f, 1.f, 10.f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f, 124.f, 120.f}}, {{0.1f, 1.f, 10.f}}},
+            ngraph::element::f32,
+            {}
+        }
+    },
 };
 
 INSTANTIATE_TEST_SUITE_P(

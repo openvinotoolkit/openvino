@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "ngraph/op/constant.hpp"
+#include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset1.hpp>
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
@@ -20,12 +21,12 @@ public:
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
-        const std::shared_ptr<op::v0::Constant>& value = nullptr);
+        const std::shared_ptr<opset1::Constant>& value = nullptr);
     static std::shared_ptr<Node> getWeights(
         const Shape& shape,
         const element::Type& netPrecision,
         const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
-        const std::shared_ptr<op::v0::Constant>& value = nullptr);
+        const std::shared_ptr<opset1::Constant>& value = nullptr);
     static std::shared_ptr<Function> get(
         const element::Type netPrecision,
         const PartialShape& inputShape,

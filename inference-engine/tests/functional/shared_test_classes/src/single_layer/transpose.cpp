@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string TransposeLayerTest::getTestCaseName(testing::TestParamInfo<transposeParams> obj) {
+std::string TransposeLayerTest::getTestCaseName(const testing::TestParamInfo<transposeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -36,11 +36,11 @@ void TransposeLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     const auto inOrderShape = inputOrder.empty() ? ngraph::Shape({0}) : ngraph::Shape({inputShape.size()});
-    const auto inputOrderOp = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64,
+    const auto inputOrderOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::i64,
                                                                          inOrderShape,
                                                                          inputOrder);
-    const auto transpose = std::make_shared<ngraph::op::v1::Transpose>(paramOuts.at(0), inputOrderOp);
-    const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(transpose)};
+    const auto transpose = std::make_shared<ngraph::opset3::Transpose>(paramOuts.at(0), inputOrderOp);
+    const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(transpose)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose");
 }
 

@@ -39,7 +39,7 @@ cdef class InferRequest:
     cpdef get_perf_counts(self)
     cdef void user_callback(self, int status) with gil
     cdef public:
-        _inputs_list, _outputs_list, _py_callback, _py_data, _py_callback_used, _py_callback_called, _user_blobs
+        _inputs_list, _outputs_list, _py_callback, _py_data, _user_blobs, _inputs_is_dynamic
 
 cdef class IENetwork:
     cdef C.IENetwork impl
@@ -47,7 +47,6 @@ cdef class IENetwork:
 
 cdef class ExecutableNetwork:
     cdef unique_ptr[C.IEExecNetwork] impl
-    cdef C.IECore ie_core_impl
     cpdef wait(self, num_requests = ?, timeout = ?)
     cpdef get_idle_request_id(self)
     cdef public:

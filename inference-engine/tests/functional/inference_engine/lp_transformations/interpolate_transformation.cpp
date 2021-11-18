@@ -111,7 +111,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::op::v0::Interpolate>(testValues.params);
+            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset1::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
@@ -138,7 +138,7 @@ public:
                 testValues.actual.dequantization);
 
             SimpleLowPrecisionTransformer transformer;
-            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::op::v4::Interpolate>(testValues.params);
+            transformer.add<ngraph::pass::low_precision::InterpolateTransformation, ngraph::opset4::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
             referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
@@ -187,6 +187,14 @@ public:
         return result.str();
     }
 };
+
+TEST_P(InterpolateTransformation, CompareFunctions) {
+    actualFunction->validate_nodes_and_infer_types();
+    auto res = compare_functions(referenceFunction, actualFunction, true, true);
+    ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
+}
 
 const std::vector<InterpolateTransformationTestValues> testValues {
     // opset1
@@ -582,12 +590,6 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         }
     },
 };
-
-TEST_P(InterpolateTransformation, CompareFunctions) {
-    actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, true);
-    ASSERT_TRUE(res.first) << res.second;
-}
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_LPT,

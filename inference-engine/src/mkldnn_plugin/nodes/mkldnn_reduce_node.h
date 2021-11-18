@@ -75,7 +75,7 @@ public:
         return false;
     }
 
-    static bool isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     void reduce_type(const uint8_t *in_ptr, uint8_t *out_ptr, size_t dst_size);
@@ -110,7 +110,7 @@ private:
     std::shared_ptr<jit_uni_reduce_kernel> reduce_kernel;
     std::shared_ptr<jit_uni_reduce_post_kernel> reduce_post_kernel;
 
-    static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>> initializers;
+    static const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node)>> initializers;
 
     std::string errorPrefix;
 };

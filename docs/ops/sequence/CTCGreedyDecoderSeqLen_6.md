@@ -2,7 +2,7 @@
 
 **Versioned name**: *CTCGreedyDecoderSeqLen-6*
 
-**Category**: Sequence processing
+**Category**: *Sequence processing*
 
 **Short description**: *CTCGreedyDecoderSeqLen* performs greedy decoding of the logits provided as the first input. The sequence lengths are provided as the second input.
 
@@ -74,7 +74,8 @@ The main difference between [CTCGreedyDecoder](CTCGreedyDecoder_1.md) and CTCGre
 **Example**
 
 ```xml
-<layer type="CTCGreedyDecoderSeqLen" merge_repeated="true" classes_index_type="i64" sequence_length_type="i64">
+<layer ... type="CTCGreedyDecoderSeqLen" version="opset6">
+    <data merge_repeated="true" classes_index_type="i64" sequence_length_type="i64"/>
     <input>
         <port id="0">
             <dim>8</dim>

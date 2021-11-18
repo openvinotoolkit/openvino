@@ -13,8 +13,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNBucketizeNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
         if (!bucketsize) {
             errorMessage = "Only opset3 Bucketize operation is supported";
@@ -35,6 +39,9 @@ MKLDNNBucketizeNode::MKLDNNBucketizeNode(const std::shared_ptr<ngraph::Node>& op
 
     errorPrefix = "Bucketize layer with name '" + op->get_friendly_name() + "' ";
     const auto bucketsize = std::dynamic_pointer_cast<const ngraph::opset3::Bucketize>(op);
+    if (bucketsize == nullptr)
+        IE_THROW() << "Operation with name '" << op->get_friendly_name() <<
+            "' is not an instance of Bucketize from opset3.";
 
     if (getOriginalInputsNumber() != 2 || getOriginalOutputsNumber() != 1) {
         IE_THROW() << errorPrefix << " has incorrect number of input/output edges!";

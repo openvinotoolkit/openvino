@@ -47,7 +47,7 @@ TEST(ONNXReader_ModelSupported, scrambled_keys) {
 TEST(ONNXReader_ModelUnsupported, no_graph_field) {
     // this model contains only 2 fields (it doesn't contain a graph in particular)
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_graph_field.onnx")),
-                 InferenceEngine::Exception);
+                 InferenceEngine::NetworkNotRead);
 }
 
 TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
@@ -55,11 +55,11 @@ TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
     // this  test will have to be changed if the number of fields in onnx.proto
     // (ModelProto message definition) ever reaches 31 or more
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/incorrect_onnx_field.onnx")),
-                 InferenceEngine::Exception);
+                 InferenceEngine::NetworkNotRead);
 }
 
 TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
     // in this model the graph key contains wire type 7 encoded in it - this value is incorrect
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/unknown_wire_type.onnx")),
-                 InferenceEngine::Exception);
+                 InferenceEngine::NetworkNotRead);
 }

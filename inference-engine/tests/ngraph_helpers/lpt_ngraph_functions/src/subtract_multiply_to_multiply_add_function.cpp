@@ -7,7 +7,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "lpt_ngraph_functions/common/builders.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph::pass::low_precision;
 
@@ -20,12 +19,12 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOrig
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const ngraph::element::Type precisionAfterDequantization) {
-    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     dequantizationOp->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(dequantizationOp) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
 }
 
@@ -33,23 +32,23 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getOrig
     const ngraph::PartialShape& inputShape,
     const ngraph::element::Type precision,
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData) {
-    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const std::shared_ptr<Node> fq = makeFakeQuantize(input, precision, fqOnData);
 
-    const std::shared_ptr<ngraph::op::v1::Reshape> reshape1 = std::make_shared<ngraph::op::v1::Reshape>(
+    const std::shared_ptr<ngraph::opset1::Reshape> reshape1 = std::make_shared<ngraph::opset1::Reshape>(
         fq,
-        std::make_shared<ngraph::op::v0::Constant>(
+        std::make_shared<ngraph::opset1::Constant>(
             ngraph::element::i64,
             Shape({ 3 }),
             std::vector<int64_t>({ inputShape[0].get_length(), inputShape[1].get_length(), -1 })),
         false);
 
-    const std::shared_ptr<ngraph::op::v1::Reshape> reshape2 = std::make_shared<ngraph::op::v1::Reshape>(
+    const std::shared_ptr<ngraph::opset1::Reshape> reshape2 = std::make_shared<ngraph::opset1::Reshape>(
         reshape1,
-        std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, Shape({ 4 }), inputShape.to_shape()),
+        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, Shape({ 4 }), inputShape.to_shape()),
         false);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(reshape2) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
 }
 
@@ -60,21 +59,21 @@ std::shared_ptr<ngraph::Function> SubtractMultiplyToMultiplyAddFunction::getRefe
     const ngraph::element::Type precisionAfterDequantization,
     const ngraph::builder::subgraph::Multiply& multiply,
     const ngraph::builder::subgraph::Add& add) {
-    const auto input = std::make_shared<ngraph::op::v0::Parameter>(precisionBeforeDequantization, inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
     std::shared_ptr<Node> parent = dequantizationOp;
 
     if (!multiply.empty()) {
-        parent = makeElementwise<DequantizationMultiply>(parent, multiply);
+        parent = makeElementwise<opset1::Multiply>(parent, multiply);
     }
 
     if (!add.empty()) {
-        parent = makeElementwise<DequantizationAdd>(parent, add);
+        parent = makeElementwise<opset1::Add>(parent, add);
     }
     parent->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::op::v0::Result>(parent) };
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(parent) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "SubtractMultiplyToMultiplyAddFunction");
 }
 

@@ -6,7 +6,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-    std::string ReluShapeOfSubgraphTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::shapeOfParams> obj) {
+    std::string ReluShapeOfSubgraphTest::getTestCaseName(const testing::TestParamInfo<LayerTestsDefinitions::shapeOfParams>& obj) {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::string targetDevice;
@@ -24,9 +24,9 @@ namespace SubgraphTestsDefinitions {
         std::tie(inputPrecision, inputShapes, targetDevice) = this->GetParam();
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
         auto param = ngraph::builder::makeParams(inType, {inputShapes});
-        auto relu = std::make_shared<ngraph::op::v0::Relu>(param[0]);
-        auto shapeOf = std::make_shared<ngraph::op::v3::ShapeOf>(relu, inType);
-        const ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(shapeOf)};
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param[0]);
+        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(relu, inType);
+        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, param, "ReluShapeOf");
     }
 }  // namespace SubgraphTestsDefinitions

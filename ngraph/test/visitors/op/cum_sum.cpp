@@ -19,7 +19,7 @@ TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
     auto cs = make_shared<op::CumSum>(A);
 
     NodeBuilder builder(cs);
-    auto g_cs = as_type_ptr<op::v0::CumSum>(builder.create());
+    auto g_cs = ov::as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -37,7 +37,7 @@ TEST(attributes, cum_sum_op_default_attributes) {
     auto cs = make_shared<op::CumSum>(A, axis);
 
     NodeBuilder builder(cs);
-    auto g_cs = as_type_ptr<op::v0::CumSum>(builder.create());
+    auto g_cs = ov::as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -57,7 +57,7 @@ TEST(attributes, cum_sum_op_custom_attributes) {
     auto cs = make_shared<op::CumSum>(A, axis, exclusive, reverse);
 
     NodeBuilder builder(cs);
-    auto g_cs = as_type_ptr<op::v0::CumSum>(builder.create());
+    auto g_cs = ov::as_type_ptr<op::v0::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

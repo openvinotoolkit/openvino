@@ -61,7 +61,7 @@ static ConvoltuionParameters GetConvolutionParameters(const ngraph::CoordinateDi
     return {stride, padding, dilation, groups};
 }
 
-void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
+static void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -84,13 +84,14 @@ void CreateGroupConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::
                                        params.dilation,
                                        CldnnTensorFromIEDims(outDims),
                                        DataTypeFromPrecision(outPrecision),
-                                       weights_have_group_dim);
+                                       weights_have_group_dim,
+                                       op->get_friendly_name());
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convolution>& op) {
+static void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -112,13 +113,14 @@ void CreateConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::Convo
                                        params.dilation,
                                        CldnnTensorFromIEDims(outDims),
                                        DataTypeFromPrecision(outPrecision),
-                                       weights_have_group_dim);
+                                       weights_have_group_dim,
+                                       op->get_friendly_name());
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op) {
+static void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op) {
     // 3rd input is an optional output shape
     p.ValidateInputs(op, {2, 3});
     auto inputs = p.GetInputPrimitiveIDs(op);
@@ -146,7 +148,8 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
         std::swap(permute_order[1], permute_order[0]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank));
+                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);
         p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
@@ -159,20 +162,21 @@ void CreateConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::o
 
     auto params = GetConvolutionParameters(op->get_pads_begin(), op->get_dilations(), op->get_strides(), 1);
     auto deconvPrim = cldnn::deconvolution(layerName,
-        inputs[0],
-        weights,
-        {},
-        params.groups,
-        params.stride,
-        params.padding,
-        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
-        weights_have_group_dim);
+                                           inputs[0],
+                                           weights,
+                                           {},
+                                           params.groups,
+                                           params.stride,
+                                           params.padding,
+                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           weights_have_group_dim,
+                                           op->get_friendly_name());
 
     p.AddPrimitive(deconvPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
+static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -202,7 +206,8 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
         std::swap(permute_order[2], permute_order[1]);
         auto permutePrim = cldnn::permute(permuteName,
                                           weightsName,
-                                          ConvertPermuteOrder(permute_order, weights_rank));
+                                          ConvertPermuteOrder(permute_order, weights_rank),
+                                          op->get_friendly_name());
 
         p.AddPrimitive(permutePrim);
         p.AddInnerPrimitiveToProfiler(permuteName, layerName, op);
@@ -214,20 +219,21 @@ void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_ptr<ngra
     const bool weights_have_group_dim = true;
 
     auto deconvPrim = cldnn::deconvolution(layerName,
-        inputs[0],
-        weights,
-        {},
-        params.groups,
-        params.stride,
-        params.padding,
-        CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
-        weights_have_group_dim);
+                                           inputs[0],
+                                           weights,
+                                           {},
+                                           params.groups,
+                                           params.stride,
+                                           params.padding,
+                                           CldnnTensorFromIEDims(op->get_output_tensor(0).get_shape()),
+                                           weights_have_group_dim,
+                                           op->get_friendly_name());
 
     p.AddPrimitive(deconvPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
+static void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformableConvolution>& op) {
     p.ValidateInputs(op, {3});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -247,7 +253,8 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
                                            params.stride,
                                            params.padding,
                                            params.dilation,
-                                           CldnnTensorFromIEDims(outDims));
+                                           CldnnTensorFromIEDims(outDims),
+                                           op->get_friendly_name());
 
         p.AddPrimitive(convPrim);
         p.AddPrimitiveToProfiler(op);
@@ -280,7 +287,8 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
                                                           params.padding,
                                                           params.dilation,
                                                           CldnnTensorFromIEDims(outDims),
-                                                          kernel);
+                                                          kernel,
+                                                          op->get_friendly_name());
         p.AddPrimitive(defConvPrimInterp);
         p.AddInnerPrimitiveToProfiler(defConvLayerNameInterp, defConvLayerNameConv, op);
         auto defConvPrim = cldnn::deformable_conv(defConvLayerNameConv,
@@ -288,13 +296,14 @@ void CreateDeformableConvolutionOp(Program& p, const std::shared_ptr<ngraph::op:
                                                   weights,
                                                   {},
                                                   params.groups,
-                                                  CldnnTensorFromIEDims(outDims));
+                                                  CldnnTensorFromIEDims(outDims),
+                                                  op->get_friendly_name());
         p.AddPrimitive(defConvPrim);
         p.AddPrimitiveToProfiler(defConvLayerNameConv, op);
     }
 }
 
-void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
+static void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op) {
     p.ValidateInputs(op, {2});
     auto inputs = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -313,7 +322,8 @@ void CreateBinaryConvolutionOp(Program& p, const std::shared_ptr<ngraph::op::v1:
                                               CldnnTensorFromIEDims(outDims),
                                               params.groups,
                                               op->get_pad_value(),
-                                              calc_precision);
+                                              calc_precision,
+                                              op->get_friendly_name());
 
     p.AddPrimitive(convPrim);
     p.AddPrimitiveToProfiler(op);

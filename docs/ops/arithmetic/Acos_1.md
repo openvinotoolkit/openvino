@@ -2,7 +2,7 @@
 
 **Versioned name**: *Acos-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Acos* performs element-wise inverse cosine (arccos) operation with given tensor.
 

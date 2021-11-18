@@ -38,6 +38,7 @@ constexpr NodeTypeInfo UnhandledOp::type_info;
 }  // namespace
 
 NGRAPH_TEST(${BACKEND_NAME}, unhandled_op) {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto unhandled = make_shared<UnhandledOp>(A);
@@ -47,4 +48,5 @@ NGRAPH_TEST(${BACKEND_NAME}, unhandled_op) {
     shared_ptr<runtime::Tensor> a = backend->create_tensor<float>(shape);
     shared_ptr<runtime::Tensor> result = backend->create_tensor<float>(shape);
     ASSERT_THROW(auto handle = backend->compile(f); handle->call_with_validate({result}, {a}), unsupported_op);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }

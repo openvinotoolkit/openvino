@@ -51,7 +51,7 @@ std::string ProposalLayerTest::SerializeProposalSpecificParams(proposalSpecificP
     return result.str();
 }
 
-std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj) {
+std::string ProposalLayerTest::getTestCaseName(const testing::TestParamInfo<proposalLayerTestParamsSet>& obj) {
     proposalSpecificParams proposalParams;
     std::string targetDevice;
     std::tie(proposalParams, targetDevice) = obj.param;
@@ -168,8 +168,8 @@ void ProposalLayerTest::SetUp() {
                                            framework));
 
     ngraph::ResultVector results{
-        std::make_shared<ngraph::op::v0::Result>(proposal->output(0)),
-        std::make_shared<ngraph::op::v0::Result>(proposal->output(1))};
+        std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
+        std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 

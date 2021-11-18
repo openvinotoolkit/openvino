@@ -55,7 +55,10 @@ class GNADeviceHelper {
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
     std::string executionTarget;
     std::string compileTarget;
+    bool useDeviceEmbeddedExport = false;
+    Gna2DeviceVersion exportGeneration = Gna2DeviceVersionEmbedded1_0;
     bool isGnaLibVersion2_1 = false;
+    bool isGnaLibVersion3_0 = false;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -82,12 +85,16 @@ public:
          bool swExactModeIn = false,
          uint8_t lib_async_n_threads = 1,
          bool use_openmp = false,
-         bool isPerformanceMeasuring = false) :
+         bool isPerformanceMeasuring = false,
+         bool deviceEmbedded = false,
+         int deviceVersionParsed = 0) :
          swExactMode(swExactModeIn),
          executionTarget(executionTargetIn),
          compileTarget(compileTargetIn),
          isPerformanceMeasuring(isPerformanceMeasuring),
-         nGnaDeviceIndex{selectGnaDevice()} {
+         nGnaDeviceIndex{selectGnaDevice()},
+         useDeviceEmbeddedExport(deviceEmbedded),
+         exportGeneration(static_cast<Gna2DeviceVersion>(deviceVersionParsed)) {
 #endif
         open(lib_async_n_threads);
         initGnaPerfCounters();
@@ -97,6 +104,9 @@ public:
 #if GNA_LIB_VER == 2
         if (gnaLibVersion.rfind("2.1", 0) == 0) {
             isGnaLibVersion2_1 = true;
+        }
+        if (gnaLibVersion.rfind("3.0", 0) == 0) {
+            isGnaLibVersion3_0 = true;
         }
 #endif
 
@@ -176,6 +186,7 @@ public:
     void getGnaPerfCounters(std::map<std::string,
                         InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
     static std::string GetGnaLibraryVersion();
+    std::string getEffectiveGnaCompileTarget() const;
  private:
     void open(uint8_t const n_threads);
 
@@ -190,9 +201,14 @@ public:
     static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
 
     static void enforceLegacyCnns(Gna2Model& gnaModel);
+    static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
+    static Gna2DeviceVersion parseTarget(const std::string& target);
     Gna2DeviceVersion parseDeclaredTarget(std::string target, const bool execTarget) const;
     Gna2DeviceVersion getDefaultTarget() const;
     Gna2DeviceVersion getTargetDevice(bool execTarget) const;
+
+    void createVirtualDevice(Gna2DeviceVersion devVersion, std::string purpose = "");
+    void updateGnaDeviceVersion();
 #endif
     void setOMPThreads(uint8_t const n_threads);
 

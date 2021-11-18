@@ -12,6 +12,7 @@
 #include <vector>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
@@ -23,13 +24,29 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::ReshapeTransformation, "ReshapeTransformation", 0);
 
 ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<op::v1::Reshape>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
+    auto input = pattern::any_input();
+    auto mul_const_m = pattern::wrap_type<opset1::Constant>();
+    auto mul_m = pattern::wrap_type<opset1::Multiply>({ input, mul_const_m });
+    auto reshape_pattern_const = pattern::wrap_type<opset1::Constant>();
+    auto reshape_pattern_nonconst = pattern::any_input();
+    auto reshape_pattern = std::make_shared<pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
+    auto matcher = pattern::wrap_type<opset1::Reshape>({ mul_m, reshape_pattern });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
         }
+
+        // we can propagate only per-tensor dq through reshape with non-const reshape_pattern
+        const auto& pattern_map = m.get_pattern_value_map();
+        if (pattern_map.count(reshape_pattern_nonconst)) {
+            const auto mul_const = as_type_ptr<opset1::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
+            if (!mul_const || ngraph::shape_size(mul_const->get_shape()) != 1) {
+                return false;
+            }
+        }
+
         return transform(*context, m);
     };
 
@@ -37,17 +54,19 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
     this->register_matcher(m, callback);
 }
 
-void reshapeDequantizationConstant(const std::shared_ptr<op::v1::Reshape>& reshape) {
+namespace {
+
+void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& reshape) {
     // Reshape dequantization operation Constant.
     //    1. Calculate result dequantization Constant shape for broadcast based on original dequantization Constant shape and Reshape output.
     //    For example: dequantization shape {1, 3, 1, 1}, output Reshape shape {1, 12, 3, 3}, result for broadcast: {1, 3, 4, 1},
     //    where '4' calculated for temporary broadcast before reshape.
     //    2. Broadcast dequantization Constant, if channels are changed
     //    3. Reshape and replace
-    auto replaceConstant = [](const std::shared_ptr<op::v1::Reshape>& reshape, const std::shared_ptr<op::Constant>& originalConstant) {
+    auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<opset1::Constant>& originalConstant) {
         // reshape for element-wise constant is not required
         auto constantShape = originalConstant->get_shape();
-        if (shape_size(constantShape) == 1ul) {
+        if (NetworkHelper::isScalarLike(originalConstant)) {
             if (!constantShape.empty()) {
                 const auto newConstant = NetworkHelper::toScalar(originalConstant);
                 replace_node(originalConstant, newConstant);
@@ -63,7 +82,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<op::v1::Reshape>& resha
             }
         }
 
-        const auto reshapeOutputPShape = reshape->output(0).get_partial_shape();
+        const auto reshapeOutputPShape = reshape->get_output_partial_shape(0);
         const auto reshapeOutputRank = reshapeOutputPShape.rank();
         assert(reshapeOutputRank.is_static());
         assert(reshapeOutputRank.get_length() >= 2);
@@ -75,28 +94,37 @@ void reshapeDequantizationConstant(const std::shared_ptr<op::v1::Reshape>& resha
             return;
         }
 
-        Shape newOperationConstantBroadcastedShape = originalConstant->output(0).get_shape();
-        // add dimensions to broadcast values
-        if (newOperationConstantBroadcastedShape.size() == 2ul) {
-            newOperationConstantBroadcastedShape.push_back(dimensionsToBroadcast);
-        } else {
-            newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
-        }
-        const std::shared_ptr<Node> broadcastedConstant = fold<op::v1::Broadcast>(
-            originalConstant,
-            std::make_shared<op::Constant>(
+        auto getBCastedConst = [](const std::shared_ptr<opset1::Constant>& constant, size_t dimensionsToBroadcast) -> std::shared_ptr<Node> {
+            if (dimensionsToBroadcast == 1ul) {
+                return constant;
+            }
+
+            Shape newOperationConstantBroadcastedShape = constant->get_shape();
+            // add dimensions to broadcast values
+            if (newOperationConstantBroadcastedShape.size() == 2ul) {
+                newOperationConstantBroadcastedShape[0] = dimensionsToBroadcast;
+            } else {
+                newOperationConstantBroadcastedShape[2] = dimensionsToBroadcast;
+            }
+
+            const auto targetShapeConstant = opset1::Constant::create(
                 element::i32,
-                Shape({ newOperationConstantBroadcastedShape.size() }),
-                newOperationConstantBroadcastedShape));
+                Shape{ newOperationConstantBroadcastedShape.size() },
+                newOperationConstantBroadcastedShape);
+
+            return fold<opset1::Broadcast>(constant, targetShapeConstant);
+        };
+
+        const std::shared_ptr<Node> broadcastedConstant = getBCastedConst(originalConstant, dimensionsToBroadcast);
 
         std::vector<int> newReshapeConstValues(reshapeOutputRank.get_length(), 1ul);
         newReshapeConstValues[1] = reshapeOutputPShape[1].get_length();
-        const std::shared_ptr<op::Constant> newReshapeConstant = std::make_shared<op::Constant>(
+        const std::shared_ptr<opset1::Constant> newReshapeConstant = std::make_shared<opset1::Constant>(
             element::i32,
             Shape({ newReshapeConstValues.size() }),
             newReshapeConstValues);
 
-        const std::shared_ptr<Node> resultConstant = fold<op::v1::Reshape>(
+        const std::shared_ptr<Node> resultConstant = fold<opset1::Reshape>(
             broadcastedConstant,
             newReshapeConstant,
             reshape->get_special_zero());
@@ -115,8 +143,10 @@ void reshapeDequantizationConstant(const std::shared_ptr<op::v1::Reshape>& resha
     }
 }
 
+} // namespace
+
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
-    std::shared_ptr<op::v1::Reshape> reshape = as_type_ptr<op::v1::Reshape>(m.get_match_root());
+    std::shared_ptr<opset1::Reshape> reshape = ov::as_type_ptr<opset1::Reshape>(m.get_match_root());
     if (NetworkHelper::isConstantPath(reshape)) {
         return false;
     }
@@ -125,7 +155,7 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    reshape = as_type_ptr<op::v1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
+    reshape = ov::as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
     return true;
@@ -135,7 +165,7 @@ bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const
     return true;
 }
 
-size_t getLastNotBroadcastedDimension(const Shape& shape) {
+inline size_t getLastNotBroadcastedDimension(const Shape& shape) {
     for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
         if (shape[i] != 1ul) {
             return i;
@@ -144,7 +174,7 @@ size_t getLastNotBroadcastedDimension(const Shape& shape) {
     return 0;
 }
 
-size_t getFirstChangedDimension(const PartialShape& shape1, const PartialShape& shape2) {
+inline size_t getFirstChangedDimension(const PartialShape& shape1, const PartialShape& shape2) {
     const size_t minSize = std::min(shape1.rank().get_length(), shape2.rank().get_length());
     size_t i = 0;
     for (; i < minSize; ++i) {
@@ -190,7 +220,7 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
         subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), 1ul);
     }
 
-    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->input(1).get_shape();
+    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiplyConstant->get_shape();
     Shape multiplyShapeWithBatch = multiplyShape;
     if ((dequantization.multiply != nullptr) &&
         (multiplyShapeWithBatch.size() > 1ul) &&

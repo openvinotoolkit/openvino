@@ -103,7 +103,7 @@ public:
             testValues.additionalLayer);
 
         auto supportedPrecisionsOnActivation = std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>({
-            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::op::v1::Convolution>({
+            ngraph::pass::low_precision::OperationPrecisionRestriction::create<ngraph::opset1::Convolution>({
                 {0, testValues.params.precisionsOnActivations},
                 {1, testValues.params.precisionsOnWeights}
             })
@@ -112,13 +112,13 @@ public:
         auto quantizationRestrictions = testValues.multiChannels ?
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>() :
             std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>({
-                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::op::v1::Convolution>()
+                ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction::create<ngraph::opset1::Convolution>()
         });
 
         SimpleLowPrecisionTransformer transform(supportedPrecisionsOnActivation, quantizationRestrictions);
-        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::op::v0::Concat>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithNeighbors(
@@ -343,11 +343,11 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {
                 {},
                 {{ 128.f, 128.f, 128.f, 128.f, 128.f, 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false},
-                {{0.1f}, ngraph::element::f32, { 1, 1, 1, 1 } } },
+                {{0.1f}, ngraph::element::f32, {} } },
             {
                 {},
                 {{128.f, 128.f, 128.f}, ngraph::element::f32, { 1, 3, 1, 1 }, false},
-                {{0.1f}, ngraph::element::f32, { 1, 1, 1, 1 } } }
+                {{0.1f}, ngraph::element::f32, {} } }
         },
         "convolution",
         "convolution"

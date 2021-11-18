@@ -23,7 +23,7 @@ TEST(attributes, extractimagepatches_op) {
 
     auto extractimagepatches = make_shared<op::v3::ExtractImagePatches>(data, sizes, strides, rates, padtype_padding);
     NodeBuilder builder(extractimagepatches);
-    auto g_extractimagepatches = as_type_ptr<op::v3::ExtractImagePatches>(builder.create());
+    auto g_extractimagepatches = ov::as_type_ptr<op::v3::ExtractImagePatches>(builder.create());
 
     const auto expected_attr_count = 4;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

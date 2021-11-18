@@ -99,6 +99,11 @@ if(COMMAND set_ie_threading_interface_for)
   set_ie_threading_interface_for("${CLDNN_BUILD__PROJ}")
 endif()
 
+# Workaround to avoid warnings during LTO build
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_target_properties("${CLDNN_BUILD__PROJ}" PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+endif()
+
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 
 # Set library dependencies
@@ -116,3 +121,8 @@ endif()
 ie_sse42_optimization_flags(sse4_2_flags)
 set_source_files_properties(${__CLDNN_AllSources}
   PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+
+install(TARGETS "${CLDNN_BUILD__PROJ}"
+  RUNTIME DESTINATION tests
+  COMPONENT tests
+  EXCLUDE_FROM_ALL)

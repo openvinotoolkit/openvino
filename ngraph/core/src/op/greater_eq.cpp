@@ -7,11 +7,13 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/greater_eq.hpp"
+#include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 namespace greater_equalop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -46,11 +48,12 @@ bool evaluate_greater_equal(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace greater_equalop
 
 //---------------------------------- v1 ----------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::GreaterEqual, "GreaterEqual", 1, op::util::BinaryElementwiseComparison);
+BWDCMP_RTTI_DEFINITION(op::v1::GreaterEqual);
 
 op::v1::GreaterEqual::GreaterEqual(const Output<Node>& arg0,
                                    const Output<Node>& arg1,
@@ -67,6 +70,7 @@ shared_ptr<Node> op::v1::GreaterEqual::clone_with_new_inputs(const OutputVector&
 
 bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v1_GreaterEqual_evaluate);
+    NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 2));
     return greater_equalop::evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -85,10 +89,4 @@ bool op::v1::GreaterEqual::has_evaluate() const {
         break;
     }
     return false;
-}
-
-bool op::v1::GreaterEqual::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_GreaterEqual_visit_attributes);
-    BinaryElementwiseComparison::visit_attributes(visitor);
-    return true;
 }

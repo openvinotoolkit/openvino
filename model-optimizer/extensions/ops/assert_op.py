@@ -19,7 +19,7 @@ class Assert(Op):
     @staticmethod
     def assert_infer(node: Node):
         assert_value = node.in_node(0).value
-        node.out_node().value = assert_value
+        node.out_node().value = assert_value.copy()
         node.out_node().shape = []
 
     @staticmethod

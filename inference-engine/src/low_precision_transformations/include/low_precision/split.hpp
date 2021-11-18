@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <vector>
+
 #include "layer_transformation.hpp"
+#include "ngraph/node.hpp"
 
 namespace ngraph {
 namespace pass {

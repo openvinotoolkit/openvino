@@ -9,8 +9,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include <ngraph/opsets/opset1.hpp>
 #include "low_precision/network_helper.hpp"
 
+using namespace ov;
 using namespace ngraph;
 using namespace ngraph::pass::low_precision;
 
@@ -45,16 +47,16 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<QuantizationAlignmentAttribute>>>
 
         const auto dequantization = NetworkHelper::getDequantization(node, index);
         if (!dequantization.empty() &&
-            (is_type<op::v0::Convert>(dequantization.data.get_node())) &&
-            is_type<op::v0::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
+            (ov::is_type<opset1::Convert>(dequantization.data.get_node())) &&
+            ov::is_type<opset1::FakeQuantize>(dequantization.data.get_node()->get_input_node_ptr(0))) {
             inputNode = dequantization.data.get_node()->get_input_node_shared_ptr(0);
         }
 
-        if (is_type<op::Constant>(inputNode)) {
+        if (ov::is_type<opset1::Constant>(inputNode)) {
             continue;
         }
 
-        if (!is_type<op::v0::FakeQuantize>(inputNode)) {
+        if (!ov::is_type<opset1::FakeQuantize>(inputNode)) {
             leastOneOperationIsNotFakeQuantize = true;
             break;
         }

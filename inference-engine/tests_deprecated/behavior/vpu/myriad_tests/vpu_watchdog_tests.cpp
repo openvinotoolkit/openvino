@@ -84,7 +84,6 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
         ncDeviceDescr_t deviceDesc = {};
         deviceDesc.protocol = NC_ANY_PROTOCOL;
-        deviceDesc.platform = NC_ANY_PLATFORM;
 
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;
@@ -128,7 +127,7 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 
     auto ctime = Time::now();
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    void *p = myriadPlg.get_symbol(create_plugin_function);
 
     bootOneDevice(0,  p);
 
@@ -161,7 +160,7 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
     auto ctime = Time::now();
 
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    void *p = myriadPlg.get_symbol(create_plugin_function);
 
     bootOneDevice(20000, p);
 

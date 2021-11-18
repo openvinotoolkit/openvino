@@ -33,7 +33,7 @@ TEST(attributes, prior_box_op) {
 
     auto prior_box = make_shared<op::v0::PriorBox>(layer_shape, image_shape, attrs);
     NodeBuilder builder(prior_box);
-    auto g_prior_box = as_type_ptr<op::v0::PriorBox>(builder.create());
+    auto g_prior_box = ov::as_type_ptr<op::v0::PriorBox>(builder.create());
 
     const auto prior_box_attrs = prior_box->get_attrs();
     const auto g_prior_box_attrs = g_prior_box->get_attrs();

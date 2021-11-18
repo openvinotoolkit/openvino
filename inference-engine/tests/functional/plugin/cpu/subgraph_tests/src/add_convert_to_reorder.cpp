@@ -30,18 +30,18 @@ public:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto indicesNode = ngraph::op::v0::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
-        auto axisNode = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
-        auto gather = std::make_shared<ngraph::op::v1::Gather>(paramOuts[0], indicesNode, axisNode);
-        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(gather)};
+        auto indicesNode = ngraph::opset3::Constant::create(secondConstantType, ngraph::Shape(indicesShape), indices);
+        auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
+        auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
         function = std::make_shared<ngraph::Function>(results, params, "gather");
     }
     std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> CalculateRefs() override {
         // Convert the second input constant precision to i64 to run the reference function
         if (ngraph::element::Type_t::i8 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(function);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64>().run_on_function(functionRefs);
         } else if (ngraph::element::Type_t::bf16 == secondConstantType) {
-            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_function(function);
+            ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::i64>().run_on_function(functionRefs);
         }
         return LayerTestsUtils::LayerTestsCommon::CalculateRefs();
     }

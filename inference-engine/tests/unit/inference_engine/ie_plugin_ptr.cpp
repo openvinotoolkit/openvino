@@ -4,6 +4,7 @@
 
 #include <common_test_utils/test_constants.hpp>
 #include "details/ie_so_loader.h"
+#include "details/ie_so_pointer.hpp"
 
 #include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
@@ -39,6 +40,8 @@ protected:
     MockInferencePluginInternal2 engine;
 };
 
+#ifndef OPENVINO_STATIC_LIBRARY
+
 TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
     ASSERT_NO_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> ptr(get_mock_engine_name()));
 }
@@ -64,3 +67,5 @@ TEST_F(PluginTest, canSetConfiguration) {
 
     ASSERT_STREQ(dynamic_cast<MockPlugin*>(ptr.operator->())->config["key"].c_str(), "value");
 }
+
+#endif // OPENVINO_STATIC_LIBRARY

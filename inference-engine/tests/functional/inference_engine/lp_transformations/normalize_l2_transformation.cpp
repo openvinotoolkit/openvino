@@ -70,7 +70,7 @@ public:
             params.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::NormalizeL2Transformation, ngraph::op::v0::NormalizeL2>(params.transformationParams);
+        transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(params.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
@@ -106,6 +106,8 @@ TEST_P(NormalizeL2Transformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::element::Type> precisions = {

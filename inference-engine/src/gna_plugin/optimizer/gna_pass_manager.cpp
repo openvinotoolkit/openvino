@@ -87,7 +87,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     });
     IE_ASSERT(inputLayer != nullptr);
     size_t weightsSize = LayerInfo(prevLayer).has32BOutput() ? nextLayer->outData[0]->getDims().back() :
-        Get2DReshapedData(nextLayer->outData[0], 8)->getDims()[1];
+        Get2DReshapedData(nextLayer->outData[0], GNALimitations::GetMinBatchToFitInBuffer(nextLayer->outData[0]), 8)->getDims()[1];
     std::vector<float> weightsValues(weightsSize, fillValue);
     IE_ASSERT(diagLayer != nullptr);
     diagLayer->_weights = make_shared_blob<float>(
@@ -824,6 +824,30 @@ void InsertIdentityLayerPass::run() {
 
 void InsertCopyLayerPass::run() {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "InsertCopyLayerPass");
+    using FuncChildrenInfo = std::tuple<
+        CNNLayerPtr,   // parent layer
+        CNNLayerPtr,   // child layer
+        int32_t        // input index
+    >;
+    // recursively searches for children functional layers skipping non-functional ones
+    std::function<std::vector<FuncChildrenInfo>(CNNLayerPtr, CNNLayerPtr, int32_t)> find_func_layers =
+        [&find_func_layers](CNNLayerPtr currentLayer, CNNLayerPtr parentLayer, int32_t input_idx) {
+        if (!LayerInfo(currentLayer).isNonFunctional() ||
+            currentLayer->outData.size() == 0 ||
+            getInputTo(currentLayer->outData[0]).size() == 0) {
+            return std::vector<FuncChildrenInfo>{std::make_tuple(parentLayer, currentLayer, input_idx)};
+        }
+        std::vector<FuncChildrenInfo> results;
+        for (size_t i = 0; i < getInputTo(currentLayer->outData[0]).size(); ++i) {
+            auto next_layer = CNNNetGetNextLayerSkipCertain(currentLayer, 0, i,
+                [](CNNLayerPtr origin) {return false; }).first;
+            auto result = find_func_layers(next_layer, currentLayer,
+                CNNLayerFindInsDataIdxes(currentLayer->outData[0], next_layer)[0]);
+            results.insert(std::end(results), std::begin(result), std::end(result));
+        }
+        return results;
+    };
+
     // Copy layer insertion happens in few cases:
     // Crop output goes to concat layer -> copy layer insertion
     // Splitted part of input goes to concat layer -> copy layer insertion
@@ -854,37 +878,24 @@ void InsertCopyLayerPass::run() {
 
         // Crop -> Concat, Input -> Split -> Concat and Concat -> Memory cases
         if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat() || LayerInfo(l).isSplit()) {
-            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> copy_insertion_tuples;
-            std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> delayed_copy_insertion_tuples;
+            std::vector<FuncChildrenInfo> copy_insertion_tuples;
+            std::vector<FuncChildrenInfo> delayed_copy_insertion_tuples;
             for (auto output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
-                    auto original_child = childLayer.second;
-                    auto original_parent = l;
-                    auto current_layer = original_child;
-                    std::vector<int> connections = CNNLayerFindInsDataIdxes(output, original_child);
-
+                    std::vector<int> connections = CNNLayerFindInsDataIdxes(output, childLayer.second);
                     for (auto input_idx : connections) {
-                        while (LayerInfo(current_layer).isNonFunctional()) {
-                            if (current_layer->outData.size() == 0) break;
-                            if (getInputTo(current_layer->outData[0]).size() == 0) break;
-
-                            auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin) {return false; }).first;
-                            if (current_layer->outData.size() == 1 && getInputTo(current_layer->outData[0]).size() == 1 && original_child == current_layer) {
-                                original_child = next_layer;
-                                original_parent = current_layer;
-                                input_idx = CNNLayerFindInsDataIdxes(original_parent->outData[0], original_child)[0];
+                        auto children_info = find_func_layers(childLayer.second, l, input_idx);
+                        for (const auto &child_info : children_info) {
+                            CNNLayerPtr child = std::get<1>(child_info);
+                            if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(child).isMemory()) {
+                                // Concat|Split|Crop -> Memory case
+                                delayed_copy_insertion_tuples.push_back(child_info);
+                            } else if ((LayerInfo(l).isSplit() || LayerInfo(l).isCrop()) && LayerInfo(child).isConcat()) {
+                                // Split|Crop -> Concat case
+                                // concat may be connected to previous layer with multiple connections
+                                copy_insertion_tuples.push_back(child_info);
                             }
-                            current_layer = next_layer;
-                        }
-
-                        if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
-                            // Concat|Split|Crop -> Memory case
-                            delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
-                        } else if ((LayerInfo(l).isSplit() || LayerInfo(l).isCrop()) && LayerInfo(current_layer).isConcat()) {
-                            // Split|Crop -> Concat case
-                            // concat may be connected to previous layer with multiple connections
-                            copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
                         }
                     }
                 }
@@ -1113,6 +1124,9 @@ void InsertConcatAligningFilterPass::run() {
                                             SizeVector({filterWeights.size()}),
                                             Layout::C));
                 concatAligningFilter->_weights->allocate();
+                if (!concatAligningFilter->_weights->buffer().as<float*>()) {
+                    THROW_GNA_EXCEPTION << "Failed to allocate weights of size " << filterWeights.size() << " for " << filterName;
+                }
 
                 CopyVectorToBlob(concatAligningFilter->_weights, filterWeights);
 
@@ -1262,7 +1276,7 @@ void InsertSplitAligningFilterPass::run() {
         size_t currentOffset = 0;
         int splitOutIndex = 0;
         for (auto &&splitOutput  : l->outData) {
-            auto outputSize = product(++begin(splitOutput->getDims()), end(splitOutput->getDims()));
+            auto outputSize = product(begin(splitOutput->getDims()), end(splitOutput->getDims()));
 
             if ((currentOffset != ALIGN64(currentOffset)) || (padding != 0)) {
                 // check that this split output actually connected to further layers
@@ -1395,15 +1409,20 @@ void EltwiseSplitOverChannelsPass::run() {
             THROW_GNA_LAYER_EXCEPTION(l) << "number of outputs expected to be 1";
         }
         auto oData = l->outData.front();
-        auto out_width = GetDataDimSize(oData, DataDimName::W);
-        auto totalElementsForOutput = details::product(oData->getDims().begin(), oData->getDims().end());
-         // gna limit this to be OxFFFF
-        auto maxAffineElements = 65536 - 64;
-        if (totalElementsForOutput <= maxAffineElements) {
+        auto oDims = oData->getDims();
+        auto totalElementsSize = details::product(std::begin(oDims), std::end(oDims));
+        if (totalElementsSize <= GNALimitations::bufferMaxSize) {
             continue;
         }
 
-        auto totalSplits = 1 + totalElementsForOutput / maxAffineElements;
+        auto firstValuableDim = std::find_if(std::begin(oDims), std::end(oDims), [](size_t val) { return val > 1; });
+        IE_ASSERT(firstValuableDim != std::end(oDims));
+        auto splittedElementsSize = *firstValuableDim;
+        auto splittedDimIx = std::distance(std::begin(oDims), firstValuableDim);
+
+        // Split output size should be multiple by 64 to avoid align filters insertion
+        auto splitSizes = GetAlignedSplitSizes(splittedElementsSize,
+            GNALimitations::bufferMaxSize * splittedElementsSize / totalElementsSize);
 
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
@@ -1421,27 +1440,13 @@ void EltwiseSplitOverChannelsPass::run() {
             auto inputDesc = l->insData[kThEltwiseInput].lock()->getTensorDesc();
 
             // create split layer outputs
-            size_t usedElements = 0;
-            for (size_t i = 0; i < totalSplits; i++) {
-                SizeVector newDims;
-                size_t elements_num = std::min(totalElementsForOutput - usedElements,
-                        static_cast<size_t>(maxAffineElements));
-                if (inputDesc.getDims().size() == 2) {
-                    newDims = SizeVector{1, elements_num};
-                } else {
-                    elements_num = elements_num - elements_num % out_width;
-                    newDims = SizeVector{1, elements_num / out_width, out_width};
-                }
-
+            for (auto elementsNum : splitSizes) {
+                auto newDims = oDims;
+                newDims[splittedDimIx] = elementsNum;
                 auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
                 auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
                 getCreatorLayer(data) = split;
                 split->outData.push_back(data);
-
-                usedElements += elements_num;
-                if (usedElements == totalElementsForOutput) {
-                    break;
-                }
             }
             // replacing connection X->eltwise to X->split
             auto oData = CNNLayerFindOutData(l, kThEltwiseInput);
@@ -1461,7 +1466,7 @@ void EltwiseSplitOverChannelsPass::run() {
         concat->outData.push_back(masterEltwise->outData.front());
         getCreatorLayer(masterEltwise->outData.front()) = concat;
 
-        for (size_t k = 0; k != totalSplits; k++) {
+        for (size_t k = 0; k != splitSizes.size(); k++) {
             auto eltwiseRaw = std::make_shared<EltwiseLayer>(
                     LayerParams{l->name + "/eltwise/" + std::to_string(k), "Eltwise", Precision::FP32});
             IE_ASSERT(eltwiseRaw != nullptr);
@@ -1521,7 +1526,9 @@ void SubstituteScaleShiftBroadCastPass::run() {
         if (was_reshaped) {
             dataDims = reshaped_data[insData->getName()];
         } else {
-            dataDims = HasTo2DReshapeData(l) ? Get2DReshapedData(insData, 8)->getDims() : insData->getDims();
+            dataDims = HasTo2DReshapeData(l) ?
+                Get2DReshapedData(insData, GNALimitations::GetMinBatchToFitInBuffer(insData), 8)->getDims() :
+                insData->getDims();
         }
 
         if (dataDims.size() <= 2) {
@@ -1845,8 +1852,8 @@ void FuseFQIntoWeightsPass::run() {
             layers_connected_to_fq_count = inputTo.size();
         }
         for (int index = 0; index < layers_connected_to_fq_count; index++) {
-            auto weightableLayer = CNNNetGetNextLayerSkipCertain(layerBeforeWeightable, 0, index, isNonFunctional).first;
-            if (!LayerInfo(weightableLayer).isWeightable()) {
+            auto weightableLayer = CNNNetCheckNextLayerSkipCertain(layerBeforeWeightable, 0, index, true, isNonFunctional).first;
+            if (!weightableLayer || !LayerInfo(weightableLayer).isWeightable()) {
                 continue;
             }
             if (weightableLayer->insData.size() < 2) {

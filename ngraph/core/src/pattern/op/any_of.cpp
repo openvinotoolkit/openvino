@@ -7,20 +7,15 @@
 #include "ngraph/pattern/matcher.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo pattern::op::AnyOf::type_info;
+BWDCMP_RTTI_DEFINITION(ov::pass::pattern::op::AnyOf);
 
-const NodeTypeInfo& pattern::op::AnyOf::get_type_info() const {
-    return type_info;
-}
-
-bool pattern::op::AnyOf::match_value(Matcher* matcher,
-                                     const Output<Node>& pattern_value,
-                                     const Output<Node>& graph_value) {
+bool ov::pass::pattern::op::AnyOf::match_value(Matcher* matcher,
+                                               const Output<Node>& pattern_value,
+                                               const Output<Node>& graph_value) {
     matcher->add_node(graph_value);
     return m_predicate(graph_value) && ([&]() {
-               for (auto arg : graph_value.get_node_shared_ptr()->input_values()) {
+               for (const auto& arg : graph_value.get_node_shared_ptr()->input_values()) {
                    auto saved = matcher->start_match();
                    if (matcher->match_value(input_value(0), arg)) {
                        return saved.finish(true);

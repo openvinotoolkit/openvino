@@ -7,13 +7,13 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_int_list
 
+
 class ExtractImagePatchesExtractor(FrontExtractorOp):
     op = 'ExtractImagePatches'
     enabled = True
 
     @classmethod
     def extract(cls, node):
-
         attrs = {
             'spatial_dims': int64_array([1, 2]),
             'sizes': tf_int_list(node.pb.attr['ksizes'].list),
@@ -23,3 +23,4 @@ class ExtractImagePatchesExtractor(FrontExtractorOp):
         }
 
         ExtractImagePatches.update_node_stat(node, attrs)
+        return cls.enabled

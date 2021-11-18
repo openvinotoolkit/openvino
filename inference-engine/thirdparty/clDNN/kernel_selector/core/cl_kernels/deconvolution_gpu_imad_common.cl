@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
+#include "include/batch_headers/data_types.cl"
 
 #define CEIL_DIV(a, b) (((a) + ((b) - 1)) / (b))
 #define ALIGN(a, b) (CEIL_DIV(a, b) * (b))

@@ -16,16 +16,18 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v4::ReduceL2, "ReduceL2", 4, util::ArithmeticReductionKeepDims);
+BWDCMP_RTTI_DEFINITION(op::v4::ReduceL2);
 
 op::v4::ReduceL2::ReduceL2(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
     constructor_validate_and_infer_types();
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 shared_ptr<Node> op::v4::ReduceL2::get_default_value() const {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v4_ReduceL2_clone_with_new_inputs);
@@ -34,6 +36,7 @@ shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace reduce_l2 {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -53,6 +56,7 @@ bool evaluate_reduce_l2(const HostTensorPtr& arg, const HostTensorPtr& out, cons
     }
     return rc;
 }
+}  // namespace
 }  // namespace reduce_l2
 
 bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

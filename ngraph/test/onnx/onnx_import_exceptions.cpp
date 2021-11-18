@@ -11,6 +11,8 @@
 #include "onnx_import/onnx.hpp"
 #include "util/type_prop.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 
 TEST(onnx_importer, exception_throws_ngraph_error) {
@@ -53,8 +55,7 @@ TEST(onnx_importer, exception_msg_onnx_node_validation_failure) {
 // This test should throw a std error because of attempt to access shape from dynamic tensor.
 TEST(onnx_importer, exception_msg_std_err_wrapped) {
     try {
-        onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_link_dyn_shape.onnx"));
+        onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/eye_like_wrong_shape.onnx"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     } catch (const std::exception& e) {

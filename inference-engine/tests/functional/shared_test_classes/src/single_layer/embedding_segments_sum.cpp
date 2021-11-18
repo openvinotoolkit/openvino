@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet> obj) {
+std::string EmbeddingSegmentsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingSegmentsSumLayerTestParamsSet>& obj) {
     embeddingSegmentsSumParams params;
     InferenceEngine::Precision netPrecision, indPrecision;
     std::string targetDevice;
@@ -44,13 +44,13 @@ void EmbeddingSegmentsSumLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indPrecision);
 
-    auto emb_table_node = std::make_shared<ngraph::op::v0::Parameter>(ngPrc, ngraph::Shape(embTableShape));
+    auto emb_table_node = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(embTableShape));
     ngraph::ParameterVector params = {emb_table_node};
 
-    auto embBag = std::dynamic_pointer_cast<ngraph::op::v3::EmbeddingSegmentsSum>(
+    auto embBag = std::dynamic_pointer_cast<ngraph::opset3::EmbeddingSegmentsSum>(
             ngraph::builder::makeEmbeddingSegmentsSum(
                 ngPrc, ngIdxPrc, emb_table_node, indices, segmentIds, numSegments, defaultIndex, withWeights, withDefIndex));
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(embBag)};
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(embBag)};
     function = std::make_shared<ngraph::Function>(results, params, "embeddingSegmentsSum");
 }
 }  // namespace LayerTestsDefinitions

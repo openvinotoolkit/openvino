@@ -21,7 +21,7 @@ TEST(attributes, mvn_v1_op) {
     const auto op = make_shared<op::v0::MVN>(data, true, false, 0.1);
     op->set_reduction_axes(axes);
     NodeBuilder builder(op);
-    const auto g_op = as_type_ptr<op::v0::MVN>(builder.create());
+    const auto g_op = ov::as_type_ptr<op::v0::MVN>(builder.create());
     const auto expected_attr_count = 4;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -39,7 +39,7 @@ TEST(attributes, mvn_v6_op) {
     const auto op = make_shared<op::v6::MVN>(data, axes, false, 0.1, op::MVNEpsMode::INSIDE_SQRT);
 
     NodeBuilder builder(op);
-    const auto g_op = as_type_ptr<op::v6::MVN>(builder.create());
+    const auto g_op = ov::as_type_ptr<op::v6::MVN>(builder.create());
     const auto expected_attr_count = 3;
 
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

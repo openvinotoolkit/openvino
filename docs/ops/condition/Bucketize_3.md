@@ -2,7 +2,7 @@
 
 **Versioned name**: *Bucketize-3*
 
-**Category**: Condition operation
+**Category**: *Condition*
 
 **Short description**: *Bucketize* bucketizes the input based on boundaries. This is similar to [Reference](https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/bucketize).
 

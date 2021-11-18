@@ -19,7 +19,7 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace {
+namespace detail {
 Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
     if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2])) {
         auto zero_point = inputs[2];
@@ -33,7 +33,7 @@ Output<ngraph::Node> get_zero_point(const OutputVector& inputs) {
         return default_opset::Constant::create(element::f32, Shape{}, {0});
     }
 }
-}  // namespace
+}  // namespace detail
 namespace set_1 {
 OutputVector dequantize_linear(const Node& node) {
     const OutputVector inputs{node.get_ng_inputs()};
@@ -44,7 +44,7 @@ OutputVector dequantize_linear(const Node& node) {
 
     const auto x = inputs[0];
     const auto scale = inputs[1];
-    const auto zero_point = get_zero_point(inputs);
+    const auto zero_point = detail::get_zero_point(inputs);
 
     common::validate_scalar_input("Dequantization scale", scale.get_node_shared_ptr(), {element::f32});
     common::validate_scalar_input("Zero point", zero_point.get_node_shared_ptr());
@@ -58,7 +58,7 @@ OutputVector dequantize_linear(const Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-namespace {
+namespace detail {
 void validate_scale(const Output<ngraph::Node> scale, const Output<ngraph::Node> x, const int64_t axis) {
     const auto& scale_shape = scale.get_partial_shape();
     NGRAPH_CHECK(scale_shape.rank().get_length() == 0 || scale_shape.rank().get_length() == 1,
@@ -129,25 +129,16 @@ std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node> input,
 
     return std::make_shared<default_opset::Reshape>(input, target_shape, true);
 }
-}  // namespace
 
-OutputVector dequantize_linear(const Node& node) {
-    const OutputVector inputs{node.get_ng_inputs()};
-
-    NGRAPH_CHECK(2 <= inputs.size() && inputs.size() <= 3,
-                 "The DequantizeLinear op expects 2 required and one optional "
-                 "input. Got: ",
-                 inputs.size());
-
-    const auto x = inputs[0];
-    auto scale = inputs[1];
-    auto zero_point = get_zero_point(inputs);
-
+OutputVector dequantize_linear(Output<ngraph::Node> x,
+                               Output<ngraph::Node> scale,
+                               Output<ngraph::Node> zero_point,
+                               int64_t axis,
+                               Node node) {
     const auto x_shape = x.get_partial_shape();
 
     NGRAPH_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
 
-    int64_t axis{node.get_attribute_value<int64_t>("axis", 1)};
     axis = ngraph::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     validate_scale(scale, x, axis);
@@ -162,6 +153,22 @@ OutputVector dequantize_linear(const Node& node) {
     return {
         std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Subtract>(converted_x, zero_point),
                                                   scale)};
+}
+}  // namespace detail
+
+OutputVector dequantize_linear(const Node& node) {
+    const OutputVector inputs{node.get_ng_inputs()};
+
+    NGRAPH_CHECK(2 <= inputs.size() && inputs.size() <= 3,
+                 "The DequantizeLinear op expects 2 required and one optional "
+                 "input. Got: ",
+                 inputs.size());
+    const auto x = inputs[0];
+    auto scale = inputs[1];
+    auto zero_point = op::detail::get_zero_point(inputs);
+
+    // these reshapes make sure that dequantization happens over the specified axis
+    return detail::dequantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }
 }  // namespace set_13
 }  // namespace op

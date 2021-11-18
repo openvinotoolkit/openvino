@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj) {
+std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolLayerTestParamsSet>& obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -48,7 +48,7 @@ std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTe
     return result.str();
 }
 
-std::string GlobalPoolingLayerTest::getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj) {
+std::string GlobalPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<globalPoolLayerTestParamsSet>& obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -122,7 +122,7 @@ void PoolingLayerTest::SetUp() {
                                                                          excludePad,
                                                                          poolType);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(pooling)};
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
 
@@ -156,7 +156,7 @@ void GlobalPoolingLayerTest::SetUp() {
                                                                          excludePad,
                                                                          poolType);
 
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(pooling)};
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling)};
     function = std::make_shared<ngraph::Function>(results, params, "pooling");
 }
 }  // namespace LayerTestsDefinitions

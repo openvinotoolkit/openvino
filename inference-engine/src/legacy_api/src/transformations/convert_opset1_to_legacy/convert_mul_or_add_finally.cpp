@@ -125,70 +125,14 @@ ngraph::matcher_pass_callback get_callback() {
 
         auto res = check_constant(const_node, data_node.get_partial_shape());
 
-        auto checkElementwise = [](const std::shared_ptr<ngraph::Node>& elementwise) -> bool {
-            const ngraph::PartialShape partialShape = elementwise->get_input_partial_shape(0);
-            if (partialShape.is_dynamic()) {
-                return false;
-            }
-
-            std::shared_ptr<ngraph::opset1::Constant> constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(elementwise->get_input_node_shared_ptr(1));
-            if (constant == nullptr) {
-                constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(elementwise->get_input_node_shared_ptr(0));
-            }
-            if (constant == nullptr) {
-                return false;
-            }
-
-            const ngraph::Shape constShape = constant->get_output_shape(0);
-            const ngraph::Shape shape = partialShape.to_shape();
-
-            if (constShape.size() == 1ul && constShape[0] != 1 && constShape[0] != shape[1]) {
-                return false;
-            }
-
-            if ((constShape.size() > 5ul)) {
-                return false;
-            }
-
-            if ((constShape.size() <= 1ul) || (std::all_of(constShape.begin(), constShape.end(), [](const size_t value) { return value == 1ul; }))) {
-                return true;
-            }
-
-            if (constShape.size() == shape.size()) {
-                if ((constShape[0] != 1ul) || (constShape[1] != shape[1])) {
-                    return false;
-                }
-                for (size_t i = 2ul; i < constShape.size(); ++i) {
-                    if (constShape[i] != 1ul) {
-                        return false;
-                    }
-                }
-            } else if (constShape.size() == (shape.size() - 1)) {
-                if (constShape[0] != shape[1]) {
-                    return false;
-                }
-                for (size_t i = 1ul; i < constShape.size(); ++i) {
-                    if (constShape[i] != 1ul) {
-                        return false;
-                    }
-                }
-            } else {
-                return false;
-            }
-
-            return true;
-        };
-
-        bool is_dequantization = (lin_op->get_rt_info().count("DEQUANTIZATION") != 0) && checkElementwise(lin_op);
-
-        if (!is_dequantization && (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4))) {
+        if (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4)) {
             return convert_to_eltwise<T>(lin_op,
                                          lin_op->input(0).get_source_output(),
                                          lin_op->input(1).get_source_output());
         }
 
         // TODO: if all values in Constant are equal the best way is to convert this Eltwise to Power
-        if (res == CONVERSION_RESULT::SCALE_SHIFT || is_dequantization) {
+        if (res == CONVERSION_RESULT::SCALE_SHIFT) {
             auto weights_et = const_node->get_element_type();
             auto weights_shape = const_node->get_shape();
 
@@ -198,14 +142,6 @@ ngraph::matcher_pass_callback get_callback() {
                 auto weights = ngraph::opset1::Constant::create(weights_et, weights_shape, {1});
                 auto weights_in = ngraph::op::util::normalize_constant(weights, output_shape);
                 auto biases_in = ngraph::op::util::normalize_constant(const_node, output_shape);
-                if (is_dequantization) {
-                    const ngraph::Shape data_shape = data_node.get_shape();
-                    ngraph::Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
-                    broadcasted_shape[1] = data_shape[1];
-
-                    weights_in = ngraph::op::util::broadcastTo(weights_in, broadcasted_shape);
-                    biases_in = ngraph::op::util::broadcastTo(biases_in, broadcasted_shape);
-                }
                 scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
             } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
                 std::shared_ptr<ngraph::Node> new_const_node = std::make_shared<ngraph::opset1::Multiply>(
@@ -215,27 +151,11 @@ ngraph::matcher_pass_callback get_callback() {
                 auto weights = ngraph::opset1::Constant::create(weights_et, weights_shape, {1});
                 auto weights_in = ngraph::op::util::normalize_constant(weights, output_shape);
                 auto biases_in = new_const_node;
-                if (is_dequantization) {
-                    const ngraph::Shape data_shape = data_node.get_shape();
-                    ngraph::Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
-                    broadcasted_shape[1] = data_shape[1];
-
-                    weights_in = ngraph::op::util::broadcastTo(weights_in, broadcasted_shape);
-                    biases_in = ngraph::op::util::broadcastTo(biases_in, broadcasted_shape);
-                }
                 scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
             } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
                 auto bias = ngraph::opset1::Constant::create(weights_et, weights_shape, {0});
                 auto weights_in = ngraph::op::util::normalize_constant(const_node, output_shape);
                 auto biases_in = ngraph::op::util::normalize_constant(bias, output_shape);
-                if (is_dequantization) {
-                    const ngraph::Shape data_shape = data_node.get_shape();
-                    ngraph::Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
-                    broadcasted_shape[1] = data_shape[1];
-
-                    weights_in = ngraph::op::util::broadcastTo(weights_in, broadcasted_shape);
-                    biases_in = ngraph::op::util::broadcastTo(biases_in, broadcasted_shape);
-                }
                 scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
             } else {
                 return false;

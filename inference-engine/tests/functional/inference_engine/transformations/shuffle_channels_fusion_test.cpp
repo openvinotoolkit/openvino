@@ -48,26 +48,29 @@ public:
     void SetUp() override {
         const auto values = GetParam();
         {
-            auto input0 = std::make_shared<op::v0::Parameter>(element::f32, values.inputPartialShape);
-            auto shape_reshape_before = op::v0::Constant::create(element::i64, Shape{ values.reshape_before_val.size() }, values.reshape_before_val);
-            auto permutation = op::v0::Constant::create(element::i64, Shape{ values.transpose_val.size() }, values.transpose_val);
-            auto shape_reshape_after = op::v0::Constant::create(element::i64, Shape{ values.reshape_after_val.size() }, values.reshape_after_val);
+            auto input0 = std::make_shared<opset6::Parameter>(element::f32, values.inputPartialShape);
+            auto shape_reshape_before = opset6::Constant::create(element::i64, Shape{ values.reshape_before_val.size() }, values.reshape_before_val);
+            auto permutation = opset6::Constant::create(element::i64, Shape{ values.transpose_val.size() }, values.transpose_val);
+            auto shape_reshape_after = opset6::Constant::create(element::i64, Shape{ values.reshape_after_val.size() }, values.reshape_after_val);
 
-            auto reshape_before = std::make_shared<ngraph::op::v1::Reshape>(input0, shape_reshape_before, false);
-            auto permute = std::make_shared<ngraph::op::v1::Transpose>(reshape_before, permutation);
-            auto reshape_after = std::make_shared<ngraph::op::v1::Reshape>(permute, shape_reshape_after, false);
+            auto reshape_before = std::make_shared<ngraph::opset6::Reshape>(input0, shape_reshape_before, false);
+            auto permute = std::make_shared<ngraph::opset6::Transpose>(reshape_before, permutation);
+            auto reshape_after = std::make_shared<ngraph::opset6::Reshape>(permute, shape_reshape_after, false);
             f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape_after }, ngraph::ParameterVector{ input0 });
 
+            auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
             ngraph::pass::Manager manager;
             auto pass_config = manager.get_pass_config();
+            manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::ShuffleChannelsFusion>(values.check_reshape_values);
+            manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
             manager.run_passes(f);
             ASSERT_NO_THROW(check_rt_info(f));
         }
 
         if (values.fuse_happened) {
-            auto input0 = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, values.inputPartialShape);
+            auto input0 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, values.inputPartialShape);
             auto shuffle_channels = std::make_shared<ngraph::opset6::ShuffleChannels>(input0, 1, values.reshape_before_val[1]);
             f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ shuffle_channels }, ngraph::ParameterVector{ input0 });
         } else {
@@ -98,8 +101,9 @@ protected:
 };
 
 TEST_P(ShuffleChannelsFusion, CompareFunctions) {
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 const std::vector<ShuffleChannelsFusionTestValues> testValues = {

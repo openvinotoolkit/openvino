@@ -27,7 +27,7 @@ TEST(attributes, interpolate_op) {
 
     auto interpolate = make_shared<op::v0::Interpolate>(img, out_shape, interp_atrs);
     NodeBuilder builder(interpolate);
-    auto g_interpolate = as_type_ptr<op::v0::Interpolate>(builder.create());
+    auto g_interpolate = ov::as_type_ptr<op::v0::Interpolate>(builder.create());
 
     const auto i_attrs = interpolate->get_attrs();
     const auto g_i_attrs = g_interpolate->get_attrs();

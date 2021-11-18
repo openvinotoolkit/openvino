@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::ScatterNDUpdate::type_info;
+BWDCMP_RTTI_DEFINITION(op::v3::ScatterNDUpdate);
 
 shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVector& new_args) const {
     NGRAPH_OP_SCOPE(v3_ScatterNDUpdate_clone_with_new_inputs);
@@ -23,16 +23,17 @@ shared_ptr<Node> op::v3::ScatterNDUpdate::clone_with_new_inputs(const OutputVect
 }
 
 namespace scatter {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
               const HostTensorPtr& arg2,
               const HostTensorPtr& out) {
     using T = typename element_type_traits<ET>::value_type;
-    Shape params_shape = arg0->get_shape();
-    Shape indices_shape = arg1->get_shape();
-    Shape updates_shape = arg1->get_shape();
-    Shape out_shape(params_shape);
+    ov::Shape params_shape = arg0->get_shape();
+    ov::Shape indices_shape = arg1->get_shape();
+    ov::Shape updates_shape = arg1->get_shape();
+    const ov::Shape& out_shape(params_shape);
     out->set_shape(out_shape);
 
     if (arg1->get_element_type() == element::i64) {
@@ -78,6 +79,7 @@ bool evaluate_scatter(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace scatter
 
 bool op::v3::ScatterNDUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

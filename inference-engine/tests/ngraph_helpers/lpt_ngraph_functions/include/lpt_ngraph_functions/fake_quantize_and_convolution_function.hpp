@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <memory>
+#include <ngraph/ngraph.hpp>
+#include <string>
+
 #include "lpt_ngraph_functions/common/constant.hpp"
 #include "lpt_ngraph_functions/common/multiply.hpp"
 #include "lpt_ngraph_functions/common/reshape.hpp"

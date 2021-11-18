@@ -53,8 +53,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor output_size,
                 data_types output_type,
                 bool grouped_weights_shape,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, output_padding, optional_data_type{output_type}),
+            : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_type}),
               input_offset(input_offset),
               stride(stride),
               dilation(dilation),
@@ -104,8 +105,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor dilation,
                 tensor output_size,
                 bool grouped_weights_shape,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
+            : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type}),
               input_offset(input_offset),
               stride(stride),
               dilation(dilation),
@@ -162,8 +164,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor dilation,
                 tensor output_size,
                 bool grouped_weights_shape,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-            : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
+            : primitive_base(id, {input}, ext_prim_id, output_padding, optional_data_type{output_data_type}),
               input_offset(input_offset),
               stride(stride),
               dilation(dilation),
@@ -209,8 +212,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor stride = {1, 1, 1, 1},
                 tensor input_offset = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -254,8 +258,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -301,8 +306,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -347,8 +353,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
                 bool grouped_weights_shape = false,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -391,8 +398,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
                 bool grouped_weights_shape = false,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -433,8 +441,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -477,8 +486,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor dilation,
                 tensor padding_above,
                 tensor padding_below,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -518,8 +528,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset = tensor(0),
                 tensor dilation = {1, 1, 1, 1},
                 bool grouped_weights_shape = false,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -560,8 +571,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset,
                 tensor dilation,
                 tensor output_size,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -604,8 +616,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset,
                 tensor dilation,
                 tensor output_size,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -652,8 +665,9 @@ struct convolution : public primitive_base<convolution> {
                 tensor input_offset,
                 tensor dilation,
                 tensor output_size,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input, trans}, output_padding),
+        : primitive_base(id, {input, trans}, ext_prim_id, output_padding),
           input_offset(input_offset),
           stride(stride),
           dilation(dilation),
@@ -701,6 +715,7 @@ struct convolution : public primitive_base<convolution> {
                                                tensor stride = {1, 1, 1, 1},
                                                tensor input_offset = tensor(0),
                                                tensor dilation = {1, 1, 1, 1},
+                                               const primitive_id& ext_prim_id = "",
                                                const padding& output_padding = padding()) {
         return convolution(id,
                            input,
@@ -710,6 +725,7 @@ struct convolution : public primitive_base<convolution> {
                            input_offset,
                            dilation,
                            output_size,
+                           ext_prim_id,
                            output_padding);
     }
 
@@ -736,6 +752,7 @@ struct convolution : public primitive_base<convolution> {
                                                tensor stride = {1, 1, 1, 1},
                                                tensor input_offset = tensor(0),
                                                tensor dilation = {1, 1, 1, 1},
+                                               const primitive_id& ext_prim_id = "",
                                                const padding& output_padding = padding()) {
         return convolution(id,
                            input,
@@ -744,6 +761,7 @@ struct convolution : public primitive_base<convolution> {
                            input_offset,
                            dilation,
                            output_size,
+                           ext_prim_id,
                            output_padding);
     }
 
@@ -783,9 +801,22 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing compensation.
     primitive_id_arr compensation;
 
-
     /// @brief On how many cards split the computation to.
     int32_t split() const { return static_cast<int32_t>(weights.size()); }
+
+    /// @brief Validates if this convolution satisfies condition to support mixed format execution from bfyx to blocked fsv16.
+    /// This validation is used by selecting onednn type as preferred impl and handling reorders at reorder_inputs and remove_redundant_reorders.
+    /// As an example, if a reorder has 2 reorder users that each reorder has a convolution user, then merge is not done when those 2 convolutions
+    /// have different result from this function.
+    /// Currently, if an input channel of the first onednn conv is 1, then ref kernel is selected.
+    bool needs_onednn_bfyx_to_fsv16(format fmt_prev, format fmt_next, layout& prev_output_layout, layout& next_output_layout) const {
+        if (fmt_prev == format::bfyx && (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv32_fsv16) &&
+            next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] <= 4 && prev_output_layout.size.feature[0] >= 2 &&
+            activations_zero_points.empty() && weights_zero_points.empty())
+            return true;
+
+        return false;
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -813,8 +844,9 @@ struct deformable_interp : public primitive_base<deformable_interp> {
                       tensor dilation,
                       tensor output_size,
                       tensor kernel_size,
+                      const primitive_id& ext_prim_id = "",
                       const padding& output_padding = padding())
-            : primitive_base(id, {input, trans}, output_padding),
+            : primitive_base(id, {input, trans}, ext_prim_id, output_padding),
               input_offset(input_offset),
               stride(stride),
               dilation(dilation),
@@ -857,8 +889,9 @@ struct deformable_conv : public primitive_base<deformable_conv> {
                     const std::vector<primitive_id>& biases,
                     uint32_t groups,
                     tensor output_size,
+                    const primitive_id& ext_prim_id = "",
                     const padding& output_padding = padding())
-            : primitive_base(id, {input}, output_padding),
+            : primitive_base(id, {input}, ext_prim_id, output_padding),
               output_size(output_size),
               groups(groups),
               weights(weights),

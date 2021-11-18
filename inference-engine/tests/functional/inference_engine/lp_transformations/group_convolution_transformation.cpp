@@ -32,7 +32,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
-        std::shared_ptr<ngraph::op::v0::Constant> weights;
+        std::shared_ptr<ngraph::opset1::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
@@ -41,7 +41,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-        std::shared_ptr<ngraph::op::v0::Constant> weights;
+        std::shared_ptr<ngraph::opset1::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
         ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ngraph::element::Type precisionAfterOperation;
@@ -82,7 +82,7 @@ public:
             ngraph::element::f32);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::op::v1::GroupConvolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(testValues.params);
         if (testValues.params.supportAsymmetricQuantization == false) {
             transform.get_pass_config()->set_callback<ngraph::pass::low_precision::GroupConvolutionTransformation>(
                 [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
@@ -130,6 +130,8 @@ TEST_P(GroupConvolutionTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 namespace testValues1 {
@@ -163,7 +165,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
 
@@ -188,7 +190,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
 
@@ -213,7 +215,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
 
@@ -262,7 +264,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
     // group convolution, per-channel quantization with different values, without zero point
@@ -335,7 +337,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {
                 {},
                 {},
-                {{ 0.0002f }, ngraph::element::f32, {1, 24, 1, 1}}
+                {{ 0.0002f }, ngraph::element::f32, {}}
             },
         }
     },
@@ -384,7 +386,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 24, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // per-channel quantization with different values, without zero point
@@ -471,7 +473,7 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
                     1,
                     ngraph::element::i8,
                     false,
-                    {"DEQUANTIZATION", "DISABLED_CONSTANT_FOLDING"}
+                    {"disabled_constant_folding_0"}
                 },
                 {}
             },
@@ -535,7 +537,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // depth-wise convolution, tensor quantization, with zero point
@@ -559,7 +561,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // depth-wise convolution, per-channel quantization with different values, without zero point
@@ -629,7 +631,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {
                 {},
                 {},
-                {{ 0.0002f }, ngraph::element::f32, {1, 6, 1, 1}}
+                {{ 0.0002f }, ngraph::element::f32, {}}
             },
         }
     },
@@ -678,7 +680,7 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
             {},
             {},
             ngraph::element::f32,
-            {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 1, 6, 1, 1 }}}
+            {{}, {}, {{ 0.0002f }, ngraph::element::f32, {}}}
         }
     },
     // without dequantization operations

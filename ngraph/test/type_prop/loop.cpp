@@ -56,13 +56,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes) {
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -78,10 +78,10 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -141,13 +141,13 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes) {
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -163,10 +163,10 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -226,13 +226,13 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -245,10 +245,10 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -305,13 +305,13 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -325,10 +325,10 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -390,13 +390,13 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -411,10 +411,10 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -521,13 +521,13 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes) {
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -543,10 +543,10 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -607,13 +607,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -629,10 +629,10 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -693,13 +693,13 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -715,10 +715,10 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -779,13 +779,13 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs) {
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -802,10 +802,10 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs) {
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -872,13 +872,13 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_c
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -895,10 +895,10 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_c
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }
@@ -969,13 +969,13 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concate
     for (auto& desc : loop->get_input_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
-            auto input_desc = as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
+            auto input_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
     }
@@ -991,10 +991,10 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concate
     for (auto& desc : loop->get_output_descriptions()) {
         auto type_info = desc->get_type_info();
         if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
-            auto output_desc = as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
+            auto output_desc = ov::as_type_ptr<ngraph::op::v0::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
     }

@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include <ngraph/ngraph.hpp>
 #include "lpt_ngraph_functions/common/add.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -38,7 +39,7 @@ class FuseFakeQuantizeTransformation :
     public testing::WithParamInterface<FuseFakeQuantizeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

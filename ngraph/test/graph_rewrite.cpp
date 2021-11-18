@@ -396,7 +396,7 @@ public:
                 for (auto output : node->outputs()) {
                     cnt += output.get_target_inputs().size();
                 }
-                if (as_type<op::Parameter>(node) || as_type<op::Result>(node)) {
+                if (ov::as_type<op::Parameter>(node) || ov::as_type<op::Result>(node)) {
                     cnt += 1;
                 }
                 return cnt;

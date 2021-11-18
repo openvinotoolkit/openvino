@@ -497,7 +497,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -573,7 +573,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -983,8 +983,8 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
 
     topology topology(
             input_layout("input", input->get_layout()),
-            reorder("reorder", "input", input->get_layout().with_padding(padding{{0, 0, 2, 1}, 0})),
-            activation("relu", "reorder", activation_func::acosh, {0.5f, 0.f}, padding{{0, 0, 0, 0}, 0}));
+            reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
+            activation("relu", "reorder", activation_func::acosh, {0.5f, 0.f}, "", padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1050,7 +1050,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     topology topology(
         input_layout("input", input->get_layout()),
         reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
-        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
+        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1137,7 +1137,7 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     topology topology(
         input_layout("input", input->get_layout()),
         reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
-        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
+        activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1210,7 +1210,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
 
     topology topology(
         input_layout("input", input->get_layout()),
-        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
+        activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, "", padding{ { 0, 0, 3, 3 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -1459,3 +1459,181 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
         EXPECT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
     }
 }
+
+struct activation_random_test_params {
+    data_types input_type;
+    format::type input_format;
+    tensor input_size;
+    activation_func func_type;
+    activation_additional_params additional_params;
+    padding padd;
+};
+
+struct activation_random_test : testing::TestWithParam<activation_random_test_params>
+{
+    bool enable_profiling = false;
+
+    size_t get_x_pitch(layout& layout) {
+        auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
+        auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
+        auto x0 = layout.get_linear_offset(tensor_x0);
+        auto x1 = layout.get_linear_offset(tensor_x1);
+        return (x1 - x0);
+    }
+
+    template <typename T>
+    void fill_random_typed(memory::ptr mem, int min, int max, int k) {
+        auto size = mem->get_layout().size;
+        size_t b = size.batch[0];
+        size_t f = size.feature[0];
+        size_t x = size.spatial[0];
+        size_t y = size.spatial[1];
+
+        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        mem_lock<T> ptr{mem, get_test_stream()};
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory::ptr mem) {
+        auto dt = mem->get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127, 2);
+            break;
+        case data_types::f16:
+            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            break;
+        case data_types::i8:
+            fill_random_typed<int8_t>(mem, -127, 127, 1);
+            break;
+        case data_types::u8:
+            fill_random_typed<uint8_t>(mem, 0, 255, 1);
+            break;
+        default:
+            break;
+        }
+    }
+
+    template <typename T>
+    bool compare_outputs(const memory::ptr out_ref, const memory::ptr out_opt) {
+        auto output_lay = out_ref->get_layout();
+        auto opt_output_lay = out_opt->get_layout();
+        size_t b = output_lay.size.batch[0];
+        size_t f = output_lay.size.feature[0];
+        size_t x = output_lay.size.spatial[0];
+        size_t y = output_lay.size.spatial[1];
+        cldnn::mem_lock<T> ref_ptr(out_ref, get_test_stream());
+        cldnn::mem_lock<T> opt_ptr(out_opt, get_test_stream());
+
+        auto ref_x_pitch = get_x_pitch(output_lay);
+        auto opt_x_pitch = get_x_pitch(opt_output_lay);
+
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    auto ref_out_coords = tensor(batch(bi), feature(fi), spatial(0, yi, 0, 0));
+                    auto ref_out_offset = output_lay.get_linear_offset(ref_out_coords);
+                    auto opt_out_offset = opt_output_lay.get_linear_offset(ref_out_coords);
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto ref_out_val = ref_ptr[ref_out_offset + xi * ref_x_pitch];
+                        auto opt_out_val = opt_ptr[opt_out_offset + xi * opt_x_pitch];
+                        EXPECT_EQ(ref_out_val, opt_out_val);
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    void execute_compare(const activation_random_test_params& params, bool check_result) {
+        auto& engine = get_test_engine();
+
+        auto in_layout = layout(params.input_type, format::bfyx, params.input_size);
+        auto in_mem = engine.allocate_memory(in_layout);
+        fill_random(in_mem);
+
+        /// bfyx
+        cldnn::topology topo;
+        topo.add(input_layout("in", in_layout));
+        auto prim = activation("activation", "in", params.func_type);
+        prim.additional_params = params.additional_params;
+        topo.add(prim);
+
+        auto build_opts = build_options();
+        build_opts.set_option(build_option::outputs({"activation"}));
+
+        network net(engine, topo, build_opts);
+        net.set_input_data("in", in_mem);
+
+        // first execution of ref
+        auto result = net.execute();
+        auto output = result.at("activation").get_memory();
+
+        cldnn::topology topo_opt;
+        topo_opt.add(input_layout("in", in_layout));
+        topo_opt.add(reorder("in_to_input_type", "in", params.input_format, params.input_type));
+        auto prim_opt = activation("activation_blocked", "in_to_input_type", params.func_type);
+        prim_opt.additional_params = params.additional_params;
+        topo_opt.add(prim_opt);
+        // force output format to input format.
+        topo_opt.add(reorder("res_to_input_format", "activation_blocked", params.input_format, params.input_type));
+
+        auto build_opts_opt = build_options();
+        build_opts_opt.set_option(build_option::outputs({"activation_blocked", "res_to_input_format"}));
+        auto activation_impl_desc = implementation_desc();
+        activation_impl_desc.output_format = params.input_format;
+        build_opts_opt.set_option(build_option::force_implementations({{"activation_blocked", {params.input_format, "activation_ref"} }}));
+
+        network net_opt(engine, topo_opt, build_opts_opt);
+
+        // Use in_mem from ref network
+        net_opt.set_input_data("in", in_mem);
+
+        // first execution of opt
+        auto result_opt = net_opt.execute();
+        auto output_opt = result_opt.at("res_to_input_format").get_memory();
+
+        if (check_result == true) {
+            // Check data_types
+            if (params.input_type == data_types::f32) {
+                compare_outputs<float>(output, output_opt);
+            } else if (params.input_type == data_types::f16) {
+                compare_outputs<FLOAT16>(output, output_opt);
+            } else if (params.input_type == data_types::i8) {
+                compare_outputs<int8_t>(output, output_opt);
+            } else if (params.input_type == data_types::u8) {
+                compare_outputs<uint8_t>(output, output_opt);
+            } else {
+                FAIL() << "Not supported data type: " << static_cast<size_t>(params.input_type);
+            }
+        }
+    }
+};
+
+TEST_P(activation_random_test, random) {
+    auto param = GetParam();
+    execute_compare(param, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(activation_blocked_tests,
+                         activation_random_test,
+                         testing::ValuesIn(
+                            std::vector<activation_random_test_params>{
+                                { data_types::i8,  format::b_fs_yx_fsv32,        { 1, 32, 5, 5}, activation_func::relu, {}, {}},
+                                { data_types::i8,  format::bs_fs_yx_bsv32_fsv32, {32, 32, 5, 5}, activation_func::relu, {}, {}},
+                                { data_types::f16, format::bs_fs_yx_bsv32_fsv16, {32, 32, 5, 5}, activation_func::relu, {}, {}},
+                                { data_types::i8,  format::bs_fs_yx_bsv32_fsv32, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+                                { data_types::f16, format::bs_fs_yx_bsv32_fsv16, {16, 16, 5, 5}, activation_func::relu, {}, {}},
+                            }
+                        ));

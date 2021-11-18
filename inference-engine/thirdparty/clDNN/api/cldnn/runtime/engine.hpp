@@ -10,6 +10,7 @@
 #include "memory_caps.hpp"
 #include "memory_pool.hpp"
 #include "layout.hpp"
+#include <threading/ie_cpu_streams_executor.hpp>
 
 #include <memory>
 #include <set>
@@ -17,9 +18,9 @@
 #include <string>
 #include <atomic>
 
-#define CLDNN_THREADING_SEQ 0
-#define CLDNN_THREADING_TBB 1
-#define CLDNN_THREADING_THREADPOOL 2
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl.hpp>
+#endif
 
 namespace cldnn {
 
@@ -96,17 +97,24 @@ public:
     /// Returns user context handle which was used to create the engine
     virtual void* get_user_context() const = 0;
 
-    /// Returns the maximum amount of GPU memory that engine allocated in current process
+    /// Returns the total maximum amount of GPU memory allocated by engine in current process for all allocation types
     uint64_t get_max_used_device_memory() const;
 
-    /// Returns the amount of GPU memory currently used by the engine
-    uint64_t get_used_device_memory() const;
+    /// Returns the maximum amount of GPU memory allocated by engine in current process for the specified allocation @p type
+    uint64_t get_max_used_device_memory(allocation_type type) const;
 
-    /// Adds @p bytes count to currently used memory size
-    void add_memory_used(uint64_t bytes);
+    /// Returns the amount of GPU memory specified allocation @p type that currently used by the engine
+    uint64_t get_used_device_memory(allocation_type type) const;
 
-    /// Subtracts @p bytes count from currently used memory size
-    void subtract_memory_used(uint64_t bytes);
+    /// Returns statistics of GPU memory allocated by engine in current process for all allocation types.
+    /// @note It contains information about both current and peak memory usage
+    void get_memory_statistics(std::map<std::string, uint64_t>* statistics) const;
+
+    /// Adds @p bytes count to currently used memory size of the specified allocation @p type
+    void add_memory_used(uint64_t bytes, allocation_type type);
+
+    /// Subtracts @p bytes count from currently used memory size of the specified allocation @p type
+    void subtract_memory_used(uint64_t bytes, allocation_type type);
 
     /// Returns true if USM is enabled in engine config and device/driver supports required features
     bool use_unified_shared_memory() const;
@@ -114,36 +122,56 @@ public:
     /// Create stream object for current engine
     virtual stream_ptr create_stream() const = 0;
 
+    /// Creates stream object from user handle
+    virtual stream_ptr create_stream(void *handle) const = 0;
+
     /// Returns service stream which can be used during program build and optimizations
     virtual stream& get_program_stream() const = 0;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    /// Returns onednn engine object which shares device and context with current engine
+    virtual dnnl::engine& get_onednn_engine() const = 0;
+#endif
+    /// Return GPU plugin internal task executor
+    const InferenceEngine::ITaskExecutor::Ptr get_task_executor();
+
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
+    /// @param task_executor GPU plugin internal task executor
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
     /// @param device specifies the device which the engine is created for
     /// @param configuration options for the engine
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
                                                  runtime_types runtime_type,
                                                  const device::ptr device,
-                                                 const engine_configuration& configuration = engine_configuration());
+                                                 const engine_configuration& configuration = engine_configuration(),
+                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor =
+                                                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+                                                                    InferenceEngine::CPUStreamsExecutor::Config()));
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
+    /// @param task_executor GPU plugin internal task executor
     /// @param configuration options for the engine
     /// @note engine is created for the first device returned by devices query
     static std::shared_ptr<cldnn::engine> create(engine_types engine_type,
                                                  runtime_types runtime_type,
-                                                 const engine_configuration& configuration = engine_configuration());
+                                                 const engine_configuration& configuration = engine_configuration(),
+                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor =
+                                                        std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+                                                                    InferenceEngine::CPUStreamsExecutor::Config()));
 
 protected:
     /// Create engine for given @p device and @p configuration
-    engine(const device::ptr device, const engine_configuration& configuration);
+    engine(const device::ptr device, const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor);
+    const InferenceEngine::ITaskExecutor::Ptr _task_executor;
     const device::ptr _device;
     engine_configuration _configuration;
+    mutable std::mutex _mutex;
 
-    std::atomic<uint64_t> memory_usage = {0};
-    std::atomic<uint64_t> peak_memory_usage = {0};
+    std::map<allocation_type, std::atomic<uint64_t>> _memory_usage_map;
+    std::map<allocation_type, std::atomic<uint64_t>> _peak_memory_usage_map;
 };
 
 }  // namespace cldnn

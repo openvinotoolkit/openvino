@@ -32,7 +32,7 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes) {
 
     auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<op::v8::MatrixNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<op::v8::MatrixNms>(builder.create());
     const auto expected_attr_count = 11;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 
@@ -71,7 +71,7 @@ TEST(attributes, matrix_nms_v8_op_default_attributes) {
 
     auto nms = make_shared<op::v8::MatrixNms>(boxes, scores, op::v8::MatrixNms::Attributes());
     NodeBuilder builder(nms);
-    auto g_nms = as_type_ptr<op::v8::MatrixNms>(builder.create());
+    auto g_nms = ov::as_type_ptr<op::v8::MatrixNms>(builder.create());
     const auto expected_attr_count = 11;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
 

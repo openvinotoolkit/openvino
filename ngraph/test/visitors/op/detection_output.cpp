@@ -41,7 +41,7 @@ TEST(attributes, detection_output_op) {
     auto detection_output =
         make_shared<op::v0::DetectionOutput>(box_logits, class_preds, proposals, aux_class_preds, aux_box_pred, attrs);
     NodeBuilder builder(detection_output);
-    auto g_detection_output = as_type_ptr<op::v0::DetectionOutput>(builder.create());
+    auto g_detection_output = ov::as_type_ptr<op::v0::DetectionOutput>(builder.create());
 
     const auto do_attrs = detection_output->get_attrs();
     const auto g_do_attrs = g_detection_output->get_attrs();

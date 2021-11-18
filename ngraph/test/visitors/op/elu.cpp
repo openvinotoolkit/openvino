@@ -20,7 +20,7 @@ TEST(attributes, elu_op) {
 
     const auto elu = make_shared<op::v0::Elu>(data, alpha);
     NodeBuilder builder(elu);
-    auto g_elu = as_type_ptr<op::v0::Elu>(builder.create());
+    auto g_elu = ov::as_type_ptr<op::v0::Elu>(builder.create());
 
     EXPECT_EQ(g_elu->get_alpha(), elu->get_alpha());
 }

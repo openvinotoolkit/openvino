@@ -5,32 +5,12 @@
 #pragma once
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/minimum.hpp"
 
 namespace ngraph {
 namespace op {
 namespace v1 {
-/// \brief Elementwise minimum operation.
-class NGRAPH_API Minimum : public util::BinaryElementwiseArithmetic {
-public:
-    NGRAPH_RTTI_DECLARATION;
-
-    /// \brief Constructs a minimum operation.
-    Minimum() : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY) {}
-
-    /// \brief Constructs a minimum operation.
-    ///
-    /// \param arg0 Node that produces the first input tensor.
-    /// \param arg1 Node that produces the second input tensor.
-    /// \param auto_broadcast Auto broadcast specification
-    Minimum(const Output<Node>& arg0,
-            const Output<Node>& arg1,
-            const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
-
-    virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
-    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-    bool has_evaluate() const override;
-};
+using ov::op::v1::Minimum;
 }  // namespace v1
 }  // namespace op
 }  // namespace ngraph

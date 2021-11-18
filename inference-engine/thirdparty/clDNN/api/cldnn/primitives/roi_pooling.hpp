@@ -30,8 +30,9 @@ struct roi_pooling : public primitive_base<roi_pooling> {
                 int output_dim = 0,
                 int spatial_bins_x = 1,
                 int spatial_bins_y = 1,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {input_data, input_rois}, output_padding),
+        : primitive_base(id, {input_data, input_rois}, ext_prim_id, output_padding),
           mode(mode),
           position_sensitive(position_sensitive),
           pooled_width(pooled_width),
@@ -59,8 +60,9 @@ struct roi_pooling : public primitive_base<roi_pooling> {
                 int output_dim = 0,
                 int spatial_bins_x = 1,
                 int spatial_bins_y = 1,
+                const primitive_id& ext_prim_id = "",
                 const padding& output_padding = padding())
-        : primitive_base(id, {inputs}, output_padding),
+        : primitive_base(id, {inputs}, ext_prim_id, output_padding),
           mode(mode),
           position_sensitive(position_sensitive),
           pooled_width(pooled_width),

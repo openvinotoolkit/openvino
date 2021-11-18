@@ -27,8 +27,8 @@ def input_preparation(net):
     """
 
     feed_dict = {}
-    for layer_name, layer_data in net.inputs.items():
-        feed_dict.update({layer_name: np.ones(shape=layer_data.shape)})
+    for layer_name, layer_data in net.input_info.items():
+        feed_dict.update({layer_name: np.ones(shape=layer_data.input_data.shape)})
     return feed_dict
 
 

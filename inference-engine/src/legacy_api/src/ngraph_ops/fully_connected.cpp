@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::FullyConnected::type_info;
+BWDCMP_RTTI_DEFINITION(op::FullyConnected);
 
 op::FullyConnected::FullyConnected(
     const Output<Node>& A,

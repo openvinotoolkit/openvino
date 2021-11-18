@@ -5,8 +5,8 @@
 #include "gtest/gtest.h"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/multiply.hpp"
-#include "util/engine/test_engines.hpp"
-#include "util/test_case.hpp"
+#include "test_case.hpp"
+#include "test_engines.hpp"
 #include "util/test_control.hpp"
 
 using namespace std;

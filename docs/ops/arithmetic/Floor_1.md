@@ -2,7 +2,7 @@
 
 **Versioned name**: *Floor-1*
 
-**Category**: Arithmetic unary operation
+**Category**: *Arithmetic unary*
 
 **Short description**: *Floor* performs element-wise floor operation with given tensor.
 

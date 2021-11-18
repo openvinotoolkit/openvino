@@ -21,7 +21,7 @@ try:
     from ngraph.frontend import FrontEndManager
 
 except Exception:
-    print("No mock frontend API available,"
+    print("No mock frontend API available, "
           "ensure to use -DENABLE_TESTS=ON option when running these tests")
     mock_available = False
 
@@ -42,7 +42,7 @@ class TestMainFrontend(unittest.TestCase):
         clear_place_statistic()
         clear_setup()
         set_max_port_counts(10, 10)
-        self.fe = fem.load_by_framework('mock_mo_ngraph_frontend')
+        self.fe = fem.load_by_framework('mock_mo_ov_frontend')
         self.model = self.fe.load('abc.bin')
 
     # Mock model has 'tensor' tensor place

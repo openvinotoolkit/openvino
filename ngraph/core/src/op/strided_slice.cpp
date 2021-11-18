@@ -19,11 +19,12 @@
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::StridedSlice);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -40,6 +41,9 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
       m_new_axis_mask{new_axis_mask},
       m_shrink_axis_mask{shrink_axis_mask},
       m_ellipsis_mask{ellipsis_mask} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
+    ov::mark_as_precision_sensitive(input(3));
     constructor_validate_and_infer_types();
 }
 
@@ -61,7 +65,7 @@ shared_ptr<Node> calculate_default_strides(const Output<Node>& begin, const Outp
                                                    std::make_shared<op::ShapeOf>(begin));
     }
 
-    return op::Constant::create(element::i64, Shape{strides_length}, vector<int64_t>(strides_length, 1));
+    return op::Constant::create(element::i64, ov::Shape{strides_length}, vector<int64_t>(strides_length, 1));
 }
 }  // namespace
 
@@ -173,7 +177,7 @@ void op::v1::StridedSlice::validate_and_infer_types() {
                                           convert_mask_to_axis_set(get_shrink_axis_mask()),
                                           convert_mask_to_axis_set(get_ellipsis_mask())));
     } else {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data_rank));
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(data_rank));
     }
 }
 
@@ -202,6 +206,7 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
 }
 
 namespace strided_slice {
+namespace {
 inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
 {
@@ -239,6 +244,7 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
                                            ellipsis_mask);
     return evaluate(in, slice_plan, out);
 }
+}  // namespace
 }  // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {

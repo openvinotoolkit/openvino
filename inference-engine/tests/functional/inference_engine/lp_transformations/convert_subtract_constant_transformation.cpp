@@ -10,7 +10,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph/pass/manager.hpp"
 #include <transformations/utils/utils.hpp>
 #include <low_precision/convert_subtract_constant.hpp>
 
@@ -170,7 +169,7 @@ const std::vector<ConvertSubtractConstantTransformationTestValues> testValues = 
             },
             {
                 { ngraph::element::f32, false },
-                { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {}, { "DISABLED_CONSTANT_FOLDING" } },
+                { {127.f}, element::f32, {}, false, 1ul, element::i8, true, {}, { "disabled_constant_folding_0" } },
                 { {0.03f}, element::f32, {}, false }
             },
             { std::vector<float>{ 2.f }, ngraph::element::i8},

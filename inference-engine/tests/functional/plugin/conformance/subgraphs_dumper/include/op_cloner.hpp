@@ -8,7 +8,7 @@
 #include <map>
 #include <memory>
 
-#include "ngraph/node.hpp"
+#include <ngraph/ngraph.hpp>
 #include "ops_cache.hpp"
 
 namespace SubgraphsDumper {

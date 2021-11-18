@@ -4,13 +4,12 @@
 
 #include "ngraph/variant.hpp"
 
+#include "ngraph/node.hpp"
+#include "openvino/core/attribute_visitor.hpp"
+
 using namespace ngraph;
 
-// Define variant for std::string
-constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
-constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
-
-Variant::~Variant() {}
+Variant::~Variant() = default;
 
 std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node) {
     return nullptr;
@@ -26,3 +25,4 @@ bool Variant::is_copyable() const {
 
 template class ngraph::VariantImpl<std::string>;
 template class ngraph::VariantImpl<int64_t>;
+template class ngraph::VariantImpl<bool>;

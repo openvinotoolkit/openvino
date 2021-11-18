@@ -28,7 +28,7 @@
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
@@ -50,7 +50,6 @@
 #include <vpu/configuration/options/config_file.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_force_reset.hpp>
-#include <vpu/configuration/options/platform.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
@@ -227,7 +226,7 @@ PluginConfiguration createConfiguration() {
     configuration.registerOption<NumberOfSHAVEsOption>();
     configuration.registerOption<NumberOfCMXSlicesOption>();
     configuration.registerOption<ThroughputStreamsOption>();
-    configuration.registerOption<IRWithScalesDirectoryOption>();
+    configuration.registerOption<VPUScalesOption>();
     configuration.registerOption<TensorStridesOption>();
     configuration.registerOption<IgnoreUnknownLayersOption>();
     configuration.registerOption<ForcePureTensorIteratorOption>();
@@ -264,7 +263,6 @@ IE_SUPPRESS_DEPRECATED_START
     configuration.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
     configuration.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
     configuration.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
-    configuration.registerDeprecatedOption<PlatformOption>(VPU_MYRIAD_CONFIG_KEY(PLATFORM));
 IE_SUPPRESS_DEPRECATED_END
 
     return configuration;
@@ -310,7 +308,7 @@ void GraphTransformerTest::InitCompileEnv() {
             ? InferenceEngine::PluginConfigParams::YES : InferenceEngine::PluginConfigParams::NO);
     }
 
-    CompileEnv::init(platform, config, _log);
+    CompileEnv::init(config, _log);
     compileEnvInitialized = true;
 }
 

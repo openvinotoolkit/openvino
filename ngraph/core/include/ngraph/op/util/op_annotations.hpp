@@ -6,20 +6,23 @@
 
 #include <vector>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ngraph_visibility.hpp"
 
 namespace ngraph {
 namespace op {
 namespace util {
-struct oi_pair {
+struct NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") oi_pair {
     size_t output;
     size_t input;
     bool destructive;
 };
 
 /// \brief Base class for annotations added to graph ops
-class NGRAPH_API OpAnnotations {
+
+class NGRAPH_DEPRECATED("It is obsolete structure and will be removed soon") NGRAPH_API OpAnnotations {
+    NGRAPH_SUPPRESS_DEPRECATED_START
 public:
     virtual ~OpAnnotations() = default;
 
@@ -47,6 +50,7 @@ private:
     std::vector<struct oi_pair> m_in_place_oi_pairs;
 
     bool m_cacheable = false;
+    NGRAPH_SUPPRESS_DEPRECATED_END
 };
 }  // namespace util
 }  // namespace op

@@ -11,7 +11,7 @@ from unit_tests.utils.graph import build_graph
 
 nodes_attributes = {'node_1': {'value': None, 'kind': 'data'},
                     'node_2': {'value': None, 'kind': 'data'},
-                    'crop_1': {'type': 'Crop', 'kind': 'op'},
+                    'crop_1': {'op': 'Crop', 'kind': 'op'},
                     'node_3': {'value': None, 'kind': 'data'},
                     'op_output': { 'kind': 'op', 'op': 'Result'}
                     }

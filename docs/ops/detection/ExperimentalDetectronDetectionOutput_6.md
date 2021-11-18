@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronDetectionOutput-6*
 
-**Category**: Object detection
+**Category**: *Object detection*
 
 **Short description**: The *ExperimentalDetectronDetectionOutput* operation performs non-maximum suppression to generate
 the detection output using information on location and score predictions.

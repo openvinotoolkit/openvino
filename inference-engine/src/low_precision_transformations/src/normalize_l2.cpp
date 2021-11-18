@@ -14,7 +14,6 @@
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
-#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -40,7 +39,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 } // namespace normalize_l2
 
 NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<op::v0::NormalizeL2>({ pattern::wrap_type<op::v1::Multiply>(), pattern::wrap_type<op::Constant>() });
+    auto matcher = pattern::wrap_type<opset1::NormalizeL2>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -59,31 +58,28 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if (NetworkHelper::getDequantization(operation).subtract != nullptr) {
+    const auto dequantization = NetworkHelper::getDequantization(operation);
+    if (dequantization.subtract != nullptr) {
         return false;
     }
 
-    const std::shared_ptr<Node> multiply = operation->get_input_node_shared_ptr(0);
-    auto scalesConst = as_type_ptr<ngraph::op::Constant>(multiply->get_input_node_shared_ptr(1));
-    if (scalesConst == nullptr) {
-        scalesConst = as_type_ptr<ngraph::op::Constant>(multiply->get_input_node_shared_ptr(0));
-    }
+    const auto scalesConst = dequantization.multiplyConstant;
     if (scalesConst == nullptr) {
         return false;
     }
 
     // TODO: Expand transformation for all cases of axes values
-    const auto axes = as_type_ptr<op::Constant>(operation->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
     const std::vector<int64_t> axesAcrossSpatial = { 1 };
     const std::vector<int64_t> axesByChannels = { 1, 2, 3 };
 
     std::vector<int64_t> axesValues = axes->cast_vector<int64_t>();
-    if (!(axesValues == axesAcrossSpatial || axesValues == axesByChannels)) {
+    if ((axesValues != axesAcrossSpatial) && (axesValues != axesByChannels)) {
         return false;
     }
 
-    const ngraph::Shape outputShape = scalesConst->get_output_shape(0);
-    const size_t size = ngraph::shape_size(outputShape);
+    const Shape outputShape = scalesConst->get_shape();
+    const size_t size = shape_size(outputShape);
     if (size != 1ul) {
         const auto channelsInterval = operation->get_output_partial_shape(0)[1];
         if (channelsInterval.is_dynamic() || static_cast<size_t>(channelsInterval.get_length()) != size) {
@@ -104,16 +100,16 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    auto normalize = as_type_ptr<op::v0::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
+    auto normalize = ov::as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
 
-    const auto axes = as_type_ptr<op::Constant>(normalize->get_input_node_shared_ptr(1));
+    const auto axes = ov::as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize);
-    auto scalesConst = as_type_ptr<op::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+    auto scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
     if (scalesConst == nullptr) {
-        scalesConst = as_type_ptr<op::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
+        scalesConst = ov::as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
     }
 
-    std::shared_ptr<op::Constant> newScalesConst;
+    std::shared_ptr<opset1::Constant> newScalesConst;
     const auto type = scalesConst->get_output_element_type(0);
     switch (type) {
         case ngraph::element::Type_t::f16: {
@@ -129,7 +125,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         }
     }
 
-    auto newNormalize = std::make_shared<op::TypeRelaxed<op::v0::NormalizeL2>>(
+    auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
         std::vector<ngraph::element::Type>{ element::f32, axes->output(0).get_element_type() },
         std::vector<ngraph::element::Type>{deqPrecision},
         ngraph::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
@@ -138,16 +134,16 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);
 
-    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{normalize->get_output_element_type(0)},
         ngraph::op::TemporaryReplaceOutputType(newNormalize, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newScalesConst, element::f32).get());
 
-    replace_node(normalize, newMultiply);
+    NetworkHelper::insertDequantizationAfter(normalize, newMultiply, newNormalize);
     ngraph::copy_runtime_info({ normalize, newMultiply }, newMultiply);
 
-    updateOutput(context, newMultiply, normalize);
+    updateOutput(context, newMultiply, newNormalize);
     return true;
 }
 

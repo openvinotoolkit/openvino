@@ -37,7 +37,7 @@ TEST(attributes, lstm_cell_op) {
                                                          activations_beta,
                                                          clip);
     NodeBuilder builder(lstm_cell);
-    auto g_lstm_cell = as_type_ptr<op::v4::LSTMCell>(builder.create());
+    auto g_lstm_cell = ov::as_type_ptr<op::v4::LSTMCell>(builder.create());
 
     EXPECT_EQ(g_lstm_cell->get_hidden_size(), lstm_cell->get_hidden_size());
     EXPECT_EQ(g_lstm_cell->get_activations(), lstm_cell->get_activations());

@@ -38,8 +38,7 @@
         "custom_attributes": {
             "clip_before_nms": false,
             "clip_after_nms": true,
-            "background_label_id": 0,
-            "coordinates_swap_method": "swap_weights"
+            "background_label_id": 0
         },
         "id": "ObjectDetectionAPIDetectionOutputReplacement",
         "inputs": [

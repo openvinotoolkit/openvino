@@ -19,8 +19,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertDeformableConv8to1) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertDeformableConv8to1) {
     {
         const Strides strides{1, 1};
         const CoordinateDiff padding{0, 0};
@@ -30,11 +29,11 @@ TEST(TransformationTests, ConvertDeformableConv8to1) {
         const Shape filter_shape{1, 1, 2, 2};
         const Shape offsets_shape{1, 8, 3, 3};
 
-        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
+        auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<opset8::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<opset8::Parameter>(element::f32, offsets_shape);
 
-        auto deformable_conv = std::make_shared<op::v8::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<opset8::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                strides,
@@ -42,13 +41,8 @@ TEST(TransformationTests, ConvertDeformableConv8to1) {
                                                                                padding,
                                                                                dilations);
 
-        f = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
-
-        pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
+        function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
         manager.register_pass<pass::ConvertDeformableConv8To1>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -60,11 +54,11 @@ TEST(TransformationTests, ConvertDeformableConv8to1) {
         const Shape filter_shape{1, 1, 2, 2};
         const Shape offsets_shape{1, 8, 3, 3};
 
-        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
+        auto data = std::make_shared<opset1::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<opset1::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<opset1::Parameter>(element::f32, offsets_shape);
 
-        auto deformable_conv = std::make_shared<op::v1::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<opset1::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                strides,
@@ -72,15 +66,11 @@ TEST(TransformationTests, ConvertDeformableConv8to1) {
                                                                                padding,
                                                                                dilations);
 
-        f_ref = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
+        function_ref = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertDeformableConv8to1_mask) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertDeformableConv8to1_mask) {
     {
         const Strides strides{1, 1};
         const CoordinateDiff padding{0, 0};
@@ -91,12 +81,12 @@ TEST(TransformationTests, ConvertDeformableConv8to1_mask) {
         const Shape offsets_shape{1, 8, 3, 3};
         const Shape mask_shape{1, 4, 3, 3};
 
-        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
-        auto mask = std::make_shared<op::v0::Parameter>(element::f32, mask_shape);
+        auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<opset8::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<opset8::Parameter>(element::f32, offsets_shape);
+        auto mask = std::make_shared<opset8::Parameter>(element::f32, mask_shape);
 
-        auto deformable_conv = std::make_shared<op::v8::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<opset8::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                mask,
@@ -105,22 +95,15 @@ TEST(TransformationTests, ConvertDeformableConv8to1_mask) {
                                                                                padding,
                                                                                dilations);
 
-        f = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter,
+        function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter,
                                                                                     mask, offsets});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertDeformableConv8To1>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
-    // mask input is provided, DeformableConvolution-8 must remain
-    ASSERT_EQ(count_ops_of_type<op::v1::DeformableConvolution>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::v8::DeformableConvolution>(f), 1);
 }
 
-TEST(TransformationTests, ConvertDeformableConv8to1_bilinear_interpolation_padding) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, ConvertDeformableConv8to1_bilinear_interpolation_padding) {
     {
         const Strides strides{1, 1};
         const CoordinateDiff padding{0, 0};
@@ -130,11 +113,11 @@ TEST(TransformationTests, ConvertDeformableConv8to1_bilinear_interpolation_paddi
         const Shape filter_shape{1, 1, 2, 2};
         const Shape offsets_shape{1, 8, 3, 3};
 
-        auto data = std::make_shared<op::v0::Parameter>(element::f32, input_shape);
-        auto filter = std::make_shared<op::v0::Parameter>(element::f32, filter_shape);
-        auto offsets = std::make_shared<op::v0::Parameter>(element::f32, offsets_shape);
+        auto data = std::make_shared<opset8::Parameter>(element::f32, input_shape);
+        auto filter = std::make_shared<opset8::Parameter>(element::f32, filter_shape);
+        auto offsets = std::make_shared<opset8::Parameter>(element::f32, offsets_shape);
 
-        auto deformable_conv = std::make_shared<op::v8::DeformableConvolution>(data,
+        auto deformable_conv = std::make_shared<opset8::DeformableConvolution>(data,
                                                                                offsets,
                                                                                filter,
                                                                                strides,
@@ -146,15 +129,9 @@ TEST(TransformationTests, ConvertDeformableConv8to1_bilinear_interpolation_paddi
                                                                                1,
                                                                                true);
 
-        f = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
+        function = std::make_shared<Function>(NodeVector{deformable_conv}, ParameterVector{data, filter, offsets});
 
         pass::Manager manager;
-        manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertDeformableConv8To1>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
-    //  use_bilinear_interpolation_padding is true, DeformableConvolution-8 must remain
-    ASSERT_EQ(count_ops_of_type<op::v1::DeformableConvolution>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::v8::DeformableConvolution>(f), 1);
 }

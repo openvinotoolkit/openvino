@@ -46,18 +46,6 @@ public:
     bool addUnsupportedConcat;
 };
 
-inline std::ostream& operator<<(std::ostream& os,
-    const std::vector<ngraph::builder::subgraph::DequantizationOperations>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
 
 typedef std::tuple <
     ngraph::element::Type,
@@ -80,7 +68,7 @@ public:
             testValues.addUnsupportedConcat);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::op::v1::Split>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::SplitFunction::getReference(
@@ -118,6 +106,8 @@ TEST_P(SplitTransformation, CompareFunctions) {
 
     auto res = compare_functions(referenceFunction, actualFunction, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::element::Type> precisions = {

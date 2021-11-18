@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+#include <ngraph/ngraph.hpp>
 #include "layer_transformation.hpp"
 #include "low_precision/fuse_fake_quantize.hpp"
 
@@ -21,10 +23,10 @@ public:
     static bool checkElementwise(const std::shared_ptr<Node>& eltwise);
 
 private:
-    std::shared_ptr<op::v0::FakeQuantize> fuseElementwise(
+    std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
             TransformationContext& context,
             MatcherPass* matcherPass,
-            const std::shared_ptr<op::v0::FakeQuantize>& fakeQuantize) const;
+            const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 };
 
 } // namespace low_precision

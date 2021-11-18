@@ -13,17 +13,17 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Interpolate, "Interpolate", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::Interpolate);
 
-op::v0::Interpolate::Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
-                                 const op::v0::InterpolateAttrs& attrs)
+op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& output_shape, const Attributes& attrs)
     : Op({image, output_shape}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
@@ -45,7 +45,7 @@ void op::v0::Interpolate::validate_and_infer_types() {
                           "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    PartialShape output_shape = PartialShape(get_input_partial_shape(0));
+    ov::PartialShape output_shape = ov::PartialShape(get_input_partial_shape(0));
     if (output_shape.rank().is_static()) {
         for (auto axis : m_attrs.axes) {
             NGRAPH_CHECK(static_cast<int64_t>(axis) < output_shape.rank().get_length());
@@ -69,28 +69,30 @@ shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& 
     return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-namespace ngraph {
+std::ostream& ov::operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
-EnumNames<op::v0::Interpolate::InterpolateMode>& EnumNames<op::v0::Interpolate::InterpolateMode>::get() {
-    static auto enum_names =
-        EnumNames<op::v0::Interpolate::InterpolateMode>("op::v0::Interpolate::InterpolateMode",
-                                                        {{"nearest", op::v0::Interpolate::InterpolateMode::NEAREST},
-                                                         {"linear", op::v0::Interpolate::InterpolateMode::LINEAR},
-                                                         {"cubic", op::v0::Interpolate::InterpolateMode::CUBIC},
-                                                         {"area", op::v0::Interpolate::InterpolateMode::AREA}});
+EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>&
+EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>(
+        "op::v0::Interpolate::InterpolateMode",
+        {{"nearest", ngraph::op::v0::Interpolate::InterpolateMode::NEAREST},
+         {"linear", ngraph::op::v0::Interpolate::InterpolateMode::LINEAR},
+         {"cubic", ngraph::op::v0::Interpolate::InterpolateMode::CUBIC},
+         {"area", ngraph::op::v0::Interpolate::InterpolateMode::AREA}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v0::Interpolate::InterpolateMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v0::Interpolate::InterpolateMode>);
 
-std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+}  // namespace ov
 
 // Interpolate v4
 
-NGRAPH_RTTI_DEFINITION(op::v4::Interpolate, "Interpolate", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::Interpolate);
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const Output<Node>& output_shape,
@@ -99,6 +101,8 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     : Op({image, output_shape, scales, axes}),
       m_attrs(attrs) {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -127,7 +131,7 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor) {
 std::vector<int64_t> op::v4::Interpolate::get_axes() const {
     auto inputs = input_values();
     if (inputs.size() <= 3) {
-        PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+        ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
         NODE_VALIDATION_CHECK(this,
                               input_shape.rank().is_static(),
                               "Could not define axes of interpolation because there are "
@@ -157,10 +161,10 @@ int64_t multiply_bound_and_scale(int64_t bound, float scale) {
 }
 }  // namespace
 
-void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
+void op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<float>& scales,
-                                             const PartialShape& padded_input_shape) const {
+                                             const ov::PartialShape& padded_input_shape) const {
     size_t i = 0;
     for (auto axis : axes) {
         const auto& current_dim = padded_input_shape[axis];
@@ -174,7 +178,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
     }
 }
 
-void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
+void op::v4::Interpolate::infer_using_shapes(ov::PartialShape& output_shape,
                                              const std::vector<int64_t>& axes,
                                              const std::vector<int64_t>& sizes) const {
     size_t i = 0;
@@ -183,10 +187,10 @@ void op::v4::Interpolate::infer_using_shapes(PartialShape& output_shape,
     }
 }
 
-PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& input_shape) const {
+ov::PartialShape op::v4::Interpolate::get_padded_input_shape(const ov::PartialShape& input_shape) const {
     const auto input_rank = input_shape.rank().get_length();
 
-    PartialShape padded_input_shape = input_shape;
+    ov::PartialShape padded_input_shape = input_shape;
 
     for (int64_t i = 0; i < input_rank; ++i) {
         if (input_shape[i].is_static()) {
@@ -201,10 +205,10 @@ PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& inp
 void op::v4::Interpolate::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
     element::Type input_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(
-        this,
-        input_et == element::f32 || input_et == element::f16 || input_et == element::i8 || input_et == element::bf16,
-        "Input element type must be f32, f16, bf16 or i8");
+    NODE_VALIDATION_CHECK(this,
+                          input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
+                              input_et == element::bf16 || input_et == element::u8,
+                          "Input element type must be f32, f16, bf16, i8 or u8");
 
     element::Type sizes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(
@@ -225,7 +229,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
             "Axes element type must be i32, i64, u32 or u64");
     }
 
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+    ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
 
     if (!input_shape.rank().is_static()) {
         set_output_type(0, get_input_element_type(0), input_shape);
@@ -237,7 +241,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
     // If the input 'axes' is given and this input is not Constant, we cannot infer any elements
     // of the output shape. Hence, all components of the output shape should be dynamic.
     if (input_values().size() == 4 && !has_and_set_equal_bounds(input_value(3))) {
-        PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
+        ov::PartialShape output_shape = std::vector<Dimension>(input_rank, Dimension::dynamic());
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
     }
@@ -245,8 +249,8 @@ void op::v4::Interpolate::validate_and_infer_types() {
     auto axes = get_axes();
     correct_pads();
 
-    PartialShape padded_input_shape = get_padded_input_shape(input_shape);
-    PartialShape output_shape = padded_input_shape;
+    ov::PartialShape padded_input_shape = get_padded_input_shape(input_shape);
+    ov::PartialShape output_shape = padded_input_shape;
 
     if (output_shape.rank().is_static()) {
         for (auto axis : axes) {
@@ -287,16 +291,27 @@ static constexpr size_t axes_port = 3;
 static constexpr size_t max_num_of_ports = 4;
 
 std::vector<int64_t> get_axes_vector(const HostTensorVector& args) {
-    Shape input_shape{args[data_port]->get_shape()};
+    ov::Shape input_shape{args[data_port]->get_shape()};
     size_t input_rank = input_shape.size();
     size_t num_of_inputs = args.size();
 
     std::vector<int64_t> axes;
 
     if (num_of_inputs == max_num_of_ports) {
-        int64_t* axes_data_ptr = args[axes_port]->get_data_ptr<int64_t>();
+        auto axes_arg = args[axes_port];
         size_t num_of_axes = args[axes_port]->get_shape()[0];
-        axes.insert(axes.end(), axes_data_ptr, axes_data_ptr + num_of_axes);
+        axes.reserve(num_of_axes);
+
+        if (axes_arg->get_element_type() == ngraph::element::i64) {
+            int64_t* axes_ptr = axes_arg->get_data_ptr<int64_t>();
+            axes.insert(axes.end(), axes_ptr, axes_ptr + num_of_axes);
+        } else if (axes_arg->get_element_type() == ngraph::element::i32) {
+            int32_t* axes_ptr = axes_arg->get_data_ptr<int32_t>();
+            for (size_t i = 0; i < num_of_axes; ++i)
+                axes.push_back(axes_ptr[i]);
+        } else {
+            OPENVINO_ASSERT(false, "Failed to process ", axes_arg->get_element_type());
+        }
     } else {
         for (size_t i = 0; i < input_rank; ++i) {
             axes.push_back(i);
@@ -308,15 +323,25 @@ std::vector<int64_t> get_axes_vector(const HostTensorVector& args) {
 
 std::vector<int64_t> get_target_shape_vector(const HostTensorVector& args, size_t num_of_axes) {
     std::vector<int64_t> target_shape;
+    target_shape.reserve(num_of_axes);
 
-    int64_t* target_shape_ptr = args[target_shape_port]->get_data_ptr<int64_t>();
-    target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
+    auto target_shape_arg = args[target_shape_port];
+    if (target_shape_arg->get_element_type() == ngraph::element::i64) {
+        int64_t* target_shape_ptr = target_shape_arg->get_data_ptr<int64_t>();
+        target_shape.insert(target_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
+    } else if (target_shape_arg->get_element_type() == ngraph::element::i32) {
+        int32_t* target_shape_ptr = target_shape_arg->get_data_ptr<int32_t>();
+        for (size_t i = 0; i < num_of_axes; ++i)
+            target_shape.push_back(target_shape_ptr[i]);
+    } else {
+        OPENVINO_ASSERT(false, "Failed to process ", target_shape_arg->get_element_type());
+    }
 
     return target_shape;
 }
 
 std::vector<float> get_scales_vector(const HostTensorVector& args,
-                                     const Shape& input_shape,
+                                     const ov::Shape& input_shape,
                                      const op::v4::Interpolate::InterpolateAttrs& attrs,
                                      std::vector<int64_t> axes) {
     using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
@@ -358,7 +383,7 @@ std::vector<T> correct_pad(const std::vector<T>& p, size_t rank) {
 }  // namespace
 
 void op::v4::Interpolate::correct_pads() {
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+    ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
     if (input_shape.rank().is_dynamic()) {
         return;
     }
@@ -371,8 +396,8 @@ void op::v4::Interpolate::correct_pads() {
 static void pad_input_data(const uint8_t* data_ptr,
                            uint8_t* padded_data_ptr,
                            size_t type_size,
-                           const Shape& input_shape,
-                           const Shape& padded_input_shape,
+                           const ov::Shape& input_shape,
+                           const ov::Shape& padded_input_shape,
                            const std::vector<size_t>& pads_begin) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     CoordinateTransform input_transform(input_shape);
@@ -396,15 +421,15 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
 
-    Shape input_shape{inputs[data_port]->get_shape()};
-    Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
+    ov::Shape input_shape{inputs[data_port]->get_shape()};
+    ov::Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
 
     auto axes = get_axes_vector(inputs);
     size_t num_of_axes = axes.size();
 
     auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes);
 
-    PartialShape output_shape{padded_input_shape};
+    ov::PartialShape output_shape{padded_input_shape};
 
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::SCALES) {
         infer_using_scales(output_shape, axes, scales, padded_input_shape);
@@ -413,7 +438,7 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
         infer_using_shapes(output_shape, axes, sizes);
     }
 
-    Shape out_shape = output_shape.to_shape();
+    ov::Shape out_shape = output_shape.to_shape();
 
     outputs[0]->set_element_type(inputs[0]->get_element_type());
     outputs[0]->set_shape(out_shape);
@@ -429,31 +454,39 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
 
     switch (input_et) {
     case element::Type_t::f32:
-        runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                               padded_input_shape,
-                                               scales,
-                                               axes,
-                                               outputs[0]->get_data_ptr<float>(),
-                                               out_shape,
-                                               m_attrs);
+        ngraph::runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                                       padded_input_shape,
+                                                       scales,
+                                                       axes,
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       out_shape,
+                                                       m_attrs);
         break;
     case element::Type_t::f16:
-        runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                 padded_input_shape,
-                                                 scales,
-                                                 axes,
-                                                 outputs[0]->get_data_ptr<float16>(),
-                                                 out_shape,
-                                                 m_attrs);
+        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         out_shape,
+                                                         m_attrs);
         break;
     case element::Type_t::i8:
-        runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
-                                                padded_input_shape,
-                                                scales,
-                                                axes,
-                                                outputs[0]->get_data_ptr<int8_t>(),
-                                                out_shape,
-                                                m_attrs);
+        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                                        padded_input_shape,
+                                                        scales,
+                                                        axes,
+                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                        out_shape,
+                                                        m_attrs);
+    case element::Type_t::u8:
+        ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<uint8_t>(),
+                                                         out_shape,
+                                                         m_attrs);
         break;
     default:;
     }
@@ -469,6 +502,7 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTe
 bool op::v4::Interpolate::has_evaluate() const {
     NGRAPH_OP_SCOPE(v4_Interpolate_has_evaluate);
     switch (get_input_element_type(0)) {
+    case ngraph::element::i8:
     case ngraph::element::u8:
     case ngraph::element::f16:
     case ngraph::element::f32:
@@ -479,72 +513,75 @@ bool op::v4::Interpolate::has_evaluate() const {
     return false;
 }
 
-namespace ngraph {
+namespace ov {
 template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::InterpolateMode>& EnumNames<op::v4::Interpolate::InterpolateMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::InterpolateMode>(
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>&
+EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>(
         "op::v4::Interpolate::InterpolateMode",
-        {{"nearest", op::v4::Interpolate::InterpolateMode::NEAREST},
-         {"linear", op::v4::Interpolate::InterpolateMode::LINEAR},
-         {"linear_onnx", op::v4::Interpolate::InterpolateMode::LINEAR_ONNX},
-         {"cubic", op::v4::Interpolate::InterpolateMode::CUBIC}});
+        {{"nearest", ngraph::op::v4::Interpolate::InterpolateMode::NEAREST},
+         {"linear", ngraph::op::v4::Interpolate::InterpolateMode::LINEAR},
+         {"linear_onnx", ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX},
+         {"cubic", ngraph::op::v4::Interpolate::InterpolateMode::CUBIC}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::InterpolateMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::InterpolateMode>);
+
+template <>
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>&
+EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::ShapeCalcMode>(
+        "op::v4::Interpolate::ShapeCalcMode",
+        {{"sizes", ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES},
+         {"scales", ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES}});
+    return enum_names;
+}
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>);
+
+template <>
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>&
+EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::CoordinateTransformMode>(
+        "op::v4::Interpolate::CoordinateTransformMode",
+        {{"half_pixel", ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL},
+         {"pytorch_half_pixel", ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL},
+         {"asymmetric", ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC},
+         {"tf_half_pixel_for_nn", ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN},
+         {"align_corners", ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS}});
+    return enum_names;
+}
+
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>);
+
+template <>
+NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::NearestMode>&
+EnumNames<ngraph::op::v4::Interpolate::NearestMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v4::Interpolate::NearestMode>(
+        "op::v4::Interpolate::NearestMode",
+        {{"round_prefer_floor", ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR},
+         {"round_prefer_ceil", ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL},
+         {"floor", ngraph::op::v4::Interpolate::NearestMode::FLOOR},
+         {"ceil", ngraph::op::v4::Interpolate::NearestMode::CEIL},
+         {"simple", ngraph::op::v4::Interpolate::NearestMode::SIMPLE}});
+    return enum_names;
+}
+
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<op::v4::Interpolate::NearestMode>);
 
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::InterpolateMode& type) {
     return s << as_string(type);
 }
 
-template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::ShapeCalcMode>& EnumNames<op::v4::Interpolate::ShapeCalcMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::ShapeCalcMode>(
-        "op::v4::Interpolate::ShapeCalcMode",
-        {{"sizes", op::v4::Interpolate::ShapeCalcMode::SIZES}, {"scales", op::v4::Interpolate::ShapeCalcMode::SCALES}});
-    return enum_names;
-}
-
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::ShapeCalcMode>::type_info;
-
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::ShapeCalcMode& type) {
     return s << as_string(type);
 }
-
-template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::CoordinateTransformMode>&
-EnumNames<op::v4::Interpolate::CoordinateTransformMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::CoordinateTransformMode>(
-        "op::v4::Interpolate::CoordinateTransformMode",
-        {{"half_pixel", op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL},
-         {"pytorch_half_pixel", op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL},
-         {"asymmetric", op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC},
-         {"tf_half_pixel_for_nn", op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN},
-         {"align_corners", op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS}});
-    return enum_names;
-}
-
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::CoordinateTransformMode>::type_info;
 
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateTransformMode& type) {
     return s << as_string(type);
 }
 
-template <>
-NGRAPH_API EnumNames<op::v4::Interpolate::NearestMode>& EnumNames<op::v4::Interpolate::NearestMode>::get() {
-    static auto enum_names = EnumNames<op::v4::Interpolate::NearestMode>(
-        "op::v4::Interpolate::NearestMode",
-        {{"round_prefer_floor", op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR},
-         {"round_prefer_ceil", op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL},
-         {"floor", op::v4::Interpolate::NearestMode::FLOOR},
-         {"ceil", op::v4::Interpolate::NearestMode::CEIL},
-         {"simple", op::v4::Interpolate::NearestMode::SIMPLE}});
-    return enum_names;
-}
-
-constexpr DiscreteTypeInfo AttributeAdapter<op::v4::Interpolate::NearestMode>::type_info;
-
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type) {
     return s << as_string(type);
 }
-}  // namespace ngraph
+}  // namespace ov

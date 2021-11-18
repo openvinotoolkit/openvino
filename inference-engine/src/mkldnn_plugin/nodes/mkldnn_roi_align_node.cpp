@@ -23,8 +23,12 @@ using namespace mkldnn::impl::cpu::x64;
 
 using ngPoolingMode = ngraph::op::v3::ROIAlign::PoolingMode;
 
-bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNROIAlignNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto roiAlign = std::dynamic_pointer_cast<const ngraph::opset3::ROIAlign>(op);
         if (!roiAlign) {
             errorMessage = "Only opset3 ROIAlign operation is supported";
@@ -73,31 +77,31 @@ void MKLDNNROIAlignNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();
 
-    if (getParentEdgeAt(0)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getParentEdgeAt(0)->getShape().getRank();
+    if (getInputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getShape().getRank() != 2) {
-        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getParentEdgeAt(1)->getShape().getRank();
+    if (getInputShapeAtPort(1).getRank() != 2) {
+        IE_THROW() << errorPrefix << "doesn't support 1st input with rank: " << getInputShapeAtPort(1).getRank();
     }
 
-    if (getParentEdgeAt(2)->getShape().getRank() != 1) {
-        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getParentEdgeAt(2)->getShape().getRank();
+    if (getInputShapeAtPort(2).getRank() != 1) {
+        IE_THROW() << errorPrefix << "doesn't support 2nd input with rank: " << getInputShapeAtPort(2).getRank();
     }
 
-    if (getChildEdgeAt(0)->getShape().getRank() != 4) {
-        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getChildEdgeAt(0)->getShape().getRank();
+    if (getOutputShapeAtPort(0).getRank() != 4) {
+        IE_THROW() << errorPrefix << "doesn't support output with rank: " << getOutputShapeAtPort(0).getRank();
     }
 
-    if (getParentEdgeAt(1)->getShape().getStaticDims()[1] != 4) {
+    if (getInputShapeAtPort(1).getStaticDims()[1] != 4) {
         IE_THROW() << errorPrefix << "has invalid shape on 1st input: ["
-                           << getParentEdgeAt(1)->getShape().getStaticDims()[0] << "," << getParentEdgeAt(1)->getShape().getStaticDims()[1] << "]";
+                           << getInputShapeAtPort(1).getStaticDims()[0] << "," << getInputShapeAtPort(1).getStaticDims()[1] << "]";
     }
 
-    if (getParentEdgeAt(1)->getShape().getStaticDims()[0] != getParentEdgeAt(2)->getShape().getStaticDims()[0]) {
+    if (getInputShapeAtPort(1).getStaticDims()[0] != getInputShapeAtPort(2).getStaticDims()[0]) {
         IE_THROW() << errorPrefix << "has different sizes of inputs for proposals ("
-                           << getParentEdgeAt(1)->getShape().getStaticDims()[0] << ") and indexes ("
-                           << getParentEdgeAt(2)->getShape().getStaticDims()[0] << ")";
+                           << getInputShapeAtPort(1).getStaticDims()[0] << ") and indexes ("
+                           << getInputShapeAtPort(2).getStaticDims()[0] << ")";
     }
 }
 
@@ -113,29 +117,24 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
             outputPrec = inputPrec0 = Precision::FP32;
     }
 
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrec0);
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrec);
-
     NodeConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
-    std::vector<std::pair<memory::format_tag, memory::format_tag>> supportedFormats {
-            {memory::format_tag::nchw, memory::format_tag::nchw},
-            {memory::format_tag::nhwc, memory::format_tag::nhwc},
-            {memory::format_tag::nChw16c, memory::format_tag::nChw16c},
-            {memory::format_tag::nChw8c, memory::format_tag::nChw8c}
+    std::vector<std::pair<LayoutType, LayoutType>> supportedFormats {
+            {LayoutType::ncsp, LayoutType::ncsp},
+            {LayoutType::nspc, LayoutType::nspc},
+            {LayoutType::nCsp16c, LayoutType::nCsp16c},
+            {LayoutType::nCsp8c, LayoutType::nCsp8c}
     };
 
     for (auto fmts : supportedFormats) {
-        config.inConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(0)->getShape().getStaticDims(), inputDataType, fmts.first);
-        config.inConfs[1].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(1)->getShape().getStaticDims(), memory::data_type::f32,
-                                                               memory::format_tag::nc);
-        config.inConfs[2].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getParentEdgeAt(2)->getShape().getStaticDims(), memory::data_type::s32,
-                                                               memory::format_tag::x);
-        config.outConfs[0].desc = MKLDNNPlugin::make_unique<MKLDNNMemoryDesc>(getChildEdgeAt(0)->getShape().getStaticDims(), outputDataType, fmts.second);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
+        addSupportedPrimDesc({{fmts.first, inputPrec0},
+                              {LayoutType::ncsp, Precision::FP32},
+                              {LayoutType::ncsp, Precision::I32}},
+                             {{fmts.second, outputPrec}},
+                              impl_desc_type::unknown);
     }
 }
 
@@ -155,8 +154,8 @@ struct MKLDNNROIAlignNode::ROIAlignExecute {
     }
 };
 void MKLDNNROIAlignNode::execute(mkldnn::stream strm) {
-    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
-    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type;
+    auto inputPrec = getParentEdgeAt(0)->getMemory().GetDataType();
+    auto outputPrec = getChildEdgeAt(0)->getMemory().GetDataType();
     if (!((inputPrec == mkldnn_bf16 && outputPrec == mkldnn_bf16) ||
           (inputPrec == mkldnn_f32 && outputPrec == mkldnn_f32)))
         IE_THROW() <<"ROIAlign doesn't support demanded precisions";
@@ -176,32 +175,37 @@ void MKLDNNROIAlignNode::executeSpecified() {
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    auto srcBlockDesc = srcMemory0.GetDescriptor().data.format_desc.blocking;
-    auto dstBlockDesc = dstMemory.GetDescriptor().data.format_desc.blocking;
+    auto srcBlockDesc = srcMemory0.GetDescWithType<BlockedMemoryDesc>();
+    auto dstBlockDesc = dstMemory.GetDescWithType<BlockedMemoryDesc>();
 
-    int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
-    auto isPlainFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::ncsp);
-    auto isNhwcFmt = srcMemory0.GetDesc().hasLayoutType(LayoutType::nspc);
+    auto isPlainFmt = srcBlockDesc->hasLayoutType(LayoutType::ncsp);
+    auto isNhwcFmt =  srcBlockDesc->hasLayoutType(LayoutType::nspc);
+    auto isBlkFmt =   srcBlockDesc->hasLayoutType(LayoutType::nCsp16c) || srcBlockDesc->hasLayoutType(LayoutType::nCsp8c);
+
+    int blockSize = isBlkFmt ? srcBlockDesc->getBlockDims().back() : 1;
 
     const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
     const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
     auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    auto nominalRoiCount = static_cast<int>(srcMemory1.GetDims()[0]);
+    auto nominalRoiCount = static_cast<int>(srcMemory1.getStaticDims()[0]);
     int realRois = 0;
-    auto inputDimVector = srcMemory0.GetDims();
+    auto inputDimVector = srcMemory0.getStaticDims();
     const int C = static_cast<int>(inputDimVector[1]);
     const int H = static_cast<int>(inputDimVector[2]);
     const int W = static_cast<int>(inputDimVector[3]);
 
     const int binCount = pooledH * pooledW;
 
-    const int hInputStride = srcBlockDesc.strides[2];
-    const int wInputStride = srcBlockDesc.strides[3];
-    const int hOutputStride = dstBlockDesc.strides[2];
-    const int wOutputStride = dstBlockDesc.strides[3];
-    const int chPadding = srcMemory0.GetDescriptor().data.padded_dims[1];
+    const size_t tailDimsOffset = (isNhwcFmt ? -1 : 0);
+    const auto &srcStrides = srcBlockDesc->getStrides();
+    const auto &dstStrides = dstBlockDesc->getStrides();
+    const int hInputStride = srcStrides[2 + tailDimsOffset];
+    const int wInputStride = srcStrides[3 + tailDimsOffset];
+    const int hOutputStride = dstStrides[2 + tailDimsOffset];
+    const int wOutputStride = dstStrides[3 + tailDimsOffset];
+    const int chPadding = blockSize * srcBlockDesc->getBlockDims()[1];
     const int blockCount = chPadding / blockSize;
 
     for (; realRois < nominalRoiCount; realRois++) {
@@ -313,25 +317,20 @@ void MKLDNNROIAlignNode::executeSpecified() {
                                     pointVector[sampleIndex + 3].second * wInputStride + blockResidual_;
                 float part4 = srcData[part4Index];
 
+                float sampleValue =
+                        weightVector[sampleIndex] * part1 +
+                        weightVector[sampleIndex + 1] * part2 +
+                        weightVector[sampleIndex + 2] * part3 +
+                        weightVector[sampleIndex + 3] * part4;
                 switch (getAlgorithm()) {
                     case Algorithm::ROIAlignMax:
                     {
-                        float sampleValue = std::max(
-                                {weightVector[sampleIndex] * part1,
-                                 weightVector[sampleIndex + 1] * part2,
-                                 weightVector[sampleIndex + 2] * part3,
-                                 weightVector[sampleIndex + 3] * part4});
                         pooledValue = sampleValue > pooledValue ? sampleValue : pooledValue;
                         break;
                     }
                     case Algorithm::ROIAlignAvg:
                     default:
                     {
-                        float sampleValue =
-                                weightVector[sampleIndex] * part1 +
-                                weightVector[sampleIndex + 1] * part2 +
-                                weightVector[sampleIndex + 2] * part3 +
-                                weightVector[sampleIndex + 3] * part4;
                         pooledValue += sampleValue / numSamplesInBin;
                     }
                 }

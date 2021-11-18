@@ -10,19 +10,18 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-constexpr NodeTypeInfo op::util::ScatterBase::type_info;
+BWDCMP_RTTI_DEFINITION(ov::op::util::ScatterBase);
 
-op::util::ScatterBase::ScatterBase(const Output<Node>& data,
-                                   const Output<Node>& indices,
-                                   const Output<Node>& updates,
-                                   const Output<Node>& axis)
+ov::op::util::ScatterBase::ScatterBase(const Output<Node>& data,
+                                       const Output<Node>& indices,
+                                       const Output<Node>& updates,
+                                       const Output<Node>& axis)
     : Op({data, indices, updates, axis}) {
     constructor_validate_and_infer_types();
 }
 
-void op::util::ScatterBase::validate_and_infer_types() {
+void ov::op::util::ScatterBase::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(util_ScatterBase_validate_and_infer_types);
     const auto& data_et = get_input_element_type(DATA);
     const auto& indices_et = get_input_element_type(INDICES);
@@ -60,7 +59,13 @@ void op::util::ScatterBase::validate_and_infer_types() {
         this,
         data_shape.rank().is_dynamic() || indices_shape.rank().is_dynamic() || updates_shape.rank().is_dynamic() ||
             updates_shape.rank().get_length() == indices_shape.rank().get_length() + data_shape.rank().get_length() - 1,
-        "Updates rank is expected to be indices rank + data rank - 1.");
+        "Updates rank is expected to be rank(indices) + rank(data) - 1.",
+        " Got: rank(data) = ",
+        data_shape.rank().get_length(),
+        ", rank(indices) = ",
+        indices_shape.rank().get_length(),
+        ", rank(updates) = ",
+        updates_shape.rank().get_length());
 
     if (data_shape.is_dynamic()) {
         set_input_is_relevant_to_shape(0);
@@ -74,20 +79,21 @@ void op::util::ScatterBase::validate_and_infer_types() {
     if (const auto& axis_const_input = get_constant_from_source(input_value(AXIS))) {
         bool compatible = true;
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);
-        axis = normalize_axis(this, axis, data_shape.rank().get_length());
+        int64_t data_rank = data_shape.rank().get_length();
+        axis = ngraph::normalize_axis(this, axis, data_rank);
 
         if (indices_shape.rank().is_static() && updates_shape.rank().is_static()) {
-            for (int64_t i = 0; i < indices_shape.rank().get_length(); ++i) {
+            int64_t indices_rank = indices_shape.rank().get_length();
+            for (int64_t i = 0; i < indices_rank; ++i) {
                 compatible = compatible && updates_shape[axis + i].compatible(indices_shape[i]);
             }
 
-            int64_t indices_rank = indices_shape.rank().get_length();
             // Check [d_0, d_1, ... d_(axis - 1)] updates dimensions
             for (int64_t i = 0; i < axis; ++i) {
                 compatible = compatible && updates_shape[i].compatible(data_shape[i]);
             }
             // Check [d_(axis + k + 1), ..., d_n] updates dimensions
-            for (int64_t i = axis + 1; i < data_shape.rank().get_length(); ++i) {
+            for (int64_t i = axis + 1; i < data_rank; ++i) {
                 compatible = compatible && updates_shape[indices_rank - 1 + i].compatible(data_shape[i]);
             }
         }
@@ -106,7 +112,7 @@ void op::util::ScatterBase::validate_and_infer_types() {
     }
 }
 
-bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor) {
     NGRAPH_OP_SCOPE(util_ScatterBase_visit_attributes);
     return true;
 }

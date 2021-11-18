@@ -1,0 +1,37 @@
+models:
+  - name: SSD_ResNet34
+    launchers:
+      - framework: dlsdk
+        adapter:
+          type: ssd_onnx
+          scores_out: .*scores.*
+          labels_out: .*labels.*
+          bboxes_out: .*bboxes.*
+         
+    datasets:
+      - name: COCO2017_80cl_bkgr
+        data_source: <PATH TO VALIDATION DATASET>/val2017
+        annotation_conversion:
+            converter: mscoco_detection
+            annotation_file: <PATH TO VALIDATION DATASET>/annotations/instances_val2017.json
+            has_background: True
+            use_full_label_map: False
+
+
+        reader: pillow_imread
+        preprocessing:
+          - type: resize
+            size: 1200
+            use_pillow: true
+            interpolation: BILINEAR
+
+        postprocessing:
+          - type: resize_prediction_boxes
+
+        metrics:
+          - type: map
+            integral: 11point
+            ignore_difficult: true
+            presenter: print_scalar
+          - type: coco_precision
+          - type: coco_orig_precision

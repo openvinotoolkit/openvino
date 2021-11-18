@@ -53,6 +53,16 @@ INFERENCE_ENGINE_API_CPP(std::vector<int>) getAvailableCoresTypes();
 INFERENCE_ENGINE_API_CPP(int) getNumberOfCPUCores(bool bigCoresOnly = false);
 
 /**
+ * @brief      Returns number of CPU logical cores on Linux/Windows (on other OSes it simply relies on the original
+ * parallel API of choice, which uses the 'all' logical cores). call function with 'false' to get #logical cores of
+ * all types call function with 'true' to get #logical 'Big' cores number of 'Little' = 'all' - 'Big'
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only.
+ * @return     Number of logical CPU cores.
+ */
+INFERENCE_ENGINE_API_CPP(int) getNumberOfLogicalCPUCores(bool bigCoresOnly = false);
+
+/**
  * @brief      Checks whether CPU supports SSE 4.2 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is SSE 4.2 instructions are available, `false` otherwise

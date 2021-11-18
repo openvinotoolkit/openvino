@@ -31,3 +31,24 @@ TEST(type_prop, param_partial_rank_static) {
     ASSERT_TRUE(pshape[2].is_static() && pshape[2].get_length() == 3);
     ASSERT_TRUE(pshape[3].is_static() && pshape[3].get_length() == 4);
 }
+
+TEST(type_prop, param_layout) {
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    a->set_layout("NHWC");
+    ASSERT_EQ(a->get_layout(), "NHWC");
+    a->set_layout(ov::Layout());
+    EXPECT_TRUE(a->get_layout().empty());
+    EXPECT_EQ(a->get_output_tensor(0).get_rt_info().count(ov::LayoutAttribute::get_type_info_static()), 0);
+}
+
+TEST(type_prop, param_layout_empty) {
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    ASSERT_TRUE(a->get_layout().empty());
+}
+
+TEST(type_prop, param_layout_invalid) {
+    auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    a->get_output_tensor(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] =
+        ov::make_variant("NCHW");  // incorrect way
+    ASSERT_THROW(a->get_layout(), ov::AssertFailure);
+}

@@ -45,7 +45,7 @@ typedef std::tuple<
 class InterpolateLayerTest : public testing::WithParamInterface<InterpolateLayerTestParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<InterpolateLayerTestParams>& obj);
 
 protected:
     void SetUp() override;

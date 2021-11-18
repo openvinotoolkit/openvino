@@ -106,9 +106,10 @@ void MultipleLSTMCellTest::SetUp() {
     // TI construction
     auto tensor_iterator = std::make_shared<TensorIterator>();
     tensor_iterator->set_body(body);
-    tensor_iterator->set_invariant_input(X, permute_in);
+    tensor_iterator->set_sliced_input(X, permute_in, 0, 1, 1, -1, 0);
     tensor_iterator->set_merged_input(H_t, hidden_memory_read, H_o);
     tensor_iterator->set_merged_input(C_t, cell_memory_read, C_o);
+    tensor_iterator->validate_and_infer_types();
 
     auto out_unsqueeze = tensor_iterator->get_iter_value(unsqueeze_o, -1);
     auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
@@ -165,9 +166,10 @@ void MultipleLSTMCellTest::SetUp() {
     // TI construction
     auto tensor_iterator_2 = std::make_shared<TensorIterator>();
     tensor_iterator_2->set_body(body_2);
-    tensor_iterator_2->set_invariant_input(X_2, inbetween_squeeze);
+    tensor_iterator_2->set_sliced_input(X_2, inbetween_squeeze, 0, 1, 1, -1, 0);
     tensor_iterator_2->set_merged_input(H_t_2, hidden_memory_2_read, H_o_2);
     tensor_iterator_2->set_merged_input(C_t_2, cell_memory_2_read, C_o_2);
+    tensor_iterator_2->validate_and_infer_types();
 
     auto out_unsqueeze_2 = tensor_iterator_2->get_iter_value(unsqueeze_o_2, -1);
     auto out_hidden_2 = tensor_iterator_2->get_iter_value(H_o_2, -1);
@@ -395,8 +397,7 @@ void MultipleLSTMCellTest::InitMemory() {
     InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
                                                   InferenceEngine::SizeVector({1, hiddenSize}),
                                                   InferenceEngine::Layout::NC);
-    IE_SUPPRESS_DEPRECATED_START
-    auto states = executableNetwork.QueryState();
+    auto states = inferRequest.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
         if (name.find("cell_state_1") != std::string::npos) {
@@ -419,7 +420,6 @@ void MultipleLSTMCellTest::InitMemory() {
             GTEST_FAIL() << "unknown memory state";
         }
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void MultipleLSTMCellTest::ApplyLowLatency() {
@@ -457,6 +457,7 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
 
         ConfigureNetwork();
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+        inferRequest = executableNetwork.CreateInferRequest();
     } else if (transformation == ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
         cnnNetwork = InferenceEngine::CNNNetwork{function};
         InferenceEngine::lowLatency2(cnnNetwork);
@@ -466,6 +467,7 @@ void MultipleLSTMCellTest::ApplyLowLatency() {
 
         ConfigureNetwork();
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+        inferRequest = executableNetwork.CreateInferRequest();
     }
 }
 

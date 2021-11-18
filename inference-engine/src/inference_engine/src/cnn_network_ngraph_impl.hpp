@@ -28,9 +28,12 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/type/element_type.hpp"
 
 namespace InferenceEngine {
 namespace details {
+
+ngraph::element::Type toLegacyType(const ngraph::element::Type& ngraph_type, bool input);
 
 IE_SUPPRESS_DEPRECATED_START
 
@@ -40,7 +43,8 @@ IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
-                         const std::vector<IExtensionPtr>& exts = {});
+                         const std::vector<IExtensionPtr>& exts = {},
+                         bool newAPI = false);
     CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
@@ -72,7 +76,8 @@ public:
 
     virtual void validate(int = 10);
 
-    StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+    StatusCode reshape(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp) noexcept override;
+    StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
@@ -85,6 +90,10 @@ public:
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
         noexcept override;
 
+    const std::vector<IExtensionPtr> getExtensions() const {
+        return _ie_extensions;
+    }
+
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 
@@ -96,6 +105,7 @@ private:
     std::map<std::string, DataPtr> _outputData;
     const std::vector<IExtensionPtr> _ie_extensions;
     std::unordered_map<std::string, std::string> _tensorNames;
+    bool _new_api = false;
 
     /**
      * @brief Create DataPtr for nGraph operation

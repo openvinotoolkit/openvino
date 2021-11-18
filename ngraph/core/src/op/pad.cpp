@@ -13,11 +13,12 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Pad);
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
@@ -26,6 +27,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  PadMode pad_mode)
     : Op({arg, pads_begin, pads_end, arg_pad_value}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -33,8 +36,10 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
                  PadMode pad_mode)
-    : Op({arg, pads_begin, pads_end, op::Constant::create(arg.get_element_type(), Shape{}, {0})}),
+    : Op({arg, pads_begin, pads_end, op::v0::Constant::create(arg.get_element_type(), ov::Shape{}, {0})}),
       m_pad_mode{pad_mode} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
@@ -80,7 +85,7 @@ void op::v1::Pad::validate_and_infer_types() {
                               ").");
 
         NODE_VALIDATION_CHECK(this,
-                              arg_pad_shape.compatible(PartialShape{}),
+                              arg_pad_shape.compatible(ov::PartialShape{}),
                               "Argument for padding value is not a scalar (shape: ",
                               arg_pad_shape,
                               ").");
@@ -154,11 +159,23 @@ void op::v1::Pad::validate_and_infer_types() {
                                           "of at least 2 at each "
                                           "spatial axis.");
                 }
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::REFLECT || (pads_begin_coord[i] < arg_shape[i].get_length() &&
+                                                           pads_end_coord[i] < arg_shape[i].get_length()),
+                    "REFLECT padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D] - 1'.");
+                NODE_VALIDATION_CHECK(
+                    this,
+                    m_pad_mode != op::PadMode::SYMMETRIC || (pads_begin_coord[i] <= arg_shape[i].get_length() &&
+                                                             pads_end_coord[i] <= arg_shape[i].get_length()),
+                    "SYMMETRIC padding mode requires that 'pads_begin[D]' and 'pads_end[D]' "
+                    "must be not greater than 'data_shape[D]'.");
             }
         }
         set_output_type(0, get_input_element_type(0), result_dims);
     } else {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic(arg_shape_rank));
+        set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(arg_shape_rank));
     }
 }
 

@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<roiPoolingParamsTuple> obj) {
+    std::string ROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<roiPoolingParamsTuple>& obj) {
         std::vector<size_t> inputShape;
         std::vector<size_t> coordsShape;
         std::vector<size_t> poolShape;
@@ -80,7 +80,7 @@ namespace LayerTestsDefinitions {
                                                                                     poolShape,
                                                                                     spatial_scale,
                                                                                     pool_method);
-        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(roi_pooling)};
+        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roi_pooling)};
         function = std::make_shared<ngraph::Function>(results, params, "roi_pooling");
     }
 }  // namespace LayerTestsDefinitions

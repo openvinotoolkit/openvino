@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v4::CTCLoss::type_info;
+BWDCMP_RTTI_DEFINITION(op::v4::CTCLoss);
 
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
                          const Output<Node>& logit_length,
@@ -186,9 +186,9 @@ void op::v4::CTCLoss::validate_and_infer_types() {
     // set output shape
     set_output_size(1);
     if (is_batch_size_set) {
-        set_output_type(0, logits_type, Shape{batch_size});
+        set_output_type(0, logits_type, ov::Shape{batch_size});
     } else {
-        set_output_type(0, logits_type, PartialShape{Dimension::dynamic()});
+        set_output_type(0, logits_type, ov::PartialShape{Dimension::dynamic()});
     }
 }
 

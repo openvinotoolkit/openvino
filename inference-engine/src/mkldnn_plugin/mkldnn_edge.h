@@ -6,7 +6,7 @@
 
 #include <ie_blob.h>
 #include "cpu_shape.h"
-#include "cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mkldnn_weights_cache.hpp"
 
 #include <map>
@@ -35,6 +35,12 @@ public:
         Validated
     };
 
+    enum class ReorderStatus {
+        Regular = 0,
+        Optimized = 1,
+        No = 2
+    };
+
     inline Status getStatus() const noexcept {
         return status;
     }
@@ -51,11 +57,10 @@ public:
     const std::shared_ptr<MKLDNNNode> getParent() const;
     const std::shared_ptr<MKLDNNNode> getChild() const;
 
-    const Shape &getShape();
     const MKLDNNMemory& getMemory();
     MKLDNNMemoryPtr& getMemoryPtr();
 
-    bool needReorder();
+    ReorderStatus needReorder();
     bool isDropped() const;
     bool isUseExternalMemory() const;
 
@@ -68,6 +73,10 @@ public:
     MKLDNNEdgePtr getSharedEdge() const;
     MKLDNNEdgePtr getSharedEdge(std::nothrow_t) const;
 
+    bool hasDefinedMaxSize() const {
+        return getDesc().hasDefinedMaxSize();
+    }
+
 private:
     std::string name() const;
 
@@ -78,13 +87,13 @@ private:
 
     bool useExternalMemory = false;
     MKLDNNEdgeWeakPtr memoryFromEdge;
-    Shape shape;
     MKLDNNMemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
     const MemoryDesc& getInputDesc() const;
     const MemoryDesc& getOutputDesc() const;
     const MemoryDesc& getDesc() const;
+    bool enforceReorder();
 
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2, LOOK_BOTH = LOOK_UP | LOOK_DOWN, LOOK_NO_RECURRENT = 4 };
 

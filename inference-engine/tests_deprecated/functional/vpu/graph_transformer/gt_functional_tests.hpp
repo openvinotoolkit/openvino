@@ -31,6 +31,5 @@ protected:
    vpu::Data                _dataIntermediate;
 
 private:
-   ncDevicePlatform_t _platform = ncDevicePlatform_t::NC_MYRIAD_X;
    InferenceEngine::ExecutableNetwork _executableNetwork;
 };

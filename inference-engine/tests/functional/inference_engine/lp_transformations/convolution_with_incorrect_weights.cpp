@@ -8,7 +8,6 @@
 #include <sstream>
 #include <gtest/gtest.h>
 
-#include "ngraph/pass/manager.hpp"
 #include <transformations/init_node_info.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
@@ -64,8 +63,8 @@ public:
             testValues.isCorrect);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(testValues.params);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
         ngraph::pass::Manager cleanupManager;
@@ -132,7 +131,7 @@ const std::vector<ConvolutionWithIncorrectWeightsTestValues> testValues = {
             {},
             ngraph::element::i8,
             {-126.f},
-            {{}, {}, {{ 0.1f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 0.1f }, ngraph::element::f32, {}}},
         },
     },
 };

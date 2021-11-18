@@ -20,6 +20,7 @@
 
 using namespace testing;
 using namespace ngraph;
+using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
 class ReduceTransformationTestValues {

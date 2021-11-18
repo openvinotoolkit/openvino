@@ -67,8 +67,8 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::op::v1::AvgPool>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::AvgPoolFunction::getReference(
@@ -112,6 +112,8 @@ TEST_P(AvgPoolWithChildTransformation, CompareFunctions) {
 
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -137,7 +139,7 @@ const std::vector<AvgPoolWithChildTransformationTestValues> testValues = {
             {},
             ngraph::element::u8,
             {},
-            {{}, {}, {std::vector<float>{0.0002f}, element::f32, {1, 6, 1, 1}}}
+            {{}, {}, {std::vector<float>{0.0002f}, element::f32, {}}}
         }
     },
     // U8 per tensor quantization

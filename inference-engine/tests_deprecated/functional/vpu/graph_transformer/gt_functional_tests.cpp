@@ -26,7 +26,7 @@
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
@@ -48,7 +48,6 @@
 #include <vpu/configuration/options/config_file.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_force_reset.hpp>
-#include <vpu/configuration/options/platform.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
@@ -66,12 +65,11 @@ void graphTransformerFunctionalTests::SetUp() {
     vpuLayersTests::SetUp();
 
     _stageBuilder = std::make_shared<StageBuilder>();
-    _platform = CheckMyriadX() ? ncDevicePlatform_t::NC_MYRIAD_X : ncDevicePlatform_t::NC_MYRIAD_2;
 }
 
 void graphTransformerFunctionalTests::CreateModel() {
     const auto compilerLog = std::make_shared<Logger>("Test", LogLevel::Info, consoleOutput());
-    CompileEnv::init(_platform, _configuration, compilerLog);
+    CompileEnv::init(_configuration, compilerLog);
     AutoScope autoDeinit([] {
         CompileEnv::free();
     });
@@ -110,7 +108,7 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     _configuration.registerOption<NumberOfSHAVEsOption>();
     _configuration.registerOption<NumberOfCMXSlicesOption>();
     _configuration.registerOption<ThroughputStreamsOption>();
-    _configuration.registerOption<IRWithScalesDirectoryOption>();
+    _configuration.registerOption<VPUScalesOption>();
     _configuration.registerOption<TensorStridesOption>();
     _configuration.registerOption<IgnoreUnknownLayersOption>();
     _configuration.registerOption<ForcePureTensorIteratorOption>();
@@ -147,7 +145,6 @@ IE_SUPPRESS_DEPRECATED_START
     _configuration.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
     _configuration.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
     _configuration.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
-    _configuration.registerDeprecatedOption<PlatformOption>(VPU_MYRIAD_CONFIG_KEY(PLATFORM));
 IE_SUPPRESS_DEPRECATED_END
 
     _inputsInfo.clear();
@@ -192,7 +189,6 @@ int64_t graphTransformerFunctionalTests::CompileAndInfer(Blob::Ptr& inputBlob, B
 
     auto compiledGraph = compileModel(
                 _gtModel,
-                _platform,
                 _configuration,
                 compilerLog);
 

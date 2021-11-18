@@ -16,6 +16,5 @@ std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
     return std::make_shared<ngraph::opset3::ShuffleChannels>(in, axis, group);
 }
 
-
 }  // namespace builder
 }  // namespace ngraph

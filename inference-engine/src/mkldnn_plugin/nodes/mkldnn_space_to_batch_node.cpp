@@ -16,8 +16,12 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNSpaceToBatchNode::isSupportedOperation(const std::shared_ptr<ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNSpaceToBatchNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (isDynamicNgraphNode(op)) {
+            errorMessage = "Doesn't support op with dynamic shapes";
+            return false;
+        }
         const auto spaceToBatch = std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(op);
         if (!spaceToBatch) {
             errorMessage = "Only opset2 SpaceToBatch operation is supported";
@@ -112,15 +116,15 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
-    const bool blocked = getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp16c) ||
-                         getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nCsp8c);
+    const bool blocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
+                         getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c);
     const auto dimsSize = inDims.size();
 
     auto inShape5D  = getShape5D(outDims);
     auto outShape5D = getShape5D(inDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
+    if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -129,10 +133,10 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
         blockShape.erase(blockShape.begin() + 1);
     }
 
-    const auto outBlkDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims();
+    const auto outBlkDims = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
     const size_t blockSize = blocked ? outBlkDims.back() : 1lu;
     const size_t blockCountInput = outBlkDims[1];
-    const size_t blockCountOutput = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>().getBlockDims()[1];
+    const size_t blockCountOutput = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getBlockDims()[1];
     const auto blockRemainder = inShape5D[1] % blockSize;
     const auto lastBlock = blockRemainder == 0 ? blockSize : blockRemainder;
 
@@ -173,7 +177,7 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - padsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - padsBeginIn[1];
-            if (getParentEdgeAt(0)->getMemory().GetDesc().hasLayoutType(LayoutType::nspc)) {
+            if (getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }
@@ -227,12 +231,12 @@ void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
 }
 
 void MKLDNNSpaceToBatchNode::execute(mkldnn::stream strm) {
-    switch (getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().size()) {
+    switch (getParentEdgeAt(0)->getMemory().getDesc().getPrecision().size()) {
         case 1: SpaceToBatchKernel<PrecisionTrait<Precision::U8>::value_type>();  break;
         case 2: SpaceToBatchKernel<PrecisionTrait<Precision::U16>::value_type>(); break;
         case 4: SpaceToBatchKernel<PrecisionTrait<Precision::I32>::value_type>(); break;
         default:
-            IE_THROW() << "SpaceToBatch layer does not support precision '" + std::string(getParentEdgeAt(0)->getMemory().GetDesc().getPrecision().name())
+            IE_THROW() << "SpaceToBatch layer does not support precision '" + std::string(getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name())
                           + "'";
     }
 }

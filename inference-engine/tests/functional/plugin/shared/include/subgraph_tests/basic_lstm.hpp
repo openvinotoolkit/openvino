@@ -22,7 +22,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
 
     // todo: it is better to modify the model -> use ShapeOf() and Gather()
     std::vector<uint64_t> outFormShapes1 = { 1, 1, third_dim };
-    auto pattern1 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
+    auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
     auto param_target_inputs = function->get_parameters().at(0)->output(0).get_target_inputs();
 
     // replace hardcoded shape
@@ -42,8 +42,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
     manager.register_pass<ngraph::pass::LowLatency2>(); // LowLatency enables UnrollTI
     manager.run_passes(function);
     LoadNetwork();
-    IE_SUPPRESS_DEPRECATED_START
-    auto states = executableNetwork.QueryState();
+    auto states = inferRequest.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
         if (name.find("cell_state_1") != std::string::npos) {
@@ -58,7 +57,6 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
             GTEST_FAIL() << "unknown memory state";
         }
     }
-    IE_SUPPRESS_DEPRECATED_END
     // Run and compare
     Infer();
     const auto& actualOutputs = GetOutputs();

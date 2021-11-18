@@ -42,7 +42,6 @@ struct ReferenceParams {
     explicit ReferenceParams(const std::vector<int64_t> & reshape_value): reshape_value(reshape_value) {}
 };
 
-
 class TransposeToReshapeTests: public CommonTestUtils::TestsCommon,
                                public testing::WithParamInterface<std::tuple<InputShape, TransposeOrder, ReferenceParams> > {
 public:
@@ -60,12 +59,12 @@ public:
 private:
     std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & input_shape,
                                                            const std::vector<int64_t> & transpose_order) {
-        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
-        auto order_const = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order);
-        auto transpose = std::make_shared<ngraph::op::v1::Transpose>(data, order_const);
+        auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, input_shape);
+        auto order_const = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order);
+        auto transpose = std::make_shared<ngraph::opset3::Transpose>(data, order_const);
 
         // WA to test cases with transpose elimination
-        auto relu = std::make_shared<ngraph::op::v0::Relu>(transpose);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(transpose);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{data});
     }
@@ -77,37 +76,42 @@ private:
             return get_initial_function(input_shape, transpose_order);
         }
 
-        auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
+        auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, input_shape);
 
         ngraph::Output<ngraph::Node> reshape_dims, last(data);
         if (!params.reshape_value.empty()) {
-            reshape_dims = ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_value.size()}, params.reshape_value);
+            reshape_dims = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{params.reshape_value.size()}, params.reshape_value);
         } else {
-            auto shape_of = std::make_shared<ngraph::op::v3::ShapeOf>(data);
-            reshape_dims = std::make_shared<ngraph::op::v1::Gather>(shape_of,
-                    ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order),
-                    ngraph::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+            auto shape_of = std::make_shared<ngraph::opset3::ShapeOf>(data);
+            reshape_dims = std::make_shared<ngraph::opset3::Gather>(shape_of,
+                    ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{transpose_order.size()}, transpose_order),
+                    ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         }
 
         if (!params.is_empty) {
-            last = std::make_shared<ngraph::op::v1::Reshape>(last, reshape_dims, true);
+            last = std::make_shared<ngraph::opset3::Reshape>(last, reshape_dims, true);
         }
 
-        last = std::make_shared<ngraph::op::v0::Relu>(last);
+        last = std::make_shared<ngraph::opset3::Relu>(last);
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{data});
     }
 };
 
 TEST_P(TransposeToReshapeTests, CompareFunctions) {
-    ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::TransposeToReshape>();
-    manager.run_passes(f);
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+    pass::Manager m;
+    m.register_pass<pass::InitUniqueNames>(unh);
+    m.register_pass<ngraph::pass::InitNodeInfo>();
+    m.register_pass<ngraph::pass::TransposeToReshape>();
+    m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    m.run_passes(f);
     f->validate_nodes_and_infer_types();
     ASSERT_NO_THROW(check_rt_info(f));
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 #define SAME_FUNCTION    ReferenceParams(true, false)
@@ -182,10 +186,14 @@ TEST(TransformationTests, replace_transpose_with_reshape) {
         auto baseline_f = make_shared<Function>(transpose1, ParameterVector{param});
         auto optimized_f = clone_function(*baseline_f);
 
-        pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::TransposeToReshape>();
-        pass_manager.run_passes(optimized_f);
+        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        pass::Manager m;
+        m.register_pass<pass::InitUniqueNames>(unh);
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::Validate>();
+        m.register_pass<ngraph::pass::TransposeToReshape>();
+        m.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+        m.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
         auto ps_r = optimized_f->get_results()[0]->get_output_partial_shape(0);

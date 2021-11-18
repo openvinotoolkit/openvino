@@ -8,7 +8,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ngraph/pass/manager.hpp"
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
@@ -79,6 +78,8 @@ TEST_P(ReshapeFullyConnectedTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 std::vector<ReshapeFullyConnectedTransformationTestValues> testValues = {

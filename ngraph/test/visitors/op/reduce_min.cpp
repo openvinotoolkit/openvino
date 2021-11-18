@@ -5,5 +5,5 @@
 #include "ngraph/op/min.hpp"
 #include "reduce_ops.hpp"
 
-using Type = ::testing::Types<ngraph::op::v1::ReduceMin>;
-INSTANTIATE_TYPED_TEST_SUITE_P(attributes_reduce_min, ReduceOpsAttrTest, Type);
+using Type = ::testing::Types<ReduceOperatorType<ngraph::op::v1::ReduceMin, ngraph::element::f32>>;
+INSTANTIATE_TYPED_TEST_SUITE_P(attributes_reduce_op, ReduceOperatorVisitor, Type, ReduceOperatorTypeName);

@@ -11,8 +11,25 @@
 #include <stdexcept>
 #include <vector>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.hpp>
+#endif
+
 namespace cldnn {
 namespace ocl {
+
+static int get_cl_map_type(mem_lock_type type) {
+    switch (type) {
+        case mem_lock_type::read:
+            return CL_MAP_READ;
+        case mem_lock_type::write:
+            return CL_MAP_WRITE;
+        case mem_lock_type::read_write:
+            return CL_MAP_READ | CL_MAP_WRITE;
+        default:
+            throw std::runtime_error("Unsupported lock type for cl_memory buffer\n");
+    }
+}
 
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& layout)
@@ -25,11 +42,11 @@ gpu_buffer::gpu_buffer(ocl_engine* engine,
     : lockable_gpu_mem(), memory(engine, new_layout, allocation_type::cl_mem, true)
     , _buffer(buffer) {}
 
-void* gpu_buffer::lock(const stream& stream) {
+void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
-        _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, CL_TRUE, CL_MAP_WRITE, 0, size());
+        _mapped_ptr = cl_stream.get_cl_queue().enqueueMapBuffer(_buffer, CL_TRUE, get_cl_map_type(type), 0, size());
     }
     _lock_count++;
     return _mapped_ptr;
@@ -91,6 +108,15 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* host_ptr) {
 
     return ev;
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc) {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
+    dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
+    return dnnl_mem;
+}
+#endif
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)
     : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, false), _row_pitch(0), _slice_pitch(0) {
@@ -169,14 +195,14 @@ event::ptr gpu_image2d::fill(stream& stream, unsigned char pattern) {
     return ev;
 }
 
-void* gpu_image2d::lock(const stream& stream) {
+void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
     auto& cl_stream = downcast<const ocl_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         _mapped_ptr = cl_stream.get_cl_queue()
                           .enqueueMapImage(_buffer,
                                            CL_TRUE,
-                                           CL_MAP_WRITE,
+                                           get_cl_map_type(type),
                                            {0, 0, 0},
                                            {_width, _height, 1},
                                            &_row_pitch,
@@ -273,7 +299,7 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     }
 }
 
-void* gpu_usm::lock(const stream& stream) {
+void* gpu_usm::lock(const stream& stream, mem_lock_type /*type*/) {
     assert(get_allocation_type() != allocation_type::usm_device && "Can't lock usm device memory!");
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
@@ -342,6 +368,14 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* host_ptr) {
 
     return ev;
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc) {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm, _buffer.get());
+    return dnnl_mem;
+}
+#endif
 
 shared_mem_params gpu_usm::get_internal_params() const {
     auto cl_engine = downcast<const ocl_engine>(_engine);

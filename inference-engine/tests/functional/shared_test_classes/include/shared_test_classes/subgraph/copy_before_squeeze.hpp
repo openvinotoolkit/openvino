@@ -24,7 +24,7 @@ typedef std::tuple<
 
 class CopyBeforeSqueezeTest
     : public testing::WithParamInterface<CopyBeforeSqueezeTuple>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CopyBeforeSqueezeTuple>& obj);
 protected:

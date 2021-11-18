@@ -2,7 +2,7 @@
 
 **Versioned name**: *HSwish-4*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
 **Short description**: HSwish takes one input tensor and produces output tensor where the hard version of swish function is applied to the tensor elementwise.
 

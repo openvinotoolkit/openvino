@@ -7,14 +7,10 @@
 #include <string>
 
 #include "ngraph/node.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ngraph {
 namespace op {
-/// Root of all actual ops
-class NGRAPH_API Op : public Node {
-protected:
-    Op() : Node() {}
-    Op(const OutputVector& arguments);
-};
+using ov::op::Op;
 }  // namespace op
 }  // namespace ngraph

@@ -18,23 +18,18 @@
 
 using namespace testing;
 
-TEST(TransformationTests, BatchNormDecompositionDynamic) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, BatchNormDecompositionDynamic) {
     {
-        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
-        auto gamma = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto beta = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto mean = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto var = ngraph::op::v0::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
-        auto broadcast = std::make_shared<ngraph::op::v0::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto gamma = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto beta = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto mean = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto var = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {3});
+        auto broadcast = std::make_shared<ngraph::opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
         broadcast->set_friendly_name("broadcast");
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
-
-        ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{broadcast}, ngraph::ParameterVector{input});
+        function_ref = ngraph::clone_function(*function);
         manager.register_pass<ngraph::pass::BatchNormDecomposition>();
-        ASSERT_NO_THROW(manager.run_passes(f));
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 }

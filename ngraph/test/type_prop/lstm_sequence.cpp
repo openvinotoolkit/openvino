@@ -8,9 +8,6 @@
 #include "ngraph/op/parameter.hpp"
 #include "util/type_prop.hpp"
 
-// suppress FusedOp deprecation warnings
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -326,5 +323,24 @@ TEST(type_prop, lstm_sequence_invalid_input_dynamic_rank) {
         lstm_sequence->set_argument(i, invalid_dynamic_tensor);
         lstm_sequence->validate_and_infer_types();
         EXPECT_EQ(check_dynamic_lstm(lstm_sequence), true);
+    }
+}
+
+TEST(type_prop, lstm_sequence_invalid_input_direction) {
+    recurrent_sequence_parameters param;
+
+    param.batch_size = 24;
+    param.num_directions = 3;
+    param.seq_length = 12;
+    param.input_size = 8;
+    param.hidden_size = 256;
+    param.et = element::f32;
+
+    auto lstm_sequence = lstm_seq_tensor_initialization(param);
+    try {
+        lstm_sequence->validate_and_infer_types();
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Parameter direction must be Forward or Reverse or Bidirectional"));
     }
 }

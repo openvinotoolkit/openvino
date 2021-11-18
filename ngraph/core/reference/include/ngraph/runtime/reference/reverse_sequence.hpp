@@ -20,16 +20,14 @@ void reverse_sequence(const T* arg,
                       size_t batch_axis,
                       size_t sequence_axis,
                       const U* sequence_lengths) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    CoordinateTransform input_transform(arg_shape);
+    const auto strides = row_major_strides(arg_shape);
+    CoordinateTransformBasic input_transform(arg_shape);
     for (const Coordinate& in_coord : input_transform) {
         size_t batch_index = in_coord[batch_axis];
         auto orig_seq_index = static_cast<size_t>(sequence_lengths[batch_index]);
 
-        if (orig_seq_index > arg_shape.at(sequence_axis)) {
-            throw ngraph_error("One of the elements of sequence lengths is greater than sequence axis "
-                               "dimension");
-        }
+        NGRAPH_CHECK(orig_seq_index <= arg_shape.at(sequence_axis),
+                     "One of the elements of sequence lengths is greater than sequence axis dimension");
 
         if (orig_seq_index == 0) {
             orig_seq_index = 1;
@@ -41,9 +39,11 @@ void reverse_sequence(const T* arg,
         // make a copy of in_coord and update sequence_index
         Coordinate out_coord = in_coord;
         out_coord[sequence_axis] = sequence_index;
-        out[input_transform.index(out_coord)] = arg[input_transform.index(in_coord)];
+
+        const size_t in_idx = std::inner_product(in_coord.begin(), in_coord.end(), strides.begin(), 0);
+        const size_t out_idx = std::inner_product(out_coord.begin(), out_coord.end(), strides.begin(), 0);
+        out[out_idx] = arg[in_idx];
     }
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 }  // namespace reference
 }  // namespace runtime

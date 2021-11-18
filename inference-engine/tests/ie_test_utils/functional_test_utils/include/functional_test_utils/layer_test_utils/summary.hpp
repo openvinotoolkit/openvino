@@ -7,12 +7,7 @@
 #include <map>
 #include <fstream>
 
-#include "ngraph/node.hpp"
-#include "ngraph/opsets/opset.hpp"
-
-namespace ngraph {
-class Function;
-}
+#include "ngraph/ngraph.hpp"
 
 #include "common_test_utils/test_constants.hpp"
 
@@ -96,6 +91,13 @@ public:
     void updateOPsStats(const ngraph::NodeTypeInfo &op, const PassRate::Statuses &status);
 
     static Summary &getInstance();
+
+    // #define IE_TEST_DEBUG
+
+    #ifdef IE_TEST_DEBUG
+    void saveDebugReport(const char* className, const char* opName, unsigned long passed, unsigned long failed,
+                        unsigned long skipped, unsigned long crashed);
+    #endif  //IE_TEST_DEBUG
 
     void saveReport();
 

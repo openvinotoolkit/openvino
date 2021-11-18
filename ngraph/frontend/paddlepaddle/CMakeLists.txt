@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "paddlepaddle_ngraph_frontend")
+set(TARGET_NAME "paddlepaddle_ov_frontend")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
@@ -47,15 +47,16 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRU
 # Disable all warnings for generated code
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w)
 
-# Create shared library
-add_library(${TARGET_NAME} SHARED  ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+# Create library
+add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(openvino::frontend::paddlepaddle ALIAS ${TARGET_NAME})
 
-add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend_proto)
+add_dependencies(${TARGET_NAME} ${TARGET_NAME}_proto)
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:ngraph::frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -68,28 +69,29 @@ target_include_directories(${TARGET_NAME}
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
                                                          ${CMAKE_CURRENT_BINARY_DIR})
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "FrontEnd to load and convert PaddlePaddle file format")
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph::frontend_manager::static
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
                                      PRIVATE ngraph::builder inference_engine_transformations)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
 
-install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
-        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::paddlepaddle)
+install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
 install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/paddlepaddle_frontend
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev
-        FILES_MATCHING PATTERN "*.hpp"
-)
+        FILES_MATCHING PATTERN "*.hpp")
 
-export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

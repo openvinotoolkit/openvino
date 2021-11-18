@@ -2,7 +2,7 @@
 
 **Versioned name**: *Subtract-1*
 
-**Category**: Arithmetic binary operation
+**Category**: *Arithmetic binary*
 
 **Short description**: *Subtract* performs element-wise subtraction operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 

@@ -65,7 +65,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::DepthToSpaceTransformation, ngraph::op::v0::DepthToSpace>(testValues.params);
+        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(
@@ -102,6 +102,8 @@ TEST_P(DepthToSpaceTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 namespace testValues1 {

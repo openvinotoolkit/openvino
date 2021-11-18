@@ -26,19 +26,6 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
-
-inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& values) {
-    os << "{ ";
-    for (size_t i = 0; i < values.size(); ++i) {
-        os << values[i];
-        if (i != (values.size() - 1ul)) {
-            os << ", ";
-        }
-    }
-    os << " }";
-    return os;
-}
-
 class StridedSliceTransformationTestValues {
 public:
     class Actual {
@@ -96,7 +83,7 @@ public:
             testValues.layerParams.elipsisMask);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::StridedSliceTransformation, ngraph::op::v1::StridedSlice>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::StridedSliceTransformation, ngraph::opset1::StridedSlice>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::StridedSliceFunction::getReference(
@@ -134,6 +121,8 @@ TEST_P(StridedSliceTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 StridedSliceTransformationTestValues::LayerParams channelSlice = {

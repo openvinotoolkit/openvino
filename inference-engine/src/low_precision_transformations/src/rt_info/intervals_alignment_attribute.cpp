@@ -12,6 +12,7 @@
 #include "low_precision/network_helper.hpp"
 
 using namespace ngraph;
+using namespace ov;
 using namespace ngraph::pass::low_precision;
 
 IntervalsAlignmentAttribute::IntervalsAlignmentAttribute(
@@ -35,11 +36,11 @@ constexpr VariantTypeInfo VariantWrapper<IntervalsAlignmentAttributePtr>::type_i
 std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> VariantWrapper<IntervalsAlignmentAttributePtr>::create(
     const std::shared_ptr<ngraph::Node>& node,
     const AttributeParameters& params) {
-    if (!is_type<op::v0::FakeQuantize>(node)) {
+    if (!ov::is_type<opset1::FakeQuantize>(node)) {
         return nullptr;
     }
 
-    auto fakeQuantize = as_type_ptr<op::v0::FakeQuantize>(node);
+    auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(node);
     if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize) || !QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
         return nullptr;
     }
@@ -51,14 +52,14 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
 
         FakeQuantizeDequantization dequantization;
         {
-            const auto targetInputs = node->output(0).get_target_inputs();
+            const auto targetInputs = node->get_output_target_inputs(0);
             if (targetInputs.size() == 1ul) {
                 dequantization = NetworkHelper::getDequantizationBelow(node, true);
             }
         }
 
-        const auto outLow = as_type_ptr<op::Constant>(node->get_input_node_shared_ptr(3));
-        const auto outHigh = as_type_ptr<op::Constant>(node->get_input_node_shared_ptr(4));
+        const auto outLow = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(3));
+        const auto outHigh = ov::as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(4));
         if (!NetworkHelper::isScalarLike(outLow) || !NetworkHelper::isScalarLike(outHigh)) {
             return nullptr;
         }
@@ -73,11 +74,11 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
             {
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(3)->shared_from_this() :
-                    fold<op::v1::Multiply>(
-                        foldConvert(node->get_input_node_ptr(3)->shared_from_this(), params.deqPrecision),
+                    fold<opset1::Multiply>(
+                        foldConvert(node->input_value(3), params.deqPrecision),
                         dequantization.multiplyConstant);
 
-                auto multiplyResultConstant = as_type_ptr<op::Constant>(multiplyResult);
+                auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();
                 lowInterval = *std::min_element(intervals.begin(), intervals.end());
             }
@@ -85,11 +86,11 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
             {
                 auto multiplyResult = dequantization.multiplyConstant == nullptr ?
                     node->get_input_node_ptr(4)->shared_from_this() :
-                    fold<op::v1::Multiply>(
-                        foldConvert(node->get_input_node_ptr(4)->shared_from_this(), params.deqPrecision),
+                    fold<opset1::Multiply>(
+                        foldConvert(node->input_value(4), params.deqPrecision),
                         dequantization.multiplyConstant);
 
-                auto multiplyResultConstant = as_type_ptr<op::Constant>(multiplyResult);
+                auto multiplyResultConstant = ov::as_type_ptr<opset1::Constant>(multiplyResult);
                 auto intervals = multiplyResultConstant->cast_vector<float>();
                 highInterval = *std::max_element(intervals.begin(), intervals.end());
             }
@@ -114,8 +115,8 @@ std::shared_ptr<VariantWrapper<std::shared_ptr<IntervalsAlignmentAttribute>>> Va
                 fakeQuantize->get_levels()));
         rtInfo[ngraph::VariantWrapper<IntervalsAlignmentAttributePtr>::type_info.name] = attribute;
 
-        const std::vector<float> outputLowValues = as_type_ptr<op::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
-        const std::vector<float> outputHighValues = as_type_ptr<op::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();
+        const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4))->cast_vector<float>();
         LayerTransformation::PrecisionDetails preferablePrecision = LayerTransformation::getPrecisionDetails(
             fakeQuantize->get_levels(),
             outputLowValues,
@@ -165,25 +166,26 @@ void VariantWrapper<IntervalsAlignmentAttributePtr>::merge(
         const auto size = std::abs(sharedValue->minInterval.high - sharedValue->minInterval.low);
         if (resultSize > size) {
             resultSharedValue->minInterval = sharedValue->minInterval;
+            if (resultAttribute->levels != 0ul) {
+                float dequantizationMul;
+                float dequantizationSub;
+                float updatedOutputLowValue;
+                float updatedOutputHighValue;
 
-            float dequantizationMul;
-            float dequantizationSub;
-            float updatedOutputLowValue;
-            float updatedOutputHighValue;
+                const size_t minLevels = NetworkHelper::calculateLevels(
+                        0.f,
+                        DataPrecision::getMaxValue(resultAttribute->levels),
+                        resultSharedValue->combinedInterval.low,
+                        resultSharedValue->combinedInterval.high,
+                        resultSharedValue->minInterval.low,
+                        resultSharedValue->minInterval.high,
+                        dequantizationMul,
+                        dequantizationSub,
+                        updatedOutputLowValue,
+                        updatedOutputHighValue);
 
-            const size_t minLevels = NetworkHelper::calculateLevels(
-                0.f,
-                DataPrecision::getMaxValue(resultAttribute->levels),
-                resultSharedValue->combinedInterval.low,
-                resultSharedValue->combinedInterval.high,
-                resultSharedValue->minInterval.low,
-                resultSharedValue->minInterval.high,
-                dequantizationMul,
-                dequantizationSub,
-                updatedOutputLowValue,
-                updatedOutputHighValue);
-
-            resultSharedValue->minLevels = minLevels;
+                resultSharedValue->minLevels = minLevels;
+            }
 
 #ifdef LPT_DEBUG
             resultSharedValue->minLevelsOperation = sharedValue->minLevelsOperation;

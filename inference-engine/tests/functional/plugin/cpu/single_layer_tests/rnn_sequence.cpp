@@ -102,8 +102,8 @@ protected:
                                                      true,
                                                      direction,
                                                      m_mode);
-        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(rnn_sequence->output(0)),
-                                     std::make_shared<ngraph::op::v0::Result>(rnn_sequence->output(1))};
+        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(0)),
+                                     std::make_shared<ngraph::opset1::Result>(rnn_sequence->output(1))};
         function = makeNgraphFunction(ngPrc, params, rnn_sequence, "rnn_sequence");
         if (m_mode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
             ngraph::pass::Manager manager;
@@ -148,8 +148,8 @@ namespace {
 std::vector<std::map<std::string, std::string>> additionalConfig
     = {{{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}}, {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}};
 
-CPUSpecificParams cpuParams{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
-CPUSpecificParams cpuParamsBatchSizeOne{{ntc, ntc}, {tnc, ntc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParams{{ntc, tnc}, {ntc, tnc}, {"ref_any"}, "ref_any"};
+CPUSpecificParams cpuParamsBatchSizeOne{{tnc, ntc}, {tnc, tnc}, {"ref_any"}, "ref_any"};
 
 std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::PURE_SEQ};
 // output values increase rapidly without clip, so use only seq_lengths = 2

@@ -325,6 +325,23 @@ TEST_F(BlobTests, canCreateBlobOnExistedMemory) {
 }
 
 
+// SetShape
+TEST_F(BlobTests, canSetShape) {
+    auto b = InferenceEngine::make_shared_blob<float>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, {1, 2, 3}, InferenceEngine::ANY));
+    b->allocate();
+
+    ASSERT_NO_THROW(b->setShape({4, 5, 6}));
+
+    auto newDims = b->getTensorDesc().getDims();
+    ASSERT_EQ(newDims.size(), 3);
+    ASSERT_EQ(newDims[0], 4);
+    ASSERT_EQ(newDims[1], 5);
+    ASSERT_EQ(newDims[2], 6);
+}
+
+
+
 TEST_F(BlobTests, canModifyDataInRangedFor) {
     InferenceEngine::SizeVector v = {1, 2, 3};
     InferenceEngine::TBlob<int> blob({ InferenceEngine::Precision::I32, v, InferenceEngine::CHW });
@@ -425,6 +442,122 @@ TEST_F(BlobTests, readRoiBlob) {
     const auto roi = InferenceEngine::ROI(0, 4, 2, 4, 2);
 
     const auto roiBlob = InferenceEngine::as<InferenceEngine::MemoryBlob>(origBlob->createROI(roi));
+    ASSERT_NE(nullptr, roiBlob);
+
+    // Read ROI Blob
+
+    {
+        const auto roiOffset = roiBlob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+
+        auto roiMemory = roiBlob->rmap();
+        auto roiPtr = roiMemory.as<const int32_t*>();
+        ASSERT_NE(nullptr, roiPtr);
+
+        // Blob::rmap returns pointer to the original blob start, we have to add ROI offset manually.
+        roiPtr += roiOffset;
+
+        for (size_t i = 0; i < roiBlob->size(); ++i) {
+            ASSERT_EQ(roiPtr[i], i + roiOffset);
+        }
+    }
+}
+
+/////////////////////////////////////////
+
+TEST_F(BlobTests, makeRangeRoiBlobNchw) {
+    // we create main blob with NCHW layout. We will crop ROI from this blob.
+    InferenceEngine::SizeVector dims = {1, 3, 6, 5};  // RGB picture of size (WxH) = 5x6
+    InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::NCHW));
+    blob->allocate();
+
+    // create ROI blob based on the already created blob
+    InferenceEngine::ROI roi = {0, 2, 1, 2, 4};  // cropped picture with: id = 0, (x,y) = (2,1), sizeX (W) = 2, sizeY (H) = 4
+    InferenceEngine::Blob::Ptr roiBlob = make_shared_blob(blob,
+        {0, 0, roi.posY, roi.posX},
+        {1, 3, roi.posY + roi.sizeY, roi.posX + roi.sizeX});
+
+    // check that BlockingDesc is constructed properly for the ROI blob
+    InferenceEngine::SizeVector refDims = {1, 3, 4, 2};
+    InferenceEngine::SizeVector refOrder = {0, 1, 2, 3};
+    size_t refOffset = 7;
+    InferenceEngine::SizeVector refStrides = {90, 30, 5, 1};
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getBlockDims(), refDims);
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getOrder(), refOrder);
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getOffsetPadding(), refOffset);
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getStrides(), refStrides);
+}
+
+TEST_F(BlobTests, makeRangeRoiBlobNhwc) {
+    // we create main blob with NHWC layout. We will crop ROI from this blob.
+    InferenceEngine::SizeVector dims = {1, 3, 4, 8};  // RGB picture of size (WxH) = 8x4
+    InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::NHWC));
+    blob->allocate();
+
+    // create ROI blob based on the already created blob
+    InferenceEngine::ROI roi = {0, 3, 2, 5, 2};  // cropped picture with: id = 0, (x,y) = (3,2), sizeX (W) = 5, sizeY (H) = 2
+        InferenceEngine::Blob::Ptr roiBlob = make_shared_blob(blob,
+        {0, 0, roi.posY, roi.posX},
+        {1, 3, roi.posY + roi.sizeY, roi.posX + roi.sizeX});
+
+    // check that BlockingDesc is constructed properly for the ROI blob
+    InferenceEngine::SizeVector refDims = {1, 2, 5, 3};
+    InferenceEngine::SizeVector refOrder = {0, 2, 3, 1};
+    size_t refOffset = 57;
+    InferenceEngine::SizeVector refStrides = {96, 24, 3, 1};
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getBlockDims(), refDims);
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getOrder(), refOrder);
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getOffsetPadding(), refOffset);
+    ASSERT_EQ(roiBlob->getTensorDesc().getBlockingDesc().getStrides(), refStrides);
+}
+
+TEST_F(BlobTests, makeRangeRoiBlobWrongSize) {
+    // we create main blob with NCHW layout. We will crop ROI from this blob.
+    InferenceEngine::SizeVector dims = {1, 3, 4, 4};  // RGB picture of size (WxH) = 4x4
+    InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::NCHW));
+    blob->allocate();
+
+    // try to create ROI blob with wrong size
+    InferenceEngine::ROI roi = {0, 1, 1, 4, 4};  // cropped picture with: id = 0, (x,y) = (1,1), sizeX (W) = 4, sizeY (H) = 4
+    ASSERT_THROW(make_shared_blob(blob,
+        {0, 0, roi.posY, roi.posX},
+        {1, 3, roi.posY + roi.sizeY, roi.posX + roi.sizeX}), InferenceEngine::Exception);
+}
+
+TEST_F(BlobTests, readRangeRoiBlob) {
+    // Create original Blob
+
+    const auto origDesc =
+        InferenceEngine::TensorDesc(
+            InferenceEngine::Precision::I32,
+            {1, 3, 4, 8},
+            InferenceEngine::NCHW);
+
+    const auto origBlob =
+        InferenceEngine::make_shared_blob<int32_t>(origDesc);
+    origBlob->allocate();
+
+    // Fill the original Blob
+
+    {
+        auto origMemory = origBlob->wmap();
+        const auto origPtr = origMemory.as<int32_t*>();
+        ASSERT_NE(nullptr, origPtr);
+
+        for (size_t i = 0; i < origBlob->size(); ++i) {
+            origPtr[i] = i;
+        }
+    }
+
+    // Create ROI Blob
+
+    const auto roi = InferenceEngine::ROI(0, 4, 2, 4, 2);
+
+    const auto roiBlob = InferenceEngine::as<InferenceEngine::MemoryBlob>(origBlob->createROI(
+        {0, 0, roi.posY, roi.posX},
+        {1, 3, roi.posY + roi.sizeY, roi.posX + roi.sizeX}));
     ASSERT_NE(nullptr, roiBlob);
 
     // Read ROI Blob

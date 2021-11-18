@@ -18,11 +18,10 @@
 #include "ngraph/util.hpp"
 
 using namespace std;
-using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::util::RNNCellBase, "RNNCellBase", 0);
+BWDCMP_RTTI_DEFINITION(ov::op::util::RNNCellBase);
 
-std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<Node>& node,
+std::shared_ptr<ov::Node> ov::op::util::convert_lstm_node_format(const Output<Node>& node,
                                                                  LSTMWeightsFormat from_format,
                                                                  LSTMWeightsFormat to_format,
                                                                  int64_t axis) {
@@ -37,32 +36,32 @@ std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<No
     const auto& to = gate_order_map.at(to_format);
     size_t num_gates = 4;
 
-    auto axis_const = std::make_shared<opset4::Constant>(element::i64, Shape{}, axis);
-    OutputVector splitted_node = std::make_shared<opset4::Split>(node, axis_const, num_gates)->outputs();
+    auto axis_const = std::make_shared<ngraph::opset4::Constant>(element::i64, ngraph::Shape{}, axis);
+    OutputVector splitted_node = std::make_shared<ngraph::opset4::Split>(node, axis_const, num_gates)->outputs();
     OutputVector nodes_in_new_format(num_gates);
     for (size_t i = 0; i < num_gates; ++i) {
         nodes_in_new_format[to[from[i]]] = splitted_node[i];
     }
-    return std::make_shared<opset4::Concat>(nodes_in_new_format, axis);
+    return std::make_shared<ngraph::opset4::Concat>(nodes_in_new_format, axis);
 }
 
 // Modify input vector in-place and return reference to modified vector.
 static vector<string> to_lower_case(const vector<string>& vs) {
     vector<string> res(vs);
     transform(begin(res), end(res), begin(res), [](string& s) {
-        return to_lower(s);
+        return ngraph::to_lower(s);
     });
     return res;
 }
 
-op::util::RNNCellBase::RNNCellBase() : m_hidden_size(0), m_clip(0.f) {}
+ov::op::util::RNNCellBase::RNNCellBase() : m_hidden_size(0), m_clip(0.f) {}
 
-op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
-                                   size_t hidden_size,
-                                   float clip,
-                                   const vector<string>& activations,
-                                   const vector<float>& activations_alpha,
-                                   const vector<float>& activations_beta)
+ov::op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
+                                       size_t hidden_size,
+                                       float clip,
+                                       const vector<string>& activations,
+                                       const vector<float>& activations_alpha,
+                                       const vector<float>& activations_beta)
     : Op(args),
       m_hidden_size(hidden_size),
       m_clip(clip),
@@ -119,7 +118,7 @@ void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(const std::vec
                           "RNNCellBase mismatched input_size dimension.");
 }
 
-op::util::ActivationFunction op::util::RNNCellBase::get_activation_function(size_t idx) const {
+ov::op::util::ActivationFunction ov::op::util::RNNCellBase::get_activation_function(size_t idx) const {
     // Normalize activation function case.
     std::string func_name = m_activations.at(idx);
     std::locale loc;
@@ -140,22 +139,22 @@ op::util::ActivationFunction op::util::RNNCellBase::get_activation_function(size
     return afunc;
 }
 
-shared_ptr<Node> op::util::RNNCellBase::add(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<op::v1::Add>(lhs, rhs)};
+shared_ptr<ov::Node> ov::op::util::RNNCellBase::add(const Output<Node>& lhs, const Output<Node>& rhs) {
+    return {make_shared<ngraph::op::v1::Add>(lhs, rhs)};
 }
 
-shared_ptr<Node> op::util::RNNCellBase::sub(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<op::v1::Subtract>(lhs, rhs)};
+shared_ptr<ov::Node> ov::op::util::RNNCellBase::sub(const Output<Node>& lhs, const Output<Node>& rhs) {
+    return {make_shared<ngraph::op::v1::Subtract>(lhs, rhs)};
 }
 
-shared_ptr<Node> op::util::RNNCellBase::mul(const Output<Node>& lhs, const Output<Node>& rhs) {
-    return {make_shared<op::v1::Multiply>(lhs, rhs)};
+shared_ptr<ov::Node> ov::op::util::RNNCellBase::mul(const Output<Node>& lhs, const Output<Node>& rhs) {
+    return {make_shared<ngraph::op::v1::Multiply>(lhs, rhs)};
 }
 
-shared_ptr<Node> op::util::RNNCellBase::clip(const Output<Node>& data) const {
+shared_ptr<ov::Node> ov::op::util::RNNCellBase::clip(const Output<Node>& data) const {
     if (m_clip == 0.f) {
         return data.get_node_shared_ptr();
     }
 
-    return make_shared<op::Clamp>(data, -m_clip, m_clip);
+    return make_shared<ngraph::op::Clamp>(data, -m_clip, m_clip);
 }

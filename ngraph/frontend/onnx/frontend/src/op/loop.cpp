@@ -28,24 +28,13 @@ namespace {
 ///             As a result ngraph Loop shape inference is able to handle more
 ///             cases.
 ///
-/// \param[in]  body_out_cond   Termination loop condition input of the body of
-///                             the Loop (value updated during Loop iterations).
+/// \param[in]  cond_in    boolean input to the loop body depicting loop termination condition
 ///
-/// \return true if termination condition is true and it cannot be changed
-///         during Loop iterations, false otherwise.
-bool is_termination_condition_always_true(const Output<ngraph::Node>& body_out_cond) {
-    // If body termination condition input matches Indentity op pattern the has
-    // value of loop_cond - true
-    // Identity op for boolean value is represented by LogicalOr op whose second
-    // input is always false
-    if (is_type<default_opset::LogicalOr>(body_out_cond.get_node_shared_ptr())) {
-        const auto second_input = body_out_cond.get_node_shared_ptr()->input_value(1).get_node_shared_ptr();
-        if (ngraph::op::is_constant(second_input) && second_input->get_element_type() == element::boolean &&
-            as_type_ptr<default_opset::Constant>(second_input)->cast_vector<bool>().at(0) == false) {
-            return true;
-        }
-    }
-    return false;
+/// \param[in]  cond_out   loop termination condition computed after each iteration
+///
+/// \return true if termination condition is not modified during loop iterations, false otherwise.
+bool is_termination_condition_always_true(const ngraph::Node* cond_in, const ngraph::Node* cond_out) {
+    return cond_in == cond_out;
 }
 }  // namespace
 
@@ -59,7 +48,8 @@ OutputVector loop(const Node& node) {
         loop_carried_dependencies_map[i + 2] = loop_carried_dependencies[i].get_node()->get_friendly_name();
     }
 
-    auto body_graph = node.get_subgraph();
+    const auto& subgraphs = node.get_subgraphs();
+    auto body_graph = subgraphs.at("body");
     auto body_outputs = body_graph->get_ng_outputs();
     const auto& body_inputs = body_graph->get_ng_parameters();
 
@@ -74,7 +64,7 @@ OutputVector loop(const Node& node) {
     // trip count skipped or has value max(int64_t) means infinitive loop
     if (ngraph::op::is_null(ng_inputs.at(0)) ||
         (ngraph::op::is_constant(ng_inputs.at(0).get_node_shared_ptr()) &&
-         as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
+         ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(0).get_node_shared_ptr())->cast_vector<int64_t>()[0] ==
              std::numeric_limits<int64_t>::max())) {
         // -1 means infinite Loop
         trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
@@ -87,8 +77,8 @@ OutputVector loop(const Node& node) {
     {
         termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
     } else if (ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()) &&
-               as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())->cast_vector<bool>()[0] ==
-                   false) {
+               ov::as_type_ptr<default_opset::Constant>(ng_inputs.at(1).get_node_shared_ptr())
+                       ->cast_vector<bool>()[0] == false) {
         // no iteration is performed so initial values are returned
         OutputVector node_outputs;
         // final values
@@ -111,9 +101,10 @@ OutputVector loop(const Node& node) {
         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(body_outputs[i], concat_axis_const);
     }
 
-    const auto& body_loop_out_cond = body_outputs.at(0).get_node_shared_ptr();
+    const auto& cond_in = body_inputs[1];
+    const auto& cond_out = body_outputs[0];
     // optimization allow to improve nG Loop shape inference
-    if (is_termination_condition_always_true(body_loop_out_cond)) {
+    if (is_termination_condition_always_true(cond_in.get(), cond_out.get_node())) {
         body_outputs[0] = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
     }
 

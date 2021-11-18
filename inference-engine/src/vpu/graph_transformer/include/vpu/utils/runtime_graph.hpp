@@ -11,7 +11,7 @@
 
 namespace vpu {
 
-InferenceEngine::CNNNetwork buildRuntimeGraph(
+std::shared_ptr<ngraph::Function> buildRuntimeGraph(
         GraphMetaInfo& graphMetaInfo,
         const std::vector<float>& perfInfo);
 

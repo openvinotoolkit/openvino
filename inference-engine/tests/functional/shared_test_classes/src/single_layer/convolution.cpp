@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet> obj) {
+std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj) {
     convSpecificParams convParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -14,7 +14,7 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
-        obj.param;
+            obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -44,7 +44,7 @@ void ConvolutionLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
-        this->GetParam();
+            this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -60,10 +60,10 @@ void ConvolutionLayerTest::SetUp() {
         filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
                                                                  -0.5f, 0.5f);
     }
-    auto conv = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(
+    auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels, false, filter_weights));
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(conv)};
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
 }
 }  // namespace LayerTestsDefinitions

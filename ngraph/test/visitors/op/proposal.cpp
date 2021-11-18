@@ -36,7 +36,7 @@ TEST(attributes, proposal_op) {
 
     auto proposal = make_shared<op::v0::Proposal>(class_probs, class_logits, image_shape, attrs);
     NodeBuilder builder(proposal);
-    auto g_proposal = as_type_ptr<op::v0::Proposal>(builder.create());
+    auto g_proposal = ov::as_type_ptr<op::v0::Proposal>(builder.create());
 
     const auto proposal_attrs = proposal->get_attrs();
     const auto g_proposal_attrs = g_proposal->get_attrs();

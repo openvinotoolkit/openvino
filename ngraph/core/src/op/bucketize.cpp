@@ -9,7 +9,7 @@
 using namespace ngraph;
 using namespace std;
 
-NGRAPH_RTTI_DEFINITION(op::v3::Bucketize, "Bucketize", 3);
+BWDCMP_RTTI_DEFINITION(op::v3::Bucketize);
 
 op::v3::Bucketize::Bucketize(const Output<Node>& data,
                              const Output<Node>& buckets,
@@ -30,8 +30,8 @@ bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v3::Bucketize::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v3_Bucketize_validate_and_infer_types);
-    const PartialShape& data_pshape = get_input_partial_shape(0);
-    const PartialShape& buckets_pshape = get_input_partial_shape(1);
+    const ov::PartialShape& data_pshape = get_input_partial_shape(0);
+    const ov::PartialShape& buckets_pshape = get_input_partial_shape(1);
 
     const auto data_et = get_input_element_type(0);
     const auto buckets_et = get_input_element_type(1);

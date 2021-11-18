@@ -15,6 +15,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace roundop {
+namespace {
 // function used by TYPE_CASE
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0,
@@ -59,9 +60,10 @@ bool evaluate_round(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace roundop
 
-NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
+BWDCMP_RTTI_DEFINITION(op::v5::Round);
 
 op::v5::Round::Round(const Output<Node>& arg, RoundMode mode) : Op({arg}), m_mode(mode) {
     constructor_validate_and_infer_types();
@@ -113,19 +115,19 @@ bool op::v5::Round::has_evaluate() const {
     return false;
 }
 
-namespace ngraph {
+std::ostream& ov::operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
+    return s << as_string(type);
+}
+
+namespace ov {
 template <>
-EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::RoundMode>::get() {
-    static auto enum_names =
-        EnumNames<op::v5::Round::RoundMode>("op::v5::Round::RoundMode",
-                                            {{"half_to_even", op::v5::Round::RoundMode::HALF_TO_EVEN},
-                                             {"half_away_from_zero", op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
+EnumNames<ngraph::op::v5::Round::RoundMode>& EnumNames<ngraph::op::v5::Round::RoundMode>::get() {
+    static auto enum_names = EnumNames<ngraph::op::v5::Round::RoundMode>(
+        "op::v5::Round::RoundMode",
+        {{"half_to_even", ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN},
+         {"half_away_from_zero", ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Round::RoundMode>::type_info;
-
-std::ostream& operator<<(std::ostream& s, const op::v5::Round::RoundMode& type) {
-    return s << as_string(type);
-}
-}  // namespace ngraph
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v5::Round::RoundMode>);
+}  // namespace ov

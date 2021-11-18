@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
 
-void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
+static void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& op) {
     OutputsDataMap networkOutputs = p.GetNetworkOutputs();
     p.ValidateInputs(op, {1});
 
@@ -56,9 +56,12 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
     std::string outputID = inputs[0];
 
     p.AddPrimitive(cldnn::reorder(outLayerName,
-                                outputID,
-                                FormatFromLayout(outputData->getLayout()),
-                                DataTypeFromPrecision(precision)));
+                                  outputID,
+                                  FormatFromLayout(outputData->getLayout()),
+                                  DataTypeFromPrecision(precision),
+                                  std::vector<float>(),
+                                  cldnn::reorder_mean_mode::subtract,
+                                  op->get_friendly_name()));
     p.InitProfileInfo(outLayerName, "reorder");
     p.profilingIDs.push_back(outLayerName);
     p.primitiveIDs[outLayerName] = outLayerName;

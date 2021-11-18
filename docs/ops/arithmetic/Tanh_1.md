@@ -2,7 +2,7 @@
 
 **Versioned name**: *Tanh-1*
 
-**Category**: *Arithmetic function*
+**Category**: *Arithmetic unary*
 
 **Short description**: *Tanh* performs element-wise hyperbolic tangent (tanh) operation with given tensor.
 

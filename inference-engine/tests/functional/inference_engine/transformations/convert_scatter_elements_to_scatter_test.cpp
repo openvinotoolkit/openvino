@@ -22,6 +22,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 
 std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & data_shape,
@@ -29,21 +31,21 @@ std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShap
                                                        const ngraph::PartialShape & updates_shape,
                                                        const ngraph::PartialShape & broadcast_shape,
                                                        const int64_t & axis) {
-    auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, data_shape);
-    auto indexes = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, indexes_shape);
-    auto updates = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, updates_shape);
-    auto axis_const = ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {axis});
+    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, data_shape);
+    auto indexes = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, indexes_shape);
+    auto updates = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, updates_shape);
+    auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {axis});
 
     auto broadcast_len = broadcast_shape.rank().get_length();
     if (std::numeric_limits<size_t>::max() < broadcast_len) {
         throw ngraph::ngraph_error("broadcast_len cannot be represented in size_t");
     }
 
-    auto broadcast_shape_param = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64,
+    auto broadcast_shape_param = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64,
         ngraph::Shape{static_cast<size_t>(broadcast_len)});
-    auto broadcast = std::make_shared<ngraph::op::v3::Broadcast>(indexes, broadcast_shape_param);
+    auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(indexes, broadcast_shape_param);
 
-    auto scatter = std::make_shared<ngraph::op::v3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);
+    auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);
 
     return std::make_shared<ngraph::Function>(ngraph::NodeVector{scatter}, ngraph::ParameterVector{data, indexes, updates, broadcast_shape_param});
 }
@@ -54,37 +56,43 @@ std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialSh
                                                          const int64_t & axis,
                                                          const ngraph::Shape & reshape_shape = {},
                                                          const std::vector<int64_t> & squeeze_indices = {}) {
-    auto data = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, data_shape);
-    auto indexes = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, indexes_shape);
-    auto updates = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, updates_shape);
-    auto axis_const = ngraph::op::v0::Constant::create(ngraph::element::i64, {1}, {axis});
+    auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, data_shape);
+    auto indexes = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, indexes_shape);
+    auto updates = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, updates_shape);
+    auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {axis});
 
     ngraph::Output<ngraph::Node> index_out = indexes->output(0);
     if (!reshape_shape.empty()) {
-        index_out = std::make_shared<ngraph::op::v1::Reshape>(indexes,
-                ngraph::op::v0::Constant::create(ngraph::element::i64, {reshape_shape.size()}, reshape_shape), false);
+        index_out = std::make_shared<ngraph::opset3::Reshape>(indexes,
+                ngraph::opset3::Constant::create(ngraph::element::i64, {reshape_shape.size()}, reshape_shape), false);
     }
 
     if (!squeeze_indices.empty()) {
-        index_out = std::make_shared<ngraph::op::v0::Squeeze>(indexes,
-                ngraph::op::v0::Constant::create(ngraph::element::i64, {squeeze_indices.size()}, squeeze_indices));
+        index_out = std::make_shared<ngraph::opset3::Squeeze>(indexes,
+                ngraph::opset3::Constant::create(ngraph::element::i64, {squeeze_indices.size()}, squeeze_indices));
     }
 
-    auto scatter = std::make_shared<ngraph::op::v3::ScatterUpdate>(data, index_out, updates, axis_const);
+    auto scatter = std::make_shared<ngraph::opset3::ScatterUpdate>(data, index_out, updates, axis_const);
 
     return std::make_shared<ngraph::Function>(ngraph::NodeVector{scatter}, ngraph::ParameterVector{data, indexes, updates});
 }
 
 void test(std::shared_ptr<ngraph::Function> f, std::shared_ptr<ngraph::Function> f_ref) {
+    auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>();
-    manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
-    ngraph::pass::ConstantFolding().run_on_function(f);
+    manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
+    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        check_rt_info(f);
+    });
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    ASSERT_NO_THROW(manager.run_passes(f));
 
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
+    auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 void test(std::shared_ptr<ngraph::Function> f) {

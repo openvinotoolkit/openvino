@@ -8,6 +8,7 @@
 #include <cldnn/runtime/engine.hpp>
 #include <ie_parameter.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <ie_remote_context.hpp>
 #include "cldnn_config.h"
 #include "cldnn_common_utils.h"
 
@@ -223,6 +224,7 @@ public:
     std::shared_ptr<cldnn::engine> GetEngine() const { return m_engine; }
     Config& GetConfig() { return m_config; }
     ContextType GetType() const { return m_type; }
+    InferenceEngine::gpu_handle_param GetExternalQueue() const { return m_external_queue; }
     const std::weak_ptr<InferenceEngine::IInferencePlugin> GetPlugin() const { return m_plugin; }
 
     void acquire_lock() {
@@ -237,6 +239,7 @@ protected:
     // TODO: refactor to unique_ptr
     std::shared_ptr<cldnn::engine> m_engine;
     InferenceEngine::gpu_handle_param m_va_display;
+    InferenceEngine::gpu_handle_param m_external_queue;
     Config m_config;
 
     ContextType m_type;
@@ -245,8 +248,7 @@ protected:
 };
 
 template<typename TpublicContextAPI>
-class typedCLDNNExecutionContext : public TpublicContextAPI,
-    public std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>> {
+class typedCLDNNExecutionContext : public TpublicContextAPI {
     template<typename T1, typename T2>
     struct _Key {
         T1 _surf;
@@ -292,8 +294,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                 ImageFormatFromLayout(tensorDesc.getLayout()),
                 CldnnTensorFromIEDims(tensorDesc.getDims()));
             auto smart_this =
-                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
-                (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
+                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
 #ifdef _WIN32
             ret = std::make_shared<CLDNNRemoteD3DSurface>(smart_this, stream,
                 tensorDesc, layout, mem, 0, plane,
@@ -328,8 +329,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                                  FormatFromLayout(tensorDesc.getLayout()),
                                  CldnnTensorFromIEDims(tensorDesc.getDims()));
             auto smart_this =
-                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
-                (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
+                std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
 
             switch (blob_type) {
             case CLDNNRemoteBlobImpl::BlobType::BT_BUF_SHARED:
@@ -358,8 +358,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         cldnn::layout layout(DataTypeFromPrecision(tensorDesc.getPrecision()),
                              FormatFromLayout(tensorDesc.getLayout()),
                              CldnnTensorFromIEDims(tensorDesc.getDims()));
-        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
-            (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
+        auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>(this->shared_from_this());
         auto& stream = _impl.GetEngine()->get_program_stream();
         return std::make_shared<CLDNNRemoteCLbuffer>(smart_this,
                                                      stream,
@@ -373,6 +372,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         if (GetType() != CLDNNExecutionContextImpl::ContextType::DEV_SHARED)
             IE_THROW() << "Shared context is required to to share this type of memory";
     }
+
 public:
     using Ptr = std::shared_ptr<typedCLDNNExecutionContext>;
     using CPtr = std::shared_ptr<const typedCLDNNExecutionContext>;
@@ -427,6 +427,7 @@ public:
     CLDNNExecutionContextImpl::ContextType GetType() const { return _impl.GetType(); }
 
     CLDNNExecutionContextImpl* getImpl() { return &_impl; }
+
 protected:
     CLDNNExecutionContextImpl _impl;
 };

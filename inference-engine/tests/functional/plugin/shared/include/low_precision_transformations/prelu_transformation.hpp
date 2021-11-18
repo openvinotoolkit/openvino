@@ -27,7 +27,7 @@ class PReluTransformation :
     public testing::WithParamInterface<PReluTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PReluTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PReluTransformationParams>& obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

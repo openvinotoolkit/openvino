@@ -75,8 +75,8 @@ public:
             testValues.actual.fqOnWeights2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::op::v0::FakeQuantize>(testValues.params);
-        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::op::v1::Convolution>(testValues.params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getReference(
@@ -130,9 +130,9 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> fak
             {{}, {}, {}},
             ngraph::element::f32,
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, {}}},
             { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, {}}},
         }
     },
     // TODO: LPT: issue #58685
@@ -169,9 +169,9 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> fak
             {{}, {}, {}},
             ngraph::element::f32,
             { },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, {}}},
             { },
-            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
+            {{}, {}, {{ 1.f }, ngraph::element::f32, {}}},
         }
     }
 };

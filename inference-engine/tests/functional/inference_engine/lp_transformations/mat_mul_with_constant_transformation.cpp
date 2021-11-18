@@ -103,7 +103,7 @@ public:
             testValues.actual.dequantizationOnWeights);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::op::v0::MatMul>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         if (testValues.params.support3DTensorOnActivations == false) {
             transformer.get_pass_config()->set_callback<ngraph::pass::low_precision::MatMulTransformation>(
                 [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
@@ -146,6 +146,8 @@ TEST_P(MatMulWithConstantTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::element::Type> precisions = {

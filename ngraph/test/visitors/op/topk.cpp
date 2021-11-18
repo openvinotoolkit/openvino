@@ -23,7 +23,7 @@ TEST(attributes, topk_op) {
 
     auto topk = make_shared<op::v1::TopK>(data, k, axis, mode, sort_type);
     NodeBuilder builder(topk);
-    auto g_topk = as_type_ptr<op::v1::TopK>(builder.create());
+    auto g_topk = ov::as_type_ptr<op::v1::TopK>(builder.create());
 
     EXPECT_EQ(g_topk->get_axis(), topk->get_axis());
     EXPECT_EQ(g_topk->get_mode(), topk->get_mode());

@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include <ngraph/ngraph.hpp>
+
 #include "layer_transformation.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 
@@ -24,6 +26,7 @@ public:
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
+    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept;
 
 protected:
     static bool isHandled(
@@ -36,8 +39,6 @@ protected:
         NodeVector& convertNodes,
         NodeVector& subtractNodes,
         NodeVector& multiplyNodes) const;
-
-    std::shared_ptr<Node> concatenateDeqNodes(NodeVector& nodes) const;
 };
 
 } // namespace low_precision

@@ -19,7 +19,7 @@ TEST(attributes, grn_op) {
 
     auto grn = make_shared<op::v0::GRN>(data, bias);
     NodeBuilder builder(grn);
-    auto g_grn = as_type_ptr<op::v0::GRN>(builder.create());
+    auto g_grn = ov::as_type_ptr<op::v0::GRN>(builder.create());
 
     const auto expected_attr_count = 1;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

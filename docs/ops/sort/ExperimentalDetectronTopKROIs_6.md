@@ -2,7 +2,7 @@
 
 **Versioned name**: *ExperimentalDetectronTopKROIs-6*
 
-**Category**: Sort
+**Category**: *Sorting and maximization*
 
 **Short description**: The *ExperimentalDetectronTopKROIs* operation is TopK operation applied to probabilities of input
 ROIs.

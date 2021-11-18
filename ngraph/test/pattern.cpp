@@ -84,7 +84,7 @@ public:
 
             size_t const_node_index = m.get_match_root()->input_value(0).get_node_shared_ptr() == pattern_map[pattern];
             auto const_node =
-                as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
+                ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
             NGRAPH_DEBUG << "second_node = " << second_node->get_name()
                          << " , pattern = " << pattern_map[pattern]->get_name();
@@ -128,7 +128,7 @@ public:
 
             size_t const_node_index = m.get_match_root()->input_value(0).get_node_shared_ptr() == pattern_map[pattern];
             auto const_node =
-                as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
+                ov::as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
             NGRAPH_DEBUG << "second_node = " << second_node->get_name()
                          << " , pattern = " << pattern_map[pattern]->get_name();
@@ -690,7 +690,7 @@ TEST(pattern, label_on_skip) {
     auto const_label = std::make_shared<pattern::op::Label>(iconst, ngraph::is_zero, NodeVector{iconst});
 
     auto bcst_pred = [](std::shared_ptr<Node> n) {
-        return as_type_ptr<op::v1::Broadcast>(n) != nullptr;
+        return ov::as_type_ptr<op::v1::Broadcast>(n) != nullptr;
     };
 
     auto shape_const = op::Constant::create(element::u64, Shape{shape.size()}, shape);

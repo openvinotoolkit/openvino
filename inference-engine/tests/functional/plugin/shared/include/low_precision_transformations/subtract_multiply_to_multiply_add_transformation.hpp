@@ -27,7 +27,7 @@ class SubtractMultiplyToMultiplyAddTransformation :
     public testing::WithParamInterface<SubtractMultiplyToMultiplyAddTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SubtractMultiplyToMultiplyAddTransformationParams>& obj);
 
 protected:
     void SetUp() override;

@@ -2,11 +2,12 @@
 
 **Versioned name**: *Gather-8*
 
-**Category**: Data movement operations
+**Category**: *Data movement*
 
 **Short description**: *Gather* operation takes slices of data of the first input tensor according to the indices
  specified with the second input tensor and axis from the third input. Semantics of this operation is identical to
-TensorFlow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) operation.
+TensorFlow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) operation but also includes
+support of negative indices.
 
 **Detailed description**
 
@@ -15,6 +16,8 @@ TensorFlow\* [Gather](https://www.tensorflow.org/api_docs/python/tf/gather) oper
 
 Where `data`, `indices` and `axis` are tensors from first, second and third inputs correspondingly, `b` is
 the number of batch dimensions. `N` and `M` are numbers of dimensions of `data` and `indices` tensors, respectively.
+Allowed values for indices are in the range `[-data.shape[axis], data.shape[axis] - 1]`. If index value exceed allowed
+range output data for corresponding index will be filled with zeros (Example 7).
 
 **Attributes**:
 * *batch_dims*
@@ -142,13 +145,23 @@ data    = [1, 2, 3, 4, 5]
 output  = [1, 4, 5]
 ```
 
+Example 7 with indices out of the range:
+```
+batch_dims = 0
+axis = 0
+
+indices = [3, 10, -20] 
+data    = [1, 2, 3, 4, 5]
+output  = [4, 0, 0]
+```
+
 **Inputs**
 
 * **1**:  `data` tensor of type *T* with arbitrary data. **Required.**
 
 * **2**:  `indices` tensor of type *T_IND* with indices to gather. 0D tensor (scalar) for indices is also allowed.
-  The values for indices are in the range `[-data[axis], data[axis] - 1]`.
-  Negative values of indices indicate reverse indexing from `data[axis]`.
+  The values for indices are in the range `[-data.shape[axis], data.shape[axis] - 1]`.
+  Negative values of indices indicate reverse indexing from `data.shape[axis]`.
   **Required.**
 
 * **3**:  Scalar or 1D tensor `axis` of *T_AXIS* type is a dimension index to gather data from. For example,

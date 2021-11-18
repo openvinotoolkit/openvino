@@ -21,6 +21,8 @@ public:
         : parent(prim, prog)
     {}
 
+    program_node& input() const { return get_dependency(0); }
+
     program_node& input_boxes() const {
         return get_dependency(0);
     }

@@ -33,7 +33,7 @@ class SqueezeTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
-    static std::string getTestCaseName(testing::TestParamInfo<SqueezeTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj);
 
 protected:
     void SetUp() override;

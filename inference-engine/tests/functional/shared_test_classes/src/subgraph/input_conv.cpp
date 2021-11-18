@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-std::string InputConvTest::getTestCaseName(testing::TestParamInfo<inputConvParams> obj) {
+std::string InputConvTest::getTestCaseName(const testing::TestParamInfo<inputConvParams>& obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
@@ -86,8 +86,8 @@ void InputConvTest::SetUp() {
     if (addReshape) {
         size_t numOutputWidth = (((inputShape[1] * inputShape[2] * inputShape[3] - kernelShape[1] * kernelShape[0]) / (inputShape[1] * stride)) + 1);
         std::vector<size_t> outFormShapes0 = { 1, outputChannels * numOutputWidth };
-        auto pattern0 = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes0);
-        auto reshape0 = std::make_shared<ngraph::op::v1::Reshape>(conv0, pattern0, false);
+        auto pattern0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes0);
+        auto reshape0 = std::make_shared<ngraph::opset1::Reshape>(conv0, pattern0, false);
 
         ngraph::ResultVector results{ std::make_shared<ngraph::op::Result>(reshape0) };
         function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");

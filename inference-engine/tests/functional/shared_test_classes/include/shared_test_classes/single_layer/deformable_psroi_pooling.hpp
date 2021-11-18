@@ -35,7 +35,7 @@ using deformablePSROILayerTestParams = std::tuple<
 class DeformablePSROIPoolingLayerTest : public testing::WithParamInterface<deformablePSROILayerTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
         public:
-            static std::string getTestCaseName(testing::TestParamInfo<deformablePSROILayerTestParams> obj);
+            static std::string getTestCaseName(const testing::TestParamInfo<deformablePSROILayerTestParams>& obj);
             void GenerateInputs() override;
 
         protected:

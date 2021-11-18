@@ -2,7 +2,7 @@ Integrate the Inference Engine with Your Application {#openvino_docs_IE_DG_Integ
 ===============================
 
 This section provides a high-level description of the process of integrating the Inference Engine into your application.
-Refer to the [Hello Classification Sample](../../inference-engine/samples/hello_classification/README.md) sources
+Refer to the [Hello Classification Sample](../../samples/cpp/hello_classification/README.md) sources
 for example of using the Inference Engine in applications.
 
 ## Use the Inference Engine API in Your Code
@@ -35,7 +35,7 @@ Integration process includes the following steps:
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part1
 
-**Or read the model from ONNX format** (.onnx and .prototxt are supported formats). You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
+**Or read the model from ONNX format**. You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
 
 @snippet snippets/Integrate_with_customer_application_new_API.cpp part2
 
@@ -73,7 +73,7 @@ methods:
 >  Inference Engine expects two separate image planes (Y and UV). You must use a specific
 >  `InferenceEngine::NV12Blob` object instead of default blob object and set this blob to
 >  the Inference Engine Infer Request using `InferenceEngine::InferRequest::SetBlob()`.
->  Refer to [Hello NV12 Input Classification C++ Sample](../../inference-engine/samples/hello_nv12_input_classification/README.md)
+>  Refer to [Hello NV12 Input Classification C++ Sample](../../samples/cpp/hello_nv12_input_classification/README.md)
 >  for more details.
 
   If you skip this step, the default values are set:
@@ -173,7 +173,7 @@ Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not the r
 ## Build Your Application
 
 For details about building your application, refer to the CMake files for the sample applications.
-All samples source code is located in the `<INSTALL_DIR>/openvino/inference_engine/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
+All samples source code is located in the `<INSTALL_DIR>/samples` directory, where `INSTALL_DIR` is the OpenVINO™ installation directory.
 
 ### CMake project creation
 
@@ -193,14 +193,13 @@ build/                  - build directory
 ``` cmake
 cmake_minimum_required(VERSION 3.0.0)
 project(project_name)
-find_package(ngraph REQUIRED)
-find_package(InferenceEngine REQUIRED)
+find_package(OpenVINO REQUIRED)
 find_package(OpenCV REQUIRED)
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES} ${OpenCV_LIBS} ${NGRAPH_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OpenCV_LIBS})
 ```
 3. **To build your project** using CMake with the default build tools currently available on your machine, execute the following commands:
-> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/bin/setupvars.sh` (or setupvars.bat for Windows)`. Otherwise the `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
+> **NOTE**: Make sure you set environment variables first by running `<INSTALL_DIR>/setupvars.sh` (or setupvars.bat for Windows)`. Otherwise the `InferenceEngine_DIR` and `OpenCV_DIR` variables won't be configured properly to pass `find_package` calls.
 ```sh
 cd build/
 cmake ../project
@@ -210,6 +209,6 @@ It's allowed to specify additional build options (e.g. to build CMake project on
 
 ### Run Your Application
 
-Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
+Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../samples/cpp/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
 [integration_process]: img/integration_process.png

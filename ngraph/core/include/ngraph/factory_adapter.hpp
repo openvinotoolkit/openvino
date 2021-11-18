@@ -6,11 +6,14 @@
 
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/deprecated.hpp"
 #include "ngraph/factory.hpp"
 
 namespace ngraph {
 template <typename BASE_TYPE>
-class FactoryAttributeAdapter : public VisitorAdapter {
+
+class NGRAPH_DEPRECATED("This class is deprecated and will be removed soon.") FactoryAttributeAdapter
+    : public VisitorAdapter {
 public:
     FactoryAttributeAdapter(std::shared_ptr<BASE_TYPE>& ref) : m_ref(ref) {}
 

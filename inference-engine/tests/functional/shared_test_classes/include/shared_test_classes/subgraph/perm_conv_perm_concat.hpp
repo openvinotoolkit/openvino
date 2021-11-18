@@ -27,7 +27,7 @@ typedef std::tuple<
 class PermConvPermConcat : public testing::WithParamInterface<PermConvPermConcatParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<PermConvPermConcatParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<PermConvPermConcatParams>& obj);
 
 protected:
     void SetUp() override;

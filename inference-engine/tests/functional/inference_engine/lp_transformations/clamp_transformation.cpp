@@ -64,7 +64,7 @@ public:
                 testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ClampTransformation, ngraph::op::v0::Clamp>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = testValues.nonDequantizationMultiply ?
@@ -98,6 +98,8 @@ TEST_P(ClampTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 namespace testValues1 {

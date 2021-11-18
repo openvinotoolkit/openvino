@@ -2,7 +2,7 @@
 
 **Versioned name**: *VariadicSplit-1*
 
-**Category**: *Data movement operations*
+**Category**: *Data movement*
 
 **Short description**: *VariadicSplit* operation splits an input tensor into chunks along some axis. The chunks may have variadic lengths depending on `split_lengths` input tensor.
 

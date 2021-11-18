@@ -8,7 +8,7 @@
 using namespace LayerTestsDefinitions::LogicalParams;
 
 namespace LayerTestsDefinitions {
-std::string LogicalLayerTest::getTestCaseName(testing::TestParamInfo<LogicalTestParams> obj) {
+std::string LogicalLayerTest::getTestCaseName(const testing::TestParamInfo<LogicalTestParams>& obj) {
     InputShapesTuple inputShapes;
     ngraph::helpers::LogicalTypes comparisonOpType;
     ngraph::helpers::InputLayerType secondInputType;
@@ -70,7 +70,7 @@ void LogicalLayerTest::SetUp() {
     if (logicalOpType != ngraph::helpers::LogicalTypes::LOGICAL_NOT) {
         auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
         if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            inputs.push_back(std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(secondInput));
+            inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
         }
         logicalNode = ngraph::builder::makeLogical(inputs[0], secondInput, logicalOpType);
     } else {

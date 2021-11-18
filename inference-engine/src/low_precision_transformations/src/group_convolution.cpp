@@ -18,7 +18,7 @@ namespace low_precision {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::GroupConvolutionTransformation, "GroupConvolutionTransformation", 0);
 
 GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& params) : ConvolutionTransformation(params) {
-    auto matcher = pattern::wrap_type<op::v1::GroupConvolution>();
+    auto matcher = pattern::wrap_type<opset1::GroupConvolution>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto op = m.get_match_root();
@@ -32,7 +32,7 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
     this->register_matcher(m, callback);
 }
 
-bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const noexcept {
+bool GroupConvolutionTransformation::isQuantized(const std::shared_ptr<const Node>& layer) const {
     return GroupConvolutionTransformation::isQuantizedStatic(layer);
 }
 
@@ -47,7 +47,7 @@ bool GroupConvolutionTransformation::transform(TransformationContext &context, n
     return true;
 }
 
-bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept {
+bool GroupConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const Node>& layer) {
     return WeightableLayerTransformation::isQuantizedStatic(layer, true);
 }
 

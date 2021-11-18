@@ -134,7 +134,6 @@ PluginConfiguration createConfiguration();
 
 class GraphTransformerTest : public ::testing::Test {
 public:
-    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
     PluginConfiguration config;
 
     StageBuilder::Ptr stageBuilder;

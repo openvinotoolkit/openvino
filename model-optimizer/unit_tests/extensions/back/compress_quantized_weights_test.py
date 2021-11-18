@@ -259,10 +259,10 @@ class ZeroPointOptimizerTestClass(unittest.TestCase):
         nodes = lambda w, zp: {
             **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
             **regular_op_with_shaped_data(
-                'cast', len(w), {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+                'cast', [len(w)], {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
             **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
             **regular_op_with_shaped_data(
-                'sub', len(w),
+                'sub', [len(w)],
                 {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
             **result()
         }
@@ -293,10 +293,10 @@ class ZeroPointOptimizerTestClass(unittest.TestCase):
         nodes = lambda w, zp: {
             **valued_const_with_data('weights', np.array(w, dtype=np.int8)),
             **regular_op_with_shaped_data(
-                'cast', len(w), {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
+                'cast', [len(w)], {'type': 'Convert', 'op': 'Cast', 'infer': Cast.infer, 'dst_type': np.float32}),
             **valued_const_with_data('zp', np.array(zp, dtype=np.float32)),
             **regular_op_with_shaped_data(
-                'sub', len(w),
+                'sub', [len(w)],
                 {'type': 'Subtract', 'op': 'Sub', 'infer': lambda node: eltwise_infer(node, Sub.operation)}),
             **result()
         }

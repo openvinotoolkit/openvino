@@ -15,8 +15,8 @@ namespace op {
 
 class INFERENCE_ENGINE_API_CLASS(TileIE) : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"TileIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("TileIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     TileIE(const Output<Node>& data1,
             const int64_t axis,

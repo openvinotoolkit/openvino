@@ -24,15 +24,16 @@ std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
     return os.str();
 }
 
-void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData) {
+void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
+                                   const size_t maxWorkGroupSize) {
     if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName + ": " +
                                  ": LWS and GWS size is expected to be equal to 3. Actual: " +
                                  toString(dispatchData));
 
-    if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > 256) {
+    if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > maxWorkGroupSize) {
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                 ": LWS cannot be greater than 256. Actual: " +
+                                 ": LWS cannot be greater than " + std::to_string(static_cast<int>(maxWorkGroupSize)) + ". Actual: " +
                                  toString(dispatchData));
     }
     for (size_t i = 0; i < dispatchData.gws.size(); i++) {
@@ -99,6 +100,14 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IsSIMDSizeSupported
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) const {
+    auto supported_sizes = info.supportedSimdSizes;
+    return std::find(supported_sizes.begin(), supported_sizes.end(), simd_size) != supported_sizes.end();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MakeBaseParamsJitConstants
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params &params,
@@ -106,6 +115,9 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     JitConstants jit = {};
 
     if (conf.empty())
+        return jit;
+
+    if (params.fused_ops.size() == 1 && params.fused_ops[0].GetType() == KernelType::REORDER)
         return jit;
 
     try {
@@ -119,6 +131,10 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             bool can_all_use_preload = true;
 
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
+                // Reorder is not processed by jitter
+                if (params.fused_ops[i].GetType() == FusedOpType::REORDER)
+                    continue;
+
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
                 jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
                 jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_name));

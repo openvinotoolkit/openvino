@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/ngraph.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 #include "transformation_context.hpp"
@@ -55,53 +56,85 @@ public:
             max(max),
             hasZeroPoint(hasZeroPoint) {}
 
+    bool empty() const noexcept {
+        return (precision == element::undefined) && (min == 0.f) && (max == 0.f) && (!hasZeroPoint);
+    }
+
     static bool isSupported(const element::Type& precision) {
-        return (precision == element::u8) || (precision == element::i8);
+        static const std::set<element::Type_t> lowPrecision = {
+                element::i8, element::u8,
+                element::i16, element::u16,
+                element::i32, element::u32
+        };
+        return lowPrecision.count(precision) == 1;
     }
 
     static float getMinValue(const element::Type precision, const size_t levels) {
-        if (precision == element::i8) {
-            if (levels == 255) {
-                return static_cast<float>(std::numeric_limits<signed char>::lowest()) + 1.f;
-            } else if (levels == 256) {
-                return static_cast<float>(std::numeric_limits<signed char>::lowest());
-            } else {
-                NGRAPH_CHECK(false, "unexpected levels ", levels, " for precision ", precision);
-            }
-        } else if (precision == element::u8) {
-            return static_cast<float>(std::numeric_limits<unsigned char>::lowest());
-        } else if (precision == element::f16) {
-            return -1.0e15f;
-        } else if (precision == element::f32) {
-            return std::numeric_limits<float>::lowest();
-        } else if (precision == element::i4) {
-            return -8.f;
-        } else if (precision == element::u4) {
-            return 0.f;
-        } else {
-            NGRAPH_CHECK(false, "unexpected precision ", precision);
+        switch (precision) {
+            case element::u4:
+            case element::u8:
+            case element::u16:
+            case element::u32:
+                return 0.f;
+            case element::i4:
+                return -8.f;
+            case element::i8:
+                switch (levels) {
+                    case 16:
+                        return -8.f;
+                    case 255:
+                        return -127.f;
+                    default:
+                        return -128.f;
+                }
+            case element::i16:
+                return levels == 65535 ? -32767.f : -32768.f;
+            case element::i32:
+                return -2147483647.f; // -2147483647.f == -2147483648.f
+            case element::f16:
+                return -1.0e15f;
+            case element::f32:
+                return std::numeric_limits<float>::lowest();
+            default:
+                NGRAPH_CHECK(false, "unexpected precision ", precision);
         }
+        NGRAPH_CHECK(false, "unexpected levels ", levels, " for precision ", precision);
     }
 
     static float getMaxValue(const element::Type precision, const size_t levels) {
-        if ((levels != 255ul) && (levels != 256ul)) {
-            THROW_TRANSFORMATION_EXCEPTION << "unexpected levels " << levels;
-        }
-
-        if (precision == element::i8) {
-            return static_cast<float>(std::numeric_limits<signed char>::max());
-        } else if (precision == element::u8) {
-            return static_cast<float>(std::numeric_limits<unsigned char>::max()) - (256 - levels);
-        } else if (precision == element::f16) {
-            return 1.0e15f;
-        } else if (precision == element::f32) {
-            return std::numeric_limits<float>::max();
-        } else if (precision == element::i4) {
-            return 7.f;
-        } else if (precision == element::u4) {
-            return 15.f;
-        } else {
-            THROW_TRANSFORMATION_EXCEPTION << "unexpected precision " << precision;
+        switch (precision) {
+            case element::u4:
+                return 15.f;
+            case element::u8:
+                switch (levels) {
+                    case 16:
+                        return 15.f;
+                    default:
+                        return 255.f;
+                }
+            case element::u16:
+                return 65535.f;
+            case element::u32:
+                return 4294967296.f; // 4294967296.f == 4294967295.f
+            case element::i4:
+                return 7.f;
+            case element::i8:
+                switch (levels) {
+                    case 16:
+                        return 7.f;
+                    default:
+                        return 127.f;
+                }
+            case element::i16:
+                return 32767.f;
+            case element::i32:
+                return 2147483648.f;  // 2147483648.f == 2147483647.f
+            case element::f16:
+                return 1.0e15f;
+            case element::f32:
+                return std::numeric_limits<float>::max();
+            default:
+                NGRAPH_CHECK(false, "unexpected precision ", precision);
         }
     }
 
@@ -111,6 +144,10 @@ public:
             return 254.f;
         } else if (maxLevelsForPrecision == 256ul) {
             return 255.f;
+        } else if (maxLevelsForPrecision == 16ul) {
+            return 15.f;
+        } else if (maxLevelsForPrecision == 15ul) {
+            return 14.f;
         } else {
             THROW_TRANSFORMATION_EXCEPTION << "unexpected quantization level " << maxLevelsForPrecision;
         }
@@ -219,7 +256,7 @@ public:
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
-    virtual bool isQuantized(const std::shared_ptr<const Node>& layer) const noexcept;
+    virtual bool isQuantized(const std::shared_ptr<const Node>& layer) const;
 
     // return true if operation can be preserved for precision
     // note: dequantization operations on activations are absent during method execution
@@ -243,7 +280,7 @@ protected:
     bool updatePrecisions;
     element::Type deqPrecision;
 
-    static const char originalLayerPostfix[];
+    static constexpr char originalLayerPostfix[] = "_original";
     TransformationContext* context;
 
 protected:

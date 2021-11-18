@@ -24,7 +24,7 @@ static cldnn::pooling_mode GetPoolingMode(std::string method) {
         return cldnn::pooling_mode::deformable_bilinear;
 }
 
-void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformablePSROIPooling>& op) {
+static void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v1::DeformablePSROIPooling>& op) {
     p.ValidateInputs(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -57,12 +57,13 @@ void CreateDeformablePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op
                                                group_size,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y);
+                                               spatial_bins_y,
+                                               op->get_friendly_name());
     p.AddPrimitive(psROIPoolingPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::PSROIPooling>& op) {
+static void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::PSROIPooling>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -85,12 +86,13 @@ void CreatePSROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::PSRO
                                                spatial_scale,
                                                output_dim,
                                                spatial_bins_x,
-                                               spatial_bins_y);
+                                               spatial_bins_y,
+                                               op->get_friendly_name());
     p.AddPrimitive(psROIPoolingPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::ROIPooling>& op) {
+static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::ROIPooling>& op) {
     p.ValidateInputs(op, {2});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -110,7 +112,11 @@ void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0::ROIPoo
                                              position_sensitive,
                                              pooled_width,
                                              pooled_height,
-                                             spatial_scale);
+                                             spatial_scale,
+                                             0,
+                                             1,
+                                             1,
+                                             op->get_friendly_name());
 
     p.AddPrimitive(roiPoolingPrim);
     p.AddPrimitiveToProfiler(op);

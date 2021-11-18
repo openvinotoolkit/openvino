@@ -12,7 +12,7 @@ using namespace FuncTestUtils::PrecisionUtils;
 
 namespace LayerTestsDefinitions {
 
-std::string AdaPoolLayerTest::getTestCaseName(testing::TestParamInfo<adapoolParams> obj) {
+std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapoolParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<int> pooledSpatialShape;
 
@@ -45,8 +45,8 @@ void AdaPoolLayerTest::SetUp() {
     auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, pooledShape, pooledSpatialShape);
 
     // we cannot create abstract Op to use polymorphism
-    auto adapoolMax = std::make_shared<ngraph::op::v8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
-    auto adapoolAvg = std::make_shared<ngraph::op::v8::AdaptiveAvgPool>(params[0], pooledParam);
+    auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
+    auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam);
 
     function = (poolingMode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
                 std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));

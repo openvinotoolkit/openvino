@@ -156,13 +156,13 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_function(std::shared_ptr<Fu
             continue;
         }
         // store effective address and procced with vector registers
-        if (as_type_ptr<ngraph::snippets::op::Load>(n) || as_type_ptr<ngraph::snippets::op::BroadcastLoad>(n)) {
+        if (ov::as_type_ptr<ngraph::snippets::op::Load>(n) || ov::as_type_ptr<ngraph::snippets::op::BroadcastLoad>(n)) {
             auto source = n->get_input_source_output(0).get_node_shared_ptr();
 
-            if (auto param = as_type_ptr<opset1::Parameter>(source)) {
+            if (auto param = ov::as_type_ptr<opset1::Parameter>(source)) {
                 auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameter_index(param));
                 rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
-            } else if (auto constant = as_type_ptr<opset1::Constant>(source)) {
+            } else if (auto constant = ov::as_type_ptr<opset1::Constant>(source)) {
                 auto ea = reg64_tmp_start+static_cast<int64_t>(f->get_parameters().size() + f->get_results().size() + 1 + constantID);
                 rt["effectiveAddress"] = std::make_shared<VariantWrapper<int64_t>>(VariantWrapper<int64_t>(ea));
                 constantID++;

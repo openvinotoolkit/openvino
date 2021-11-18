@@ -65,15 +65,15 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const VariadicSplitTestCase& variadic_split_setup) const {
-        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, variadic_split_setup.data_shape);
-        const auto axis = ngraph::op::v0::Constant::create(idx_type, {}, std::vector<int64_t>{variadic_split_setup.axis});
-        const auto split_lengths = ngraph::op::v0::Constant::create(idx_type,
+        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, variadic_split_setup.data_shape);
+        const auto axis = ngraph::opset3::Constant::create(idx_type, {}, std::vector<int64_t>{variadic_split_setup.axis});
+        const auto split_lengths = ngraph::opset3::Constant::create(idx_type,
                 {variadic_split_setup.split_lengths.size()}, std::vector<int64_t>{variadic_split_setup.split_lengths});
 
-        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{variadic_split_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{variadic_split_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto node = std::make_shared<ngraph::op::v1::VariadicSplit>(dsr, axis, split_lengths);
+        const auto node = std::make_shared<ngraph::opset3::VariadicSplit>(dsr, axis, split_lengths);
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
@@ -82,7 +82,7 @@ protected:
             "Actual");
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(variadic_split_setup.data_shape.size()));
 
-        const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeVariadicSplit}};
+        const auto transformations = vpu::Transformations{{node->get_type_info(), vpu::dynamicToStaticShapeVariadicSplit}};
         vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
@@ -91,15 +91,15 @@ protected:
             const ngraph::element::Type_t& data_type,
             const ngraph::element::Type_t& idx_type,
             const VariadicSplitTestCase& variadic_split_setup) const {
-        const auto data = std::make_shared<ngraph::op::v0::Parameter>(data_type, variadic_split_setup.data_shape);
-        const auto axis = ngraph::op::v0::Constant::create(idx_type, {}, std::vector<int64_t>{variadic_split_setup.axis});
-        const auto split_lengths = ngraph::op::v0::Constant::create(idx_type,
+        const auto data = std::make_shared<ngraph::opset3::Parameter>(data_type, variadic_split_setup.data_shape);
+        const auto axis = ngraph::opset3::Constant::create(idx_type, {}, std::vector<int64_t>{variadic_split_setup.axis});
+        const auto split_lengths = ngraph::opset3::Constant::create(idx_type,
                 {variadic_split_setup.split_lengths.size()}, std::vector<int64_t>{variadic_split_setup.split_lengths});
 
-        const auto dims = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::i64, ngraph::Shape{variadic_split_setup.data_shape.size()});
+        const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{variadic_split_setup.data_shape.size()});
 
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims);
-        const auto node = std::make_shared<ngraph::op::v1::VariadicSplit>(dsr, axis, split_lengths);
+        const auto node = std::make_shared<ngraph::opset3::VariadicSplit>(dsr, axis, split_lengths);
 
         ngraph::OutputVector first_shape_part, second_shape_part;
         if (variadic_split_setup.first_split_point) {
@@ -113,12 +113,12 @@ protected:
         }
         ngraph::NodeVector results;
         for (auto i = 0; i < variadic_split_setup.split_lengths.size(); ++i) {
-            const auto dim = ngraph::op::v0::Constant::create(dims->get_element_type(), {1}, {variadic_split_setup.split_lengths[i]});
+            const auto dim = ngraph::opset3::Constant::create(dims->get_element_type(), {1}, {variadic_split_setup.split_lengths[i]});
             if (!first_shape_part.empty() || !second_shape_part.empty()) {
                 ngraph::OutputVector output_dims{dim};
                 output_dims.insert(output_dims.begin(), first_shape_part.begin(), first_shape_part.end());
                 output_dims.insert(output_dims.end(), second_shape_part.begin(), second_shape_part.end());
-                const auto output_shape = std::make_shared<ngraph::op::v0::Concat>(output_dims, 0);
+                const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
                 results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(i), output_shape));
             } else {
                 results.push_back(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(i), dim));

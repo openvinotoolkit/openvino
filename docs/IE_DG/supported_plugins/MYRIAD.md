@@ -66,10 +66,8 @@ In addition to common parameters, the MYRIAD plugin accepts the following option
 
 | Parameter Name        | Parameter Values | Default    | Description                                                                        |
 | :---                  | :---             | :---       | :---                                                                               |
-| `KEY_VPU_MYRIAD_PLATFORM`    | empty string/`VPU_MYRIAD_2450`/`VPU_MYRIAD_2480` | empty string | If set, the plugin will use a device with specific platform to allocate a network. |
 | `KEY_VPU_MYRIAD_PROTOCOL`    | empty string/`VPU_MYRIAD_USB`/`VPU_MYRIAD_PCIE` | empty string | If set, the plugin will use a device with specific protocol to allocate a network. |
 | `KEY_VPU_MYRIAD_FORCE_RESET` | `YES`/`NO`                             | `NO`        | Enables force reset of all booted devices when new ExecutableNetwork is created.<br />This is a plugin scope option and must be used with the plugin's SetConfig method only.<br />See <a href="#MYRIAD_DEVICE_ALLOC">Device allocation</a> section for details. |
-| `KEY_VPU_PLATFORM`           | empty string/`VPU_2450`/`VPU_2480`     | empty string | **Deprecated** Use `KEY_VPU_MYRIAD_PLATFORM` instead. <br />If set, the plugin will use a device with specific platform to allocate a network. |
 | `KEY_VPU_FORCE_RESET`        | `YES`/`NO`                             | `NO`         | **Deprecated** Use `KEY_VPU_MYRIAD_FORCE_RESET` instead. <br />Enables force reset of all booted devices when new ExecutableNetwork is created.<br />This is a plugin scope option and must be used with the plugin's SetConfig method only.<br />See <a href="#MYRIAD_DEVICE_ALLOC">Device allocation</a> section for details. |
 
 ## Device allocation <a name="MYRIAD_DEVICE_ALLOC">&nbsp;</a>

@@ -5,12 +5,11 @@
 #pragma once
 
 #include <cstddef>
+#include <ngraph/coordinate.hpp>
+#include <ngraph/shape.hpp>
 
 namespace ngraph {
-class Coordinate;
-class Shape;
-}  // namespace ngraph
 
-namespace ngraph {
 std::size_t coordinate_index(const Coordinate& c, const Shape& s);
-}
+
+}  // namespace ngraph

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/file_util.hpp>
+#include <openvino/util/file_util.hpp>
 #include <cstring>
 
 #ifdef __APPLE__
@@ -40,11 +40,11 @@ std::string getExecutableDirectory() {
         throw "Can't get test executable path name";
     }
     path = std::string(buffer, len);
-    return ngraph::file_util::get_directory(path);
+    return ov::util::get_directory(path);
 }
 
 std::string getModelFromTestModelZoo(const std::string & relModelPath) {
-    return ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(), relModelPath);
+    return ov::util::path_join({CommonTestUtils::getExecutableDirectory(), relModelPath});
 }
 
 } // namespace CommonTestUtils

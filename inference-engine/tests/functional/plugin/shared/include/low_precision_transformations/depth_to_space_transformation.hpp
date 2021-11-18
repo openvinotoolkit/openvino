@@ -15,14 +15,14 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::PartialShape,
     std::string,
-    ngraph::op::v0::DepthToSpace::DepthToSpaceMode,
+    ngraph::opset1::DepthToSpace::DepthToSpaceMode,
     size_t> DepthToSpaceTransformationParams;
 
 class DepthToSpaceTransformation :
     public testing::WithParamInterface<DepthToSpaceTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<DepthToSpaceTransformationParams>& obj);
 
 protected:
     void SetUp() override;

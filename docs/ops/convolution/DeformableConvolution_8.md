@@ -2,7 +2,7 @@
 
 **Versioned name**: *DeformableConvolution-8*
 
-**Category**: Convolution
+**Category**: *Convolution*
 
 **Short description**: Computes 2D deformable convolution of input and kernel tensors.
 

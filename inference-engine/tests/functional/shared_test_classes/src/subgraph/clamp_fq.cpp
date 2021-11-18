@@ -7,7 +7,7 @@
 
 namespace SubgraphTestsDefinitions {
 
-    std::string ClampFakeQuantizeSubgraphTest::getTestCaseName(testing::TestParamInfo<fqSubgraphTestParamsSet> obj) {
+    std::string ClampFakeQuantizeSubgraphTest::getTestCaseName(const testing::TestParamInfo<fqSubgraphTestParamsSet>& obj) {
         fqSpecificParams fqParams;
         InferenceEngine::Precision netPrecision;
         InferenceEngine::Precision inPrc, outPrc;
@@ -64,19 +64,18 @@ namespace SubgraphTestsDefinitions {
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-        auto clamp = std::make_shared<ngraph::op::v0::Clamp>(paramOuts[0], clamp_min_max[0], clamp_min_max[1]);
+        auto clamp = std::make_shared<ngraph::opset1::Clamp>(paramOuts[0], clamp_min_max[0], clamp_min_max[1]);
 
         auto FQNode = ngraph::builder::makeFakeQuantize(clamp, ngraph::element::f32, levels[0], constShape[0],
                                                              { inputDataMin }, { inputDataMax }, { inputDataMin }, { inputDataMax });
 
 
-        auto FQ = std::dynamic_pointer_cast<ngraph::op::v0::FakeQuantize>(FQNode);
-        auto sigmoid = std::make_shared<ngraph::op::v0::Sigmoid>(FQ);
+        auto FQ = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(FQNode);
+        auto sigmoid = std::make_shared<ngraph::opset1::Sigmoid>(FQ);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(sigmoid)};
+        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(sigmoid)};
         function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");
-
-        configuration = config.second;
+            configuration = config.second;
     }
 
 InferenceEngine::Blob::Ptr ClampFakeQuantizeSubgraphTest::GenerateInput(const InferenceEngine::InputInfo &info) const {

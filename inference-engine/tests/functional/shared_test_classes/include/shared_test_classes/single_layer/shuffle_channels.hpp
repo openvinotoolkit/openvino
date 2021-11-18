@@ -29,11 +29,10 @@ typedef std::tuple<
         LayerTestsUtils::TargetDevice   // Device name
 > shuffleChannelsLayerTestParamsSet;
 
-
 class ShuffleChannelsLayerTest : public testing::WithParamInterface<shuffleChannelsLayerTestParamsSet>,
                                  virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<shuffleChannelsLayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

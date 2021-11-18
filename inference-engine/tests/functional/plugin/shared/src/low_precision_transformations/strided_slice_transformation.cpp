@@ -24,7 +24,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& va
     return os;
 }
 
-std::string StridedSliceTransformation::getTestCaseName(testing::TestParamInfo<StridedSliceTransformationParams> obj) {
+std::string StridedSliceTransformation::getTestCaseName(const testing::TestParamInfo<StridedSliceTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;

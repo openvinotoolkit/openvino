@@ -31,6 +31,7 @@
 #include "cldnn/primitives/max_unpooling.hpp"
 #include "cldnn/primitives/mutable_data.hpp"
 #include "cldnn/primitives/mvn.hpp"
+#include "cldnn/primitives/non_max_suppression.hpp"
 #include "cldnn/primitives/normalize.hpp"
 #include "cldnn/primitives/one_hot.hpp"
 #include "cldnn/primitives/permute.hpp"
@@ -56,7 +57,6 @@
 #include "cldnn/primitives/tile.hpp"
 #include "cldnn/primitives/resample.hpp"
 #include "cldnn/primitives/gather_tree.hpp"
-#include "cldnn/primitives/fused_conv_eltwise.hpp"
 #include "cldnn/primitives/lstm_dynamic_input.hpp"
 #include "cldnn/primitives/lstm_dynamic_timeloop.hpp"
 #include "cldnn/primitives/grn.hpp"
@@ -105,6 +105,7 @@ REGISTER_OCL(lstm_elt);
 REGISTER_OCL(max_unpooling);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
+REGISTER_OCL(non_max_suppression);
 REGISTER_OCL(normalize);
 REGISTER_OCL(one_hot);
 REGISTER_OCL(permute);
@@ -129,7 +130,6 @@ REGISTER_OCL(space_to_batch);
 REGISTER_OCL(space_to_depth);
 REGISTER_OCL(strided_slice);
 REGISTER_OCL(tile);
-REGISTER_OCL(fused_conv_eltwise);
 REGISTER_OCL(lstm_dynamic_input);
 REGISTER_OCL(lstm_dynamic_timeloop);
 REGISTER_OCL(generic_layer);

@@ -193,7 +193,7 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
    - **CentOS 7**:
@@ -223,11 +223,11 @@ RUN /bin/mkdir -p '/usr/local/lib' && \
     /bin/mkdir -p '/usr/local/include/libusb-1.0' && \
     /usr/bin/install -c -m 644 libusb.h '/usr/local/include/libusb-1.0' && \
     /bin/mkdir -p '/usr/local/lib/pkgconfig' && \
-    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino_2021/bin/setupvars.sh
+    printf "\nexport LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}:/usr/local/lib\n" >> /opt/intel/openvino_2022/setupvars.sh
 
 WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
-    cp /opt/intel/openvino_2021/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
+    cp /opt/intel/openvino_2022/runtime/3rdparty/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
 2. Run the Docker* image:
@@ -323,43 +323,35 @@ docker run -it --rm --net=host -v /var/tmp:/var/tmp –-ipc=host <image_name>
 
 ### Run Demos in the Docker* Image
 
-To run the Security Barrier Camera Demo on a specific inference device, run the following commands with the root privileges (additional third-party dependencies will be installed):
+To run the Classification Demo Using SqueezeNet on a specific inference device, run the following commands with the root privileges (additional third-party dependencies will be installed):
 
 **CPU**:
 
 ```sh
 docker run -itu root:root --rm <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d CPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d CPU"
 ```
 
 **GPU**:
 
 ```sh
 docker run -itu root:root --rm --device /dev/dri:/dev/dri <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d GPU -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d GPU"
 ```
 
 **MYRIAD**:
 
 ```sh
 docker run -itu root:root --rm --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d MYRIAD -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d MYRIAD"
 ```
 
 **HDDL**:
 
 ```sh
 docker run -itu root:root --rm --device=/dev/ion:/dev/ion -v /var/tmp:/var/tmp <image_name>
-/bin/bash -c "apt update && apt install sudo && deployment_tools/demo/demo_security_barrier_camera.sh -d HDDL -sample-options -no_show"
+/bin/bash -c "apt update && apt install sudo && samples/scripts/run_sample_squeezenet.sh -d HDDL"
 ```
-
-## Use a Docker* Image for FPGA
-
-Intel will be transitioning to the next-generation programmable deep-learning solution based on FPGAs in order to increase the level of customization possible in FPGA deep-learning. As part of this transition, future standard releases (i.e., non-LTS releases) of Intel® Distribution of OpenVINO™ toolkit will no longer include the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA.
-
-Intel® Distribution of OpenVINO™ toolkit 2020.3.X LTS release will continue to support Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA. For questions about next-generation programmable deep-learning solutions based on FPGAs, please talk to your sales representative or contact us to get the latest FPGA updates.
-
-For instructions for previous releases with FPGA Support, see documentation for the [2020.4 version](https://docs.openvinotoolkit.org/2020.4/openvino_docs_install_guides_installing_openvino_docker_linux.html#use_a_docker_image_for_fpga) or lower.
 
 ## Troubleshooting
 

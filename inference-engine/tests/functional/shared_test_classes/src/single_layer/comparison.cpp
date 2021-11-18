@@ -8,7 +8,7 @@
 using namespace LayerTestsDefinitions::ComparisonParams;
 
 namespace LayerTestsDefinitions {
-std::string ComparisonLayerTest::getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj) {
+std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj) {
     InputShapesTuple inputShapes;
     InferenceEngine::Precision ngInputsPrecision;
     ngraph::helpers::ComparisonTypes comparisonOpType;
@@ -70,7 +70,7 @@ void ComparisonLayerTest::SetUp() {
 
     auto secondInput = ngraph::builder::makeInputLayer(ngInputsPrc, secondInputType, inputShapes.second);
     if (secondInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        inputs.push_back(std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(secondInput));
+        inputs.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondInput));
     }
 
     auto comparisonNode = ngraph::builder::makeComparison(inputs[0], secondInput, comparisonOpType);

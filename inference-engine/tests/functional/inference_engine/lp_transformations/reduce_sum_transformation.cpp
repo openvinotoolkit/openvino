@@ -27,13 +27,13 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
-class ReduceSumTransformation : public ReduceTransformation<op::v1::ReduceSum> {
+class ReduceSumTransformation : public ReduceTransformation<opset1::ReduceSum> {
     void SetUp() override {
         ReduceTransformation::SetUp();
         const auto transformationParams = std::get<1>(GetParam()).params;
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ReduceSumTransformation, ngraph::op::v1::ReduceSum>(transformationParams);
+        transform.add<ngraph::pass::low_precision::ReduceSumTransformation, ngraph::opset1::ReduceSum>(transformationParams);
         transform.transform(actualFunction);
     }
 };
@@ -42,6 +42,8 @@ TEST_P(ReduceSumTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 namespace testValues1 {

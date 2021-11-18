@@ -22,7 +22,7 @@ TEST(attributes, matmul_op) {
 
     auto matmul = make_shared<op::v0::MatMul>(A, B, transpose_a, transpose_b);
     NodeBuilder builder(matmul);
-    auto g_matmul = as_type_ptr<op::v0::MatMul>(builder.create());
+    auto g_matmul = ov::as_type_ptr<op::v0::MatMul>(builder.create());
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
     EXPECT_EQ(g_matmul->get_transpose_b(), matmul->get_transpose_b());

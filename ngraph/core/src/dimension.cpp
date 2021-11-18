@@ -11,7 +11,7 @@
 
 using namespace ngraph;
 
-std::ostream& ngraph::operator<<(std::ostream& str, const Dimension& dimension) {
+std::ostream& ov::operator<<(std::ostream& str, const Dimension& dimension) {
     if (dimension.is_static()) {
         return str << dimension.get_length();
     } else if (dimension.get_interval().has_upper_bound()) {
@@ -104,4 +104,17 @@ Dimension::value_type Dimension::get_max_length() const {
 
 Dimension::value_type Dimension::get_min_length() const {
     return dimension_length(m_dimension.get_min_val());
+}
+
+const int64_t& ov::AttributeAdapter<ov::Dimension>::get() {
+    if (!m_buffer_valid) {
+        m_buffer = m_ref.is_dynamic() ? -1 : m_ref.get_length();
+        m_buffer_valid = true;
+    }
+    return m_buffer;
+}
+
+void ov::AttributeAdapter<ov::Dimension>::set(const int64_t& value) {
+    m_ref = value == -1 ? ov::Dimension::dynamic() : Dimension(value);
+    m_buffer_valid = false;
 }

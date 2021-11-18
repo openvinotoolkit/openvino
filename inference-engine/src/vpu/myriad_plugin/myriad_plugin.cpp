@@ -39,7 +39,7 @@
 #include <vpu/configuration/options/number_of_shaves.hpp>
 #include <vpu/configuration/options/number_of_cmx_slices.hpp>
 #include <vpu/configuration/options/throughput_streams.hpp>
-#include <vpu/configuration/options/ir_with_scales_directory.hpp>
+#include <vpu/configuration/options/vpu_scales_option.hpp>
 #include <vpu/configuration/options/tensor_strides.hpp>
 #include <vpu/configuration/options/ignore_unknown_layers.hpp>
 #include <vpu/configuration/options/force_pure_tensor_iterator.hpp>
@@ -61,7 +61,6 @@
 #include <vpu/configuration/options/config_file.hpp>
 #include <vpu/configuration/options/memory_type.hpp>
 #include <vpu/configuration/options/enable_force_reset.hpp>
-#include <vpu/configuration/options/platform.hpp>
 #include <vpu/configuration/options/check_preprocessing_inside_model.hpp>
 #include <vpu/configuration/options/enable_early_eltwise_relu_fusion.hpp>
 #include <vpu/configuration/options/enable_custom_reshape_param.hpp>
@@ -165,7 +164,6 @@ QueryNetworkResult Engine::QueryNetwork(
 
     const auto supportedLayers = getSupportedLayers(
             network,
-            ncDevicePlatform_t::NC_ANY_PLATFORM,
             parsedConfigCopy,
             log,
             GetCore());
@@ -210,7 +208,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _parsedConfig.registerOption<NumberOfSHAVEsOption>();
     _parsedConfig.registerOption<NumberOfCMXSlicesOption>();
     _parsedConfig.registerOption<ThroughputStreamsOption>();
-    _parsedConfig.registerOption<IRWithScalesDirectoryOption>();
+    _parsedConfig.registerOption<VPUScalesOption>();
     _parsedConfig.registerOption<TensorStridesOption>();
     _parsedConfig.registerOption<IgnoreUnknownLayersOption>();
     _parsedConfig.registerOption<ForcePureTensorIteratorOption>();
@@ -247,7 +245,6 @@ IE_SUPPRESS_DEPRECATED_START
     _parsedConfig.registerDeprecatedOption<CustomLayersOption>(VPU_CONFIG_KEY(CUSTOM_LAYERS));
     _parsedConfig.registerDeprecatedOption<MemoryTypeOption>(VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
     _parsedConfig.registerDeprecatedOption<EnableForceResetOption>(VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
-    _parsedConfig.registerDeprecatedOption<PlatformOption>(VPU_MYRIAD_CONFIG_KEY(PLATFORM));
 IE_SUPPRESS_DEPRECATED_END
 }
 

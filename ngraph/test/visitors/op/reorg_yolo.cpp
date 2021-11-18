@@ -18,7 +18,7 @@ TEST(attributes, reorg_yolo_op_stride) {
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, 2);
     NodeBuilder builder(op);
-    const auto g_op = as_type_ptr<op::v0::ReorgYolo>(builder.create());
+    const auto g_op = ov::as_type_ptr<op::v0::ReorgYolo>(builder.create());
 
     EXPECT_EQ(g_op->get_strides(), op->get_strides());
 }
@@ -29,7 +29,7 @@ TEST(attributes, reorg_yolo_op_strides) {
 
     const auto op = make_shared<op::v0::ReorgYolo>(data, Strides{2});
     NodeBuilder builder(op);
-    const auto g_op = as_type_ptr<op::v0::ReorgYolo>(builder.create());
+    const auto g_op = ov::as_type_ptr<op::v0::ReorgYolo>(builder.create());
 
     EXPECT_EQ(g_op->get_strides(), op->get_strides());
 }

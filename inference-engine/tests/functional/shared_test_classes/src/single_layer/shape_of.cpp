@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string ShapeOfLayerTest::getTestCaseName(testing::TestParamInfo<shapeOfParams> obj) {
+    std::string ShapeOfLayerTest::getTestCaseName(const testing::TestParamInfo<shapeOfParams>& obj) {
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision inputPrecision;
         std::string targetDevice;
@@ -24,9 +24,9 @@ namespace LayerTestsDefinitions {
         std::tie(inputPrecision, inputShapes, targetDevice) = this->GetParam();
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
         auto param = ngraph::builder::makeParams(inType, {inputShapes});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::v0::Parameter>(param));
-        auto shapeOf = std::make_shared<ngraph::op::v3::ShapeOf>(paramOuts[0], inType);
-        ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(shapeOf)};
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(param));
+        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(paramOuts[0], inType);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, param, "shapeOf");
     }
 

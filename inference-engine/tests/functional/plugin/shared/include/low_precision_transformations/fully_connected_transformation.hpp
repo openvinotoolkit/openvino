@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <string>
+#include <memory>
+#include <ngraph/ngraph.hpp>
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 class MatMulShapes {
@@ -26,7 +29,7 @@ class FullyConnectedTransformation :
     public testing::WithParamInterface<FullyConnectedTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FullyConnectedTransformationParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<FullyConnectedTransformationParams>& obj);
 
 protected:
     void SetUp() override;

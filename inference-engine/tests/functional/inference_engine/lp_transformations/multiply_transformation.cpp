@@ -55,7 +55,7 @@ public:
 
         actualFunction = MultiplyFunction::get(precision, testParams.actual);
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::MultiplyTransformation, ngraph::op::v1::Multiply>(testParams.transformationParams);
+        transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(testParams.transformationParams);
         transform.transform(actualFunction);
 
         referenceFunction = MultiplyFunction::get(precision, testParams.expected);
@@ -78,6 +78,8 @@ TEST_P(MultiplyTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
+
+    ASSERT_TRUE(LayerTransformation::allNamesAreUnique(actualFunction)) << "Not all names are unique";
 }
 
 const std::vector<ngraph::element::Type> precisions = {

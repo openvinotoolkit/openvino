@@ -5,7 +5,7 @@ import logging as log
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension, shape_delete
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
@@ -57,9 +57,9 @@ class VariadicSplitBase(Op):
             ''.format(op, split_lengths, name)
 
         input_elements = input_shape[axis]
-        assert undefined_elements.size != 0 or input_elements == np.sum(split_lengths), \
-            'The sum of split_lengths=`{}` must match data.shape[axis]=`{}`. Node: {}' \
-            ''.format(split_lengths, input_elements, name)
+        assert undefined_elements.size != 0 or input_elements is dynamic_dimension or \
+               input_elements == np.sum(split_lengths), 'The sum of split_lengths=`{}` must match data.shape[axis]=' \
+                                                        '`{}`. Node: {}'.format(split_lengths, input_elements, name)
 
         assert len(split_lengths) >= len([port for i, port in node.out_ports().items() if not port.disconnected()]), \
             'Number of split_lengths=`{}` is less than connected output ports. Node: {}'.format(split_lengths, name)
@@ -70,8 +70,7 @@ class VariadicSplitBase(Op):
         for i in reversed(range(len(split_lengths))):
             if split_lengths[i] == 0:
                 if node.out_port(i).disconnected():
-                    size_splits = list(split_lengths)
-                    split_lengths = np.delete(int64_array(split_lengths), i)
+                    split_lengths = shape_delete(split_lengths, i)
                     if op == 'VariadicSplit':
                         node.in_port(2).data.set_value(split_lengths)
                     else:
@@ -191,12 +190,12 @@ class SplitBase(Op):
         assert axis is not None, '{} `axis` is unknown for node {}'.format(op, name)
         assert axis.ndim == 0, '{} `axis` should be scalar, but it`s not for node {}'.format(op, name)
 
-        assert input_shape[axis] % num_splits == 0, \
+        assert not is_fully_defined(input_shape[axis]) or input_shape[axis] % num_splits == 0, \
             'Input shape is not evenly divided by `num_splits` of {} node {}. `input_shape`={}, `axis`={}, ' \
             '`num_splits`={}'.format(op, name, input_shape, axis, num_splits)
 
         out_shape = input_shape.copy()
-        out_shape[axis] = np.int64(input_shape[axis] / num_splits)
+        out_shape[axis] = input_shape[axis] // num_splits
 
         input_value = node.in_port(0).data.get_value()
         output_value = np.split(input_value.copy(), axis=axis, indices_or_sections=num_splits) \

@@ -7,38 +7,6 @@
 
 namespace LayerTestsDefinitions {
 
-// DEPRECATED, remove MvnLayerTest when KMB and ARM plugin will switch to use Mvn1LayerTest (#60420)
-std::string MvnLayerTest::getTestCaseName(const testing::TestParamInfo<mvnParams>& obj) {
-    InferenceEngine::SizeVector inputShapes;
-    InferenceEngine::Precision inputPrecision;
-    bool acrossChannels, normalizeVariance;
-    double eps;
-    std::string targetDevice;
-    std::tie(inputShapes, inputPrecision, acrossChannels, normalizeVariance, eps, targetDevice) = obj.param;
-    std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "Precision=" << inputPrecision.name() << "_";
-    result << "AcrossChannels=" << (acrossChannels ? "TRUE" : "FALSE") << "_";
-    result << "NormalizeVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
-    result << "Epsilon=" << eps << "_";
-    result << "TargetDevice=" << targetDevice;
-    return result.str();
-}
-
-void MvnLayerTest::SetUp() {
-    InferenceEngine::SizeVector inputShapes;
-    InferenceEngine::Precision inputPrecision;
-    bool acrossChanels, normalizeVariance;
-    double eps;
-    std::tie(inputShapes, inputPrecision, acrossChanels, normalizeVariance, eps, targetDevice) = this->GetParam();
-    auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
-    auto param = ngraph::builder::makeParams(inType, {inputShapes});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
-    auto mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps));
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(mvn)};
-    function = std::make_shared<ngraph::Function>(results, param, "mvn");
-}
-
 std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Params>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
@@ -75,7 +43,7 @@ void Mvn1LayerTest::SetUp() {
     if (!axes.empty()) {
         mvn = std::dynamic_pointer_cast<ngraph::op::MVN>(ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps));
     }
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(mvn)};
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN1");
 }
 
@@ -117,7 +85,7 @@ void Mvn6LayerTest::SetUp() {
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
     auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
     auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
-    ngraph::ResultVector results{std::make_shared<ngraph::op::v0::Result>(mvn)};
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "MVN6");
 }
 

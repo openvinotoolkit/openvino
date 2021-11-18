@@ -24,6 +24,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace testing;
 
 using InputShape = ngraph::PartialShape;
@@ -46,9 +48,9 @@ private:
     std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & input_shape,
                                                            const ngraph::Shape & weights_shape) {
         auto spatial_dims = input_shape.rank().get_length() - 2;
-        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
-        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32, weights_shape, {1});
-        auto conv = std::make_shared<ngraph::op::v1::ConvolutionBackpropData>(input, weights, ngraph::Strides(spatial_dims, 1),
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
+        auto conv = std::make_shared<ngraph::opset1::ConvolutionBackpropData>(input, weights, ngraph::Strides(spatial_dims, 1),
                 ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::Strides(spatial_dims, 1));
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
@@ -57,8 +59,8 @@ private:
     std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialShape & input_shape,
                                                              const ngraph::Shape & weights_shape) {
         auto spatial_dims = input_shape.rank().get_length() - 2;
-        auto input = std::make_shared<ngraph::op::v0::Parameter>(ngraph::element::f32, input_shape);
-        auto weights = ngraph::op::v0::Constant::create(ngraph::element::f32, weights_shape, {1});
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
         auto conv = std::make_shared<ngraph::op::DeconvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
                 ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::element::f32);
 
@@ -67,9 +69,11 @@ private:
 };
 
 TEST_P(ConvertDeconvolutionTest, CompareFunctions) {
-    const auto & orig_shape = f->get_output_partial_shape(0);
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertConvolutions().run_on_function(f);
+    const auto orig_shape = f->get_output_partial_shape(0);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;

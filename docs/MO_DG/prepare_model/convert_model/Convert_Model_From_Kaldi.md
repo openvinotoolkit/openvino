@@ -33,7 +33,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 
 To convert a Kaldi\* model:
 
-1. Go to the `<INSTALL_DIR>/deployment_tools/model_optimizer` directory.
+1. Go to the `<INSTALL_DIR>/tools/model_optimizer` directory.
 2. Use the `mo.py` script to simply convert a model with the path to the input model `.nnet` or `.mdl` file and to an output directory where you have write permissions:
 ```sh
 python3 mo.py --input_model <INPUT_MODEL>.nnet --output_dir <OUTPUT_MODEL_DIR>

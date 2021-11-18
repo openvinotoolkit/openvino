@@ -48,22 +48,22 @@ QuantizationDetails::QuantizationDetails(const size_t levels, const std::vector<
       outputLowValues(outputLowValues),
       outputHighValues(outputHighValues) {}
 
-bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<op::v0::FakeQuantize> quantize) {
-    return is_type<op::Constant>(quantize->get_input_node_ptr(1)) &&
-        is_type<op::Constant>(quantize->get_input_node_ptr(2)) &&
-        is_type<op::Constant>(quantize->get_input_node_ptr(3)) &&
-        is_type<op::Constant>(quantize->get_input_node_ptr(4));
+bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize) {
+    return ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(1)) &&
+        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(2)) &&
+        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(3)) &&
+        ov::is_type<opset1::Constant>(quantize->get_input_node_ptr(4));
 }
 
 void QuantizationDetails::getInputIntervals(
-        std::shared_ptr<op::v0::FakeQuantize> quantize,
+        std::shared_ptr<opset1::FakeQuantize> quantize,
         std::vector<float>& inputLowValues,
         std::vector<float>& inputHighValues) {
-    std::shared_ptr<op::Constant> inputLowLayer = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(1));
+    std::shared_ptr<opset1::Constant> inputLowLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(1));
     const std::vector<float>& inputLowBlobValues = getBlobValue(inputLowLayer);
     inputLowValues.insert(inputLowValues.end(), inputLowBlobValues.begin(), inputLowBlobValues.end());
 
-    std::shared_ptr<op::Constant> inputHighLayer = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(2));
+    std::shared_ptr<opset1::Constant> inputHighLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(2));
     const std::vector<float> inputHighBlobValues = getBlobValue(inputHighLayer);
     inputHighValues.insert(inputHighValues.end(), inputHighBlobValues.begin(), inputHighBlobValues.end());
 
@@ -74,14 +74,14 @@ void QuantizationDetails::getInputIntervals(
 
 
 void QuantizationDetails::getOutputIntervals(
-        std::shared_ptr<op::v0::FakeQuantize> quantize,
+        std::shared_ptr<opset1::FakeQuantize> quantize,
         std::vector<float>& outputLowValues,
         std::vector<float>& outputHighValues) {
-    std::shared_ptr<op::Constant> outputLowLayer = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(3));
+    std::shared_ptr<opset1::Constant> outputLowLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(3));
     const std::vector<float>& outputLowBlobValues = getBlobValue(outputLowLayer);
     outputLowValues.insert(outputLowValues.end(), outputLowBlobValues.begin(), outputLowBlobValues.end());
 
-    std::shared_ptr<op::Constant> outputHighLayer = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(4));
+    std::shared_ptr<opset1::Constant> outputHighLayer = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(4));
     const std::vector<float> outputHighBlobValues = getBlobValue(outputHighLayer);
     outputHighValues.insert(outputHighValues.end(), outputHighBlobValues.begin(), outputHighBlobValues.end());
 
@@ -90,12 +90,16 @@ void QuantizationDetails::getOutputIntervals(
     }
 }
 
-QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<op::v0::FakeQuantize> quantize) {
-    const std::vector<float> inputLowValues = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(1))->cast_vector<float>();
-    const std::vector<float> inputHighValues = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(2))->cast_vector<float>();
+QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<opset1::FakeQuantize> quantize) {
+    if (!QuantizationDetails::outputLayoutIsSupported(quantize)) {
+        return QuantizationDetails();
+    }
 
-    const std::vector<float> outputLowValues = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(3))->cast_vector<float>();
-    const std::vector<float> outputHighValues = as_type_ptr<op::Constant>(quantize->get_input_node_shared_ptr(4))->cast_vector<float>();
+    const std::vector<float> inputLowValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(1))->cast_vector<float>();
+    const std::vector<float> inputHighValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(2))->cast_vector<float>();
+
+    const std::vector<float> outputLowValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(3))->cast_vector<float>();
+    const std::vector<float> outputHighValues = ov::as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(4))->cast_vector<float>();
 
     return QuantizationDetails(
         quantize->get_levels(),
@@ -150,11 +154,15 @@ float QuantizationDetails::getOutputHighValue(const size_t index) const {
 }
 
 std::vector<float> QuantizationDetails::getBlobValue(std::shared_ptr<Node> constantLayer) {
-    return as_type_ptr<op::Constant>(constantLayer)->cast_vector<float>();
+    return ov::as_type_ptr<opset1::Constant>(constantLayer)->cast_vector<float>();
+}
+
+bool QuantizationDetails::empty() const noexcept {
+    return (levels == 0ul) && inputLowValues.empty() && inputHighValues.empty() && outputLowValues.empty() && outputHighValues.empty();
 }
 
 bool QuantizationDetails::isSupportedLevel(const size_t level) {
-    static const std::unordered_set<size_t> supported_levels = { 255ul, 256ul };
+    static const std::unordered_set<size_t> supported_levels = { 16, 255, 256, 65536, 65535, static_cast<size_t>(4294967296), 4294967295 };
     return supported_levels.find(level) != supported_levels.end();
 }
 
