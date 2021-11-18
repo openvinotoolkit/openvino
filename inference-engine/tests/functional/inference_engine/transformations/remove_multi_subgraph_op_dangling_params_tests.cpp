@@ -356,7 +356,62 @@ TEST(TransformationTests, RemoveIfManyDanglingParameters) {
         if_op->set_input(X, Xt, Xe);
         if_op->set_input(Z, Zt, nullptr);
         auto res = if_op->set_output(then_op_res, else_op_res);
-        f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Z});
+        f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, Z});
+    }
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, RemoveIfDanglingParamFromOneBodyAndAllUpdateDescriptions) {
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    auto X = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
+    auto Y = std::make_shared<Parameter>(element::f32, Shape{3, 4, 1});
+    auto Z = std::make_shared<Parameter>(element::f32, Shape{2, 4, 1});
+    auto cond = std::make_shared<Constant>(element::boolean, Shape{1}, true);
+
+    auto Xt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Yt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Zt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto then_op = std::make_shared<Add>(Xt, Zt);
+    auto then_op_res = std::make_shared<Result>(then_op);
+
+    auto Xe = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Ye = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    auto Ze = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+
+    auto else_op = std::make_shared<Add>(std::make_shared<Maximum>(Xe, Ye), Ze);
+    auto else_op_res = std::make_shared<Result>(else_op);
+    {
+        auto then_body = std::make_shared<Function>(OutputVector{then_op_res}, ParameterVector{Xt, Yt, Zt});
+        auto else_body = std::make_shared<Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye, Ze});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xt, Xe);
+        if_op->set_input(Y, Yt, Ye);
+        if_op->set_input(Z, Zt, Ze);
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        f = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, Z});
+
+        ov::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto then_body = std::make_shared<Function>(OutputVector{then_op_res}, ParameterVector{Xt, Zt});
+        auto else_body = std::make_shared<Function>(OutputVector{else_op_res}, ParameterVector{Xe, Ye, Ze});
+        auto if_op = std::make_shared<If>(cond);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(X, Xt, Xe);
+        if_op->set_input(Y, nullptr, Ye);
+        if_op->set_input(Z, Zt, Ze);
+        auto res = if_op->set_output(then_op_res, else_op_res);
+        f_ref = std::make_shared<Function>(OutputVector{res}, ParameterVector{X, Y, Z});
     }
     const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const auto res = fc.compare(f, f_ref);
