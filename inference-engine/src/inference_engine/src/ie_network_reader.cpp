@@ -381,8 +381,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (it_order != rtInfo.end()) {
                     const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(it_order->second);
                     OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
-                    const auto old_api_map_attr_val = old_api_map_attr->get();
-                    const auto order = old_api_map_attr_val.get_order();
+                    const auto order = old_api_map_attr->get();
                     pre_input.preprocess().convert_layout(order);
                     rtInfo.erase(it_order);
                 }
@@ -398,10 +397,9 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
                 const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(it->second);
                 OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapOrder");
-                const auto old_api_map_attr_val = old_api_map_attr->get();
-                const auto old_api_transpose_args = old_api_map_attr_val.get_order();
+                const auto order = old_api_map_attr->get();
                 auto& post_output = prepost.output(i);
-                post_output.postprocess().convert_layout(old_api_transpose_args);
+                post_output.postprocess().convert_layout(order);
 
                 // remove old api once we applied it
                 rtInfo.erase(it);

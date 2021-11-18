@@ -433,7 +433,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(info.at(old_api_map_key));
         ASSERT_TRUE(old_api_map_attr);
         auto old_api_map_attr_val = old_api_map_attr->get();
-        EXPECT_EQ(old_api_map_attr_val.get_order(), order);
+        EXPECT_EQ(old_api_map_attr_val, order);
     };
     auto check_old_api_map_type = [](const RTMap & info, const ngraph::element::Type& type) {
         const std::string & old_api_map_key = ov::OldApiMapElementType::get_type_info_static();

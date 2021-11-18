@@ -27,7 +27,8 @@ namespace ov {
 class OldApiMapOrder;
 /**
  * @ingroup ie_runtime_attr_api
- * @brief OldApiMapOrderAttr class stores the value of OldApiMapOrder class.
+ * @brief OldApiMapOrder class represents runtime info attribute that stores
+ * order of the transpose that is required for obtaining IR in old API.
  *
  *  OldApiMapOrder stores the following information.
  *  Parameter:
@@ -37,41 +38,8 @@ class OldApiMapOrder;
  *  Result:
  *  Order of the transpose which should be applied to Result with new API layout to
  *  obtain Result with old API layout.
- *
  */
-class TRANSFORMATIONS_API OldApiMapOrderAttr {
-private:
-    std::vector<uint64_t> m_order;
-
-public:
-    friend class OldApiMapOrder;
-
-    /**
-     * A default constructor
-     */
-    OldApiMapOrderAttr() = default;
-
-    /**
-     * @brief      Constructs a new OldApiMapOrderAttr object.
-     * @param[in]  order  Transpose order.
-     */
-    explicit OldApiMapOrderAttr(std::vector<uint64_t> order) : m_order(std::move(order)) {}
-
-    /**
-     * @brief Returns the transpose order that should be used for obtain a node with old API layout.
-     * @return transpose order.
-     */
-    const std::vector<uint64_t>& get_order() const {
-        return m_order;
-    }
-};
-
-/**
- * @ingroup ie_runtime_attr_api
- * @brief OldApiMapOrder class represents runtime info attribute that stores
- * order of the transpose that is required for obtaining IR in old API.
- */
-class TRANSFORMATIONS_API OldApiMapOrder : public VariantImpl<OldApiMapOrderAttr> {
+class TRANSFORMATIONS_API OldApiMapOrder : public VariantImpl<std::vector<uint64_t>> {
 public:
     OPENVINO_RTTI("old_api_map_order", "0");
 
