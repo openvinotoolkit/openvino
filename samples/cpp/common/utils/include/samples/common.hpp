@@ -23,9 +23,8 @@
 #include <utility>
 #include <vector>
 
-#include "slog.hpp"
-
 #include "openvino/openvino.hpp"
+#include "slog.hpp"
 
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
@@ -142,7 +141,8 @@ inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& versi
     return os;
 }
 
-inline slog::LogStream& operator<<(slog::LogStream& os, const std::map<std::string, InferenceEngine::Version>& versions) {
+inline slog::LogStream& operator<<(slog::LogStream& os,
+                                   const std::map<std::string, InferenceEngine::Version>& versions) {
     for (auto&& version : versions) {
         os << version.first << slog::endl;
         os << version.second << slog::endl;
