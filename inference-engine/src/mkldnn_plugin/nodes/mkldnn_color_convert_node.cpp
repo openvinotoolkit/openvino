@@ -9,6 +9,8 @@
 #include <openvino/core/type.hpp>
 #include <ie/ie_parallel.hpp>
 #include <utils/jit_kernel.hpp>
+#include <tuple>
+#include <array>
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl::utils;
@@ -16,6 +18,38 @@ using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 
 namespace MKLDNNPlugin {
+
+class MKLDNNColorConvertNode::Converter {
+public:
+    using PrimitiveDescs = std::vector<std::tuple<std::vector<PortConfigurator>,
+                                                    std::vector<PortConfigurator>,
+                                                    impl_desc_type,
+                                                    bool>>;
+    using Shapes = std::vector<VectorDims>;
+
+    static constexpr size_t N_DIM = 0;
+    static constexpr size_t H_DIM = 1;
+    static constexpr size_t W_DIM = 2;
+    static constexpr size_t C_DIM = 3;
+
+    using ColorFormat = std::array<uint8_t, 3>;
+
+    Converter(MKLDNNNode *node, const ColorFormat & colorFormat);
+    virtual ~Converter() = default;
+    InferenceEngine::Precision inputPrecision(size_t idx) const;
+    InferenceEngine::Precision outputPrecision(size_t idx) const;
+    const void * input(size_t idx) const;
+    void * output(size_t idx) const;
+    const VectorDims & inputDims(size_t idx) const;
+    virtual Shapes shapeInfer() const = 0;
+    virtual void prepare() = 0;
+    virtual void execute(mkldnn::stream strm) = 0;
+
+protected:
+    MKLDNNNode *_node;
+    ColorFormat _colorFormat;   // RGB: {0,1,2}, BGR: {2,1,0}
+};
+
 namespace {
 
 std::tuple<Algorithm, std::string> getAlgorithmFor(const std::shared_ptr<const ngraph::Node>& op) {
@@ -583,8 +617,13 @@ void MKLDNNColorConvertNode::initSupportedPrimitiveDescriptors() {
         switch (algorithm) {
             case Algorithm::NV12toRGB:
             case Algorithm::NV12toBGR: {
-                for (const auto &desc : nv12::supportedPrimitives(this))
-                    addSupportedPrimDesc(std::get<0>(desc), std::get<1>(desc), std::get<2>(desc), std::get<3>(desc));
+                for (const auto &desc : nv12::supportedPrimitives(this)) {
+                    const auto & inPortConfigs = std::get<0>(desc);
+                    const auto & outPortConfigs = std::get<1>(desc);
+                    const auto implType = std::get<2>(desc);
+                    const auto dynBatchSupport = std::get<3>(desc);
+                    addSupportedPrimDesc(inPortConfigs, outPortConfigs, implType, dynBatchSupport);
+                }
                 initSupportedNV12Impls();
                 break;
             default:
@@ -626,6 +665,9 @@ void MKLDNNColorConvertNode::createPrimitive() {
 }
 
 void MKLDNNColorConvertNode::execute(mkldnn::stream strm) {
+    if (!_impl)
+        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
+                   << "has no any implemented converter";
     _impl->execute(strm);
 }
 
@@ -634,13 +676,17 @@ bool MKLDNNColorConvertNode::created() const {
 }
 
 std::vector<VectorDims> MKLDNNColorConvertNode::shapeInfer() const {
+    if (!_impl)
+        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
+                   << "has no any implemented converter";
     return _impl->shapeInfer();
 }
 
 void MKLDNNColorConvertNode::prepareParams() {
     const NodeDesc *desc = getSelectedPrimitiveDescriptor();
     if (!desc)
-        MKLDNN_NODE_THROW() << "no optimal primitive descriptor selected";
+        IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
+                   << "no optimal primitive descriptor selected";
 
     if (!_impl) {
         const auto & cfg = desc->getConfig();

@@ -841,8 +841,6 @@ struct MKLDNNNodeImpl : public MKLDNNNodeType {
     }
 };
 
-#define MKLDNN_NODE_THROW() IE_THROW() << getTypeStr() + " node with name '" + getName() + "' "
-
 }  // namespace MKLDNNPlugin
 
 #define REG_MKLDNN_PRIM_FOR(__prim, __type)
