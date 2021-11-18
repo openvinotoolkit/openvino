@@ -111,6 +111,8 @@ jobs:
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements.txt
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements_dev.txt
       rem Speed up build
+      certutil -urlcache -split -f https://github.com/Kitware/CMake/releases/download/v3.17.1/cmake-3.17.1-win64-x64.zip cmake-3.17.1-win64-x64.zip
+      powershell -command "Expand-Archive -Force cmake-3.17.1-win64-x64.zip"
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
       git clone https://github.com/google/gtest-parallel.git
@@ -118,7 +120,7 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
-      set PATH=$(WORK_DIR)\ninja-win;%PATH%
+      set PATH=$(WORK_DIR)\ninja-win;%PATH%;$(WORK_DIR)\cmake-3.17.1-win64-x64\cmake-3.17.1-win64-x64\bin
       call "$(MSVS_VARS_PATH)" && cmake -GNinja -DENABLE_CLDNN=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_GAPI_PREPROCESSING=$(CMAKE_BUILD_SHARED_LIBS) -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'

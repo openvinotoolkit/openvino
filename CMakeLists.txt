@@ -3,8 +3,9 @@
 #
 
 if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
-    # cmake does not generate correct config for static libraries case
-    # because of cyclic dependencies on static libraries level, which is allowed
+    # 'target_link_libraries' does not work correctly when called from
+    # different directly where 'add_library' is called: CMake generates
+    # incorrect OpenVINOConfig.cmake in this case
     cmake_minimum_required(VERSION 3.17)
 else()
     cmake_minimum_required(VERSION 3.13)
