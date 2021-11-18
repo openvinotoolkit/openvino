@@ -410,13 +410,14 @@ TEST(pre_post_process, convert_color_incorrect_subnames) {
                 .build(),
         ov::AssertFailure);
 
-    EXPECT_THROW( {
-                      auto p = PrePostProcessor(f);
-                      p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE, {"Test"});
-                      p.input().preprocess().convert_color(ColorFormat::RGB);
-                      f = p.build();
-                  },
-                  ov::AssertFailure);
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE, {"Test"});
+            p.input().preprocess().convert_color(ColorFormat::RGB);
+            f = p.build();
+        },
+        ov::AssertFailure);
 
     EXPECT_THROW(
         f = PrePostProcessor(f)
@@ -424,12 +425,14 @@ TEST(pre_post_process, convert_color_incorrect_subnames) {
                 .build(),
         ov::AssertFailure);
 
-    EXPECT_THROW( {
-                      auto p = PrePostProcessor(f);
-                      p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES, {"Test"});
-                      p.input().preprocess().convert_color(ColorFormat::BGR);
-                      p.build(); },
-                  ov::AssertFailure);
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES, {"Test"});
+            p.input().preprocess().convert_color(ColorFormat::BGR);
+            p.build();
+        },
+        ov::AssertFailure);
 
     EXPECT_THROW(f = PrePostProcessor(f)
                          .input(InputInfo().tensor(
@@ -523,35 +526,39 @@ TEST(pre_post_process, unsupported_network_color_format) {
 
 TEST(pre_post_process, unsupported_network_color_format_i420) {
     auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
-    EXPECT_THROW({
-                     auto p = PrePostProcessor(f);
-                     p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
-                     f = p.build();
-                 },
-                 ov::AssertFailure);
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+            f = p.build();
+        },
+        ov::AssertFailure);
 
-    EXPECT_THROW({
-                     auto p = PrePostProcessor(f);
-                     p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
-                     f = p.build();
-                 },
-                 ov::AssertFailure);
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
+            f = p.build();
+        },
+        ov::AssertFailure);
 
-    EXPECT_THROW({
-                     auto p = PrePostProcessor(f);
-                     p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
-                     p.input().preprocess().convert_layout("NCHW").convert_color(ColorFormat::RGB);
-                     f = p.build();
-                 },
-                 ov::AssertFailure);
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+            p.input().preprocess().convert_layout("NCHW").convert_color(ColorFormat::RGB);
+            f = p.build();
+        },
+        ov::AssertFailure);
 
-    EXPECT_THROW({
-                     auto p = PrePostProcessor(f);
-                     p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
-                     p.input().preprocess().scale(2.1).convert_color(ColorFormat::BGR);
-                     f = p.build();
-                 },
-                 ov::AssertFailure);
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
+            p.input().preprocess().scale(2.1).convert_color(ColorFormat::BGR);
+            f = p.build();
+        },
+        ov::AssertFailure);
 }
 
 TEST(pre_post_process, custom_preprocessing) {

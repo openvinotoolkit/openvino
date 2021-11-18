@@ -145,7 +145,7 @@ protected:
     PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
         PartialShape result = image_shape;
         if (image_shape.rank().is_static() && image_shape.rank().get_length() == 4) {
-            result[3] = 1; //  Number of channels is always 1 for I420 planes
+            result[3] = 1;  //  Number of channels is always 1 for I420 planes
             if (plane_num == 0) {
                 return result;
             } else {

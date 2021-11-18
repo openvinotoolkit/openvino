@@ -248,17 +248,17 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
             OPENVINO_ASSERT(nodes.size() == 1, "Internal error: single plane I420 image can't have multiple inputs");
             std::shared_ptr<Node> convert;
             switch (dst_format) {
-                case ColorFormat::RGB:
-                    convert = std::make_shared<op::v8::I420toRGB>(nodes[0]);
-                    break;
-                case ColorFormat::BGR:
-                    convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
-                    break;
-                default:
-                    OPENVINO_ASSERT(false,
-                                    "Unsupported conversion from I420 to '",
-                                    color_format_name(dst_format),
-                                    "' format:");
+            case ColorFormat::RGB:
+                convert = std::make_shared<op::v8::I420toRGB>(nodes[0]);
+                break;
+            case ColorFormat::BGR:
+                convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
+                break;
+            default:
+                OPENVINO_ASSERT(false,
+                                "Unsupported conversion from I420 to '",
+                                color_format_name(dst_format),
+                                "' format:");
             }
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
@@ -266,17 +266,17 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
             OPENVINO_ASSERT(nodes.size() == 3, "Internal error: three-plane I420 image must have exactly three inputs");
             std::shared_ptr<Node> convert;
             switch (dst_format) {
-                case ColorFormat::RGB:
-                    convert = std::make_shared<op::v8::I420toRGB>(nodes[0], nodes[1], nodes[2]);
-                    break;
-                case ColorFormat::BGR:
-                    convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
-                    break;
-                default:
-                    OPENVINO_ASSERT(false,
-                                    "Unsupported conversion from I420 to '",
-                                    color_format_name(dst_format),
-                                    "' format:");
+            case ColorFormat::RGB:
+                convert = std::make_shared<op::v8::I420toRGB>(nodes[0], nodes[1], nodes[2]);
+                break;
+            case ColorFormat::BGR:
+                convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
+                break;
+            default:
+                OPENVINO_ASSERT(false,
+                                "Unsupported conversion from I420 to '",
+                                color_format_name(dst_format),
+                                "' format:");
             }
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
