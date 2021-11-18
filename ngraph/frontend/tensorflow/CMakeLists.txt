@@ -48,7 +48,7 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES GENERATED TRU
 set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w)
 
 # Create library
-add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(openvino::frontend::tensorflow ALIAS ${TARGET_NAME})
 
 add_dependencies(${TARGET_NAME} tensorflow_ngraph_frontend_proto)
@@ -69,10 +69,10 @@ target_include_directories(${TARGET_NAME}
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
                                                          ${CMAKE_CURRENT_BINARY_DIR})
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ${TARGET_NAME}
-                           FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
-endif()
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 

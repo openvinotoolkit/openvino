@@ -4,10 +4,13 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if(ENABLE_TBBBIND_2_5)
+    # try to find prebuilt version of tbbbind_2_5
     find_package(TBBBIND_2_5 QUIET)
     if(TBBBIND_2_5_FOUND)
         message(STATUS "Static tbbbind_2_5 package is found")
+        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
+            INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
         if(NOT BUILD_SHARED_LIBS)
             set(install_tbbbind ON)
         endif()
@@ -140,7 +143,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:n
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
                                                       "${CMAKE_CURRENT_BINARY_DIR}" # for static ie_plugins.hpp
-                                                      $<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR> # for ie_ir_version.hpp
+                                                      $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>> # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -149,7 +152,6 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openv
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE -DTBBBIND_2_5_AVAILABLE)
     target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
@@ -174,7 +176,6 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 if (TBBBIND_2_5_FOUND)
-    target_compile_definitions(${TARGET_NAME} PRIVATE -DTBBBIND_2_5_AVAILABLE)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
@@ -208,7 +209,6 @@ add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)
-    target_compile_definitions(${TARGET_NAME}_s PRIVATE -DTBBBIND_2_5_AVAILABLE)
     target_link_libraries(${TARGET_NAME}_s PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
