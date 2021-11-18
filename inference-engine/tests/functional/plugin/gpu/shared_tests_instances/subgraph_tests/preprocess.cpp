@@ -30,9 +30,11 @@ inline std::vector<preprocess_func> GPU_smoke_preprocess_functions() {
         preprocess_func(resize_cubic, "resize_cubic", 0.01f),
         preprocess_func(convert_layout_by_dims, "convert_layout_by_dims", 0.01f),
         preprocess_func(resize_and_convert_layout, "resize_and_convert_layout", 0.01f),
-        preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 2.f),
-        preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 2.f),
-        preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 2.f),
+        preprocess_func(cvt_color_nv12_to_rgb_single_plane, "cvt_color_nv12_to_rgb_single_plane", 1.f),
+        preprocess_func(cvt_color_nv12_to_bgr_two_planes, "cvt_color_nv12_to_bgr_two_planes", 1.f),
+        preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f),
+        preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
+        preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
     };
 }
 

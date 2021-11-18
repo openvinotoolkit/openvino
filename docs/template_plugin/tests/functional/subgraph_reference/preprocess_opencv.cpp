@@ -11,6 +11,7 @@
 
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <shared_test_classes/base/layer_test_utils.hpp>
+#include <shared_test_classes/single_layer/convert_color_i420.hpp>
 #include <shared_test_classes/single_layer/convert_color_nv12.hpp>
 
 #include "base_reference_test.hpp"
@@ -28,7 +29,7 @@ public:
     }
 };
 
-class PreprocessOpenCVReferenceTest_NV12 : public PreprocessOpenCVReferenceTest {
+class PreprocessOpenCVReferenceTest_YUV : public PreprocessOpenCVReferenceTest {
 public:
     void Validate() override {
         threshold = 1.f;
@@ -57,7 +58,43 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
 }
 
-TEST_F(PreprocessOpenCVReferenceTest_NV12, convert_nv12_full_color_range) {
+TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_i420_full_color_range) {
+    size_t height = 64; // 64/2 = 32 values for R
+    size_t width = 64;  // 64/2 = 32 values for G
+    int b_step = 5;
+    int b_dim = 255 / b_step + 1;
+
+    // Test various possible r/g/b values within dimensions
+    auto ov20_input_yuv = LayerTestsDefinitions::I420TestUtils::color_test_image(height, width, b_step);
+
+    auto full_height = height * b_dim;
+    auto func_shape = Shape{1, full_height, width, 3};
+    function = create_simple_function(element::u8, func_shape);
+
+    inputData.clear();
+
+    auto p = PrePostProcessor(function);
+    p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
+    function = p.build();
+
+    const auto &param = function->get_parameters()[0];
+    inputData.emplace_back(param->get_element_type(), param->get_shape(), ov20_input_yuv.data());
+
+    // Calculate reference expected values from OpenCV
+    cv::Mat picYV12 = cv::Mat(static_cast<int>(full_height) * 3 / 2,
+                              static_cast<int>(width),
+                              CV_8UC1,
+                              ov20_input_yuv.data());
+    cv::Mat picBGR;
+    cv::cvtColor(picYV12, picBGR, CV_YUV2BGR_I420);
+    refOutData.emplace_back(param->get_element_type(), func_shape, picBGR.data);
+
+    // Exec now
+    Exec();
+}
+
+TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_nv12_full_color_range) {
     size_t height = 64; // 64/2 = 32 values for R
     size_t width = 64;  // 64/2 = 32 values for G
     int b_step = 5;
@@ -94,7 +131,7 @@ TEST_F(PreprocessOpenCVReferenceTest_NV12, convert_nv12_full_color_range) {
     Exec();
 }
 
-TEST_F(PreprocessOpenCVReferenceTest_NV12, convert_nv12_colored) {
+TEST_F(PreprocessOpenCVReferenceTest_YUV, convert_nv12_colored) {
     auto input_yuv = std::vector<uint8_t> {235, 81, 235, 81, 109, 184};
     auto func_shape = Shape{1, 2, 2, 3};
     function = create_simple_function(element::u8, func_shape);

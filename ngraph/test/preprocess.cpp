@@ -278,6 +278,81 @@ TEST(pre_post_process, convert_color_nv12_bgr_2_planes_el_type) {
     EXPECT_EQ(f->get_parameters()[1]->get_element_type(), element::f32);
 }
 
+TEST(pre_post_process, convert_color_i420_bgr_single) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 2, 2, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->input().get_tensor().get_names();
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+    p.input().preprocess().convert_color(ColorFormat::BGR);
+    f = p.build();
+
+    EXPECT_EQ(f->inputs().size(), 1);
+    EXPECT_EQ(f->input().get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{Dimension::dynamic(), 3, 2, 1}));
+    EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
+    EXPECT_EQ(f->input().get_tensor().get_names(), tensor_names);
+}
+
+TEST(pre_post_process, convert_color_i420_rgb_single) {
+    auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 4, 4, 3});
+    auto name = f->get_parameters()[0]->get_friendly_name();
+    auto tensor_names = f->input().get_tensor().get_names();
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+    p.input().preprocess().convert_color(ColorFormat::RGB);
+    f = p.build();
+
+    EXPECT_EQ(f->inputs().size(), 1);
+    EXPECT_EQ(f->input().get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters().front()->get_layout(), "NHWC");
+    EXPECT_EQ(f->input().get_partial_shape(), (PartialShape{Dimension::dynamic(), 6, 4, 1}));
+    EXPECT_EQ(f->get_parameters().front()->get_friendly_name(), name);
+    EXPECT_EQ(f->input().get_tensor().get_names(), tensor_names);
+}
+
+TEST(pre_post_process, convert_color_i420_bgr_3_planes) {
+    auto f = create_simple_function(element::f32, Shape{5, 30, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES, {"TestY", "TestU", "TestV"});
+    p.input().preprocess().convert_color(ColorFormat::BGR);
+    f = p.build();
+
+    EXPECT_EQ(f->get_parameters().size(), 3);
+
+    EXPECT_EQ(f->get_parameters()[0]->get_friendly_name(), "input1/TestY");
+    EXPECT_EQ(*f->input(0).get_tensor().get_names().begin(), "tensor_input1/TestY");
+    EXPECT_EQ(f->input(0).get_element_type(), element::f32);
+    EXPECT_EQ(f->input(0).get_partial_shape(), (PartialShape{5, 30, 20, 1}));
+
+    EXPECT_EQ(f->get_parameters()[1]->get_friendly_name(), "input1/TestU");
+    EXPECT_EQ(*f->input(1).get_tensor().get_names().begin(), "tensor_input1/TestU");
+    EXPECT_EQ(f->input(1).get_element_type(), element::f32);
+    EXPECT_EQ(f->input(1).get_partial_shape(), (PartialShape{5, 15, 10, 1}));
+
+    EXPECT_EQ(f->get_parameters()[2]->get_friendly_name(), "input1/TestV");
+    EXPECT_EQ(*f->input(2).get_tensor().get_names().begin(), "tensor_input1/TestV");
+    EXPECT_EQ(f->input(2).get_element_type(), element::f32);
+    EXPECT_EQ(f->input(2).get_partial_shape(), (PartialShape{5, 15, 10, 1}));
+}
+
+TEST(pre_post_process, convert_color_i420_rgb_3_planes) {
+    auto f = create_simple_function(element::u8, Shape{5, 20, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
+    p.input().preprocess().convert_color(ColorFormat::RGB);
+    f = p.build();
+
+    EXPECT_EQ(f->inputs().size(), 3);
+    EXPECT_EQ(f->input(0).get_element_type(), element::u8);
+    EXPECT_EQ(f->input(1).get_element_type(), element::u8);
+    EXPECT_EQ(f->input(2).get_element_type(), element::u8);
+    EXPECT_EQ(f->input(0).get_partial_shape(), (PartialShape{5, 20, 20, 1}));
+    EXPECT_EQ(f->input(1).get_partial_shape(), (PartialShape{5, 10, 10, 1}));
+    EXPECT_EQ(f->input(2).get_partial_shape(), (PartialShape{5, 10, 10, 1}));
+}
+
 TEST(pre_post_process, convert_color_same_type) {
     auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
     EXPECT_NO_THROW(f = PrePostProcessor(f)
@@ -336,9 +411,27 @@ TEST(pre_post_process, convert_color_incorrect_subnames) {
         ov::AssertFailure);
 
     EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE, {"Test"});
+            p.input().preprocess().convert_color(ColorFormat::RGB);
+            f = p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
         f = PrePostProcessor(f)
                 .input(InputInfo().tensor(InputTensorInfo().set_color_format(ColorFormat::NV12_TWO_PLANES, {"Test"})))
                 .build(),
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES, {"Test"});
+            p.input().preprocess().convert_color(ColorFormat::BGR);
+            p.build();
+        },
         ov::AssertFailure);
 
     EXPECT_THROW(f = PrePostProcessor(f)
@@ -429,6 +522,43 @@ TEST(pre_post_process, unsupported_network_color_format) {
                                     .preprocess(PreProcessSteps().scale(2.1f).convert_color(ColorFormat::RGB)))
                          .build(),
                  ov::AssertFailure);
+}
+
+TEST(pre_post_process, unsupported_network_color_format_i420) {
+    auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+            f = p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
+            f = p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+            p.input().preprocess().convert_layout("NCHW").convert_color(ColorFormat::RGB);
+            f = p.build();
+        },
+        ov::AssertFailure);
+
+    EXPECT_THROW(
+        {
+            auto p = PrePostProcessor(f);
+            p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
+            p.input().preprocess().scale(2.1).convert_color(ColorFormat::BGR);
+            f = p.build();
+        },
+        ov::AssertFailure);
 }
 
 TEST(pre_post_process, custom_preprocessing) {
