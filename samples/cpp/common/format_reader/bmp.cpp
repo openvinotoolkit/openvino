@@ -5,9 +5,7 @@
 #include <fstream>
 #include <iostream>
 
-// clang-format off
 #include "bmp.h"
-// clang-format on
 
 using namespace std;
 using namespace FormatReader;

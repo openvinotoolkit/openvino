@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "statistics_report.hpp"
-
 #include <algorithm>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "statistics_report.hpp"
 
 void StatisticsReport::addParameters(const Category& category, const Parameters& parameters) {
     if (_parameters.count(category) == 0)

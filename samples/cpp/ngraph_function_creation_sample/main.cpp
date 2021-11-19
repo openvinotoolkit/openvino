@@ -252,7 +252,7 @@ int main(int argc, char* argv[]) {
         OPENVINO_ASSERT(output_shape.size() == 2, "Incorrect output dimensions for LeNet");
 
         const auto classCount = output_shape[1];
-        OPENVINO_ASSERT(classCount <= 10, "Incorrect number of output classes for LeNet model");
+        OPENVINO_ASSERT(classCount <= LENET_NUM_CLASSES, "Incorrect number of output classes for LeNet model");
 
         // -------- Step 3. Apply preprocessing --------
         const Layout tensor_layout{"NHWC"};
@@ -310,7 +310,7 @@ int main(int argc, char* argv[]) {
 
         // Prints formatted classification results
         ClassificationResult classification_result(output_tensor,
-                                                   lenet_labels,
+                                                   lenet_labels, // in this sample images have the same names as labels
                                                    batch_size,
                                                    N_TOP_RESULTS,
                                                    lenet_labels);

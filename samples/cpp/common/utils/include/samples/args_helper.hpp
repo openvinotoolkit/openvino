@@ -12,8 +12,9 @@
 // clang-format off
 #include <string>
 #include <vector>
-#include <inference_engine.hpp>
-#include <openvino/openvino.hpp>
+
+#include "inference_engine.hpp"
+#include "openvino/openvino.hpp"
 // clang-format on
 
 /**

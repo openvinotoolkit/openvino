@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "remote_blobs_filling.hpp"
-
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "remote_blobs_filling.hpp"
 
 namespace gpu {
 

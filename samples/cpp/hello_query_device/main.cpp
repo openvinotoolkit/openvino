@@ -89,7 +89,7 @@ void printAnyValue(const ov::Any& value) {
 int main(int argc, char* argv[]) {
     try {
         // -------- Get OpenVINO runtime version --------
-        slog::info << ov::get_openvino_version() << slog::endl;
+        slog::info << *ov::get_openvino_version() << slog::endl;
 
         // -------- Parsing and validation of input arguments --------
         if (argc != 1) {

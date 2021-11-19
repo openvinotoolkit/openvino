@@ -5,9 +5,9 @@
 #include <iostream>
 
 // clang-format off
+#include "bmp.h"
 #include "MnistUbyte.h"
 #include "yuv_nv12.h"
-#include "bmp.h"
 #include "opencv_wrapper.h"
 #include "format_reader.h"
 // clang-format on

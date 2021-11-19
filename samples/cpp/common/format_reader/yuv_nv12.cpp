@@ -6,9 +6,7 @@
 #include <iostream>
 #include <string>
 
-// clang-format off
 #include "yuv_nv12.h"
-// clang-format on
 
 using namespace FormatReader;
 

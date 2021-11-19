@@ -6,9 +6,7 @@
 #include <iostream>
 #include <string>
 
-// clang-format off
 #include "MnistUbyte.h"
-// clang-format on
 
 using namespace FormatReader;
 

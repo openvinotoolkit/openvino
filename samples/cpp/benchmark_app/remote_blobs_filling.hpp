@@ -7,7 +7,7 @@
 #    include <gpu/gpu_context_api_ocl.hpp>
 #endif
 
-#include <inference_engine.hpp>
+#include "inference_engine.hpp"
 
 #include "infer_request_wrap.hpp"
 #include "utils.hpp"

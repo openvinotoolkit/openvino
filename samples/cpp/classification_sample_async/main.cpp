@@ -162,10 +162,28 @@ int main(int argc, char* argv[]) {
         }
 
         // -------- Step 9. Do asynchronous inference --------
+        size_t num_iterations = 10;
+        size_t cur_iteration = 0;
+        std::condition_variable condVar;
+        std::mutex mutex;
+
+        // -------- Step 10. Do asynchronous inference --------
         infer_request.set_callback([&](std::exception_ptr ex) {
             if (ex)
                 throw ex;
-            slog::info << "Completed async request execution" << slog::endl;
+
+            std::lock_guard<std::mutex> l(mutex);
+            cur_iteration++;
+            slog::info << "Completed " << cur_iteration << " async request execution" << slog::endl;
+            if (cur_iteration < num_iterations) {
+                // here a user can read output containing inference results and put new
+                // input to repeat async request again */
+                infer_request.start_async();
+            } else {
+                // continue sample execution after last Asynchronous inference request
+                // execution
+                condVar.notify_one();
+            }
         });
 
         // Start async request for the first time
@@ -173,12 +191,15 @@ int main(int argc, char* argv[]) {
         infer_request.start_async();
 
         // Wait all iterations of the async request
-        infer_request.wait();
+        std::unique_lock<std::mutex> lock(mutex);
+        condVar.wait(lock, [&] { return cur_iteration == num_iterations; });
 
-        // -------- Step 10. Process output --------
+        slog::info << "Completed async requests execution" << slog::endl;
+
+        // -------- Step 11. Process output --------
         ov::runtime::Tensor output = infer_request.get_output_tensor();
 
-        /** Read labels from file (e.x. AlexNet.labels) **/
+        // Read labels from file (e.x. AlexNet.labels)
         std::string labelFileName = fileNameNoExt(FLAGS_m) + ".labels";
         std::vector<std::string> labels;
 
