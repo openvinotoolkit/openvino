@@ -71,7 +71,7 @@ def get_element_type(precision):
 
 def process_precision(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
     # TODO: raise python exception if precion in input_output_precision rewrite input_precision/output_precision
-    pre_post_processor = PrePostProcessor()
+    pre_post_processor = PrePostProcessor(function)
     if input_precision:
         element_type = get_element_type(input_precision)
         for i in range(len(function.inputs)):
@@ -97,6 +97,7 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
                 pre_post_processor.output(OutputInfo(port).tensor(OutputTensorInfo().set_element_type(element_type)))
             else:
                 raise Exception(f"Node '{name}' does not exist in network")
+
     # update app_inputs_info
     if not input_precision:
         inputs = function.inputs
@@ -108,7 +109,7 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
                 pre_post_processor.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(Type.u8)))
             else:
                 app_inputs_info[i].element_type = inputs[i].get_element_type()
-    function = pre_post_processor.build(function)
+    function = pre_post_processor.build()
 
 
 def _parse_arg_map(arg_map: str):
