@@ -23,10 +23,6 @@ using namespace mkldnn::impl::cpu::x64;
 
 bool MKLDNNAdaptivePoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveAvgPool::get_type_info_static())) {
             auto adaPool = std::dynamic_pointer_cast<const ngraph::opset8::AdaptiveAvgPool>(op);
             if (!adaPool) {
@@ -74,12 +70,10 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     if (getChildEdges().size() != (algorithm == AdaptivePoolingMax ? 2 : 1))
         IE_THROW() << errorPrefix << "has incorrect number of output edges: " << getParentEdges().size();
 
-    auto parentDims = getInputShapeAtPort(0).getStaticDims();
-    auto childDims = getOutputShapeAtPort(0).getStaticDims();
-
-    spatialDimsCount = parentDims.size() - 2;
+    auto srcRank = getInputShapeAtPort(0).getRank();
+    spatialDimsCount = srcRank - 2;
     if (!one_of(spatialDimsCount, 1, 2, 3)) {
-        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << getInputShapeAtPort(0).getRank();
+        IE_THROW() << errorPrefix << "doesn't support 0th input with rank: " << srcRank;
     }
 
     if (getInputShapeAtPort(1).getRank() != 1) {
@@ -104,7 +98,8 @@ void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize((algorithm == Algorithm::AdaptivePoolingAvg ? 1 : 2));
 
     std::vector<LayoutType> dataFormats{ LayoutType::ncsp };
-    if (getInputShapeAtPort(0).getStaticDims()[1] != 1) {
+    const auto &inDims = getInputShapeAtPort(0).getDims();
+    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] != 1) {
         dataFormats.push_back(LayoutType::nspc);
         dataFormats.push_back(LayoutType::nCsp16c);
         dataFormats.push_back(LayoutType::nCsp8c);

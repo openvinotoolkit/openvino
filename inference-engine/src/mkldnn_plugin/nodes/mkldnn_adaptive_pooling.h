@@ -30,6 +30,10 @@ private:
     inline void setBinBorders(size_t *startPtr, size_t *endPtr, size_t idx, size_t inputLength, size_t outputLength);
 
     std::string errorPrefix;
+
+protected:
+    bool needPrepareParams() const override { return false; };
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); };
 };
 
 }  // namespace MKLDNNPlugin
