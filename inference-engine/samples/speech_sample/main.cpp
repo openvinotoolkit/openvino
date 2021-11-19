@@ -990,10 +990,22 @@ int main(int argc, char* argv[]) {
                         }
                         /* waits until inference result becomes available */
                         if (inferRequest.frameIndex != -1) {
-                            StatusCode code =
+                            auto code = StatusCode::OK;
+                            try {
+                            code =
                                 inferRequest.inferRequest.Wait(InferenceEngine::InferRequest::WaitMode::RESULT_READY);
-
-                            if (code != StatusCode::OK) {
+                            } catch (const std::exception& error) {
+                                slog::err << error.what() << slog::endl;
+                                //ignoring
+                                code = StatusCode::GENERAL_ERROR;
+                            }
+                            if (code == StatusCode::GENERAL_ERROR) {
+                                //executableNet = ie.LoadNetwork(network, deviceStr, genericPluginConfig);
+                                executableNet.SetConfig({{GNAConfigParams::KEY_GNA_DEVICE_MODE, "GNA_SW_EXACT"}});
+                                //inferRequest.inferRequest = executableNet.CreateInferRequest();
+                                code = StatusCode::OK;
+                            }
+                            else if (code != StatusCode::OK) {
                                 if (!useHetero)
                                     continue;
                                 if (code != StatusCode::INFER_NOT_STARTED)
