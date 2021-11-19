@@ -162,18 +162,19 @@ void AutoBatchInferRequest::CopyBlobIfNeeded(InferenceEngine::Blob::CPtr src, In
     auto ptrSrc = bufferSrc.as<const char*>();
     ptrdiff_t szDst = dst->byteSize();
     ptrdiff_t szSrc = src->byteSize();
+    // to do check the int vs float math for offset
     if (bInput) {
         ptrdiff_t offset = szSrc != szDst ? _batchId*szDst/_batchSize : 0;
-        if (ptrDst - ptrSrc < szDst)
+        if ((ptrDst + offset) == ptrSrc)
             return;
         else
-           memcpy(ptrDst + offset, ptrSrc, src->byteSize());
+           memcpy(ptrDst + offset, ptrSrc, szSrc);
     } else {
         ptrdiff_t offset = szSrc != szDst ? _batchId*szSrc/_batchSize : 0;
-        if (ptrSrc - ptrDst < szDst)
+        if ((ptrSrc + offset) == ptrDst)
             return;
         else
-            memcpy(ptrDst, ptrSrc + offset, dst->byteSize());
+            memcpy(ptrDst, ptrSrc + offset, szDst);
     }
     // std::cout << "!!! COPY !!!" << std::endl;
 }
@@ -206,6 +207,7 @@ AutoBatchAsyncInferRequest::AutoBatchAsyncInferRequest(
             std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task> t;
             t.first = _this;
             t.second = std::move(task);
+            // std::lock_guard<std::mutex>(workerInferRequest->_mutex);
             workerInferRequest->_tasks.push(t);
             const int sz = workerInferRequest->_tasks.unsafe_size();
             if (sz == workerInferRequest->_batchSize) {
@@ -249,14 +251,7 @@ AutoBatchExecutableNetwork::AutoBatchExecutableNetwork(const InferenceEngine::So
 }
 
 AutoBatchExecutableNetwork::~AutoBatchExecutableNetwork() {
-//    {
-//        std::lock_guard<std::mutex> lock(_mutex);
-//        _device = {};
-//    }
     _terminate = true;
-    /* NOTE: The only threads that use `AutoBatchExecutableNetwork` Context are those that are used by Worker infer requests.
-     *       But AsyncInferRequest destructor should waits for all asynchronous tasks that are used by the request
-     */
     for (auto w : _workerRequests) {
         w->_thread.join();
     }
@@ -586,7 +581,7 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
 
 InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                               const std::map<std::string, std::string>& config) const {
-//    IE_THROW() <<NOT_IMPLEMENTED_str;
+//    IE_THROW(NotImplemented);
     const std::map<std::string, std::string> cfg;
     return GetCore()->QueryNetwork(network, "CPU", cfg);
 }
