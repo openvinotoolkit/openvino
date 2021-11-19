@@ -13,7 +13,8 @@
 #include <ngraph/opsets/opset8.hpp>
 #include <string>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/rt_info/old_api_map_attribute.hpp>
+#include <transformations/rt_info/old_api_map_order_attribute.hpp>
+#include <transformations/rt_info/old_api_map_element_type_attribute.hpp>
 #include "frontend_manager/frontend_manager.hpp"
 #include "graph_comparator.hpp"
 #include "ie_blob.h"
@@ -35,8 +36,8 @@ protected:
         std::istringstream modelStringStream(model);
         std::istream& modelStream = modelStringStream;
 
-        ngraph::frontend::FrontEnd::Ptr FE;
-        ngraph::frontend::InputModel::Ptr inputModel;
+        ov::frontend::FrontEnd::Ptr FE;
+        ov::frontend::InputModel::Ptr inputModel;
 
         ov::VariantVector params{ov::make_variant(&modelStream)};
 
@@ -51,7 +52,7 @@ protected:
     }
 
 private:
-    ngraph::frontend::FrontEndManager manager;
+    ov::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoDeserialization, NodeV10) {
@@ -62,7 +63,8 @@ TEST_F(RTInfoDeserialization, NodeV10) {
             <data element_type="f16" shape="1,3,22,22"/>
             <rt_info>
                 <attribute name="fused_names" version="0" value="in1"/>
-                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f16"/>
+                <attribute name="old_api_map_order" version="0" value="0,2,3,1" />
+                <attribute name="old_api_map_element_type" version="0" value="f16"/>
             </rt_info>
             <output>
                 <port id="0" precision="FP16" names="input_tensor">
@@ -119,8 +121,10 @@ TEST_F(RTInfoDeserialization, NodeV10) {
         const std::string& key = VariantWrapper<ngraph::FusedNames>::get_type_info_static();
         EXPECT_FALSE(info.count(key));
 
-        const std::string& key_old_api = ov::OldApiMap::get_type_info_static();
-        EXPECT_FALSE(info.count(key_old_api));
+        const std::string& key_old_api_order = ov::OldApiMapOrder::get_type_info_static();
+        EXPECT_FALSE(info.count(key_old_api_order));
+        const std::string& key_old_api_element_type = ov::OldApiMapElementType::get_type_info_static();
+        EXPECT_FALSE(info.count(key_old_api_element_type));
     };
 
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int version_ref) {
@@ -357,7 +361,8 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,22,22,3"/>
             <rt_info>
-                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f16"/>
+                <attribute name="old_api_map_element_type" version="0" value="f16"/>
+                <attribute name="old_api_map_order" version="0" value="0,2,3,1"/>
                 <attribute name="fused_names" version="0" value="in1"/>
             </rt_info>
             <output>
@@ -393,7 +398,7 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
             <rt_info>
-                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="f16"/>
+                <attribute name="old_api_map_order" version="0" value="0,3,1,2"/>
             </rt_info>
             <input>
                 <port id="0" precision="FP32">
@@ -422,15 +427,23 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         EXPECT_EQ(fused_names_attr->get().getNames(), names);
     };
 
-    auto check_old_api_map = [](const RTMap & info, const std::vector<uint64_t> & order, const ngraph::element::Type& type) {
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
+    auto check_old_api_map_order = [](const RTMap & info, const std::vector<uint64_t> & order) {
+        const std::string & old_api_map_key = ov::OldApiMapOrder::get_type_info_static();
         ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(info.at(old_api_map_key));
         ASSERT_TRUE(old_api_map_attr);
         auto old_api_map_attr_val = old_api_map_attr->get();
-        EXPECT_EQ(old_api_map_attr_val.get_order(), order);
-        EXPECT_EQ(old_api_map_attr_val.get_type(), type);
+        EXPECT_EQ(old_api_map_attr_val, order);
     };
+    auto check_old_api_map_type = [](const RTMap & info, const ngraph::element::Type& type) {
+        const std::string & old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapElementType>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_attr);
+        auto old_api_map_attr_val = old_api_map_attr->get();
+        EXPECT_EQ(old_api_map_attr_val, type);
+    };
+
     auto check_version = [](const std::shared_ptr<ov::Function>& f, int ref_version) {
         auto& rt_info = f->get_rt_info();
         ASSERT_TRUE(rt_info.count("version"));
@@ -442,10 +455,11 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->get_rt_info(), "in1");
-    check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}), ngraph::element::Type_t::f16);
+    check_old_api_map_order(param->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}));
+    check_old_api_map_type(param->get_rt_info(), ngraph::element::Type_t::f16);
 
     auto result = f->get_result();
-    check_old_api_map(result->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}), ngraph::element::Type_t::f16);
+    check_old_api_map_order(result->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}));
     auto round = result->get_input_node_ptr(0);
     check_fused_names(round->get_rt_info(), "Round1,Round2");
 
@@ -455,13 +469,10 @@ TEST_F(RTInfoDeserialization, NodeV11) {
         auto f_11 = core.read_model(model, ov::runtime::Tensor());
         ASSERT_NE(nullptr, f_11);
 
-        check_old_api_map(f_11->get_parameters()[0]->get_rt_info(),
-                          std::vector<uint64_t>({0, 2, 3, 1}),
-                          ngraph::element::Type_t::f16);
+        check_old_api_map_order(f_11->get_parameters()[0]->get_rt_info(), std::vector<uint64_t>({0, 2, 3, 1}));
+        check_old_api_map_type(f_11->get_parameters()[0]->get_rt_info(), ngraph::element::Type_t::f16);
 
-        check_old_api_map(f_11->get_result()->get_rt_info(),
-                          std::vector<uint64_t>({0, 3, 1, 2}),
-                          ngraph::element::Type_t::f16);
+        check_old_api_map_order(f_11->get_result()->get_rt_info(), std::vector<uint64_t>({0, 3, 1, 2}));
 
         auto res = compare_functions(f, f_11);
         EXPECT_TRUE(res.first) << res.second;
@@ -498,12 +509,10 @@ TEST_F(RTInfoDeserialization, NodeV11) {
                                                                   std::vector<uint64_t>{0, 3, 1, 2});
         auto transpose_result = std::make_shared<opset8::Transpose>(round, constant_result);
 
-        auto convert_result = std::make_shared<opset8::Convert>(transpose_result, type);
+        transpose_result->set_friendly_name("Round");
+        transpose_result->get_output_tensor(0).set_names({"output_tensor"});
 
-        convert_result->set_friendly_name("Round");
-        convert_result->get_output_tensor(0).set_names({"output_tensor"});
-
-        auto result = std::make_shared<opset8::Result>(convert_result);
+        auto result = std::make_shared<opset8::Result>(transpose_result);
         result->set_friendly_name("output");
 
         auto f_10_ref =
@@ -538,8 +547,10 @@ TEST_F(RTInfoDeserialization, NodeV11) {
 
         // check that old api map is removed once applied
         auto check_old_api_rt_info = [](const RTMap & info) {
-            const std::string & key = ov::OldApiMap::get_type_info_static();
-            EXPECT_EQ(0, info.count(key));
+            const std::string & key_order = ov::OldApiMapOrder::get_type_info_static();
+            EXPECT_EQ(0, info.count(key_order));
+            const std::string & key_type = ov::OldApiMapElementType::get_type_info_static();
+            EXPECT_EQ(0, info.count(key_type));
         };
 
         check_old_api_rt_info(f_10_core->get_parameters()[0]->get_rt_info());
@@ -553,15 +564,81 @@ TEST_F(RTInfoDeserialization, NodeV11) {
     }
 }
 
+TEST_F(RTInfoDeserialization, NodeV11MultipleRTKeys) {
+    std::string model = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset8">
+            <data element_type="f32" shape="1,22,22,3"/>
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="0,2,3,1" element_type="f16"/>
+                <attribute name="old_api_map" version="0" order="0,1,2,3" element_type="f32"/>
+                <attribute name="fused_names" version="0" value="in1"/>
+            </rt_info>
+            <output>
+                <port id="0" precision="FP32" names="input_tensor">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Round" id="1" type="Round" version="opset8">
+            <data mode="half_to_even"/>
+            <rt_info>
+                <attribute name="fused_names" version="0" value="Round1,Round2"/>
+            </rt_info>
+            <input>
+                <rt_info>
+                    <attribute name="fused_names" version="0" value="check"/>
+                    <attribute name="fused_names" version="0" value="multiple_keys"/>
+                </rt_info>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32" names="output_tensor">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset8">
+            <rt_info>
+                <attribute name="old_api_map" version="0" order="0,3,1,2" element_type="f16"/>
+            </rt_info>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    ASSERT_ANY_THROW(getWithIRFrontend(model));
+}
+
 TEST_F(RTInfoDeserialization, InputAndOutputV11) {
     std::string model = R"V0G0N(
 <net name="Network" version="11">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset8">
             <data element_type="f32" shape="1,3,22,22"/>
-            <rt_info>
-                <attribute name="old_api_map" version="0" order="" element_type="undefined"/>
-            </rt_info>
             <output>
                 <port id="0" precision="FP32">
                     <rt_info>
@@ -609,9 +686,6 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
             </output>
         </layer>
         <layer name="output" type="Result" id="2" version="opset8">
-            <rt_info>
-                <attribute name="old_api_map" version="0" order="" element_type="undefined"/>
-            </rt_info>
             <input>
                 <port id="0" precision="FP32">
                     <rt_info>
@@ -653,24 +727,13 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
         ASSERT_EQ(fused_names_attr->get().getNames(), names);
     };
 
-    auto check_old_api_map = [](const RTMap& info, const std::vector<uint64_t>& order, ngraph::element::Type type) {
-        const std::string& old_api_map_key = ov::OldApiMap::get_type_info_static();
-        ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
-        ASSERT_TRUE(old_api_map_attr);
-        auto old_api_map_attr_val = old_api_map_attr->get();
-        ASSERT_EQ(old_api_map_attr_val.get_order(), order);
-        ASSERT_EQ(old_api_map_attr_val.get_type(), type);
-    };
 
     auto param = f->get_parameters()[0];
     check_fused_names(param->output(0).get_rt_info(), "test1,test2");
-    check_old_api_map(param->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
     EXPECT_EQ(param->get_layout(), "NCHW");
 
     auto result = f->get_result();
     check_fused_names(result->input(0).get_rt_info(), "test5,test6");
-    check_old_api_map(result->get_rt_info(), std::vector<uint64_t>({}), ngraph::element::Type_t::undefined);
     EXPECT_EQ(f->get_results()[0]->get_layout(), "?CHW");
 
     auto add = result->get_input_node_ptr(0);
@@ -690,8 +753,10 @@ TEST_F(RTInfoDeserialization, InputAndOutputV11) {
 
         // check that old api map is removed once applied
         auto check_old_api_rt_info = [](const RTMap& info) {
-            const std::string& key = ov::OldApiMap::get_type_info_static();
-            EXPECT_FALSE(info.count(key));
+            const std::string& key_type = ov::OldApiMapElementType::get_type_info_static();
+            EXPECT_FALSE(info.count(key_type));
+            const std::string& key_order = ov::OldApiMapElementType::get_type_info_static();
+            EXPECT_FALSE(info.count(key_order));
         };
 
         check_old_api_rt_info(f_10->get_parameters()[0]->get_rt_info());

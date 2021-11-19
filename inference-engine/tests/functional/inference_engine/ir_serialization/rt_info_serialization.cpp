@@ -30,8 +30,8 @@ protected:
 
     std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model_path,
                                                         const std::string& weights_path) {
-        ngraph::frontend::FrontEnd::Ptr FE;
-        ngraph::frontend::InputModel::Ptr inputModel;
+        ov::frontend::FrontEnd::Ptr FE;
+        ov::frontend::InputModel::Ptr inputModel;
 
         ov::VariantVector params{ov::make_variant(model_path), ov::make_variant(weights_path)};
 
@@ -46,17 +46,20 @@ protected:
     }
 
 private:
-    ngraph::frontend::FrontEndManager manager;
+    ov::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
-    auto init_info = [](RTMap & info) {
+    auto init_info = [](RTMap& info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
         info[ov::PrimitivesPriority::get_type_info_static()] =
                 std::make_shared<ov::PrimitivesPriority>("priority");
-        info[ov::OldApiMap::get_type_info_static()] = std::make_shared<ov::OldApiMap>(
-                ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
+        info[ov::OldApiMapOrder::get_type_info_static()] =
+                std::make_shared<ov::OldApiMapOrder>(std::vector<uint64_t>{0, 2, 3, 1});
+        info[ov::OldApiMapElementType::get_type_info_static()] = std::make_shared<ov::OldApiMapElementType>(
+                ngraph::element::Type_t::f32);
+        info[ov::Decompression::get_type_info_static()] = std::make_shared<ov::Decompression>();
     };
 
     std::shared_ptr<ngraph::Function> function;
@@ -93,13 +96,24 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
         ASSERT_TRUE(primitives_priority_attr);
         ASSERT_EQ(primitives_priority_attr->get(), "priority");
 
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
-        ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        const std::string & old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key_order));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(info.at(old_api_map_key_order));
         ASSERT_TRUE(old_api_map_attr);
         auto old_api_map_attr_val = old_api_map_attr->get();
-        ASSERT_EQ(old_api_map_attr_val.get_order(), std::vector<uint64_t>({0, 2, 3, 1}));
-        ASSERT_EQ(old_api_map_attr_val.get_type(), ngraph::element::Type_t::f32);
+        ASSERT_EQ(old_api_map_attr_val, std::vector<uint64_t>({0, 2, 3, 1}));
+
+        const std::string & old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_type = std::dynamic_pointer_cast<ov::OldApiMapElementType>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_type);
+        auto old_api_map_type_val = old_api_map_type->get();
+        ASSERT_EQ(old_api_map_type_val, ngraph::element::Type_t::f32);
+
+        const std::string& dkey = ov::Decompression::get_type_info_static();
+        ASSERT_TRUE(info.count(dkey));
+        auto decompression_attr = std::dynamic_pointer_cast<ov::Decompression>(info.at(dkey));
+        ASSERT_TRUE(decompression_attr);
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);

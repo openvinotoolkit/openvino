@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <list>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -24,13 +25,20 @@
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
+class FunctionAccessor;
 /// A user-defined function.
 class OPENVINO_API Function : public std::enable_shared_from_this<Function> {
 public:
-    static constexpr ov::DiscreteTypeInfo type_info{"Function", 0};
-    const ov::DiscreteTypeInfo& get_type_info() const {
+    static const ::ov::DiscreteTypeInfo& get_type_info_static() {
+        static const ::ov::DiscreteTypeInfo type_info{"Function", 0};
         return type_info;
     }
+    const ::ov::DiscreteTypeInfo& get_type_info() const {
+        return get_type_info_static();
+    }
+    OPENVINO_DEPRECATED("This member was deprecated. Please use ::get_type_info_static() instead.")
+    static const ov::DiscreteTypeInfo type_info;
+
     Function(const ov::NodeVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
 
     Function(const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name = "");
@@ -288,6 +296,8 @@ public:
     Function& operator=(Function&&) = delete;
 
 private:
+    friend class ov::FunctionAccessor;
+
     /// \brief Depending on the options selected,
     /// checks all the Parameter/Variables are registered in the list of Function
     /// parameters/variables or finds all Parameters/Variables in a function and registers them.
@@ -310,6 +320,17 @@ private:
     ov::ParameterVector m_parameters;
     ov::op::util::VariableVector m_variables;
     RTMap m_rt_info;
+
+    // Cache of topologically sorted nodes which is stored as a vector
+    // of weak_ptr not to increase node ref counter to prevent the situation when
+    // node has no consumers but still exists in a graph.
+    mutable std::vector<std::weak_ptr<Node>> m_cached_ordered_ops;
+
+    // Private runtime info which is shared across nodes and used only
+    // for internal purposes.
+    std::shared_ptr<SharedRTInfo> m_shared_rt_info;
+
+    mutable std::mutex m_topological_sort_mutex;
 };
 
 OPENVINO_API

@@ -155,7 +155,6 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
@@ -172,16 +171,6 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         for (const auto& g : m_graphs)
             f+= g->get_mem_footprint();
         IE_SET_METRIC_RETURN(GPU_NETWORK_MEM_FOOTPRINT, f);
-    } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS)) {
-        std::map<std::string, uint64_t> statistics;
-        if (m_context != nullptr) {
-            auto impl = getContextImpl(m_context);
-            impl->acquire_lock();
-            std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
-            eng->get_memory_statistics(&statistics);
-            impl->release_lock();
-        }
-        IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }
