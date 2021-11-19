@@ -19,7 +19,6 @@ using topKParams = std::tuple<
     ngraph::element::Type, // data precision
     InputShape, // data shape
     std::int64_t, // axis
-    std::vector<std::int64_t>, // seed to generate k values for each infer request
     ngraph::opset4::TopK::Mode,
     ngraph::opset4::TopK::SortType>;
 
@@ -29,10 +28,9 @@ public:
         ngraph::element::Type inputPrecision;
         InputShape inputShape;
         std::int64_t axis;
-        std::vector<std::int64_t> kVals;
         ngraph::opset4::TopK::Mode mode;
         ngraph::opset4::TopK::SortType sortType;
-        std::tie(inputPrecision, inputShape, axis, kVals, mode, sortType) = obj.param;
+        std::tie(inputPrecision, inputShape, axis, mode, sortType) = obj.param;
 
         std::ostringstream result;
         result << inputPrecision << "_" << "IS=" << CommonTestUtils::partialShape2str({ inputShape.first }) << "_" << "TS=(";
@@ -40,7 +38,7 @@ public:
             result << CommonTestUtils::vec2str(shape) << "_";
         }
 
-        result << ")_axis=" << axis << "_k_vals=" << CommonTestUtils::vec2str(kVals) << "_mode=" << mode << "_sortType=" << sortType;
+        result << ")_axis=" << axis << "_mode=" << mode << "_sortType=" << sortType;
         return result.str();
     }
 
@@ -59,19 +57,13 @@ protected:
         }
 
         const auto axis = std::get<2>(this->GetParam());
-        const auto kValues = std::get<3>(this->GetParam());
         const auto& kPrecision = funcInputs[1].get_element_type();
         const auto& kShape = targetInputStaticShapes[1];
 
-        ov::runtime::Tensor kTensor;
-        if (inferRequestNum < kValues.size()) {
-            const size_t startFrom = 1;
-            const size_t range = targetInputStaticShapes[0][axis] - 1;
-            const size_t seed = kValues[inferRequestNum++];
-            kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
-        } else {
-            IE_THROW() << "k for current infer request wasn't defined.";
-        }
+        const size_t startFrom = 1;
+        const size_t range = targetInputStaticShapes[0][axis] - 1;
+        const size_t seed = inferRequestNum++;
+        const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
 
         inputs.insert({ funcInputs[0].get_node_shared_ptr(), data_tensor });
         inputs.insert({ funcInputs[1].get_node_shared_ptr(), kTensor });
@@ -82,15 +74,16 @@ protected:
         ngraph::element::Type inputPrecision;
         InputShape inputShape;
         std::int64_t axis;
-        std::vector<std::int64_t> k;
         ngraph::opset4::TopK::Mode mode;
         ngraph::opset4::TopK::SortType sortType;
-        std::tie(inputPrecision, inputShape, axis, k, mode, sortType) = this->GetParam();
+        std::tie(inputPrecision, inputShape, axis, mode, sortType) = this->GetParam();
 
         inputDynamicShapes = { inputShape.first, {} };
         for (size_t i = 0; i < inputShape.second.size(); ++i) {
             targetStaticShapes.push_back({ inputShape.second[i], {} });
         }
+
+        selectedType = makeSelectedTypeStr("ref_any", inputPrecision);
 
         auto params = ngraph::builder::makeDynamicParams(inputPrecision, { inputDynamicShapes[0] });
         auto k_param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, inputDynamicShapes[1]);
@@ -114,8 +107,7 @@ TEST_P(TopKLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    //CheckPluginRelatedResults(executableNetwork, "TopK");
+    CheckPluginRelatedResults(executableNetwork, "TopK");
 }
 
 const ngraph::element::TypeVector inputPrecisions = {
@@ -123,12 +115,6 @@ const ngraph::element::TypeVector inputPrecisions = {
 };
 
 const std::vector<int64_t> axes = { 0, 1, 2 };
-
-const std::vector<std::vector<std::int64_t>> k_vals = {
-    { 1, 3, 5 },
-    { 3, 3, 3 },
-    { 3, 5, 5 }
-};
 
 const std::vector<ngraph::opset4::TopK::Mode> modes = {
     ngraph::opset4::TopK::Mode::MIN,
@@ -177,7 +163,6 @@ const auto testCases = ::testing::Combine(
     ::testing::ValuesIn(inputPrecisions),
     ::testing::ValuesIn(inShapes),
     ::testing::ValuesIn(axes),
-    ::testing::ValuesIn(k_vals),
     ::testing::ValuesIn(modes),
     ::testing::ValuesIn(sortTypes)
 );
