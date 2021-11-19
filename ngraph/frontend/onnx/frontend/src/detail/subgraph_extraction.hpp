@@ -26,11 +26,15 @@ struct SubgraphExtractor {
 
     /// \brief Adds new inputs to the graph and connects them to the nodes indicated by
     ///        the provided input edges.
-    void add_new_inputs(const std::vector<InputEdge>& new_inputs);
+    /// \param merge_inputs Flag indicating wheteher new inputs are generated for each input edge (false)
+    ///                     or there is only one input created for passing edges (true).
+    void add_new_inputs(const std::vector<InputEdge>& new_inputs, const bool merge_inputs = false);
 
     /// \brief Adds new outputs to the graph with the same name as the nodes pointed to
     ///        by the input edges "new_outputs".
-    void add_new_outputs(const std::vector<OutputEdge>& new_outputs);
+    ///\param merge_outputs Flag indicating wheteher new outputs are generated for each output edge (false)
+    ///                     or there is only one output created for passing edges (true).
+    void add_new_outputs(const std::vector<OutputEdge>& new_outputs, const bool merge_outputs = false);
 
     /// \brief Extracts the final subgraph by traversing the original model bottom-up
     ///        starting at each of the provided output edges. The extracted subgraph

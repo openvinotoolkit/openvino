@@ -12,6 +12,65 @@
 
 namespace py = pybind11;
 
+py::array as_contiguous(py::array& array, ov::element::Type type) {
+    switch (type) {
+    // floating
+    case ov::element::f64:
+        return array.cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
+    case ov::element::f32:
+        return array.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+    // signed
+    case ov::element::i64:
+        return array.cast<py::array_t<int64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i32:
+        return array.cast<py::array_t<int32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i16:
+        return array.cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i8:
+        return array.cast<py::array_t<int8_t, py::array::c_style | py::array::forcecast>>();
+    // unsigned
+    case ov::element::u64:
+        return array.cast<py::array_t<uint64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u32:
+        return array.cast<py::array_t<uint32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u16:
+        return array.cast<py::array_t<uint16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u8:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // other
+    case ov::element::boolean:
+        return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u1:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // need to create a view on array to cast it correctly
+    case ov::element::f16:
+    case ov::element::bf16:
+        //return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    default:
+        throw ov::Exception("Tensor cannot be created as contiguous!");
+        break;
+    }
+}
+
+const std::map<py::str, ov::element::Type>& dtype_to_ov_type() {
+    static const std::map<py::str, ov::element::Type> dtype_to_ov_type_mapping = {
+        {"float16", ov::element::f16},
+        {"float32", ov::element::f32},
+        {"float64", ov::element::f64},
+        {"int8", ov::element::i8},
+        {"int16", ov::element::i16},
+        {"int32", ov::element::i32},
+        {"int64", ov::element::i64},
+        {"uint8", ov::element::u8},
+        {"uint16", ov::element::u16},
+        {"uint32", ov::element::u32},
+        {"uint64", ov::element::u64},
+        {"bool", ov::element::boolean},
+    };
+    return dtype_to_ov_type_mapping;
+}
+
+
 void regclass_pyngraph_InputModel(py::module m) {
     py::class_<ov::frontend::InputModel, std::shared_ptr<ov::frontend::InputModel>> im(m,
                                                                                        "InputModel",
@@ -382,7 +441,19 @@ void regclass_pyngraph_InputModel(py::module m) {
 
     im.def(
             "set_tensor_value",
-           [](ngraph::frontend::InputModel& self, ngraph::frontend::Place::Ptr& place, py::array& value) {
+           [](ov::frontend::InputModel& self, ov::frontend::Place::Ptr& place, py::array& value) {
+               auto type = dtype_to_ov_type().at(py::str(value.dtype()));
+               std::vector<size_t> shape(value.shape(), value.shape() + value.ndim());
+               auto tensor = ov::runtime::Tensor(type, shape);
+               py::buffer_info buf3 = value.request();
+               float *ptr3 = static_cast<float *>(buf3.ptr);
+               std::cout << "type" << type << std::endl;
+               std::cout << ptr3[0] << ", " << ptr3[1] << ", " << ptr3[2] << ", " << ptr3[3] << std::endl;
+
+               value = as_contiguous(value, type);
+               py::buffer_info buf = value.request();
+               std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
+
                self.set_tensor_value(place, (const void*)value.data());
            },
            py::arg("place"),

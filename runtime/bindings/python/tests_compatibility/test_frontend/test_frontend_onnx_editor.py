@@ -6,6 +6,7 @@ import onnx
 import pytest
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import numpy as np
+import openvino as ov
 from ngraph import PartialShape
 from ngraph.frontend import FrontEndManager
 
@@ -207,7 +208,43 @@ def create_test_onnx_models():
                                          outputs=["out4"])
     graph = make_graph([expected_split, relu, expected_mul], "test_graph", input_tensors, output_tensors)
     models["test_override_all_inputs.onnx"] = make_model(graph, producer_name="ONNX Importer",
-                                                         opset_imports=[onnx.helper.make_opsetid("", 13)])
+                                                         opset_imports=[onnx.helper.make_opsetid("", 13)])    
+                                                         
+    # Expected for cut_and_add_new_input_edge
+    input_tensors = [
+        make_tensor_value_info("in1", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in2", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("in3", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("new_input", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    new_mul = onnx.helper.make_node("Mul", inputs=["new_input", "add_out"], outputs=["out4"])
+    graph = make_graph([add, split, relu, new_mul], "test_graph", input_tensors, output_tensors)
+    models["cut_and_add_new_input_edge.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
+
+    # Expected for cut_and_add_new_input_place
+    input_tensors = [
+        make_tensor_value_info("in3", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("new_input", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    output_tensors = [
+        make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out2", onnx.TensorProto.FLOAT, (1, 2)),
+        make_tensor_value_info("out3", onnx.TensorProto.FLOAT, (2, 2)),
+        make_tensor_value_info("out4", onnx.TensorProto.FLOAT, (2, 2)),
+    ]
+    new_mul = onnx.helper.make_node("Mul", inputs=["new_input", "new_input"], outputs=["out4"])
+    new_split = onnx.helper.make_node("Split", inputs=["new_input"],
+                                  outputs=["out1", "out2"], name="split1", axis=0)
+    graph = make_graph([new_split, relu, new_mul], "test_graph", input_tensors, output_tensors)
+    models["cut_and_add_new_input_place.onnx"] = make_model(graph, producer_name="ONNX Importer",
+                                                   opset_imports=[onnx.helper.make_opsetid("", 13)])
 
     # test partial shape
     input_tensors = [
@@ -1152,7 +1189,7 @@ def test_get_place_by_operation_name_and_output_port():
     assert place1.is_equal(place2)
 
 
-def test_cut_and_add_new_input():
+def test_cut_and_add_new_input_place():
     skip_if_onnx_frontend_is_disabled()
     fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
     assert fe
@@ -1160,25 +1197,38 @@ def test_cut_and_add_new_input():
     model = fe.load("input_model.onnx")
     assert model
 
-    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
-    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
-    place2 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=1)
-    place3 = model.get_place_by_operation_name_and_input_port(operationName="split1", inputPortIndex=0)
-    #model.extract_subgraph(inputs=[place1, place2], outputs=[place3])
-
-    add_out_tensor = model.get_place_by_tensor_name(tensorName="add_out")
-    place4 = add_out_tensor.get_consuming_operations(outputPortIndex=1)
-
-    out4_tensor = model.get_place_by_tensor_name(tensorName="out4")
-    place1 = out4_tensor.get_producing_operation().get_input_port(inputPortIndex=0)
-
     place = model.get_place_by_tensor_name(tensorName="add_out")
-    #place = model.get_place_by_operation_name(operationName="split1")
-    #place = model.get_place_by_tensor_name(tensorName="add_out").get_output_port(inputPortIndex=0)
-    model.cut_and_add_new_input(place1)
 
-    in_names = [place.get_names()[0] for place in model.get_inputs()]
-    assert in_names == ["add_out", "in3"]
+    model.cut_and_add_new_input(place, "new_input")
+
+    expected_model = fe.load("cut_and_add_new_input_place.onnx")
+    expected_func = fe.convert(expected_model)
+    model_func = fe.convert(model)
+
+    res = compare_functions(model_func, expected_func)
+    assert res
+
+
+def test_cut_and_add_new_input_edge():
+    skip_if_onnx_frontend_is_disabled()
+    fe = fem.load_by_framework(framework=ONNX_FRONTEND_NAME)
+    assert fe
+
+    model = fe.load("input_model.onnx")
+    assert model
+
+    out4 = model.get_place_by_tensor_name(tensorName="out4")
+    mul_op = out4.get_producing_operation()
+    edge_mul0 = mul_op.get_input_port(inputPortIndex=0)
+
+    model.cut_and_add_new_input(edge_mul0, "new_input")
+
+    expected_model = fe.load("cut_and_add_new_input_edge.onnx")
+    expected_func = fe.convert(expected_model)
+    model_func = fe.convert(model)
+
+    res = compare_functions(model_func, expected_func)
+    assert res
 
 
 def test_set_tensor_value():
@@ -1190,19 +1240,40 @@ def test_set_tensor_value():
     assert model
 
     shape = (2, 2)
-    ones_arr = np.ones(shape, np.float)
+    ones_arr = np.ones(shape, np.float32)
+    #ones_arr = np.array()
+
+    model_func1 = fe.convert(model)
+
+    print(model_func1.get_results()[0])
+    print(model_func1.get_parameters())
 
     place1 = model.get_place_by_tensor_name(tensorName="in1")
-    place2 = model.get_place_by_tensor_name(tensorName="in2")
-    assert not place1.is_equal_data(place2)
 
     model.set_tensor_value(place1, ones_arr)
-    model.set_tensor_value(place2, ones_arr)
+    model_func = fe.convert(model)
 
-    assert place1.is_equal_data(place2)
+    node = None
 
-    #in_names = [place.get_names()[0] for place in model.get_inputs()]
-    #assert in_names == ["add_out", "in3"]
+    current_ops = model_func.get_ordered_ops()
+
+    for i in range(len(current_ops)):
+        if (current_ops[i].get_type_name() == "Constant"):
+            print(current_ops[i].get_friendly_name())
+            node = current_ops[i]
+
+    #node = model_func.input().get_source_output().get_node()
+    #print(model.input())
+    #node = ov.impl.util.get_constant_from_source(reshape.input(1).get_source_output())
+    #node = model_func.get_results()[0].input(0).get_source_output().get_node()
+    node = model_func.get_results()[0].input(0).get_source_output().get_node()
+    print(model_func.get_parameters())
+
+    assert node is not None
+
+    retrieved_data = node.get_data()
+    assert np.allclose(ones_arr, retrieved_data)
+
 
 def test_not_supported_methods():
     skip_if_onnx_frontend_is_disabled()

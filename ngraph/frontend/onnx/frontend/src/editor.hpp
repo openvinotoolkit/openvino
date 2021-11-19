@@ -81,7 +81,10 @@ public:
     ///
     /// \param inputs A collection of input edges which become new inputs to the graph
     /// \param outputs A collection of output edges which become new outputs of the graph
-    void cut_graph_fragment(const std::vector<InputEdge>& inputs, const std::vector<OutputEdge>& outputs);
+    /// \param merge_tensors Flag indicates whether newly created inputs/outputs after cutting shall be independent or merged,
+    ///                      false - each cutted edge will be connected with one new input/output,
+    ///                      true - new input/output will be created for several edges (if possible).
+    void cut_graph_fragment(const std::vector<InputEdge>& inputs, const std::vector<OutputEdge>& outputs, const bool merge_tensors = false);
 
     /// \brief Modifies the in-memory representation of the model by setting custom input
     ///        values for inputs specified in the provided map.

@@ -283,22 +283,47 @@ SubgraphExtractor::SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph)
     }
 }
 
-void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs) {
-    for (const auto& input_edge : new_inputs) {
+void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs, const bool merge_inputs) {
+    if (merge_inputs) {
+        const auto& input_edge = new_inputs[0];
         const auto tensor_name = get_input_tensor_name(m_onnx_graph, input_edge);
 
-        // in case an edge is connected to a single node, a new graph input should be added
-        // and connected to that node; the new edge is an edge between the node and new input
-        const auto new_input = append_new_graph_input(m_onnx_graph, input_edge, m_tensor_consumers[tensor_name]);
+        int input_consumers = m_tensor_consumers[tensor_name];
+        if (m_tensor_consumers[tensor_name] - new_inputs.size() == 0) {
+            input_consumers = 0;
+        }
+
+        const auto new_input = append_new_graph_input(m_onnx_graph, input_edge, input_consumers);
+
+        for (auto it = new_inputs.begin() + 1; it != new_inputs.end(); ++it){
+            auto& target_node = *(m_onnx_graph.mutable_node(it->m_node_idx));
+            auto target_input = target_node.mutable_input(it->m_port_idx);
+            *target_input = new_input.second;
+        }
+
         if (new_input.first) {
             // the original edge should be replaced with a new one in the helper multimap
             // this information will later be used during the subgraph extraction stage
-            replace_input_edge(input_edge, new_input.second);
+            replace_input_edge(new_inputs[0], new_input.second);
+        }
+    } else {
+        for (const auto& input_edge : new_inputs) {
+            const auto tensor_name = get_input_tensor_name(m_onnx_graph, input_edge);
+
+            // in case an edge is connected to a single node, a new graph input should be added
+            // and connected to that node; the new edge is an edge between the node and new input
+            const auto new_input = append_new_graph_input(m_onnx_graph, input_edge, m_tensor_consumers[tensor_name]);
+
+            if (new_input.first) {
+                // the original edge should be replaced with a new one in the helper multimap
+                // this information will later be used during the subgraph extraction stage
+                replace_input_edge(input_edge, new_input.second);
+            }
         }
     }
 }
 
-void SubgraphExtractor::add_new_outputs(const std::vector<OutputEdge>& new_outputs) {
+void SubgraphExtractor::add_new_outputs(const std::vector<OutputEdge>& new_outputs, const bool merge_outputs) {
     for (const auto& output_edge : new_outputs) {
         validate_node_index(m_onnx_graph, output_edge.m_node_idx);
 

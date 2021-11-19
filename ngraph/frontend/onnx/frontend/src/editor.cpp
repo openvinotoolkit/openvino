@@ -282,7 +282,7 @@ element::Type_t onnx_editor::ONNXModelEditor::get_element_type(const std::string
     if (onnx_input != nullptr) {
         auto* type_proto = onnx_input->mutable_type();
         if (!type_proto->has_tensor_type()) {
-            throw ngraph_error("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
+            throw ov::Exception("The input is malformed - it doesn't contain the 'tensor_type' field. Cannot "
                             "change the data type. Input name: " +
                             onnx_input->name());
         }
@@ -290,7 +290,7 @@ element::Type_t onnx_editor::ONNXModelEditor::get_element_type(const std::string
         auto type = tensor_type->elem_type();
         return ngraph::onnx_import::common::get_ngraph_element_type(type);
     } else {
-        throw ngraph_error("The tensor: " + tensor_name + " was not found in the input graph.");
+        throw ov::Exception("The tensor: " + tensor_name + " was not found in the input graph.");
     }
 }
 
@@ -352,7 +352,8 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
 }
 
 void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<OutputEdge>& outputs) {
+                                                      const std::vector<OutputEdge>& outputs,
+                                                      const bool merge_tensors) {
     if (inputs.empty() && outputs.empty()) {
         return;
     }
@@ -361,7 +362,7 @@ void onnx_editor::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     onnx_shapes.infer_shapes();
 
     SubgraphExtractor editor{*(m_pimpl->m_model_proto->mutable_graph())};
-    editor.add_new_inputs(inputs);
+    editor.add_new_inputs(inputs, merge_tensors);
     editor.add_new_outputs(outputs);
     editor.extract_subgraph(outputs);
 

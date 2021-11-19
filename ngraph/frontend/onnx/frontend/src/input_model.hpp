@@ -62,6 +62,10 @@ public:
     // Editor tensor features
     void set_tensor_value(Place::Ptr place, const void* value) override;
 
+    // internal usage
+    std::vector<onnx_editor::InputEdge> convert_place_to_input_edge(const std::vector<Place::Ptr>& inputs);
+    std::vector<onnx_editor::OutputEdge> convert_place_to_output_edge(const std::vector<Place::Ptr>& outputs);
+
 private:
     std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
 };
