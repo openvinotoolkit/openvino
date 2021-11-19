@@ -23,6 +23,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
+#include <ngraph/pass/manager.hpp>
+
 using namespace ngraph;
 using namespace testing;
 
@@ -50,7 +52,9 @@ public:
             f_ref = get_initial_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
         } else {
             f_ref = get_reference_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
-            ngraph::pass::ConstantFolding().run_on_function(f_ref);
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConstantFolding>();
+            manager.run_passes(f_ref);
         }
     }
 
@@ -165,15 +169,15 @@ INSTANTIATE_TEST_SUITE_P(ConvAddFusion, ConvFusionTests,
                         std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},
                                         add::get_type_info_static(), EltwiseShape{1, 1}, false)));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
+INSTANTIATE_TEST_SUITE_P(ConvAddFusionNegative, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
                                         add::get_type_info_static(), EltwiseShape{2, 1}, true),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
-                                        add::get_type_info_static(), EltwiseShape{8, 1, 1}, true),
+                                        add::get_type_info_static(), EltwiseShape{8, 1, 1, 1, 1}, true),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
-                                        add::get_type_info_static(), EltwiseShape{9, 1, 1, 1, 1}, true)));
+                                        add::get_type_info_static(), EltwiseShape{2, 1, 1, 1, 1}, true)));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusion, ConvFusionTests,
+INSTANTIATE_TEST_SUITE_P(ConvMulFusion, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
                                         mul::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
@@ -207,12 +211,12 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusion, ConvFusionTests,
                         std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3},
                                         mul::get_type_info_static(), EltwiseShape{1, 1}, false)));
 
-INSTANTIATE_TEST_SUITE_P(DISABLED_ConvMulFusionNegative, ConvFusionTests,
+INSTANTIATE_TEST_SUITE_P(ConvMulFusionNegative, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3},
                                         mul::get_type_info_static(), EltwiseShape{2, 1}, true),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64}, WeightsShape{8, 3, 1, 2, 3},
-                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1}, true),
-                        std::make_tuple(InputShape{2, DYN, 64, 64}, WeightsShape{9, 3, 2, 3, 1},
+                        std::make_tuple(InputShape{DYN, 3, 64, 64}, WeightsShape{ 3, 3, 2, 3},
+                                        mul::get_type_info_static(), EltwiseShape{8, 1, 1, 1}, true),
+                        std::make_tuple(InputShape{2, DYN, 64, 64}, WeightsShape{ 3, 2, 3, 1},
                                         mul::get_type_info_static(), EltwiseShape{9, 1, 1, 1, 1}, true)));
 
 

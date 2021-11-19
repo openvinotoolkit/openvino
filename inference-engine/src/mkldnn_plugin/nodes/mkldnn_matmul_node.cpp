@@ -73,13 +73,12 @@ bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
                   EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
 }
 
-void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const {
+void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) const {
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
-            // TODO [DS]: change to shape from memory
-            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
+            eltwiseNode->appendPostOps(ops, dims);
             continue;
         }
 
@@ -90,12 +89,17 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
 }
 
 
-MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() const {
+MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) const {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr, true);
+    setPostOps(*attr, dims, true);
 
     return attr;
+}
+
+MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() const {
+    auto dummyShape = MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0));
+    return initPrimitiveAttr(dummyShape.getStaticDims());
 }
 
 /* Example MatMul:
@@ -297,7 +301,7 @@ void MKLDNNMatMulNode::prepareParams() {
 
     if (isDynamicNode()) {
         if (!pAttr) {
-            pAttr = initPrimitiveAttr();
+            pAttr = initPrimitiveAttr(src0MemPtr->getStaticDims());
         }
         attr = pAttr;
 

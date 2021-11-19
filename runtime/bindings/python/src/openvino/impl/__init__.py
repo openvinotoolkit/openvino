@@ -49,4 +49,6 @@ from openvino.pyopenvino import AxisVector
 from openvino.pyopenvino import Coordinate
 from openvino.pyopenvino import Output
 from openvino.pyopenvino import Layout
+from openvino.pyopenvino import ConstOutput
 from openvino.pyopenvino import util
+from openvino.pyopenvino import layout_helpers

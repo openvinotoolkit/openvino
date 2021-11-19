@@ -100,7 +100,8 @@ ie_faster_build(${TARGET_NAME}_obj
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)
+                                                      $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
@@ -116,21 +117,30 @@ add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create module library file from object library
 
+set(library_sources $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+
 if(BUILD_SHARED_LIBS)
     set(library_type MODULE)
 else()
-    set(library_type STATIC)
+    if(ENABLE_GAPI_PREPROCESSING)
+        set(library_type STATIC)
+    else()
+        set(library_type INTERFACE)
+        unset(library_sources)
+    endif()
 endif()
 
-add_library(${TARGET_NAME} ${library_type}
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+add_library(${TARGET_NAME} ${library_type} ${library_sources})
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "Inference Engine Preprocessing plugin")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
+if(ENABLE_GAPI_PREPROCESSING)
+    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
+    target_link_libraries(${TARGET_NAME} PRIVATE fluid openvino::itt openvino::util)
+endif()
 
 if(BUILD_SHARED_LIBS)
     # for static linkage the dependencies are in opposite order
@@ -139,8 +149,9 @@ else()
     target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
 endif()
 
-target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
@@ -148,7 +159,7 @@ if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
 endif()
 
-if(WIN32)
+if(WIN32 AND NOT library_type STREQUAL "INTERFACE")
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
@@ -176,8 +187,13 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
 # LTO
 
-set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
+set_target_properties(${TARGET_NAME}_obj ${TARGET_NAME}_s
                       PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(NOT library_type STREQUAL "INTERFACE")
+    set_target_properties(${TARGET_NAME}
+                          PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+endif()
 
 # developer package
 
@@ -185,5 +201,9 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 
 # install
 
-install(TARGETS ${TARGET_NAME}
-        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)
+if(BUILD_SHARED_LIBS)
+    install(TARGETS ${TARGET_NAME}
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)
+else()
+    ov_install_static_lib(${TARGET_NAME} core)
+endif()
