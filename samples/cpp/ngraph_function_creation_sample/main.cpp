@@ -310,7 +310,7 @@ int main(int argc, char* argv[]) {
 
         // Prints formatted classification results
         ClassificationResult classification_result(output_tensor,
-                                                   lenet_labels, // in this sample images have the same names as labels
+                                                   lenet_labels,  // in this sample images have the same names as labels
                                                    batch_size,
                                                    N_TOP_RESULTS,
                                                    lenet_labels);

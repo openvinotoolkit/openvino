@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include <fstream>
 #include <iostream>
 #include <string>
 
 #include "yuv_nv12.h"
+// clang-format on
 
 using namespace FormatReader;
 

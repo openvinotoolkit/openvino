@@ -192,7 +192,9 @@ int main(int argc, char* argv[]) {
 
         // Wait all iterations of the async request
         std::unique_lock<std::mutex> lock(mutex);
-        condVar.wait(lock, [&] { return cur_iteration == num_iterations; });
+        condVar.wait(lock, [&] {
+            return cur_iteration == num_iterations;
+        });
 
         slog::info << "Completed async requests execution" << slog::endl;
 

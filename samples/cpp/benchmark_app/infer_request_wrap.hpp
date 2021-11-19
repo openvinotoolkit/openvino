@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#// clang-format off
+// clang-format off
 #include "inference_engine.hpp"
 
 #include "statistics_report.hpp"

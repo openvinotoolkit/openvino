@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// clang-format off
 #include <algorithm>
 #include <map>
 #include <string>
@@ -9,6 +10,7 @@
 #include <vector>
 
 #include "statistics_report.hpp"
+// clang-format on
 
 void StatisticsReport::addParameters(const Category& category, const Parameters& parameters) {
     if (_parameters.count(category) == 0)
