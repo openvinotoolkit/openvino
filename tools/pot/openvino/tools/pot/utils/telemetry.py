@@ -1,7 +1,7 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from ..version import __version__ as pot_version
+from ..version import get_version as pot_version
 from ..engines.ac_engine import ACEngine
 from ..engines.simplified_engine import SimplifiedEngine
 from .logger import get_logger

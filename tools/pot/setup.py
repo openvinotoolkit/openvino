@@ -8,6 +8,8 @@ import re
 import codecs
 from setuptools import setup, find_packages
 
+from openvino.tools.pot.version import get_version
+
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -18,15 +20,6 @@ with open(os.path.join(here, 'README.md'), 'r') as fh:
 def read(*parts):
     with codecs.open(os.path.join(here, *parts), 'r') as fp:
         return fp.read()
-
-
-def find_version(*file_paths):
-    version_file = read(*file_paths)
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]",
-                              version_file, re.M)
-    if version_match:
-        return version_match.group(1)
-    raise RuntimeError('Unable to find version string.')
 
 
 INSTALL_EXTRAS = False
@@ -103,7 +96,7 @@ DEPENDENCY_LINKS = [torch_source_url]
 
 setup(
     name='pot',
-    version=find_version(os.path.join(here, 'openvino/tools/pot/version.py')),
+    version=get_version(),
     author='Intel',
     author_email='alexander.kozlov@intel.com',
     description='Post-training Optimization Toolkit',

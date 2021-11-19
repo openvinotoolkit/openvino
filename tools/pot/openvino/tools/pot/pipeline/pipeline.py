@@ -1,13 +1,13 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.inference_engine import get_version as get_ie_version
+from openvino.inference_engine import get_version as get_ie_version  # pylint: disable=import-error,no-name-in-module
 from mo.utils.version import get_version as get_mo_version
 
 from ..algorithms.algorithm import Algorithm
 from ..statistics.collector import collect_statistics
 from ..utils.logger import get_logger
-from ..utils.utils import get_version as get_pot_version
+from ..version import get_version as get_pot_version
 
 logger = get_logger(__name__)
 
