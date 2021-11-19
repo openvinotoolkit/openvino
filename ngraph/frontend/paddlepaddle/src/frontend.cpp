@@ -165,10 +165,11 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
             pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
-                // set layer name by the name of first output var
-                const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
-                auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
-                node->set_friendly_name(tensor_name);
+                if (op_desc.outputs().begin()->arguments().size() > 0) {
+                    const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
+                    auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
+                    node->set_friendly_name(tensor_name);
+                }
 
                 const auto& out_ports = op_desc.outputs();
                 for (const auto& port : out_ports) {
