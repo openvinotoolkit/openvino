@@ -1993,7 +1993,15 @@ std::vector<VectorDims> MKLDNNInterpolateNode::shapeInfer() const {
     return result;
 }
 
+bool MKLDNNInterpolateNode::needPrepareParams() const {
+    return (inputShapesModified() || lastOutputDims != getChildEdgesAtPort(0)[0]->getMemory().getStaticDims());
+}
+
 void MKLDNNInterpolateNode::prepareParams() {
+    if (!shapesDefined()) {
+        IE_THROW() << "Can't prepare params for Interpolate node with name: " << getName() << ", because input/output dims aren't defined";
+    }
+
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& srcMemPtr = getParentEdgeAt(DATA_ID)->getMemoryPtr();
     auto& tsMemPtr = getParentEdgeAt(TARGET_SHAPE_ID)->getMemoryPtr();
@@ -2033,9 +2041,9 @@ void MKLDNNInterpolateNode::prepareParams() {
     if (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
         IE_THROW() << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
-    if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx || mode == InterpolateMode::cubic &&
-        (configured_for_layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
-            (mayiuse(cpu::x64::avx2) && srcMemPtr->getDesc().getPrecision() == Precision::FP32)) {
+    if ((mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx || mode == InterpolateMode::cubic) &&
+        ((configured_for_layout != InterpolateLayoutType::planar && mayiuse(cpu::x64::sse41)) ||
+            (mayiuse(cpu::x64::avx2) && srcMemPtr->getDesc().getPrecision() == Precision::FP32))) {
         execPtr = std::make_shared<InterpolateJitExecutor>(mode,
                                                            inPrc,
                                                            outPrc,
@@ -2065,10 +2073,11 @@ void MKLDNNInterpolateNode::prepareParams() {
                                                            antialias,
                                                            cubeCoeff);
     }
+    lastOutputDims = dstDims;
 }
 
 void MKLDNNInterpolateNode::createPrimitive() {
-    if (inputShapesDefined()) {
+    if (shapesDefined()) {
         if (needPrepareParams())
             prepareParams();
         updateLastInputDims();

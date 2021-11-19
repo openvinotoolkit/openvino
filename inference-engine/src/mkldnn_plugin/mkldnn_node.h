@@ -707,6 +707,7 @@ protected:
     bool isDynamic = false;
 
     bool inputShapesDefined() const;
+    bool shapesDefined() const;
     void updateLastInputDims();
 
     bool inputShapesModified() const;

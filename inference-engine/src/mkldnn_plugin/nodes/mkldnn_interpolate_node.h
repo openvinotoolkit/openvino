@@ -107,6 +107,7 @@ public:
 
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
+    bool needPrepareParams() const override;
     void prepareParams() override;
 
 private:
@@ -209,7 +210,7 @@ private:
                                    bool _antialias,
                                    float cubeCoeff) : dataScales(_dataScales), antialias(_antialias),
                 InterpolateExecutor(_mode, srcDims, dstDims, inPrc, outPrc, layout, _coordTransMode, nearestMode,
-                                    padBegin, padEnd, _dataScales, antialias, cubeCoeff) {}
+                                    padBegin, padEnd, _dataScales, _antialias, cubeCoeff) {}
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
 
@@ -260,6 +261,8 @@ private:
 
     mutable std::vector<float> scalesShapeInfer;
     mutable std::vector<int32_t> sizesShapeInfer;
+
+    VectorDims lastOutputDims;
 
     std::string errorPrefix;
 };

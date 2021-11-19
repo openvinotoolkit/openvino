@@ -584,6 +584,43 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerCPUT
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
+// corner cases
+const std::vector<ShapeParams> shapeParams4D_corner = {
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{1, 11, 4, 4}, {{1, 11, 4, 4}, {1, 11, 4, 4}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}},
+        defaultAxes4D.front()
+    },
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{1, 11, 4, 4}, {{1, 11, 4, 4}, {1, 11, 4, 4}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{1, 11, 6, 7}, {1, 11, 8, 7}},
+        defaultAxes4D.front()
+    }
+};
+
+const auto interpolateCornerCases = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
+        ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC),
+        ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::SIMPLE),
+        ::testing::ValuesIn(antialias),
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+        ::testing::Values(std::vector<size_t>{0, 0, 0, 0}),
+        ::testing::ValuesIn(cubeCoefs));
+
+INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_corner_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCornerCases,
+            ::testing::ValuesIn(shapeParams4D_corner),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice()),
+            ::testing::ValuesIn(interpolateFusingParamsSet),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
 } // namespace
 
 } // namespace CPULayerTestsDefinitions
