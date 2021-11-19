@@ -3,7 +3,7 @@
 //
 #pragma once
 #include <openvino/op/read_value.hpp>
-#include "shape_infer_utils.hpp"
+#include "utils.hpp"
 namespace ov {
 namespace op {
 

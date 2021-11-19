@@ -4,7 +4,6 @@
 #pragma once
 #include <openvino/op/tile.hpp>
 
-#include "shape_infer_utils.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {

@@ -5,7 +5,7 @@
 #include <openvino/core/graph_util.hpp>
 #include <openvino/op/assign.hpp>
 
-#include "shape_infer_utils.hpp"
+#include "utils.hpp"
 namespace ov {
 namespace op {
 namespace v3 {
@@ -26,10 +26,7 @@ void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vect
                               input_shape.to_shape() == variable_info.data_shape.to_shape(),
                               "Variables output shapes are inconsistent.");
     }
-    if (input_shape.is_static())
-        output_shapes[0] = input_shapes[0];
-    else
-        ShapeInfer::default_work(output_shapes[0]);
+    ShapeInfer::copy_shape(input_shapes[0], output_shapes[0]);
 }
 }  // namespace v3
 
@@ -38,7 +35,7 @@ namespace v6 {
 template <class T>
 void shape_infer(const Assign* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
-    output_shapes[0] = input_shapes[0];
+    ShapeInfer::copy_shape(input_shapes[0], output_shapes[0]);
 }
 }  // namespace v6
 }  // namespace op

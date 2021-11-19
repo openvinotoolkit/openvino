@@ -27,7 +27,7 @@ void shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
         return;
     }
 
-    NODE_VALIDATION_CHECK(op, priors_shape.rank().compatible(2), "Priors rank must be equal to 2.");
+    NODE_VALIDATION_CHECK(op, priors_shape.size() == 2, "Priors rank must be equal to 2.");
 
     NODE_VALIDATION_CHECK(op,
                           priors_shape[1].compatible(4),
@@ -52,10 +52,6 @@ void shape_infer(const ExperimentalDetectronPriorGridGenerator* op,
                           num_batches_featmap,
                           "; Im_data: ",
                           num_batches_im_data);
-
-    if (priors_shape.rank().is_dynamic() || featmap_shape.rank().is_dynamic()) {
-        return;
-    }
 
     auto num_priors = priors_shape[0];
     auto featmap_height = featmap_shape[2];
