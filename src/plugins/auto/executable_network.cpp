@@ -619,33 +619,32 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
             _devicePriorities = metaDevices;
 
             // update value in config
-            _confMutex.lock();
+            std::lock_guard<std::mutex> lockConf(_confMutex);
             _config[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = priorities->second;
-            _confMutex.unlock();
         }
     }
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::string &name) const {
-    _confMutex.lock();
-    auto it = _config.find(name);
-    if (it != _config.end()) {
-        _confMutex.unlock();
-        return it->second;
-    } else {
-        _confMutex.unlock();
-        // find config key among networks config keys
-        for (const auto& desc : _networksPerDevice) {
-            const auto& execNetwork = desc.second;
-            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            for (auto &&configKey : param.as<std::vector<std::string>>()) {
-                if (configKey == name) {
-                    return execNetwork->GetConfig(configKey);
-                }
+    {
+        std::lock_guard<std::mutex> lock(_confMutex);
+        auto it = _config.find(name);
+        if (it != _config.end()) {
+            return it->second;
+        }
+    }
+
+    // find config key among networks config keys
+    for (const auto& desc : _networksPerDevice) {
+        const auto& execNetwork = desc.second;
+        auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        for (auto &&configKey : param.as<std::vector<std::string>>()) {
+            if (configKey == name) {
+                return execNetwork->GetConfig(configKey);
             }
         }
-        IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
     }
+    IE_THROW(NotFound) << name <<" not found in the ExecutableNetwork config";
 }
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
