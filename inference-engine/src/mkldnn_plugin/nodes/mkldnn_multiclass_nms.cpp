@@ -128,7 +128,8 @@ void MKLDNNMultiClassNmsNode::prepareParams() {
     size_t real_num_classes = m_backgroundClass == -1 ? m_numClasses :
         m_backgroundClass < m_numClasses ? m_numClasses - 1 : m_numClasses;
     if (m_nmsTopK) {
-        max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes : m_nmsTopK;
+        max_output_boxes_per_class = (m_nmsTopK == -1) ? m_numBoxes :
+            std::min(m_nmsTopK, static_cast<int>(m_numBoxes));
         m_filtBoxes.resize(max_output_boxes_per_class * m_numBatches * m_numClasses);
     }
     m_nmsRealTopk = max_output_boxes_per_class;

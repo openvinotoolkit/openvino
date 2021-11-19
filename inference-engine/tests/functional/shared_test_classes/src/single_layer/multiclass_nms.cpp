@@ -268,6 +268,13 @@ void MulticlassNmsLayerTest::SetUp() {
 
     init_input_shapes(shapes);
 
+    // input is dynamic shape -> output will be dynamic shape
+    // input is static shape -> output will be static shape
+    const auto inputDynamicParam = {shapes[0].first, shapes[1].first};
+    m_outStaticShape = std::any_of(inputDynamicParam.begin(), inputDynamicParam.end(), [](const ov::PartialShape& shape) {
+        return shape.rank() == 0;
+    });
+
     ElementType paramsPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
 
@@ -294,12 +301,10 @@ void MulticlassNmsLayerTest::SetUp() {
 
     auto nms = std::make_shared<opset8::MulticlassNms>(paramOuts[0], paramOuts[1], m_attrs);
 
-    if (targetDevice == CommonTestUtils::DEVICE_CPU) {
-        m_outStaticShape = false;
+    if (!m_outStaticShape) {
         auto result = std::make_shared<opset5::Result>(nms);
         function = std::make_shared<Function>(result, params, "MulticlassNMS");
     } else {
-        m_outStaticShape = true;
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(paramsPrec, Shape {1}, {1}));
         auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));
         auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape {1}, {1}));
