@@ -51,7 +51,7 @@ class InsertReverseChannels(BackReplacementPattern):
     enabled = False
 
     @staticmethod
-    def get_fw_index(node: Node, idx: int):
+    def get_fw_index(node: Node, idx: np.ndarray) -> np.ndarray:
         if not node.has_valid('rt_info'):
             return idx
 
@@ -75,7 +75,7 @@ class InsertReverseChannels(BackReplacementPattern):
 
         assert len(order) > idx >= 0, \
             'Channel index {} is incompatible with old_api_map in node {}.'.format(idx, node_name)
-        return list(order).index(idx)
+        return int64_array(list(order).index(idx))
 
     def find_and_replace_pattern(self, graph: Graph):
         all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
@@ -146,7 +146,7 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         if order is None:
             return False
         new_axis = list(order).index(reverse_axis)
-        reverse_channels.axis = new_axis
+        reverse_channels.axis = int64_array(new_axis)
         return ReverseChannelsPropagationDown.pass_rc_through_zero_port_only(node, reverse_channels)
 
     @staticmethod
@@ -365,7 +365,7 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         if order is None:
             return False
         new_axis = order[reverse_axis]
-        reverse_channels.axis = new_axis
+        reverse_channels.axis = int64_array(new_axis)
         return ReverseChannelsPropagationUp.lift_up_through_zero_port_only(node, reverse_channels)
 
     @staticmethod
