@@ -84,4 +84,14 @@ void regclass_graph_Output(py::module m, std::string typestring)
     output.def("_from_node", [](const std::shared_ptr<ov::Node>& node) {
                return ov::Output<ov::Node>(node);
                });
+    output.def("get_tensor",
+               &ov::Output<VT>::get_tensor,
+               py::return_value_policy::reference_internal,
+               R"(
+                A reference to the tensor descriptor for this output.
+                Returns
+                ----------
+                get_tensor : descriptor.Tensor
+                    Tensor of the output.
+               )");
 }
