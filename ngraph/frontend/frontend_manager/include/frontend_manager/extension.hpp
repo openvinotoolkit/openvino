@@ -26,29 +26,11 @@ public:
     TelemetryExtension(std::string event_category,
                        event_callback& send_event,
                        error_callback& send_error,
-                       error_callback& send_stack_trace)
-        : m_event_category(event_category),
-          m_send_event(send_event),
-          m_send_error(send_error),
-          m_send_stack_trace(send_stack_trace) {}
+                       error_callback& send_stack_trace);
 
-    void send_event(const std::string& action, const std::string& label, int value = 1) {
-        if (m_send_event) {
-            m_send_event(m_event_category, action, label, value);
-        }
-    }
-
-    void send_error(const std::string& error_message) {
-        if (m_send_error) {
-            m_send_error(m_event_category, error_message);
-        }
-    }
-
-    void send_stack_trace(const std::string& error_message) {
-        if (m_send_stack_trace) {
-            m_send_stack_trace(m_event_category, error_message);
-        }
-    }
+    void send_event(const std::string& action, const std::string& label, int value = 1);
+    void send_error(const std::string& error_message);
+    void send_stack_trace(const std::string& error_message);
 
 private:
     std::string m_event_category;
