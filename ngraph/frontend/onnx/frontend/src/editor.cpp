@@ -229,8 +229,10 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
               }} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path,
+                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
     : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
+      m_telemetry(telemetry),
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
