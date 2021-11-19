@@ -5,6 +5,8 @@ from pathlib import PosixPath, WindowsPath
 from copy import deepcopy
 import json
 
+import numpy as np
+
 import openvino.tools.pot.version
 from .cpu_patterns import get_cpu_ignored_patterns
 from .gpu_patterns import get_gpu_ignored_patterns
@@ -212,3 +214,7 @@ def check_agnostic_and_ignored_params(model, ignored_params):
                     ignored_params = new_ignored_params
 
     return ignored_params
+
+
+def is_data_type_quantizable(type_node):
+    return type_node not in (np.int32, np.int64, bool)
