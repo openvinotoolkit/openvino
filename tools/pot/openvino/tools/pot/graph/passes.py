@@ -851,6 +851,7 @@ def find_shape_subgraph_endpoints(out_ports: List[Port], visited: set = None) ->
     """
     Searches for input ports of data dependent operations starting from output ports passed to the function.
     Condition for data dependent operations is absence of node output value.
+
     :param out_ports: list of output ports to start search from
     :param visited: set of input ports that were visited to avoid visiting them more than once
     :return: set of all nodes that are part of shape calculating subgraph
