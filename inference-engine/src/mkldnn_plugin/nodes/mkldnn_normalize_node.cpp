@@ -855,9 +855,9 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
 }
 
 void MKLDNNNormalizeL2Node::prepareParams() {
-    attrs.dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
-    setPostOps(kernel_attrs, attrs.dims, true);
-    execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, kernel_attrs);
+    const auto& dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
+    setPostOps(kernel_attrs, dims, true);
+    execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, kernel_attrs, dims);
 }
 
 void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
@@ -902,7 +902,7 @@ private:
 template <typename in_data_t, typename out_data_t>
 class MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
 public:
-    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_, const mkldnn::primitive_attr& kernel_attrs_) : attrs(attrs_), kernel_attrs(kernel_attrs_) {
+    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) : attrs(attrs_) {
         if (!attrs.is_nchw && !attrs.is_nhwc && !attrs.is_blk) {
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
@@ -917,11 +917,11 @@ public:
         jcp.is_nhwc = attrs.is_nhwc;
         jcp.is_blk = attrs.is_blk;
 
-        size_t dims_size = attrs.dims.size();
-        jcp.n = attrs.dims[0];
-        jcp.c = attrs.dims[1];
-        jcp.h = (dims_size > 2) ? attrs.dims[2] : 1lu;
-        jcp.w = (dims_size > 3) ? attrs.dims[3] : 1lu;
+        size_t dims_size = dims.size();
+        jcp.n = dims[0];
+        jcp.c = dims[1];
+        jcp.h = (dims_size > 2) ? dims[2] : 1lu;
+        jcp.w = (dims_size > 3) ? dims[3] : 1lu;
 
         if (mayiuse(cpu::x64::avx512_common)) {
             attrs.blk_size = 16;
@@ -1216,7 +1216,6 @@ private:
     }
 
     jit_normalize_config_params jcp = {};
-    mkldnn::primitive_attr kernel_attrs;
     NormalizeL2Attrs attrs;
 
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
@@ -1230,7 +1229,8 @@ private:
 template <typename in_data_t, typename out_data_t>
 class MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
 public:
-    NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs) : attrs(attrs), kernel_attrs(kernel_attrs) {
+    NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) :
+        attrs(attrs), kernel_attrs(kernel_attrs), dims(dims) {
         if (!attrs.is_nchw) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
         }
@@ -1253,11 +1253,11 @@ public:
 
 private:
     void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data) {
-        size_t dims_size = attrs.dims.size();
-        const size_t N = attrs.dims[0];
-        const size_t C = attrs.dims[1];
-        const size_t H = (dims_size > 2) ? attrs.dims[2] : 1lu;
-        const size_t W = (dims_size > 3) ? attrs.dims[3] : 1lu;
+        size_t dims_size = dims.size();
+        const size_t N = dims[0];
+        const size_t C = dims[1];
+        const size_t H = (dims_size > 2) ? dims[2] : 1lu;
+        const size_t W = (dims_size > 3) ? dims[3] : 1lu;
         const size_t spatial_dims = H * W;
         for (size_t b = 0lu; b < N; b++) {
             const in_data_t *src_data_b = src_data + b * C * spatial_dims;
@@ -1369,6 +1369,7 @@ private:
         }
     }
 
+    VectorDims dims;
     mkldnn::primitive_attr kernel_attrs;
     NormalizeL2Attrs attrs;
 
@@ -1379,8 +1380,8 @@ private:
 // *=================* *======* *=================*
 
 std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::getNormalizeL2Executor(
-        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs) {
-    NormalizeContext ctx = { nullptr, attrs, kernel_attrs };
+        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) {
+    NormalizeContext ctx = { nullptr, attrs, kernel_attrs, dims };
 
     OV_SWITCH(MKLDNNPlugin, NormalizeExecutorCreation, ctx, std::tie(attrs.input_prec, attrs.output_prec),
               OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
@@ -1399,13 +1400,13 @@ std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Nod
 
 template <typename in_data_t, typename out_data_t>
 std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::makeExecutor(
-        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs) {
+        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims) {
     if (attrs.cornerCase)
-        return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(attrs.dims);
+        return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
     else if (mayiuse(cpu::x64::sse41))
-        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs);
+        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else if (attrs.is_nchw)
-        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs);
+        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
     else
         IE_THROW() << "'NormalizeL2' cannot create Executor";
 }

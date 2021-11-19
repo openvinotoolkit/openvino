@@ -109,7 +109,6 @@ private:
         bool is_nhwc = false;
         bool is_blk = false;
 
-        VectorDims dims;
         InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
         InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
         size_t src_data_size = 0lu;
@@ -124,7 +123,8 @@ private:
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
-                                                                           const mkldnn::primitive_attr& kernel_attr);
+                                                                           const mkldnn::primitive_attr& kernel_attr,
+                                                                           const VectorDims& dims);
 
     protected:
         inline float epsApply(const float &modulo, const NormEpsMode mode, const float eps) const {
@@ -134,12 +134,14 @@ private:
     private:
         template <typename in_data_t, typename out_data_t>
         static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs,
-                                                                 const mkldnn::primitive_attr& kernel_attrs);
+                                                                 const mkldnn::primitive_attr& kernel_attrs,
+                                                                 const VectorDims& dims);
 
         struct NormalizeContext {
             std::shared_ptr<NormalizeL2Executor> executor;
             NormalizeL2Attrs attrs;
             mkldnn::primitive_attr kernel_attrs;
+            VectorDims dims;
         };
 
         template<typename T>
@@ -148,7 +150,7 @@ private:
             using dst_t = typename std::tuple_element<1, T>::type;
 
             void operator()(NormalizeContext& ctx) {
-                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs);
+                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs, ctx.dims);
             }
         };
     };
