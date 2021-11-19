@@ -23,7 +23,6 @@ public:
     using error_callback = const std::function<void(const std::string& category, const std::string& error_message)>;
     using event_callback = const std::function<
         void(const std::string& category, const std::string& action, const std::string& label, int value)>;
-    TelemetryExtension() = default;
     TelemetryExtension(std::string event_category,
                        event_callback& send_event,
                        error_callback& send_error,

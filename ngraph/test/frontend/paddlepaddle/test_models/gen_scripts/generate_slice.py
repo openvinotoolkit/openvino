@@ -1,3 +1,19 @@
+#
+# slice paddle model generator
+#
+import sys
+import os
+
+import numpy as np
+import paddle as pdpd
+
+from save_model import exportModel
+from save_model import saveModel
+
+data_type = 'float32'
+
+def slice(name : str, x, axes : list, start : list, end : list):
+    pdpd.enable_static()
 
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_x = pdpd.static.data(name='x', shape=x.shape, dtype = data_type)

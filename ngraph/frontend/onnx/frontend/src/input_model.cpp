@@ -19,8 +19,9 @@ InputModelONNX::InputModelONNX(const std::string& path,
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModelONNX::InputModelONNX(const std::wstring& path)
-    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
+InputModelONNX::InputModelONNX(const std::wstring& path,
+                               const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
+    : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path, telemetry)} {}
 #endif
 
 InputModelONNX::InputModelONNX(std::istream& model_stream,
