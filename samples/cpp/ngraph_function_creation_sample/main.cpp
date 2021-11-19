@@ -306,7 +306,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Processing output tensor" << slog::endl;
         const runtime::Tensor output_tensor = infer_request.get_output_tensor();
 
-        std::vector<std::string> lenet_labels{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+        const std::vector<std::string> lenet_labels{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
         // Prints formatted classification results
         ClassificationResult classification_result(output_tensor,
