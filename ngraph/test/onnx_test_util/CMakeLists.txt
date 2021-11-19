@@ -6,9 +6,7 @@ file(GLOB_RECURSE ONNX_UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CUR
 
 add_library(onnx_test_util STATIC ${ONNX_UTIL_SRC})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(onnx_test_util UNITY)
-endif()
+ie_faster_build(onnx_test_util UNITY)
 
 target_link_libraries(onnx_test_util PRIVATE onnx_common)
 target_include_directories(onnx_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

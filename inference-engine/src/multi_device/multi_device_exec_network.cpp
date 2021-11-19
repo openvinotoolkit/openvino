@@ -452,11 +452,13 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
     if (_workModeIsAUTO) {
-        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            auto index = num % dev_requests.size();
-            request_to_share_blobs_with = dev_requests.at(index)._inferRequest;
+        if (!_networkFirstReady && _networkActualNeeded) {
+            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            if (num < dev_requests.size()) {
+                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            }
         }
+        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
     }
 
@@ -480,11 +482,13 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
     InferenceEngine::SoIInferRequestInternal request_to_share_blobs_with;
 
     if (_workModeIsAUTO) {
-        if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
-            auto index = num % dev_requests.size();
-            request_to_share_blobs_with = dev_requests.at(index)._inferRequest;
+        if (!_networkFirstReady && _networkActualNeeded) {
+            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            if (num < dev_requests.size()) {
+                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            }
         }
+        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     }
 
