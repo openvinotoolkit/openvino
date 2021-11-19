@@ -424,7 +424,7 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
         return GNA_REQUEST_ABORTED;
     }
-    checkGna2Status(status, "Gna2RequestWait");
+    //checkGna2Status(status, "Gna2RequestWait");
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
@@ -434,6 +434,9 @@ GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     checkStatus();
 #endif
     updateGnaPerfCounters();
+    if (!Gna2StatusIsSuccessful(status)) {
+        return GNA_REQUEST_GNA_LIB_ERROR;
+    }
     return GNA_REQUEST_COMPLETED;
 }
 

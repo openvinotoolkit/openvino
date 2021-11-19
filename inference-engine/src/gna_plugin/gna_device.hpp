@@ -30,9 +30,10 @@
 #endif
 
 enum GnaWaitStatus : int {
-    GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
-    GNA_REQUEST_ABORTED = 1,    // for QoS purposes
-    GNA_REQUEST_PENDING = 2     // for device busy purposes
+    GNA_REQUEST_COMPLETED = 0,      // and removed from GNA library queue
+    GNA_REQUEST_ABORTED = 1,        // for QoS purposes
+    GNA_REQUEST_PENDING = 2,        // for device busy purposes
+    GNA_REQUEST_GNA_LIB_ERROR = 3   // other errors from Gna2RequestWait
 };
 
 /**

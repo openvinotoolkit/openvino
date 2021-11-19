@@ -127,6 +127,11 @@ class GNAInferRequest : public InferenceEngine::IInferRequestInternal {
             inferRequestIdx = -1;
             return InferenceEngine::INFER_NOT_STARTED;
         }
+        if (waitStatus == GNA_REQUEST_GNA_LIB_ERROR) {
+            // need to preserve invalid state here to avoid next Wait() from clearing it
+            inferRequestIdx = -1;
+            return InferenceEngine::GENERAL_ERROR;
+        }
         return InferenceEngine::OK;
     }
 
