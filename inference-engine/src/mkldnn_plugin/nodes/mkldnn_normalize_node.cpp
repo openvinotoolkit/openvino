@@ -801,7 +801,7 @@ bool MKLDNNNormalizeL2Node::canFuse(const MKLDNNNodePtr& node) const {
     return !attrs.cornerCase && canFuseSimpleOperation(node);
 }
 
-void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
+void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights) {
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
@@ -814,14 +814,14 @@ void MKLDNNNormalizeL2Node::setPostOps(mkldnn::primitive_attr &attr, bool initWe
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
             constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, attrs.dims, align);
+            eltwiseNode->appendPostOps(ops, dims, align);
             continue;
         }
 
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
-    attr.set_post_ops(ops);
+    kernel_attrs.set_post_ops(ops);
 }
 
 void MKLDNNNormalizeL2Node::createPrimitive() {
@@ -835,20 +835,13 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
         THROW_ERROR << "has nullable preferable primitive descriptor";
 
     if (!attrs.cornerCase) {
-        attrs.jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
-        attrs.jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
-        attrs.jcp.src_data_size = attrs.input_prec.size();
-        attrs.jcp.dst_data_size = attrs.output_prec.size();
-        attrs.jcp.across_spatial = attrs.across_spatial;
-
-        attrs.jcp.is_nchw = attrs.jcp.is_nhwc = attrs.jcp.is_blk = false;
         if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
-            attrs.jcp.is_nchw = true;
+            attrs.is_nchw = true;
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c) ||
                    srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp8c)) {
-            attrs.jcp.is_blk = true;
+            attrs.is_blk = true;
         } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
-            attrs.jcp.is_nhwc = true;
+            attrs.is_nhwc = true;
         } else {
             THROW_ERROR << "has selected layout which is not supported";
         }
@@ -863,8 +856,8 @@ void MKLDNNNormalizeL2Node::createPrimitive() {
 
 void MKLDNNNormalizeL2Node::prepareParams() {
     attrs.dims = getParentEdgeAt(DATA)->getMemoryPtr()->getStaticDims();
-    setPostOps(attrs.kernel_attrs, true);
-    execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, attrs.input_prec, attrs.output_prec);
+    setPostOps(kernel_attrs, attrs.dims, true);
+    execPtr = NormalizeL2Executor::getNormalizeL2Executor(attrs, kernel_attrs);
 }
 
 void MKLDNNNormalizeL2Node::execute(mkldnn::stream strm) {
@@ -883,7 +876,8 @@ std::vector<VectorDims> MKLDNNNormalizeL2Node::shapeInfer() const {
 // *====================* CornerCase *===================*
 
 template <typename in_data_t, typename out_data_t>
-struct MKLDNNNormalizeL2Node::NormalizeL2CornerCaseExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+class MKLDNNNormalizeL2Node::NormalizeL2CornerCaseExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+public:
     NormalizeL2CornerCaseExecutor(const VectorDims& dims) {
         workAmount = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>());
     }
@@ -906,33 +900,46 @@ private:
 // *=================* JIT case *=================*
 
 template <typename in_data_t, typename out_data_t>
-struct MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
-    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_) : attrs(attrs_) {
-        if (!attrs.jcp.is_nchw && !attrs.jcp.is_nhwc && !attrs.jcp.is_blk) {
+class MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+public:
+    NormalizeL2JitExecutor(const NormalizeL2Attrs& attrs_, const mkldnn::primitive_attr& kernel_attrs_) : attrs(attrs_), kernel_attrs(kernel_attrs_) {
+        if (!attrs.is_nchw && !attrs.is_nhwc && !attrs.is_blk) {
             IE_THROW() << "Normalaize2L executor has selected layout which is not supported";
         }
 
+        jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.input_prec);
+        jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(attrs.output_prec);
+        jcp.src_data_size = attrs.input_prec.size();
+        jcp.dst_data_size = attrs.output_prec.size();
+        jcp.across_spatial = attrs.across_spatial;
+
+        jcp.is_nchw = attrs.is_nchw;
+        jcp.is_nhwc = attrs.is_nhwc;
+        jcp.is_blk = attrs.is_blk;
+
         size_t dims_size = attrs.dims.size();
-        attrs.jcp.n = attrs.dims[0];
-        attrs.jcp.c = attrs.dims[1];
-        attrs.jcp.h = (dims_size > 2) ? attrs.dims[2] : 1lu;
-        attrs.jcp.w = (dims_size > 3) ? attrs.dims[3] : 1lu;
+        jcp.n = attrs.dims[0];
+        jcp.c = attrs.dims[1];
+        jcp.h = (dims_size > 2) ? attrs.dims[2] : 1lu;
+        jcp.w = (dims_size > 3) ? attrs.dims[3] : 1lu;
 
         if (mayiuse(cpu::x64::avx512_common)) {
             attrs.blk_size = 16;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(attrs.jcp));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
             normalize_kernel.reset(
-                    new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(attrs.jcp, *attrs.kernel_attrs.get()));
+                    new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
             attrs.blk_size = 8;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(attrs.jcp));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
             normalize_kernel.reset(
-                    new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(attrs.jcp, *attrs.kernel_attrs.get()));
+                    new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
             attrs.blk_size = 4;
-            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(attrs.jcp));
+            normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
             normalize_kernel.reset(
-                    new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(attrs.jcp, *attrs.kernel_attrs.get()));
+                    new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *kernel_attrs.get()));
+        } else {
+            IE_THROW() << "Jit Executor for NormalizeL2 cannot create kernels!";
         }
 
         if (normalize_kernel)
@@ -943,30 +950,26 @@ struct MKLDNNNormalizeL2Node::NormalizeL2JitExecutor : public MKLDNNNormalizeL2N
     }
 
     void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) override {
-        if (attrs.jcp.is_nchw) {
+        if (jcp.is_nchw) {
             normalize_nchw(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
-        } else if (attrs.jcp.is_nhwc) {
+        } else if (jcp.is_nhwc) {
             normalize_nhwc(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
-        } else if (attrs.jcp.is_blk) {
+        } else if (jcp.is_blk) {
             normalize_blk(reinterpret_cast<const in_data_t*>(src_ptr), reinterpret_cast<out_data_t*>(dst_ptr));
         }
     }
 
 private:
-    inline float epsApply(const float &modulo) const {
-        return attrs.epsMode == NormEpsMode::ADD ? modulo + attrs.eps : std::max(modulo, attrs.eps);
-    }
-
     void normalize_nchw(const in_data_t* src_data, out_data_t* dst_data) {
-        const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
-        for (size_t b = 0lu; b < attrs.jcp.n; b++) {
-            const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
-            out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
+        const size_t spatial_dims = jcp.h * jcp.w;
+        for (size_t b = 0lu; b < jcp.n; b++) {
+            const in_data_t *src_data_b = src_data + b * jcp.c * spatial_dims;
+            out_data_t *dst_data_b = dst_data + b * jcp.c * spatial_dims;
             if (attrs.across_spatial) {
                 // modulo
                 float addition_identity = 0.0f;
                 float modulo = 0.0f;
-                modulo = parallel_sum(attrs.jcp.c, addition_identity, [&](int ic) -> float {
+                modulo = parallel_sum(jcp.c, addition_identity, [&](int ic) -> float {
                     const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
                     float modulo_kernel = 0.0f;
                     float modulo_tail = 0.0f;
@@ -989,10 +992,10 @@ private:
                 });
 
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo));
+                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
 
                 // normalize
-                parallel_for(attrs.jcp.c, [&](size_t ic) {
+                parallel_for(jcp.c, [&](size_t ic) {
                     const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
                     auto arg = jit_normalize_call_args();
@@ -1015,10 +1018,10 @@ private:
                         arg.src = src_data_b_ib;
                         arg.modulo = static_cast<float*>(&moduloM[ib * attrs.blk_size]);
                         arg.src_stride = spatial_dims * sizeof(in_data_t);
-                        arg.work_amount = attrs.jcp.c;
+                        arg.work_amount = jcp.c;
                         (*normalize_modulo_kernel)(&arg);
                     } else {
-                        for (size_t c = 0; c < attrs.jcp.c; c++) {
+                        for (size_t c = 0; c < jcp.c; c++) {
                             const in_data_t *src_data_b_ib_c = src_data_b_ib + spatial_dims * c;
                             for (size_t blk = 0; blk < min_cb; blk++) {
                                 moduloM[ib * attrs.blk_size + blk] += src_data_b_ib_c[blk] * src_data_b_ib_c[blk];
@@ -1028,11 +1031,11 @@ private:
                 });
 
                 for (size_t m = 0; m < spatial_dims; m++) {
-                    moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
+                    moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m], attrs.epsMode, attrs.eps)));
                 }
 
                 // normalize
-                parallel_for(attrs.jcp.c, [&](size_t ic) {
+                parallel_for(jcp.c, [&](size_t ic) {
                     const in_data_t *src_data_bc = src_data_b + ic * spatial_dims;
                     out_data_t *dst_data_bc = dst_data_b + ic * spatial_dims;
                     auto arg = jit_normalize_call_args();
@@ -1048,16 +1051,16 @@ private:
     }
 
     void normalize_nhwc(const in_data_t* src_data, out_data_t* dst_data) {
-        const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
-        const size_t c_w_dims = attrs.jcp.c * attrs.jcp.w;
-        for (size_t b = 0lu; b < attrs.jcp.n; b++) {
-            const in_data_t *src_data_b = src_data + b * attrs.jcp.c * spatial_dims;
-            out_data_t *dst_data_b = dst_data + b * attrs.jcp.c * spatial_dims;
+        const size_t spatial_dims = jcp.h * jcp.w;
+        const size_t c_w_dims = jcp.c * jcp.w;
+        for (size_t b = 0lu; b < jcp.n; b++) {
+            const in_data_t *src_data_b = src_data + b * jcp.c * spatial_dims;
+            out_data_t *dst_data_b = dst_data + b * jcp.c * spatial_dims;
             if (attrs.across_spatial) {
                 // modulo
                 float addition_identity = 0;
                 float modulo = 0.0f;
-                modulo = parallel_sum(attrs.jcp.h, addition_identity, [&](int ih) -> float {
+                modulo = parallel_sum(jcp.h, addition_identity, [&](int ih) -> float {
                     size_t tail_start = 0;
                     const in_data_t *src_data_bh = src_data_b + ih * c_w_dims;
                     float modulo_kernel = 0.f;
@@ -1079,47 +1082,47 @@ private:
                     return modulo_kernel + modulo_tail;
                 });
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo));
+                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
 
                 // normalize
-                parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
-                    const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
-                    out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
+                    const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * jcp.c;
+                    out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * jcp.c;
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_bhw;
                     arg.dst = dst_data_bhw;
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
                     arg.oc_off = 0;
-                    arg.work_amount = static_cast<size_t>(attrs.jcp.c);
+                    arg.work_amount = static_cast<size_t>(jcp.c);
                     (*normalize_kernel)(&arg);
                 });
             } else {  // for across_spatial=false
-                parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](int ih, int iw) {
+                parallel_for2d(jcp.h, jcp.w, [&](int ih, int iw) {
                     // modulo
                     float modulo = 0.f;
-                    const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * attrs.jcp.c;
-                    out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * attrs.jcp.c;
+                    const in_data_t *src_data_bhw = src_data_b + ih * c_w_dims + iw * jcp.c;
+                    out_data_t *dst_data_bhw = dst_data_b + ih * c_w_dims + iw * jcp.c;
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_bhw;
                     arg.modulo = static_cast<float*>(&modulo);
                     arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                    arg.work_amount = attrs.jcp.c / attrs.blk_size;
+                    arg.work_amount = jcp.c / attrs.blk_size;
                     (*normalize_modulo_kernel)(&arg);
 
-                    size_t tail_start = (attrs.jcp.c / attrs.blk_size) * attrs.blk_size;
+                    size_t tail_start = (jcp.c / attrs.blk_size) * attrs.blk_size;
 
                     // for tail
-                    for (size_t c = tail_start; c < attrs.jcp.c; c++) {
+                    for (size_t c = tail_start; c < jcp.c; c++) {
                         modulo += src_data_bhw[c] * src_data_bhw[c];
                     }
 
                     modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo));
+                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
 
                     // normalize
                     arg.dst = dst_data_bhw;
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // bc static
-                    arg.work_amount = attrs.jcp.c;
+                    arg.work_amount = jcp.c;
                     arg.oc_off = 0;
                     (*normalize_kernel)(&arg);
                 });
@@ -1128,30 +1131,30 @@ private:
     }
 
     void normalize_blk(const in_data_t* src_data, out_data_t* dst_data) {
-        const size_t CB = div_up(attrs.jcp.c, attrs.blk_size);
-        const size_t spatial_dims = attrs.jcp.h * attrs.jcp.w;
-        const size_t w_blk_dims = attrs.jcp.w * attrs.blk_size;
-        for (size_t b = 0lu; b < attrs.jcp.n; b++) {
+        const size_t CB = div_up(jcp.c, attrs.blk_size);
+        const size_t spatial_dims = jcp.h * jcp.w;
+        const size_t w_blk_dims = jcp.w * attrs.blk_size;
+        for (size_t b = 0lu; b < jcp.n; b++) {
             const in_data_t *src_data_b = src_data + b * CB * spatial_dims * attrs.blk_size;
             out_data_t *dst_data_b = dst_data + b * CB * spatial_dims * attrs.blk_size;
             if (attrs.across_spatial) {
                 // modulo
                 float modulo = 0.0f;
                 float addition_identity = 0.0f;
-                modulo = parallel_sum2d(CB, attrs.jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
+                modulo = parallel_sum2d(CB, jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
                     // handle W * blk_size data
                     const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
-                    size_t min_cb = (std::min)(attrs.blk_size, attrs.jcp.c - cb * attrs.blk_size);
+                    size_t min_cb = (std::min)(attrs.blk_size, jcp.c - cb * attrs.blk_size);
                     float modulo_w_blk = 0.0f;
                     if (min_cb == attrs.blk_size) {
                         auto arg = jit_normalize_call_args();
                         arg.src = src_data_b_cb_h;
                         arg.modulo = static_cast<float*>(&modulo_w_blk);
                         arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                        arg.work_amount = attrs.jcp.w;
+                        arg.work_amount = jcp.w;
                         (*normalize_modulo_kernel)(&arg);
                     } else {
-                        for (size_t w = 0; w < attrs.jcp.w; w++) {
+                        for (size_t w = 0; w < jcp.w; w++) {
                             const in_data_t *src_data_b_cb_h_w = src_data_b_cb_h + w * attrs.blk_size;
                             for (size_t c = 0; c < min_cb; c++) {
                                 modulo_w_blk += src_data_b_cb_h_w[c] * src_data_b_cb_h_w[c];
@@ -1162,22 +1165,22 @@ private:
                 });
 
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo));
+                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
 
                 // normalize
-                parallel_for2d(CB, attrs.jcp.h, [&](size_t cb, size_t h) {
+                parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
                     const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
                     out_data_t *dst_data_b_cb_h = dst_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_b_cb_h;
                     arg.dst = dst_data_b_cb_h;
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
-                    arg.work_amount = static_cast<size_t>(attrs.jcp.w);
+                    arg.work_amount = static_cast<size_t>(jcp.w);
                     arg.oc_off = cb * attrs.blk_size * sizeof(float);
                     (*normalize_kernel)(&arg);
                 });
             } else {  // across_spatial: false
-                parallel_for2d(attrs.jcp.h, attrs.jcp.w, [&](size_t ih, size_t iw) {
+                parallel_for2d(jcp.h, jcp.w, [&](size_t ih, size_t iw) {
                     // modulo
                     float modulo = 0.0f;
                     const in_data_t *src_data_bhw = src_data_b + ih * w_blk_dims + iw * attrs.blk_size;
@@ -1186,10 +1189,10 @@ private:
                     arg.src = src_data_bhw;
                     arg.modulo = static_cast<float*>(&modulo);
                     arg.src_stride = attrs.blk_size * spatial_dims * sizeof(in_data_t);
-                    arg.work_amount = attrs.jcp.c / attrs.blk_size;  // CB or CB-1
+                    arg.work_amount = jcp.c / attrs.blk_size;  // CB or CB-1
                     (*normalize_modulo_kernel)(&arg);
                     // for tail
-                    size_t padding = CB * attrs.blk_size - attrs.jcp.c;
+                    size_t padding = CB * attrs.blk_size - jcp.c;
                     if (padding > 0) {
                         size_t tail = attrs.blk_size - padding;
                         const in_data_t *src_data_bhw_lastCB = src_data_bhw + (CB - 1) * attrs.blk_size * spatial_dims;
@@ -1199,7 +1202,7 @@ private:
                     }
 
                     modulo = std::sqrt(modulo);
-                    float modulo_inv = 1.0f / (epsApply(modulo));
+                    float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
 
                     // normalize
                     arg.dst = dst_data_bhw;
@@ -1212,6 +1215,8 @@ private:
         }
     }
 
+    jit_normalize_config_params jcp = {};
+    mkldnn::primitive_attr kernel_attrs;
     NormalizeL2Attrs attrs;
 
     std::shared_ptr<jit_uni_normalize_modulo_kernel> normalize_modulo_kernel;
@@ -1223,21 +1228,21 @@ private:
 // *=============* Reference case *===============*
 
 template <typename in_data_t, typename out_data_t>
-struct MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
-    NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs) : attrs(attrs) {
-        if (!attrs.jcp.is_nchw) {
+class MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormalizeL2Node::NormalizeL2Executor {
+public:
+    NormalizeL2ReferenceExecutor(const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs) : attrs(attrs), kernel_attrs(kernel_attrs) {
+        if (!attrs.is_nchw) {
             IE_THROW() << "Reference Executor of 'NormalizeL2' supports only ncsp layout!";
         }
 
-        const auto &p = (*attrs.kernel_attrs.get()).post_ops_;
+        const auto &p = (*kernel_attrs.get()).post_ops_;
         for (int i = 0; i < p.len(); i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
                 eltwise_injectors_ref.push_back(std::make_shared<cpu::ref_eltwise_scalar_fwd_t>(
                         post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
             } else if (post_op.is_depthwise()) {
-                depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(
-                        post_op.depthwise.alg));
+                depthwise_injectors_ref.push_back(std::make_shared<cpu::ref_depthwise_scalar_fwd_t>(post_op.depthwise.alg));
             }
         }
     }
@@ -1247,10 +1252,6 @@ struct MKLDNNNormalizeL2Node::NormalizeL2ReferenceExecutor : public MKLDNNNormal
     }
 
 private:
-    inline float epsApply(const float &modulo) const {
-        return attrs.epsMode == NormEpsMode::ADD ? modulo + attrs.eps : std::max(modulo, attrs.eps);
-    }
-
     void normalize_nchw_ref(const in_data_t* src_data, out_data_t* dst_data) {
         size_t dims_size = attrs.dims.size();
         const size_t N = attrs.dims[0];
@@ -1275,7 +1276,7 @@ private:
                 });
 
                 modulo = std::sqrt(modulo);
-                float modulo_inv = 1.0f / (epsApply(modulo));
+                float modulo_inv = 1.0f / (epsApply(modulo, attrs.epsMode, attrs.eps));
 
                 // normalize
                 parallel_for(C, [&](size_t ic) {
@@ -1306,7 +1307,7 @@ private:
                 });
 
                 for (size_t m = 0; m < spatial_dims; m++) {
-                    moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m])));
+                    moduloM[m] = 1.0f / (std::sqrt(epsApply(moduloM[m], attrs.epsMode, attrs.eps)));
                 }
 
                 // normalize
@@ -1328,7 +1329,7 @@ private:
     }
 
     inline void apply_post_ops_scalar(float &dst_value, int index_c) {
-        const auto &p = (*attrs.kernel_attrs.get()).post_ops_;
+        const auto &p = (*kernel_attrs.get()).post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
         for (int i = 0; i < p.len(); i++) {
@@ -1368,6 +1369,7 @@ private:
         }
     }
 
+    mkldnn::primitive_attr kernel_attrs;
     NormalizeL2Attrs attrs;
 
     std::vector<std::shared_ptr<mkldnn::impl::cpu::ref_eltwise_scalar_fwd_t>> eltwise_injectors_ref;
@@ -1377,10 +1379,10 @@ private:
 // *=================* *======* *=================*
 
 std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::getNormalizeL2Executor(
-        const NormalizeL2Attrs& attrs, const InferenceEngine::Precision& input_prec, const InferenceEngine::Precision& output_prec) {
-    NormalizeContext ctx = { nullptr, attrs };
+        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs) {
+    NormalizeContext ctx = { nullptr, attrs, kernel_attrs };
 
-    OV_SWITCH(MKLDNNPlugin, NormalizeExecutorCreation, ctx, std::tie(input_prec, output_prec),
+    OV_SWITCH(MKLDNNPlugin, NormalizeExecutorCreation, ctx, std::tie(attrs.input_prec, attrs.output_prec),
               OV_CASE2(Precision::U8, Precision::U8, uint8_t, uint8_t),
               OV_CASE2(Precision::I8, Precision::U8, int8_t, uint8_t),
               OV_CASE2(Precision::FP32, Precision::U8, float, uint8_t),
@@ -1396,13 +1398,14 @@ std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Nod
 }
 
 template <typename in_data_t, typename out_data_t>
-std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::makeExecutor(const NormalizeL2Attrs& attrs) {
+std::shared_ptr<MKLDNNNormalizeL2Node::NormalizeL2Executor> MKLDNNNormalizeL2Node::NormalizeL2Executor::makeExecutor(
+        const NormalizeL2Attrs& attrs, const mkldnn::primitive_attr& kernel_attrs) {
     if (attrs.cornerCase)
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(attrs.dims);
     else if (mayiuse(cpu::x64::sse41))
-        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs);
-    else if (attrs.jcp.is_nchw)
-        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs);
+        return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs);
+    else if (attrs.is_nchw)
+        return std::make_shared<NormalizeL2ReferenceExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs);
     else
         IE_THROW() << "'NormalizeL2' cannot create Executor";
 }

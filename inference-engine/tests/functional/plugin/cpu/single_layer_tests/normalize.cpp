@@ -107,22 +107,15 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
 namespace {
 
 /* ============= Common params ============= */
-// TODO: Uncomment when fusings will support dynamic shapes
 std::vector<fusingSpecificParams> fusingParamsSet {
-         emptyFusingSpec,
-//        fusingMultiplyPerTensor,
-//        fusingMultiplyPerChannel,
-//        fusingAddPerTensor,
-//        fusingAddPerChannel,
-//        fusingSubtractPerTensor,
-//        fusingSubtractPerChannel,
-//        fusingDividePerTensor,
-//        fusingDividePerChannel,
-//        fusingPReluPerChannel,
-//        fusingPReluPerTensor,
-//        fusingRelu,
-//        fusingGelu,
-//        fusingReluScaleShift
+    emptyFusingSpec,
+    fusingMultiplyPerTensor,
+    fusingAddPerTensor,
+    fusingSubtractPerTensor,
+    fusingDividePerTensor,
+    fusingPReluPerTensor,
+    fusingRelu,
+    fusingGelu,
 };
 
 const float epsilon = 1e-4f;
@@ -197,8 +190,7 @@ const std::vector<InputShape> inputShapeDynamic_3D = {
 const std::vector<std::vector<int64_t>> axes_3D = {
     {1, 2},
     {2, 1},
-    {1},
-    {}
+    {1}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Static_3D, NormalizeL2LayerCPUTest,

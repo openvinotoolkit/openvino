@@ -105,33 +105,41 @@ private:
         bool cornerCase = false;
         float eps = 1e-10f;
 
+        bool is_nchw = false;
+        bool is_nhwc = false;
+        bool is_blk = false;
+
         VectorDims dims;
         InferenceEngine::Precision input_prec = Precision::UNSPECIFIED;
         InferenceEngine::Precision output_prec = Precision::UNSPECIFIED;
         size_t src_data_size = 0lu;
         size_t dst_data_size = 0lu;
         size_t blk_size = 1lu;
-
-        mkldnn::primitive_attr kernel_attrs;
-        jit_normalize_config_params jcp = {};
     } attrs;
 
-    struct NormalizeL2Executor {
+    class NormalizeL2Executor {
+    public:
         NormalizeL2Executor() = default;
         virtual void exec(const uint8_t *src_ptr, uint8_t *dst_ptr) = 0;
         virtual ~NormalizeL2Executor() = default;
 
         static std::shared_ptr<NormalizeL2Executor> getNormalizeL2Executor(const NormalizeL2Attrs& attrs,
-                                                                           const InferenceEngine::Precision& input_prec,
-                                                                           const InferenceEngine::Precision& output_prec);
+                                                                           const mkldnn::primitive_attr& kernel_attr);
+
+    protected:
+        inline float epsApply(const float &modulo, const NormEpsMode mode, const float eps) const {
+            return mode == NormEpsMode::ADD ? modulo + eps : std::max(modulo, eps);
+        }
 
     private:
         template <typename in_data_t, typename out_data_t>
-        static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs);
+        static std::shared_ptr<NormalizeL2Executor> makeExecutor(const NormalizeL2Attrs& attrs,
+                                                                 const mkldnn::primitive_attr& kernel_attrs);
 
         struct NormalizeContext {
             std::shared_ptr<NormalizeL2Executor> executor;
             NormalizeL2Attrs attrs;
+            mkldnn::primitive_attr kernel_attrs;
         };
 
         template<typename T>
@@ -140,7 +148,7 @@ private:
             using dst_t = typename std::tuple_element<1, T>::type;
 
             void operator()(NormalizeContext& ctx) {
-                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs);
+                ctx.executor = NormalizeL2Executor::makeExecutor<src_t, dst_t>(ctx.attrs, ctx.kernel_attrs);
             }
         };
     };
@@ -149,7 +157,9 @@ private:
     template <typename in_data_t, typename out_data_t> struct NormalizeL2JitExecutor;
     template <typename in_data_t, typename out_data_t> struct NormalizeL2ReferenceExecutor;
 
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+    mkldnn::primitive_attr kernel_attrs;
+
+    void setPostOps(mkldnn::primitive_attr& kernel_attrs, const VectorDims& dims, bool initWeights = false);
 
     static constexpr size_t DATA = 0;
     static constexpr size_t AXES = 1;
