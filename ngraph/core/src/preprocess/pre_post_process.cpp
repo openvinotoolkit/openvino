@@ -598,6 +598,7 @@ std::shared_ptr<Function> PrePostProcessor::build() {
             // Apply custom action on newly created parameters
             for (auto& new_param : new_params) {
                 new_param = input->get_tensor_data()->custom_action()(new_param);
+                tensor_data_updated = true;
             }
         }
         PreprocessingContext context(input->get_tensor_data()->get_layout());
