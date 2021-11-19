@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include <ostream>
 #include <map>
+#include <ostream>
 
 #include "openvino/core/core_visibility.hpp"
 
