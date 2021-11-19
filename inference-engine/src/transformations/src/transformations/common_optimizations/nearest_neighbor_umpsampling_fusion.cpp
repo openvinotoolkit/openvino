@@ -20,14 +20,14 @@
 namespace {
 using namespace ngraph;
 
-std::vector<size_t> get_scales_from_mul_const_shape(const Shape& s, uint64_t input_rank) {
+std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t input_rank) {
     if (input_rank < 4 || static_cast<uint64_t>(s.size()) != 2 + 2 * (input_rank - 2)) return {};
 
     ngraph::Shape expected_shape(2 + 2 * (input_rank - 2), static_cast<size_t>(1));
-    std::vector<size_t> scales(input_rank - 2);
+    std::vector<float> scales(input_rank - 2);
     for (uint64_t i = 1; i <= input_rank - 2; ++i) {
         expected_shape[2 * i] = s[2 * i];
-        scales[i - 1] = s[2 * i];
+        scales[i - 1] = static_cast<float>(s[2 * i]);
     }
 
     if (s != expected_shape) return {};
@@ -149,7 +149,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         uint64_t input_rank = static_cast<uint64_t>(reshape_1_node->get_input_partial_shape(0).rank().get_length());
         const auto mul_const_shape = mul_const_node->get_output_shape(0);
         const auto scales = get_scales_from_mul_const_shape(mul_const_shape, input_rank);
-        if (scales.empty() || std::all_of(scales.begin(), scales.end(), [](size_t s) { return s == 1;})) { return false; }
+        if (scales.empty() || std::all_of(scales.begin(), scales.end(), [](float s) { return s == 1.0f;})) { return false; }
 
         const auto mul_const_value = mul_const_node->cast_vector<float>();
         if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [](float x){ return x != 1.0f; })) { return false; }
@@ -179,6 +179,31 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         const auto node_before_shapeof = shapeof_node->input_value(0).get_node_shared_ptr();
         const auto node_before_reshape_1 = reshape_1_node->input_value(0).get_node_shared_ptr();
         if (node_before_shapeof.get() != node_before_reshape_1.get()) return false;
+
+        opset8::Interpolate::InterpolateAttrs attrs;
+        attrs.mode = opset8::Interpolate::InterpolateMode::NEAREST;
+        attrs.shape_calculation_mode = opset8::Interpolate::ShapeCalcMode::SCALES;
+        attrs.nearest_mode = opset8::Interpolate::NearestMode::ROUND_PREFER_FLOOR;
+        attrs.pads_begin = std::vector<size_t>{0};
+        attrs.pads_end = std::vector<size_t>{0};
+        attrs.antialias = false;
+        attrs.coordinate_transformation_mode = opset8::Interpolate::CoordinateTransformMode::HALF_PIXEL;
+        attrs.cube_coeff = -0.75f;
+
+        const auto scales_node = opset8::Constant::create(element::f32, {scales.size()}, scales);
+        const auto sizes_node = opset8::Constant::create(element::i64, {new_spatial_shape.size()}, new_spatial_shape);
+
+        std::vector<int64_t> axes(input_rank - 2);
+        std::iota(axes.begin(), axes.end(), static_cast<int64_t>(1));
+        const auto axes_node = opset8::Constant::create(element::i64, {axes.size()}, axes);
+
+        auto interpolate = register_new_node<opset8::Interpolate>(node_before_shapeof, sizes_node, scales_node, axes_node, attrs);
+
+        interpolate->set_friendly_name(reshape_2_node->get_friendly_name());
+        copy_runtime_info({reshape_2_node, mul_node, mul_const_node, concat_1_node, unsqueeze_1, concat_2_node, unsqueeze_2, ss_before_unsqueeze_1,
+                           shapeof_node, node_before_shapeof},
+                          {scales_node, sizes_node, axes_node, interpolate});
+        replace_node(reshape_2_node, interpolate);
 
         return true;
     };
