@@ -8,7 +8,7 @@ file(GLOB_RECURSE SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
-add_dependencies(${TARGET_NAME} inference_engine_preproc)
+add_dependencies(${TARGET_NAME} openvino::preprocessing)
 
 if(ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} MultiDevicePlugin)
@@ -25,7 +25,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC
 target_link_libraries(${TARGET_NAME} PUBLIC gmock)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests)
 
 # developer package

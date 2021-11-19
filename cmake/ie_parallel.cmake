@@ -51,12 +51,12 @@ function(set_ie_threading_interface_for TARGET_NAME)
            target_type STREQUAL "MODULE_LIBRARY")
         set(LINK_TYPE "PRIVATE")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
-        # Affected libraries: inference_engine_s, inference_engine_preproc_s
+        # Affected libraries: ov_runtime_s, ov_preprocessing_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
     elseif(target_type STREQUAL "SHARED_LIBRARY")
-        # Affected libraries: inference_engine only
-        # TODO: why TBB propogates its headers to inference_engine?
+        # Affected libraries: ov_runtime only
+        # TODO: why TBB propogates its headers to ov_runtime?
         set(LINK_TYPE "PRIVATE")
     else()
         ext_message(WARNING "Unknown target type")

@@ -41,7 +41,7 @@ if(SELECTIVE_BUILD STREQUAL "ON")
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn
-                                             inference_engine
+                                             openvino::runtime
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
                                              ov_shape_inference)
@@ -69,7 +69,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 link_system_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
-target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
+target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ov_preprocessing_s,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
@@ -82,7 +82,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mk
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
-    USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
+    USE_STATIC_OV_RUNTIME IMPLEMENT_INFERENCE_ENGINE_PLUGIN IMPLEMENT_INFERENCE_EXTENSION_API
     $<TARGET_PROPERTY:openvino::core,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>
 )

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "inference_engine_snippets")
+set (TARGET_NAME "ov_snippets")
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -20,13 +20,14 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
+add_library(openvino::snippets ALIAS ${TARGET_NAME})
 
 ie_faster_build(${TARGET_NAME}
     UNITY
 )
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Snippets transformations library")
+    FILEDESCRIPTION "OpenVINO Snippets transformations library")
 
 target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
@@ -48,7 +49,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT runtime TARGETS ${TARGET_NAME})
 
 # install
 

@@ -85,7 +85,7 @@ function(ie_add_plugin)
         if(TARGET IE::inference_engine_plugin_api)
             target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine IE::inference_engine_plugin_api)
         else()
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine inference_engine_plugin_api)
+            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE ov_runtime ov_runtime_dev)
         endif()
 
         if(WIN32)
@@ -108,11 +108,11 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET inference_engine_preproc)
+        if(TARGET ov_preprocessing AND BUILD_SHARED_LIBS)
             if(BUILD_SHARED_LIBS)
-                add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
+                add_dependencies(${IE_PLUGIN_NAME} ov_preprocessing)
             else()
-                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_preproc)
+                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE ov_preprocessing)
             endif()
         endif()
 
@@ -306,12 +306,12 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
-    ie_target_link_plugins(inference_engine)
-    if(TARGET inference_engine_s)
-        ie_target_link_plugins(inference_engine_s)
+    ie_target_link_plugins(ov_runtime)
+    if(TARGET ov_runtime_s)
+        ie_target_link_plugins(ov_runtime_s)
     endif()
 
-    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/inference-engine/src/inference_engine/ie_plugins.hpp")
+    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/src/runtime/ie_plugins.hpp")
     set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
 
     add_custom_command(OUTPUT "${ie_plugins_hpp}"
@@ -331,12 +331,12 @@ function(ie_generate_plugins_hpp)
                        VERBATIM)
 
     # for some reason dependency on source files does not work
-    # so, we have to use explicit target and make it dependency for inference_engine
+    # so, we have to use explicit target and make it dependency for ov_runtime
     add_custom_target(ie_generate_hpp DEPENDS ${ie_plugins_hpp})
-    add_dependencies(inference_engine ie_generate_hpp)
+    add_dependencies(ov_runtime ie_generate_hpp)
 
     # add dependency for object files
-    get_target_property(sources inference_engine SOURCES)
+    get_target_property(sources ov_runtime SOURCES)
     foreach(source IN LISTS sources)
         if("${source}" MATCHES "\\$\\<TARGET_OBJECTS\\:([A-Za-z0-9_]*)\\>")
             # object library
@@ -349,6 +349,6 @@ function(ie_generate_plugins_hpp)
         endif()
     endforeach()
 
-    # add dependency on header file generation for all inference_engine source files
+    # add dependency on header file generation for all ov_runtime source files
     set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ie_plugins_hpp})
 endfunction()

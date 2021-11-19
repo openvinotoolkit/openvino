@@ -20,8 +20,8 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE
-    inference_engine
-    inference_engine_plugin_api
+    openvino::runtime
+    openvino::runtime::dev
     gflags
     ie_samples_utils
 )

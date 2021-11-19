@@ -39,7 +39,7 @@ The primary tools for deploying your models and applications are installed to th
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |  
 |:----------------------------------------|:--------------------------------------------------------------------------------------|
 | `demo/`                                 | Sample scripts. Demonstrate pipelines for inference scenarios, automatically perform steps and print detailed output to the console. For more information, see the [Use OpenVINO: Sample Scripts](#use-openvino-sample-scripts) section.|
-| `inference_engine/`                     | Inference Engine directory. Contains Inference Engine API binaries and source files, samples and extensions source files, and resources like hardware drivers.|
+| `src/runtime/`                     | Inference Engine directory. Contains Inference Engine API binaries and source files, samples and extensions source files, and resources like hardware drivers.|
 | `~intel_models/` | Symbolic link to the `intel_models` subfolder of the `open_model-zoo` folder |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`include/`      | Inference Engine header files. For API documentation, see the [Inference Engine API Reference](./annotated.html). |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`lib/`          | Inference Engine binaries.|

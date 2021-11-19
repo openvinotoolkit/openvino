@@ -28,11 +28,11 @@ Modules in the Inference Engine component
 
 Your application must link to the core Inference Engine libraries:
 * Linux* OS:
-    - `libinference_engine.so`, which depends on `libinference_engine_transformations.so`, `libtbb.so`, `libtbbmalloc.so` and `libngraph.so`
+    - `libov_runtime.so`, which depends on `libinference_engine_transformations.so`, `libtbb.so`, `libtbbmalloc.so` and `libngraph.so`
 * Windows* OS:
-    - `inference_engine.dll`, which depends on `inference_engine_transformations.dll`, `tbb.dll`, `tbbmalloc.dll` and `ngraph.dll`
+    - `ov_runtime.dll`, which depends on `inference_engine_transformations.dll`, `tbb.dll`, `tbbmalloc.dll` and `ngraph.dll`
 * macOS*:
-    - `libinference_engine.dylib`, which depends on `libinference_engine_transformations.dylib`, `libtbb.dylib`, `libtbbmalloc.dylib` and `libngraph.dylib`
+    - `libov_runtime.dylib`, which depends on `libinference_engine_transformations.dylib`, `libtbb.dylib`, `libtbbmalloc.dylib` and `libngraph.dylib`
 
 The required C++ header files are located in the `include` directory.
 

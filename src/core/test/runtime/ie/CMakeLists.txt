@@ -21,8 +21,8 @@ ie_add_vs_version_file(NAME ie_backend
 
 ie_add_api_validator_post_build_step(TARGET ie_backend)
 
-add_dependencies(ie_backend inference_engine)
-target_link_libraries(ie_backend PUBLIC ov_backend inference_engine)
+add_dependencies(ie_backend openvino::runtime)
+target_link_libraries(ie_backend PUBLIC ov_backend openvino::runtime)
 
 install(TARGETS ie_backend
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL

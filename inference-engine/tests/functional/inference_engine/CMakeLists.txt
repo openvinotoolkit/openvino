@@ -4,7 +4,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
-set(INCLUDES $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src)
+set(INCLUDES $<TARGET_PROPERTY:openvino::runtime,SOURCE_DIR>/src)
 
 set(LINK_LIBRARIES
     gmock
@@ -16,9 +16,9 @@ set(LINK_LIBRARIES
     openvino::util
     openvino::conditional_compilation
     sharedTestClasses
-    inference_engine_snippets
+    openvino::snippets
     offline_transformations
-    inference_engine
+    openvino::runtime
     frontend_manager
     pugixml::static
 )
@@ -124,12 +124,12 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_PLUGIN_API)
         set(include_dirs
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/plugin_api/")
+            "${OpenVINO_SOURCE_DIR}/src/runtime/dev_api/")
     else()
         set(include_dirs
             "${OpenVINO_SOURCE_DIR}/src/core/include"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/ie"
-            "${OpenVINO_SOURCE_DIR}/inference-engine/src/inference_engine/include/")
+            "${OpenVINO_SOURCE_DIR}/src/runtime/include/ie"
+            "${OpenVINO_SOURCE_DIR}/src/runtime/include/")
     endif()
 
     foreach(include_dir IN LISTS include_dirs)
@@ -190,18 +190,18 @@ function(ie_headers_compilation_with_custom_flags)
     set(target_name ieFuncTestsCompilation${IE_TEST_TEST_SUFFIX})
     add_library(${target_name} OBJECT ${source_file})
     target_include_directories(${target_name} PRIVATE "${IE_TEST_INCLUDE_DIRECTORY}"
-        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
+        $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:openvino::runtime,INTERFACE_COMPILE_DEFINITIONS>)
 
     if(IE_TEST_PLUGIN_API)
-        # pugixml::static, openvino::itt, inference_engine_preproc headers
+        # pugixml::static, openvino::itt, ov_preprocessing headers
         target_include_directories(${target_name} SYSTEM PRIVATE
             $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
         target_compile_definitions(${target_name} PRIVATE
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
+            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_COMPILE_DEFINITIONS>)
     else()
         # OpenCL headers if any
         if(OPENCL_HEADERS_DIR)

@@ -77,7 +77,7 @@ include_directories(
     ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
     "${CLDNN__CODEGEN_INCDIR}"
     "${CLDNN__API_DIR}"
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
   )
 
 # =================================== Link targets and dependencies ====================================
@@ -90,4 +90,4 @@ endif()
 
 add_subdirectory(kernel_selector)
 
-target_link_libraries(${CLDNN_BUILD__PROJ__clDNN} PRIVATE inference_engine)
+target_link_libraries(${CLDNN_BUILD__PROJ__clDNN} PRIVATE openvino::runtime)

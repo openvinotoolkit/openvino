@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "inference_engine_preproc")
+set (TARGET_NAME "ov_preprocessing")
 
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
@@ -99,13 +99,13 @@ ie_faster_build(${TARGET_NAME}_obj
 )
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-                                                      $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:openvino::runtime,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<$<BOOL:${ENABLE_GAPI_PREPROCESSING}>:ENABLE_GAPI_PREPROCESSING>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ocv_hal,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:fluid,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
@@ -132,8 +132,10 @@ endif()
 
 add_library(${TARGET_NAME} ${library_type} ${library_sources})
 
+add_library(openvino::preprocessing ALIAS ${TARGET_NAME})
+
 ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Preprocessing plugin")
+                       FILEDESCRIPTION "OpenVINO Preprocessing plugin")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
@@ -143,15 +145,15 @@ if(ENABLE_GAPI_PREPROCESSING)
 endif()
 
 if(BUILD_SHARED_LIBS)
-    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 else()
     # for static linkage the dependencies are in opposite order
-    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
+    target_link_libraries(ov_runtime PRIVATE ${TARGET_NAME})
 endif()
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
 if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
@@ -179,9 +181,9 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
-                                       INTERFACE inference_engine_s)
+                                       INTERFACE ov_runtime_s)
 
-target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
+target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_OV_RUNTIME)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES EXCLUDE_FROM_ALL ON)
 
@@ -197,7 +199,7 @@ endif()
 
 # developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+openvino_developer_export_targets(COMPONENT runtime TARGETS ${TARGET_NAME})
 
 # install
 

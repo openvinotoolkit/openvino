@@ -13,7 +13,7 @@ endif()
 
 add_executable(${TARGET_NAME} ie_c_api_test.cpp test_model_repo.hpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_c_api ${OpenCV_LIBRARIES}
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::c ${OpenCV_LIBRARIES}
                                              commonTestUtils gtest_main)
 
 target_compile_definitions(${TARGET_NAME}

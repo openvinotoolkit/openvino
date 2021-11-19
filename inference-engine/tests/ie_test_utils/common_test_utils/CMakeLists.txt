@@ -24,9 +24,9 @@ function(add_common_utils ADD_TARGET_NAME)
                     openvino::util
     )
 
-    # USE_STATIC_IE is passed
+    # USE_STATIC_OV_RUNTIME is passed
     if(ARGN)
-        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE ov_runtime_s)
     else()
         target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy)
     endif()
@@ -54,10 +54,10 @@ function(add_common_utils ADD_TARGET_NAME)
 
     target_include_directories(${ADD_TARGET_NAME}
         PUBLIC
-            $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
             $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
             )
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
@@ -68,4 +68,4 @@ endfunction()
 set(TARGET_NAME commonTestUtils)
 
 add_common_utils(${TARGET_NAME})
-add_common_utils(${TARGET_NAME}_s USE_STATIC_IE)
+add_common_utils(${TARGET_NAME}_s USE_STATIC_OV_RUNTIME)

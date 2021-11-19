@@ -32,7 +32,7 @@ endfunction()
 
 function(register_extra_modules)
     # post export
-    openvino_developer_export_targets(COMPONENT inference_engine TARGETS inference_engine)
+    openvino_developer_export_targets(COMPONENT runtime TARGETS openvino::runtime)
     openvino_developer_export_targets(COMPONENT core TARGETS openvino::core)
 
     set(InferenceEngineDeveloperPackage_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
@@ -101,7 +101,7 @@ openvino_developer_export_targets(COMPONENT core TARGETS ov_backend interpreter_
 # are configured
 ie_generate_dev_package_config()
 
-# extra modules must be registered after inference_engine library
+# extra modules must be registered after openvino::runtime library
 # and all other IE common libraries (ie_libraries) are creared
 # because 'register_extra_modules' creates fake InferenceEngineDeveloperPackageConfig.cmake
 # with all imported developer targets

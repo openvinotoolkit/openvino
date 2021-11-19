@@ -2,7 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME "inference_engine")
+set (TARGET_NAME "ov_runtime")
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wall)
+    ie_add_compiler_flags(-Wmissing-declarations)
+endif()
+
 
 if(ENABLE_TBBBIND_2_5)
     # try to find prebuilt version of tbbbind_2_5
@@ -30,7 +36,7 @@ set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/ie_core.cpp
                     APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/core/src/")
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
+set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/common/legacy_api/src")
 set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
     "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
@@ -38,10 +44,10 @@ set(LEGACY_LIBRARY_SHARED_SRCS
     "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
-    COMPILE_DEFINITIONS "USE_STATIC_IE")
+    COMPILE_DEFINITIONS "USE_STATIC_OV_RUNTIME")
 
-set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
-list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
+set(OV_RUNTIME_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
+list(REMOVE_ITEM LIBRARY_SRC ${OV_RUNTIME_STATIC_DEPENDENT_FILES})
 
 if(ENABLE_IR_V7_READER)
     set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/ie_network_reader.cpp PROPERTIES
@@ -104,25 +110,27 @@ source_group("include" FILES ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 # Plugin API library
 
-add_library(${TARGET_NAME}_plugin_api INTERFACE)
+add_library(${TARGET_NAME}_dev INTERFACE)
 
-target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
-    $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
-    $<BUILD_INTERFACE:${IE_MAIN_SOURCE_DIR}/src/plugin_api>
+target_include_directories(${TARGET_NAME}_dev INTERFACE
+    $<TARGET_PROPERTY:openvino::preprocessing,INTERFACE_INCLUDE_DIRECTORIES>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dev_api>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
+target_link_libraries(${TARGET_NAME}_dev INTERFACE pugixml::static openvino::itt openvino::util)
 
-target_compile_definitions(${TARGET_NAME}_plugin_api INTERFACE
-    $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+target_compile_definitions(${TARGET_NAME}_dev INTERFACE
+    $<TARGET_PROPERTY:openvino::preprocessing,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_plugin_api INTERFACE pugixml::static openvino::itt openvino::util)
+set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)
+add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
 
-set_ie_threading_interface_for(${TARGET_NAME}_plugin_api)
+set_ie_threading_interface_for(${TARGET_NAME}_dev)
 
-file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
-                                 "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
+file(GLOB_RECURSE dev_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
+                              "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.h")
 
-add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
+add_clang_format_target(${TARGET_NAME}_dev_clang FOR_SOURCES ${dev_api_src})
 
 # Create object library
 
@@ -148,11 +156,11 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:o
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
                                                       "${CMAKE_CURRENT_BINARY_DIR}" # for static ie_plugins.hpp
                                                       $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>> # for ie_ir_version.hpp
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                      $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:${TARGET_NAME}_dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE inference_engine_reader_api openvino::itt openvino::util)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 if (TBBBIND_2_5_FOUND)
@@ -162,21 +170,25 @@ endif()
 # Create library file from object library
 
 add_library(${TARGET_NAME}
-            ${IE_STATIC_DEPENDENT_FILES}
+            ${OV_RUNTIME_STATIC_DEPENDENT_FILES}
             ${LEGACY_LIBRARY_SHARED_SRCS}
             ${vs_version_file}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
+add_library(IE::inference_engine ALIAS ${TARGET_NAME})
+add_library(inference_engine ALIAS ${TARGET_NAME})
 
-add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+add_dependencies(ov_runtime_libraries openvino::runtime)
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${OV_RUNTIME_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Core Runtime library")
+    FILEDESCRIPTION "OpenVINO Runtime library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 if (TBBBIND_2_5_FOUND)
@@ -190,8 +202,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openv
 target_include_directories(${TARGET_NAME} INTERFACE
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
             $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
-    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_dev,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -207,9 +219,9 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
+            $<TARGET_OBJECTS:inference_engine_legacy_obj>
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            ${IE_STATIC_DEPENDENT_FILES})
+            ${OV_RUNTIME_STATIC_DEPENDENT_FILES})
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
 if (TBBBIND_2_5_FOUND)
@@ -217,18 +229,18 @@ if (TBBBIND_2_5_FOUND)
 endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:${TARGET_NAME}_legacy,SOURCE_DIR>/src>)
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_legacy,SOURCE_DIR>/src>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} openvino::core
-    frontend_manager::static inference_engine_preproc_s inference_engine_transformations pugixml::static)
+    frontend_manager::static ov_preprocessing_s inference_engine_transformations pugixml::static)
 
-target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_OV_RUNTIME)
 
 set_target_properties(${TARGET_NAME}_s PROPERTIES
     EXCLUDE_FROM_ALL ON
@@ -246,7 +258,7 @@ export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
 
 # Export for developer package
 
-openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME}_plugin_api)
+openvino_developer_export_targets(COMPONENT runtime TARGETS ${TARGET_NAME}_dev)
 
 # install TBB
 
@@ -340,7 +352,7 @@ endif()
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 
-ov_install_static_lib(${TARGET_NAME}_plugin_api core)
+ov_install_static_lib(${TARGET_NAME}_dev core)
 
 # Install cmake scripts
 
@@ -352,7 +364,7 @@ install(EXPORT OpenVINOTargets
 
 set(OV_CORE_DIR "${CMAKE_BINARY_DIR}/src/core")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
+set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -387,7 +399,7 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
+              "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake"
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 

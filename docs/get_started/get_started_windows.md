@@ -34,7 +34,7 @@ The primary tools for deploying your models and applications are installed to th
 | Directory&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | Description                                                                           |
 |:----------------------------------------|:--------------------------------------------------------------------------------------|
 | `demo\`                                 | Sample scripts. Demonstrate pipelines for inference scenarios, automatically perform steps and print detailed output to the console. For more information, see the [Use OpenVINO: Demo Scripts](#use-openvino-demo-scripts) section.|
-| `inference_engine\`                     | Inference Engine directory. Contains Inference Engine API binaries and source files, samples and extensions source files, and resources like hardware drivers.|
+| `src\runtime\`                     | Inference Engine directory. Contains Inference Engine API binaries and source files, samples and extensions source files, and resources like hardware drivers.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`bin\`          | Inference Engine binaries.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`external\`     | Third-party dependencies and drivers.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`include\`      | Inference Engine header files. For API documentation, see the [Inference Engine API Reference](./annotated.html). |

@@ -12,8 +12,8 @@ The responsibility of Inference Engine Plugin:
 
 In addition to the Inference Engine Public API, the Inference Engine provides the Plugin API, which is a set of functions and helper classes that simplify new plugin development:
 
-- header files in the `inference_engine/src/plugin_api` directory
-- implementations in the `inference_engine/src/inference_engine` directory
+- header files in the `src/runtime/dev_api` directory
+- implementations in the `src/runtime` directory
 - symbols in the Inference Engine Core shared library
 
 To build an Inference Engine plugin with the Plugin API, see the [Inference Engine Plugin Building](@ref plugin_build) guide.  

@@ -28,10 +28,10 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     endif()
 
     if(STATIC_IE)
-        # static linkage to inference_engine library
+        # static linkage to openvino::runtime library
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
-                USE_STATIC_IE)
+                USE_STATIC_OV_RUNTIME)
         set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
@@ -54,7 +54,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     target_link_libraries(${TARGET_NAME}
         PUBLIC
             openvino::core
-            inference_engine_plugin_api
+            openvino::runtime::dev
         PRIVATE
             openvino::itt
     )
