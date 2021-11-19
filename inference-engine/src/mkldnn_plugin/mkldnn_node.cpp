@@ -957,14 +957,14 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getInputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getOutputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
