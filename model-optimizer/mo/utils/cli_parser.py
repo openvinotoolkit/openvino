@@ -89,12 +89,12 @@ class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenc
 
 class DeprecatedCanonicalizePathCheckExistenceAction(CanonicalizePathCheckExistenceAction):
     def __call__(self, parser, namespace, values, option_string=None):
-        super().__call__(parser, namespace, values, option_string)
         dep_msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal. ".format(
             option_string)
         if 'tensorflow_use_custom_operations_config' in option_string:
             dep_msg += 'Please use --transformations_config cli option instead'
         log.error(dep_msg, extra={'is_warning': True})
+        super().__call__(parser, namespace, values, option_string)
 
 
 def readable_file(path: str):
