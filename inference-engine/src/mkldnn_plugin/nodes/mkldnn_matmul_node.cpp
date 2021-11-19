@@ -22,9 +22,357 @@
 #include "mkldnn_extension_utils.h"
 #include "utils/cpu_utils.hpp"
 
-using namespace mkldnn;
+#include "emitters/jit_emitter.hpp"
+#include "emitters/jit_eltwise_emitters.hpp"
+#include "emitters/jit_mkldnn_emitters.hpp"
+#include "emitters/jit_load_store_emitters.hpp"
+
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace mkldnn;
+using namespace mkldnn::impl::utils;
+using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
+using namespace Xbyak;
+
+#define GET_OFF(field) offsetof(jit_matmul_args, field)
+
+
+template <cpu_isa_t isa>
+struct jit_uni_matmul_kernel_f32 : public jit_uni_matmul_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_matmul_kernel_f32)
+
+    explicit jit_uni_matmul_kernel_f32(jit_matmul_config_params jcp_, const mkldnn_primitive_attr &attr) : jit_uni_matmul_kernel(jcp_, attr), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
+    void generate() override {
+        const auto &p = attr_.post_ops_;
+        for (int i = 0; i < p.len(); i++) {
+            auto &post_op = p.entry_[i];
+            if (post_op.is_eltwise()) {
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
+                        this,
+                        post_op.eltwise.alg,
+                        post_op.eltwise.alpha,
+                        post_op.eltwise.beta,
+                        1));
+            } else {
+                IE_THROW() << "MatMul supports only eltwise post ops!";
+            }
+        }
+
+        load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
+        store_emitter.reset(new jit_store_emitter(this, isa, nullptr));
+
+        this->preamble();
+
+        mov(reg_src_0, ptr[reg_params + GET_OFF(src0)]);
+        mov(reg_src_1, ptr[reg_params + GET_OFF(src1)]);
+        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
+        store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
+        store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
+
+        amount_full = (jcp_.scalar_product ? jcp_.k : jcp_.n) / vec_step;
+        amount_tail = (jcp_.scalar_product ? jcp_.k : jcp_.n) % vec_step;
+
+        Xbyak::Label label_batch;
+        Xbyak::Label label_batch_end;
+
+        mov(batch, 0);
+        L(label_batch); {
+            cmp(batch, jcp_.b);
+            je(label_batch_end, T_NEAR);
+
+            body();
+
+            // strides for batch
+            if (jcp_.stride0 == 0)  // ptr for the first matrix is automatically incremented after each iteration by m,
+                sub(reg_src_0, jcp_.stride0 * sizeof(float)); // but if there should be no shift, we return ptr to the previous position
+            if (jcp_.stride1 != 0)
+                add(reg_src_1, jcp_.stride1 * sizeof(float));
+
+            add(batch, 1);
+            jmp(label_batch, T_NEAR);
+        }
+        L(label_batch_end);
+
+        this->postamble();
+
+        load_emitter->emit_data();
+        store_emitter->emit_data();
+
+        for (auto& inj : eltwise_injectors)
+            inj->prepare_table();
+    }
+
+private:
+    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vec_step = vlen / sizeof(float);
+    int amount_full;
+    int amount_tail;
+    int unroll_dst_count = 1;
+
+    Vmm get_src_vmm(const int idx) {
+        return Vmm(1 + unroll_dst_count + idx);
+    }
+
+    Vmm get_dst_vmm(const int idx = 0) {
+        return Vmm(1 + idx);
+    }
+
+    Xmm get_aux_xmm(const int idx) {
+        return Xmm(idx);
+    }
+
+    Xbyak::Reg64 reg_src_0 = r8;
+    Xbyak::Reg64 reg_src_1 = r9;
+    Xbyak::Reg64 reg_dst = r10;
+    Xbyak::Reg64 reg_src_aux_0 = r11;
+    Xbyak::Reg64 reg_src_aux_1 = r12;
+    Xbyak::Reg64 reg_dst_aux = r13; // only for 2nd algorithm
+
+    // indexes
+    Xbyak::Reg64 batch = r14;
+    Xbyak::Reg64 m = r15;
+    Xbyak::Reg64 k = rax;
+    Xbyak::Reg64 n = rbx;
+    Xbyak::Reg64 n_inside = rdx;
+
+    Xbyak::Reg64 reg_params = abi_param1; // RDI | RCX
+
+    // loaders and stores
+    Xbyak::Reg64 reg_load_store_mask = rsi;
+    Xbyak::Reg64 reg_load_table = rbp;
+
+    Vmm vmm_zero = Vmm(0);
+
+    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
+    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
+
+    std::vector<size_t> load_pool_gpr_idxs;
+    std::vector<size_t> store_pool_gpr_idxs;
+    std::vector<size_t> store_pool_vec_idxs;
+
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+
+    inline void body() {
+        Xbyak::Label label_m;
+        Xbyak::Label label_m_end;
+
+        mov(m, 0);
+        L(label_m); {
+            cmp(m, jcp_.m);
+            je(label_m_end, T_NEAR);
+
+            if (jcp_.scalar_product) {
+                optimized_body_loop();
+            } else {
+                body_loop();
+            }
+
+            add(reg_src_0, jcp_.k * sizeof(float));
+            add(m, 1);
+            jmp(label_m, T_NEAR);
+        }
+        L(label_m_end);
+    }
+
+    // common execution : broadcast(a) * vmm_b
+    inline void body_loop() {
+        Xbyak::Label label_k;
+        Xbyak::Label label_k_end;
+
+        unroll_dst_count = amount_full + static_cast<int>(amount_tail != 0);
+
+        mov(reg_src_aux_0, reg_src_0);
+        mov(reg_src_aux_1, reg_src_1);
+        for (int i = 0; i < unroll_dst_count; ++i)
+            uni_vpxor(get_dst_vmm(i), get_dst_vmm(i), get_dst_vmm(i));
+
+        mov(k, 0);
+        L(label_k); {
+            cmp(k, jcp_.k);
+            je(label_k_end, T_NEAR);
+
+            uni_vbroadcastss(get_src_vmm(0), ptr[reg_src_aux_0]);  // src0
+
+            for (int i = 0; i < amount_full; ++i) {
+                load_ptr(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
+                uni_vfmadd231ps(get_dst_vmm(i), get_src_vmm(0), get_src_vmm(1));  // broadcast(a) * vmm_1
+            }
+            add(reg_src_aux_1, amount_full * vlen);
+
+            if (amount_tail != 0) {
+                load(reg_src_aux_1, get_src_vmm(1), amount_tail);
+                uni_vfmadd231ps(get_dst_vmm(amount_full), get_src_vmm(0), get_src_vmm(1));
+                add(reg_src_aux_1, amount_tail * sizeof(float));
+            }
+
+            add(reg_src_aux_0, sizeof(float));
+            add(k, 1);
+            jmp(label_k, T_NEAR);
+        }
+        L(label_k_end);
+
+        for (int i = 0; i < amount_full; ++i) {
+            apply_post_ops(get_dst_vmm(i).getIdx());
+            store_ptr(ptr[reg_dst + i * vlen], get_dst_vmm(i));
+        }
+        add(reg_dst, amount_full * vlen);
+
+        if (amount_tail != 0) {
+            apply_post_ops(get_dst_vmm(amount_full).getIdx());
+            store(get_dst_vmm(amount_full), reg_dst, amount_tail);
+            add(reg_dst, amount_tail * sizeof(float));
+        }
+    }
+
+    // optimized execution for cases with transposed matrix b or k = 1
+    inline void optimized_body_loop() {
+        Xbyak::Label label_n;
+        Xbyak::Label label_n_end;
+
+        const int full_n_amount = jcp_.n / vec_step;
+        const int tail_n_amount = jcp_.n % vec_step;
+
+        mov(reg_dst_aux, reg_dst);
+        mov(reg_src_aux_1, reg_src_1);
+
+        mov(n, 0);
+        L(label_n); {
+            cmp(n, full_n_amount);
+            je(label_n_end, T_NEAR);
+
+            optimized_vectorization_body_loop(vec_step);
+
+            if (attr_.post_ops_.len() != 0) {
+                load(reg_dst_aux, get_dst_vmm(0), vec_step);
+                apply_post_ops();
+                store(get_dst_vmm(0), reg_dst_aux, vec_step);
+                add(reg_dst_aux, vlen);
+            }
+
+            add(n, 1);
+            jmp(label_n, T_NEAR);
+        }
+        L(label_n_end);
+
+        if (tail_n_amount != 0) {
+            optimized_vectorization_body_loop(tail_n_amount);
+
+            if (attr_.post_ops_.len() != 0) {
+                load(reg_dst_aux, get_dst_vmm(0), tail_n_amount);
+                apply_post_ops();
+                store(get_dst_vmm(0), reg_dst_aux, tail_n_amount);
+                add(reg_dst_aux, tail_n_amount * sizeof(float));
+            }
+        }
+    }
+
+    inline void optimized_vectorization_body_loop(const int amount) {
+        Xbyak::Label label_o;
+        Xbyak::Label label_o_end;
+
+        mov(n_inside, 0);
+        L(label_o); {
+            cmp(n_inside, amount);
+            je(label_o_end, T_NEAR);
+
+            mov(reg_src_aux_0, reg_src_0);
+            uni_vpxor(get_dst_vmm(), get_dst_vmm(), get_dst_vmm());
+
+            for (int i = 0; i < amount_full; ++i) {
+                load_ptr(get_src_vmm(0), ptr[reg_src_aux_0 + i * vlen]);  // src0
+                load_ptr(get_src_vmm(1), ptr[reg_src_aux_1 + i * vlen]);  // src1
+
+                uni_vfmadd231ps(get_dst_vmm(), get_src_vmm(0), get_src_vmm(1));
+            }
+            add(reg_src_aux_1, amount_full * vlen);
+
+            if (amount_tail != 0) {
+                add(reg_src_aux_0, amount_full * vlen);
+                load(reg_src_aux_0, get_src_vmm(0), amount_tail, true);
+                load(reg_src_aux_1, get_src_vmm(1), amount_tail, true);
+                uni_vfmadd231ps(get_dst_vmm(), get_src_vmm(0), get_src_vmm(1));
+
+                add(reg_src_aux_1, amount_tail * sizeof(float));
+            }
+
+            // hsum
+            if (isa == x64::avx512_common) {
+                Xbyak::Zmm zmm_dst = Xbyak::Zmm(get_dst_vmm().getIdx());
+                vextractf32x4(get_aux_xmm(2), zmm_dst, 0);
+                vextractf32x4(get_aux_xmm(3), zmm_dst, 1);
+                addps(get_aux_xmm(2), get_aux_xmm(3));
+                vextractf32x4(get_aux_xmm(3), zmm_dst, 2);
+                vextractf32x4(get_aux_xmm(4), zmm_dst, 3);
+                addps(get_aux_xmm(3), get_aux_xmm(4));
+                vaddps(get_aux_xmm(1), get_aux_xmm(2), get_aux_xmm(3));
+                hsum(get_aux_xmm(1));
+            } else if (isa == x64::avx2) {
+                Xbyak::Ymm ymm_dst = Xbyak::Ymm(get_dst_vmm().getIdx());
+                vextractf128(get_aux_xmm(2), ymm_dst, 0);
+                vextractf128(get_aux_xmm(3), ymm_dst, 1);
+                vaddps(get_aux_xmm(1), get_aux_xmm(2), get_aux_xmm(3));
+                hsum(get_aux_xmm(1));
+            } else {
+                hsum(get_dst_vmm());
+            }
+
+            store(get_dst_vmm(), reg_dst, 1);
+            add(reg_dst, sizeof(float));
+
+            add(n_inside, 1);
+            jmp(label_o, T_NEAR);
+        }
+        L(label_o_end);
+    }
+
+    inline void hsum(Xbyak::Xmm xmm) {
+        movshdup(get_aux_xmm(2), xmm);
+        addps(xmm, get_aux_xmm(2));
+        movhlps(get_aux_xmm(2), xmm);
+        addps(xmm, get_aux_xmm(2));
+    }
+
+    inline void apply_post_ops(const int idx = 1) {
+        const auto &p = attr_.post_ops_;
+        int eltwise_inj_idx = 0;
+        for (int i = 0; i < p.len(); i++) {
+            auto& post_op = p.entry_[i];
+            if (post_op.is_eltwise()) {
+                eltwise_injectors[eltwise_inj_idx++]->compute_vector_range(idx, idx + 1);
+            }
+        }
+    }
+
+    inline void load(Xbyak::Reg64 reg, Vmm vmm, int load_num, bool is_fill = false) {
+        load_emitter->emit_code({static_cast<size_t>(reg.getIdx())}, {static_cast<size_t>(vmm.getIdx())},
+                                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, load_num, 0, is_fill),
+                                {}, load_pool_gpr_idxs);
+    }
+
+    inline void store(Vmm vmm, Xbyak::Reg64 reg, int load_num) {
+        store_emitter->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(reg.getIdx())},
+                                 std::make_shared<store_emitter_context>(Precision::FP32, Precision::FP32, load_num),
+                                 store_pool_vec_idxs, store_pool_gpr_idxs);
+    }
+
+    inline void load_ptr(Vmm vmm_src, const Xbyak::Address &op) {
+        uni_vmovups(vmm_src, op);
+    }
+
+    inline void store_ptr(const Xbyak::Address &op, Vmm vmm_dst) {
+        uni_vmovups(op, vmm_dst);
+    }
+};
 
 bool MKLDNNMatMulNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -87,7 +435,6 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims
 
     attr.set_post_ops(ops);
 }
-
 
 MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) const {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
@@ -260,6 +607,116 @@ void MKLDNNMatMulNode::createPrimitive() {
     }
 }
 
+void MKLDNNMatMulNode::prepareCustomKernel(const mkldnn::primitive_attr& attrs) {
+    if (transposeIn[0])
+        return;
+
+    // custom matmul supports only fp32
+    const auto precisionIn0 = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision();
+    const auto precisionIn1 = getSelectedPrimitiveDescriptor()->getConfig().inConfs[1].desc->getPrecision();
+    const auto precisionOut = getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc->getPrecision();
+    if (!everyone_is(Precision::FP32, precisionIn0, precisionIn1, precisionOut))
+        return;
+
+    const size_t ndims = inputShapes[0].getRank();
+    const size_t m = inputShapes[0].getStaticDims()[ndims - 2];
+    const size_t k = inputShapes[0].getStaticDims()[ndims - 1];
+    const size_t n = outputShapes[0].getStaticDims()[ndims - 1];
+
+    // custom matmul doesn't support cases with batch broadcasting
+    size_t inputBatch0 = 1, inputBatch1 = 1;
+    const int lastBatchIdx = ndims - 2;
+    if (lastBatchIdx >= 0) {
+        inputBatch0 = std::accumulate(inputShapes[0].getStaticDims().begin(), inputShapes[0].getStaticDims().begin() + lastBatchIdx,
+                                      1, std::multiplies<size_t>());
+        inputBatch1 = std::accumulate(inputShapes[1].getStaticDims().begin(), inputShapes[1].getStaticDims().begin() + lastBatchIdx,
+                                      1, std::multiplies<size_t>());
+
+        if (inputBatch0 != inputBatch1 && (inputBatch0 != 1 || inputBatch1 != 1))
+            return;
+
+        if (inputBatch0 == inputBatch1) {
+            for (auto i = 0; i < lastBatchIdx; ++i) {
+                if (inputShapes[0].getStaticDims()[i] != inputShapes[1].getStaticDims()[i]) {
+                    return;
+                }
+            }
+        }
+    }
+    const size_t batch = std::max(inputBatch0, inputBatch1);
+    if (batch > 10)
+        return;
+
+    // check that data is cached
+    const int cacheFloatSize = dnnl::utils::get_cache_size(1, true) / sizeof(float);
+    if ((inputShapes[0].getElementsCount() + inputShapes[1].getElementsCount() + outputShapes[0].getElementsCount()) > cacheFloatSize)
+        return;
+
+    // custom matmul supports only eltwise post-ops
+    for (const auto& node : fusedWith) {
+        if (node->getType() != Eltwise)
+            return;
+    }
+
+    // to have enough vmm for unrolling by n for first algorithm with broadcast(a)
+    const bool isAlgorithmWithScalarProduct = transposeIn[1] || n == 1;
+    if (!isAlgorithmWithScalarProduct) {
+        const int nofree_registers = 3;  // vmm_zero, vmm_src_0, vmm_src_1
+        int size = 1;
+        int vmm_count = 16;
+
+        if (mayiuse(impl::cpu::x64::avx512_common)) {
+            size = 16;
+            vmm_count = 32;
+        } else if (mayiuse(cpu::x64::avx2)) {
+            size = 8;
+        } else if (mayiuse(cpu::x64::sse41)) {
+            size = 4;
+        }
+
+        if (n > ((vmm_count - nofree_registers) * size))
+            return;
+    }
+
+    jit_matmul_config_params jep;
+    jep.b = batch;
+    jep.m = m;
+    jep.k = k;
+    jep.n = n;
+    jep.stride0 = inputBatch0 > 1 ? m * k : 0;
+    jep.stride1 = inputBatch1 > 1 ? k * n : 0;
+    jep.scalar_product = isAlgorithmWithScalarProduct;
+
+    arg = jit_matmul_args();
+    memSrc0 = getParentEdgeAt(0)->getMemoryPtr();
+    memSrc1 = getParentEdgeAt(1)->getMemoryPtr();
+    memDst = getChildEdgeAt(0)->getMemoryPtr();
+
+    if (mayiuse(x64::avx512_common)) {
+        matmul_kernel.reset(new jit_uni_matmul_kernel_f32<x64::avx512_common>(jep, *attrs.get()));
+    } else if (mayiuse(x64::avx2)) {
+        matmul_kernel.reset(new jit_uni_matmul_kernel_f32<x64::avx2>(jep, *attrs.get()));
+    } else if (mayiuse(x64::sse41)) {
+        matmul_kernel.reset(new jit_uni_matmul_kernel_f32<x64::sse41>(jep, *attrs.get()));
+    }
+
+    if (matmul_kernel)
+        matmul_kernel->create_ker();
+}
+
+void MKLDNNMatMulNode::execute(mkldnn::stream strm) {
+    if (matmul_kernel) {
+        arg.src0 = memSrc0->GetPtr();
+        arg.src1 = memSrc1->GetPtr();
+        arg.dst   = memDst->GetPtr();
+
+        (*matmul_kernel)(&arg);
+        return;
+    }
+
+    MKLDNNNode::execute(strm);
+}
+
 MemoryDescPtr MKLDNNMatMulNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
     return std::make_shared<CpuBlockedMemoryDesc>(
@@ -319,6 +776,10 @@ void MKLDNNMatMulNode::prepareParams() {
         attr = initPrimitiveAttr();
         src0TransposedDesc = inDataDesc[0];
         src1TransposedDesc = inDataDesc[1];
+
+        prepareCustomKernel(*attr);
+        if (matmul_kernel)
+            return;
     }
 
     auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
