@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "shared_test_classes/single_layer/detection_output.hpp"
+#include "shared_test_classes/single_layer/detection_output_dynamic.hpp"
 
 namespace LayerTestsDefinitions {
 
-TEST_P(DetectionOutputLayerTest, CompareWithRefs) {
-    Run();
+TEST_P(DetectionOutputDynamicLayerTest, CompareWithRefs) {
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

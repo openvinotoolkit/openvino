@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     TEST_P(DetectionOutputLayerTest, Serialize) {
-        serialize();
+        Serialize();
     }
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -49,23 +49,21 @@ namespace {
     /* =============== 3 inputs cases =============== */
 
     const std::vector<ParamsWhichSizeDepends> specificParams3In = {
-        DetectionOutputLayerTest::fromStatic(true, true, true, 1, 1, {1, 60}, {1, 165}, {1, 1, 60}, {}, {}),
-        DetectionOutputLayerTest::fromStatic(true, false, true, 1, 1, {1, 660}, {1, 165}, {1, 1, 60}, {}, {}),
-        DetectionOutputLayerTest::fromStatic(false, true, true, 1, 1, {1, 60}, {1, 165}, {1, 2, 60}, {}, {}),
-        DetectionOutputLayerTest::fromStatic(false, false, true, 1, 1, {1, 660}, {1, 165}, {1, 2, 60}, {}, {}),
+        ParamsWhichSizeDepends{true, true, true, 1, 1, {1, 60}, {1, 165}, {1, 1, 60}, {}, {}},
+        ParamsWhichSizeDepends{true, false, true, 1, 1, {1, 660}, {1, 165}, {1, 1, 60}, {}, {}},
+        ParamsWhichSizeDepends{false, true, true, 1, 1, {1, 60}, {1, 165}, {1, 2, 60}, {}, {}},
+        ParamsWhichSizeDepends{false, false, true, 1, 1, {1, 660}, {1, 165}, {1, 2, 60}, {}, {}},
 
-        DetectionOutputLayerTest::fromStatic(true, true, false, 10, 10, {1, 60}, {1, 165}, {1, 1, 75}, {}, {}),
-        DetectionOutputLayerTest::fromStatic(true, false, false, 10, 10, {1, 660}, {1, 165}, {1, 1, 75}, {}, {}),
-        DetectionOutputLayerTest::fromStatic(false, true, false, 10, 10, {1, 60}, {1, 165}, {1, 2, 75}, {}, {}),
-        DetectionOutputLayerTest::fromStatic(false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {}, {})
-    };
+        ParamsWhichSizeDepends{true, true, false, 10, 10, {1, 60}, {1, 165}, {1, 1, 75}, {}, {}},
+        ParamsWhichSizeDepends{true, false, false, 10, 10, {1, 660}, {1, 165}, {1, 1, 75}, {}, {}},
+        ParamsWhichSizeDepends{false, true, false, 10, 10, {1, 60}, {1, 165}, {1, 2, 75}, {}, {}},
+        ParamsWhichSizeDepends{false, false, false, 10, 10, {1, 660}, {1, 165}, {1, 2, 75}, {}, {}}};
 
     const auto params3Inputs = ::testing::Combine(
         commonAttributes,
         ::testing::ValuesIn(specificParams3In),
         ::testing::ValuesIn(numberBatch),
         ::testing::Values(objectnessScore),
-        ::testing::Values(false),
         ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
 INSTANTIATE_TEST_SUITE_P(
