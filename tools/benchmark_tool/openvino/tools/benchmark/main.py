@@ -9,7 +9,7 @@ from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
     GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BLOB_EXTENSION
-from openvino.tools.benchmark.utils.inputs_filling import set_inputs
+from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, process_precision, \
@@ -61,7 +61,7 @@ def run(args):
         next_step(step_id=2)
 
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
-                              args.number_iterations, args.time, args.api_type)
+                              args.number_iterations, args.time, args.api_type, args.legacy_mode)
 
         ## CPU (MKLDNN) extensions
         if CPU_DEVICE_NAME in device_name and args.path_to_extension:
@@ -263,7 +263,7 @@ def run(args):
             # use batch size according to provided layout and shapes
             batch_size = get_batch_size(app_inputs_info)
 
-            logger.info(f'Network batch size: {batch_size}')
+            logger.info(f'Network batch size: {str(batch_size)}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
@@ -337,7 +337,12 @@ def run(args):
                     paths_to_input.extend(path)
                 else:
                     paths_to_input.append(os.path.abspath(*path))
-        set_inputs(paths_to_input, batch_size, app_inputs_info, requests)
+
+        data_queue = get_input_data(paths_to_input, app_inputs_info)
+        for request in requests:
+            request.set_tensors(data_queue.get_next_input())
+        if data_queue.size <= benchmark.nireq:
+            benchmark.legacy_mode = True
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -376,7 +381,7 @@ def run(args):
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(requests, batch_size, args.latency_percentile, progress_bar)
+        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(requests, data_queue, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()

@@ -152,7 +152,7 @@ def print_inputs_and_outputs_info(function: Function):
     for i in range(len(results)):
         logger.info(f"Network output '{output_names[i]}' precision {get_precision(results[i].get_element_type())}, "
                                         f"dimensions ({str(results[i].get_layout())}): "
-                                        f"{' '.join(str(x) for x in  results[i].get_output_shape(0))}")
+                                        f"{' '.join(str(x) for x in  results[i].get_output_partial_shape(0))}")
 
 
 def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
@@ -255,14 +255,7 @@ def process_help_inference_string(benchmark_app, device_number_streams):
 
 
 def dump_exec_graph(exe_network, exec_graph_path):
-    pass # TODO: is there any way to do it in new api?
-    #try:
-        #exec_graph_info = exe_network.get_runtime_function()
-        #exec_graph_info.serialize(exec_graph_path)
-        #logger.info(f'Executable graph is stored to {exec_graph_path}')
-        #del exec_graph_info
-    #except Exception as e:
-        #logger.exception(e)
+    pass # TODO: add when serializer will be represented in python
 
 
 def print_perf_counters(perf_counts_list):
@@ -382,44 +375,58 @@ class AppInputInfo:
         self.scale = []
         self.mean = []
         self.name = None
-        self.shape_id = 0
 
     @property
     def is_image(self):
         if self.layout not in [ "NCHW", "NHWC", "CHW", "HWC" ]:
             return False
-        return self.channels == 3
+        return self.channels[0] == 3 # TODO: can it be not image in other tenos_shapes ?
 
     @property
     def is_image_info(self):
         if self.layout != "NC":
             return False
-        return self.channels >= 2
+        return self.channels[0] >= 2
 
-    def getDimentionByLayout(self, character):
+    def getDimentionByLayout(self, character, shape_id):
         if character not in self.layout:
             raise Exception(f"Error: Can't get {character} from layout {self.layout}")
-        return len(self.tensor_shapes[self.shape_id][self.layout.index(character)])
+        return self.tensor_shapes[shape_id][self.layout.index(character)]
 
     @property
-    def width(self):
-        return self.getDimentionByLayout("W")
+    def widthes(self):
+        width_list = []
+        for i in range(len(self.tensor_shapes)):
+            width_list.append(self.getDimentionByLayout("W", i))
+        return width_list
 
     @property
-    def height(self):
-        return self.getDimentionByLayout("H")
+    def heights(self):
+        height_list = []
+        for i in range(len(self.tensor_shapes)):
+            height_list.append(self.getDimentionByLayout("H", i))
+        return height_list
 
     @property
     def channels(self):
-        return self.getDimentionByLayout("C")
+        channels_list = []
+        for i in range(len(self.tensor_shapes)):
+            channels_list.append(self.getDimentionByLayout("C", i))
+        return channels_list
 
     @property
-    def batch(self):
-        return self.getDimentionByLayout("N")
+    def batches(self):
+        batches_list = []
+        for i in range(len(self.tensor_shapes)):
+            batches_list.append(self.getDimentionByLayout("N", i))
+        return batches_list
 
     @property
-    def depth(self):
-        return self.getDimentionByLayout("D")
+    def depths(self):
+        depths_list = []
+        for i in range(len(self.tensor_shapes)):
+            depths_list.append(self.getDimentionByLayout("D", i))
+        return depths_list
 
 
 def parse_partial_shape(shape_str):
@@ -454,14 +461,14 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
         else:
             info.shape = parameters[i].get_partial_shape()
         # Tensor shape
-        if info.name in tensor_shape_map.keys():
-            for shape in tensor_shape_map[info.name]:
-                if shape.is_dynamic:
-                    raise Exception(f"tensor_shape {shape} is not static.")
+        if info.name in tensor_shape_map.keys() and info.shape.is_dynamic:
+            for p_shape in tensor_shape_map[info.name]:
+                if p_shape.is_dynamic:
+                    raise Exception(f"tensor_shape {p_shape} is not static.")
                 else:
-                    info.tensor_shapes.append(shape)
+                    info.tensor_shapes.append(p_shape.to_shape())
         elif info.shape.is_static:
-            info.tensor_shapes.append(info.shape)
+            info.tensor_shapes.append(info.shape.to_shape())
         else:
             raise Exception(f"tensor_shape is required for dynamic network.")
 
@@ -475,9 +482,15 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
 
         # Update shape with batch if needed
         if batch_size != 0:
+            batch_size = Dimension(batch_size)
+            if batch_size.is_static and tensor_shape_map:
+                 raise Exception(f"provide batch size in tensor_shape for dynamic case")
             batch_index = info.layout.index('N') if 'N' in info.layout else -1
-            if batch_index != -1 and info.shape[batch_index] != Dimension(batch_size):
-                info.shape[batch_index] = Dimension(batch_size)
+            if batch_index != -1 and info.shape[batch_index] != batch_size:
+                info.shape[batch_index] = batch_size
+                if batch_size.is_static:
+                    for shape in info.tensor_shapes:
+                        shape[batch_index] = batch_size
                 reshape = True
         input_info.append(info)
 
@@ -504,12 +517,12 @@ def get_batch_size(inputs_info):
         batch_index = info.layout.index('N') if 'N' in info.layout else -1
         if batch_index != -1:
             if batch_size == 0:
-                batch_size = len(info.shape[batch_index])
+                batch_size = info.shape[batch_index]
             elif batch_size != len(info.shape[batch_index]):
                 raise Exception("Can't deterimine batch size: batch is different for different inputs!")
     if batch_size == 0:
         batch_size = 1
-    return batch_size
+    return len(batch_size)
 
 
 def show_available_devices():

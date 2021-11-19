@@ -17,13 +17,15 @@ def percentile(values, percent):
 
 class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = 0, number_iterations: int = None,
-                 duration_seconds: int = None, api_type: str = 'async'):
+                 duration_seconds: int = None, api_type: str = 'async', legacy_mode: bool = False):
         self.device = device
         self.ie = Core()
         self.nireq = number_infer_requests if api_type == 'async' else 1
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
         self.api_type = api_type
+        self.legacy_mode = legacy_mode
+
 
     def __del__(self):
         del self.ie
@@ -77,12 +79,13 @@ class Benchmark:
             requests.wait_all()
             return requests[id].latency
 
-    def infer(self, requests, batch_size, latency_percentile, progress_bar=None):
+    def infer(self, requests, data_queue, batch_size, latency_percentile, progress_bar=None):
         progress_count = 0
 
         start_time = datetime.utcnow()
         exec_time = 0
         iteration = 0
+        processed_frames = 0
 
         times = []
         in_fly = set()
@@ -91,7 +94,10 @@ class Benchmark:
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (self.api_type == 'async' and iteration % self.nireq):
+            processed_frames += data_queue.get_next_batch_size()
             if self.api_type == 'sync':
+                if self.legacy_mode:
+                    requests[0].set_tensors(data_queue.get_next_input())
                 requests[0].infer()
                 times.append(requests[0].latency)
             else:
@@ -100,6 +106,8 @@ class Benchmark:
                     times.append(requests[idle_id].latency)
                 else:
                     in_fly.add(idle_id)
+                if self.legacy_mode:
+                    requests[idle_id].set_tensors(data_queue.get_next_input())
                 requests.start_async()
             iteration += 1
 
@@ -126,7 +134,7 @@ class Benchmark:
             times.append(requests[infer_request_id].latency)
         times.sort()
         latency_ms = percentile(times, latency_percentile)
-        fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else batch_size * iteration / total_duration_sec
+        fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
         if progress_bar:
             progress_bar.finish()
         return fps, latency_ms, total_duration_sec, iteration

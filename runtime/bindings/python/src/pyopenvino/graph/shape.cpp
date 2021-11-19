@@ -3,6 +3,7 @@
 //
 
 #include "openvino/core/shape.hpp"  // ov::Shape
+#include "openvino/core/dimension.hpp"  // ov::Dimension
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -23,6 +24,12 @@ void regclass_graph_Shape(py::module m) {
     shape.def(py::init<const ov::Shape&>(), py::arg("axis_lengths"));
     shape.def("__len__", [](const ov::Shape& v) {
         return v.size();
+    });
+    shape.def("__setitem__", [](ov::Shape& self, int key, uint64_t d) {
+        self[key] = d;
+    });
+    shape.def("__setitem__", [](ov::Shape& self, int key, ov::Dimension d) {
+        self[key] = d.get_length();
     });
     shape.def("__getitem__", [](const ov::Shape& v, int key) {
         return v[key];
