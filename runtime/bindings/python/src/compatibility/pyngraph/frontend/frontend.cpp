@@ -6,8 +6,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "frontend_manager.hpp"
 #include "common/frontend_exceptions.hpp"
+#include "frontend_manager.hpp"
 #include "manager.hpp"
 #include "pyngraph/function.hpp"
 

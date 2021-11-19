@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <editor.hpp>
 #include <common/input_model.hpp>
+#include <editor.hpp>
 #include <fstream>
 
 namespace ov {

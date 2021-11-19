@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <editor.hpp>
 #include <common/place.hpp>
+#include <editor.hpp>
 #include <memory>
 #include <sstream>
 

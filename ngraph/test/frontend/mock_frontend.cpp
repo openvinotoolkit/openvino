@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "manager.hpp"
 #include "common/frontend_defs.hpp"
+#include "manager.hpp"
 #include "ngraph/visibility.hpp"
 
 // Defined if we are building the plugin DLL (instead of using it)

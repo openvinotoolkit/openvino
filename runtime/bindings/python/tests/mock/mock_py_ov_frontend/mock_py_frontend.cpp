@@ -4,8 +4,8 @@
 
 #include "mock_py_frontend.hpp"
 
-#include "manager.hpp"
 #include "common/frontend_defs.hpp"
+#include "manager.hpp"
 
 using namespace ngraph;
 using namespace ov::frontend;
