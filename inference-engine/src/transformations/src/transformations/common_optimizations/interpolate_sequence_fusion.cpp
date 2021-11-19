@@ -68,8 +68,11 @@ bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::sh
         }
     }
 
-    return compatible_attrs(fst->get_attrs(), snd->get_attrs()) && is_candidate_for_fusion(fst) && is_candidate_for_fusion(snd) &&
-           compatible_axes(get_interpolated_axes(fst), get_interpolated_axes(snd));
+    if (!compatible_attrs(fst->get_attrs(), snd->get_attrs()) || !is_candidate_for_fusion(fst) || !is_candidate_for_fusion(snd)) return false;
+
+    const auto fst_axes = get_interpolated_axes(fst);
+    const auto snd_axes = get_interpolated_axes(snd);
+    return compatible_axes(fst_axes, snd_axes);
 }
 
 ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
