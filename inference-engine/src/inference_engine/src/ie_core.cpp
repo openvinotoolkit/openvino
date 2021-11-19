@@ -1084,7 +1084,7 @@ private:
         extensions.emplace_back(extension);
     }
 
-    template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+    template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
     void TryToRegisterLibraryAsExtensionUnsafe(const std::basic_string<C>& path) const {
         try {
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);

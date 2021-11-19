@@ -3,23 +3,22 @@
 //
 
 #include <common_test_utils/test_constants.hpp>
-#include "details/ie_so_loader.h"
-#include "details/ie_so_pointer.hpp"
+#include "so_ptr.hpp"
+#include "openvino/util/shared_object.hpp"
 
 #include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 
 
-using namespace std;
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace InferenceEngine::details;
 
 class PluginTest: public ::testing::Test {
 protected:
-    unique_ptr<SharedObjectLoader> sharedObjectLoader;
+    std::shared_ptr<void> sharedObjectLoader;
     std::function<IInferencePlugin*(IInferencePlugin*)> createPluginEngineProxy;
-    InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> getPtr();
+    ov::runtime::SoPtr<InferenceEngine::IInferencePlugin> getPtr();
 
     std::string get_mock_engine_name() {
         std::string mockEngineName("mock_engine");
@@ -28,12 +27,13 @@ protected:
 
     void SetUp() override {
         std::string libraryName = get_mock_engine_name();
-        sharedObjectLoader.reset(new SharedObjectLoader(libraryName.c_str()));
+        sharedObjectLoader = ov::util::load_shared_object(libraryName.c_str());
         createPluginEngineProxy = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");
     }
     template <class T>
     std::function<T> make_std_function(const std::string& functionName) {
-        std::function <T> ptr(reinterpret_cast<T*>(sharedObjectLoader->get_symbol(functionName.c_str())));
+        std::function <T> ptr(reinterpret_cast<T*>(
+            ov::util::get_symbol(sharedObjectLoader, functionName.c_str())));
         return ptr;
     }
 
@@ -43,20 +43,20 @@ protected:
 #ifndef OPENVINO_STATIC_LIBRARY
 
 TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
-    ASSERT_NO_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> ptr(get_mock_engine_name()));
+    ASSERT_NO_THROW(ov::runtime::SoPtr<InferenceEngine::IInferencePlugin> ptr(get_mock_engine_name()));
 }
 
 TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
-    EXPECT_THROW(InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin>(std::string{"unknown_plugin"}), Exception);
+    EXPECT_THROW(ov::runtime::SoPtr<InferenceEngine::IInferencePlugin>(std::string{"unknown_plugin"}), Exception);
 }
 
-InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> PluginTest::getPtr() {
-    InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> smart_ptr(get_mock_engine_name());
+ov::runtime::SoPtr<InferenceEngine::IInferencePlugin> PluginTest::getPtr() {
+    ov::runtime::SoPtr<InferenceEngine::IInferencePlugin> smart_ptr(get_mock_engine_name());
     return smart_ptr;
 }
 
 TEST_F(PluginTest, canSetConfiguration) {
-    InferenceEngine::details::SOPointer<InferenceEngine::IInferencePlugin> ptr = getPtr();
+    ov::runtime::SoPtr<InferenceEngine::IInferencePlugin> ptr = getPtr();
     // TODO: dynamic->reinterpret because of clang/gcc cannot
     // dynamically cast this MOCK object
     ASSERT_TRUE(dynamic_cast<MockPlugin*>(ptr.operator->())->config.empty());
