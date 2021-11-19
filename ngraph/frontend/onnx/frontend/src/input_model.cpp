@@ -14,22 +14,26 @@ using namespace ov::frontend;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-InputModelONNX::InputModelONNX(const std::string& path)
+InputModelONNX::InputModelONNX(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-InputModelONNX::InputModelONNX(const std::wstring& path)
+InputModelONNX::InputModelONNX(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(path)} {}
 #endif
 
-InputModelONNX::InputModelONNX(std::istream& model_stream)
+InputModelONNX::InputModelONNX(std::istream& model_stream, const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream)} {}
 
-InputModelONNX::InputModelONNX(std::istream& model_stream, const std::string& path)
+InputModelONNX::InputModelONNX(std::istream& model_stream,
+                               const std::string& path,
+                               const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_editor{std::make_shared<onnx_editor::ONNXModelEditor>(model_stream, path)} {}
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-InputModelONNX::InputModelONNX(std::istream& model_stream, const std::wstring& path)
+InputModelONNX::InputModelONNX(std::istream& model_stream,
+                               const std::wstring& path,
+                               const std::shared_ptr<TelemetryExtension>& telemetry)
     : InputModelONNX(model_stream, ov::util::wstring_to_string(path)) {}
 #endif
 

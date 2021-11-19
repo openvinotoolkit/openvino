@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 
+#include "frontend_manager/extension.hpp"
 #include "ngraph/function.hpp"
 
 namespace ONNX_NAMESPACE {
@@ -32,7 +33,9 @@ namespace detail {
 /// \return     An nGraph function that represents a single output from the created
 /// graph.
 std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                            const std::string& model_path);
+                                            const std::string& model_path,
+                                            const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry =
+                                                std::make_shared<ov::frontend::TelemetryExtension>());
 
 /// \brief      Decode ONNX model to nGraph function with ONNXFrameworkNode(s)
 ///
@@ -43,7 +46,9 @@ std::shared_ptr<Function> import_onnx_model(std::shared_ptr<ONNX_NAMESPACE::Mode
 ///
 /// \return     A nGraph function with ONNXFrameworkNodes
 std::shared_ptr<Function> decode_to_framework_nodes(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
-                                                    const std::string& model_path);
+                                                    const std::string& model_path,
+                                                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry =
+                                                        std::make_shared<ov::frontend::TelemetryExtension>());
 
 /// \brief     Converts a nGraph function (onnx model decoded to function with
 /// ONNXFrameworkNode(s))

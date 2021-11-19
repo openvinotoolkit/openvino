@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "editor_types.hpp"
+#include "frontend_manager/extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -268,7 +269,7 @@ public:
 
 private:
     void update_mapper_if_needed() const;
-
+    std::shared_ptr<frontend::TelemetryExtension> m_telemetry;
     const std::string m_model_path;
 
     struct Impl;

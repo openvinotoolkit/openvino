@@ -12,6 +12,7 @@
 
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
+#include "frontend_manager/extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"
@@ -20,7 +21,9 @@ namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto);
+    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry =
+              std::make_shared<ov::frontend::TelemetryExtension>());
     Graph() = delete;
 
     Graph(const Graph&) = delete;
@@ -44,7 +47,10 @@ public:
     virtual ~Graph() = default;
 
 protected:
-    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model, std::unique_ptr<GraphCache>&& cache);
+    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model,
+          std::unique_ptr<GraphCache>&& cache,
+          const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry =
+              std::make_shared<ov::frontend::TelemetryExtension>());
 
     void set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const;
 
