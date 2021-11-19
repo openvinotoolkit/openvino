@@ -53,7 +53,7 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name, ov::Va
                 }
             }
 
-             if (input_desc.contains("invariant_input_desc") && !input_desc["invariant_input_desc"].is_none()) {
+            if (input_desc.contains("invariant_input_desc") && !input_desc["invariant_input_desc"].is_none()) {
                 for (py::handle h : input_desc["invariant_input_desc"].cast<py::list>()) {
                     const py::dict& desc = h.cast<py::dict>();
                     auto invariant_in = std::make_shared<ov::op::util::SubGraphOp::InvariantInputDescription>(
