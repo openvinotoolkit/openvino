@@ -28,6 +28,12 @@
 #include "gna_plugin_log.hpp"
 #include "gna_slope_scale.h"
 #include "round_float_define.hpp"
+#include "gna_plugin_log.hpp"
+
+#ifdef GNA_DEBUG
+#include <chrono>
+#include <iomanip>
+#endif // GNA_DEBUG
 
 double first_deriv_tanh(const double x) { return(1.0 - tanh(x) * tanh(x)); }
 inline double first_deriv_exp(const double x) { return(exp(x)); }
@@ -64,6 +70,9 @@ bool pivot_search(std::vector<pwl_t>& result,
                   const bool negative,
                   double& epsilon_final,
                   const int max_iteration_number) {
+#ifdef GNA_DEBUG
+    auto start = std::chrono::high_resolution_clock::now();
+#endif // GNA_DEBUG
     std::vector<std::vector<double>> t(N + 1);
     std::vector<std::vector<double>> alpha(N + 1);
     std::vector<std::vector<double>> epsilon(N + 1);
@@ -76,6 +85,11 @@ bool pivot_search(std::vector<pwl_t>& result,
     double sgn = (negative) ? -1.0 : 1.0;
 
     if (threshold < 0) {
+#ifdef GNA_DEBUG
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> diff = end - start;
+        gnalog() << __FILE__ << ':' << __LINE__ << ' ' << __PRETTY_FUNCTION__ << ' ' << diff.count() << '\n';
+#endif // GNA_DEBUG
         return true;
     }
     // Figure 4:  Box #1
@@ -94,10 +108,6 @@ bool pivot_search(std::vector<pwl_t>& result,
             alpha[i].resize(j + 1);
             alpha[i][j] = (f(t[i - 1][j]) - f(t[i][j]) + first_deriv_f(t[i][j]) * t[i][j] - first_deriv_f(t[i - 1][j]) * t[i - 1][j])
                 / (first_deriv_f(t[i][j]) - first_deriv_f(t[i - 1][j]));
-            if (std::isnan(alpha[i][j])) {
-                gnalog() << "Failed to converge in pivot_search!\n";
-                return false;
-            }
         }
         alpha[N].resize(j + 1);
         alpha[N][j] = alpha_N;
@@ -108,11 +118,25 @@ bool pivot_search(std::vector<pwl_t>& result,
             epsilon[i][j] = sgn * (first_deriv_f(t[i][j]) * (alpha[i][j] - t[i][j]) + f(t[i][j]) - f(alpha[i][j]));
             if (std::isnan(epsilon[i][j])) {
                 gnalog() << "Failed to converge in pivot_search!\n";
+#ifdef GNA_DEBUG
+                auto end = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double> diff = end - start;
+                gnalog() << __FILE__ << ':' << __LINE__ << ' ' << __PRETTY_FUNCTION__ << ' ' << diff.count() << '\n';
+#endif // GNA_DEBUG
                 return false;
             }
         }
         epsilon[N].resize(j + 1);
         epsilon[N][j] = sgn * (first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + f(t[N - 1][j]) - f(alpha[N][j]));
+        if (std::isnan(epsilon[N][j])) {
+            gnalog() << "Failed to converge in pivot_search!\n";
+#ifdef GNA_DEBUG
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> diff = end - start;
+            gnalog() << __FILE__ << ':' << __LINE__ << ' ' << __PRETTY_FUNCTION__ << ' ' << diff.count() << '\n';
+#endif // GNA_DEBUG
+            return false;
+        }
 
         // Figure 4:  Test for completion
         max_epsilon_prev = max_epsilon;
@@ -143,10 +167,20 @@ bool pivot_search(std::vector<pwl_t>& result,
             result.push_back(value);
             if (max_iteration_number != 0 && j > max_iteration_number) {
                 gnalog() << "The maximum number (" << max_iteration_number << ") of iterations has been exceeded.\n";
+#ifdef GNA_DEBUG
+                auto end = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double> diff = end - start;
+                gnalog() << __FILE__ << ':' << __LINE__ << ' ' << __PRETTY_FUNCTION__ << ' ' << diff.count() << '\n';
+#endif // GNA_DEBUG
                 return false;
             }
 
             gnalog() << "Iteration_number: " << j << ", segments number: " << result.size() << '\n';
+#ifdef GNA_DEBUG
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> diff = end - start;
+            gnalog() << __FILE__ << ':' << __LINE__ << ' ' << __PRETTY_FUNCTION__ << ' ' << diff.count() << '\n';
+#endif // GNA_DEBUG
             return true;
         }
 
@@ -386,7 +420,7 @@ bool pwl_search(const DnnActivation& activation_type,
                 std::vector<pwl_t>& pwl,
                 const int pwl_max_num_segments,
                 const int max_iteration_number) {
-    pwl.clear();
+    pwl.resize(0);
     if (l_bound > u_bound ||
         threshold < 0) {
         return true;
@@ -528,6 +562,10 @@ void PwlDesignOpt(const DnnActivation activation_type,
                     const float scale_out,
                     const float pwlMaxErrorPercent,
                     const bool low_precision) {
+#ifdef GNA_DEBUG
+    auto start = std::chrono::high_resolution_clock::now();
+#endif // GNA_DEBUG
+
     std::vector<pwl_t> pwl;
     auto minInputStats = 0.0f;
     auto maxInputStats = 0.0f;
@@ -687,6 +725,12 @@ void PwlDesignOpt(const DnnActivation activation_type,
         default:
             break;
     }
+
+#ifdef GNA_DEBUG
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    gnalog() << __FILE__ << ':' << __LINE__ << ' ' << __PRETTY_FUNCTION__ << ' ' << diff.count() << '\n';
+#endif // GNA_DEBUG
 }
 
 void PwlDesign(const DnnActivation activation_type,
