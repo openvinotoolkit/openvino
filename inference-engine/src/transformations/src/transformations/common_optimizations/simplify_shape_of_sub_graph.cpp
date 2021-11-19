@@ -293,12 +293,18 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyShapeOfSubGraph, "SimplifyShapeOfSu
 bool ngraph::pass::SimplifyShapeOfSubGraph::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::EliminateGatherUnsqueeze>();
     manager.register_pass<ngraph::pass::SharedShapeOf>();
     manager.register_pass<ngraph::pass::GroupedGatherElimination>();
+    // GatherNopElimination depends on shape, so it requires shape propagation
+    // if previous transformations has resolved some dynamic shapes.
+    manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::GatherNopElimination>();
     manager.register_pass<ngraph::pass::SimplifyGatherShapeOf>();
     manager.register_pass<ngraph::pass::SimplifySecondInputOfReshape>();
+    // TODO: potentially this Validate is not needed but it requires additional validation
+    manager.register_pass<ngraph::pass::Validate>();
     manager.run_passes(f);
     return false;
 }
