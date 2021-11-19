@@ -424,6 +424,7 @@ def prior_box(
     layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None
 ) -> Node:
     """Generate prior boxes of specified sizes and aspect ratios across all dimensions.
+
     @param  layer_shape:  Shape of layer for which prior boxes are computed.
     @param  image_shape:  Shape of image to which prior boxes are scaled.
     @param  attrs:        The dictionary containing key, value pairs for attributes.

@@ -1527,44 +1527,6 @@ bool evaluate(const shared_ptr<op::v0::Elu>& op, const HostTensorVector& outputs
 }
 
 template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v0::PriorBox>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    op::v0::PriorBox::Attributes attrs = op->get_attrs();
-    op::v8::PriorBox::Attributes attrs_v8;
-    attrs_v8.min_size = attrs.min_size;
-    attrs_v8.max_size = attrs.max_size;
-    attrs_v8.aspect_ratio = attrs.aspect_ratio;
-    attrs_v8.density = attrs.density;
-    attrs_v8.fixed_ratio = attrs.fixed_ratio;
-    attrs_v8.fixed_size = attrs.fixed_size;
-    attrs_v8.clip = attrs.clip;
-    attrs_v8.flip = attrs.flip;
-    attrs_v8.step = attrs.step;
-    attrs_v8.offset = attrs.offset;
-    attrs_v8.variance = attrs.variance;
-    attrs_v8.scale_all_sizes = attrs.scale_all_sizes;
-
-    runtime::reference::prior_box<T>(inputs[0]->get_data_ptr<T>(),
-                                     inputs[1]->get_data_ptr<T>(),
-                                     outputs[0]->get_data_ptr<float>(),
-                                     outputs[0]->get_shape(),
-                                     attrs_v8);
-    return true;
-}
-
-template <element::Type_t ET>
-bool evaluate(const shared_ptr<op::v8::PriorBox>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
-    using T = typename element_type_traits<ET>::value_type;
-    op::v8::PriorBox::Attributes attrs = op->get_attrs();
-    runtime::reference::prior_box<T>(inputs[0]->get_data_ptr<T>(),
-                                     inputs[1]->get_data_ptr<T>(),
-                                     outputs[0]->get_data_ptr<float>(),
-                                     outputs[0]->get_shape(),
-                                     op->get_attrs());
-    return true;
-}
-
-template <element::Type_t ET>
 bool evaluate(const shared_ptr<op::v0::Proposal>& op, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::proposal_v0<T>(inputs[0]->get_data_ptr<T>(),
@@ -2731,11 +2693,8 @@ bool evaluate(const shared_ptr<op::v8::Gather>& op, const HostTensorVector& outp
 template <typename T>
 bool evaluate_node(std::shared_ptr<Node> node, const HostTensorVector& outputs, const HostTensorVector& inputs) {
     auto element_type = node->get_output_element_type(0);
-    if (ov::is_type<op::v1::Select>(node)) {
+    if (ov::is_type<op::v1::Select>(node))
         element_type = node->get_input_element_type(1);
-    } else if ((ov::is_type<op::v0::PriorBox>(node)) || (ov::is_type<op::v8::PriorBox>(node))) {
-        element_type = node->get_input_element_type(0);
-    }
 
     switch (element_type) {
     case element::Type_t::boolean:
