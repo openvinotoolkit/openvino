@@ -435,21 +435,21 @@ static UNUSED void addRectangles(unsigned char* data,
             h = 0;
 
         if (static_cast<std::size_t>(x) >= width) {
-            x = width - 1;
+            x = static_cast<int>(width - 1);
             w = 0;
             thickness = 1;
         }
         if (static_cast<std::size_t>(y) >= height) {
-            y = height - 1;
+            y = static_cast<int>(height - 1);
             h = 0;
             thickness = 1;
         }
 
         if (static_cast<std::size_t>(x + w) >= width) {
-            w = width - x - 1;
+            w = static_cast<int>(width - x - 1);
         }
         if (static_cast<std::size_t>(y + h) >= height) {
-            h = height - y - 1;
+            h = static_cast<int>(height - y - 1);
         }
 
         thickness = std::min(std::min(thickness, w / 2 + 1), h / 2 + 1);
@@ -953,7 +953,7 @@ public:
                 rec.push_back(recall);
             }
 
-            int num = rec.size();
+            int num = static_cast<int>(rec.size());
 
             // 11point from Caffe
             double ap = 0;
