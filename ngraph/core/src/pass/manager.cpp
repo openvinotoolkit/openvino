@@ -44,6 +44,10 @@ ov::pass::Manager::~Manager() = default;
 
 ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config) : m_pass_config(std::move(pass_config)) {}
 
+void ov::pass::Manager::set_per_pass_validation(bool new_state) {
+    m_per_pass_validation = new_state;
+}
+
 void ov::pass::Manager::run_passes(shared_ptr<ov::Function> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::nGraph, "pass::Manager::run_passes");

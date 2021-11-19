@@ -95,5 +95,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
             // TODO: Issue 69187
             R"(smoke_PrePostProcess.*cvt_color_nv12.*)",
+            // TODO: Issue 71215
+            R"(smoke_PrePostProcess.*cvt_color_i420.*)",
     };
 }
