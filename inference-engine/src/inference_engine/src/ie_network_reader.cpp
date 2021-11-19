@@ -371,10 +371,17 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                 if (it_type != rtInfo.end()) {
                     const auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapElementType>(it_type->second);
                     OPENVINO_ASSERT(old_api_map_attr != nullptr, "Failed to cast to ov::OldApiMapElementType");
-                    const auto type = old_api_map_attr->get();
-                    pre_input.tensor().set_element_type(type);
+                    const auto old_api_map_type = old_api_map_attr->get();
+                    const auto param_type = parameter->get_element_type();
 
-                    OPENVINO_ASSERT(!type.is_dynamic(), "Old API map does not support dynamic type");
+                    if ((param_type == ngraph::element::u8 && old_api_map_type.is_real()) || (param_type == ngraph::element::i64 && old_api_map_type == ngraph::element::i32)) {
+                        parameter->set_element_type(old_api_map_type);
+                    }
+                    else {
+                        pre_input.tensor().set_element_type(old_api_map_type);
+                    }
+
+                    OPENVINO_ASSERT(!old_api_map_type.is_dynamic(), "Old API map does not support dynamic type");
                     rtInfo.erase(it_type);
                 }
                 const auto it_order = rtInfo.find(old_api_map_key_order);
