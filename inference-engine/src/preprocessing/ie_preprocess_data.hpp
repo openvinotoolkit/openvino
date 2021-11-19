@@ -70,9 +70,14 @@ class PreProcessDataPlugin {
 public:
     PreProcessDataPlugin() {
 #ifdef OPENVINO_STATIC_LIBRARY
+#    ifdef ENABLE_GAPI_PREPROCESSING
         CreatePreProcessData(_ptr);
         if (!_ptr)
             IE_THROW() << "Failed to create IPreProcessData for G-API based preprocessing";
+#   else
+        IE_THROW() << "OpenVINO Runtime is compiled without G-API preprocessing support.\n"
+                      "Use 'cmake -DENABLE_GAPI_PREPROCESSING=ON ...'";
+#   endif // ENABLE_GAPI_PREPROCESSING
 #else
         ov::util::FilePath libraryName = ov::util::to_file_path(std::string("inference_engine_preproc") + std::string(IE_BUILD_POSTFIX));
         ov::util::FilePath preprocLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
