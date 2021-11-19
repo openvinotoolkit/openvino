@@ -277,18 +277,17 @@ int main(int argc, char* argv[]) {
 
         // apply preprocessing
         // clang-format off
-        using namespace ov::preprocess;
-        model = PrePostProcessor(model)
+        model = ov::preprocess::PrePostProcessor(model)
             // 1) InputInfo() with no args assumes a model has a single input
-            .input(InputInfo()
+            .input(ov::preprocess::InputInfo()
                 // 2) Set input tensor information:
                 // - precision of tensor is supposed to be 'u8'
                 // - layout of data is 'NHWC'
-                .tensor(InputTensorInfo()
+                .tensor(ov::preprocess::InputTensorInfo()
                     .set_layout(tensor_layout)
                     .set_element_type(element::u8))
                 // 3) Here we suppose model has 'NCHW' layout for input
-                .network(InputNetworkInfo()
+                .network(ov::preprocess::InputNetworkInfo()
                     .set_layout("NCHW")))
         // 4) Once the build() method is called, the preprocessing steps
         // for layout and precision conversions are inserted automatically

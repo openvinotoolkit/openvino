@@ -17,8 +17,6 @@
 #include "format_reader_ptr.h"
 // clang-format on
 
-using namespace ov::preprocess;
-
 /**
  * @brief Main with support Unicode paths, wide strings
  */
@@ -71,38 +69,29 @@ int tmain(int argc, tchar* argv[]) {
 
         // -------- Step 4. Apply preprocessing --------
 
-        // clang-format off
-        model = PrePostProcessor(model).
-            // 1) InputInfo() with no args assumes a model has a single input
-            input(InputInfo().
-                // 2) Set input tensor information:
-                // - precision of tensor is supposed to be 'u8'
-                // - layout of data is 'NHWC'
-                // - set static spatial dimensions to input tensor to resize from
-                tensor(InputTensorInfo().
-                    set_element_type(ov::element::u8).
-                    set_spatial_static_shape(
-                        tensor_shape[ov::layout::height_idx(tensor_layout)],
-                        tensor_shape[ov::layout::width_idx(tensor_layout)]).
-                    set_layout(tensor_layout)).
-                // 3) Adding explicit preprocessing steps:
-                // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
-                // - apply linear resize from tensor spatial dims to model spatial dims
-                preprocess(PreProcessSteps().
-                    convert_element_type(ov::element::f32). // WA for CPU plugin
-                    convert_layout("NCHW"). // WA for CPU plugin
-                    resize(ResizeAlgorithm::RESIZE_LINEAR)).
-                // 4) Here we suppose model has 'NCHW' layout for input
-                network(InputNetworkInfo().
-                    set_layout("NCHW"))).
-            output(OutputInfo().
-                // 5) Set output tensor information:
-                // - precision of tensor is supposed to be 'f32'
-                tensor(OutputTensorInfo().
-                    set_element_type(ov::element::f32))).
-            // 6) Apply preprocessing modifing the original 'model'
-            build();
-        // clang-format on
+        ov::preprocess::PrePostProcessor preproc(model);
+        // 1) Set input tensor information:
+        // - input() provides information about a single model input
+        // - precision of tensor is supposed to be 'u8'
+        // - layout of data is 'NHWC'
+        // - set static spatial dimensions to input tensor to resize from
+        preproc.input()
+            .tensor()
+            .set_element_type(ov::element::u8)
+            .set_layout(tensor_layout)
+            .set_spatial_static_shape(tensor_shape[ov::layout::height_idx(tensor_layout)],
+                                      tensor_shape[ov::layout::width_idx(tensor_layout)]);
+        // 2) Adding explicit preprocessing steps:
+        // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
+        // - apply linear resize from tensor spatial dims to model spatial dims
+        preproc.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+        // 4) Here we suppose model has 'NCHW' layout for input
+        preproc.input().network().set_layout("NCHW");
+        // 5) Set output tensor information:
+        // - precision of tensor is supposed to be 'f32'
+        preproc.output().tensor().set_element_type(ov::element::f32);
+        // 6) Apply preprocessing modifing the original 'model'
+        model = preproc.build();
 
         // -------- Step 5. Loading a model to the device --------
         ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
