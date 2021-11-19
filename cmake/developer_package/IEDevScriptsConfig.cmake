@@ -242,7 +242,11 @@ endif()
 # macro to mark target as conditionally compiled
 
 function(ie_mark_target_as_cc TARGET_NAME)
-    target_link_libraries(${TARGET_NAME} PRIVATE openvino::conditional_compilation)
+    set(cc_library openvino::conditional_compilation)
+    if(TARGET IE::conditional_compilation)
+        set(cc_library IE::conditional_compilation)
+    endif()
+    target_link_libraries(${TARGET_NAME} PRIVATE ${cc_library})
 
     if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
         return()

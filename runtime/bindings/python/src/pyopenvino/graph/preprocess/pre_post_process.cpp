@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/preprocess/pre_post_process.hpp"
+#include "pyopenvino/graph/preprocess/pre_post_process.hpp"
 
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-#include "pyopenvino/graph/preprocess/pre_post_process.hpp"
+#include "openvino/core/function.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 
 namespace py = pybind11;
 
@@ -378,11 +380,11 @@ static void regclass_graph_InputInfo(py::module m) {
 
 static void regclass_graph_OutputInfo(py::module m) {
     py::class_<ov::preprocess::OutputInfo, std::shared_ptr<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
-    out.doc() = "openvino.impl.preprocess.OutputInfo wraps ov::preprocess::InputInfo";
+    out.doc() = "openvino.impl.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
 
     out.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one output)");
     out.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
-    out.def(py::init<const std::string&>(), R"(Constructor with input tensor name as argument)");
+    out.def(py::init<const std::string&>(), R"(Constructor with tensor name as argument)");
 
     out.def(
         "tensor",
@@ -494,7 +496,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
         "PrePostProcessor");
     proc.doc() = "openvino.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
-    proc.def(py::init<>());
+    proc.def(py::init<const std::shared_ptr<ov::Function>&>());
 
     proc.def(
         "input",
@@ -534,20 +536,5 @@ void regclass_graph_PrePostProcessor(py::module m) {
                 in : PrePostProcessor
                     Reference to itself to allow chaining of calls in client's code.
               )");
-    proc.def("build",
-             &ov::preprocess::PrePostProcessor::build,
-             py::arg("function"),
-             R"(
-                Apply pre- and post-processing steps to specified model represented by `function` object.
-                Parameters specified for inputs and outputs are validated on this stage
-                and exception is raised if some data is invalid or inconsistent.
-                Parameters
-                ----------
-                function : Function
-                    Function representing existing model without pre-post-processing steps.
-                Returns
-                ----------
-                build : Function
-                    Same function object with applied pre(post)processing steps.
-              )");
+    proc.def("build", &ov::preprocess::PrePostProcessor::build);
 }
