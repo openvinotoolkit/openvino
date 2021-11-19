@@ -88,16 +88,16 @@ std::pair<std::shared_ptr<opset8::Unsqueeze>, std::vector<int64_t>> get_input_un
     if (num_of_input_values != rank) return {};
 
     const auto input0 = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[0].get_node_shared_ptr());
-    if (!input0) return nullptr;
+    if (!input0) return {};
 
     const auto input0_axis = std::dynamic_pointer_cast<opset8::Constant>(input0->input_value(1).get_node_shared_ptr());
-    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return nullptr;
+    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return {};
 
     std::vector<int64_t> input_constants(num_of_input_values - 1, 0);
 
     for (size_t i = 1; i < num_of_input_values; ++i) {
         const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
-        if (!current_input) return nullptr;
+        if (!current_input) return {};
 
         const auto current_input_axis = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
         if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return {};
@@ -124,12 +124,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NearestNeighborUpsamplingFusion, "NearestNe
 
 ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
-    auto input = pattern::any_input();
+    auto input = ngraph::pattern::any_input();
     auto concat_1 = pattern::wrap_type<opset8::Concat>();
     auto concat_2 = pattern::wrap_type<opset8::Concat>();
     auto reshape_1 = pattern::wrap_type<opset8::Reshape>({input, concat_1});
     auto mul_const = pattern::wrap_type<opset8::Constant>();
-    auto mul = wrap_type<opset8::Multiply>({reshape_1, mul_const});
+    auto mul = pattern::wrap_type<opset8::Multiply>({reshape_1, mul_const});
     auto reshape_2 = pattern::wrap_type<opset8::Reshape>({mul, concat_2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
