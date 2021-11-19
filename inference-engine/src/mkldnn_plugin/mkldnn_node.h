@@ -195,14 +195,14 @@ public:
         return engine;
     }
 
+    bool isInPlace();
+
     // must be called only after MKLDNNGraph::InitEdges()
     virtual bool isExecutable() const {
         return true;
     }
 
     bool isConstant();
-
-    bool isInplace() const;
 
     bool isFusedWith(Type type) const;
 
@@ -336,6 +336,7 @@ public:
             selectedPrimitiveDescriptorIndex = -1;
         else
             selectedPrimitiveDescriptorIndex = index;
+        inplace = InPlaceType::Unknown;
     }
 
     std::string getPrimitiveDescriptorType();
@@ -615,11 +616,17 @@ protected:
     bool permanent = false;
     bool temporary = false;
     int dynBatchLim = 0;
+    enum class InPlaceType {
+        Unknown,
+        InPlace,
+        NoInPlace
+    };
     enum class ConstantType {
         Unknown,
         Const,
         NoConst
     };
+    InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::Unknown;
     std::vector<InferenceEngine::Blob::Ptr> internalBlobs;
     std::vector<MKLDNNMemoryPtr> internalBlobMemory;
