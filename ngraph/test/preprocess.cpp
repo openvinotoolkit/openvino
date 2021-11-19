@@ -353,6 +353,55 @@ TEST(pre_post_process, convert_color_i420_rgb_3_planes) {
     EXPECT_EQ(f->input(2).get_partial_shape(), (PartialShape{5, 10, 10, 1}));
 }
 
+TEST(pre_post_process, custom_tensor_adjustment_multiplane) {
+    auto f = create_simple_function(element::u8, Shape{5, 20, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.input()
+        .tensor()
+        .set_color_format(ColorFormat::I420_THREE_PLANES, {"TestY", "TestU", "TestV"})
+        .custom([](const std::shared_ptr<op::v0::Parameter>& param) {
+            if (param->get_friendly_name().find("/TestY") != std::string::npos) {
+                param->get_rt_info()["customType"] = ov::make_variant<int64_t>(10);
+            } else if (param->get_friendly_name().find("/TestU") != std::string::npos) {
+                param->get_rt_info()["customType"] = ov::make_variant<int64_t>(20);
+            } else if (param->get_friendly_name().find("/TestV") != std::string::npos) {
+                param->get_rt_info()["customType"] = ov::make_variant<int64_t>(30);
+            }
+            return param;
+        });
+    p.input().preprocess().convert_color(ColorFormat::RGB);
+    f = p.build();
+
+    EXPECT_EQ(f->inputs().size(), 3);
+    EXPECT_EQ(f->input(0).get_element_type(), element::u8);
+    EXPECT_EQ(f->input(1).get_element_type(), element::u8);
+    EXPECT_EQ(f->input(2).get_element_type(), element::u8);
+    EXPECT_EQ(f->input(0).get_partial_shape(), (PartialShape{5, 20, 20, 1}));
+    EXPECT_EQ(f->input(1).get_partial_shape(), (PartialShape{5, 10, 10, 1}));
+    EXPECT_EQ(f->input(2).get_partial_shape(), (PartialShape{5, 10, 10, 1}));
+    auto var0 = std::dynamic_pointer_cast<VariantImpl<int64_t>>(f->get_parameters()[0]->get_rt_info()["customType"]);
+    EXPECT_EQ(var0->get(), 10);
+    auto var1 = std::dynamic_pointer_cast<VariantImpl<int64_t>>(f->get_parameters()[1]->get_rt_info()["customType"]);
+    EXPECT_EQ(var1->get(), 20);
+    auto var2 = std::dynamic_pointer_cast<VariantImpl<int64_t>>(f->get_parameters()[2]->get_rt_info()["customType"]);
+    EXPECT_EQ(var2->get(), 30);
+}
+
+TEST(pre_post_process, custom_tensor_adjustment_single) {
+    auto f = create_simple_function(element::u8, Shape{5, 20, 20, 3});
+    auto p = PrePostProcessor(f);
+    p.input().tensor(InputTensorInfo().custom([](const std::shared_ptr<op::v0::Parameter>& param) {
+        param->get_rt_info()["some_memory_type"] = ov::make_variant<int64_t>(42);
+        return param;
+    }));
+    f = p.build();
+
+    EXPECT_EQ(f->inputs().size(), 1);
+    auto var0 =
+        std::dynamic_pointer_cast<VariantImpl<int64_t>>(f->get_parameters()[0]->get_rt_info()["some_memory_type"]);
+    EXPECT_EQ(var0->get(), 42);
+}
+
 TEST(pre_post_process, convert_color_same_type) {
     auto f = create_simple_function(element::u8, Shape{1, 2, 2, 3});
     EXPECT_NO_THROW(f = PrePostProcessor(f)

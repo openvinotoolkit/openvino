@@ -8,6 +8,7 @@
 #include "openvino/core/layout.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -158,6 +159,27 @@ public:
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     InputTensorInfo&& set_color_format(const ov::preprocess::ColorFormat& format,
                                        const std::vector<std::string>& sub_names = {}) &&;
+
+    /// \brief Signature for custom input tensor adjustment operation.
+    ///
+    /// \details Custom tensor adjustment operation takes one parameter and returns updated parameter. Typical use cases
+    /// would be to set plugin-specific runtime information to input parameter, or specify custom input shape. For more
+    /// advanced cases, client's code can use transformation passes over ov::Function directly.
+    ///
+    /// \param parameter Input parameter for custom operation.
+    ///
+    /// \return Shared pointer to updated parameter
+    using CustomInputTensorOp =
+        std::function<std::shared_ptr<ov::op::v0::Parameter>(const std::shared_ptr<ov::op::v0::Parameter>& parameter)>;
+
+    /// \brief Add custom preprocess operation. It will be executed as last step of user's input creation
+    /// Client application can specify callback function for custom adjustment of input tensor
+    ///
+    /// \param custom_cb Client's custom preprocess operation.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputTensorInfo& custom(const CustomInputTensorOp& custom_cb) &;
+    InputTensorInfo&& custom(const CustomInputTensorOp& custom_cb) &&;
 };
 
 }  // namespace preprocess

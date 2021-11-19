@@ -109,6 +109,14 @@ public:
         return m_planes_sub_names;
     }
 
+    const CustomInputTensorOp& custom_action() const {
+        return m_custom_action;
+    }
+
+    void set_custom_action(const CustomInputTensorOp& custom_cb) {
+        m_custom_action = custom_cb;
+    }
+
 private:
     ColorFormat m_color_format = ColorFormat::UNDEFINED;
     std::vector<std::string> m_planes_sub_names;
@@ -122,6 +130,7 @@ private:
     int m_spatial_width = -1;
     int m_spatial_height = -1;
     bool m_spatial_shape_set = false;
+    CustomInputTensorOp m_custom_action = nullptr;
 };
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};
@@ -585,7 +594,12 @@ std::shared_ptr<Function> PrePostProcessor::build() {
             new_params.push_back(plane_param);
             nodes.emplace_back(plane_param);
         }
-
+        if (input->get_tensor_data()->custom_action()) {
+            // Apply custom action on newly created parameters
+            for (auto& new_param : new_params) {
+                new_param = input->get_tensor_data()->custom_action()(new_param);
+            }
+        }
         PreprocessingContext context(input->get_tensor_data()->get_layout());
         context.color_format() = input->get_tensor_data()->get_color_format();
         context.target_layout() = param->get_layout();
@@ -815,6 +829,16 @@ InputTensorInfo& InputTensorInfo::set_color_format(const ov::preprocess::ColorFo
 InputTensorInfo&& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
                                                     const std::vector<std::string>& sub_names) && {
     m_impl->set_color_format(format, sub_names);
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::custom(const CustomInputTensorOp& custom_cb) & {
+    m_impl->set_custom_action(custom_cb);
+    return *this;
+}
+
+InputTensorInfo&& InputTensorInfo::custom(const CustomInputTensorOp& custom_cb) && {
+    m_impl->set_custom_action(custom_cb);
     return std::move(*this);
 }
 
