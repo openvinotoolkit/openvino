@@ -110,6 +110,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
     bool enableInt8;
     {
         ngraph::pass::Manager manager;
+        manager.set_per_pass_validation(false);
+
         enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecision::isFunctionQuantized(func);
         if (enableInt8) {
             manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
@@ -160,6 +162,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
                 {ngraph::element::u4, ngraph::element::u8},
         };
 
+        manager.register_pass<ngraph::pass::Validate>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(convert_precision_list);
 
         auto pass_config = manager.get_pass_config();

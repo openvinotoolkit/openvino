@@ -129,6 +129,7 @@ Engine::~Engine() {
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =
@@ -187,6 +188,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
+    manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
 

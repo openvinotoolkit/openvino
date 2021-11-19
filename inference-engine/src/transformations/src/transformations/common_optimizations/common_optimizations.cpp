@@ -96,6 +96,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations",
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
     ngraph::pass::Manager manager(get_pass_config());
+    manager.set_per_pass_validation(false);
 
     manager.register_pass<ov::pass::DisableDecompressionConvertConstantFolding>();
 
@@ -186,6 +187,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     manager.register_pass<ngraph::pass::StridesOptimization>();
+    manager.register_pass<ngraph::pass::Validate>();
 
     manager.run_passes(f);
 

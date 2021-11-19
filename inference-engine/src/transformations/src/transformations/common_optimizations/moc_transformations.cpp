@@ -68,6 +68,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     }
 
     ngraph::pass::Manager manager(get_pass_config());
+    manager.set_per_pass_validation(false);
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     if (m_low_precision_enabled) {
@@ -79,10 +80,15 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     }
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::Validate>();
+
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
-    // execute it at the beginning of the pipeline.
+    // execute it at the beginning of the pipeline. Also, this pass resolves
+    // dynamism, so we have to execute type/shape propagation after.
     manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
+    manager.register_pass<ngraph::pass::Validate>();
+
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     if (!m_use_shapes) {
