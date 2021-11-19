@@ -140,7 +140,7 @@ public:
     /**
      * @brief This function is used to create host tensor object friendly for the device in current context
      * For example, GPU context may allocate USM host memory (if corresponding extension is available)
-     * which could be more efficient then regular host memory.
+     * which could be more efficient than regular host memory.
      * @param type Tensor element type
      * @param shape Tensor shape
      * @return A Tensor instance with device friendly memory

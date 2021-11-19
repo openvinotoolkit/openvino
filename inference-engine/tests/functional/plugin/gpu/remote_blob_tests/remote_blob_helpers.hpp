@@ -128,7 +128,7 @@ struct OpenCL {
     void* allocate_usm_host_buffer(size_t size) const {
         cl_int err_code_ret;
         if (!_device_mem_alloc_fn)
-            throw std::runtime_error("[CLDNN] clHostMemAllocINTEL is nullptr");
+            throw std::runtime_error("[GPU] clHostMemAllocINTEL is nullptr");
         auto ret_ptr = _host_mem_alloc_fn(_context.get(), nullptr, size, 0, &err_code_ret);
         if (err_code_ret != CL_SUCCESS)
             throw std::runtime_error("OpenCL helper failed to allocate USM host memory");
@@ -138,7 +138,7 @@ struct OpenCL {
     void* allocate_usm_device_buffer(size_t size) const {
         cl_int err_code_ret;
         if (!_device_mem_alloc_fn)
-            throw std::runtime_error("[CLDNN] clDeviceMemAllocINTEL is nullptr");
+            throw std::runtime_error("[GPU] clDeviceMemAllocINTEL is nullptr");
         auto ret_ptr = _device_mem_alloc_fn(_context.get(), _device.get(), nullptr, size, 0, &err_code_ret);
         if (err_code_ret != CL_SUCCESS)
             throw std::runtime_error("OpenCL helper failed to allocate USM device memory");
@@ -147,7 +147,7 @@ struct OpenCL {
 
     void free_mem(void* usm_ptr) {
         if (!_mem_free_fn)
-            throw std::runtime_error("[CLDNN] clMemFreeINTEL is nullptr");
+            throw std::runtime_error("[GPU] clMemFreeINTEL is nullptr");
 
         _mem_free_fn(_context.get(), usm_ptr);
     }
@@ -155,7 +155,7 @@ struct OpenCL {
     cl_int memcpy(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void *src_ptr,
                   size_t bytes_count, bool blocking = true, const std::vector<cl::Event>* wait_list = nullptr, cl::Event* ret_event = nullptr) const {
         if (!_enqueue_memcpy_fn)
-            throw std::runtime_error("[CLDNN] clEnqueueMemcpyINTEL is nullptr");
+            throw std::runtime_error("[GPU] clEnqueueMemcpyINTEL is nullptr");
         cl_event tmp;
         cl_int err = _enqueue_memcpy_fn(
             cpp_queue.get(),
