@@ -257,7 +257,7 @@ Datatype ResampleKernelBase::GetAccumulatorType(const resample_params& params) c
         return in_dt;
 
     auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
-        if (candidate != Datatype::F32 || candidate != Datatype::F16)
+        if (candidate != Datatype::F32 && candidate != Datatype::F16)
             return current;
 
         return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;
