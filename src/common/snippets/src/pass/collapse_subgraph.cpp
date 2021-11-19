@@ -112,6 +112,7 @@ auto is_lo(std::shared_ptr<Node> n) -> bool {
 }
 
 auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
+    bool has_only_const_inputs{true};
     for (auto in : n->inputs()) {
         if (in.get_tensor().get_element_type() != ngraph::element::f32) {
             return false;
@@ -124,7 +125,12 @@ auto has_supported_in_out(std::shared_ptr<Node> n) -> bool {
         if (in.get_partial_shape().is_static() && in.get_shape().size() > 6) {
             return false;
         }
+        if ( has_only_const_inputs && !ngraph::op::is_constant(in.get_source_output().get_node_shared_ptr()) ) {
+            has_only_const_inputs = false;
+        }
     }
+    if (has_only_const_inputs)
+        return false;
 
     for (auto out : n->outputs()) {
         if (out.get_tensor().get_element_type() != ngraph::element::f32) {

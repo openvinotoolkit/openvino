@@ -23,7 +23,6 @@ namespace MKLDNNPlugin {
 
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphFunc) {
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();

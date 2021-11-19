@@ -499,6 +499,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         return false;
     });
 
+    postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
     postLPTPassManager.run_passes(nGraphFunc);
 
     // todo: implement a more precise check for BF16? Traverse graph and check precisions?
