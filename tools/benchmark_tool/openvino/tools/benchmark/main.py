@@ -134,7 +134,7 @@ def run(args):
                 key = get_device_type_from_name(device) + "_THROUGHPUT_STREAMS"
                 if device in device_number_streams.keys():
                     ## set to user defined value
-                    supported_config_keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                    supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                     if key not in supported_config_keys:
                         raise Exception(f"Device {device} doesn't support config key '{key}'! " +
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
@@ -188,7 +188,7 @@ def run(args):
                 if args.number_threads and is_flag_set_in_command_line("nthreads"):
                     config[device]['GNA_LIB_N_THREADS'] = str(args.number_threads)
             else:
-                supported_config_keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                supported_config_keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                 if 'CPU_THREADS_NUM' in supported_config_keys and args.number_threads and is_flag_set_in_command_line("nthreads"):
                     config[device]['CPU_THREADS_NUM'] = str(args.number_threads)
                 if 'CPU_THROUGHPUT_STREAMS' in supported_config_keys and args.number_streams and is_flag_set_in_command_line("streams"):
@@ -216,7 +216,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.ie.compile_model(args.path_to_model)
+            exe_network = benchmark.core.compile_model(args.path_to_model)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -275,7 +275,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.ie.compile_model(function, benchmark.device)
+            exe_network = benchmark.core.compile_model(function, benchmark.device)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -295,7 +295,7 @@ def run(args):
             next_step()
 
             start_time = datetime.utcnow()
-            exe_network = benchmark.ie.import_model(args.path_to_model)
+            exe_network = benchmark.core.import_model(args.path_to_model)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Import model took {duration_ms} ms")
             if statistics:
@@ -312,7 +312,7 @@ def run(args):
         if is_flag_set_in_command_line('hint'):
             ## actual device-deduced settings for the hint
             for device in devices:
-                keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                 logger.info(f'DEVICE: {device}')
                 for k in keys:
                     logger.info(f'  {k}  , {exe_network.get_config(k)}')
@@ -320,7 +320,7 @@ def run(args):
         # Update number of streams
         for device in device_number_streams.keys():
             key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
-            device_number_streams[device] = benchmark.ie.get_config(device, key)
+            device_number_streams[device] = benchmark.core.get_config(device, key)
 
         # ------------------------------------ 9. Creating infer requests and filling input blobs ----------------------
         next_step()

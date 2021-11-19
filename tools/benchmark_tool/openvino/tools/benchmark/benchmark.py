@@ -19,7 +19,7 @@ class Benchmark:
     def __init__(self, device: str, number_infer_requests: int = 0, number_iterations: int = None,
                  duration_seconds: int = None, api_type: str = 'async', legacy_mode: bool = False):
         self.device = device
-        self.ie = Core()
+        self.core = Core()
         self.nireq = number_infer_requests if api_type == 'async' else 1
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
@@ -28,21 +28,21 @@ class Benchmark:
 
 
     def __del__(self):
-        del self.ie
+        del self.core
 
     def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
         if path_to_cldnn_config:
-            self.ie.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
+            self.core.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
             logger.info(f'GPU extensions is loaded {path_to_cldnn_config}')
 
         if path_to_extension:
-            self.ie.add_extension(extension_path=path_to_extension)
+            self.core.add_extension(extension_path=path_to_extension)
             logger.info(f'CPU extensions is loaded {path_to_extension}')
 
     def get_version_info(self) -> str:
         logger.info(f"InferenceEngine:\n{'': <9}{'API version':.<24} {get_version()}")
         version_string = 'Device info\n'
-        for device, version in self.ie.get_versions(self.device).items():
+        for device, version in self.core.get_versions(self.device).items():
             version_string += f"{'': <9}{device}\n"
             version_string += f"{'': <9}{version.description:.<24}{' version'} {version.major}.{version.minor}\n"
             version_string += f"{'': <9}{'Build':.<24} {version.build_number}\n"
@@ -50,16 +50,16 @@ class Benchmark:
 
     def set_config(self, config = {}):
         for device in config.keys():
-            self.ie.set_config(config[device], device)
+            self.core.set_config(config[device], device)
 
     def set_cache_dir(self, cache_dir: str):
-        self.ie.set_config({'CACHE_DIR': cache_dir}, '')
+        self.core.set_config({'CACHE_DIR': cache_dir}, '')
 
     def read_model(self, path_to_model: str):
         model_filename = os.path.abspath(path_to_model)
         head, ext = os.path.splitext(model_filename)
         weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
-        return self.ie.read_model(model_filename, weights_filename)
+        return self.core.read_model(model_filename, weights_filename)
 
     def create_infer_requests(self, exe_network):
         if self.api_type == 'sync':
