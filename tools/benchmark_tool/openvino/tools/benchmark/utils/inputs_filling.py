@@ -20,15 +20,20 @@ from .logging import logger
 class DataQueue:
     def __init__(self, input_data: dict, batch_sizes: list):
         self.input_data = input_data
-        self.current_batch_id = 0
-        self.size = len(batch_sizes)
+        self.sizes_map = {}
+        for name, tensors in input_data.items():
+            self.sizes_map[name] = len(tensors)
+        self.index_map = defaultdict.fromkeys(input_data.keys(), 0)
         self.batch_sizes = batch_sizes
+        self.size = len(batch_sizes)
+        self.current_batch_id = 0
 
     def get_next_input(self):
         data = {}
         for input_name, input_tensors in self.input_data.items():
-            data[input_name] = input_tensors[self.current_batch_id]
-        self.current_batch_id = (self.current_batch_id+ 1) % self.size
+            data[input_name] = input_tensors[self.index_map[input_name]]
+            self.index_map[input_name] = (self.index_map[input_name] + 1) % self.sizes_map[input_name]
+        self.current_batch_id = (self.current_batch_id + 1) % self.size
         return data
 
     def get_next_batch_size(self):
@@ -62,15 +67,16 @@ def get_input_data(paths_to_input, app_input_info):
     batch_sizes = get_batch_sizes(app_input_info)
     images_count = 0
     binaries_count = 0
-    image_sizes = {}
+    image_info_count = 0
     for info in app_input_info:
         if info.is_image:
-            image_sizes[info.name] = []
-            for w, d in zip(info.widthes, info.heights):
-                image_sizes[info.name].append((w, d))
-                images_count += 1
-        elif len(image_sizes) != 1 or not info.is_image_info:
-            binaries_count += len(info.tensor_shapes)
+            images_count += 1
+        elif info.is_image_info:
+            image_info_count += 1
+    if images_count == 1 and image_info_count:
+        binaries_count = len(app_input_info) - images_count - image_info_count
+    else:
+         binaries_count = len(app_input_info) - images_count
 
     image_files = list()
     binary_files = list()
@@ -79,10 +85,32 @@ def get_input_data(paths_to_input, app_input_info):
         image_files = get_files_by_extensions(paths_to_input, IMAGE_EXTENSIONS)
         binary_files = get_files_by_extensions(paths_to_input, BINARY_EXTENSIONS)
 
+    num_shapes = len(info.tensor_shapes)
+
+    files_to_be_used = max(list(len(files) for files in input_file_mapping.values())) if input_file_mapping \
+                                                                                      else len(image_files) + len(binary_files)
+
+    if input_file_mapping:
+        for info in app_input_info:
+            num_files = len(input_file_mapping[info.name])
+            if num_files > num_shapes and num_files % num_shapes != 0:
+                files_to_be_used = num_files - num_files % num_shapes
+                logger.warning(f"Number of provided files for input '{info.name}' is not a multiple of the number of"
+                               f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
+    else:
+        if binaries_count + images_count > 1:
+            raise Exception("Number of inputs more than one, provide input names for each file/folder")
+        else:
+            num_files = len(image_files) + len(binary_files)
+            if num_files > num_shapes and num_files % num_shapes != 0:
+                files_to_be_used = num_files - num_files % num_shapes
+                logger.warning(f"Number of provided files for input '{app_input_info[0].name}' is not a multiple of the number of"
+                               f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
+
     total_frames = np.prod(batch_sizes)
 
     if input_file_mapping and len(input_file_mapping) < len(app_input_info):
-        not_provided_inputs = set(app_input_info) - set(input_file_mapping)
+        not_provided_inputs = set(info.name for info in app_input_info) - set(input_file_mapping)
         logger.warning("No input files were given for the inputs: "
                        f"{', '.join(not_provided_inputs)}. This inputs will be filled with random values!")
     elif (len(image_files) == 0) and (len(binary_files) == 0):
@@ -92,7 +120,7 @@ def get_input_data(paths_to_input, app_input_info):
         if max_binary_can_be_used > 0 and len(binary_files) == 0:
             logger.warning(f"No supported binary inputs found! "
                                         f"Please check your file extensions: {','.join(BINARY_EXTENSIONS)}")
-        if max_binary_can_be_used > len(binary_files):
+        elif max_binary_can_be_used > len(binary_files):
             logger.warning(
                 f"Some binary input files will be duplicated: "
                                         f"{max_binary_can_be_used} files are required, "
@@ -113,19 +141,19 @@ def get_input_data(paths_to_input, app_input_info):
         if info.is_image:
             # input is image
             if info.name in input_file_mapping:
-                data[info.name] = fill_blob_with_image(input_file_mapping[info.name], info, batch_sizes, input_id, num_inputs, from_map=True)
+                data[info.name] = fill_blob_with_image(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
                 continue
 
             if len(image_files) > 0:
-                data[info.name] = fill_blob_with_image(image_files, info, batch_sizes, input_id, num_inputs)
+                data[info.name] = fill_blob_with_image(image_files[:files_to_be_used], info, batch_sizes)
                 continue
 
         if len(binary_files) or info.name in input_file_mapping:
             if info.name in input_file_mapping:
-                data[info.name] = fill_blob_with_binary(input_file_mapping[info.name], info, batch_sizes, input_id, num_inputs, from_map=True)
+                data[info.name] = fill_blob_with_binary(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
                 continue
 
-            data[info.name] = fill_blob_with_binary(binary_files, info, batch_sizes, input_id, num_inputs)
+            data[info.name] = fill_blob_with_binary(binary_files[:files_to_be_used], info, batch_sizes)
             continue
 
         if info.is_image_info and len(image_sizes) == 1:
@@ -174,27 +202,27 @@ def get_extension(file_path):
     return file_path.split(".")[-1].upper()
 
 
-def fill_blob_with_image(image_paths, info, batch_sizes, input_id, num_inputs, from_map=False):
+def fill_blob_with_image(image_paths, info, batch_sizes):
     processed_frames = 0
     widthes, heights = info.widthes, info.heights
     tensors = []
-    for i in range(len(info.tensor_shapes)):
-        shape = list(info.tensor_shapes[i])
+    num_shapes = len(info.tensor_shapes)
+    num_images = len(image_paths)
+    niter = max(num_shapes, num_images)
+    for i in range(niter):
+        shape_id = i % num_shapes
+        shape = list(info.tensor_shapes[shape_id])
         images = np.ndarray(shape=shape, dtype=np.uint8)
-        if from_map:
-            image_index = processed_frames
-        else:
-            image_index = processed_frames * num_inputs + input_id
-
+        image_index = processed_frames
         scale_mean = (not np.array_equal(info.scale, (1.0, 1.0, 1.0)) or not np.array_equal(info.mean, (0.0, 0.0, 0.0)))
 
-        current_batch_size = batch_sizes[i]
+        current_batch_size = batch_sizes[shape_id]
         for b in range(current_batch_size):
-            image_index %= len(image_paths)
+            image_index %= num_images
             image_filename = image_paths[image_index]
             logger.info(f'Prepare image {image_filename}')
             image = cv2.imread(image_filename)
-            new_im_size = tuple((widthes[i], heights[i]))
+            new_im_size = tuple((widthes[shape_id], heights[shape_id]))
             if image.shape[:-1] != new_im_size:
                 logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                 image = cv2.resize(image, new_im_size)
@@ -213,11 +241,7 @@ def fill_blob_with_image(image_paths, info, batch_sizes, input_id, num_inputs, f
                 image = image.transpose((2, 0, 1))
 
             images[b] = image
-
-            if from_map:
-                image_index += 1
-            else:
-                image_index += num_inputs
+            image_index += 1
         processed_frames += current_batch_size
         tensors.append(Tensor(images))
     return tensors
@@ -240,22 +264,23 @@ def get_dtype(precision):
     raise Exception("Can't find data type for precision: " + precision)
 
 
-def fill_blob_with_binary(binary_paths, info, batch_sizes, input_id, num_inputs, from_map=False):
+def fill_blob_with_binary(binary_paths, info, batch_sizes):
+    num_shapes = len(info.tensor_shapes)
+    num_binaries = len(binary_paths)
+    niter = max(num_shapes, num_binaries)
     processed_frames = 0
     tensors = []
-    for i in range(len(info.tensor_shapes)):
+    for i in range(niter):
+        shape_id = i % num_shapes
         dtype = get_dtype(info.element_type.get_type_name())[0]
-        binaries = np.ndarray(shape=list(info.tensor_shapes[i]), dtype=dtype)
+        binaries = np.ndarray(shape=list(info.tensor_shapes[shape_id]), dtype=dtype)
         shape = binaries.copy()
         if 'N' in info.layout:
             shape[info.layout.index('N')] = 1
-        if from_map:
-            binary_index = processed_frames
-        else:
-            binary_index = processed_frames * num_inputs + input_id
-        current_batch_size = batch_sizes[i]
+        binary_index = processed_frames
+        current_batch_size = batch_sizes[shape_id]
         for b in range(current_batch_size):
-            binary_index %= len(binary_paths)
+            binary_index %= num_binaries
             binary_filename = binary_paths[binary_index]
             logger.info("Prepare binary file " + binary_filename)
 
@@ -266,10 +291,7 @@ def fill_blob_with_binary(binary_paths, info, batch_sizes, input_id, num_inputs,
                     f"File {binary_filename} contains {binary_file_size} bytes but network expects {blob_size}")
             binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
 
-            if from_map:
-                binary_index += 1
-            else:
-                binary_index += num_inputs
+            binary_index += 1
         processed_frames += current_batch_size
         tensors.append(Tensor(binaries))
     return tensors
@@ -336,6 +358,16 @@ def check_input_file_mapping(input_file_mapping, app_input_info):
     check_inputs(app_input_info, input_file_mapping)
     check_input_file_mapping_files_exists(input_file_mapping)
     check_files_extensions(app_input_info, input_file_mapping)
+    check_number_of_parameters_for_each_input(input_file_mapping)
+
+
+def check_number_of_parameters_for_each_input(input_parameters_mapping):
+    num_parameters_for_each_input = list(len(input_parameters) for input_parameters in input_parameters_mapping.values() if len(input_parameters) != 1)
+    if len(num_parameters_for_each_input) > 1:
+        if num_parameters_for_each_input.count(num_parameters_for_each_input[0]) != len(num_parameters_for_each_input):
+            raise Exception(
+                "Files number for every input should be either 1 or should be equal to files number of other inputs"
+            )
 
 
 def check_inputs(app_input_info, input_file_mapping):

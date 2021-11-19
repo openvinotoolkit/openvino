@@ -9,6 +9,7 @@ from openvino.impl.preprocess import PrePostProcessor, InputInfo, OutputInfo, In
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
 from .logging import logger
+from .inputs_filling import check_number_of_parameters_for_each_input
 
 import json
 import re
@@ -448,6 +449,7 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
     input_names = get_input_output_names(parameters)
     shape_map = parse_input_parameters(shape_string, input_names)
     tensor_shape_map = get_tensor_shapes_map(tensor_shape_string, input_names)
+    check_number_of_parameters_for_each_input(tensor_shape_map)
     layout_map = parse_input_parameters(layout_string, input_names)
     reshape = False
     input_info = []
@@ -478,8 +480,23 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
             info.layout = layout_map[info.name]
         elif parameters[i].get_layout() != Layout():
             info.layout = str(parameters[i].get_layout())
-        else:
-            info.layout = "NCHW"
+        else: # will be removed
+            shape = info.tensor_shapes[0]
+            num_dims = len(shape)
+            if num_dims == 4:
+                if(shape[1]) == 3:
+                    info.layout = "NCHW"
+                elif(shape[3] == 3):
+                    info.layout = "NHWC"
+            elif num_dims == 3:
+                if(shape[1]) == 3:
+                    info.layout = "CHW"
+                elif(shape[3] == 3):
+                    info.layout = "HWC"
+            elif num_dims == 2:
+                info.layout = "NC"
+            else:
+                info.layout = "C"
 
         # Update shape with batch if needed
         if batch_size != 0:
