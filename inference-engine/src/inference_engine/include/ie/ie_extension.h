@@ -85,7 +85,11 @@ public:
     }
 
 protected:
+    /**
+     * @brief A shared library
+     */
     std::shared_ptr<void> _so;
+
     /**
      * @brief A instance to the loaded templated object
      */

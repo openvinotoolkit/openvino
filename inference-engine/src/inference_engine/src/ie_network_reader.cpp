@@ -34,9 +34,9 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "so_ptr.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-#include "so_ptr.hpp"
 
 namespace ov {
 

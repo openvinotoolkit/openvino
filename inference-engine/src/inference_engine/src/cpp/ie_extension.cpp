@@ -3,6 +3,7 @@
 //
 
 #include "ie_extension.h"
+
 #include "openvino/util/shared_object.hpp"
 
 using namespace InferenceEngine;
@@ -28,10 +29,10 @@ std::shared_ptr<T> CreateExtensionFromLibrary(std::shared_ptr<void> _so) {
             ResponseDesc desc;
             StatusCode sts = reinterpret_cast<CreateF*>(create)(object, &desc);
             if (sts != OK) {
-                IE_EXCEPTION_SWITCH(sts,
-                                    ExceptionType,
-                                    details::ThrowNow<ExceptionType>{} <<=
-                                    std::stringstream{} << IE_LOCATION << desc.msg)
+                IE_EXCEPTION_SWITCH(
+                    sts,
+                    ExceptionType,
+                    details::ThrowNow<ExceptionType>{} <<= std::stringstream{} << IE_LOCATION << desc.msg)
             }
             IE_SUPPRESS_DEPRECATED_START
             _ptr = std::shared_ptr<T>(object, [](T* ptr) {
@@ -49,21 +50,21 @@ std::shared_ptr<T> CreateExtensionFromLibrary(std::shared_ptr<void> _so) {
     return _ptr;
 }
 
-} // namespace
+}  // namespace
 
 Extension::Extension(const std::string& name) {
-    try { 
+    try {
         _so = ov::util::load_shared_object(name.c_str());
-    } catch (const std::exception & ex) {
+    } catch (const std::exception& ex) {
         details::Rethrow();
     }
     _actual = CreateExtensionFromLibrary<IExtension>(_so);
 }
 
 Extension::Extension(const std::wstring& name) {
-    try { 
+    try {
         _so = ov::util::load_shared_object(name.c_str());
-    } catch (const std::exception & ex) {
+    } catch (const std::exception& ex) {
         details::Rethrow();
     }
     _actual = CreateExtensionFromLibrary<IExtension>(_so);
