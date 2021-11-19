@@ -146,7 +146,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         include(ProcessorCount)
         ProcessorCount(CORES_COUNT)
         if(CORES_COUNT EQUAL 0)
-            set(CORES_COUNT "")
+            set(CORES_COUNT "4")
         endif()
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
