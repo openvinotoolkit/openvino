@@ -2,7 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13)
+if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+    # 'target_link_libraries' does not work correctly when called from
+    # different directly where 'add_library' is called: CMake generates
+    # incorrect OpenVINOConfig.cmake in this case
+    cmake_minimum_required(VERSION 3.17)
+else()
+    cmake_minimum_required(VERSION 3.13)
+endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
