@@ -3,7 +3,6 @@
 //
 
 #include "openvino/core/shape.hpp"  // ov::Shape
-#include "openvino/core/dimension.hpp"  // ov::Dimension
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -12,6 +11,7 @@
 #include <sstream>
 #include <string>
 
+#include "openvino/core/dimension.hpp"  // ov::Dimension
 #include "pyopenvino/graph/shape.hpp"
 
 namespace py = pybind11;
