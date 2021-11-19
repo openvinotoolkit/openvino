@@ -232,6 +232,10 @@ void regclass_InferRequest(py::module m) {
         return self._request.get_profiling_info();
     });
 
+    cls.def("query_state", [](InferRequestWrapper& self) {
+        return self._request.query_state();
+    });
+
     cls.def_property_readonly("userdata", [](InferRequestWrapper& self) {
         return self.userdata;
     });
