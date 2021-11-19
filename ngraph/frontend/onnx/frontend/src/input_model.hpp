@@ -14,7 +14,7 @@ class InputModelONNX : public InputModel {
 public:
     InputModelONNX(const std::string& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    InputModelONNX(const std::wstring& path);
+    InputModelONNX(const std::wstring& path, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 #endif
     InputModelONNX(std::istream& model_stream, const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
     // The path can be required even if the model is passed as a stream because it is necessary
