@@ -35,7 +35,6 @@ public:
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
 
 private:
-    void CopyBlob(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst);
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with);
 };
 

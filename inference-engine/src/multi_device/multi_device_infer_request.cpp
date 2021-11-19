@@ -8,7 +8,19 @@
 #include <ie_input_info.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <blob_factory.hpp>
-
+namespace {
+void CopyBlob(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst) {
+    auto bufferDst = dst->buffer();
+    auto ptrDst = bufferDst.as<char*>();
+    auto bufferSrc = src->cbuffer();
+    auto ptrSrc = bufferSrc.as<const char*>();
+    ptrdiff_t szDst = dst->byteSize();
+    if (ptrDst - ptrSrc < szDst)
+        return;
+    else
+        memcpy(ptrDst, ptrSrc, src->byteSize());
+}
+} // namespace
 namespace MultiDevicePlugin {
 
 using namespace InferenceEngine;
@@ -57,17 +69,6 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         _outputs[it.first] = make_blob_with_precision(desc);
         _outputs[it.first]->allocate();
     }
-}
-void MultiDeviceInferRequest::CopyBlob(InferenceEngine::Blob::CPtr src, InferenceEngine::Blob::Ptr dst) {
-    auto bufferDst = dst->buffer();
-    auto ptrDst = bufferDst.as<char*>();
-    auto bufferSrc = src->cbuffer();
-    auto ptrSrc = bufferSrc.as<const char*>();
-    ptrdiff_t szDst = dst->byteSize();
-    if (ptrDst - ptrSrc < szDst)
-        return;
-    else
-        memcpy(ptrDst, ptrSrc, src->byteSize());
 }
 
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
