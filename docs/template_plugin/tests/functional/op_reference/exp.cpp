@@ -163,9 +163,7 @@ std::vector<ExpParams> generateExpCombinedParams() {
         generateExpFloatParams<element::Type_t::f32>(),
         generateExpFloatParams<element::Type_t::f16>(),
         generateExpIntParams<element::Type_t::i32>(),
-        generateExpIntParams<element::Type_t::i64>(),
-        generateExpUintParams<element::Type_t::u32>(),
-        generateExpUintParams<element::Type_t::u64>()
+        generateExpIntParams<element::Type_t::i64>()
         };
     std::vector<ExpParams> combinedParams;
 
