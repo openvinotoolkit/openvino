@@ -23,17 +23,12 @@ class PDPD_API InputModelPDPD : public InputModel {
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:
-    explicit InputModelPDPD(
-        const std::string& path,
-        const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
+    explicit InputModelPDPD(const std::string& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    explicit InputModelPDPD(
-        const std::wstring& path,
-        const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
+    explicit InputModelPDPD(const std::wstring& path, const std::shared_ptr<TelemetryExtension>& telemetry = {});
 #endif
-    explicit InputModelPDPD(
-        const std::vector<std::istream*>& streams,
-        const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
+    explicit InputModelPDPD(const std::vector<std::istream*>& streams,
+                            const std::shared_ptr<TelemetryExtension>& telemetry = {});
     std::vector<Place::Ptr> get_inputs() const override;
     std::vector<Place::Ptr> get_outputs() const override;
     Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;

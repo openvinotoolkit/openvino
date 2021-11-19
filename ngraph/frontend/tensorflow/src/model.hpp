@@ -27,9 +27,8 @@ class InputModelTF : public ov::frontend::InputModel {
     std::map<std::string, Output<Node>> get_tensor_values() const;
 
 public:
-    explicit InputModelTF(
-        const GraphIterator::Ptr& graph_iterator,
-        const std::shared_ptr<TelemetryExtension>& telemetry = std::make_shared<TelemetryExtension>());
+    explicit InputModelTF(const GraphIterator::Ptr& graph_iterator,
+                          const std::shared_ptr<TelemetryExtension>& telemetry = {});
 
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;

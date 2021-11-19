@@ -220,8 +220,10 @@ struct onnx_editor::ONNXModelEditor::Impl {
 #endif
 };
 
-onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path,
+                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
     : m_model_path{model_path},
+      m_telemetry(telemetry),
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -234,8 +236,11 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path)
               }} {}
 #endif
 
-onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream, const std::string& model_path)
+onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
+                                              const std::string& model_path,
+                                              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
     : m_model_path{model_path},
+      m_telemetry(telemetry),
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -587,5 +592,5 @@ std::vector<std::string> onnx_editor::ONNXModelEditor::get_output_ports(const Ed
 }
 
 std::shared_ptr<Function> onnx_editor::ONNXModelEditor::decode() {
-    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path);
+    return ngraph::onnx_import::detail::decode_to_framework_nodes(m_pimpl->m_model_proto, m_model_path, m_telemetry);
 }

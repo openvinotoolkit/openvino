@@ -9,7 +9,7 @@
 using namespace ngraph;
 using namespace ov::frontend;
 
-using TFTelemetryTest = FrontEndTelemetryTest;
+using ONNXTelemetryTest = FrontEndTelemetryTest;
 
 static TelemetryFEParam getTestData_relu() {
     TelemetryFEParam res;
@@ -19,7 +19,7 @@ static TelemetryFEParam getTestData_relu() {
     return res;
 }
 
-INSTANTIATE_TEST_SUITE_P(TFTelemetryTest,
+INSTANTIATE_TEST_SUITE_P(ONNXTelemetryTest,
                          FrontEndTelemetryTest,
                          ::testing::Values(getTestData_relu()),
                          FrontEndTelemetryTest::getTestCaseName);
