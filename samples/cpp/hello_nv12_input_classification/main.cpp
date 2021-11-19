@@ -194,37 +194,34 @@ int main(int argc, char* argv[]) {
         std::string output_tensor_name = model->output().get_any_name();
 
         // -------- Step 3. Add preprocessing  --------
-        // clang-format off
-        model = PrePostProcessor().
-            // 1) Select input with 'input_tensor_name' tensor name
-            input(InputInfo(input_tensor_name).
-                // 2) Set input type
-                // - as 'u8' precision
-                // - set color format to NV12 (single plane)
-                // - static spatial dimensions for resize preprocessing operation
-                tensor(InputTensorInfo().
-                    set_element_type(ov::element::u8).
-                    set_color_format(ColorFormat::NV12_SINGLE_PLANE).
-                    set_spatial_static_shape(input_height, input_width)).
-                // 3) Pre-processing steps:
-                //    a) Convert to 'float'. This is to have color conversion more accurate
-                //    b) Convert to RGB: Assumes that model accepts images in RGB format.
-                //       For BGR, change it manually
-                //    c) Convert layout to model's one. It is done before 'resize' in this
-                //       sample, as there can be plugin limitation with support of resize in
-                //       NHWC format
-                //    d) Resize image from tensor's dimensions to model ones
-                preprocess(PreProcessSteps().
-                    convert_element_type(ov::element::f32).
-                    convert_color(ColorFormat::RGB).
-                    convert_layout().
-                    resize(ResizeAlgorithm::RESIZE_LINEAR)).
-                // 4) Set model data layout (Assuming model accepts images in NCHW layout)
-                network(InputNetworkInfo().
-                    set_layout("NCHW"))).
-        // 5) Apply preprocessing to a input with 'input_tensor_name' name of loaded model
-        build(model);
-        // clang-format on
+        ov::preprocess::PrePostProcessor p(model);
+        // 1) Select input with 'input_tensor_name' tensor name and set input type
+        // - as 'u8' precision
+        // - set color format to NV12 (single plane)
+        // - static spatial dimensions for resize preprocessing operation
+        p.input(input_tensor_name)
+            .tensor()
+            .set_element_type(ov::element::u8)
+            .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
+            .set_spatial_static_shape(input_height, input_width);
+        // 2) Pre-processing steps:
+        //  - Convert to 'float'. This is to have color conversion more accurate
+        //  - Convert to RGB: Assumes that model accepts images in RGB format.
+        //    For BGR, change it manually
+        //  - Convert layout to model's one. It is done before 'resize' in this
+        //    sample, as there can be plugin limitation with support of resize in
+        //    NHWC format
+        //  - Resize image from tensor's dimensions to model ones
+        p.input(input_tensor_name)
+            .preprocess()
+            .convert_element_type(ov::element::f32)
+            .convert_color(ColorFormat::BGR)
+            .convert_layout()
+            .resize(ResizeAlgorithm::RESIZE_LINEAR);
+        // 3) Set model data layout (Assuming model accepts images in NCHW layout)
+        p.input(input_tensor_name).network().set_layout("NCHW");
+        // 4) Apply preprocessing to a input with 'input_tensor_name' name of loaded model
+        model = p.build();
 
         // -------- Step 4. Loading a model to the device --------
         ov::runtime::ExecutableNetwork executable_network = core.compile_model(model, device_name);
