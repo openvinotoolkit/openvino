@@ -82,7 +82,7 @@ TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableWithIncorrectConfig) {
     std::map<std::string, std::string> incorrectConfig = {{"abc", "def"}};
-    EXPECT_ANY_THROW(auto execNet = core->compile_model(function, targetDevice, configuration));
+    EXPECT_ANY_THROW(auto execNet = core->compile_model(function, targetDevice, incorrectConfig));
 }
 
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCreateInferRequest) {
