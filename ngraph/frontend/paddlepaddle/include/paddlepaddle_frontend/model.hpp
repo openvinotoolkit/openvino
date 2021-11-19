@@ -16,7 +16,6 @@ class PDPD_API InputModelPDPD : public InputModel {
     friend class FrontEndPDPD;
     class InputModelPDPDImpl;
     std::shared_ptr<InputModelPDPDImpl> _impl;
-    std::shared_ptr<TelemetryExtension> m_telemetry;
 
     std::vector<std::shared_ptr<OpPlacePDPD>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlacePDPD>> get_var_places() const;

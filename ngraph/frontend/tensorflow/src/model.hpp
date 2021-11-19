@@ -20,7 +20,6 @@ class InputModelTF : public ov::frontend::InputModel {
     friend class FrontEndTF;
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
-    std::shared_ptr<TelemetryExtension> m_telemetry;
 
     std::vector<std::shared_ptr<OpPlaceTF>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlaceTF>> get_tensor_places() const;

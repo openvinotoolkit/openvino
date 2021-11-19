@@ -274,7 +274,7 @@ public:
 private:
     void update_mapper_if_needed() const;
 
-    const std::shared_ptr<ov::frontend::TelemetryExtension>& m_telemetry;
+    std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
     const std::string m_model_path;
 
     struct Impl;
