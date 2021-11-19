@@ -77,6 +77,8 @@ SubstituteSoftsign::SubstituteSoftsign() {
         auto last_node_it = pattern_map.find(multiply);
         if (last_node_it == pattern_map.end())
             last_node_it = pattern_map.find(divide);
+        if (last_node_it == pattern_map.end())
+            return false;
         auto last_node = last_node_it->second.get_node_shared_ptr();
 
         DoTransformation(root_node, last_node);

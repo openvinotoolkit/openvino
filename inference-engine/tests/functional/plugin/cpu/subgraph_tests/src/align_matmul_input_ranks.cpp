@@ -58,6 +58,8 @@ protected:
         const auto outputNodes = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(inputParams));
         const auto matMul = builder::makeMatMul(outputNodes[0], outputNodes[1], false, false);
 
+        selectedType = makeSelectedTypeStr("jit_gemm", ngPrec);
+
         function = makeNgraphFunction(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
     }
 
@@ -69,7 +71,7 @@ TEST_P(AlignMatMulInputRanksTest, CompareWithRefs) {
 
     Run();
     CheckNodeOfTypeCount(executableNetwork, "Reshape", expectedNumOfReshapes); // Squeeze / Unsqueeze turns into Reshape
-    CheckFusingResults(executableNetwork, "MatMul");
+    CheckPluginRelatedResults(executableNetwork, "MatMul");
 }
 
 namespace {
