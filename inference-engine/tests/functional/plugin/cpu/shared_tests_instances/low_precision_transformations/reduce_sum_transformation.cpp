@@ -26,14 +26,14 @@ const std::vector<LayerTestsDefinitions::ReduceSumTransformationParam> params = 
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 127.f } },
         { 2, 3 },
         true,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
         { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 2.f }, { 10.f }, { 2.f }, { 10.f } },
         { 2, 3 },
         false,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
@@ -46,7 +46,7 @@ const std::vector<LayerTestsDefinitions::ReduceSumTransformationParam> params = 
         },
         { 2, 3 },
         true,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
@@ -59,7 +59,7 @@ const std::vector<LayerTestsDefinitions::ReduceSumTransformationParam> params = 
         },
         { 2, 3 },
         false,
-        "Output/pool",
+        "Output_original",
         "U8"
     },
     {
@@ -72,7 +72,7 @@ const std::vector<LayerTestsDefinitions::ReduceSumTransformationParam> params = 
         },
         { 0, 1 },
         true,
-        "Output/pool",
+        "Output",
         "FP32"
     },
     {
@@ -85,7 +85,7 @@ const std::vector<LayerTestsDefinitions::ReduceSumTransformationParam> params = 
         },
         { 0, 1 },
         false,
-        "Output/pool",
+        "Output",
         "FP32"
     },
 };
