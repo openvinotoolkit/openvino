@@ -166,6 +166,7 @@ from ngraph.opset8 import sigmoid
 from ngraph.opset8 import sign
 from ngraph.opset8 import sin
 from ngraph.opset8 import sinh
+from ngraph.opset8 import slice
 from ngraph.opset8 import softmax
 from ngraph.opset8 import softplus
 from ngraph.opset8 import space_to_batch
