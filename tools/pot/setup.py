@@ -2,13 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import subprocess
 import sys
-import re
 
-import codecs
 from setuptools import setup, find_packages
-
-from openvino.tools.pot.version import get_version
 
 
 here = os.path.abspath(os.path.dirname(__file__))
@@ -17,9 +14,23 @@ with open(os.path.join(here, 'README.md'), 'r') as fh:
     long_description = fh.read()
 
 
-def read(*parts):
-    with codecs.open(os.path.join(here, *parts), 'r') as fp:
-        return fp.read()
+def generate_pot_version():
+    try:
+        branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
+        return "custom_{}_{}".format(branch_name, commit_hash)
+    except subprocess.CalledProcessError:
+        return "unknown version"
+
+
+def get_version():
+    version = generate_pot_version()
+    if version == "unknown version":
+        version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version.txt")
+        if os.path.isfile(version_txt):
+            with open(version_txt) as f:
+                version = f.readline().replace('\n', '')
+    return version
 
 
 INSTALL_EXTRAS = False
