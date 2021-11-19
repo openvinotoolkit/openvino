@@ -4,7 +4,7 @@
 
 file(GLOB_RECURSE ENGINES_UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 
-add_library(engines_test_util STATIC ${ENGINES_UTIL_SRC})
+add_library(engines_test_util STATIC EXCLUDE_FROM_ALL ${ENGINES_UTIL_SRC})
 
 ie_faster_build(engines_test_util UNITY)
 

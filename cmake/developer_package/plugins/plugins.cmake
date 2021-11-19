@@ -83,9 +83,9 @@ function(ie_add_plugin)
             FILEDESCRIPTION "Inference Engine ${IE_PLUGIN_DEVICE_NAME} device plugin library")
 
         if(TARGET IE::inference_engine_plugin_api)
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api)
+            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine IE::inference_engine_plugin_api)
         else()
-            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api)
+            target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine inference_engine_plugin_api)
         endif()
 
         if(WIN32)
@@ -108,8 +108,12 @@ function(ie_add_plugin)
         endif()
 
         add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
-        if(TARGET inference_engine_preproc AND BUILD_SHARED_LIBS)
-            add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
+        if(TARGET inference_engine_preproc)
+            if(BUILD_SHARED_LIBS)
+                add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
+            else()
+                target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_preproc)
+            endif()
         endif()
 
         # fake dependencies to build in the following order:

@@ -45,10 +45,11 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-if(NOT BUILD_SHARED_LIBS)
-    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
-else()
+if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+else()
+    # for static linkage the dependencies are in opposite order
+    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
 endif()
 
 # code style
