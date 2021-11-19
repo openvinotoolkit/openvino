@@ -109,7 +109,7 @@ std::vector<std::string> parseDevices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
     if (colon != std::string::npos) {
-        auto bracket = comma_separated_devices.find("("); // e.g. in BATCH:GPU(4)
+        auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
         comma_separated_devices = comma_separated_devices.substr(colon + 1, bracket - colon - 1);
     }
     if ((comma_separated_devices == "MULTI") || (comma_separated_devices == "HETERO"))
