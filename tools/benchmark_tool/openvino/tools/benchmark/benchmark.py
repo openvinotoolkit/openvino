@@ -96,7 +96,7 @@ class Benchmark:
               (self.api_type == 'async' and iteration % self.nireq):
             processed_frames += data_queue.get_next_batch_size()
             if self.api_type == 'sync':
-                if self.legacy_mode:
+                if not self.legacy_mode:
                     requests[0].set_tensors(data_queue.get_next_input())
                 requests[0].infer()
                 times.append(requests[0].latency)
@@ -106,7 +106,7 @@ class Benchmark:
                     times.append(requests[idle_id].latency)
                 else:
                     in_fly.add(idle_id)
-                if self.legacy_mode:
+                if not self.legacy_mode:
                     requests[idle_id].set_tensors(data_queue.get_next_input())
                 requests.start_async()
             iteration += 1
