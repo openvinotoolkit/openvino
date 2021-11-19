@@ -159,7 +159,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     if (status != NC_OK) {
         _log->warning("Failed to get device platform");
         ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
-        return status != NC_OK ? status : NC_ERROR;     // for dataLength error
+        return status;
     }
 
     //  Get device platform

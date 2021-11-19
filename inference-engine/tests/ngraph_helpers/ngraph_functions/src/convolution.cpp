@@ -23,8 +23,8 @@ std::shared_ptr<Node> makeConvolution(const ngraph::Output<Node> &in,
                                       const std::vector<float> &filterWeights,
                                       const std::vector<float> &biasesWeights) {
     bool randomFilterWeights = filterWeights.empty();
-    auto shape = in.get_shape();
-    std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
+    auto shape = in.get_partial_shape();
+    std::vector<size_t> filterWeightsShape = {numOutChannels, static_cast<size_t>(shape[1].get_length())};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
     auto conv = std::make_shared<opset1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,

@@ -77,6 +77,20 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferencePadTest.*pad_exterior_2d_3x0)",
         // CVS-70975
         R"(.*ReferencePadTestParamsTooLarge.*)",
+        // CVS-64006
+        R"(.*ReferenceBatchToSpaceLayerTest.*dType=i4.*)",
+        R"(.*ReferenceBatchToSpaceLayerTest.*dType=u4.*)",
+        // CVS-64113
+        R"(.*ReferenceRollLayerTest.*dType=i4.*)",
+        R"(.*ReferenceRollLayerTest.*dType=u4.*)",
+        // CVS-64050
+        R"(.*ReferenceSpaceToBatchLayerTest.*dType=i4.*)",
+        R"(.*ReferenceSpaceToBatchLayerTest.*dType=u4.*)",
+        // CVS-64066
+        R"(.*ReferenceGRUCellTestHardsigmoidActivationFunction.*gru_cell_hardsigmoid_activation_function)",
+        // CVS-71381
+        R"(.*ReferenceExpLayerTest.*u32.*)",
+        R"(.*ReferenceExpLayerTest.*u64.*)",
     };
 
 #ifdef _WIN32

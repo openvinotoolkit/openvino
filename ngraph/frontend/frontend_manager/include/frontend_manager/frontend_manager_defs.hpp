@@ -9,7 +9,7 @@
 // Increment each time when FrontEnd/InputModel/Place interface is changed
 #define OV_FRONTEND_API_VERSION 1
 
-#if defined(USE_STATIC_FRONTEND_MANAGER)  // || defined(OPENVINO_STATIC_LIBRARY)
+#if defined(USE_STATIC_FRONTEND_MANAGER) || defined(OPENVINO_STATIC_LIBRARY)
 #    define FRONTEND_API
 #else
 // Defined if cmake is building the frontend_manager DLL (instead of using it)
