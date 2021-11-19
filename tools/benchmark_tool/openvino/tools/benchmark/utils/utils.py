@@ -540,7 +540,7 @@ def get_batch_size(inputs_info):
                 raise Exception("Can't deterimine batch size: batch is different for different inputs!")
     if batch_size == 0:
         batch_size = 1
-    return len(batch_size)
+    return batch_size
 
 
 def show_available_devices():

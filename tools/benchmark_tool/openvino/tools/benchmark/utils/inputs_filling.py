@@ -92,11 +92,12 @@ def get_input_data(paths_to_input, app_input_info):
 
     if input_file_mapping:
         for info in app_input_info:
-            num_files = len(input_file_mapping[info.name])
-            if num_files > num_shapes and num_files % num_shapes != 0:
-                files_to_be_used = num_files - num_files % num_shapes
-                logger.warning(f"Number of provided files for input '{info.name}' is not a multiple of the number of"
-                               f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
+            if info.name in input_file_mapping:
+                num_files = len(input_file_mapping[info.name])
+                if num_files > num_shapes and num_files % num_shapes != 0:
+                    files_to_be_used = num_files - num_files % num_shapes
+                    logger.warning(f"Number of provided files for input '{info.name}' is not a multiple of the number of"
+                                f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
     else:
         if binaries_count + images_count > 1:
             raise Exception("Number of inputs more than one, provide input names for each file/folder")
@@ -113,7 +114,7 @@ def get_input_data(paths_to_input, app_input_info):
         not_provided_inputs = set(info.name for info in app_input_info) - set(input_file_mapping)
         logger.warning("No input files were given for the inputs: "
                        f"{', '.join(not_provided_inputs)}. This inputs will be filled with random values!")
-    elif (len(image_files) == 0) and (len(binary_files) == 0):
+    elif len(image_files) == 0 and len(binary_files) == 0:
         logger.warning("No input files were given: all inputs will be filled with random values!")
     else:
         max_binary_can_be_used = binaries_count * total_frames
@@ -273,8 +274,8 @@ def fill_blob_with_binary(binary_paths, info, batch_sizes):
     for i in range(niter):
         shape_id = i % num_shapes
         dtype = get_dtype(info.element_type.get_type_name())[0]
-        binaries = np.ndarray(shape=list(info.tensor_shapes[shape_id]), dtype=dtype)
-        shape = binaries.copy()
+        shape = list(info.tensor_shapes[shape_id])
+        binaries = np.ndarray(shape=shape, dtype=dtype)
         if 'N' in info.layout:
             shape[info.layout.index('N')] = 1
         binary_index = processed_frames
