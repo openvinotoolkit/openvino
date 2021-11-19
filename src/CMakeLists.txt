@@ -21,10 +21,6 @@ add_subdirectory(frontends)
 # Enable tests because core tests depend on frontends
 add_subdirectory(core/test)
 
-if(ENABLE_IR_V7_READER)
-    add_dependencies(ov_runtime_libraries inference_engine_ir_v7_reader)
-endif()
-
 if(OV_IR_FRONTEND_ENABLE)
     if(BUILD_SHARED_LIBS)
         add_dependencies(ov_runtime_libraries ir_ov_frontend)

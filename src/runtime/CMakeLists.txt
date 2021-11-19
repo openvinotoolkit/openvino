@@ -146,7 +146,7 @@ ie_faster_build(${TARGET_NAME}_obj
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
                                                       $<TARGET_PROPERTY:openvino::core,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+                                                      $<TARGET_PROPERTY:openvino::preprocessing,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>

@@ -24,7 +24,7 @@ target_include_directories(${TARGET} PRIVATE
           $<TARGET_PROPERTY:openvino::preprocessing,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_compile_definitions(${TARGET} PRIVATE
-        $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_COMPILE_DEFINITIONS>)
+        $<TARGET_PROPERTY:openvino::preprocessing,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_link_libraries(${TARGET} PRIVATE opencv_core opencv_imgproc openvino::util
     openvino::runtime fluid_test_computations gtest gtest_main)
