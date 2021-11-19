@@ -49,7 +49,8 @@ public:
             size_t N;
             size_t C;
             std::tie(T, N, C) = shape;
-            results << "{" << T  << "," << N << "," << C  << "}"<< "_";
+            results << "{" << T << "," << N << "," << C << "}"
+                    << "_";
         }
 
         results << "Prc=" << inType << "_";
@@ -134,7 +135,7 @@ namespace {
 const std::vector<ElementType> netPrecisions = {ElementType::f32};
 const std::vector<bool> mergeRepeated{true, false};
 const std::vector<InputShapeParams> inputShapesCTCDecoder = {
-    {{{-1, -1, -1}, {-1, -1}},
+    {{ov::PartialShape{-1, -1, -1}, ov::PartialShape{-1, -1}},
      {{50, 3, 3}, {50, 3, 7}, {50, 3, 8}, {50, 3, 16}, {50, 3, 128}, {50, 3, 49}, {50, 3, 55}, {1, 1, 16}}}};
 
 const auto basicCases = ::testing::Combine(::testing::ValuesIn(inputShapesCTCDecoder),

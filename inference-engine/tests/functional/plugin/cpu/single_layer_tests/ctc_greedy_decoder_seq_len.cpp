@@ -62,7 +62,8 @@ public:
             size_t T;
             size_t C;
             std::tie(N, T, C) = shape;
-            results << "{" << N << "," << T << "," << C  << "}"<< "_";
+            results << "{" << N << "," << T << "," << C << "}"
+                    << "_";
         }
         for (const auto& type : inType) {
             results << "Prc=" << type << "_";
@@ -172,8 +173,10 @@ const std::vector<ElementType> inputType = {ElementType::f32, ElementType::i32, 
 const std::vector<bool> mergeRepeated{true, false};
 const std::vector<ElementType> indexType = {ElementType::i64, ElementType::i32};
 const std::vector<InputShapeParams> inputShapesCTCDecoder = {
-    {{{-1, -1, -1}, {-1}, {}}, {{1, 1, 1}, {1, 6, 10}, {3, 3, 16}, {5, 3, 55}}},
-    {{{-1, -1, -1}, {-1}, {1}}, {{1, 1, 1}, {1, 6, 10}, {3, 3, 16}, {5, 3, 55}}},
+    {{ov::PartialShape{-1, -1, -1}, ov::PartialShape{-1}, ov::PartialShape{}},
+     {{1, 1, 1}, {1, 6, 10}, {3, 3, 16}, {5, 3, 55}}},
+    {{ov::PartialShape{-1, -1, -1}, ov::PartialShape{-1}, ov::PartialShape{1}},
+     {{1, 1, 1}, {1, 6, 10}, {3, 3, 16}, {5, 3, 55}}},
 };
 
 const auto basicCases = ::testing::Combine(::testing::ValuesIn(inputShapesCTCDecoder),
