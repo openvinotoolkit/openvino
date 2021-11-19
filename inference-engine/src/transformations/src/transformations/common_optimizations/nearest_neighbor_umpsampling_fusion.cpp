@@ -124,26 +124,26 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NearestNeighborUpsamplingFusion, "NearestNe
 
 ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
-    auto input = ngraph::pattern::any_input();
-    auto concat_1 = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
-    auto concat_2 = ngraph::pattern::wrap_type<ngraph::opset8::Concat>();
-    auto reshape_1 = ngraph::pattern::wrap_type<ngraph::opset8::Reshape>({input, concat_1});
-    auto mul_const = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
-    auto mul = pattern::wrap_type<ngraph::opset8::Multiply>({reshape_1, mul_const});
-    auto reshape_2 = pattern::wrap_type<ngraph::opset8::Reshape>({mul, concat_2});
+    auto input = pattern::any_input();
+    auto concat_1 = pattern::wrap_type<opset8::Concat>();
+    auto concat_2 = pattern::wrap_type<opset8::Concat>();
+    auto reshape_1 = pattern::wrap_type<opset8::Reshape>({input, concat_1});
+    auto mul_const = pattern::wrap_type<opset8::Constant>();
+    auto mul = wrap_type<opset8::Multiply>({reshape_1, mul_const});
+    auto reshape_2 = pattern::wrap_type<opset8::Reshape>({mul, concat_2});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto &pattern_to_output = m.get_pattern_value_map();
 
-        const auto reshape_2_node = std::dynamic_pointer_cast<ngraph::opset8::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
-        const auto mul_node = std::dynamic_pointer_cast<ngraph::opset8::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
+        const auto reshape_2_node = std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_2).get_node_shared_ptr());
+        const auto mul_node = std::dynamic_pointer_cast<opset8::Multiply>(pattern_to_output.at(mul).get_node_shared_ptr());
 
         if (!reshape_2_node || !mul_node || mul_node->get_input_partial_shape(1).is_dynamic()) return false;
 
-        const auto mul_const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(mul_node->input_value(1).get_node_shared_ptr());
+        const auto mul_const_node = std::dynamic_pointer_cast<opset8::Constant>(mul_node->input_value(1).get_node_shared_ptr());
         if (!mul_const_node) return false;
 
-        const auto reshape_1_node = std::dynamic_pointer_cast<ngraph::opset8::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
+        const auto reshape_1_node = std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
         if (!reshape_1_node || reshape_1_node->get_input_partial_shape(0).is_dynamic()) return false;
 
         uint64_t input_rank = static_cast<uint64_t>(reshape_1_node->get_input_partial_shape(0).rank().get_length());
@@ -154,21 +154,31 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         const auto mul_const_value = mul_const_node->cast_vector<float>();
         if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [](float x){ return x != 1.0f; })) { return false; }
 
-        const auto concat_1_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(reshape_1_node->input_value(1).get_node_shared_ptr());
+        const auto concat_1_node = std::dynamic_pointer_cast<opset8::Concat>(reshape_1_node->input_value(1).get_node_shared_ptr());
         if (!concat_1_node) return false;
 
         const auto input_shape = reshape_1_node->get_input_shape(0);
         const auto unsqueeze_1 = get_input_unsqueeze_for_concat_1(concat_1_node, input_shape);
         if (!unsqueeze_1) return false;
 
-        const auto concat_2_node = std::dynamic_pointer_cast<ngraph::opset8::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
+        const auto concat_2_node = std::dynamic_pointer_cast<opset8::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
         if (!concat_2_node) return false;
 
-         std::shared_ptr<ngraph::opset8::Unsqueeze> unsqueeze_2;
-         std::vector<int64_t> new_spatial_shape;
-         std::tie(unsqueeze_2, new_spatial_shape) = get_input_unsqueeze_for_concat_2(concat_2_node, input_shape);
-         if (!unsqueeze_2 || new_spatial_shape.empty()) return false;
+        std::shared_ptr<opset8::Unsqueeze> unsqueeze_2;
+        std::vector<int64_t> new_spatial_shape;
+        std::tie(unsqueeze_2, new_spatial_shape) = get_input_unsqueeze_for_concat_2(concat_2_node, input_shape);
+        if (!unsqueeze_2 || new_spatial_shape.empty()) return false;
 
+        const auto ss_before_unsqueeze_1 = std::dynamic_pointer_cast<opset8::StridedSlice>(unsqueeze_1->input_value(0).get_node_shared_ptr());
+        const auto ss_before_unsqueeze_2 = std::dynamic_pointer_cast<opset8::StridedSlice>(unsqueeze_2->input_value(0).get_node_shared_ptr());
+        if (!ss_before_unsqueeze_1 || !ss_before_unsqueeze_2 || ss_before_unsqueeze_1.get() != ss_before_unsqueeze_2.get()) return false;
+
+        const auto shapeof_node = std::dynamic_pointer_cast<opset8::ShapeOf>(ss_before_unsqueeze_1->input_value(0).get_node_shared_ptr());
+        if (!shapeof_node) return false;
+
+        const auto node_before_shapeof = shapeof_node->input_value(0).get_node_shared_ptr();
+        const auto node_before_reshape_1 = reshape_1_node->input_value(0).get_node_shared_ptr();
+        if (node_before_shapeof.get() != node_before_reshape_1.get()) return false;
 
         return true;
     };
