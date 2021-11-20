@@ -38,7 +38,7 @@ public:
      * @param name Full or relative path to extension library
      */
     explicit Extension(const std::wstring& name);
-#endif // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
 
     /**
      * @brief Gets the extension version information

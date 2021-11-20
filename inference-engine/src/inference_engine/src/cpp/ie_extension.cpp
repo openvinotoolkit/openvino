@@ -70,7 +70,7 @@ Extension::Extension(const std::wstring& name) {
     }
     _actual = CreateExtensionFromLibrary<IExtension>(_so);
 }
-#endif // ENABLE_UNICODE_PATH_SUPPORT
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
 
 std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return _actual->getOpSets();
