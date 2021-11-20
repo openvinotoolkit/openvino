@@ -68,9 +68,7 @@ protected:
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
                 ngraph::builder::makeShuffleChannels(params[0], axis, group));
-        shuffleChannels->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shuffleChannels)};
-        function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
+        function = makeNgraphFunction(inType, params, shuffleChannels, "ShuffleChannels");
     }
 };
 

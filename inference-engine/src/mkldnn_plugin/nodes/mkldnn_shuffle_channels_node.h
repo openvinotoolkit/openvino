@@ -35,16 +35,13 @@ private:
         LayoutType layoutType;
         int dataRank = 0;
         int axis = 0;
-        int batchRank = 0;
         int spatialRank = 0;
         size_t group = 0lu;
         size_t dataSize = 1lu;
-        VectorDims srcDims;
-        VectorDims srcBlockedDims;
     } attrs;
 
-    struct ShuffleChannelsExecutor {
-        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs);
+    struct ShuffleChannelsExecutor final {
+        ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs, const VectorDims& srcDims, const VectorDims& srcBlockedDims);
         void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
         ~ShuffleChannelsExecutor() = default;
 

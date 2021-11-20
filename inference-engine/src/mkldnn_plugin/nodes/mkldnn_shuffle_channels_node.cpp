@@ -108,7 +108,6 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
         THROW_SHCH_ERROR << "has unidentified preferable primitive descriptor";
 
     const auto& memoryDesc = srcMemPtr->getDesc();
-    attrs.batchRank = attrs.axis;
     attrs.spatialRank = attrs.dataRank - attrs.axis - 1;
     attrs.dataSize = memoryDesc.getPrecision().size();
     attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c) ? LayoutType::nCsp16c :
@@ -124,12 +123,12 @@ void MKLDNNShuffleChannelsNode::createPrimitive() {
 
 void MKLDNNShuffleChannelsNode::prepareParams() {
     auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    attrs.srcDims = srcMemPtr->getStaticDims();
-    attrs.srcBlockedDims = srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims();
-    execPtr = std::make_shared<ShuffleChannelsExecutor>(attrs);
+    execPtr = std::make_shared<ShuffleChannelsExecutor>(attrs, srcMemPtr->getStaticDims(), srcMemPtr->GetDescWithType<BlockedMemoryDesc>()->getBlockDims());
 }
 
-MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
+MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs,
+                                                                            const VectorDims& srcDims,
+                                                                            const VectorDims& srcBlockedDims) {
     if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp))
         IE_THROW() << "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.";
 
@@ -137,7 +136,8 @@ MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(cons
     const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
 
     // 2 for decomposed axis dim, 1 for composed spatial dim
-    const int reshapedRank = attrs.batchRank + 2 + static_cast<int>(attrs.spatialRank != 0) + static_cast<int>(isBlocked && (attrs.spatialRank == 0));
+    const int batchRank = attrs.axis;
+    const int reshapedRank = batchRank + 2 + static_cast<int>(attrs.spatialRank != 0) + static_cast<int>(isBlocked && (attrs.spatialRank == 0));
     PermuteParams params;
     params.data_size = attrs.dataSize;
     params.order.resize(reshapedRank, 0);
@@ -146,11 +146,11 @@ MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(cons
     params.dst_block_dims.resize(reshapedRank);
     params.src_block_dims.resize(reshapedRank);
 
-    const size_t groupSize = attrs.srcDims[attrs.axis] / attrs.group;
+    const size_t groupSize = srcDims[attrs.axis] / attrs.group;
     size_t spatialShapeSize = 1;
     if (attrs.spatialRank != 0) {
-        for (int i = attrs.batchRank + 1; i < attrs.dataRank; i++) {
-            spatialShapeSize *= attrs.srcDims[i];
+        for (int i = batchRank + 1; i < attrs.dataRank; i++) {
+            spatialShapeSize *= srcDims[i];
         }
     }
 
@@ -163,22 +163,22 @@ MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(cons
 
     const int channelDim = 1;
     if (isBlocked) {
-        size_t blkSize = attrs.srcBlockedDims.back();
-        size_t CB = attrs.srcBlockedDims[1];
+        size_t blkSize = srcBlockedDims.back();
+        size_t CB = srcBlockedDims[1];
         if (attrs.axis > channelDim) {  // axis on spatial
-            for (int i = 0; i < attrs.batchRank; i++) {
+            for (int i = 0; i < batchRank; i++) {
                 params.order[i] = i;
-                params.src_block_dims[i] = attrs.srcBlockedDims[i];
+                params.src_block_dims[i] = srcBlockedDims[i];
             }
-            decomposeAndTranpose(attrs.batchRank);
+            decomposeAndTranpose(batchRank);
 
-            params.order[attrs.batchRank + 2] = attrs.batchRank + 2;
-            params.src_block_dims[attrs.batchRank + 2] = spatialShapeSize * blkSize;
+            params.order[batchRank + 2] = batchRank + 2;
+            params.src_block_dims[batchRank + 2] = spatialShapeSize * blkSize;
         } else { // axis on batch
             decomposeAndTranpose(0);
             spatialShapeSize = CB * blkSize;
             for (int i = 2; i < attrs.dataRank; i++) {
-                spatialShapeSize *= attrs.srcDims[i];
+                spatialShapeSize *= srcDims[i];
             }
             params.order[2] = 2;
             params.src_block_dims[2] = spatialShapeSize;
@@ -186,28 +186,28 @@ MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(cons
     } else if (isChannelsLast) {
         if (attrs.axis == channelDim) {  // axis on channel
             params.order[0] = 0;
-            params.src_block_dims[0] = attrs.srcDims[0];
+            params.src_block_dims[0] = srcDims[0];
             params.order[1] = 1;
             params.src_block_dims[1] = spatialShapeSize;
             decomposeAndTranpose(2);
         } else if (attrs.axis > channelDim) {  // axis on spatial
-            for (int i = 0; i < attrs.batchRank; i++) {
+            for (int i = 0; i < batchRank; i++) {
                 if (i == 0) {
                     params.order[i] = i;
-                    params.src_block_dims[i] = attrs.srcDims[i];
+                    params.src_block_dims[i] = srcDims[i];
                 } else if (i == 1) {
                     params.order[reshapedRank - 1] = reshapedRank - 1;
-                    params.src_block_dims[params.order[reshapedRank - 1]] = attrs.srcDims[i];
+                    params.src_block_dims[params.order[reshapedRank - 1]] = srcDims[i];
                 } else if (i > 1) {
                     params.order[i - 1] = i - 1;
-                    params.src_block_dims[i - 1] = attrs.srcDims[i];
+                    params.src_block_dims[i - 1] = srcDims[i];
                 }
             }
-            decomposeAndTranpose(attrs.batchRank - 1);
+            decomposeAndTranpose(batchRank - 1);
 
             if (attrs.spatialRank != 0) {
-                params.order[attrs.batchRank + 1] = attrs.batchRank + 1;
-                params.src_block_dims[attrs.batchRank + 1] = spatialShapeSize;
+                params.order[batchRank + 1] = batchRank + 1;
+                params.src_block_dims[batchRank + 1] = spatialShapeSize;
             }
         } else { // axis on batch
             decomposeAndTranpose(0);
@@ -215,15 +215,15 @@ MKLDNNShuffleChannelsNode::ShuffleChannelsExecutor::ShuffleChannelsExecutor(cons
             params.src_block_dims[2] = spatialShapeSize;
         }
     } else {
-        for (int i = 0; i < attrs.batchRank; i++) {
-            params.src_block_dims[i] = attrs.srcDims[i];
+        for (int i = 0; i < batchRank; i++) {
+            params.src_block_dims[i] = srcDims[i];
             params.order[i] = i;
         }
 
-        decomposeAndTranpose(attrs.batchRank);
+        decomposeAndTranpose(batchRank);
         if (attrs.spatialRank != 0) {
-            params.order[attrs.batchRank + 2] = attrs.batchRank + 2;
-            params.src_block_dims[attrs.batchRank + 2] = spatialShapeSize;
+            params.order[batchRank + 2] = batchRank + 2;
+            params.src_block_dims[batchRank + 2] = spatialShapeSize;
         }
     }
 
