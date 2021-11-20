@@ -92,3 +92,14 @@ TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg3) {
         manager.register_pass<pass::ReshapeSequenceFusion>();
     }
 }
+
+TEST_F(TransformationTestsF, ReshapeSequenceFusionNeg4) {
+    {
+        auto data = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 2, 3});
+        auto a = reshape(data, {2, 3});
+        auto b = reshape(a, {0, 3});
+        function = std::make_shared<Function>(OutputVector{b}, ParameterVector{data});
+
+        manager.register_pass<pass::ReshapeSequenceFusion>();
+    }
+}

@@ -40,7 +40,7 @@ ngraph::pass::ReshapeSequenceFusion::ReshapeSequenceFusion() {
         auto reshape = m.get_match_root();
 
         auto pattern_a = pattern_map.at(reshape_a_pattern).get_node_shared_ptr();
-        auto pattern_b = pattern_map.at(reshape_a_pattern).get_node_shared_ptr();
+        auto pattern_b = pattern_map.at(reshape_b_pattern).get_node_shared_ptr();
         // skip reshapes which patterns contain special numbers like -1 or 0
         if (!has_valid_pattern(pattern_a) || !has_valid_pattern(pattern_b)) {
             return false;
