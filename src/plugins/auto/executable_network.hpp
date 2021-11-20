@@ -43,7 +43,7 @@ struct DeviceInformation {
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
     std::string defaultDeviceID;
-    DeviceName uniqueName;
+    const DeviceName uniqueName;
 };
 
 struct AutoContext {
