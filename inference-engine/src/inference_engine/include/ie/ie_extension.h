@@ -14,27 +14,10 @@
 #include <string>
 #include <vector>
 
-#include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
 #include "ngraph/opsets/opset.hpp"
 
 namespace InferenceEngine {
-namespace details {
-
-/**
- * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
- * creating IExtension object in DLL
- */
-template <>
-class SOCreatorTrait<IExtension> {
-public:
-    /**
-     * @brief A name of the fabric method for creating an IExtension object in DLL
-     */
-    static constexpr auto name = "CreateExtension";
-};
-
-}  // namespace details
 
 /**
  * @brief This class is a C++ helper to work with objects created using extensions.
@@ -46,8 +29,16 @@ public:
      *
      * @param name Full or relative path to extension library
      */
-    template <typename C, typename = details::enableIfSupportedChar<C>>
-    explicit Extension(const std::basic_string<C>& name) : actual(name) {}
+    explicit Extension(const std::string& name);
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Loads extension from a shared library
+     *
+     * @param name Full or relative path to extension library
+     */
+    explicit Extension(const std::wstring& name);
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
 
     /**
      * @brief Gets the extension version information
@@ -55,14 +46,14 @@ public:
      * @param versionInfo A pointer to version info, set by the plugin
      */
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
-        actual->GetVersion(versionInfo);
+        _actual->GetVersion(versionInfo);
     }
 
     /**
      * @brief Cleans the resources up
      */
     void Unload() noexcept override {
-        actual->Unload();
+        _actual->Unload();
     }
 
     /**
@@ -80,7 +71,7 @@ public:
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
         if (node == nullptr)
             IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
-        return actual->getImplTypes(node);
+        return _actual->getImplTypes(node);
     }
 
     /**
@@ -92,14 +83,19 @@ public:
     ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
         if (node == nullptr)
             IE_THROW() << "Provided ngraph::Node pointer is nullptr.";
-        return actual->getImplementation(node, implType);
+        return _actual->getImplementation(node, implType);
     }
 
 protected:
     /**
-     * @brief A SOPointer instance to the loaded templated object
+     * @brief A shared library
      */
-    details::SOPointer<IExtension> actual;
+    std::shared_ptr<void> _so;
+
+    /**
+     * @brief A instance to the loaded templated object
+     */
+    std::shared_ptr<InferenceEngine::IExtension> _actual;
 };
 
 /**

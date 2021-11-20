@@ -61,17 +61,17 @@ struct InferencePlugin {
         PLUGIN_CALL_STATEMENT(_ptr->SetConfig(config));
     }
 
-    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
+    ov::runtime::SoPtr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config)});
     }
 
-    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
+    ov::runtime::SoPtr<IExecutableNetworkInternal> LoadNetwork(const CNNNetwork& network,
                                                                const std::shared_ptr<RemoteContext>& context,
                                                                const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(network, config, context)});
     }
 
-    details::SOPointer<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
+    ov::runtime::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath, const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->LoadNetwork(modelPath, config)});
     }
 
@@ -83,17 +83,17 @@ struct InferencePlugin {
         return res;
     }
 
-    details::SOPointer<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
+    ov::runtime::SoPtr<IExecutableNetworkInternal> ImportNetwork(const std::string& modelFileName,
                                                                  const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(modelFileName, config)});
     }
 
-    details::SOPointer<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+    ov::runtime::SoPtr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, config)});
     }
 
-    details::SOPointer<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
+    ov::runtime::SoPtr<IExecutableNetworkInternal> ImportNetwork(std::istream& networkModel,
                                                                  const std::shared_ptr<RemoteContext>& context,
                                                                  const std::map<std::string, std::string>& config) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->ImportNetwork(networkModel, context, config)});
@@ -103,11 +103,11 @@ struct InferencePlugin {
         PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
     }
 
-    details::SOPointer<RemoteContext> CreateContext(const ParamMap& params) {
+    ov::runtime::SoPtr<RemoteContext> CreateContext(const ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->CreateContext(params)});
     }
 
-    details::SOPointer<RemoteContext> GetDefaultContext(const ParamMap& params) {
+    ov::runtime::SoPtr<RemoteContext> GetDefaultContext(const ParamMap& params) {
         PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetDefaultContext(params)});
     }
 

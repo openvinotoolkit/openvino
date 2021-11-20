@@ -5,6 +5,7 @@
 #include <samples/classification_results.h>
 #include <sys/stat.h>
 
+#include <cassert>
 #include <fstream>
 #include <inference_engine.hpp>
 #include <iostream>

@@ -16,8 +16,6 @@
 #include <file_utils.h>
 #include <ie_preprocess.hpp>
 
-#include <details/ie_so_pointer.hpp>
-
 namespace InferenceEngine {
 
 /**

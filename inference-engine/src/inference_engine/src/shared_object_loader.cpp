@@ -7,6 +7,8 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
+IE_SUPPRESS_DEPRECATED_START
+
 namespace InferenceEngine {
 namespace details {
 
@@ -41,3 +43,5 @@ std::shared_ptr<void> SharedObjectLoader::get() const {
 
 }  // namespace details
 }  // namespace InferenceEngine
+
+IE_SUPPRESS_DEPRECATED_END

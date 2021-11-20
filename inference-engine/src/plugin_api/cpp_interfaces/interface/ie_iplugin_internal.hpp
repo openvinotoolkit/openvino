@@ -16,7 +16,6 @@
 
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
@@ -346,13 +345,6 @@ using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
  */
 constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 
-namespace details {
-template <>
-class SOCreatorTrait<IInferencePlugin> {
-public:
-    static constexpr auto name = create_plugin_function;
-};
-}  // namespace details
 }  // namespace InferenceEngine
 
 /**

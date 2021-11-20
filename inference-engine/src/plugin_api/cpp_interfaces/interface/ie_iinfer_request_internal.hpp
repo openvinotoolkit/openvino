@@ -261,7 +261,7 @@ private:
 };
 
 /**
- * @brief SOPointer to IInferRequestInternal.
+ * @brief SoPtr to IInferRequestInternal.
  */
 using SoIInferRequestInternal = ov::runtime::SoPtr<IInferRequestInternal>;
 

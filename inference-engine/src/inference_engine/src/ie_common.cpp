@@ -40,12 +40,6 @@ std::map<std::string, ngraph::OpSet> IExtension::getOpSets() {
     return {};
 }
 
-//
-// ie_extension.h
-//
-std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
-    return actual->getOpSets();
-}
 namespace details {
 
 void Rethrow() {

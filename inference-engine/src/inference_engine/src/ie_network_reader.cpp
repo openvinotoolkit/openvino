@@ -13,7 +13,6 @@
 
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp/ie_cnn_network.h"
-#include "details/ie_so_pointer.hpp"
 #include "file_utils.h"
 #include "frontend_manager/frontend_manager.hpp"
 #include "ie_api.h"
@@ -34,6 +33,8 @@
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/shared_object.hpp"
+#include "so_ptr.hpp"
 #include "transformations/rt_info/old_api_map_order_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -77,22 +78,6 @@ namespace InferenceEngine {
 
 #ifdef ENABLE_IR_V7_READER
 
-namespace details {
-
-/**
- * @brief This class defines the name of the fabric for creating an IReader object in DLL
- */
-template <>
-class SOCreatorTrait<IReader> {
-public:
-    /**
-     * @brief A name of the fabric for creating IReader object in DLL
-     */
-    static constexpr auto name = "CreateReader";
-};
-
-}  // namespace details
-
 /**
  * @brief This class is a wrapper for reader interfaces
  */
@@ -100,7 +85,7 @@ class Reader : public IReader {
 #    ifdef OPENVINO_STATIC_LIBRARY
     using ReaderPtr = std::shared_ptr<IReader>;
 #    else
-    using ReaderPtr = InferenceEngine::details::SOPointer<IReader>;
+    using ReaderPtr = ov::runtime::SoPtr<IReader>;
 #    endif
     ReaderPtr ptr;
     std::once_flag readFlag;
@@ -123,7 +108,12 @@ class Reader : public IReader {
                            << ov::util::from_file_path(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
                            << getIELibraryPath();
             }
-            ptr = {readersLibraryPath};
+
+            auto so = ov::util::load_shared_object(readersLibraryPath.c_str());
+            std::shared_ptr<IReader> plugin_impl;
+            using createFunc = void(std::shared_ptr<IReader>&);
+            reinterpret_cast<createFunc*>(ov::util::get_symbol(so, "CreateReader"))(plugin_impl);
+            ptr = {so, plugin_impl};
 #    endif  // OPENVINO_STATIC_LIBRARY
         });
 

@@ -5,6 +5,7 @@
 #include <iterator>
 #include <string>
 #include <utility>
+#include <cassert>
 #include <map>
 #include <vector>
 #include <set>

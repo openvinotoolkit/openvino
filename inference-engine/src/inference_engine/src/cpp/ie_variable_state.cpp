@@ -28,7 +28,7 @@
 
 namespace InferenceEngine {
 
-VariableState::VariableState(const details::SharedObjectLoader& so, const IVariableStateInternal::Ptr& impl)
+VariableState::VariableState(const std::shared_ptr<void>& so, const IVariableStateInternal::Ptr& impl)
     : _so(so),
       _impl(impl) {
     if (_impl == nullptr)

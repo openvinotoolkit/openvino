@@ -35,11 +35,12 @@ using enableIfSupportedChar =
     typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
 
 /**
+ * @deprecated This is internal stuff. Use Inference Engine Plugin API
  * @brief This class instantiate object using shared library
  * @tparam T An type of object SOPointer can hold
  */
 template <class T>
-class SOPointer {
+class INFERENCE_ENGINE_DEPRECATED("This is internal stuff. Use Inference Engine Plugin API") SOPointer {
     template <class U>
     friend class SOPointer;
 
