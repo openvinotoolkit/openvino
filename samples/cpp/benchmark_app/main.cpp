@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
             slog::info << "GPU extensions is loaded " << ext << slog::endl;
         }
 
-        slog::info << "InferenceEngine: " << *GetInferenceEngineVersion() << slog::endl;
+        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
         slog::info << "Device info: " << slog::endl;
         slog::info << ie.GetVersions(device_name) << slog::endl;
 

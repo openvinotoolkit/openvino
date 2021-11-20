@@ -528,7 +528,7 @@ int main(int argc, char* argv[]) {
     try {
         // ------------------------------ Get Inference Engine version
         // ------------------------------------------------------
-        slog::info << "InferenceEngine: " << *GetInferenceEngineVersion() << slog::endl;
+        slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
 
         // ------------------------------ Parsing and validation of input arguments ---------------------------------
         if (!ParseAndCheckCommandLine(argc, argv)) {
