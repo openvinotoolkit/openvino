@@ -295,6 +295,13 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
+    // need to reload network, unregister it's priority
+    // there maybe potential issue.
+    // for example they are dGPU, VPUX, iGPU, customer want to LoadNetwork with
+    // configure 0 dGPU, 1 VPUX, if dGPU load failed,
+    // the result will be not sure, maybe two network are loaded into VPUX,
+    // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
+    _multiPlugin->UnregisterPriority(_context.modelPriority, device.uniqueName);
     // remove the current device from deviceList
     auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(),
             [device](DeviceInformation& d){
@@ -308,7 +315,8 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
 
     // select next candidate device
     try {
-        context.deviceInfo = _multiPlugin->SelectDevice(deviceList, context.networkPrecision);
+        context.deviceInfo = _multiPlugin->SelectDevice(deviceList,
+                context.networkPrecision, _context.networkPrecision);
     }
     catch (const std::exception& e) {
         return;
@@ -463,14 +471,17 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 }
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
-    // this is necessary to guarantee member destroyed after getting future
-    if (_workModeIsAUTO && _loadContext[CPU].isEnabled) {
-        _loadContext[CPU].future.wait();
-        WaitActualNetworkReady();
-        // it's necessary to wait the loading network threads to stop here.
-        InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
-        _executor.reset();
-        _multiPlugin->UnregisterPriority(_context.modelPriority, _acceleratorDevice.uniqueName);
+    if (_workModeIsAUTO) {
+        _multiPlugin->UnregisterPriority(_context.modelPriority,
+                _loadContext[ACTUALDEVICE].uniqueName);
+        // this is necessary to guarantee member destroyed after getting future
+        if (_loadContext[CPU].isEnabled) {
+            _loadContext[CPU].future.wait();
+            WaitActualNetworkReady();
+            // it's necessary to wait the loading network threads to stop here.
+            InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
+            _executor.reset();
+        }
     }
     {
         std::lock_guard<std::mutex> lock(_mutex);
