@@ -61,7 +61,7 @@ protected:
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
+        selectedType = makeSelectedTypeStr(selectedType, inType);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
@@ -76,8 +76,7 @@ TEST_P(ShuffleChannelsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: need to uncomment when this method will be updated
-    // CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
+    CheckPluginRelatedResults(executableNetwork, "ShuffleChannels");
 }
 
 namespace {
