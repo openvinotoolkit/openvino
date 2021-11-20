@@ -738,9 +738,22 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         }
         IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
     } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
+        GPU_DEBUG_GET_INSTANCE(debug_config);
         const auto& config = _impl->m_configs.GetConfig(device_id);
         auto n_streams = config.throughput_streams;
-        auto available_device_mem = device_info.max_global_mem_size;
+        uint64_t occupied_device_mem = 0;
+        auto statistic_result = GetMetric(GPU_METRIC_KEY(MEMORY_STATISTICS), options).as<std::map<std::string, uint64_t>>();
+        auto occupied_usm_dev = statistic_result.find("usm_device_current");
+        if (occupied_usm_dev != statistic_result.end()) {
+            occupied_device_mem = occupied_usm_dev->second;
+        }
+
+        auto available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
+                           << " (occupied: " << occupied_device_mem << ")" << std::endl;
+        }
+
         int64_t max_batch_size = 0;
 
         if (options.find("MODEL_PTR") == options.end()) {
@@ -753,9 +766,16 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
                 IE_THROW() << "[GPU] bad casting: GPU_THROUGHPUT_STREAMS should be uint32_t type";
             }
         }
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] n_streams : " << n_streams << std::endl;
+        }
+
         if (options.find("AVAILABLE_DEVICE_MEM_SIZE") != options.end()) {
             try {
-                available_device_mem = options.find("AVAILABLE_DEVICE_MEM_SIZE")->second.as<int64_t>();
+                available_device_mem = std::min(static_cast<int64_t>(available_device_mem), options.find("AVAILABLE_DEVICE_MEM_SIZE")->second.as<int64_t>());
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
+                }
             } catch (...) {
                 IE_THROW() << "[GPU] bad casting: AVAILABLE_DEVICE_MEM_SIZE should be int64_t type";
             }
@@ -783,7 +803,6 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
         std::shared_ptr<Program> program;
 
-        GPU_DEBUG_GET_INSTANCE(debug_config);
         GPU_DEBUG_IF(debug_config->base_batch_for_memory_estimation > 0) {
             int32_t user_specified_base_batch_size = debug_config->base_batch_for_memory_estimation;
             base_batch_size = (user_specified_base_batch_size != base_batch_size) ? user_specified_base_batch_size : base_batch_size;
