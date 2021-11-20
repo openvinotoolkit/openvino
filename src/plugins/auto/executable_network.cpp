@@ -385,7 +385,7 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
     // for every MultiDeviceExecutableNetwork instance
     std::call_once(_oc, [this] () {
                if (_loadContext[ACTUALDEVICE].future.valid()) {
-                   _loadContext[ACTUALDEVICE].future.get();
+                   _loadContext[ACTUALDEVICE].future.wait();
                }
                // if _loadContext[ACTUALDEVICE] load failed,  fall back to _loadContext[CPU]
                if (!_loadContext[ACTUALDEVICE].isAlready) {
@@ -465,7 +465,7 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     // this is necessary to guarantee member destroyed after getting future
     if (_workModeIsAUTO && _loadContext[CPU].isEnabled) {
-        _loadContext[CPU].future.get();
+        _loadContext[CPU].future.wait();
         WaitActualNetworkReady();
         // it's necessary to wait the loading network threads to stop here.
         InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
