@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v4::CTCLoss, "CTCLoss", 4);
+BWDCMP_RTTI_DEFINITION(op::v4::CTCLoss);
 
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
                          const Output<Node>& logit_length,

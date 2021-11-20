@@ -33,9 +33,9 @@ const ov::OpSet& ov::get_opset1() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset1_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }
@@ -44,9 +44,9 @@ const ov::OpSet& ov::get_opset2() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset2_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }
@@ -55,9 +55,9 @@ const ov::OpSet& ov::get_opset3() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset3_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }
@@ -66,9 +66,9 @@ const ov::OpSet& ov::get_opset4() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset4_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }
@@ -77,9 +77,9 @@ const ov::OpSet& ov::get_opset5() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset5_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }
@@ -88,9 +88,9 @@ const ov::OpSet& ov::get_opset6() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset6_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }
@@ -99,9 +99,9 @@ const ov::OpSet& ov::get_opset7() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset7_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }
@@ -110,9 +110,9 @@ const ov::OpSet& ov::get_opset8() {
     static OpSet opset;
     static std::once_flag flag;
     std::call_once(flag, [&]() {
-#define OPENVINO_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#define _OPENVINO_OP_REG(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "openvino/opsets/opset8_tbl.hpp"
-#undef OPENVINO_OP
+#undef _OPENVINO_OP_REG
     });
     return opset;
 }

@@ -109,6 +109,11 @@ PY_INSTALL_CFG = {
         'prefix': 'site-packages',
         'install_dir': PY_PACKAGES_DIR,
     },
+    'pyopenvino' : {
+        'name': f'pyopenvino_{PYTHON_VERSION}',
+        'prefix': 'site-packages',
+        'install_dir': PY_PACKAGES_DIR,
+    },
 }
 
 
@@ -446,6 +451,7 @@ ext_modules = find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)) if pkg_name
 
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
+    build=config('WHEEL_BUILD', '000'),
     author_email=config('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
     name=pkg_name,
     license=config('WHEEL_LICENCE_TYPE', 'OSI Approved :: Apache Software License'),

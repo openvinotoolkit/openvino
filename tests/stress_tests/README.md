@@ -36,7 +36,7 @@ To build the tests, you need to have OpenVINO™ installed or build from source.
 Before build the tests, open a terminal, set OpenVINO™ environment, and after that
 run the commands below:
 ``` bash
-source <OpenVINO_install_dir>/bin/setupvars.sh
+source <OpenVINO_install_dir>/setupvars.sh
 mkdir build && cd build
 cmake .. && make -j$(nproc)
 ```

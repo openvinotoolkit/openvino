@@ -10,6 +10,8 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
+#include <ngraph_ops/nms_ie_internal.hpp>
+#include <ngraph_ops/nms_static_shape_ie.hpp>
 
 #include <mutex>
 
@@ -95,9 +97,22 @@ std::map<std::string, ngraph::OpSet> MKLDNNExtension::getOpSets() {
         return opset;
     };
 
+    auto ie_internal_opset = []() {
+        ngraph::OpSet opset;
+
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+        NGRAPH_OP(NonMaxSuppressionIEInternal, ngraph::op::internal)
+        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MulticlassNms>, ngraph::op::internal)
+        NGRAPH_OP(NmsStaticShapeIE<ov::op::v8::MatrixNms>, ngraph::op::internal)
+#undef NGRAPH_OP
+
+        return opset;
+    };
+
     static std::map<std::string, ngraph::OpSet> opsets = {
         { "cpu_plugin_opset", cpu_plugin_opset() },
-        { "type_relaxed_opset", type_relaxed_opset() }
+        { "type_relaxed_opset", type_relaxed_opset() },
+        { "ie_internal_opset", ie_internal_opset() },
     };
 
     return opsets;
@@ -115,17 +130,3 @@ InferenceEngine::ILayerImpl::Ptr MKLDNNExtension::getImplementation(const std::s
 
 // Generate exported function
 IE_DEFINE_EXTENSION_CREATE_FUNCTION(MKLDNNPlugin::MKLDNNExtension)
-
-INFERENCE_EXTENSION_API(InferenceEngine::StatusCode)
-InferenceEngine::CreateExtension(InferenceEngine::IExtension*& ext, InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        ext = new MKLDNNPlugin::MKLDNNExtension();
-        return OK;
-    } catch (std::exception& ex) {
-        if (resp) {
-            std::string err = ((std::string) "Couldn't create extension: ") + ex.what();
-            err.copy(resp->msg, 255);
-        }
-        return InferenceEngine::GENERAL_ERROR;
-    }
-}

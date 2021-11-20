@@ -100,10 +100,9 @@ class OPENVINO_API AttributeAdapter<ov::Shape> : public IndirectVectorValueAcces
 
 {
 public:
+    OPENVINO_RTTI("AttributeAdapter<Shape>");
+    BWDCMP_RTTI_DECLARATION;
+
     AttributeAdapter(ov::Shape& value) : IndirectVectorValueAccessor<ov::Shape, std::vector<int64_t>>(value) {}
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Shape>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
 };
 }  // namespace ov

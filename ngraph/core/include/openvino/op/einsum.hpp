@@ -12,7 +12,8 @@ namespace v7 {
 /// \brief Einsum operation.
 class OPENVINO_API Einsum : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Einsum", "opset7", op::Op, 7);
+    BWDCMP_RTTI_DECLARATION;
 
     Einsum() = default;
 

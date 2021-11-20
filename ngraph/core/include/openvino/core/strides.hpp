@@ -10,6 +10,7 @@
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/rtti.hpp"
 
 namespace ov {
 /// \brief Strides for a tensor.
@@ -40,10 +41,8 @@ template <>
 class OPENVINO_API AttributeAdapter<Strides> : public IndirectVectorValueAccessor<Strides, std::vector<int64_t>> {
 public:
     AttributeAdapter(Strides& value) : IndirectVectorValueAccessor<Strides, std::vector<int64_t>>(value) {}
-    static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Strides>", 0};
-    const DiscreteTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_RTTI("AttributeAdapter<Strides>");
+    BWDCMP_RTTI_DECLARATION;
 };
 
 }  // namespace ov

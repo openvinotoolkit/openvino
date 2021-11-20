@@ -42,7 +42,6 @@
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
@@ -70,13 +69,15 @@
 #include "transformations/convert_dwsc_to_scaleshifts.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
+#include "transformations/broadcast_const.hpp"
+#include "transformations/substitute_softsign.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 
-uint32_t ToByteSize(const Gna2DataType type) {
+inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
     case Gna2DataTypeInt8:
     case Gna2DataTypeUint8:
@@ -420,50 +421,16 @@ void GNAPlugin::InitGNADevice() {
                 config.swExactMode,
                 gnaFlags->gna_lib_async_threads_num,
                 gnaFlags->gna_openmp_multithreading,
-                gnaFlags->performance_counting);
+                gnaFlags->performance_counting,
+                !config.dumpXNNPath.empty(),
+                GetDeviceVersionFromString(config.dumpXNNGeneration));
 #endif
     size_t page_size_bytes = 4096;
     gnamem = std::make_shared<gna_memory_type>(memory::make_polymorph<memory::GNAAllocator>(gnadevice), page_size_bytes);
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork & network) {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateGnaQuantModeFromNetwork");
-    // fp32 emulation mode dont need any modifications to configuration
-    if (config.gnaFlags.sw_fp32) return;
-
-    // search for FQ layers
-    // only supports cases of int16 or int8
-    auto it = details::CNNNetworkIterator(network), end = details::CNNNetworkIterator();
-    for (; it != end; it++) {
-        if (!LayerInfo(*it).isFakeQuantize()) {
-            continue;
-        }
-
-        GNAFakeQuantizeLayer fqLayer(*it);
-        auto inputLayer = fqLayer.getInputLayer();
-
-        // this fake quantize represents data quantization - not weights
-        if (!LayerInfo(inputLayer).isConst()) {
-            continue;
-        }
-        // also in mixed mode i8 should be stated as target precision
-        if (fqLayer.getLevels() <= std::numeric_limits<uint8_t>::max()) {
-            config.gnaPrecision = InferenceEngine::Precision::I8;
-        } else if (fqLayer.getLevels() <= std::numeric_limits<uint16_t>::max()) {
-            config.gnaPrecision = InferenceEngine::Precision::I16;
-        } else {
-            THROW_GNA_LAYER_EXCEPTION(*it)
-                << "unsupported quantisation scheme: number of levels is " << fqLayer.getLevels() << " while only up to "
-                << std::numeric_limits<uint16_t>::max() << " is supported";
-        }
-
-        gnaFlags->fake_quantized = true;
-        config.gnaFlags.fake_quantized = true;
-    }
-}
-
-void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & network) {
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "UpdateInputScaleFromNetwork");
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
@@ -478,6 +445,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
                 continue;
             }
+
             // replacing scale factor from this fq layer
             GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
             auto inputRange = fqLayer.getInputRange();
@@ -706,24 +674,26 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         InitGNADevice();
     }
 
-    bool isNgraphPassesUsed = false;
+    std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
+    if (gnadevice) {
+        effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
+    }
 
+    bool isNgraphPassesUsed = false;
+    bool fake_quantized = false;
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-        manager.register_pass<ngraph::pass::ConvertPriorBox>();
+        fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
-        if (config.gnaCompileTarget == InferenceEngine::GNAConfigParams::GNA_TARGET_2_0) {
-            manager.register_pass<Decompose2DConvTransposedWithBiasAF>();
-            manager.register_pass<Decompose2DConvTransposedWithBias>();
-            manager.register_pass<Decompose2DConv>();
-        }
+        manager.register_pass<Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTarget, config.gnaPrecision);
+        manager.register_pass<Decompose2DConvTransposedWithBias>(effectiveGnaCompileTarget, config.gnaPrecision);
+        manager.register_pass<Decompose2DConv>(effectiveGnaCompileTarget, config.gnaPrecision);
         // TODO enable this transformation for networks with convolutions
         if (!ngraph::op::util::has_op_with_type<ngraph::opset7::Convolution>(graph)) {
             manager.register_pass<ConvertMatmulWithFqToPointWiseConvolution>();
@@ -744,10 +714,20 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
+        manager.register_pass<SubstituteSoftsign>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<RemoveExtraReshapes>();
+        /*
+          Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
+          ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
+                                                    ngraph::pass::ConvAddFusion, ngraph::pass::ConvMultiplyFusion
+          That transormations fuse bias into convolution and recognizes const node as [1, C, 1, 1].
+          TODO: move that transformation just beyond RemoveSingleInputConcat pass after removing ConvertOpSet1ToLegacy
+              transormations
+        */
+        manager.register_pass<BroadcastAddMultiplyConst>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
@@ -778,9 +758,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
-    // FQ networks now replaces certain flags in the plugin - flags will'be owerritten
-    UpdateGnaQuantModeFromNetwork(network);
-    UpdateInputScaleFromNetwork(network);
+    if (fake_quantized) {
+        UpdateInputScaleFromNetwork(network);
+    }
 
     // Set input and output information from orginal network
     UpdateInputsAndOutputsInfoFromNetwork(network);
@@ -799,19 +779,20 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<RemoveConstPass>();
             passes->registerPass<UnrollLSTMCellPass>();
             passes->registerPass<RemoveSingleInputConcatPass>();
+            passes->registerPass<BroadcastConstPass>();
+            passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         }
+
+        if (fake_quantized)
+            passes->registerPass<SubstituteSoftSignPass>();
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
-        passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-        passes->registerPass<BroadcastConstPass>();
-
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
-        passes->registerPass<SubstituteSoftSignPass>();
 
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();
@@ -844,19 +825,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true, gnaFlags->input_low_precision);
         run_passes(newNet, false, gnaFlags->input_low_precision);
-    } else if (gnaFlags->fake_quantized) {
-        switch (config.gnaPrecision) {
-            case Precision::I16:
-                ModelQuantizer<FakeQuantI16> q16;
-                newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            case Precision::I8:
-                ModelQuantizer<FakeQuantI8> q8;
-                newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
-                break;
-            default:
-                THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
-        }
+    } else if (fake_quantized) {
+        ModelQuantizer<FakeQuant> modelQuantizer;
+        newNet = modelQuantizer.quantize(network, run_passes, inputsDesc->inputScaleFactors);
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
@@ -1036,10 +1007,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 #else
     nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
 #endif
-    std::string effectiveGnaCompileTarget = config.gnaCompileTarget;
-    if (gnadevice) {
-        effectiveGnaCompileTarget = gnadevice->getEffectiveGnaCompileTarget();
-    }
+
     if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
 #if GNA_LIB_VER == 2
@@ -1118,21 +1086,31 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
             auto nextLayers = CNNNetGetAllNextLayersSkipCertain(inputLayer, -1, doesntHaveGnaMapping);
 
+            std::vector<intel_dnn_orientation_t> orientations;
             for (auto &nextLayer : nextLayers) {
                 auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
                 // non functional layer - skipped by gna
                 if (nullptr == dnnLayer) {
                     THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";
                 }
-                // input orientation might be already initialized, thus verify that it matches
-                if (!inputsDesc->orientation_in.count(inputLayer->name)) {
-                    inputsDesc->orientation_in[inputLayer->name] = dnnLayer->orientation_in;
-                } else {
-                    if (inputsDesc->orientation_in[inputLayer->name] != dnnLayer->orientation_in &&
-                        dnnLayer->num_rows_in > 1 && dnnLayer->num_columns_in > 1) {
-                        THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << "cannot be calculated";
-                    }
+                // Orientation of an input doesn't make sense for components transposing the data and
+                // components with identity dimensions, so skip them
+                if (dnnLayer->operation != kDnnInterleaveOp && dnnLayer->operation != kDnnDeinterleaveOp &&
+                    dnnLayer->num_rows_in > 1 && dnnLayer->num_columns_in > 1) {
+                    orientations.push_back(dnnLayer->orientation_in);
                 }
+            }
+
+            if (orientations.empty()) {
+                // in this case orientation doesn't make a sense
+                inputsDesc->orientation_in[inputLayer->name] = kDnnNonInterleavedOrientation;
+            } else if (std::adjacent_find(orientations.begin(), orientations.end(),
+                           std::not_equal_to<intel_dnn_orientation_t>()) == orientations.end()) {
+                // all orientations are equal
+                inputsDesc->orientation_in[inputLayer->name] = orientations.front();
+            } else {
+                // unsupported case: orientations are different and they are important for these components
+                THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << " cannot be calculated";
             }
         }
     } else {

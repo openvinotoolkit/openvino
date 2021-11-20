@@ -6,7 +6,7 @@
 
 #include "ngraph/op/util/arithmetic_reduction.hpp"
 #include "ngraph/op/util/arithmetic_reductions_keep_dims.hpp"
-#include "openvino/op/max.hpp"
+#include "openvino/op/reduce_max.hpp"
 
 namespace ngraph {
 namespace op {

@@ -275,10 +275,10 @@ TEST_F(ParameterTests, CompareParametersWithoutEqualOperator) {
     Parameter parB = b;
     Parameter parC = c;
 
-    ASSERT_THROW((void)(parA == parB), Exception);
-    ASSERT_THROW((void)(parA != parB), Exception);
-    ASSERT_THROW((void)(parA == parC), Exception);
-    ASSERT_THROW((void)(parA != parC), Exception);
+    ASSERT_THROW((void)(parA == parB), ov::Exception);
+    ASSERT_THROW((void)(parA != parB), ov::Exception);
+    ASSERT_THROW((void)(parA == parC), ov::Exception);
+    ASSERT_THROW((void)(parA != parC), ov::Exception);
 }
 
 TEST_F(ParameterTests, ParameterRemovedRealObject) {

@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::LRN_IE::type_info;
+BWDCMP_RTTI_DEFINITION(op::LRN_IE);
 
 op::LRN_IE::LRN_IE(const ngraph::Output<ngraph::Node>& arg, double alpha, double beta, double bias, size_t size,
                    std::string region)

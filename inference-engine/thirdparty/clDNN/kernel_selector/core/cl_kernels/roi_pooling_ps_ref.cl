@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/batch_headers/common.cl"
+#include "include/batch_headers/data_types.cl"
 
 // Each RoI is described by 5 elements [batch_id xmin ymin xmax ymax]
 #define ROI_NUM_ELEMENTS 5

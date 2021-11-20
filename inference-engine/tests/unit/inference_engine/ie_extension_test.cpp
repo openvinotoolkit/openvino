@@ -13,8 +13,6 @@
 
 #include "common_test_utils/test_common.hpp"
 
-IE_SUPPRESS_DEPRECATED_START
-
 using namespace InferenceEngine;
 
 using ExtensionTests = ::testing::Test;
@@ -23,6 +21,8 @@ std::string getExtensionPath() {
     return FileUtils::makePluginLibraryName<char>({},
             std::string("template_extension") + IE_BUILD_POSTFIX);
 }
+
+#ifndef OPENVINO_STATIC_LIBRARY
 
 TEST(ExtensionTests, testGetOpSets) {
     IExtensionPtr extension = std::make_shared<Extension>(getExtensionPath());
@@ -56,3 +56,5 @@ TEST(ExtensionTests, testGetImplementationThrowsIfNgraphNodeIsNullPtr) {
     ASSERT_THROW(extension->getImplementation(std::shared_ptr<ngraph::Node> (), ""),
             InferenceEngine::Exception);
 }
+
+#endif // OPENVINO_STATIC_LIBRARY

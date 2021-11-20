@@ -10,7 +10,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v3::EmbeddingBagPackedSum, "EmbeddingBagPackedSum", 3, util::EmbeddingBagPackedBase);
+BWDCMP_RTTI_DEFINITION(op::v3::EmbeddingBagPackedSum);
 
 op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_table,
                                                      const Output<Node>& indices,

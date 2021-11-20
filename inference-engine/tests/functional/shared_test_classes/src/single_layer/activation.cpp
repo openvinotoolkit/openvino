@@ -90,6 +90,12 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
             resolution = 32768;
             break;
         }
+        case ngraph::helpers::ActivationTypes::Atanh: {
+            data_start_from = -1;
+            data_range = 2;
+            resolution = 32768;
+            break;
+        }
         case ngraph::helpers::ActivationTypes::Ceiling: {
             data_start_from = -1000;
             data_range = 2000;
@@ -131,17 +137,7 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
         data_range = 15;
         data_start_from = 0;
     }
-    if (activationType == ngraph::helpers::ActivationTypes::Exp && targetDevice == CommonTestUtils::DEVICE_GNA) {
-        const double max_result_on_GNA = 15.9;
-        const double exp_inverse = std::round(std::log(max_result_on_GNA));
-        if (inPrcSigned) {
-            data_range = exp_inverse * 2.0;
-            data_start_from = -exp_inverse;
-        } else {
-            data_range = exp_inverse;
-            data_start_from = 0;
-        }
-    }
+
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
                                             data_start_from,
                                             resolution);

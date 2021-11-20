@@ -18,7 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::Split, "Split", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::Split);
 
 op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_splits)
     : Op({data, axis}),
@@ -104,6 +104,7 @@ shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_ar
 }
 
 namespace split {
+namespace {
 inline bool evaluate(const HostTensorPtr& data_tensor,
                      const HostTensorVector& outputs,
                      const int64_t axis,
@@ -137,6 +138,7 @@ bool evaluate_split(const HostTensorPtr& data_tensor,
     evaluate(data_tensor, outputs, axis, num_splits);
     return true;
 }
+}  // namespace
 }  // namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

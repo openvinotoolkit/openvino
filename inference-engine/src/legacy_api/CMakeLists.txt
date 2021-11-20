@@ -26,7 +26,7 @@ endif()
 
 file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
 
-add_library(${TARGET_NAME}_obj OBJECT
+add_library(${TARGET_NAME}_obj OBJECT EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -37,7 +37,7 @@ ie_faster_build(${TARGET_NAME}_obj
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src # For CNNNetworkNGraphImpl
+    $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
@@ -49,9 +49,9 @@ target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
 add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-# Create static library
+# Create library
 
-add_library(${TARGET_NAME} STATIC
+add_library(${TARGET_NAME} STATIC EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp
     $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
@@ -59,7 +59,8 @@ target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
                                      PRIVATE pugixml::static openvino::itt
                                              ngraph inference_engine_transformations)
 
-target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
 # LTO
 
@@ -69,3 +70,7 @@ set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
 # developer package
 
 openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
+
+# install
+
+ov_install_static_lib(${TARGET_NAME} core)

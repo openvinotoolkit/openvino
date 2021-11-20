@@ -68,6 +68,8 @@ public:
         return cloneWithNewDimsImp(dims);
     }
 
+    virtual MemoryDescPtr cloneWithNewPrecision(const InferenceEngine::Precision prec) const = 0;
+
     virtual bool isCompatible(const MemoryDesc& rhs) const = 0;
 
     // Checks that all dimensions, offsets, strides, etc are defined (!= UNDEFINED_DIM)
@@ -154,7 +156,6 @@ protected:
     friend class BlobDumper;
     // WA: optimizedNspc2Ncsp used getElementOffset inside implementation
     friend class MKLDNNSplitNode;
-    friend MemoryDescPtr MemoryDescUtils::cloneWithNewPrecision(const MemoryDesc& desc, const InferenceEngine::Precision prec);
 };
 
 }  // namespace MKLDNNPlugin

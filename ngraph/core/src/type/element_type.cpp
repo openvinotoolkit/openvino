@@ -12,8 +12,8 @@
 #include "ngraph/log.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 
-constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ov::element::Type>::type_info;
-constexpr ngraph::DiscreteTypeInfo ngraph::AttributeAdapter<ov::element::TypeVector>::type_info;
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::Type>);
+BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::TypeVector>);
 
 namespace {
 class TypeInfo {
@@ -46,33 +46,31 @@ struct ElementTypes {
     };
 
     using ElementsMap = std::unordered_map<ov::element::Type_t, TypeInfo, TypeHash>;
-    static const ElementsMap elements_map;
-};
-
-const ElementTypes::ElementsMap ElementTypes::elements_map{
-    {ov::element::Type_t::undefined,
-     TypeInfo(std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
-    {ov::element::Type_t::dynamic, TypeInfo(0, false, false, false, "dynamic", "dynamic")},
-    {ov::element::Type_t::boolean, TypeInfo(8, false, true, false, "char", "boolean")},
-    {ov::element::Type_t::bf16, TypeInfo(16, true, true, false, "bfloat16", "bf16")},
-    {ov::element::Type_t::f16, TypeInfo(16, true, true, false, "float16", "f16")},
-    {ov::element::Type_t::f32, TypeInfo(32, true, true, false, "float", "f32")},
-    {ov::element::Type_t::f64, TypeInfo(64, true, true, false, "double", "f64")},
-    {ov::element::Type_t::i4, TypeInfo(4, false, true, true, "int4_t", "i4")},
-    {ov::element::Type_t::i8, TypeInfo(8, false, true, true, "int8_t", "i8")},
-    {ov::element::Type_t::i16, TypeInfo(16, false, true, false, "int16_t", "i16")},
-    {ov::element::Type_t::i32, TypeInfo(32, false, true, true, "int32_t", "i32")},
-    {ov::element::Type_t::i64, TypeInfo(64, false, true, false, "int64_t", "i64")},
-    {ov::element::Type_t::u1, TypeInfo(1, false, false, false, "uint1_t", "u1")},
-    {ov::element::Type_t::u4, TypeInfo(4, false, false, false, "uint4_t", "u4")},
-    {ov::element::Type_t::u8, TypeInfo(8, false, false, true, "uint8_t", "u8")},
-    {ov::element::Type_t::u16, TypeInfo(16, false, false, false, "uint16_t", "u16")},
-    {ov::element::Type_t::u32, TypeInfo(32, false, false, false, "uint32_t", "u32")},
-    {ov::element::Type_t::u64, TypeInfo(64, false, false, false, "uint64_t", "u64")},
 };
 
 const ElementTypes::ElementsMap& get_type_info_map() {
-    return ElementTypes::elements_map;
+    static const ElementTypes::ElementsMap elements_map{
+        {ov::element::Type_t::undefined,
+         TypeInfo(std::numeric_limits<size_t>::max(), false, false, false, "undefined", "undefined")},
+        {ov::element::Type_t::dynamic, TypeInfo(0, false, false, false, "dynamic", "dynamic")},
+        {ov::element::Type_t::boolean, TypeInfo(8, false, true, false, "char", "boolean")},
+        {ov::element::Type_t::bf16, TypeInfo(16, true, true, false, "bfloat16", "bf16")},
+        {ov::element::Type_t::f16, TypeInfo(16, true, true, false, "float16", "f16")},
+        {ov::element::Type_t::f32, TypeInfo(32, true, true, false, "float", "f32")},
+        {ov::element::Type_t::f64, TypeInfo(64, true, true, false, "double", "f64")},
+        {ov::element::Type_t::i4, TypeInfo(4, false, true, true, "int4_t", "i4")},
+        {ov::element::Type_t::i8, TypeInfo(8, false, true, true, "int8_t", "i8")},
+        {ov::element::Type_t::i16, TypeInfo(16, false, true, false, "int16_t", "i16")},
+        {ov::element::Type_t::i32, TypeInfo(32, false, true, true, "int32_t", "i32")},
+        {ov::element::Type_t::i64, TypeInfo(64, false, true, false, "int64_t", "i64")},
+        {ov::element::Type_t::u1, TypeInfo(1, false, false, false, "uint1_t", "u1")},
+        {ov::element::Type_t::u4, TypeInfo(4, false, false, false, "uint4_t", "u4")},
+        {ov::element::Type_t::u8, TypeInfo(8, false, false, true, "uint8_t", "u8")},
+        {ov::element::Type_t::u16, TypeInfo(16, false, false, false, "uint16_t", "u16")},
+        {ov::element::Type_t::u32, TypeInfo(32, false, false, false, "uint32_t", "u32")},
+        {ov::element::Type_t::u64, TypeInfo(64, false, false, false, "uint64_t", "u64")},
+    };
+    return elements_map;
 };
 
 const TypeInfo& get_type_info(ov::element::Type_t type) {
@@ -195,6 +193,46 @@ template <>
 Type from<ov::bfloat16>() {
     return Type_t::bf16;
 }
+
+Type fundamental_type_for(const Type& type) {
+    switch (type) {
+    case Type_t::boolean:
+        return from<element_type_traits<Type_t::boolean>::value_type>();
+    case Type_t::bf16:
+        return from<element_type_traits<Type_t::bf16>::value_type>();
+    case Type_t::f16:
+        return from<element_type_traits<Type_t::f16>::value_type>();
+    case Type_t::f32:
+        return from<element_type_traits<Type_t::f32>::value_type>();
+    case Type_t::f64:
+        return from<element_type_traits<Type_t::f64>::value_type>();
+    case Type_t::i4:
+        return from<element_type_traits<Type_t::i4>::value_type>();
+    case Type_t::i8:
+        return from<element_type_traits<Type_t::i8>::value_type>();
+    case Type_t::i16:
+        return from<element_type_traits<Type_t::i16>::value_type>();
+    case Type_t::i32:
+        return from<element_type_traits<Type_t::i32>::value_type>();
+    case Type_t::i64:
+        return from<element_type_traits<Type_t::i64>::value_type>();
+    case Type_t::u1:
+        return from<element_type_traits<Type_t::u1>::value_type>();
+    case Type_t::u4:
+        return from<element_type_traits<Type_t::u4>::value_type>();
+    case Type_t::u8:
+        return from<element_type_traits<Type_t::u8>::value_type>();
+    case Type_t::u16:
+        return from<element_type_traits<Type_t::u16>::value_type>();
+    case Type_t::u32:
+        return from<element_type_traits<Type_t::u32>::value_type>();
+    case Type_t::u64:
+        return from<element_type_traits<Type_t::u64>::value_type>();
+    default:
+        OPENVINO_UNREACHABLE("Unsupported Data type: ", type);
+    }
+}
+
 }  // namespace element
 }  // namespace ov
 
@@ -245,7 +283,7 @@ size_t ov::element::Type::bitwidth() const {
     return get_type_info(m_type).m_bitwidth;
 }
 
-size_t compiler_byte_size(ov::element::Type_t et) {
+inline size_t compiler_byte_size(ov::element::Type_t et) {
     switch (et) {
 #define ET_CASE(et)               \
     case ov::element::Type_t::et: \
@@ -273,8 +311,8 @@ size_t compiler_byte_size(ov::element::Type_t et) {
         return 0;
     }
 
-    throw ngraph::ngraph_error("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
-                               std::to_string(static_cast<int>(et)));
+    throw ov::Exception("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
+                        std::to_string(static_cast<int>(et)));
 }
 
 namespace ov {
@@ -302,7 +340,7 @@ NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<element::Type_t>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<element::Type_t>);
 
 const std::string& AttributeAdapter<element::Type>::get() {
     return as_string(static_cast<element::Type_t>(m_ref));

@@ -23,8 +23,7 @@ using namespace testing;
 using namespace ngraph;
 
 
-TEST(TransformationTests, BinarizeWeightsActivationsOutputLowZero) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowZero) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 2, 2});
         auto act_in_low = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
@@ -40,14 +39,9 @@ TEST(TransformationTests, BinarizeWeightsActivationsOutputLowZero) {
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::BinarizeWeights>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        manager.register_pass<pass::BinarizeWeights>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
@@ -62,15 +56,11 @@ TEST(TransformationTests, BinarizeWeightsActivationsOutputLowZero) {
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.7f}));
         auto mul2 = std::make_shared<opset5::Multiply>(mul, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.2f}));
 
-        f_ref = std::make_shared<Function>(NodeVector{mul2}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{mul2}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, BinarizeWeightsActivationsOutputLowNegative) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, BinarizeWeightsActivationsOutputLowNegative) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 2, 2});
         auto act_in_low = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
@@ -86,14 +76,9 @@ TEST(TransformationTests, BinarizeWeightsActivationsOutputLowNegative) {
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::BinarizeWeights>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        manager.register_pass<pass::BinarizeWeights>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
@@ -108,15 +93,11 @@ TEST(TransformationTests, BinarizeWeightsActivationsOutputLowNegative) {
         auto mul = std::make_shared<opset5::Multiply>(conv, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.7f}));
         auto mul2 = std::make_shared<opset5::Multiply>(mul, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.2f}));
 
-        f_ref = std::make_shared<Function>(NodeVector{mul2}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{mul2}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NegativeBinarizeWeightsInvalidLevels) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidLevels) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 2, 2});
         auto act_in_low = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
@@ -132,14 +113,9 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidLevels) {
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::BinarizeWeights>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        manager.register_pass<pass::BinarizeWeights>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
@@ -157,15 +133,11 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidLevels) {
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NegativeBinarizeWeightsInvalidActivationsOutputLowHigh) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidActivationsOutputLowHigh) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 2, 2});
         auto act_in_low = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
@@ -181,14 +153,9 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidActivationsOutputLowHigh
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::BinarizeWeights>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        manager.register_pass<pass::BinarizeWeights>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
@@ -206,15 +173,11 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidActivationsOutputLowHigh
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NegativeBinarizeWeightsInvalidOutputLowHigh) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, NegativeBinarizeWeightsInvalidOutputLowHigh) {
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 2, 2});
         auto act_in_low = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
@@ -230,14 +193,9 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidOutputLowHigh) {
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
-
-        pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
-        m.register_pass<pass::BinarizeWeights>();
-        m.register_pass<pass::ConstantFolding>();
-        m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        manager.register_pass<pass::BinarizeWeights>();
+        manager.register_pass<pass::ConstantFolding>();
     }
 
     {
@@ -255,9 +213,6 @@ TEST(TransformationTests, NegativeBinarizeWeightsInvalidOutputLowHigh) {
         auto weights_fq = std::make_shared<opset5::FakeQuantize>(weights, weights_in_low, weights_in_high, weights_out_low, weights_out_high, 2);
         auto conv = std::make_shared<opset5::Convolution>(act_fq, weights_fq, Strides{1, 1}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
 
-        f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+        function_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
     }
-
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
 }

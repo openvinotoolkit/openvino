@@ -95,7 +95,7 @@ namespace LayerTestsDefinitions {
         } else {
             bool ti_found = is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
-       }
+        }
     }
 
     void LSTMSequenceTest::GenerateInputs() {

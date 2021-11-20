@@ -28,8 +28,9 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
                        const uint32_t blank_index,
                        const bool ctc_merge_repeated,
                        const tensor output_tensor,
+                       const primitive_id& ext_prim_id = "",
                        const padding& output_padding = padding())
-        : primitive_base(id, input, output_padding)
+        : primitive_base(id, input, ext_prim_id, output_padding)
         , blank_index(blank_index)
         , ctc_merge_repeated(ctc_merge_repeated)
         , output_tensor(output_tensor) {}

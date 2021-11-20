@@ -43,13 +43,15 @@ This library contains the classes to:
 
 ### Plugin Libraries to read a network object ###
 
-Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
+Starting from 2022.1 release, OpenVINO Runtime introduced a concept of frontend plugins. Such plugins can be automatically dynamically loaded by OpenVINO Runtime dynamically depending on file format:
 * Unix* OS:
-    - `libinference_engine_ir_reader.so` to read a network from IR
-    - `onnx_ngraph_frontend.so` to read a network from ONNX model format
+    - `libir_ov_frontend.so` to read a network from IR
+    - `libpaddlepaddle_ov_frontend.so` to read a network from PaddlePaddle model format
+    - `libonnx_ov_frontend.so` to read a network from ONNX model format
 * Windows* OS:
-    - `inference_engine_ir_reader.dll` to read a network from IR
-    - `onnx_ngraph_frontend.dll` to read a network from ONNX model format
+    - `ir_ov_frontend.dll` to read a network from IR
+    - `paddlepaddle_ov_frontend.dll` to read a network from PaddlePaddle model format
+    - `onnx_ov_frontend.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
 

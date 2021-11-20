@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v7::Einsum, "Einsum", 7);
+BWDCMP_RTTI_DEFINITION(op::v7::Einsum);
 
 op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) : Op(inputs), m_equation(equation) {
     // normalize input equation by removing extra white-spaces from the equation
@@ -23,6 +23,8 @@ op::v7::Einsum::Einsum(const OutputVector& inputs, const std::string& equation) 
 
     constructor_validate_and_infer_types();
 }
+
+namespace {
 
 /// \brief      Check that a subscript contains only alphabetic letters or
 /// alphabetic letters with one ellipsis
@@ -75,6 +77,8 @@ bool is_label_elsewhere(const std::vector<std::string>& input_subscripts,
     }
     return false;
 }
+
+}  // namespace
 
 void op::v7::Einsum::parse_equation(const std::string& equation,
                                     std::vector<std::string>& input_subscripts,

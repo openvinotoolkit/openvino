@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -30,8 +31,6 @@ struct gfx_version {
 struct device_info {
     uint32_t execution_units_count;             ///< Number of available execution units.
     uint32_t gpu_frequency;                     ///< Clock frequency in MHz.
-    uint32_t max_threads_per_execution_unit;    ///< Number of available HW threads on EU.
-    uint32_t max_threads_per_device;            ///< Maximum number of HW threads on device.
 
     uint64_t max_work_group_size;               ///< Maximum number of work-items in a work-group executing a kernel using the data parallel execution model.
     uint64_t max_local_mem_size;                ///< Maximum size of local memory arena in bytes.
@@ -48,12 +47,15 @@ struct device_info {
     bool supports_subgroups_short;              ///< Does engine support cl_intel_subgroups_short extension.
     bool supports_subgroups_char;               ///< Does engine support cl_intel_subgroups_char extension.
     bool supports_local_block_io;               ///< Does engine support cl_intel_subgroup_local_block_io extension.
+    bool supports_queue_families;               ///< Does engine support cl_intel_command_queue_families extension.
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
     bool supports_usm;                          ///< Does engine support unified shared memory.
+
+    std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
     uint32_t vendor_id;                         ///< Vendor ID
     std::string dev_name;                       ///< Device ID string

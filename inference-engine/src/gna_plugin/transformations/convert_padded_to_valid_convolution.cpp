@@ -201,20 +201,25 @@ ConvertPaddedToValidConv::ConvertPaddedToValidConv() {
         ngraph::pattern::consumers_count(1));
     auto af1 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({bias}, ngraph::pattern::consumers_count(1));
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({conv}, ngraph::pattern::consumers_count(1));
     auto af2 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({fq_bias}, ngraph::pattern::consumers_count(1));
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({bias}, ngraph::pattern::consumers_count(1));
     auto af3 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
-        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool1}, ngraph::pattern::consumers_count(1));
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({fq_bias}, ngraph::pattern::consumers_count(1));
     auto af4 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
         ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
+        ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool1}, ngraph::pattern::consumers_count(1));
+    auto af5 = ngraph::pattern::wrap_type<ngraph::opset7::Relu, ngraph::opset7::Sigmoid,
+        ngraph::opset7::Tanh, ngraph::opset7::Abs, ngraph::opset7::Log, ngraph::opset7::Exp,
         ngraph::opset7::Sign, ngraph::opset7::Clamp>({max_pool2}, ngraph::pattern::consumers_count(1));
-    auto fq_af = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({af4, const_input, const_input, const_input, const_input},
+    auto fq_af1 = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({af3, const_input, const_input, const_input, const_input},
+        ngraph::pattern::consumers_count(1));
+    auto fq_af2 = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({af5, const_input, const_input, const_input, const_input},
         ngraph::pattern::consumers_count(1));
     auto transpose_input =
-        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq_bias, af1, af2, af3, af4, fq_af});
+        std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{conv, bias, max_pool1, max_pool2, fq_bias, af1, af2, af3, af4, af5, fq_af1, fq_af2});
     auto trailing_transpose = ngraph::pattern::wrap_type<ngraph::opset7::Transpose>({transpose_input, const_input},
         consumers_and_rank(1, 4));
 

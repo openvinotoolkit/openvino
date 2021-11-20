@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <ngraph/opsets/opset7.hpp>
+
 namespace GNAPluginNS {
 
 struct ConvData {
@@ -56,7 +58,7 @@ bool TransposeOrderMatches(std::shared_ptr<ngraph::opset7::Transpose> transpose,
 /**
  * @brief performs a crop of a flattened input tensor
  * @param input input layer
- * @param offset offset to start the crop at* 
+ * @param offset offset to start the crop at*
  * @param size size of the crop
  * @return pointer to the newly created slice
  */
@@ -65,13 +67,13 @@ std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::No
 /**
  * @brief checks whether an add present after convolution is a bias and gets its const input
  * @param conv convolution layer preceding potential bias
- * @param bias potential bias layer passed from ngraph matcher
+ * @param add potential bias layer passed from ngraph matcher
  * @return bias const if the add layer present after convolution is a bias, nullptr otherwise
  */
-std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> bias);
+std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> add);
 
 /**
- * @brief inserts a new fake quantize layer (if it exists) copied from an existing fake quantize layer and conncts it to the output of a given layer
+ * @brief inserts a new fake quantize layer copied from an existing one and connects it to the output of a given layer
  * @param fq_layer existing fake quantize layer to be copied
  * @param last_node the node to which output the new fake quantize layer will be connected
  * @return new fake quantize layer or the last node

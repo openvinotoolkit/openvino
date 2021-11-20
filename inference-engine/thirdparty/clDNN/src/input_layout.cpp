@@ -48,8 +48,8 @@ void input_layout_inst::set_data(memory::ptr mem) {
     if (mem->is_allocated_by(get_network().get_engine())) {
         _output = mem;
     } else {
-        mem_lock<char> src(mem, get_network().get_stream());
-        mem_lock<char> dst(_output, get_network().get_stream());
+        mem_lock<char, mem_lock_type::read> src(mem, get_network().get_stream());
+        mem_lock<char, mem_lock_type::write> dst(_output, get_network().get_stream());
         std::copy(src.begin(), src.end(), dst.begin());
     }
 

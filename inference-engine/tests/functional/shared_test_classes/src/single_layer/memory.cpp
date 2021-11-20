@@ -5,7 +5,6 @@
 #include <signal.h>
 #include <ie_transformations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
-#include <transformations/serialize.hpp>
 #include <functional_test_utils/core_config.hpp>
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -55,6 +54,7 @@ namespace LayerTestsDefinitions {
 
 
     void MemoryTest::Run() {
+        functionRefs = ngraph::clone_function(*function);
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         using namespace LayerTestsUtils;
         auto crashHandler = [](int errCode) {
@@ -74,7 +74,6 @@ namespace LayerTestsDefinitions {
             s.updateOPsStats(function, PassRate::Statuses::CRASHED);
         }
 
-        auto func_copy = ngraph::clone_function(*function);
         try {
             if (transformation != ngraph::helpers::MemoryTransformation::LOW_LATENCY_V2_REGULAR_API) {
                 LoadNetwork();
@@ -82,22 +81,23 @@ namespace LayerTestsDefinitions {
                 CoreConfiguration(this);
                 ConfigureNetwork();
                 executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
+                inferRequest = executableNetwork.CreateInferRequest();
             }
             GenerateInputs();
             for (int64_t i = 0; i < iteration_count; ++i) {
                 Infer();
                 Validate();
             }
-            s.updateOPsStats(func_copy, PassRate::Statuses::PASSED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::PASSED);
         }
         catch (const std::runtime_error &re) {
-            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(re.what());
         } catch (const std::exception &ex) {
-            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_(ex.what());
         } catch (...) {
-            s.updateOPsStats(func_copy, PassRate::Statuses::FAILED);
+            s.updateOPsStats(functionRefs, PassRate::Statuses::FAILED);
             GTEST_FATAL_FAILURE_("Unknown failure occurred.");
         }
     }
@@ -134,7 +134,9 @@ namespace LayerTestsDefinitions {
         for (auto& outTensor : outputTensors) {
             outTensor = std::make_shared<HostTensor>();
         }
+        OPENVINO_SUPPRESS_DEPRECATED_START
         function->evaluate(outputTensors, inputTensors, eval_context);
+        OPENVINO_SUPPRESS_DEPRECATED_END
 
         std::vector<std::pair<element::Type, std::vector<std::uint8_t>>> outputs(outInfo.size());
         for (size_t idx = 0; idx < outInfo.size(); ++idx) {

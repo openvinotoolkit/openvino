@@ -16,7 +16,8 @@ namespace v0 {
 /// \brief  Iterate a body over tensors, accumulating into tensors.
 class OPENVINO_API TensorIterator : public op::util::SubGraphOp {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("TensorIterator", "opset1", op::util::SubGraphOp);
+    BWDCMP_RTTI_DECLARATION;
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

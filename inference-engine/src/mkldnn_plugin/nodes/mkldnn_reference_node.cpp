@@ -5,7 +5,7 @@
 #include "mkldnn_reference_node.h"
 #include <ie_ngraph_utils.hpp>
 #include <mkldnn_extension_utils.h>
-#include <ngraph/runtime/host_tensor.hpp>
+#include "openvino/runtime/tensor.hpp"
 #include "common/blocked_desc_creator.h"
 #include <ngraph/opsets/opset1.hpp>
 
@@ -23,17 +23,11 @@ MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op
     setType(Reference);
     setTypeStr("Reference");
 
-    if (isDynamicNode()) {
-        ngraph::OutputVector inputsForShapeInfer;
-        for (size_t i = 0; i < inputShapes.size(); i++) {
-            if (dynamic_cast<ngraph::opset1::Constant *>(ngraphOp->get_input_node_ptr(i))) {
-                inputsForShapeInfer.push_back(ngraphOp->get_input_node_shared_ptr(i));
-            } else {
-                inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(ngraphOp->get_input_element_type(i),
-                                                                                          ngraphOp->get_input_partial_shape(i)));
-            }
-        }
-        opToShapeInfer = ngraphOp->clone_with_new_inputs(inputsForShapeInfer);
+    // RandomUniform should generate new sequence each run even if all inputs are constants. So that method MKLDNNNode::IsConstant()
+    // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
+    // we set 'NoConst' value for 'ConstantType' in ctor
+    if (ov::is_type<ngraph::op::v8::RandomUniform>(ngraphOp)) {
+        constant = ConstantType::NoConst;
     }
 }
 
@@ -60,46 +54,48 @@ void MKLDNNReferenceNode::initSupportedPrimitiveDescriptors() {
 
 void MKLDNNReferenceNode::createPrimitive() {}
 
-std::vector<std::vector<size_t>> MKLDNNReferenceNode::shapeInfer() const {
-    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
-        if (!dynamic_cast<ngraph::opset1::Constant *>(opToShapeInfer->get_input_node_ptr(i))) {
-            opToShapeInfer->get_input_tensor(i).set_partial_shape(
-                getParentEdgesAtPort(i)[0]->getMemory().getDesc().getShape().toPartialShape());
-        }
-    }
-
-    opToShapeInfer->validate_and_infer_types();
-
-    IE_ASSERT(opToShapeInfer->get_output_size() == outputShapes.size());
-
-    std::vector<VectorDims> newShapes(outputShapes.size());
-    for (size_t i = 0; i < newShapes.size(); i++) {
-        const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
-        if (partShape.is_dynamic())
-            IE_THROW(NotImplemented) << "MKLDNNReferenceNode doesn't support nodes with internal dynamism";
-        newShapes[i] = partShape.get_shape();
-    }
-    return newShapes;
-}
-
 void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
-    ngraph::HostTensorVector inputs;
+    ov::runtime::TensorVector inputs;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         void *srcDataPtr = getParentEdgesAtPort(i)[0]->getMemory().GetPtr();
-        inputs.push_back(std::make_shared<ngraph::HostTensor>(ngraphOp->get_input_element_type(i),
-                                                              getParentEdgesAtPort(i)[0]->getMemory().getStaticDims(), srcDataPtr));
+        inputs.push_back(ov::runtime::Tensor(ngraphOp->get_input_element_type(i),
+                                             getParentEdgesAtPort(i)[0]->getMemory().getStaticDims(), srcDataPtr));
     }
 
-    ngraph::HostTensorVector outputs;
+    ov::runtime::TensorVector outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         void *dstDataPtr = getChildEdgesAtPort(i)[0]->getMemory().GetPtr();
-        outputs.push_back(std::make_shared<ngraph::HostTensor>(ngraphOp->get_output_element_type(i),
-                                                               getChildEdgesAtPort(i)[0]->getMemory().getStaticDims(), dstDataPtr));
+        outputs.push_back(ov::runtime::Tensor(ngraphOp->get_output_element_type(i),
+                                              getChildEdgesAtPort(i)[0]->getMemory().getStaticDims(), dstDataPtr));
     }
 
     if (!ngraphOp->evaluate(outputs, inputs)) {
         IE_THROW() << "Evaluation failed on node of type: " << std::string(ngraphOp->get_type_name()) << " name: " << getName();
     }
+}
+
+// TODO [DS]: rewrite after new shape infer will be added
+std::vector<VectorDims> MKLDNNReferenceNode::shapeInfer() const {
+    ngraph::OutputVector inputsForShapeInfer;
+    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        const auto &mem = getParentEdgesAtPort(i)[0]->getMemory();
+        const auto dims = opToShapeInfer->get_input_partial_shape(i).rank().get_length() == 0 ? VectorDims{} : mem.getStaticDims();
+        inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(InferenceEngine::details::convertPrecision(mem.getDesc().getPrecision()),
+                                                                                 dims,
+                                                                                 mem.GetPtr()));
+    }
+
+    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
+    localShapeInferOp->validate_and_infer_types();
+
+    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    for (size_t i = 0; i < newOutputShapes.size(); i++) {
+        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
+        if (partShape.is_dynamic())
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+        newOutputShapes[i] = partShape.get_shape();
+    }
+    return newOutputShapes;
 }
 
 void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -108,4 +104,8 @@ void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
 
 bool MKLDNNReferenceNode::created() const {
     return getType() == Reference;
+}
+
+bool MKLDNNReferenceNode::needShapeInfer() const {
+    return true;
 }

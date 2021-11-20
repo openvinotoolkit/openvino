@@ -39,7 +39,7 @@ class NonMaxSuppressionV4Extractor(FrontExtractorOp):
     def extract(cls, node):
         pad_to_max_output_size = node.pb.attr["pad_to_max_output_size:"].b
         if not pad_to_max_output_size:
-            log.warning('The attribute "pad_to_max_output_size" of node {} is equal to False which is not supported.'
+            log.warning('The attribute "pad_to_max_output_size" of node {} is equal to False which is not supported. '
                         'Forcing it to be equal to True'.format(node.soft_get('name')))
         attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)
@@ -54,7 +54,7 @@ class NonMaxSuppressionV5Extractor(FrontExtractorOp):
     def extract(cls, node):
         pad_to_max_output_size = node.pb.attr["pad_to_max_output_size:"].b
         if not pad_to_max_output_size:
-            log.warning('The attribute "pad_to_max_output_size" of node {} is equal to False which is not supported.'
+            log.warning('The attribute "pad_to_max_output_size" of node {} is equal to False which is not supported. '
                         'Forcing it to be equal to True'.format(node.soft_get('name')))
         attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)

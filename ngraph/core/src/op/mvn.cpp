@@ -13,7 +13,7 @@ using namespace ngraph;
 
 // ------------------------------ V0 ------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v0::MVN, "MVN", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::MVN);
 
 op::v0::MVN::MVN(const Output<Node>& data, bool across_channels, bool normalize_variance, double eps)
     : Op({data}),
@@ -79,7 +79,7 @@ NGRAPH_API EnumNames<ngraph::op::MVNEpsMode>& EnumNames<ngraph::op::MVNEpsMode>:
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::MVNEpsMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::MVNEpsMode>);
 
 }  // namespace ov
 
@@ -87,7 +87,7 @@ std::ostream& ov::op::operator<<(std::ostream& s, const ngraph::op::MVNEpsMode& 
     return s << as_string(type);
 }
 
-OPENVINO_RTTI_DEFINITION(op::v6::MVN, "MVN", 6);
+BWDCMP_RTTI_DEFINITION(op::v6::MVN);
 
 op::v6::MVN::MVN(const Output<Node>& data,
                  const Output<Node>& reduction_axes,

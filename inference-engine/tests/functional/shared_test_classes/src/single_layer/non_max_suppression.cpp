@@ -91,12 +91,12 @@ void NmsLayerTest::CompareBuffer(const std::vector<std::pair<ngraph::element::Ty
                     case ngraph::element::Type_t::f32:
                         LayerTestsUtils::LayerTestsCommon::Compare(
                                 reinterpret_cast<const float *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                                reinterpret_cast<const float *>(actualBuffer), size, threshold);
                         break;
                     case ngraph::element::Type_t::f64:
                         LayerTestsUtils::LayerTestsCommon::Compare(
                                 reinterpret_cast<const double *>(expectedBuffer),
-                                reinterpret_cast<const float *>(actualBuffer), size, 0);
+                                reinterpret_cast<const float *>(actualBuffer), size, threshold);
                         break;
                     default:
                         break;
@@ -374,6 +374,9 @@ void NmsLayerTest::SetUp() {
         auto nms_0_identity = std::make_shared<opset5::Multiply>(nms->output(0), opset5::Constant::create(outType, Shape{1}, {1}));
         auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(ngPrc, Shape{1}, {1}));
         auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape{1}, {1}));
+        nms_0_identity->set_friendly_name("Multiply_0");
+        nms_1_identity->set_friendly_name("Multiply_1");
+        nms_2_identity->set_friendly_name("Multiply_2");
         function = std::make_shared<Function>(OutputVector{nms_0_identity, nms_1_identity, nms_2_identity}, params, "NMS");
     }
 }

@@ -30,12 +30,6 @@ const ngraph::NodeTypeInfo& ExecutionNode::get_type_info() const {
 }  // namespace ExecGraphInfoSerialization
 
 namespace InferenceEngine {
-//
-// ie_blob.h
-//
-
-Blob::~Blob() {}
-MemoryBlob::~MemoryBlob() {}
 
 //
 // ie_iextension.h
@@ -127,8 +121,14 @@ StatusCode InferenceEngineException::getStatus() const {
 }  // namespace details
 IE_SUPPRESS_DEPRECATED_END
 
+}  // namespace InferenceEngine
+
+namespace ov {
+
+namespace runtime {
+
 //
-// ie_parameter.hpp
+// openvino/runtime/parameter.hpp
 //
 
 Parameter::~Parameter() {
@@ -138,6 +138,7 @@ Parameter::~Parameter() {
 #ifdef __ANDROID__
 Parameter::Any::~Any() {}
 
+template struct Parameter::RealData<InferenceEngine::Blob::Ptr>;
 template struct Parameter::RealData<int>;
 template struct Parameter::RealData<bool>;
 template struct Parameter::RealData<float>;
@@ -150,31 +151,8 @@ template struct Parameter::RealData<std::vector<std::string>>;
 template struct Parameter::RealData<std::vector<unsigned long>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
-template struct Parameter::RealData<Blob::Ptr>;
 #endif
 
-//
-// ie_blob.h
-//
+}  // namespace runtime
 
-template <typename T, typename U>
-TBlob<T, U>::~TBlob() {
-    free();
-}
-
-template class INFERENCE_ENGINE_API_CLASS(TBlob<float>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<double>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint8_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint16_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<int32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<uint32_t>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<unsigned long long>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<bool>);
-template class INFERENCE_ENGINE_API_CLASS(TBlob<char>);
-
-}  // namespace InferenceEngine
+}  // namespace ov

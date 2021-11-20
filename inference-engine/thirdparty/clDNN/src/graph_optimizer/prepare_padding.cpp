@@ -17,6 +17,30 @@ void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {
         // Prepare upper padding for primitives that support output_size parameter.
         for (const auto& node : p.get_processing_order()) {
+            if (node->get_dependencies().empty())
+                continue;
+
+            if (node->get_dependency(0).is_type<data>())
+                continue;
+
+            // Padded offsets aren't supported by onednn kernels
+            if (node->get_preferred_impl_type() == impl_types::onednn)
+                continue;
+
+            auto add_required_padding = [&p](program_node& node, padding& needed_padding) {
+                // Add extra reorder for cldnn primitive to handle required padding if needed
+                auto& input = node.get_dependency(0);
+                if (input.get_preferred_impl_type() == impl_types::onednn &&
+                    node.get_preferred_impl_type() == impl_types::ocl &&
+                    static_cast<bool>(needed_padding)) {
+                    auto new_reorder = std::make_shared<reorder>(node.id() + "_padding_reorder_for_" + input.id(), input.id(), input.get_output_layout());
+                    auto& new_reorder_node = p.get_or_create(new_reorder);
+                    p.add_intermediate(new_reorder_node, node, input);
+                }
+
+                p.apply_needed_padding(node, node.get_dependency(0), needed_padding);
+            };
+
             if (node->is_type<convolution>()) {
                 auto& prim_node = node->as<convolution>();
                 const auto& prim = prim_node.get_primitive();
@@ -28,12 +52,9 @@ void prepare_padding::run(program& p) {
                 if (format == format::b_fs_zyx_fsv16 ||
                     format == format::bs_fs_zyx_bsv16_fsv16 ||
                     format == format::bs_fs_yx_bsv16_fsv16 ||
+                    format == format::bs_fs_yx_bsv32_fsv32 ||
                     format == format::b_fs_zyx_fsv32)
                     continue;
-
-                if (prim_node.input().is_type<data>()) {
-                    continue;
-                }
 
                 auto filter_size = prim_node.weights(0).get_output_layout().size;
 
@@ -46,17 +67,13 @@ void prepare_padding::run(program& p) {
                                                                                false,
                                                                                1);
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<deconvolution>()) {
                 auto& prim_node = node->as<deconvolution>();
                 const auto& prim = prim_node.get_primitive();
 
                 if (!prim->with_output_size)
                     continue;
-
-                if (prim_node.input().is_type<data>()) {
-                    continue;
-                }
 
                 auto filter_size = prim_node.weights(0).get_output_layout().size;
 
@@ -69,17 +86,13 @@ void prepare_padding::run(program& p) {
                                                                                true,
                                                                                1);
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<pooling>()) {
                 auto& prim_node = node->as<pooling>();
                 const auto& prim = prim_node.get_primitive();
 
                 if (!prim->with_output_size)
                     continue;
-
-                if (prim_node.input().is_type<data>()) {
-                    continue;
-                }
 
                 padding needed_padding;
                 // WA for this format. sliding window needs to be fixed --perf degradation for IncepctionV1 type models
@@ -95,17 +108,13 @@ void prepare_padding::run(program& p) {
                 else
                     needed_padding = prim_node.input().get_output_layout().data_padding;
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<binary_convolution>()) {
                 auto& prim_node = node->as<binary_convolution>();
 
-                if (prim_node.input().is_type<data>()) {
-                    continue;
-                }
-
                 auto needed_padding = prim_node.input().get_output_layout().data_padding;
 
-                p.apply_needed_padding(prim_node, prim_node.input(), needed_padding);
+                add_required_padding(prim_node, needed_padding);
             }
         }
     }
@@ -145,6 +154,13 @@ void prepare_padding::run(program& p) {
 
         // We shoudn't apply any padding to nodes which are marked as outputs or have type as data
         if (conv_input_node.is_output() || conv_input_node.is_type<data>())
+            continue;
+
+        // Padded offsets aren't supported by onednn kernels
+        if (conv_input_node.get_preferred_impl_type() == impl_types::onednn)
+            continue;
+
+        if (node.get_preferred_impl_type() == impl_types::onednn)
             continue;
 
         // Calculating input padding needed for convolution

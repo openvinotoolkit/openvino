@@ -4,16 +4,16 @@
 
 #include "frontend_manager/frontend_manager.hpp"
 
-#include <frontend_manager/place.hpp>
-#include <ngraph/env_util.hpp>
-#include <ngraph/except.hpp>
-
 #include "frontend_manager/frontend_exceptions.hpp"
+#include "frontend_manager/place.hpp"
+#include "ngraph/except.hpp"
+#include "openvino/util/env_util.hpp"
 #include "plugin_loader.hpp"
+#include "so_extension.hpp"
 #include "utils.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 //----------- FrontEndManager ---------------------------
 class FrontEndManager::Impl {
@@ -72,7 +72,7 @@ private:
                 }
             }
         };
-        std::string env_path = ngraph::getenv_string("OV_FRONTEND_PATH");
+        std::string env_path = ov::util::getenv_string("OV_FRONTEND_PATH");
         if (!env_path.empty()) {
             auto start = 0u;
             auto sep_pos = env_path.find(PathSeparator, start);
@@ -111,6 +111,11 @@ void FrontEndManager::register_front_end(const std::string& name, FrontEndFactor
     m_impl->register_front_end(name, creator);
 }
 
+template <>
+FrontEnd::Ptr FrontEndManager::load_by_model(const std::vector<std::shared_ptr<Variant>>& variants) {
+    return load_by_model_impl(variants);
+}
+
 //----------- FrontEnd ---------------------------
 
 FrontEnd::FrontEnd() = default;
@@ -143,6 +148,25 @@ std::shared_ptr<ngraph::Function> FrontEnd::decode(InputModel::Ptr model) const 
 void FrontEnd::normalize(std::shared_ptr<ngraph::Function> function) const {
     FRONT_END_NOT_IMPLEMENTED(normalize);
 }
+
+void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
+    // Each frontend can support own set of extensions, so this method should be implemented on the frontend side
+}
+
+void FrontEnd::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& extensions) {
+    for (const auto& ext : extensions)
+        add_extension(ext);
+}
+
+void FrontEnd::add_extension(const std::string& library_path) {
+    add_extension(ov::detail::load_extensions(library_path));
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+void FrontEnd::add_extension(const std::wstring& library_path) {
+    add_extension(ov::detail::load_extensions(library_path));
+}
+#endif
 
 std::string FrontEnd::get_name() const {
     return std::string();
@@ -372,9 +396,3 @@ Place::Ptr Place::get_producing_operation(const std::string& inputName, int inpu
 std::vector<Place::Ptr> Place::get_consuming_operations(const std::string& outputPortName) const {
     return {};
 }
-
-constexpr VariantTypeInfo VariantWrapper<std::istream*>::type_info;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-constexpr VariantTypeInfo VariantWrapper<std::wstring>::type_info;
-#endif

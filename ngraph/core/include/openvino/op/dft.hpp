@@ -28,7 +28,8 @@ namespace v7 {
 /// \brief An operation DFT that computes the discrete Fourier transformation.
 class OPENVINO_API DFT : public util::FFTBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("DFT", "opset7", util::FFTBase, 7);
+    BWDCMP_RTTI_DECLARATION;
     DFT() = default;
 
     /// \brief Constructs a DFT operation. DFT is performed for full size axes.

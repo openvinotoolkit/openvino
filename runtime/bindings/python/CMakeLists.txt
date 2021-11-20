@@ -6,15 +6,20 @@ cmake_minimum_required (VERSION 3.13)
 
 project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 
-set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+if(NOT DEFINED OpenVINO_SOURCE_DIR)
+    find_package(InferenceEngineDeveloperPackage REQUIRED)
+endif()
 
 add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)
-add_subdirectory(src/compatibility)
+
+set(LIBRARY_OUTPUT_DIRECTORY_BIN ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+
+add_subdirectory(src)
 
 if(NGRAPH_UNIT_TEST_ENABLE)
-    add_subdirectory(tests/mock/mock_py_ngraph_frontend)
-    add_dependencies(_pyngraph mock_py_ngraph_frontend)
-    set_target_properties(mock_py_ngraph_frontend PROPERTIES
+    add_subdirectory(tests/mock/mock_py_ov_frontend)
+    add_dependencies(_pyngraph mock_py_ov_frontend)
+    set_target_properties(mock_py_ov_frontend PROPERTIES
             LIBRARY_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
             COMPILE_PDB_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_DIRECTORY_BIN}
@@ -22,4 +27,8 @@ if(NGRAPH_UNIT_TEST_ENABLE)
 
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
     add_dependencies(_pyngraph pybind_mock_frontend)
+endif()
+
+if(InferenceEngineDeveloperPackage_FOUND)
+    ie_cpack(${IE_CPACK_COMPONENTS_ALL})
 endif()

@@ -23,8 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             R"(.*(InferRequestPreprocessDynamicallyInSetBlobTest).*)",
-            // TODO: Issue: 51764
-            ".*InferRequestPreprocessConversionTest.*",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 43511
@@ -62,15 +60,41 @@ std::vector<std::string> disabledTestPatterns() {
 
             // Not allowed dynamic loop tests on GPU
             R"(.*smoke_StaticShapeLoop_dynamic_exit.*)",
-            // CVS-58963: Not implemented yet
-            R"(.*Behavior.*InferRequest.*OutOfFirstOutIsInputForSecondNetwork.*)",
             // Not expected behavior
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetInBlobWithDifferentLayouts.*layout=NHWC.*)",
             R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*CanSetOutBlobWithDifferentLayouts.*layout=(CN|HW).*)",
-            R"(.*Behavior_Multi.*InferRequestSetBlobByType.*Batched.*)",
+            R"(.*Behavior.*(Multi|Auto).*InferRequestSetBlobByType.*Batched.*)",
             R"(.*(Multi|Auto).*Behavior.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+            R"(.*(Auto|Multi).*Behavior.*IncorrectConfigTests.*CanNotLoadNetworkWithIncorrectConfig.*)",
             // TODO: until issue is xxx-59670 is resolved
-            R"(.*Gather8LayerTest.*)"
+            R"(.*Gather8LayerTest.*)",
+            // Not implemented yet:
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
+            R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
+            // TODO: Issue 67408
+            R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
+            R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
+            // Issue connected with OV2.0
+            R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
+            // TODO: Issue 67910
+            R"(.*smoke_PrePostProcess_GPU.*two_inputs_trivial.*)",
+            // TODO: 68525
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetInBlobWithDifferentPrecision/netPRC=BIN.*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=(I4|U4).*)",
+            R"(.*CanSetOutBlobWithDifferentPrecision/netPRC=BIN.*)",
+            // TODO: Issue: 67486
+            R"(.*(SoftMaxLayerTest).*)",
+            // TODO: Issue: 68712
+            R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
+            // TODO: Issue 66685
+            R"(smoke_PrePostProcess.*resize_linear_nhwc.*)",
+            // TODO: Issue 69187
+            R"(smoke_PrePostProcess.*cvt_color_nv12.*)",
+            // TODO: Issue 71215
+            R"(smoke_PrePostProcess.*cvt_color_i420.*)",
     };
 }

@@ -5,6 +5,8 @@
 #pragma once
 
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/core/preprocess/color_format.hpp"
+#include "openvino/core/preprocess/resize_algorithm.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -16,7 +18,7 @@ namespace preprocess {
 /// \brief Preprocessing steps. Each step typically intends adding of some operation to input parameter
 /// User application can specify sequence of preprocessing steps in a builder-like manner
 /// \code{.cpp}
-/// auto proc = PrePostProcessor()
+/// auto proc = PrePostProcessor(function)
 ///     .input(InputInfo()
 ///            .preprocess(PreProcessSteps()
 ///                        .mean(0.2f)     // Subtract 0.2 from each element
@@ -46,14 +48,34 @@ public:
     /// \param type Desired type of input.
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PreProcessSteps& convert_element_type(const ov::element::Type& type) &;
+    PreProcessSteps& convert_element_type(const ov::element::Type& type = {}) &;
 
     /// \brief Add convert element type preprocess operation - Rvalue version
     ///
     /// \param type Desired type of input.
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
-    PreProcessSteps&& convert_element_type(const ov::element::Type& type) &&;
+    PreProcessSteps&& convert_element_type(const ov::element::Type& type = {}) &&;
+
+    /// \brief Converts color format for user's input tensor. Requires source color format to be specified by
+    /// InputTensorInfo::set_color_format.
+    ///
+    /// This version allows chaining for Lvalue objects
+    ///
+    /// \param dst_format Destination color format of input image
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps& convert_color(const ov::preprocess::ColorFormat& dst_format) &;
+
+    /// \brief Converts color format for user's input tensor. Requires source color format to be specified by
+    /// InputTensorInfo::set_color_format.
+    ///
+    /// This version allows chaining for Rvalue objects.
+    ///
+    /// \param dst_format Color format of input image.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
+    PreProcessSteps&& convert_color(const ov::preprocess::ColorFormat& dst_format) &&;
 
     /// \brief Add scale preprocess operation - Lvalue version
     /// Divide each element of input by specified value
@@ -119,10 +141,10 @@ public:
     /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Function
     /// directly
     ///
-    /// \param node Input node for custom preprocessing operation
+    /// \param node Input node for custom preprocessing operation (output of previous preprocessing operation)
     ///
     /// \return New node after applying custom preprocessing operation
-    using CustomPreprocessOp = std::function<std::shared_ptr<ov::Node>(const std::shared_ptr<ov::Node>& node)>;
+    using CustomPreprocessOp = std::function<Output<Node>(const Output<Node>& node)>;
 
     /// \brief Add custom preprocess operation - Lvalue version
     /// Client application can specify callback function for custom action
@@ -139,6 +161,105 @@ public:
     ///
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner
     PreProcessSteps&& custom(const CustomPreprocessOp& preprocess_cb) &&;
+
+    /// \brief Add resize operation to known dimensions - Lvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \param dst_height Desired height of resized image.
+    ///
+    /// \param dst_width Desired width of resized image.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) &;
+
+    /// \brief Add resize operation to known dimensions - Rvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \param dst_height Desired height of resized image.
+    ///
+    /// \param dst_width Desired width of resized image.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& resize(ResizeAlgorithm alg, size_t dst_height, size_t dst_width) &&;
+
+    /// \brief Add resize operation to network dimensions - Lvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& resize(ResizeAlgorithm alg) &;
+
+    /// \brief Add resize operation to network dimensions - Rvalue version.
+    ///
+    /// \param alg Resize algorithm.
+    ///
+    /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps&& resize(ResizeAlgorithm alg) &&;
+
+    /// \brief Add 'convert layout' operation to specified layout - Lvalue version.
+    ///
+    /// \details Adds appropriate 'transpose' operation between user layout and target layout.
+    /// Current implementation requires source and destination layout to have same number of dimensions
+    ///
+    /// \example Example: when user data has 'NHWC' layout (example is RGB image, [1, 224, 224, 3]) but network expects
+    /// planar input image ('NCHW', [1, 3, 224, 224]). Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor(function)
+    ///     .input(InputInfo()
+    ///            .tensor(InputTensorInfo().set_layout("NHWC")) // User data is NHWC
+    ///            .preprocess(PreProcessSteps()
+    ///                        .convert_layout("NCHW")) // Network expects input as NCHW
+    ///     );
+    /// \endcode
+    ///
+    /// \param dst_layout New layout after conversion. If not specified - destination layout is obtained from
+    /// appropriate network input properties.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& convert_layout(const Layout& dst_layout = {}) &;
+    PreProcessSteps&& convert_layout(const Layout& dst_layout = {}) &&;
+
+    /// \brief Add convert layout operation by direct specification of transposed dimensions.
+    ///
+    /// \example Example: when user data has input RGB image {1x480x640x3} but network expects
+    /// planar input image ('NCHW', [1, 3, 480, 640]). Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor(function)
+    ///     .input(InputInfo()
+    ///            .preprocess(PreProcessSteps()
+    ///                        .convert_layout({0, 3, 1, 2})
+    ///     );
+    /// \param dims Dimensions array specifying places for new axis. If not empty, array size (N) must match to input
+    /// shape rank. Array values shall contain all values from 0 to N-1. If empty, no actual conversion will be added.
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& convert_layout(const std::vector<uint64_t>& dims) &;
+    PreProcessSteps&& convert_layout(const std::vector<uint64_t>& dims) &&;
+
+    /// \brief Reverse channels operation - Lvalue version.
+    ///
+    /// \details Adds appropriate operation which reverses channels layout. Operation requires layout having 'C'
+    /// dimension Operation convert_color (RGB<->BGR) does reversing of channels also, but only for NHWC layout
+    ///
+    /// \example Example: when user data has 'NCHW' layout (example is [1, 3, 224, 224] RGB order) but network expects
+    /// BGR planes order. Preprocessing may look like this:
+    ///
+    /// \code{.cpp} auto proc =
+    /// PrePostProcessor(function)
+    ///     .input(InputInfo()
+    ///            .tensor(InputTensorInfo().set_layout("NCHW")) // User data is NCHW
+    ///            .preprocess(PreProcessSteps()
+    ///                        .reverse_channels()
+    ///     );
+    /// \endcode
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner.
+    PreProcessSteps& reverse_channels() &;
+    PreProcessSteps&& reverse_channels() &&;
 };
 
 }  // namespace preprocess

@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include "caseless.hpp"
+
 #include <vector>
+#include <string>
 
 namespace MKLDNNPlugin {
 
@@ -14,6 +17,7 @@ using VectorDims = std::vector<Dim>;
 enum Type {
     Unknown,
     Generic,
+    If,
     Reorder,
     Input,
     Output,
@@ -29,6 +33,8 @@ enum Type {
     Eltwise,
     MatMul,
     Reshape,
+    ShapeOf,
+    NonZero,
     Tile,
     ROIAlign,
     ROIPooling,
@@ -97,7 +103,7 @@ enum Type {
 };
 
 enum Algorithm {
-    Undefined,
+    Default,
 
     // Pooling algorithms
     PoolingMax,
@@ -215,4 +221,11 @@ enum Algorithm {
     MathTan
 };
 
+extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;
+
+Type TypeFromName(const std::string& type);
+
+std::string NameFromType(const Type type);
+
+std::string algToString(const Algorithm alg);
 } // namespace MKLDNNPlugin

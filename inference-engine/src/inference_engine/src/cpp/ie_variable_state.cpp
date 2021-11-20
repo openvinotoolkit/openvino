@@ -4,8 +4,7 @@
 
 #include "cpp/ie_memory_state.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "details/ie_so_loader.h"
-#include "exception2status.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/variable_state.hpp"
 
 #define VARIABLE_CALL_STATEMENT(...)                                    \
@@ -15,6 +14,16 @@
         __VA_ARGS__;                                                    \
     } catch (...) {                                                     \
         ::InferenceEngine::details::Rethrow();                          \
+    }
+
+#define OV_VARIABLE_CALL_STATEMENT(...)                                      \
+    OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized."); \
+    try {                                                                    \
+        __VA_ARGS__;                                                         \
+    } catch (const std::exception& ex) {                                     \
+        throw ov::Exception(ex.what());                                      \
+    } catch (...) {                                                          \
+        OPENVINO_ASSERT(false, "Unexpected exception");                      \
     }
 
 namespace InferenceEngine {
@@ -52,23 +61,23 @@ namespace runtime {
 VariableState::VariableState(const std::shared_ptr<void>& so, const ie::IVariableStateInternal::Ptr& impl)
     : _so{so},
       _impl{impl} {
-    IE_ASSERT(_impl != nullptr);
+    OPENVINO_ASSERT(_impl != nullptr, "VariableState was not initialized.");
 }
 
 void VariableState::reset() {
-    VARIABLE_CALL_STATEMENT(_impl->Reset());
+    OV_VARIABLE_CALL_STATEMENT(_impl->Reset());
 }
 
 std::string VariableState::get_name() const {
-    VARIABLE_CALL_STATEMENT(return _impl->GetName());
+    OV_VARIABLE_CALL_STATEMENT(return _impl->GetName());
 }
 
-ie::Blob::CPtr VariableState::get_state() const {
-    VARIABLE_CALL_STATEMENT(return _impl->GetState());
+Tensor VariableState::get_state() const {
+    OV_VARIABLE_CALL_STATEMENT(return {_so, std::const_pointer_cast<ie::Blob>(_impl->GetState())});
 }
 
-void VariableState::set_state(const ie::Blob::Ptr& state) {
-    VARIABLE_CALL_STATEMENT(_impl->SetState(state));
+void VariableState::set_state(const Tensor& state) {
+    OV_VARIABLE_CALL_STATEMENT(_impl->SetState(state._impl));
 }
 
 }  // namespace runtime

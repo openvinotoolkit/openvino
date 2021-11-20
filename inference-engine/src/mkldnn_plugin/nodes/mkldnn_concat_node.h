@@ -23,10 +23,17 @@ public:
     void selectOptimalPrimitiveDescriptor() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
     bool isOptimized() const;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
+    bool isExecutable() const override {
+        return !isOptimized();
+    }
+
+    bool needPrepareParams() const override;
+    void prepareParams() override;
 
 private:
     size_t axis = 0;

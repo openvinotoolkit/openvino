@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(ov::op::v3::Atanh, "Atanh", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(ov::op::v3::Atanh);
 
 op::v3::Atanh::Atanh(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -28,6 +28,7 @@ shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_ar
 }
 
 namespace atanhop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     runtime::reference::atanh(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
@@ -50,6 +51,7 @@ bool evaluate_atanh(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
+}  // namespace
 }  // namespace atanhop
 
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

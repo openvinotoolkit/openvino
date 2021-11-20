@@ -14,7 +14,8 @@ namespace v3 {
 /// \brief Returns embeddings for given indices
 class OPENVINO_API EmbeddingBagOffsetsSum : public util::EmbeddingBagOffsetsBase {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("EmbeddingBagOffsetsSum", "opset3", util::EmbeddingBagOffsetsBase, 3);
+    BWDCMP_RTTI_DECLARATION;
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.
     EmbeddingBagOffsetsSum() = default;
     /// \brief Constructs a EmbeddingBagOffsetsSum operation.
@@ -25,7 +26,7 @@ public:
     ///
     /// \param emb_table tensor containing the embedding lookup table of the module of
     /// shape [num_emb, emb_dim1, emb_dim2, ...] and  of type T
-    /// \param tensor of shape [num_indices] and of type T_IND. Required
+    /// \param indices tensor of shape [num_indices] and of type T_IND. Required
     /// \param offsets tensor of shape [batch] and of type T_IND containing the starting
     /// index positions of each "bag" in indices. Required.
     /// \param default_index scalar of type T_IND containing default index in embedding

@@ -16,7 +16,7 @@
 
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
+BWDCMP_RTTI_DEFINITION(op::v0::DepthToSpace);
 
 op::DepthToSpace::DepthToSpace(const Output<Node>& data, const DepthToSpaceMode& mode, const size_t block_size)
     : Op({data}),
@@ -83,6 +83,7 @@ void op::DepthToSpace::validate_and_infer_types() {
     }
 }
 
+namespace {
 bool evaluate_depth_to_space(const HostTensorVector& outputs,
                              const HostTensorVector& inputs,
                              const std::size_t block_size,
@@ -102,6 +103,7 @@ bool evaluate_depth_to_space(const HostTensorVector& outputs,
                                        elem_size);
     return true;
 }
+}  // namespace
 
 bool op::DepthToSpace::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     NGRAPH_OP_SCOPE(v0_DepthToSpace_evaluate);
@@ -128,5 +130,5 @@ EnumNames<ngraph::op::DepthToSpace::DepthToSpaceMode>::get() {
     return enum_names;
 }
 
-constexpr DiscreteTypeInfo AttributeAdapter<ngraph::op::DepthToSpace::DepthToSpaceMode>::type_info;
+BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::v0::DepthToSpace::DepthToSpaceMode>);
 }  // namespace ov

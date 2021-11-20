@@ -41,7 +41,7 @@ static inline cldnn::scatter_update::scatter_update_axis GetScatterUpdateAxis(in
     return cldnn::scatter_update::scatter_update_axis::along_f;  // shouldn't get here
 }
 
-void CreateScatterUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterUpdate>& op) {
+static void CreateScatterUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::ScatterUpdate>& op) {
     p.ValidateInputs(op, {4});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
@@ -57,7 +57,8 @@ void CreateScatterUpdateOp(Program& p, const std::shared_ptr<ngraph::op::v3::Sca
                                            inputPrimitives[0],
                                            inputPrimitives[1],
                                            inputPrimitives[2],
-                                           GetScatterUpdateAxis(axis, rank));
+                                           GetScatterUpdateAxis(axis, rank),
+                                           op->get_friendly_name());
 
     p.AddPrimitive(primitive);
     p.AddPrimitiveToProfiler(op);

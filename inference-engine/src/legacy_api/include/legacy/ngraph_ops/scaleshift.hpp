@@ -15,8 +15,8 @@ namespace op {
 
 class ScaleShiftIE : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ScaleShiftIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("ScaleShiftIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     ScaleShiftIE(const Output<Node>& data_batch,
                  const Output<Node>& weights,

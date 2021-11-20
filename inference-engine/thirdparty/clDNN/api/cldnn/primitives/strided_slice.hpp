@@ -41,8 +41,9 @@ struct strided_slice : public primitive_base<strided_slice> {
                   std::vector<uint8_t> new_axis_mask,
                   std::vector<uint8_t> shrink_axis_mask,
                   const tensor out_size,
+                  const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
-        : primitive_base(id, {input, begin_id, end_id, strides_id}, output_padding),
+        : primitive_base(id, {input, begin_id, end_id, strides_id}, ext_prim_id, output_padding),
           begin_mask(begin_mask),
           end_mask(end_mask),
           new_axis_mask(new_axis_mask),

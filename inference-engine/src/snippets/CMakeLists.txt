@@ -15,9 +15,9 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/snippets/*.hpp)
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
-# Create shared library
+# Create library
 
-add_library(${TARGET_NAME} SHARED
+add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
@@ -53,9 +53,13 @@ openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NA
 # install
 
 # TODO: uncomment once snippets are integrated into CPU plugin
-# install(TARGETS ${TARGET_NAME}
-#         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-#         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+# if(BUILD_SHARED_LIBS)
+#     install(TARGETS ${TARGET_NAME}
+#             RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+#             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+# else()
+#     ov_install_static_lib(${TARGET_NAME} core)
+# endif()
 
 # TODO: remove once install commands above are commented out
 install(TARGETS ${TARGET_NAME}

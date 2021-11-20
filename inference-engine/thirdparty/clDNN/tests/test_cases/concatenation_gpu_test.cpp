@@ -63,6 +63,7 @@ TEST(concat_gpu, mixed_input_types) {
                           { "input0", "input1", "input2", "input3", "input4" },
                           concatenation::concatenation_axis::along_f,
                           data_types::f32,
+                          "",
                           padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -136,6 +137,7 @@ TEST(concat_gpu, mixed_input_types_5d) {
                           { "input0", "input1", "input2", "input3" },
                           concatenation::concatenation_axis::along_f,
                           data_types::f32,
+                          "",
                           padding{ { 0,0,0,0 }, 0 })
     );
 
@@ -210,6 +212,7 @@ TEST(concat_gpu, i8_optimization_with_pool) {
                                     {"pool0", "pool1"},
                                     concatenation::concatenation_axis::along_f,
                                     data_types::i8,
+                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       reorder("reorder", "concat", reorder_layout));
     cldnn::build_options options;
@@ -310,6 +313,7 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                                     {"input0", "input1", "input2"},
                                     concatenation::concatenation_axis::along_f,
                                     data_types::i8,
+                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
                       convolution("conv", "concat", { "weights" }, { 1,1,1,2 }),
@@ -411,6 +415,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                                     {"pool0", "pool1"},
                                     concatenation::concatenation_axis::along_f,
                                     data_types::i8,
+                                    "",
                                     padding{{0, 0, 0, 0}, 0}),
                       data("weights", weights),
                       convolution("conv", "concat", {"weights"}, {1, 1, 1, 1}, {0, 0, -1, 0}),
@@ -778,3 +783,77 @@ INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                             TestParamType_concat(2, { 15, 2, 16, 64 }, 1, 2)
                         ),
                         concat_gpu::PrintToStringParamName);
+
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(concat_gpu_onednn, basic_input_types) {
+    auto& engine = get_onednn_test_engine();
+
+    auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+    auto input4 = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 3 } });
+
+    set_values<float>(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
+    set_values<float>(input1, { 11.0f, 12.0f, 13.0f, 14.0f, 12.0f, 12.0f, 13.0f, 14.0f, 13.0f, 13.0f, 13.0f, 15.0f });
+    set_values<float>(input2, { 21.0f, 22.0f, 23.0f, 24.0f, 22.0f, 22.0f, 23.0f, 24.0f, 23.0f, 23.0f, 23.0f, 25.0f });
+    set_values<float>(input3, { 31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f });
+    set_values<float>(input4, { 41.0f, 42.0f, 43.0f, 44.0f, 42.0f, 42.0f, 43.0f, 44.0f, 43.0f, 43.0f, 43.0f, 45.0f });
+
+    VF<float> output_vec = {
+            1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f,
+            11.0f, 12.0f, 13.0f, 14.0f, 12.0f, 12.0f, 13.0f, 14.0f, 13.0f, 13.0f, 13.0f, 15.0f,
+            21.0f, 22.0f, 23.0f, 24.0f, 22.0f, 22.0f, 23.0f, 24.0f, 23.0f, 23.0f, 23.0f, 25.0f,
+            31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f,
+            41.0f, 42.0f, 43.0f, 44.0f, 42.0f, 42.0f, 43.0f, 44.0f, 43.0f, 43.0f, 43.0f, 45.0f };
+
+    topology topology(
+            input_layout("input0", input0->get_layout()),
+            input_layout("input1", input1->get_layout()),
+            input_layout("input2", input2->get_layout()),
+            input_layout("input3", input3->get_layout()),
+            input_layout("input4", input4->get_layout()),
+            concatenation("concat",
+                          { "input0", "input1", "input2", "input3", "input4" },
+                          concatenation::concatenation_axis::along_f,
+                          data_types::f32,
+                          "",
+                          padding{ { 0,0,0,0 }, 0 })
+    );
+
+    build_options options_target;
+    options_target.set_option(build_option::outputs({ "concat" }));
+    implementation_desc impl = { format::bfyx, std::string(""), impl_types::onednn };
+    options_target.set_option(build_option::force_implementations({ {"concat", impl} }));
+
+    network network(engine, topology, options_target);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("input3", input3);
+    network.set_input_data("input4", input4);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "concat");
+
+    auto output_memory = outputs.at("concat").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 3);
+    EXPECT_EQ(x_size, 4);
+    EXPECT_EQ(f_size, 5);
+    EXPECT_EQ(b_size, 1);
+
+    for (size_t x = 0; x < output_layout.count(); ++x) {
+        EXPECT_EQ(output_vec[x], output_ptr[x]);
+    }
+}
+#endif

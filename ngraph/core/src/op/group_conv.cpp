@@ -14,6 +14,7 @@
 #include "ngraph/op/convolution.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -22,7 +23,7 @@ using namespace ngraph;
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolution, "GroupConvolution", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::GroupConvolution);
 
 shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
     return op::v0::Constant::create(get_element_type(), get_shape(), {0});
@@ -250,7 +251,7 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData, "GroupConvolutionBackpropData", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData);
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
     : Op(),
@@ -277,6 +278,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(const Output<
       m_pads_end(pads_end),
       m_auto_pad(auto_pad),
       m_output_padding(output_padding) {
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 

@@ -16,7 +16,9 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.runtime_info import RTInfo, OldAPIMapOrder, OldAPIMapElementType
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
@@ -213,7 +215,12 @@ class IREngine(object):
                 if layer.attrib['type'] == 'Const':
                     assert 'offset' in new_attrs and 'size' in new_attrs, \
                         'Incorrect attributes for Const layer, {} instead of {}!'.format(new_attrs.keys(), ['offset', 'size'])
-                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], layer[1][0].attrib['precision']))
+                    precision = ""
+                    for item in layer:
+                        if item.tag == "output":
+                            precision = item[0].attrib["precision"]
+                            break
+                    new_attrs.update(self.__prepare_bin_attrs(layer, 0, 'custom', new_attrs['offset'], new_attrs['size'], precision))
                 layer_attrs.update(new_attrs)
             elif attr.tag == 'input':
                 inputs_counter = len(attr)
@@ -223,7 +230,8 @@ class IREngine(object):
                     port_id = int(port.attrib['id'])
                     output_shape = []
                     for dim in port:
-                        output_shape.append(int(dim.text))
+                        if dim.tag == "dim":
+                            output_shape.append(int(dim.text))
 
                     output_shape = shape_array([d if d != -1 else dynamic_dimension_value for d in output_shape])
 
@@ -268,6 +276,10 @@ class IREngine(object):
                 assert layer.attrib['type'] == 'If', "Incorrect IR! The operation {0}" \
                                                      " has sub-graphs for If operation"
                 layer_attrs = self.__read_if(layer, layer_attrs)
+                continue
+
+            elif attr.tag == 'rt_info':
+                layer_attrs = self.__read_rt_info(layer, layer_attrs)
                 continue
 
         return layer_id, layer_attrs
@@ -439,3 +451,39 @@ class IREngine(object):
         layer_attrs.update({'else_output_port_map': else_output_port_map})
 
         return layer_attrs
+
+    def __read_rt_info(self, layer, layer_attrs):
+        rt_info = RTInfo()
+        xml_rt_info = list(layer.iterfind('rt_info'))[0]
+
+        for attr in xml_rt_info:
+            attr_name = attr.attrib['name']
+            if attr_name == 'old_api_map_order':
+                rt_info.info.update(self.__read_old_api_map_order(attr, layer.attrib['type']))
+            if attr_name == 'old_api_map_element_type':
+                rt_info.info.update(self.__read_old_api_map_element_type(attr, layer.attrib['type']))
+
+        layer_attrs.update({'rt_info': rt_info})
+        return layer_attrs
+
+    @staticmethod
+    def __read_old_api_map_order(attr, layer_type):
+        version = int(attr.attrib['version'])
+        order = list(map(int, attr.attrib['value'].split(',')))
+        old_api_map = OldAPIMapOrder(version=version)
+        if layer_type == 'Parameter':
+            old_api_map.old_api_transpose_parameter(order)
+        elif layer_type == 'Result':
+            old_api_map.old_api_transpose_result(order)
+        else:
+            raise AttributeError("Cannot read old_api_map for layer of type: {}".format(layer_type))
+
+        return {('old_api_map_order', version): old_api_map}
+
+    @staticmethod
+    def __read_old_api_map_element_type(attr, layer_type):
+        version = int(attr.attrib['version'])
+        element_type = destination_type_to_np_data_type(attr.attrib['value'])
+        old_api_map = OldAPIMapElementType(version=version)
+        old_api_map.set_legacy_type(element_type)
+        return {('old_api_map_element_type', version): old_api_map}

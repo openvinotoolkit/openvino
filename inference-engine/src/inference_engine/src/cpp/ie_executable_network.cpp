@@ -9,6 +9,7 @@
 #include "ie_common.h"
 #include "ie_executable_network_base.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/executable_network.hpp"
 
 namespace InferenceEngine {
@@ -20,6 +21,16 @@ namespace InferenceEngine {
         __VA_ARGS__;                                                        \
     } catch (...) {                                                         \
         InferenceEngine::details::Rethrow();                                \
+    }
+
+#define OV_EXEC_NET_CALL_STATEMENT(...)                                          \
+    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized."); \
+    try {                                                                        \
+        __VA_ARGS__;                                                             \
+    } catch (const std::exception& ex) {                                         \
+        throw ov::Exception(ex.what());                                          \
+    } catch (...) {                                                              \
+        OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
 ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
@@ -52,16 +63,6 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
 
 ExecutableNetwork::operator IExecutableNetwork::Ptr() {
     return std::make_shared<ExecutableNetworkBase>(_impl);
-}
-
-std::vector<VariableState> ExecutableNetwork::QueryState() {
-    std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT({
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState{_so, state});
-        }
-    });
-    return controller;
 }
 
 InferRequest ExecutableNetwork::CreateInferRequest() {
@@ -115,43 +116,102 @@ ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so,
                                      const std::shared_ptr<ie::IExecutableNetworkInternal>& impl)
     : _so{so},
       _impl{impl} {
-    IE_ASSERT(_impl != nullptr);
+    OPENVINO_ASSERT(_impl != nullptr, "ExecutableNetwork was not initialized.");
 }
 
 std::shared_ptr<const Function> ExecutableNetwork::get_runtime_function() const {
-    EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
+    OV_EXEC_NET_CALL_STATEMENT(return std::const_pointer_cast<const Function>(_impl->GetExecGraphInfo()));
 }
 
-ParameterVector ExecutableNetwork::get_parameters() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_parameters());
+std::vector<ov::Output<const ov::Node>> ExecutableNetwork::inputs() const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        std::vector<ov::Output<const ov::Node>> inputs;
+        for (const auto& input : _impl->getInputs()) {
+            inputs.emplace_back(input);
+        }
+        return inputs;
+    });
 }
 
-ResultVector ExecutableNetwork::get_results() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetExecGraphInfo()->get_results());
+ov::Output<const ov::Node> ExecutableNetwork::input() const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        const auto inputs = _impl->getInputs();
+        if (inputs.size() != 1) {
+            throw ov::Exception("input() must be called on a function with exactly one parameter.");
+        }
+        return inputs.at(0);
+    });
+}
+
+ov::Output<const ov::Node> ExecutableNetwork::input(size_t i) const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->getInputs().at(i));
+}
+
+ov::Output<const ov::Node> ExecutableNetwork::input(const std::string& tensor_name) const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        for (const auto& param : _impl->getInputs()) {
+            if (param->get_output_tensor(0).get_names().count(tensor_name)) {
+                return param;
+            }
+        }
+        throw ov::Exception("Input for tensor name " + tensor_name + " was not found.");
+    });
+}
+
+std::vector<ov::Output<const ov::Node>> ExecutableNetwork::outputs() const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        std::vector<ov::Output<const ov::Node>> outputs;
+        for (const auto& output : _impl->getOutputs()) {
+            outputs.emplace_back(output);
+        }
+        return outputs;
+    });
+}
+ov::Output<const ov::Node> ExecutableNetwork::output() const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        const auto outputs = _impl->getOutputs();
+        if (outputs.size() != 1) {
+            throw ov::Exception("output() must be called on a function with exactly one parameter.");
+        }
+        return outputs.at(0);
+    });
+}
+ov::Output<const ov::Node> ExecutableNetwork::output(size_t i) const {
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->getOutputs().at(i));
+}
+ov::Output<const ov::Node> ExecutableNetwork::output(const std::string& tensor_name) const {
+    OV_EXEC_NET_CALL_STATEMENT({
+        for (const auto& result : _impl->getOutputs()) {
+            if (result->get_output_tensor(0).get_names().count(tensor_name)) {
+                return result;
+            }
+        }
+        throw ov::Exception("Output for tensor name " + tensor_name + " was not found.");
+    });
 }
 
 InferRequest ExecutableNetwork::create_infer_request() {
-    EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }
 
 void ExecutableNetwork::export_model(std::ostream& networkModel) {
-    EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
+    OV_EXEC_NET_CALL_STATEMENT(_impl->Export(networkModel));
 }
 
 void ExecutableNetwork::set_config(const ie::ParamMap& config) {
-    EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
+    OV_EXEC_NET_CALL_STATEMENT(_impl->SetConfig(config));
 }
 
 ie::Parameter ExecutableNetwork::get_config(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
 }
 
 ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
 }
 
-std::shared_ptr<ie::RemoteContext> ExecutableNetwork::get_context() const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetContext());
+RemoteContext ExecutableNetwork::get_context() const {
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetContext()});
 }
 
 bool ExecutableNetwork::operator!() const noexcept {

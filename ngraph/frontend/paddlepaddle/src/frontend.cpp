@@ -5,8 +5,8 @@
 #include <fstream>
 #include <map>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/variant.hpp>
+#include <openvino/opsets/opset7.hpp>
 #include <paddlepaddle_frontend/exceptions.hpp>
 #include <paddlepaddle_frontend/frontend.hpp>
 #include <paddlepaddle_frontend/model.hpp>
@@ -21,13 +21,14 @@
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
 
-using namespace ngraph::opset7;
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::opset7;
+using namespace ov;
+using namespace ov::frontend;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
+namespace {
 NamedOutputs make_ng_node(const std::map<pdpd::TensorName, Output<Node>>& nodes,
                           const std::shared_ptr<OpPlacePDPD>& op_place,
                           const std::map<std::string, CreatorFunction>& CREATORS_MAP) {
@@ -83,7 +84,7 @@ NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>&
     }
 
     auto node =
-        std::make_shared<ngraph::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
+        std::make_shared<ov::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -122,7 +123,7 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
         const auto& model_path = ov::as_type_ptr<VariantWrapper<std::string>>(variant)->get();
         ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
     }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (ov::is_type<VariantWrapper<std::wstring>>(variant)) {
         const auto& model_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variant)->get();
         ext_stream.open(model_path, std::ios::in | std::ifstream::binary);
@@ -131,6 +132,7 @@ std::istream* variant_to_stream_ptr(const std::shared_ptr<Variant>& variant, std
     FRONT_END_INITIALIZATION_CHECK(ext_stream && ext_stream.is_open(), "Cannot open model file.");
     return &ext_stream;
 }
+}  // namespace
 }  // namespace pdpd
 
 std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
@@ -163,10 +165,11 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
             pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
-                // set layer name by the name of first output var
-                const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
-                auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
-                node->set_friendly_name(tensor_name);
+                if (op_desc.outputs().begin()->arguments().size() > 0) {
+                    const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
+                    auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
+                    node->set_friendly_name(tensor_name);
+                }
 
                 const auto& out_ports = op_desc.outputs();
                 for (const auto& port : out_ports) {
@@ -219,7 +222,7 @@ bool FrontEndPDPD::supported_impl(const std::vector<std::shared_ptr<Variant>>& v
         // but it will complicate the check, while it should be as quick as possible
         return model_str && model_str.is_open();
     }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (ov::is_type<VariantWrapper<std::wstring>>(variants[0])) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
@@ -248,7 +251,7 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Varian
             std::string m_path = ov::as_type_ptr<VariantWrapper<std::string>>(variants[0])->get();
             return std::make_shared<InputModelPDPD>(m_path);
         }
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else if (ov::is_type<VariantWrapper<std::wstring>>(variants[0])) {
             std::wstring m_path = ov::as_type_ptr<VariantWrapper<std::wstring>>(variants[0])->get();
             return std::make_shared<InputModelPDPD>(m_path);
@@ -324,7 +327,7 @@ std::string FrontEndPDPD::get_name() const {
     return "paddle";
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
 extern "C" PDPD_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;

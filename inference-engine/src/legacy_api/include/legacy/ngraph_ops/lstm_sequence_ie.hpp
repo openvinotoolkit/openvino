@@ -17,7 +17,8 @@ namespace ngraph {
 namespace op {
 class LSTMSequenceIE : public ngraph::op::util::RNNCellBase {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("LSTMSequenceIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     LSTMSequenceIE() = delete;
 

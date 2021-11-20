@@ -19,11 +19,12 @@
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::StridedSlice, "StridedSlice", 1);
+BWDCMP_RTTI_DEFINITION(op::v1::StridedSlice);
 
 op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
                                    const Output<Node>& begin,
@@ -40,6 +41,9 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
       m_new_axis_mask{new_axis_mask},
       m_shrink_axis_mask{shrink_axis_mask},
       m_ellipsis_mask{ellipsis_mask} {
+    ov::mark_as_precision_sensitive(input(1));
+    ov::mark_as_precision_sensitive(input(2));
+    ov::mark_as_precision_sensitive(input(3));
     constructor_validate_and_infer_types();
 }
 
@@ -202,6 +206,7 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
 }
 
 namespace strided_slice {
+namespace {
 inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
 {
@@ -239,6 +244,7 @@ bool evaluate_strided_slice(const HostTensorPtr& in,
                                            ellipsis_mask);
     return evaluate(in, slice_plan, out);
 }
+}  // namespace
 }  // namespace strided_slice
 
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) const {

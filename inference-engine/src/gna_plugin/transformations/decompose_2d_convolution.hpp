@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <ie_precision.hpp>
 
 namespace GNAPluginNS {
 
@@ -30,7 +31,7 @@ namespace GNAPluginNS {
 class Decompose2DConv : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    Decompose2DConv();
+    Decompose2DConv(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
 };
 
 /**
@@ -51,7 +52,7 @@ public:
 class Decompose2DConvTransposedWithBias : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    Decompose2DConvTransposedWithBias();
+    Decompose2DConvTransposedWithBias(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
 };
 
 /**
@@ -74,7 +75,7 @@ public:
 class Decompose2DConvTransposedWithBiasAF : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    Decompose2DConvTransposedWithBiasAF();
+    Decompose2DConvTransposedWithBiasAF(const std::string& gnaCompileTarget, const InferenceEngine::Precision& gnaPrecision);
 };
 
 } // namespace GNAPluginNS

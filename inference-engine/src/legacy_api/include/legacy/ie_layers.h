@@ -24,11 +24,18 @@
 #include <legacy/ie_layers_property.hpp>
 #include <ngraph/node.hpp>
 
+#ifdef _WIN32
+#    define _IE_SUPPRESS_DEPRECATED_START_MSVC IE_SUPPRESS_DEPRECATED_START
+#    define _IE_SUPPRESS_DEPRECATED_END_MSVC   IE_SUPPRESS_DEPRECATED_END
+#else
+#    define _IE_SUPPRESS_DEPRECATED_START_MSVC
+#    define _IE_SUPPRESS_DEPRECATED_END_MSVC
+#endif
+
 namespace InferenceEngine {
 
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
- * @brief This is an internal common Layer parameter parsing arguments
  */
 struct LayerParams {
     /**

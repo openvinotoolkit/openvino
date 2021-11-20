@@ -4,11 +4,10 @@
 """ngraph module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
-from pkg_resources import get_distribution, DistributionNotFound
-
 try:
-    __version__ = get_distribution("ngraph-core").version
-except DistributionNotFound:
+    from ngraph.impl import util
+    __version__ = util.get_ngraph_version_string()
+except ImportError:
     __version__ = "0.0.0.dev0"
 
 
@@ -167,6 +166,7 @@ from ngraph.opset8 import sigmoid
 from ngraph.opset8 import sign
 from ngraph.opset8 import sin
 from ngraph.opset8 import sinh
+from ngraph.opset8 import slice
 from ngraph.opset8 import softmax
 from ngraph.opset8 import softplus
 from ngraph.opset8 import space_to_batch

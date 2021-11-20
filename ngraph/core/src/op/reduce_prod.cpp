@@ -16,7 +16,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v1::ReduceProd, "ReduceProd", 1, util::ArithmeticReductionKeepDims);
+BWDCMP_RTTI_DEFINITION(op::v1::ReduceProd);
 
 op::v1::ReduceProd::ReduceProd(const Output<Node>& arg, const Output<Node>& reduction_axes, bool keep_dims)
     : ArithmeticReductionKeepDims(arg, reduction_axes, keep_dims) {
@@ -36,6 +36,7 @@ shared_ptr<Node> op::v1::ReduceProd::clone_with_new_inputs(const OutputVector& n
 }
 
 namespace reduce_prod {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims) {
     out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
@@ -57,7 +58,8 @@ bool evaluate_product(const HostTensorPtr& arg, const HostTensorPtr& out, const 
         break;
     }
     return rc;
-}
+}  // namespace
+}  // namespace
 }  // namespace reduce_prod
 
 bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

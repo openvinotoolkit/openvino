@@ -73,19 +73,21 @@ inp = torch.randn([seq_length, batch_size, feature_length])
 feature_length = torch.LongTensor([seq_length])
 x_padded, x_lens = model.encoder(inp, feature_length)
 torch.onnx.export(model.encoder, (inp, feature_length), "rnnt_encoder.onnx", opset_version=12,
-                  input_names=['input.1', '1'], dynamic_axes={'input.1': {0: 'seq_len', 1: 'batch'}})
+                  input_names=['input', 'feature_length'], output_names=['x_padded', 'x_lens'],
+                  dynamic_axes={'input': {0: 'seq_len', 1: 'batch'}})
 
 symbol = torch.LongTensor([[20]])
 hidden = torch.randn([2, batch_size, 320]), torch.randn([2, batch_size, 320])
 g, hidden = model.prediction.forward(symbol, hidden)
 torch.onnx.export(model.prediction, (symbol, hidden), "rnnt_prediction.onnx", opset_version=12,
-                  input_names=['input.1', '1', '2'],
-                  dynamic_axes={'input.1': {0: 'batch'}, '1': {1: 'batch'}, '2': {1: 'batch'}})
+                  input_names=['symbol', 'hidden_in_1', 'hidden_in_2'],
+                  output_names=['g', 'hidden_out_1', 'hidden_out_2'],
+                  dynamic_axes={'symbol': {0: 'batch'}, 'hidden_in_1': {1: 'batch'}, 'hidden_in_2': {1: 'batch'}})
 
 f = torch.randn([batch_size, 1, 1024])
 model.joint.forward(f, g)
 torch.onnx.export(model.joint, (f, g), "rnnt_joint.onnx", opset_version=12,
-                  input_names=['0', '1'], dynamic_axes={'0': {0: 'batch'}, '1': {0: 'batch'}})
+                  input_names=['0', '1'], output_names=['result'], dynamic_axes={'0': {0: 'batch'}, '1': {0: 'batch'}})
 ```
 
 ```bash
@@ -97,8 +99,8 @@ After completing this step, the files `rnnt_encoder.onnx`, `rnnt_prediction.onnx
 **Step 6**. Run the conversion command:
 
 ```bash
-python3 {path_to_openvino}/mo.py --input_model rnnt_encoder.onnx --input "input.1[157 1 240],1->157"
-python3 {path_to_openvino}/mo.py --input_model rnnt_prediction.onnx --input "input.1[1 1],1[2 1 320],2[2 1 320]"
+python3 {path_to_openvino}/mo.py --input_model rnnt_encoder.onnx --input "input[157 1 240],feature_length->157"
+python3 {path_to_openvino}/mo.py --input_model rnnt_prediction.onnx --input "symbol[1 1],hidden_in_1[2 1 320],hidden_in_2[2 1 320]"
 python3 {path_to_openvino}/mo.py --input_model rnnt_joint.onnx --input "0[1 1 1024],1[1 1 320]"
 ```
 Please note that hardcoded value for sequence length = 157 was taken from the MLCommons but conversion to IR preserves 

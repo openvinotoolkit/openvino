@@ -22,6 +22,8 @@ namespace low_precision {
 
 NGRAPH_RTTI_DEFINITION(AddTransformation, "AddTransformation", 0);
 
+namespace {
+
 std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>& op) {
     // TODO: separate this part to standalone transformation: AddToSubtractTransformation
     // motivation:
@@ -89,6 +91,8 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
     replace_node(add, newSubtract);
     return newSubtract;
 }
+
+} // namespace
 
 AddTransformation::AddTransformation(const Params& params) : EltwiseBaseTransformation(params) {
     auto matcher = ngraph::pattern::wrap_type<opset1::Add>();
@@ -176,13 +180,13 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         // after : Y = SC2 * ( SC1' * (X1 - SH1') + X2 ) , where :
         //         SC1' = SC1 / SC2
         //         SH1' = SH1 + SC2 * SH2 / SC1
-        std::shared_ptr<Node> newSubtractFullPathValues = fold<opset1::Add>(
+        auto newSubtractFullPathValues = fold<opset1::Add>(
             subtractFullPathValues,
             fold<opset1::Divide>(
                 fold<opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
                 multiplyFullPathValues));
 
-        std::shared_ptr<Node> newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
+        auto newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
         if (NetworkHelper::isZeroConst(newSubtractFullPathValues)) {
             newSubtractFullPathValues = nullptr;
@@ -202,7 +206,9 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             newSubtractFullPathValues == nullptr ?
-                fullPathInput :
+                (fullPathInput.get_element_type() != newMultiplyFullPathValues->get_element_type() ?
+                     std::make_shared<opset1::Convert>(fullPathInput, newMultiplyFullPathValues->get_element_type()) :
+                     fullPathInput) :
                 std::make_shared<opset1::Subtract>(
                     // precision on branch with dequantization operations can be different with dequantization precision,
                     // for example: FP16 model with FP32 dequantization
@@ -221,7 +227,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
 
-        replace_node(add, newMultiply);
+        NetworkHelper::insertDequantizationAfter(add, newMultiply, newAddOrSubtract);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
         ngraph::copy_runtime_info({ add, newMultiply }, newMultiply);
     }

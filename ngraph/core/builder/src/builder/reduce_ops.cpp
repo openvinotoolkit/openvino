@@ -19,6 +19,7 @@
 
 namespace ngraph {
 namespace builder {
+namespace {
 size_t get_num_elements(const Shape& shape, const AxisSet& reduction_axes) {
     size_t N = 1;
     for (auto a : reduction_axes) {
@@ -38,6 +39,8 @@ std::shared_ptr<Node> get_num_elements(const Output<Node>& value, const Output<N
                                                         ngraph::opset1::Constant::create(element::i64, {}, {0}));
 }
 
+}  // namespace
+
 std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value, const AxisSet& reduction_axes, bool keep_dims) {
     std::shared_ptr<Node> elems_number;
     const auto value_elem_type = value.get_element_type();
@@ -52,8 +55,7 @@ std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value, const Axi
         elems_number = std::make_shared<ngraph::opset1::Convert>(elems_number, value_elem_type);
     }
 
-    return std::make_shared<ngraph::opset1::Divide>(value_elems_sum, elems_number)
-        ->add_provenance_group_members_above({value});
+    return std::make_shared<ngraph::opset1::Divide>(value_elems_sum, elems_number);
 }
 
 std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value,
@@ -65,8 +67,7 @@ std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value,
     elems_number = get_num_elements(value, reduction_axes);
     elems_number = std::make_shared<ngraph::opset1::Convert>(elems_number, value_elem_type);
 
-    return std::make_shared<ngraph::opset1::Divide>(value_elems_sum, elems_number)
-        ->add_provenance_group_members_above({value});
+    return std::make_shared<ngraph::opset1::Divide>(value_elems_sum, elems_number);
 }
 
 std::shared_ptr<Node> builder::opset1::variance(const Output<Node>& value,
@@ -93,7 +94,7 @@ std::shared_ptr<Node> builder::opset1::variance(const Output<Node>& value,
         const auto Nconst = ngraph::opset1::Constant::create(et, Shape{}, {N});
         result = std::make_shared<ngraph::opset1::Divide>(diff, Nconst);
     }
-    return result->add_provenance_group_members_above({value});
+    return result;
 }
 
 std::shared_ptr<Node> builder::opset1::variance(const Output<Node>& value,
@@ -119,7 +120,7 @@ std::shared_ptr<Node> builder::opset1::variance(const Output<Node>& value,
     }
 
     result = std::make_shared<ngraph::opset1::Divide>(diff, N);
-    return result->add_provenance_group_members_above({value});
+    return result;
 }
 
 }  // namespace builder

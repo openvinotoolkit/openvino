@@ -580,7 +580,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     cnn2dValidator.ValidateCnn2D(layer->name,
         in_height, in_width, in_channels,
-        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x, inputPrec);
+        convolution._kernel_y, convolution._kernel_x, filter_n, convolution._stride_y, convolution._stride_x,
+        convolution._dilation_y, convolution._dilation_x, inputPrec);
 
     float weight_scale_factor = getScaleFactor(layer, QuantizedDataType::weights);
     float output_scale_factor = getScaleFactor(layer, QuantizedDataType::output);
@@ -2100,7 +2101,7 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
-void SKIP(GNAGraphCompiler*, CNNLayerPtr) {}
+inline void SKIP(GNAGraphCompiler*, CNNLayerPtr) {}
 
 void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
     static const LayersBuilder layersBuilder[] = {

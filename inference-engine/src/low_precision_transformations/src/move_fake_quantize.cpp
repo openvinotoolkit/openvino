@@ -39,9 +39,23 @@ MoveFakeQuantize::MoveFakeQuantize(const Params& params) : LayerTransformation(p
         output_low,
         output_high });
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
+            return false;
+        }
+
+        // workaround: only per-tensor quantization is allowed
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto is_scalar = [&](const std::shared_ptr<ngraph::Node>& wrapped_constant) {
+            return NetworkHelper::isScalarLike(
+                    as_type_ptr<opset1::Constant>(pattern_map.at(wrapped_constant).get_node_shared_ptr()));
+        };
+
+        if (!is_scalar(input_low) ||
+            !is_scalar(input_high) ||
+            !is_scalar(output_low) ||
+            !is_scalar(output_high)) {
             return false;
         }
 
@@ -82,10 +96,10 @@ bool MoveFakeQuantize::transform(TransformationContext& context, ngraph::pattern
             fq_input->set_friendly_name(operation_original_name + "_" + std::to_string(i + 1));
         }
         auto newFq = fq->clone_with_new_inputs({ fq_input,
-            fq->get_input_node_shared_ptr(1),
-            fq->get_input_node_shared_ptr(2),
-            fq->get_input_node_shared_ptr(3),
-            fq->get_input_node_shared_ptr(4) });
+          fq->get_input_node_shared_ptr(1)->clone_with_new_inputs({}),
+          fq->get_input_node_shared_ptr(2)->clone_with_new_inputs({}),
+          fq->get_input_node_shared_ptr(3)->clone_with_new_inputs({}),
+          fq->get_input_node_shared_ptr(4)->clone_with_new_inputs({}) });
         newFq->set_friendly_name(fq_original_name + "_" + std::to_string(i + 1));
         fqs.push_back(newFq);
     }

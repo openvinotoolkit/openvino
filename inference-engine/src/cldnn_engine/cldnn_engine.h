@@ -21,10 +21,13 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
     struct impl;
     std::shared_ptr<impl> _impl;
     bool streamsSet = false;
+    bool throttlingSet = false;
 
     // key: device_id, value: cldnn device
     std::map<std::string, cldnn::device::ptr> device_map;
-    std::mutex engine_mutex;
+    // key: cldnn context, value: memory statistics
+    mutable std::map<CLDNNRemoteCLContext::Ptr, std::map<std::string, uint64_t>> statistics_map;
+    mutable std::mutex engine_mutex;
 
     mutable CLDNNRemoteCLContext::Ptr m_defaultContext;
 
@@ -37,6 +40,7 @@ class clDNNEngine : public InferenceEngine::IInferencePlugin,
 
     void RegisterPrimitives();
     void UpdateConfig(Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const;
+    void UpdateStatistics(const CLDNNRemoteCLContext::Ptr& context) const;
 public:
     clDNNEngine();
 
@@ -48,6 +52,7 @@ public:
                                                                         const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
+    std::string GetDeviceIDFromConfig(const std::map<std::string, std::string>& config) const;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
     InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,

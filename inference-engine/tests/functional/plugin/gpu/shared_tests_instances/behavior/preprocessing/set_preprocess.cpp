@@ -5,6 +5,8 @@
 #include <base/behavior_test_utils.hpp>
 #include "behavior/preprocessing/set_preprocess.hpp"
 
+#ifdef ENABLE_GAPI_PREPROCESSING
+
 using namespace BehaviorTestsDefinitions;
 namespace {
     using PreprocessBehTest = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -20,6 +22,12 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> multiConfigs = {
             {{ InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}}
+    };
+
+    const std::vector<std::map<std::string, std::string>> autoConfigs = {
+        {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
+            {InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES ,
+             CommonTestUtils::DEVICE_GPU + std::string(",") + CommonTestUtils::DEVICE_CPU}}
     };
 
     INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestPreprocessTest,
@@ -40,7 +48,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_AUTO),
-                                    ::testing::ValuesIn(multiConfigs)),
+                                    ::testing::ValuesIn(autoConfigs)),
                             InferRequestPreprocessTest::getTestCaseName);
 
     const std::vector<InferenceEngine::Precision> ioPrecisions = {
@@ -86,3 +94,5 @@ namespace {
                         InferRequestPreprocessDynamicallyInSetBlobTest::getTestCaseName);
 
 }  // namespace
+
+#endif // ENABLE_GAPI_PREPROCESSING

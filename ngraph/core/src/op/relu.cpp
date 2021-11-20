@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-OPENVINO_RTTI_DEFINITION(op::v0::Relu, "Relu", 0, util::UnaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v0::Relu);
 
 op::Relu::Relu(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -27,6 +27,7 @@ shared_ptr<Node> op::Relu::clone_with_new_inputs(const OutputVector& new_args) c
 }
 
 namespace relu {
+namespace {
 template <element::Type_t ET>
 inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count) {
     using T = typename element_type_traits<ET>::value_type;
@@ -53,6 +54,7 @@ bool evaluate_relu(const HostTensorPtr& arg0, const HostTensorPtr& out) {
     }
     return rc;
 }
+}  // namespace
 }  // namespace relu
 
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

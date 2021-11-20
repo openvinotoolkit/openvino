@@ -12,6 +12,7 @@ using namespace std;
 using namespace ngraph;
 
 namespace multiplyop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -46,11 +47,12 @@ bool evaluate_multiply(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace multiplyop
 
 // ------------------------------------ v1 -------------------------------------
 
-OPENVINO_RTTI_DEFINITION(op::v1::Multiply, "Multiply", 1, util::BinaryElementwiseArithmetic);
+BWDCMP_RTTI_DEFINITION(op::v1::Multiply);
 
 op::v1::Multiply::Multiply(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast) {

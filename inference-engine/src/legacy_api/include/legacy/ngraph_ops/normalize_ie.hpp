@@ -16,8 +16,8 @@ namespace op {
 
 class NormalizeIE : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"NormalizeIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    OPENVINO_OP("NormalizeIE", "legacy");
+    BWDCMP_RTTI_DECLARATION;
 
     NormalizeIE() = default;
 

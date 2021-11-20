@@ -15,7 +15,8 @@ namespace v1 {
 /// \brief Splits the input tensor into a list of equal sized tensors
 class OPENVINO_API Split : public Op {
 public:
-    OPENVINO_RTTI_DECLARATION;
+    OPENVINO_OP("Split", "opset1", op::Op, 1);
+    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a split operation.
     Split() = default;
@@ -37,7 +38,9 @@ public:
     void set_num_splits(const size_t num_splits) {
         m_num_splits = num_splits;
     }
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
 
 protected:

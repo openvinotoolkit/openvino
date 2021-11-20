@@ -73,8 +73,8 @@ std::shared_ptr<ngraph::opset7::StridedSlice> FlatCrop(ngraph::Output<ngraph::No
         std::vector<int64_t>{1, 0});                                                                            // end mask
 }
 
-std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> bias) {
-    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(bias->input_value(1).get_node_shared_ptr());
+std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> conv, std::shared_ptr<ngraph::Node> add) {
+    auto add_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(add->input_value(1).get_node_shared_ptr());
 
     // Check if it's really a bias and not just addition
     if (add_const) {

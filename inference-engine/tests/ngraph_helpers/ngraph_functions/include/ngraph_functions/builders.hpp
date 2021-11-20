@@ -17,11 +17,14 @@
 #include <ngraph/opsets/opset8.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace ngraph {
 namespace builder {
 
 ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<std::vector<size_t>> &shapes);
+
+ngraph::ParameterVector makeDynamicParams(const element::Type &type, const std::vector<ov::PartialShape> &shapes);
 
 ngraph::ParameterVector
 makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
@@ -72,6 +75,9 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
 
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
+
+std::shared_ptr<ngraph::Node> makeDynamicInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
+                                                    const ov::PartialShape& shape);
 
 std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
                                             const ngraph::Output<Node> &target_shape,
@@ -520,6 +526,12 @@ std::shared_ptr<ngraph::Node> makeGatherElements(
                                       const int axis);
 
 std::shared_ptr<ngraph::Node> makeGatherND(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const std::size_t batchDims);
+
+std::shared_ptr<ngraph::Node> makeGatherND8(
                                       const ngraph::Output<Node>& dataNode,
                                       const ngraph::Shape& indicesShape,
                                       const element::Type& indicesType,

@@ -13,11 +13,11 @@
 #include "mkldnn_serialize.h"
 #include "nodes/mkldnn_memory_node.hpp"
 #include <threading/ie_executor_manager.hpp>
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#define FIX_62820 0
+#if FIX_62820 && ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 #include <threading/ie_tbb_streams_executor.hpp>
-#else
-#include <threading/ie_cpu_streams_executor.hpp>
 #endif
+#include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
 #include <algorithm>
 #include <unordered_set>
@@ -25,10 +25,20 @@
 #include <cstring>
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/utils/utils.hpp>
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "ie_icore.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+InferenceEngine::IInferRequestInternal::Ptr
+MKLDNNExecNetwork::CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                          const std::vector<std::shared_ptr<const ov::Node>>& outputs) {
+    if (!this->_plugin || !this->_plugin->GetCore() || !this->_plugin->GetCore()->isNewAPI())
+        return nullptr;
+    return std::make_shared<MKLDNNInferRequest>(inputs, outputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
+}
 
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -73,14 +83,14 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     } else {
         auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig, isFloatModel);
         streamsExecutorConfig._name = "CPUStreamsExecutor";
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         _taskExecutor = std::make_shared<TBBStreamsExecutor>(streamsExecutorConfig);
 #else
         _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
 #endif
     }
     if (0 != cfg.streamExecutorConfig._streams) {
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if FIX_62820 && (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         // There is no additional threads but we still need serialize callback execution to preserve legacy behaviour
         _callbackExecutor = std::make_shared<ImmediateSerialExecutor>();
 #else
@@ -89,13 +99,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
 #endif
     } else {
         _callbackExecutor = _taskExecutor;
-    }
-
-    // Workaround for initializing friendly names for all the OPs
-    // Otherwise they are initialized concurrently without thread safety.
-    // TODO: Can be removed after 57069 is done.
-    for (const auto& op : _network.getFunction()->get_ops()) {
-        op->get_friendly_name();
     }
 
     int streams = std::max(1, _cfg.streamExecutorConfig._streams);
@@ -133,7 +136,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
     }
 }
 
-MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
+MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
     int streamId = 0;
     int numaNodeId = 0;
     auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
@@ -164,19 +167,6 @@ MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() {
             std::rethrow_exception(exception);
         }
     }
-    return graphLock;
-}
-
-MKLDNNExecNetwork::Graph::Lock MKLDNNExecNetwork::GetGraph() const {
-    int streamId = 0;
-    int numaNodeId = 0;
-    auto streamsExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
-    if (nullptr != streamsExecutor) {
-        streamId = streamsExecutor->GetStreamId();
-        numaNodeId = streamsExecutor->GetNumaNodeId();
-    }
-    auto graphLock = Graph::Lock(_graphs[streamId % _graphs.size()]);
-    IE_ASSERT(graphLock._graph.IsReady());
     return graphLock;
 }
 
@@ -292,12 +282,6 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
 
     return true;
 }
-
-IE_SUPPRESS_DEPRECATED_START
-std::vector<IVariableStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
-    return memoryStates;
-}
-IE_SUPPRESS_DEPRECATED_END
 
 void MKLDNNExecNetwork::Export(std::ostream& modelStream) {
     CNNNetworkSerializer serializer(modelStream, extensionManager);

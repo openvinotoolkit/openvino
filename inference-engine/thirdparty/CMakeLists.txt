@@ -23,19 +23,22 @@ if (ENABLE_CLDNN)
     else()
         set(CLDNN__INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
     endif()
-    set(CLDNN_THREADING "${THREADING}" CACHE STRING "" FORCE)
     add_subdirectory(clDNN)
+    ov_install_static_lib(clDNN_lib gpu)
 endif()
 
 function(ie_add_mkldnn)
+    set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+    set(DNNL_ENABLE_ITT_TASKS ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
     set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
     set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
     set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(DNNL_CPU_RUNTIME "${THREADING}" CACHE BOOL "" FORCE)
-    set(DNNL_BLAS_VENDOR "NONE" CACHE BOOL "" FORCE)
+    set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
+    set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
+    set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
     set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
     if (ANDROID OR ((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND NOT (THREADING STREQUAL "OMP")))
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
@@ -53,6 +56,7 @@ function(ie_add_mkldnn)
 
     add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
+    ov_install_static_lib(dnnl cpu)
 endfunction()
 
 if(ENABLE_MKL_DNN)
