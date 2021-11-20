@@ -65,12 +65,14 @@ const auto layerSpeficParams = ::testing::Combine(
 
 const std::vector<ov::test::InputShape> inputShapes = {
         {{4, 4}, {{4, 4}}},
-        //{{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{4, 4}}}
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{4, 4}, {8, 8}}},
+        {{{4, 8}, {4, 8}}, {{4, 4}, {8, 8}}}
 };
 
 const std::vector<ov::test::InputShape> imageShapes = {
         {{50, 50}, {{50, 50}}},
-        //{{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{50, 50}}}
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{50, 50}, {100, 100}}},
+        {{{50, 100}, {50, 100}}, {{50, 50}, {100, 100}}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
