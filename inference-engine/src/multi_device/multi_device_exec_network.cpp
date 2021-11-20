@@ -453,7 +453,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             }
@@ -483,7 +483,7 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
 
     if (_workModeIsAUTO) {
         if (!_loadContext[CPU].isEnabled && _loadContext[ACTUALDEVICE].isAlready) {
-            auto& dev_requests = _workerRequests[_acceleratorDevice.deviceName];
+            auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
             }
