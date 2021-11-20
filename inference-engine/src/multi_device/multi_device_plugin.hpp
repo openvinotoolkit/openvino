@@ -13,6 +13,13 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "multi_device_exec_network.hpp"
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
 namespace MultiDevicePlugin {
 
 class MultiDeviceInferencePlugin : public InferenceEngine::IInferencePlugin {
@@ -33,11 +40,11 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
+    MOCKTESTMACRO std::vector<MultiDevicePlugin::DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
                                                                        const std::map<std::string, std::string> & config) const;
 
     std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
-    DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
+    MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices, const std::string& networkPrecision = METRIC_VALUE(FP32));
 
 protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
