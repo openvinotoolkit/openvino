@@ -31,12 +31,14 @@ public:
      */
     explicit Extension(const std::string& name);
 
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Loads extension from a shared library
      *
      * @param name Full or relative path to extension library
      */
     explicit Extension(const std::wstring& name);
+#endif // ENABLE_UNICODE_PATH_SUPPORT
 
     /**
      * @brief Gets the extension version information

@@ -55,20 +55,22 @@ std::shared_ptr<T> CreateExtensionFromLibrary(std::shared_ptr<void> _so) {
 Extension::Extension(const std::string& name) {
     try {
         _so = ov::util::load_shared_object(name.c_str());
-    } catch (const std::exception& ex) {
+    } catch (const std::runtime_error&) {
         details::Rethrow();
     }
     _actual = CreateExtensionFromLibrary<IExtension>(_so);
 }
 
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
 Extension::Extension(const std::wstring& name) {
     try {
         _so = ov::util::load_shared_object(name.c_str());
-    } catch (const std::exception& ex) {
+    } catch (const std::runtime_error&) {
         details::Rethrow();
     }
     _actual = CreateExtensionFromLibrary<IExtension>(_so);
 }
+#endif // ENABLE_UNICODE_PATH_SUPPORT
 
 std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
     return _actual->getOpSets();
