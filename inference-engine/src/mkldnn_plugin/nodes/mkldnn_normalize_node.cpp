@@ -924,17 +924,17 @@ public:
         jcp.w = (dims_size > 3) ? dims[3] : 1lu;
 
         if (mayiuse(cpu::x64::avx512_common)) {
-            attrs.blk_size = 16;
+            blk_size = 16;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx512_common>(jcp));
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::avx512_common>(jcp, *kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::avx2)) {
-            attrs.blk_size = 8;
+            blk_size = 8;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>(jcp));
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::avx2>(jcp, *kernel_attrs.get()));
         } else if (mayiuse(cpu::x64::sse41)) {
-            attrs.blk_size = 4;
+            blk_size = 4;
             normalize_modulo_kernel.reset(new jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>(jcp));
             normalize_kernel.reset(
                     new jit_uni_normalize_kernel_f32<cpu::x64::sse41>(jcp, *kernel_attrs.get()));
@@ -978,11 +978,11 @@ private:
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_bc;
                     arg.modulo = static_cast<float*>(&modulo_kernel);
-                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                    arg.work_amount = (spatial_dims) / attrs.blk_size;
+                    arg.src_stride = blk_size * sizeof(in_data_t);
+                    arg.work_amount = (spatial_dims) / blk_size;
                     (*normalize_modulo_kernel)(&arg);
 
-                    tail_start = (spatial_dims / attrs.blk_size) * attrs.blk_size;
+                    tail_start = (spatial_dims / blk_size) * blk_size;
 
                     // tail
                     for (size_t tail = tail_start; tail < spatial_dims; tail++) {
@@ -1009,14 +1009,14 @@ private:
             } else {  // across_spatial: false
                 // moduloM
                 std::vector<float> moduloM(spatial_dims, 0.f);
-                size_t blocks_num = div_up(spatial_dims, attrs.blk_size);
+                size_t blocks_num = div_up(spatial_dims, blk_size);
                 parallel_for(blocks_num, [&](size_t ib) {
-                    const in_data_t *src_data_b_ib = src_data_b + ib * attrs.blk_size;
-                    size_t min_cb = (std::min)(attrs.blk_size, spatial_dims - (ib * attrs.blk_size));
-                    if (min_cb == attrs.blk_size) {
+                    const in_data_t *src_data_b_ib = src_data_b + ib * blk_size;
+                    size_t min_cb = (std::min)(blk_size, spatial_dims - (ib * blk_size));
+                    if (min_cb == blk_size) {
                         auto arg = jit_normalize_call_args();
                         arg.src = src_data_b_ib;
-                        arg.modulo = static_cast<float*>(&moduloM[ib * attrs.blk_size]);
+                        arg.modulo = static_cast<float*>(&moduloM[ib * blk_size]);
                         arg.src_stride = spatial_dims * sizeof(in_data_t);
                         arg.work_amount = jcp.c;
                         (*normalize_modulo_kernel)(&arg);
@@ -1024,7 +1024,7 @@ private:
                         for (size_t c = 0; c < jcp.c; c++) {
                             const in_data_t *src_data_b_ib_c = src_data_b_ib + spatial_dims * c;
                             for (size_t blk = 0; blk < min_cb; blk++) {
-                                moduloM[ib * attrs.blk_size + blk] += src_data_b_ib_c[blk] * src_data_b_ib_c[blk];
+                                moduloM[ib * blk_size + blk] += src_data_b_ib_c[blk] * src_data_b_ib_c[blk];
                             }
                         }
                     }
@@ -1069,11 +1069,11 @@ private:
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_bh;
                     arg.modulo = static_cast<float*>(&modulo_kernel);
-                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                    arg.work_amount = c_w_dims / attrs.blk_size;
+                    arg.src_stride = blk_size * sizeof(in_data_t);
+                    arg.work_amount = c_w_dims / blk_size;
                     (*normalize_modulo_kernel)(&arg);
 
-                    tail_start = (c_w_dims / attrs.blk_size) * attrs.blk_size;
+                    tail_start = (c_w_dims / blk_size) * blk_size;
 
                     // tail
                     for (size_t tail = tail_start; tail < c_w_dims; tail++) {
@@ -1105,11 +1105,11 @@ private:
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_bhw;
                     arg.modulo = static_cast<float*>(&modulo);
-                    arg.src_stride = attrs.blk_size * sizeof(in_data_t);
-                    arg.work_amount = jcp.c / attrs.blk_size;
+                    arg.src_stride = blk_size * sizeof(in_data_t);
+                    arg.work_amount = jcp.c / blk_size;
                     (*normalize_modulo_kernel)(&arg);
 
-                    size_t tail_start = (jcp.c / attrs.blk_size) * attrs.blk_size;
+                    size_t tail_start = (jcp.c / blk_size) * blk_size;
 
                     // for tail
                     for (size_t c = tail_start; c < jcp.c; c++) {
@@ -1131,31 +1131,31 @@ private:
     }
 
     void normalize_blk(const in_data_t* src_data, out_data_t* dst_data) {
-        const size_t CB = div_up(jcp.c, attrs.blk_size);
+        const size_t CB = div_up(jcp.c, blk_size);
         const size_t spatial_dims = jcp.h * jcp.w;
-        const size_t w_blk_dims = jcp.w * attrs.blk_size;
+        const size_t w_blk_dims = jcp.w * blk_size;
         for (size_t b = 0lu; b < jcp.n; b++) {
-            const in_data_t *src_data_b = src_data + b * CB * spatial_dims * attrs.blk_size;
-            out_data_t *dst_data_b = dst_data + b * CB * spatial_dims * attrs.blk_size;
+            const in_data_t *src_data_b = src_data + b * CB * spatial_dims * blk_size;
+            out_data_t *dst_data_b = dst_data + b * CB * spatial_dims * blk_size;
             if (attrs.across_spatial) {
                 // modulo
                 float modulo = 0.0f;
                 float addition_identity = 0.0f;
                 modulo = parallel_sum2d(CB, jcp.h, addition_identity, [&](size_t cb, size_t h) -> float {
                     // handle W * blk_size data
-                    const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
-                    size_t min_cb = (std::min)(attrs.blk_size, jcp.c - cb * attrs.blk_size);
+                    const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
+                    size_t min_cb = (std::min)(blk_size, jcp.c - cb * blk_size);
                     float modulo_w_blk = 0.0f;
-                    if (min_cb == attrs.blk_size) {
+                    if (min_cb == blk_size) {
                         auto arg = jit_normalize_call_args();
                         arg.src = src_data_b_cb_h;
                         arg.modulo = static_cast<float*>(&modulo_w_blk);
-                        arg.src_stride = attrs.blk_size * sizeof(in_data_t);
+                        arg.src_stride = blk_size * sizeof(in_data_t);
                         arg.work_amount = jcp.w;
                         (*normalize_modulo_kernel)(&arg);
                     } else {
                         for (size_t w = 0; w < jcp.w; w++) {
-                            const in_data_t *src_data_b_cb_h_w = src_data_b_cb_h + w * attrs.blk_size;
+                            const in_data_t *src_data_b_cb_h_w = src_data_b_cb_h + w * blk_size;
                             for (size_t c = 0; c < min_cb; c++) {
                                 modulo_w_blk += src_data_b_cb_h_w[c] * src_data_b_cb_h_w[c];
                             }
@@ -1169,33 +1169,33 @@ private:
 
                 // normalize
                 parallel_for2d(CB, jcp.h, [&](size_t cb, size_t h) {
-                    const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
-                    out_data_t *dst_data_b_cb_h = dst_data_b + cb * spatial_dims * attrs.blk_size + h * w_blk_dims;
+                    const in_data_t *src_data_b_cb_h = src_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
+                    out_data_t *dst_data_b_cb_h = dst_data_b + cb * spatial_dims * blk_size + h * w_blk_dims;
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_b_cb_h;
                     arg.dst = dst_data_b_cb_h;
                     arg.fused_factor = static_cast<float*>(&modulo_inv);  // broadcast once
                     arg.work_amount = static_cast<size_t>(jcp.w);
-                    arg.oc_off = cb * attrs.blk_size * sizeof(float);
+                    arg.oc_off = cb * blk_size * sizeof(float);
                     (*normalize_kernel)(&arg);
                 });
             } else {  // across_spatial: false
                 parallel_for2d(jcp.h, jcp.w, [&](size_t ih, size_t iw) {
                     // modulo
                     float modulo = 0.0f;
-                    const in_data_t *src_data_bhw = src_data_b + ih * w_blk_dims + iw * attrs.blk_size;
-                    out_data_t *dst_data_bhw = dst_data_b + ih * w_blk_dims + iw * attrs.blk_size;
+                    const in_data_t *src_data_bhw = src_data_b + ih * w_blk_dims + iw * blk_size;
+                    out_data_t *dst_data_bhw = dst_data_b + ih * w_blk_dims + iw * blk_size;
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_bhw;
                     arg.modulo = static_cast<float*>(&modulo);
-                    arg.src_stride = attrs.blk_size * spatial_dims * sizeof(in_data_t);
-                    arg.work_amount = jcp.c / attrs.blk_size;  // CB or CB-1
+                    arg.src_stride = blk_size * spatial_dims * sizeof(in_data_t);
+                    arg.work_amount = jcp.c / blk_size;  // CB or CB-1
                     (*normalize_modulo_kernel)(&arg);
                     // for tail
-                    size_t padding = CB * attrs.blk_size - jcp.c;
+                    size_t padding = CB * blk_size - jcp.c;
                     if (padding > 0) {
-                        size_t tail = attrs.blk_size - padding;
-                        const in_data_t *src_data_bhw_lastCB = src_data_bhw + (CB - 1) * attrs.blk_size * spatial_dims;
+                        size_t tail = blk_size - padding;
+                        const in_data_t *src_data_bhw_lastCB = src_data_bhw + (CB - 1) * blk_size * spatial_dims;
                         for (size_t c = 0; c < tail; c++) {
                             modulo += src_data_bhw_lastCB[c] * src_data_bhw_lastCB[c];
                         }
@@ -1215,6 +1215,7 @@ private:
         }
     }
 
+    size_t blk_size = 1lu;
     jit_normalize_config_params jcp = {};
     NormalizeL2Attrs attrs;
 
