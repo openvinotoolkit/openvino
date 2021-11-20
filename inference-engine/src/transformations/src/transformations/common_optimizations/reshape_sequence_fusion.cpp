@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
@@ -18,7 +18,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeSequenceFusion, "ReshapeSequenceFusi
 
 namespace {
 bool has_valid_pattern(const std::shared_ptr<ngraph::Node> & node) {
-    auto const_node = std::dynamic_pointer_cast<opset8::Constant>(node);
+    auto const_node = std::dynamic_pointer_cast<ngraph::opset8::Constant>(node);
     if (!const_node) return false;
     const auto & values = const_node->cast_vector<int64_t>();
     // We can not fuse Reshapes if their pattern values have special numbers like -1 and 0
