@@ -1782,18 +1782,16 @@ std::vector<std::vector<std::shared_ptr<ngraph::opset1::Constant>>> NetworkHelpe
         auto split = std::make_shared<opset1::VariadicSplit>(currConstants[i],
             opset1::Constant::create(element::i64, Shape{}, { concat_axis }),
             opset1::Constant::create(element::i64, Shape{ number_of_concat_inputs }, shape_axis));
-        size_t step = 0;
-        for (size_t j = 0; j < number_of_concat_inputs; ++j) {
-            const auto values = currConstants[i]->cast_vector<float>();
-            std::vector<float> newValues{ values.begin() + step,
-                values.begin() + step + shape_axis[j] };
-            step += shape_axis[j];
-            auto shape = split->output(j).get_shape();
-            auto constant = std::make_shared<opset1::Constant>(currConstants[i]->get_element_type(),
-                shape,
-                std::vector<float>{ newValues });
+        OutputVector outputResults(split->get_output_size());
+        auto foldResult = split->constant_fold(outputResults, split->input_values());
+        if (!foldResult) {
+            // handle potential constant fold issue here
+        }
+        for (auto outputResult : outputResults) {
+            auto constant = as_type_ptr<opset1::Constant>(outputResult.get_node_shared_ptr());
             newConstant.push_back(constant);
         }
+
         newConstants[i] = newConstant;
     }
     return newConstants;

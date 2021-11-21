@@ -382,7 +382,7 @@ const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
             {},
         }
     },
-    // Q/DQ with subtruct
+    // Q/DQ with subtract
     {
         LayerTransformation::createParamsU8I8(),
         false,
@@ -438,7 +438,7 @@ const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{ 4, 1, 9, 9 }, { 4, 2, 9, 9 }}
 };
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
-    // super multi-chanels
+    // multi-chanels
     {
         LayerTransformation::createParamsU8I8(),
         true,
