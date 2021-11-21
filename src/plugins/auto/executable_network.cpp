@@ -301,7 +301,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     // configure 0 dGPU, 1 VPUX, if dGPU load failed,
     // the result will be not sure, maybe two network are loaded into VPUX,
     // maybe 0 is loaded to VPUX, 1 is loaded to iGPU
-    _multiPlugin->UnregisterPriority(_context.modelPriority, device.uniqueName);
+    _multiPlugin->UnregisterPriority(_context.modelPriority, context.deviceInfo.uniqueName);
     // remove the current device from deviceList
     auto eraseDevice = std::find_if(deviceList.begin(), deviceList.end(),
             [device](DeviceInformation& d){
@@ -316,7 +316,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
     // select next candidate device
     try {
         context.deviceInfo = _multiPlugin->SelectDevice(deviceList,
-                context.networkPrecision, _context.networkPrecision);
+                context.networkPrecision, _context.modelPriority);
     }
     catch (const std::exception& e) {
         return;
@@ -472,8 +472,6 @@ void MultiDeviceExecutableNetwork::run(Task inferPipelineTask) {
 
 MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     if (_workModeIsAUTO) {
-        _multiPlugin->UnregisterPriority(_context.modelPriority,
-                _loadContext[ACTUALDEVICE].uniqueName);
         // this is necessary to guarantee member destroyed after getting future
         if (_loadContext[CPU].isEnabled) {
             _loadContext[CPU].future.wait();
@@ -482,6 +480,8 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
             InferenceEngine::ExecutorManager::getInstance()->clear("AutoDeviceAsyncLoad");
             _executor.reset();
         }
+        _multiPlugin->UnregisterPriority(_context.modelPriority,
+                _loadContext[ACTUALDEVICE].deviceInfo.uniqueName);
     }
     {
         std::lock_guard<std::mutex> lock(_mutex);

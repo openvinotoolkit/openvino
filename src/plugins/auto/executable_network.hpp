@@ -43,7 +43,7 @@ struct DeviceInformation {
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
     std::string defaultDeviceID;
-    const DeviceName uniqueName;
+    DeviceName uniqueName;
 };
 
 struct AutoContext {
@@ -209,12 +209,12 @@ private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
     InferenceEngine::IStreamsExecutor::Ptr                              _executor;
     MultiDeviceInferencePlugin*                                         _multiPlugin;
+    AutoContext                                                         _context;
     bool                                                                _workModeIsAUTO = {false};
     mutable std::once_flag                                              _oc;
     std::once_flag                                                      _firstLoadOC;
     std::future<void>                                                   _firstLoadFuture;
     std::promise<void>                                                  _firstLoadPromise;
-    AutoContext                                                         _context;
     mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
     mutable std::mutex                                                  _confMutex;
 };
