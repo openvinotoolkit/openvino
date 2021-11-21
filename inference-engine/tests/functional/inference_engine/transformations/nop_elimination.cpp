@@ -818,3 +818,37 @@ TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
             check_usecase(PartialShape{1, 16}, i32, multiout, std::vector<int64_t>{0, 0}, 0, 1);
         }
 }
+
+TEST_F(TransformationTestsF, eliminate_eltwise) {
+    Shape shape{2, 3};
+    auto type = element::f32;
+    auto zero = op::Constant::create(type, {}, {0.0f});
+    auto one = op::Constant::create(type, {}, {1.0f});
+    auto two = op::Constant::create(type, {}, {2.0f});
+    {
+        auto A = make_shared<op::Parameter>(type, shape);
+        auto B = make_shared<op::Parameter>(element::boolean, shape);
+        auto sub1 = make_shared<opset8::Subtract>(zero, A);
+        auto sub2 = make_shared<opset8::Subtract>(sub1, zero);
+        auto sub3 = make_shared<opset8::Subtract>(sub2, one);
+        auto div1 = make_shared<opset8::Divide>(one, sub3);
+        auto div2 = make_shared<opset8::Divide>(div1, one);
+        auto div3 = make_shared<opset8::Divide>(div2, two);
+        auto mul1 = make_shared<opset8::Multiply>(one, div3);
+        auto mul2 = make_shared<opset8::Multiply>(mul1, one);
+        auto mul3 = make_shared<opset8::Multiply>(mul2, two);
+        function = make_shared<Function>(mul3, ParameterVector{A});
+        manager.register_pass<pass::NopElimination>();
+    }
+    {
+        auto A = make_shared<op::Parameter>(type, shape);
+        auto B = make_shared<op::Parameter>(element::boolean, shape);
+        auto sub1 = make_shared<opset8::Subtract>(zero, A);
+        auto sub2 = make_shared<opset8::Subtract>(sub1, one);
+        auto div1 = make_shared<opset8::Divide>(one, sub2);
+        auto div2 = make_shared<opset8::Divide>(div1, two);
+        auto mul = make_shared<opset8::Multiply>(div2, two);
+        function_ref = make_shared<Function>(mul, ParameterVector{A});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}

@@ -12,6 +12,7 @@
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/utils/utils.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace std;
@@ -503,6 +504,46 @@ pass::EliminateTranspose::EliminateTranspose() {
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(pass::EliminateEltwise, "EliminateEltwise", 0);
+
+pass::EliminateEltwise::EliminateEltwise() {
+    MATCHER_SCOPE(EliminateEltwise);
+    auto input = pattern::any_input();
+    auto constant_pattern = pattern::wrap_type<opset8::Constant>();
+    auto eltwise_pattern = pattern::wrap_type<opset8::Subtract,
+                                              opset8::Multiply,
+                                              opset8::Divide>({input, constant_pattern});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
+        auto constant = pattern_map.at(constant_pattern);
+        auto constant_ptr = std::dynamic_pointer_cast<opset8::Constant>(pattern_map.at(constant_pattern).get_node_shared_ptr());
+        if (!constant_ptr) {
+            return false;
+        }
+
+        float value;
+        if (!op::util::get_single_value(constant_ptr, value)) {
+            return false;
+        }
+
+        float expected_const = 0;
+        if (is_type<opset8::Multiply>(eltwise) ||
+            is_type<opset8::Divide>(eltwise)) {
+            expected_const = 1;
+        }
+        if (value != expected_const) {
+            return false;
+        }
+        size_t idx = eltwise->input_value(1) == constant ? 0 : 1;
+        return replace_output_update_name(eltwise->output(0), eltwise->input_value(idx));
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(eltwise_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
@@ -513,6 +554,7 @@ ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     add_matcher<EliminateConcat>();
     add_matcher<EliminateSplit>();
     add_matcher<EliminateTranspose>();
+    add_matcher<EliminateEltwise>();
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
