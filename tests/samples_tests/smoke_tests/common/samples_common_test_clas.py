@@ -273,7 +273,7 @@ class SamplesCommonTestClass():
         return False
 
     @staticmethod
-    def find_fps(retcode, stdout, stderr):
+    def find_fps(stdout):
         stdout = stdout.split('\n')
         for line in stdout:
             if 'fps' in line.lower():
@@ -421,7 +421,7 @@ class SamplesCommonTestClass():
                 if (retcode_perf != 0):
                     log.error(stderr_perf)
                 assert retcode_perf == 0, "Execution sample for performace failed"
-                fps_perf = self.find_fps(retcode_perf, stdout_perf, stderr_perf)
+                fps_perf = self.find_fps(stdout_perf)
                 self.write_csv(sample_name=self.sample_name, sample_type=sample_type, cmd_perf=cmd_perf, fps_perf=fps_perf)
                 log.info('Perf results: {}'.format(fps_perf))
         if get_shell_result:

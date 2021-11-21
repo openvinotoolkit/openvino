@@ -12,7 +12,7 @@ To install smoke tests:
     - cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -P cmake_install.cmake
     ```
 1. To run tests from install directory required installing some dependencies: 
-    - pip3 install -r requirements.txt
+    - pip3 install -r  <INSTALL_DIR>\tests\smoke_tests\requirements.txt
 2. Call setupvars script and then set the environment variables:
 a. Required:
     - IE_APP_PATH : coomon path to C++ and C samples, e.g. '<INSTALL_DIR>/samples_bin'
