@@ -192,8 +192,13 @@ public:
     /// Index for parameter, or -1
     int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
 
-    /// Index for value or result referencing it, or -1
+    /// \brief Return index of output. Return -1 if value not matched.
+    /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
+
+    /// \brief Return index of output. Return -1 if value not matched.
+    /// \param value Output containing Node
+    int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
 
     /// \deprecated Use evaluate with ov::runtime::Tensor instead
     /// \brief Evaluate the function on inputs, putting results in outputs.
