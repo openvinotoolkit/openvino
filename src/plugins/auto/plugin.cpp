@@ -142,21 +142,26 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
         std::string defaultDeviceID = "";
         DeviceIDParser parsed{deviceName};
-        if (parsed.getDeviceID().empty())
+        std::string deviceid = parsed.getDeviceID();
+        if (deviceid.empty()) {
             defaultDeviceID = getDefaultDeviceID(deviceName);
+            deviceid = defaultDeviceID;
+        }
 
         std::string fullDeviceName = "";
         std::string uniqueName = "";
-        std::vector<std::string> supportedMetrics = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+        std::vector<std::string> supportedMetrics = GetCore()->GetMetric(parsed.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS));
         if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
-            fullDeviceName = GetCore()->GetMetric(deviceName, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
+            fullDeviceName = GetCore()->GetMetric(parsed.getDeviceName(), METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
         }
         if (fullDeviceName.empty()) {
-            uniqueName = deviceName + "_" + defaultDeviceID;
+            uniqueName = parsed.getDeviceName() + "_" + deviceid;
         } else {
-            uniqueName = fullDeviceName + "_" + defaultDeviceID;
+            uniqueName = fullDeviceName + "_" + deviceid;
         }
 
+        // is it right to use deviceNameWithID as deviceName in DeviceInformation?
+        // if GetCore()->GetMetric(deviceNameWithID) is ok ?
         // create meta device
         metaDevices.push_back({ deviceName, getDeviceConfig(deviceName), numRequests, defaultDeviceID, uniqueName});
     }
