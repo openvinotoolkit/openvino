@@ -438,11 +438,7 @@ const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{ 4, 1, 9, 9 }, { 4, 2, 9, 9 }}
 };
 const std::vector<MoveFakeQuantizeTransformationTestValues> testValues = {
-<<<<<<< HEAD
     // multi-chanels
-=======
-    // super multi-chanels
->>>>>>> 25cfb1e6e (Q/DQ + mulichannel support)
     {
         LayerTransformation::createParamsU8I8(),
         true,
