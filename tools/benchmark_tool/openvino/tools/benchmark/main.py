@@ -248,7 +248,7 @@ def run(args):
             app_inputs_info, reshape = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.get_parameters())
             if reshape:
                 start_time = datetime.utcnow()
-                shapes = { info.name : info.shape for info in app_inputs_info }
+                shapes = { info.name : info.partial_shape for info in app_inputs_info }
                 logger.info(
                     'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
                 function.reshape(shapes)

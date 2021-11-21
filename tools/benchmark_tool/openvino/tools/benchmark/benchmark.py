@@ -26,7 +26,6 @@ class Benchmark:
         self.api_type = api_type
         self.legacy_mode = legacy_mode
 
-
     def __del__(self):
         del self.core
 

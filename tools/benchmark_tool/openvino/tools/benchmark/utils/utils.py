@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
+from logging import exception
 from openvino import Core, Function, PartialShape, Dimension, Layout
 from openvino.impl import Type
 from openvino.impl.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
@@ -372,7 +373,7 @@ class AppInputInfo:
     def __init__(self):
         self.element_type = None
         self.layout = ""
-        self.shape = None
+        self.partial_shape = None
         self.tensor_shapes = []
         self.scale = []
         self.mean = []
@@ -382,53 +383,62 @@ class AppInputInfo:
     def is_image(self):
         if self.layout not in [ "NCHW", "NHWC", "CHW", "HWC" ]:
             return False
-        return self.channels[0] == 3 # TODO: can it be not image in other tenos_shapes ?
+        return self.channels == 3
 
     @property
     def is_image_info(self):
         if self.layout != "NC":
             return False
-        return self.channels[0] >= 2
+        return self.channels.relaxes(Dimension(2))
 
-    def getDimentionByLayout(self, character, shape_id):
+    def getDimentionByLayout(self, character):
         if character not in self.layout:
             raise Exception(f"Error: Can't get {character} from layout {self.layout}")
-        return self.tensor_shapes[shape_id][self.layout.index(character)]
+        return self.partial_shape[self.layout.index(character)]
+
+    def getDimentionsByLayout(self, character):
+        if character not in self.layout:
+            raise Exception(f"Error: Can't get {character} from layout {self.layout}")
+        d_index = self.layout.index(character)
+        dims = []
+        for shape in self.tensor_shapes:
+            dims.append(shape[d_index])
+        return dims
+
+    @property
+    def shapes(self):
+        if self.is_static:
+            return [self.partial_shape.to_shape()]
+        else:
+            return self.tensor_shapes
+
+    @property
+    def width(self):
+        return self.getDimentionByLayout("W")
 
     @property
     def widthes(self):
-        width_list = []
-        for i in range(len(self.tensor_shapes)):
-            width_list.append(self.getDimentionByLayout("W", i))
-        return width_list
+        return self.getDimentionsByLayout("W")
+
+    @property
+    def height(self):
+        return self.getDimentionByLayout("H")
 
     @property
     def heights(self):
-        height_list = []
-        for i in range(len(self.tensor_shapes)):
-            height_list.append(self.getDimentionByLayout("H", i))
-        return height_list
+        return self.getDimentionsByLayout("H")
 
     @property
     def channels(self):
-        channels_list = []
-        for i in range(len(self.tensor_shapes)):
-            channels_list.append(self.getDimentionByLayout("C", i))
-        return channels_list
+        return self.getDimentionByLayout("C")
 
     @property
-    def batches(self):
-        batches_list = []
-        for i in range(len(self.tensor_shapes)):
-            batches_list.append(self.getDimentionByLayout("N", i))
-        return batches_list
+    def is_static(self):
+        return self.partial_shape.is_static
 
     @property
-    def depths(self):
-        depths_list = []
-        for i in range(len(self.tensor_shapes)):
-            depths_list.append(self.getDimentionByLayout("D", i))
-        return depths_list
+    def is_dynamic(self):
+        return self.partial_shape.is_dynamic
 
 
 def parse_partial_shape(shape_str):
@@ -485,10 +495,10 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
         info.name = input_names[i]
         # Shape
         if info.name in shape_map.keys():
-            info.shape = parse_partial_shape(shape_map[info.name])
+            info.partial_shape = parse_partial_shape(shape_map[info.name])
             reshape = True
         else:
-            info.shape = parameters[i].get_partial_shape()
+            info.partial_shape = parameters[i].get_partial_shape()
 
         # Layout
         if info.name in layout_map.keys():
@@ -497,7 +507,7 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
             info.layout = str(parameters[i].get_layout())
         else: # will be removed
             image_colors_dim = Dimension(3)
-            shape = info.shape
+            shape = info.partial_shape
             num_dims = len(shape)
             if num_dims == 4:
                 if(shape[1]) == image_colors_dim:
@@ -520,23 +530,19 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
                  raise Exception(f"provide batch size in tensor_shape for dynamic model")
             if 'N' in info.layout:
                 batch_index = info.layout.index('N')
-                if info.shape[batch_index] != batch_size:
-                    info.shape[batch_index] = batch_size
+                if info.partial_shape[batch_index] != batch_size:
+                    info.partial_shape[batch_index] = batch_size
                     reshape = True
             else:
                 raise Exception("Can't identify batch dimension, provide layout defining 'N' deminsion.")
 
         # Tensor shape
-        if info.name in tensor_shape_map.keys() and info.shape.is_dynamic:
+        if info.name in tensor_shape_map.keys() and info.is_dynamic:
             for p_shape in tensor_shape_map[info.name]:
                 if p_shape.is_dynamic:
                     raise Exception(f"tensor_shape {p_shape} is not static.")
                 else:
-                    info.tensor_shapes.append(p_shape.to_shape())
-        elif info.shape.is_static:
-            info.tensor_shapes.append(info.shape.to_shape())
-        else:
-            raise Exception(f"tensor_shape is required for dynamic network.")
+                    info.tensor_shapes.append(p_shape.to_shape())  # TODO: check if info.partial_shape is compatible with tensor shape
 
         input_info.append(info)
 
@@ -564,8 +570,8 @@ def get_batch_size(inputs_info):
         batch_index = info.layout.index('N') if 'N' in info.layout else -1
         if batch_index != -1:
             if batch_size == null_dimension:
-                batch_size = info.shape[batch_index]
-            elif batch_size != info.shape[batch_index]:
+                batch_size = info.partial_shape[batch_index]
+            elif batch_size != info.partial_shape[batch_index]:
                 raise Exception("Can't deterimine batch size: batch is different for different inputs!")
     if batch_size == null_dimension:
         batch_size = Dimension(1)
