@@ -198,7 +198,6 @@ def run(args):
         perf_counts = perf_counts
 
         benchmark.set_config(config)
-        batch_size = args.batch_size
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
 
@@ -225,8 +224,9 @@ def run(args):
                                               ('compile model time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
-            if batch_size == 0:
-                batch_size = 1
+            batch_size = get_batch_size(app_inputs_info)
+            if batch_size.is_dynamic and benchmark.api_type == 'sync':
+                raise Exception("Dynamic batch size is supported only in async mode")
         elif not is_network_compiled:
             # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
             next_step()
@@ -262,8 +262,10 @@ def run(args):
 
             # use batch size according to provided layout and shapes
             batch_size = get_batch_size(app_inputs_info)
+            if batch_size.is_dynamic and benchmark.api_type == 'sync':
+                raise Exception("Dynamic batch size is supported only in async mode")
 
-            logger.info(f'Network batch size: {str(batch_size)}')
+            logger.info(f'Network batch size: {batch_size}')
 
             # --------------------- 6. Configuring inputs and outputs of the model --------------------------------------------------
             next_step()
@@ -304,8 +306,9 @@ def run(args):
                                               ('import model time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
-            if batch_size == 0:
-                batch_size = 1
+            batch_size = get_batch_size(app_inputs_info)
+            if batch_size.is_dynamic and benchmark.api_type == 'sync':
+                raise Exception("Dynamic batch size is supported only in async mode")
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
@@ -322,14 +325,24 @@ def run(args):
             key = get_device_type_from_name(device) + '_THROUGHPUT_STREAMS'
             device_number_streams[device] = benchmark.core.get_config(device, key)
 
-        # ------------------------------------ 9. Creating infer requests and filling input blobs ----------------------
+        # ------------------------------------ 9. Creating infer requests and preparing input data ----------------------
         next_step()
 
+        # Create infer requests
+        start_time = datetime.utcnow()
         requests = benchmark.create_infer_requests(exe_network)
+        duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
+        logger.info(f"Create {benchmark.nireq} infer requests took {duration_ms} ms")
+        if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('create infer requests time (ms)', duration_ms)
+                                          ])
 
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, benchmark.api_type)
 
+        # Prepare input data
         paths_to_input = list()
         if args.paths_to_input:
             for path in args.paths_to_input:
@@ -339,10 +352,12 @@ def run(args):
                     paths_to_input.append(os.path.abspath(*path))
 
         data_queue = get_input_data(paths_to_input, app_inputs_info)
+
+        # Set input tensors before first inference
         for request in requests:
             request.set_tensors(data_queue.get_next_input())
-        if data_queue.size <= benchmark.nireq:
-            benchmark.legacy_mode = True
+        #if data_queue.size <= benchmark.nireq: # TODO: Should we enable it if there is no need to set new tensors each time ?
+            #benchmark.legacy_mode = True
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
@@ -350,9 +365,10 @@ def run(args):
                                           ('topology', topology_name),
                                           ('target device', device_name),
                                           ('API', args.api_type),
+                                          ('Legacy mode', str(benchmark.legacy_mode))
                                           ('precision', "UNSPECIFIED"),
                                           ('batch size', str(batch_size)),
-                                          ('number of iterations', str(benchmark.niter) if benchmark.niter else "0"),
+                                          ('number of iterations', str(benchmark.niter)),
                                           ('number of parallel infer requests', str(benchmark.nireq)),
                                           ('duration (ms)', str(get_duration_in_milliseconds(benchmark.duration_seconds))),
                                        ])
@@ -381,6 +397,11 @@ def run(args):
                                     [
                                         ('first inference time (ms)', duration_ms)
                                     ])
+        if benchmark.legacy_mode:
+            logger.info("Legacy mode is enabled, inputs filling only once before measurements.")
+        #else:
+            # TODO: do we need a message that inputs are filling on each iterarion ?
+
         fps, latency_ms, total_duration_sec, iteration = benchmark.infer(requests, data_queue, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------

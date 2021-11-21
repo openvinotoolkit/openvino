@@ -134,7 +134,7 @@ class Benchmark:
             times.append(requests[infer_request_id].latency)
         times.sort()
         latency_ms = percentile(times, latency_percentile)
-        fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
+        fps = len(batch_size) * 1000 / latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
         if progress_bar:
             progress_bar.finish()
         return fps, latency_ms, total_duration_sec, iteration

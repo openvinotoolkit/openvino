@@ -62,7 +62,7 @@ def parse_args():
                            'If not specified, the number of iterations is calculated depending on a device.')
     args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=0,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
-    args.add_argument('-b', '--batch_size', type=int, required=False, default=0,
+    args.add_argument('-b', '--batch_size', type=str, required=False, default='',
                       help='Optional. ' +
                            'Batch size value. ' +
                            'If not specified, the batch size value is determined from Intermediate Representation')
@@ -117,7 +117,7 @@ def parse_args():
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
     args.add_argument('-legacy_mode', '--legacy_mode', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. Enable legacy scenario with inputs filling only once before measurements for static models.', )
+                      help='Optional. Enable legacy scenario with inputs filling only once before measurements.', ) # Can it be enabled for dynamic models?
     args.add_argument('-report_type', '--report_type', type=str, required=False,
                       choices=['no_counters', 'average_counters', 'detailed_counters'],
                       help="Optional. Enable collecting statistics report. \"no_counters\" report contains "

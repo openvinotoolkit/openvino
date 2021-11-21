@@ -35,7 +35,7 @@ def next_step(additional_info='', step_id=0):
         6: "Configuring input of the model",
         7: "Loading the model to the device",
         8: "Querying optimal runtime parameters",
-        9: "Creating infer requests and filling input blobs with images",
+        9: "Creating infer requests and preparing input data",
         10: "Measuring performance",
         11: "Dumping statistics report",
     }
@@ -435,7 +435,7 @@ def parse_partial_shape(shape_str):
     dims = []
     for dim in shape_str.split(','):
         if '.. ' in dim:
-            range = list(int(d) for d in dim.split(".. "))
+            range = list(int(d) for d in dim.split('..'))
             assert len(range) == 2
             dims.append(Dimension(range))
         elif dim == '?':
@@ -445,12 +445,38 @@ def parse_partial_shape(shape_str):
     return PartialShape(dims)
 
 
+def parse_batch_size(batch_size_str):
+    if batch_size_str:
+        error_message = f"Can't parse batch size '{batch_size_str}'"
+        dims = batch_size_str.split("..")
+        if len(dims) > 2:
+            raise Exception(error_message)
+        elif len(dims) == 2:
+            range = []
+            for d in dims:
+                if d.isnumeric():
+                    range.append(int(d))
+                else:
+                    raise Exception(error_message)
+            return Dimension(*range)
+        else:
+            if dims[0].lstrip("-").isnumeric():
+                return Dimension(int(dims[0]))
+            elif dims[0] == "?":
+                return Dimension()
+            else:
+                raise Exception(error_message)
+    else:
+        return Dimension(0)
+
+
 def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
     input_names = get_input_output_names(parameters)
     shape_map = parse_input_parameters(shape_string, input_names)
     tensor_shape_map = get_tensor_shapes_map(tensor_shape_string, input_names)
     check_number_of_parameters_for_each_input(tensor_shape_map)
     layout_map = parse_input_parameters(layout_string, input_names)
+    batch_size = parse_batch_size(batch_size)
     reshape = False
     input_info = []
     for i in range(len(parameters)):
@@ -463,6 +489,43 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
             reshape = True
         else:
             info.shape = parameters[i].get_partial_shape()
+
+        # Layout
+        if info.name in layout_map.keys():
+            info.layout = layout_map[info.name]
+        elif parameters[i].get_layout() != Layout():
+            info.layout = str(parameters[i].get_layout())
+        else: # will be removed
+            image_colors_dim = Dimension(3)
+            shape = info.shape
+            num_dims = len(shape)
+            if num_dims == 4:
+                if(shape[1]) == image_colors_dim:
+                    info.layout = "NCHW"
+                elif(shape[3] == image_colors_dim):
+                    info.layout = "NHWC"
+            elif num_dims == image_colors_dim:
+                if(shape[1]) == image_colors_dim:
+                    info.layout = "CHW"
+                elif(shape[3] == image_colors_dim):
+                    info.layout = "HWC"
+            elif num_dims == 2:
+                info.layout = "NC"
+            else:
+                info.layout = "C"
+
+        # Update shape with batch if needed
+        if batch_size != 0:
+            if batch_size.is_static and tensor_shape_map:
+                 raise Exception(f"provide batch size in tensor_shape for dynamic model")
+            if 'N' in info.layout:
+                batch_index = info.layout.index('N')
+                if info.shape[batch_index] != batch_size:
+                    info.shape[batch_index] = batch_size
+                    reshape = True
+            else:
+                raise Exception("Can't identify batch dimension, provide layout defining 'N' deminsion.")
+
         # Tensor shape
         if info.name in tensor_shape_map.keys() and info.shape.is_dynamic:
             for p_shape in tensor_shape_map[info.name]:
@@ -475,41 +538,6 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
         else:
             raise Exception(f"tensor_shape is required for dynamic network.")
 
-        # Layout
-        if info.name in layout_map.keys():
-            info.layout = layout_map[info.name]
-        elif parameters[i].get_layout() != Layout():
-            info.layout = str(parameters[i].get_layout())
-        else: # will be removed
-            shape = info.tensor_shapes[0]
-            num_dims = len(shape)
-            if num_dims == 4:
-                if(shape[1]) == 3:
-                    info.layout = "NCHW"
-                elif(shape[3] == 3):
-                    info.layout = "NHWC"
-            elif num_dims == 3:
-                if(shape[1]) == 3:
-                    info.layout = "CHW"
-                elif(shape[3] == 3):
-                    info.layout = "HWC"
-            elif num_dims == 2:
-                info.layout = "NC"
-            else:
-                info.layout = "C"
-
-        # Update shape with batch if needed
-        if batch_size != 0:
-            batch_size = Dimension(batch_size)
-            if batch_size.is_static and tensor_shape_map:
-                 raise Exception(f"provide batch size in tensor_shape for dynamic case")
-            batch_index = info.layout.index('N') if 'N' in info.layout else -1
-            if batch_index != -1 and info.shape[batch_index] != batch_size:
-                info.shape[batch_index] = batch_size
-                if batch_size.is_static:
-                    for shape in info.tensor_shapes:
-                        shape[batch_index] = batch_size
-                reshape = True
         input_info.append(info)
 
     # Update scale, mean
@@ -530,16 +558,17 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
 
 
 def get_batch_size(inputs_info):
-    batch_size = 0
+    null_dimension = Dimension(0)
+    batch_size = null_dimension
     for info in inputs_info:
         batch_index = info.layout.index('N') if 'N' in info.layout else -1
         if batch_index != -1:
-            if batch_size == 0:
+            if batch_size == null_dimension:
                 batch_size = info.shape[batch_index]
-            elif batch_size != len(info.shape[batch_index]):
+            elif batch_size != info.shape[batch_index]:
                 raise Exception("Can't deterimine batch size: batch is different for different inputs!")
-    if batch_size == 0:
-        batch_size = 1
+    if batch_size == null_dimension:
+        batch_size = Dimension(1)
     return batch_size
 
 
