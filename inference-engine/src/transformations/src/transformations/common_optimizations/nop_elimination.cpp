@@ -12,6 +12,7 @@
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/utils/utils.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace std;
@@ -503,6 +504,34 @@ pass::EliminateTranspose::EliminateTranspose() {
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(pass::EliminateEltwise, "EliminateEltwise", 0);
+
+pass::EliminateEltwise::EliminateEltwise() {
+    MATCHER_SCOPE(EliminateEltwise);
+    auto input = pattern::any_input();
+    auto constant_pattern = pattern::wrap_type<opset8::Constant>();
+    auto eltwise_pattern = pattern::wrap_type<opset8::Subtract,
+                                              opset8::Multiply,
+                                              opset8::Divide>({input, constant_pattern});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto eltwise = pattern_map.at(eltwise_pattern).get_node_shared_ptr();
+        auto constant = pattern_map.at(constant_pattern);
+
+        size_t idx = eltwise->input_value(1) == constant ? 0 : 1;
+        auto non_const_input = eltwise->input_value(idx);
+        if (!op::util::can_eliminate_eltwise_node(eltwise, constant, non_const_input)) {
+            return false;
+        }
+
+        return replace_output_update_name(eltwise->output(0), non_const_input);
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(eltwise_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
@@ -513,6 +542,7 @@ ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     add_matcher<EliminateConcat>();
     add_matcher<EliminateSplit>();
     add_matcher<EliminateTranspose>();
+    add_matcher<EliminateEltwise>();
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {

@@ -4,6 +4,8 @@
 
 #include "itt.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
+#include "transformations/utils/utils.hpp"
+
 
 #include <memory>
 #include <vector>
@@ -26,25 +28,31 @@ bool convert_divide(std::shared_ptr<ngraph::Node> node) {
         return false;
     }
 
-    ngraph::Output<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(div->input_value(1),
+    std::shared_ptr<ngraph::Node> pow = std::make_shared<ngraph::opset1::Power>(div->input_value(1),
                                                        ngraph::op::Constant::create(div->get_input_element_type(1), ngraph::Shape{}, {-1}));
 
     if (std::dynamic_pointer_cast<ngraph::op::Constant>(div->get_input_node_shared_ptr(1))) {
         if (auto const_pow = ngraph::get_constant_from_source(pow)) {
             pow = const_pow;
         } else {
-            NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get_node();
+            NGRAPH_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
             return false;
         }
     } else {
-        ngraph::copy_runtime_info(div, pow.get_node_shared_ptr());
+        ngraph::copy_runtime_info(div, pow);
     }
 
     auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
-
-    mul->set_friendly_name(div->get_friendly_name());
-    ngraph::copy_runtime_info(div, mul);
-    ngraph::replace_node(div, mul);
+    // if Divide is an inverse, then we don't need the Multiply
+    if (ngraph::op::util::can_eliminate_eltwise_node(mul, mul->input_value(0), mul->input_value(1))) {
+        pow->set_friendly_name(div->get_friendly_name());
+        ngraph::copy_runtime_info(div, pow);
+        ngraph::replace_node(div, pow);
+    } else {
+        mul->set_friendly_name(div->get_friendly_name());
+        ngraph::copy_runtime_info(div, mul);
+        ngraph::replace_node(div, mul);
+    }
     return true;
 }
 } // namespace
