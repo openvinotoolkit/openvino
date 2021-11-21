@@ -135,6 +135,7 @@ protected:
                  framework, min_size, nms_thresh, normalize,
                  post_nms_topn, pre_nms_topn, ratio, scale) = proposalParams;
 
+        selectedType = std::string("ref_any_") + netPrecision.name();
         init_input_shapes(inputShapes);
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -193,8 +194,7 @@ TEST_P(ProposalLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "Proposal");
+    CheckPluginRelatedResults(executableNetwork, "Proposal");
 }
 
 namespace {

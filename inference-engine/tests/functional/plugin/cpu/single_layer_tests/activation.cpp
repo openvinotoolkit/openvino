@@ -126,8 +126,7 @@ TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(executableNetwork, "Eltwise");
 }
 
 
@@ -163,8 +162,7 @@ std::vector<std::vector<ov::Shape>> basic4D = {
 };
 
 std::vector<Precision> netPrc = {
-        // TODO: Should be uncommented after PR #8339 merge
-        // Precision::BF16
+        Precision::BF16,
         Precision::FP32
 };
 

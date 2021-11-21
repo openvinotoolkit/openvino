@@ -66,7 +66,7 @@ void op::v1::OneHot::validate_and_infer_types() {
     ov::PartialShape result_shape{ov::PartialShape::dynamic()};
     const auto& depth = input_value(1).get_node_shared_ptr();
     const auto& depth_constant = get_constant_from_source(input_value(1));
-    if (indices_shape.rank().is_static() && depth_constant) {
+    if (indices_shape.rank().is_static()) {
         std::vector<Dimension> out_dims{indices_shape};
         const auto indices_rank = indices_shape.rank().get_length();
         m_axis = ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
@@ -84,15 +84,18 @@ void op::v1::OneHot::validate_and_infer_types() {
                               " (got ",
                               depth->get_shape(),
                               " elements).");
-
-        int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
-        NODE_VALIDATION_CHECK(this,
-                              depth_val > 0,
-                              "The value of 'depth' must be a positive number.",
-                              " (got ",
-                              depth_val,
-                              ").");
-        out_dims.insert(out_dims.begin() + m_axis, Dimension(depth_val));
+        if (depth_constant) {
+            int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
+            NODE_VALIDATION_CHECK(this,
+                                  depth_val > 0,
+                                  "The value of 'depth' must be a positive number.",
+                                  " (got ",
+                                  depth_val,
+                                  ").");
+            out_dims.insert(out_dims.begin() + m_axis, Dimension(depth_val));
+        } else {
+            out_dims.insert(out_dims.begin() + m_axis, Dimension::dynamic());
+        }
         result_shape = out_dims;
     }
 
@@ -155,7 +158,7 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values, const HostT
     const auto out_shape = out_Pshape.get_shape();
     const size_t axis = get_axis();
     NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
-    const auto depth = get_constant_from_source(input_value(1))->cast_vector<int64_t>()[0];
+    const auto depth = std::make_shared<op::v0::Constant>(input_values[1])->cast_vector<int64_t>()[0];
     const auto ind_shape = ind_Pshape.get_shape();
     NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
                  "Incompatible I/O shapes or wrong depth value.");

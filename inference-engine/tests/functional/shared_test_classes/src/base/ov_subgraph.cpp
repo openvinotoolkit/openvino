@@ -50,7 +50,7 @@ void SubgraphBaseTest::run() {
             try {
                 if (!inputDynamicShapes.empty()) {
                     // resize ngraph function according new target shape
-                    ngraph::helpers::resize_function(functionRefs, targetStaticShapeVec);
+                    init_ref_function(functionRefs, targetStaticShapeVec);
                 }
                 generate_inputs(targetStaticShapeVec);
                 infer();
@@ -160,6 +160,10 @@ void SubgraphBaseTest::compile_model() {
         functionRefs = ov::clone_function(*function);
     }
     executableNetwork = core->compile_model(function, targetDevice, configuration);
+}
+
+void SubgraphBaseTest::init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
 }
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
