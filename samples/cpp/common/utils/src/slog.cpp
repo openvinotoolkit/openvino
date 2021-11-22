@@ -18,6 +18,8 @@ LogStream::LogStream(const std::string& prefix, std::ostream& log_stream) : _pre
 
 // Specializing for LogStreamEndLine to support slog::endl
 LogStream& LogStream::operator<<(const LogStreamEndLine& /*arg*/) {
+    if (_new_line)
+        (*_log_stream) << "[ " << _prefix << " ] ";
     _new_line = true;
 
     (*_log_stream) << std::endl;

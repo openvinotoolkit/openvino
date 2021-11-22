@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "openvino/openvino.hpp"
+#include "slog.hpp"
 
 #ifndef UNUSED
 #    if defined(_MSC_VER) && !defined(__clang__)
@@ -101,7 +102,7 @@ inline std::string& trim(std::string& s) {
  * @param filepath - full file name
  * @return filename without extension
  */
-static UNUSED std::string fileNameNoExt(const std::string& filepath) {
+inline std::string fileNameNoExt(const std::string& filepath) {
     auto pos = filepath.rfind('.');
     if (pos == std::string::npos)
         return filepath;
@@ -120,46 +121,40 @@ inline std::string fileExt(const std::string& filename) {
     return filename.substr(pos + 1);
 }
 
-inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version& version) {
-    os << "\t" << version.description << " version ......... ";
-    os << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH;
+inline slog::LogStream& operator<<(slog::LogStream& os, const InferenceEngine::Version& version) {
+    os << version.description << " version ......... ";
+    os << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH << slog::endl;
 
-    os << "\n\tBuild ........... ";
-    os << version.buildNumber;
-
-    return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const ov::Version& version) {
-    os << "\t" << version.description << " version ......... ";
-    os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH;
-
-    os << "\n\tBuild ........... ";
-    os << version.buildNumber;
+    os << "Build ........... ";
+    os << version.buildNumber << slog::endl;
 
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version* version) {
-    if (nullptr != version) {
-        os << std::endl << *version;
-    }
+inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& version) {
+    os << version.description << " version ......... ";
+    os << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH << slog::endl;
+
+    os << "Build ........... ";
+    os << version.buildNumber << slog::endl;
+
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, InferenceEngine::Version>& versions) {
+inline slog::LogStream& operator<<(slog::LogStream& os,
+                                   const std::map<std::string, InferenceEngine::Version>& versions) {
     for (auto&& version : versions) {
-        os << "\t" << version.first << std::endl;
-        os << version.second << std::endl;
+        os << version.first << slog::endl;
+        os << version.second << slog::endl;
     }
 
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, ov::Version>& versions) {
+inline slog::LogStream& operator<<(slog::LogStream& os, const std::map<std::string, ov::Version>& versions) {
     for (auto&& version : versions) {
-        os << "\t" << version.first << std::endl;
-        os << version.second << std::endl;
+        os << version.first << slog::endl;
+        os << version.second << slog::endl;
     }
 
     return os;

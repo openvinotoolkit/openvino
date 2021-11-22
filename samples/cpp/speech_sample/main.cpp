@@ -586,7 +586,7 @@ int main(int argc, char* argv[]) {
         std::string deviceStr = useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
 
         slog::info << "Device info: " << slog::endl;
-        std::cout << ie.GetVersions(deviceStr) << std::endl;
+        slog::info << ie.GetVersions(deviceStr) << slog::endl;
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- Step 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin

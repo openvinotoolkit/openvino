@@ -7,7 +7,7 @@
 #include <pybind11/numpy.h>
 
 #include "ngraph/validation_util.hpp"
-#include "openvino/core/version.hpp"
+#include "ngraph/version.hpp"
 
 namespace py = pybind11;
 
@@ -37,6 +37,8 @@ void regmodule_pyngraph_util(py::module m) {
                 )");
 
     mod.def("get_ngraph_version_string", []() -> std::string {
-        return ov::get_openvino_version()->buildNumber;
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        return get_ngraph_version_string();
+        NGRAPH_SUPPRESS_DEPRECATED_END
     });
 }

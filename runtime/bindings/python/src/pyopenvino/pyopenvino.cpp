@@ -53,7 +53,7 @@ std::string get_version() {
     auto version = ov::get_openvino_version();
     std::string version_str = std::to_string(OPENVINO_VERSION_MAJOR) + ".";
     version_str += std::to_string(OPENVINO_VERSION_MINOR) + ".";
-    version_str += version->buildNumber;
+    version_str += version.buildNumber;
     return version_str;
 }
 

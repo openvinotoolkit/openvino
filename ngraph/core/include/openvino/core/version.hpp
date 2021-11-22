@@ -44,6 +44,6 @@ struct Version {
  * @brief Gets the current OpenVINO version
  * @return The current OpenVINO version
  */
-OPENVINO_API_C(const Version*) get_openvino_version() noexcept;
+OPENVINO_API_C(const Version) get_openvino_version() noexcept;
 
 }  // namespace ov
