@@ -23,6 +23,7 @@
 #include <vector>
 
 // clang-format off
+#include "inference_engine.hpp"
 #include "openvino/openvino.hpp"
 #include "slog.hpp"
 // clang-format on
