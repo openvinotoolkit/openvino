@@ -84,8 +84,7 @@ TEST_P(DepthToSpaceLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: need to uncomment when this method will be updated
-    // CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
+    CPUTestsBase::CheckPluginRelatedResults(executableNetwork, "DepthToSpace");
 }
 
 namespace {
