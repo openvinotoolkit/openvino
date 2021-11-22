@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
@@ -30,7 +29,7 @@ class InterpolateV1ToInterpolate(FrontReplacementPattern):
             interpolate1_name = node.soft_get('name', node.id)
             interpolate4 = create_op_with_const_inputs(graph, Interpolate,
                                                        {
-                                                           2: np.array([1.0, 1.0]),
+                                                           2: mo_array([1.0, 1.0]),
                                                            3: int64_array(node.axes)
                                                        },
                                                        {

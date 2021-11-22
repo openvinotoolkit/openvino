@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, dynamic_dimension_value

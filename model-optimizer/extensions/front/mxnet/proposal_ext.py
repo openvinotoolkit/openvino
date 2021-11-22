@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.proposal import ProposalOp
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
@@ -25,9 +24,9 @@ class ProposalFrontExtractor(FrontExtractorOp):
 
         update_attrs = {
             'feat_stride': feat_stride,
-            'ratio': np.array(ratio),
+            'ratio': mo_array(ratio),
             'min_size': min_size,
-            'scale': np.array(scale),
+            'scale': mo_array(scale),
             'pre_nms_topn': pre_nms_topn,
             'post_nms_topn': post_nms_topn,
             'nms_thresh': nms_thresh,

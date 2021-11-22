@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.front.common.partial_infer.utils import shape_delete
 from mo.graph.graph import Graph, add_opoutput

@@ -7,6 +7,7 @@ from typing import Dict, List
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.fusing.helpers import get_tensor_in_port, get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
@@ -29,7 +30,7 @@ def resolve_shared_inputs(node: Node, port_ids_to_duplicate: List[int]):
         if value is None:
             log.debug('Can not duplicate due no data for in_port {} of node {}'.format(port_id, node.name))
         for node, idxs in dst_port_map.items():
-            const = Const(graph, {'value': np.array(value),
+            const = Const(graph, {'value': mo_array(value),
                                   'name': node.soft_get('name', node.id) + '/duplicated_'}).create_node()
             for idx in idxs:
                 node.in_port(idx).disconnect()

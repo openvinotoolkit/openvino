@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op

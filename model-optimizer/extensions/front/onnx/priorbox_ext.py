@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.priorbox import PriorBoxOp
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -14,14 +15,14 @@ class PriorBoxFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        variance = onnx_attr(node, 'variance', 'floats', default=[], dst_type=lambda x: np.array(x, dtype=np.float32))
+        variance = onnx_attr(node, 'variance', 'floats', default=[], dst_type=lambda x: mo_array(x, dtype=np.float32))
         if len(variance) == 0:
             variance = [0.1]
 
         update_attrs = {
-            'aspect_ratio': onnx_attr(node, 'aspect_ratio', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
-            'min_size': onnx_attr(node, 'min_size', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
-            'max_size': onnx_attr(node, 'max_size', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
+            'aspect_ratio': onnx_attr(node, 'aspect_ratio', 'floats', dst_type=lambda x: mo_array(x, dtype=np.float32)),
+            'min_size': onnx_attr(node, 'min_size', 'floats', dst_type=lambda x: mo_array(x, dtype=np.float32)),
+            'max_size': onnx_attr(node, 'max_size', 'floats', dst_type=lambda x: mo_array(x, dtype=np.float32)),
             'flip': onnx_attr(node, 'flip', 'i', default=0),
             'clip': onnx_attr(node, 'clip', 'i', default=0),
             'variance': list(variance),

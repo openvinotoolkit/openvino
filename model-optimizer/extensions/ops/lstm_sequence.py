@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import mark_input_bins, shape_array, shape_insert
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, add_opoutput, Graph
 from mo.ops.op import Op
 
@@ -66,7 +67,7 @@ class LSTMSequence(Op):
         return Op._create_data_node(
             node.graph,
             name=node.name + '/SplittedBiLSTM/{}/'.format(direction),
-            attrs={'value': node.value[index], 'shape': np.array(node.value[index].shape, dtype=np.int64)}
+            attrs={'value': node.value[index], 'shape': mo_array(node.value[index].shape, dtype=np.int64)}
         )
 
     @staticmethod

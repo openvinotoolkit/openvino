@@ -7,10 +7,12 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array, mark_input_bins, assign_dims_to_weights, \
     tf_window_op_pad_infer, dynamic_dimension_value, shape_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
+from mo.pipeline.common import convert_const_node_value_type
 from mo.utils.error import Error
 
 
@@ -23,6 +25,7 @@ class Convolution(Op):
             'op': self.op,
             'version': 'opset1',
             'infer': self.infer,
+            'type_infer': self.type_infer,
             'multiplication_transparent': True,
             'multiplication_transparent_ports': [(0, 0), (1, 0)],
             'in_ports_count': 3,
@@ -123,7 +126,7 @@ class Convolution(Op):
                           "    Possible reason is wrong channel number in input shape\n")
                 raise Error("Cannot reshape weights to kernel shape")
 
-            node.in_node(weights_index).shape = np.array(kernel_shape)
+            node.in_node(weights_index).shape = mo_array(kernel_shape)
             node.in_node(weights_index).value = np.reshape(node.in_node(weights_index).value, kernel_shape)
             node.reshape_kernel = False
 
@@ -262,3 +265,26 @@ class Convolution(Op):
         PermuteAttrs.set_permutation(node.in_node(weights_index), node, node.soft_get('get_weights_permute', None))
         PermuteInputs().set_input_permutation(
             node.in_node(weights_index), node, 'input:{}'.format(weights_index), 'transpose')
+
+    @staticmethod
+    def type_infer(node):
+        in_type_0 = node.in_port(0).get_data_type()
+        in_type_1 = node.in_port(1).get_data_type()
+        in_node_1 = node.in_port(1).get_source().node
+        # in case of input values data type mismatch we try to change the type of the constant to match the type of
+        # input at index 0.
+        if in_type_1 in [np.float16, np.float32, np.float64] and in_type_0 != in_type_1 and in_node_1.op == 'Const':
+            in_node_1 = node.in_port(1).get_source().node
+            log.error("Changing Const node '{}' data type from {} to {} for Convolution operation".format(
+                in_node_1.soft_get('name', in_node_1.id), in_type_1, in_type_0),
+                extra={'is_warning': True})
+            convert_const_node_value_type(in_node_1, in_type_0)
+        if node.is_in_port_connected(2):
+            in_type_2 = node.in_port(1).get_data_type()
+            if in_type_2 in [np.float16, np.float32, np.float64] and in_type_0 != in_type_2 and in_node_2.op == 'Const':
+                in_node_2 = node.in_port(2).get_source().node
+                log.error("Changing Const node '{}' data type from {} to {} for Convolution operation".format(
+                    in_node_2.soft_get('name', in_node_2.id), in_type_2, in_type_0),
+                    extra={'is_warning': True})
+                convert_const_node_value_type(in_node_2, in_type_0)
+        node.out_port(0).set_data_type(node.in_port(0).get_data_type())

@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
-import numpy as np
 from typing import Optional
 
-from extensions.ops.activation_ops import Floor
+import numpy as np
+
 from extensions.ops.Cast import Cast
+from extensions.ops.activation_ops import Floor
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
@@ -87,7 +89,7 @@ def get_split_scale(split: Node) -> int:
 
 def replace_interpolate_pattern(graph: Graph, match: dict):
     split = match['split']
-    scale = np.array([get_split_scale(split)], dtype=np.float32)
+    scale = mo_array([get_split_scale(split)], dtype=np.float32)
     axis = int(split.in_port(1).get_connection().get_source().node.value)
     split_node_name = split.name
     axis_node = Const(graph, {'name': split_node_name + '/axis', 'value': int64_array([axis])}).create_node()

@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.ops.squeeze import Squeeze
@@ -14,7 +15,7 @@ class SqueezeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
+        axis = mo_array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
 
         attrs = {
             'squeeze_dims': axis if len(axis) != 0 else None

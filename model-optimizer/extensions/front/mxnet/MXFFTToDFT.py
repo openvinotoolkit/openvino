@@ -1,17 +1,15 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.dft import DFT, IDFT
 from extensions.ops.elementwise import Add, Sub
 from extensions.ops.rank import Rank
 from extensions.ops.scatter import ScatterUpdate
 from extensions.ops.split import Split
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
-from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.ops.broadcast import Broadcast
 from mo.ops.concat import Concat
 from mo.ops.pad import Pad

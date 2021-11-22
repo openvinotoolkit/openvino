@@ -7,6 +7,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.fakequantize import FakeQuantize
 from mo.front.common.partial_infer.utils import float_array, int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
@@ -47,7 +48,7 @@ class QuantizeLinearResolver(MiddleReplacementPattern):
                 zerop = quantize_node.in_port(2).get_source().node
             else:
                 zerop = Const(graph,
-                              {'value': np.array(0, dtype=np.uint8), 'name': node_name + '/ZeroPoint'}).create_node()
+                              {'value': mo_array(0, dtype=np.uint8), 'name': node_name + '/ZeroPoint'}).create_node()
 
             assert zerop.soft_get('type') == 'Const', 'only constant for zero_point is supported for QuantizeLinear'
             zero_point_type = zerop.value.dtype

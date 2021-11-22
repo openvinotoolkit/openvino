@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.ops.pooling import Pooling
@@ -23,16 +24,16 @@ class PoolingFrontExtractor(FrontExtractorOp):
         rt = 'floor'
 
         data = {
-            'window': np.array([1, 1, *[k for k in kernel]], dtype=np.int64),
-            'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
-            'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
+            'window': mo_array([1, 1, *[k for k in kernel]], dtype=np.int64),
+            'stride': mo_array([1, 1, *[s for s in stride]], dtype=np.int64),
+            'pad': mo_array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
+            'pad_spatial_shape': mo_array([[pad, pad] for pad in padding], dtype=np.int64),
             'pool_method': method,
             'exclude_pad': False,
             'output_spatial_shape': None,
             'spatial_dims': None,
-            'channel_dims': np.array([1], dtype=np.int64),
-            'batch_dims': np.array([0], dtype=np.int64),
+            'channel_dims': mo_array([1], dtype=np.int64),
+            'batch_dims': mo_array([0], dtype=np.int64),
             'layout': 'NCHW',
             'rounding_type': rt,
         }

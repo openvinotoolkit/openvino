@@ -5,7 +5,7 @@ import re
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array, shape_array
+from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.broadcasting import bi_directional_shape_broadcasting

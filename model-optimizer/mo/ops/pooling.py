@@ -3,14 +3,15 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, shape_array, \
     dynamic_dimension_value, dynamic_dimension
+from mo.front.extractor import bool_to_str
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
-from mo.front.extractor import bool_to_str
 
 
 class PoolingV2(Op):
@@ -118,7 +119,7 @@ class Pooling(Op):
             node.window[node.spatial_dims] = input_spatial_shape
 
         if not node.has_valid('dilation'):
-            node['dilation'] = np.ones(len(input_shape))
+            node['dilation'] = np.ones(len(input_shape), dtype=np.float32)
 
         if not node.has_valid('axis'):
             node['axis'] = 0
@@ -159,7 +160,7 @@ class Pooling(Op):
                 if padded_spatial_shape[idx] is not dynamic_dimension and stride_spatial[idx] is not dynamic_dimension:
                     output_spatial_shape[idx] = int(rounding(padded_spatial_shape[idx] / stride_spatial[idx])) + 1
 
-            original_pads = np.array([i[1] for i in node.pad_spatial_shape])
+            original_pads = mo_array([i[1] for i in node.pad_spatial_shape])
 
             for i in range(len(input_spatial_shape)):
                 if original_pads[i] and (output_spatial_shape[i] - 1) * stride_spatial[i] >= \

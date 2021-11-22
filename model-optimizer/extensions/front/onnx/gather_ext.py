@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.gather import AttributedGather
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -15,7 +16,7 @@ class GatherFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'axis': np.array(onnx_attr(node, 'axis', 'i', default=0), dtype=np.int64)
+            'axis': mo_array(onnx_attr(node, 'axis', 'i', default=0), dtype=np.int64)
         }
 
         AttributedGather.update_node_stat(node, attrs)

@@ -5,14 +5,13 @@ import hashlib
 import logging as log
 import os
 import sys
-
-from defusedxml import defuse_stdlib
-import defusedxml.ElementTree as ET
 from argparse import Namespace
 from collections import namedtuple, defaultdict
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import numpy as np
+from defusedxml import defuse_stdlib
 
 from mo.front.common.partial_infer.utils import dynamic_dimension_value, shape_array
 from mo.graph.graph import Node, Graph

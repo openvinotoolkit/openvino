@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.ops.elementwise import Mul
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 from mo.ops.const import Const
@@ -26,7 +25,7 @@ class SoftmaxFrontReplacementSubgraph(FrontReplacementSubgraph):
             in_node = node.in_node()
             out_nodes = [node for node in node.out_nodes().values()]
             graph.remove_edge(node.in_node().id, node.id)
-            temperature = np.array([1.0 / node.temperature])
+            temperature = mo_array([1.0 / node.temperature])
             scalar_value_op = Const(graph, dict(value=temperature, shape=temperature.shape,
                                                 symbol_dict={'name': node.id + '/const'}))
             mul_op = Mul(graph, dict(name=node.id + '/mul_', symbol_dict={'name': node.id + '/mul_'}))

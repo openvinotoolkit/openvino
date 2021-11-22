@@ -3,11 +3,11 @@
 
 from collections import defaultdict
 
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import add_input_ops
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES, np_data_type_to_precision
 from mo.utils.error import Error
-from mo.front.common.replacement import FrontReplacementPattern
 
 
 class IteratorGetNextCut(FrontReplacementPattern):

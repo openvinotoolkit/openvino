@@ -4,6 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import is_fully_defined, dynamic_dimension_value
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -45,7 +46,7 @@ class NonZero(Op):
 
         input_value = node.in_port(0).data.get_value()
         if is_fully_defined(input_value):
-            node.out_port(0).data.set_value(np.array(np.nonzero(input_value), dtype=node.output_type))
+            node.out_port(0).data.set_value(mo_array(np.nonzero(input_value), dtype=node.output_type))
         else:
             if is_fully_defined(input_shape):
                 # output shape of NonZero is still static (upper bound)

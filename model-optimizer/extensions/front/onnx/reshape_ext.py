@@ -3,9 +3,11 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.ops.reshape import Reshape
+
 
 class ReshapeFrontExtractor(FrontExtractorOp):
     op = 'Reshape'
@@ -15,7 +17,7 @@ class ReshapeFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         dim = onnx_attr(node, 'shape', 'ints', None)
         if dim is not None:
-            dim = np.array(dim, dtype=np.int64)
+            dim = mo_array(dim, dtype=np.int64)
             Reshape.update_node_stat(node, {'dim': dim})
         else:
             Reshape.update_node_stat(node)

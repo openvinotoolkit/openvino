@@ -1,12 +1,11 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.front.mxnet.eltwise_scalar_replacers import MulScalarFrontReplacer
 from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
 from extensions.front.split_normalizer import AttributedSplitToSplit
 from extensions.ops.slice_like import SliceLike
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import find_pattern_matches
@@ -76,7 +75,7 @@ class SsdPatternAnchorReshape(FrontReplacementSubgraph):
                 if v in variants_dict.keys():
                     variants_dict[v] = Node(graph, k).in_nodes()[1].value[0]
 
-        variants = np.array([variants_dict['mul_scalar1x'], variants_dict['mul_scalar1y'],
+        variants = mo_array([variants_dict['mul_scalar1x'], variants_dict['mul_scalar1y'],
                              variants_dict['mul_scalar2x'], variants_dict['mul_scalar2y']] * int(const.value.size / 4)).reshape(const.value.shape)
         priorbox_variants = Const(graph, dict(value=variants, name=const.id + '/priorbox_variants')).create_node()
         variants_slice_like = SliceLike(graph, dict(axes=slice_like.axes,

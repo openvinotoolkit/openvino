@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from typing import Dict
 
 from extensions.front.mxnet.mx_reshape_to_reshape import MXReshapeToReshape
@@ -10,6 +8,7 @@ from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetec
 from extensions.ops.elementwise import Div, Add, Sub
 from extensions.ops.split import Split
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
@@ -33,7 +32,7 @@ def calculate_prior_box_value(value: Node, value_to_div: Port, value_to_add: Por
     graph = value.graph
     dtype = data_type_str_to_np(graph.graph['cmd_params'].data_type)
     _min = Sub(graph, dict(name=value.name + '/Sub')).create_node()
-    div = create_op_node_with_second_input(graph, Div, np.array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
+    div = create_op_node_with_second_input(graph, Div, mo_array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
     div.in_port(0).connect(value_to_div)
     _min.in_port(0).connect(value_to_add)
     _min.in_port(1).connect(div.out_port(0))

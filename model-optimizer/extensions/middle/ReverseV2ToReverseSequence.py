@@ -44,7 +44,7 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
         batch_axis = int(not seq_axis)
 
         # 1. For ReverseSequence 1-port input is seq_lengths => create this input node
-        seq_lengths = np.ones(input_data_shape[batch_axis]) * input_data_shape[seq_axis]
+        seq_lengths = np.ones(input_data_shape[batch_axis], dtype=np.float32) * input_data_shape[seq_axis]
 
         reverse_name = reverse.soft_get('name',  reverse.id)
         rename_node(reverse, reverse_name + '/to_delete')

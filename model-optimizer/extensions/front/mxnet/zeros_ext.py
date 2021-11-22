@@ -24,7 +24,7 @@ class ZerosFrontExtractor(FrontExtractorOp):
 
         update_attrs = {
             'shape': np.ndarray(shape),
-            'value': np.zeros(shape),
+            'value': np.zeros(shape, dtype=np.float32),
             'zero_shapes': zero_shapes
         }
 

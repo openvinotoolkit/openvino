@@ -1,7 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from extensions.ops.ConvertLike import ConvertLike
 from extensions.ops.split import Split
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array

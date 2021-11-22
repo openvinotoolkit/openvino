@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.middle.AddMeanScaleValues import AddMeanScaleValues
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
@@ -35,4 +34,4 @@ class ScaleInput(MiddleReplacementPattern):
             return
         assert (len(match['placeholder'].out_nodes()))
 
-        AddMeanScaleValues.apply_scale(graph, match['placeholder'], {'scale': np.array([scale])})
+        AddMeanScaleValues.apply_scale(graph, match['placeholder'], {'scale': mo_array([scale])})

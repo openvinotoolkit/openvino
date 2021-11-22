@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
@@ -16,5 +17,5 @@ class TransposeFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         order = list(attrs.tuple("axes", int, None))
-        Transpose.update_node_stat(node, {'order': np.array(order, dtype=np.int32)})
+        Transpose.update_node_stat(node, {'order': mo_array(order, dtype=np.int32)})
         return cls.enabled

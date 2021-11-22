@@ -3,6 +3,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.ops.group_norm import GroupNorm
@@ -15,8 +16,8 @@ class ExperimentalDetectronGroupNorm(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'eps': np.array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
-            'num_groups': np.array(onnx_attr(node, 'num_groups', 'i', default=1), dtype=np.int64),
+            'eps': mo_array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
+            'num_groups': mo_array(onnx_attr(node, 'num_groups', 'i', default=1), dtype=np.int64),
         }
         GroupNorm.update_node_stat(node, attrs)
         return cls.enabled
@@ -29,8 +30,8 @@ class GroupNormExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'eps': np.array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
-            'num_groups': np.array(onnx_attr(node, 'num_groups', 'i', default=1), dtype=np.int64),
+            'eps': mo_array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
+            'num_groups': mo_array(onnx_attr(node, 'num_groups', 'i', default=1), dtype=np.int64),
         }
         GroupNorm.update_node_stat(node, attrs)
         return cls.enabled

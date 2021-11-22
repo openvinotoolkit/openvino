@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.RNN import RNN
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -17,9 +18,9 @@ class RNNFrontExtractor(FrontExtractorOp):
         direction = onnx_attr(node, 'direction', 's', b'forward').decode().lower()
 
         activation_alpha = onnx_attr(node, 'activation_alpha', 'floats',
-                                     default=None, dst_type=lambda x: np.array(x, dtype=np.float32))
+                                     default=None, dst_type=lambda x: mo_array(x, dtype=np.float32))
         activation_beta = onnx_attr(node, 'activation_beta', 'floats',
-                                    default=None, dst_type=lambda x: np.array(x, dtype=np.float32))
+                                    default=None, dst_type=lambda x: mo_array(x, dtype=np.float32))
         activations = onnx_attr(node, 'activations', 'strings',
                                 default=['tanh', 'tanh'] if direction == 'bidirectional' else ['tanh'],
                                 dst_type=lambda x: list(map(lambda s: s.decode(encoding="utf-8").lower(), list(x))))
@@ -45,7 +46,7 @@ class RNNFrontExtractor(FrontExtractorOp):
             'activations': activations,
             'clip': clip,
             'direction': direction,
-            'hidden_size': np.array(onnx_attr(node, 'hidden_size', 'i'), dtype=np.int64),
+            'hidden_size': mo_array(onnx_attr(node, 'hidden_size', 'i'), dtype=np.int64),
         }
 
         RNN.update_node_stat(node, attrs)

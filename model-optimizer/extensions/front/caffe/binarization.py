@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.fakequantize import FakeQuantize
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.ops.const import Const
@@ -19,7 +20,7 @@ class BinarizationToQuantize(FrontReplacementOp):
     def replace_op(self, graph: Graph, node: Node):
         in_node_0 = node.in_node(0)
 
-        broadcast = lambda x: np.array([x], dtype=np.float32)
+        broadcast = lambda x: mo_array([x], dtype=np.float32)
         threshold = Const(graph, {'name': node.id + "/Input_1", "value": broadcast(0)}).create_node()
         in_1 = threshold
         in_2 = threshold

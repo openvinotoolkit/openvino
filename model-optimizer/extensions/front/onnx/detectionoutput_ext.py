@@ -6,6 +6,7 @@ from math import log
 import numpy as np
 
 from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -23,7 +24,7 @@ class ExperimentalDetectronDetectionOutputFrontExtractor(FrontExtractorOp):
                      post_nms_count=onnx_attr(node, 'post_nms_count', 'i', 2000),
                      score_threshold=onnx_attr(node, 'score_threshold', 'f', 0.05),
                      max_delta_log_wh=onnx_attr(node, 'max_delta_log_wh', 'f', log(1000. / 16.)),
-                     deltas_weights=np.array(onnx_attr(node, 'deltas_weights', 'floats', [10., 10., 5., 5.]),
+                     deltas_weights=mo_array(onnx_attr(node, 'deltas_weights', 'floats', [10., 10., 5., 5.]),
                                              dtype=np.float32)
                      )
         ExperimentalDetectronDetectionOutput.update_node_stat(node, attrs)

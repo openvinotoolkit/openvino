@@ -4,7 +4,6 @@
 import logging as log
 
 from mo.back.replacement import BackReplacementPattern
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.passes.eliminate import remove_op_node_with_data_node
 

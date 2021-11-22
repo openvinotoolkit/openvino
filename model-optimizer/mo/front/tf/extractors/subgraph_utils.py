@@ -4,7 +4,7 @@
 import copy
 
 from extensions.ops.parameter import Parameter
-from mo.front.tf.extractor import tf_op_extractor, tf_op_extractors, create_tf_edge
+from mo.front.tf.extractor import create_tf_edge
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.graph.graph import Graph, Node, add_opoutput
 from mo.ops.op import PermuteAttrs

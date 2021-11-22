@@ -9,6 +9,7 @@ from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOu
 from extensions.ops.parameter import Parameter
 from extensions.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph
@@ -53,7 +54,7 @@ def insert_do(graph: Graph, replacement_descriptions: dict):
 
     do_node = ExperimentalDetectronDetectionOutput(graph, {'name': 'DetectionOutput',
                                                            'class_agnostic_box_regression': 0,
-                                                           'deltas_weights': np.array([10.0, 10.0, 5.0, 5.0]),
+                                                           'deltas_weights': mo_array([10.0, 10.0, 5.0, 5.0]),
                                                            'max_delta_log_wh':
                                                                replacement_descriptions['max_delta_log_wh'],
                                                            'nms_threshold': replacement_descriptions['nms_threshold'],

@@ -5,6 +5,7 @@ import numpy as np
 
 from extensions.ops.BatchNormInference import BatchNormInference
 from mo.front.caffe.extractors.utils import embed_input
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -22,8 +23,8 @@ class BatchNormalizationExtractor(FrontExtractorOp):
         if pb_model:
             blobs = pb_model.blobs
             assert len(blobs) >= 2, 'BatchNorm accepts not less then two input blobs'
-            mean = np.array(blobs[0].data)
-            variance = np.array(blobs[1].data)
+            mean = mo_array(blobs[0].data)
+            variance = mo_array(blobs[1].data)
 
             if len(blobs) == 3:
                 scale = blobs[2].data[0]
@@ -32,8 +33,8 @@ class BatchNormalizationExtractor(FrontExtractorOp):
                 mean *= scale
                 variance *= scale
 
-            embed_input(attrs, 1, 'gamma', np.ones(mean.shape), 'gamma')
-            embed_input(attrs, 2, 'beta', np.zeros(variance.shape), 'beta')
+            embed_input(attrs, 1, 'gamma', np.ones(mean.shape, dtype=np.float32), 'gamma')
+            embed_input(attrs, 2, 'beta', np.zeros(variance.shape, dtype=np.float32), 'beta')
             embed_input(attrs, 3, 'mean', mean, 'biases')
             embed_input(attrs, 4, 'variance', variance, 'weights')
 

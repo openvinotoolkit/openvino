@@ -1,8 +1,6 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_insert
 from mo.graph.graph import Node
 from mo.ops.op import Op

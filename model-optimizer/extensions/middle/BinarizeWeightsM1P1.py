@@ -9,6 +9,7 @@ from extensions.middle.CheckForCycle import CheckForCycle
 from extensions.middle.DeleteNotExecutable import DeleteNotExecutable
 from extensions.ops.elementwise import Mul, Pow
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -116,7 +117,7 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
             log.debug('BinarizeWeightsM1P1: len(match[\'quantized\'].out_nodes()) > 1')
             return
         power_of_exponent = Const(graph, {'name': quantize_name + '/DivNormalize/Power',
-                                          'value': np.array(-1.0)}).create_node_with_data()
+                                          'value': mo_array(-1.0)}).create_node_with_data()
         div_op = Pow(graph, {'name': quantize_name + '/DivNormalize'})
         div_output = div_op.create_node_with_data([mult_term, power_of_exponent])
 

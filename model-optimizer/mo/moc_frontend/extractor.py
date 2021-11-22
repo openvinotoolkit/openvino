@@ -3,12 +3,11 @@
 
 import re
 
-from mo.front.extractor import raise_no_node, raise_node_name_collision
-from mo.utils.error import Error
-
+import numpy as np
 from ngraph.frontend import InputModel  # pylint: disable=no-name-in-module,import-error
 
-import numpy as np
+from mo.front.extractor import raise_no_node, raise_node_name_collision
+from mo.utils.error import Error
 
 
 def decode_name_with_port(input_model: InputModel, node_name: str):

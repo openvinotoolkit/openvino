@@ -4,6 +4,7 @@
 import numpy as np
 
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -14,13 +15,13 @@ class PriorBoxClusteredFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        variance = onnx_attr(node, 'variance', 'floats', default=[], dst_type=lambda x: np.array(x, dtype=np.float32))
+        variance = onnx_attr(node, 'variance', 'floats', default=[], dst_type=lambda x: mo_array(x, dtype=np.float32))
         if len(variance) == 0:
             variance = [0.1]
 
         update_attrs = {
-            'width': onnx_attr(node, 'width', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
-            'height': onnx_attr(node, 'height', 'floats', dst_type=lambda x: np.array(x, dtype=np.float32)),
+            'width': onnx_attr(node, 'width', 'floats', dst_type=lambda x: mo_array(x, dtype=np.float32)),
+            'height': onnx_attr(node, 'height', 'floats', dst_type=lambda x: mo_array(x, dtype=np.float32)),
             'flip': onnx_attr(node, 'flip', 'i', default=0),
             'clip': onnx_attr(node, 'clip', 'i', default=0),
             'variance': list(variance),

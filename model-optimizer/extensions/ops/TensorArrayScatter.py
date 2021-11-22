@@ -1,8 +1,7 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.partial_infer.utils import shape_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -39,4 +38,4 @@ class TensorArrayScatter(Op):
         output_value = flow_in.value
         for _, out_node in node.graph.out_edges(node.id):
             node.graph.node[out_node]['shape'] = shape_array(flow_in.shape)
-            node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+            node.graph.node[out_node]['value'] = None if output_value is None else mo_array(output_value)

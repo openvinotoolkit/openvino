@@ -5,6 +5,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import get_spatial_attr, get_list_from_container, weights_biases
 from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.convolution import Convolution
 from mo.utils.error import Error
@@ -97,18 +98,18 @@ def conv_create_attrs(params):
     return {
         'bias_addable': True,
         'bias_term': params['bias_term'],
-        'pad': np.array([[0, 0], [0, 0], [params['padding'][1], params['padding'][1]],
+        'pad': mo_array([[0, 0], [0, 0], [params['padding'][1], params['padding'][1]],
                          [params['padding'][0], params['padding'][0]]], dtype=np.int64),
-        'pad_spatial_shape': np.array([[params['padding'][1], params['padding'][1]],
+        'pad_spatial_shape': mo_array([[params['padding'][1], params['padding'][1]],
                                        [params['padding'][0], params['padding'][0]]], dtype=np.int64),
-        'dilation': np.array([1, 1, params['dilate'][1], params['dilate'][0]], dtype=np.int64),
+        'dilation': mo_array([1, 1, params['dilate'][1], params['dilate'][0]], dtype=np.int64),
         'output_spatial_shape': None,
         'output_shape': None,
-        'stride': np.array([1, 1, params['stride'][1], params['stride'][0]], dtype=np.int64),
+        'stride': mo_array([1, 1, params['stride'][1], params['stride'][0]], dtype=np.int64),
         'group': params['group'],
         'output': params['output'],
-        'kernel_spatial': np.array([params['kernel'][1], params['kernel'][0]], dtype=np.int64),
-        'kernel_spatial_idx': np.array([2, 3], dtype=np.int64),
+        'kernel_spatial': mo_array([params['kernel'][1], params['kernel'][0]], dtype=np.int64),
+        'kernel_spatial_idx': mo_array([2, 3], dtype=np.int64),
         'reshape_kernel': True,
 
         'input_feature_channel': 1,

@@ -5,6 +5,7 @@ import numpy as np
 
 from mo.front.caffe.extractors.utils import get_spatial_attr
 from mo.front.common.extractors.utils import layout_attrs
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.pooling import Pooling
 
@@ -50,10 +51,10 @@ class PoolingFrontExtractor(FrontExtractorOp):
             rt = 'floor'
 
         attrs = {
-            'window': np.array([1, 1, kernel[1], kernel[0]], dtype=np.int64),
-            'stride': np.array([1, 1, stride[1], stride[0]], dtype=np.int64),
-            'pad': np.array([[0, 0], [0, 0], [padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
-            'pad_spatial_shape': np.array([[padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
+            'window': mo_array([1, 1, kernel[1], kernel[0]], dtype=np.int64),
+            'stride': mo_array([1, 1, stride[1], stride[0]], dtype=np.int64),
+            'pad': mo_array([[0, 0], [0, 0], [padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
+            'pad_spatial_shape': mo_array([[padding[1], padding[1]], [padding[0], padding[0]]], dtype=np.int64),
             'pool_method': method,
             'exclude_pad': exclude_pad,
             'global_pool': global_pooling,

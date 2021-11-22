@@ -16,8 +16,8 @@ from mo.ops.concat import Concat
 from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
-from mo.utils.graph import bfs_search
 from mo.utils.error import Error
+from mo.utils.graph import bfs_search
 
 
 def check_inputs(graph: Graph):

@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
+
 from extensions.ops.mvn import MVN
 from extensions.ops.range import Range
 from extensions.ops.rank import Rank
@@ -8,8 +10,6 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
-
-import numpy as np
 
 
 class MVNCaffeToMVN(FrontReplacementPattern):

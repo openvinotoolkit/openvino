@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from extensions.ops.loop import Loop
-from mo.middle.replacement import MiddleReplacementPattern
 from mo.graph.graph import Graph
+from mo.middle.replacement import MiddleReplacementPattern
 
 
 class MoveConstToLoopBody(MiddleReplacementPattern):

@@ -5,6 +5,7 @@ import numpy as np
 
 from extensions.ops.mvn import MVNOnnx
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -17,7 +18,7 @@ class MeanVarianceNormalizationExtractor(FrontExtractorOp):
     def extract(cls, node):
         axes = onnx_attr(node, 'axes', 'ints',
                          default=int64_array([0, 2, 3]),
-                         dst_type=lambda x: np.array(x, dtype=np.int64))
+                         dst_type=lambda x: mo_array(x, dtype=np.int64))
 
         attrs = {
             'eps': 1e-9,

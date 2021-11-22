@@ -1,10 +1,9 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
 from extensions.front.eltwise_n import EltwiseNReplacement
 from extensions.ops.elementwise import Mul
+from mo.front.common.partial_infer.utils import mo_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
@@ -25,7 +24,7 @@ class EltwiseAddNormalize(FrontReplacementPattern):
     def __insert_mul_node_with_coeff(node: Node, port: int, coeff: float):
         if coeff != 1:
             mul_node = Mul(node.graph, {'name': node.id + '/coeff_mul'}).create_node()
-            const_node = Const(node.graph, {'name': node.id + '/coeff', 'value': np.array([coeff])}).create_node()
+            const_node = Const(node.graph, {'name': node.id + '/coeff', 'value': mo_array([coeff])}).create_node()
             node.in_port(port).get_connection().insert_node(mul_node)
             const_node.out_port(0).connect(mul_node.in_port(1))
 
