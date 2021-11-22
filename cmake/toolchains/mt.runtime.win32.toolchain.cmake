@@ -21,6 +21,12 @@ function(onecoreuap_set_runtime var)
     set(${var} ${use_static_runtime} CACHE BOOL "" FORCE)
 endfunction()
 
+# static TBBBind_2_5 is built with dynamic CRT runtime
+if(use_static_runtime)
+    onecoreuap_set_runtime(OFF)
+else()
+    onecoreuap_set_runtime(ON)
+endif()
 # ONNX
 onecoreuap_set_runtime(ONNX_USE_MSVC_STATIC_RUNTIME)
 # pugixml
