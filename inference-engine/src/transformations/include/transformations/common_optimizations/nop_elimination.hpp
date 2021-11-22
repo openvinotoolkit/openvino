@@ -21,6 +21,8 @@ class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateSplit;
 class TRANSFORMATIONS_API EliminateTranspose;
+class TRANSFORMATIONS_API RemoveConcatZeroDimInput;
+class TRANSFORMATIONS_API RemoveMultiSubGraphOpDanglingParams;
 class TRANSFORMATIONS_API NopElimination;
 
 }  // namespace pass
@@ -86,6 +88,30 @@ public:
     EliminateTranspose();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief RemoveConcatZeroDimInput transformation
+ * removes input of Concat if the tensor size is equal to 0
+ */
+
+class ngraph::pass::RemoveConcatZeroDimInput: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    RemoveConcatZeroDimInput();
+};
+
+/*
+ * @ingroup ie_transformation_common_api
+ * @brief RemoveMultiSubGraphOpDanglingParams transformation
+ * removed MultiSubGraphOp inputs which are not connected to other nodes
+ * in the bodies of a MultiSubGraphOp
+ */
+
+class ngraph::pass::RemoveMultiSubGraphOpDanglingParams: public ov::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    RemoveMultiSubGraphOpDanglingParams();
+};
 
 class ngraph::pass::NopElimination: public GraphRewrite {
 public:

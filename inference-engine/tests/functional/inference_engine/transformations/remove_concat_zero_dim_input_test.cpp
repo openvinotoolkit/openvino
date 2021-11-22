@@ -10,7 +10,7 @@
 #include <openvino/core/function.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -31,7 +31,7 @@ TEST(TransformationTests, RemoveConcatZeroDimInputStaticShape) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -60,7 +60,7 @@ TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -90,7 +90,7 @@ TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph2) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -119,7 +119,7 @@ TEST(TransformationTests, RemoveConcatZeroDimInputPartiallyKnowShape) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -147,7 +147,7 @@ TEST(TransformationTests, RemoveConcatZeroDimInputDynamicRank) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -178,7 +178,7 @@ TEST(TransformationTests, RemoveConcatZeroDimTwoInputs) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+        manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
