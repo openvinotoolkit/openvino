@@ -9,7 +9,7 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(RegionYoloLayerTest, CompareWithRefs) {
-    run();
+    Run();
 };
 
 } // namespace LayerTestsDefinitions

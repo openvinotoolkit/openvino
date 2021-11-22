@@ -6,13 +6,12 @@
 
 #include "shared_test_classes/single_layer/region_yolo.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
     TEST_P(RegionYoloLayerTest, Serialize) {
-        serialize();
+        Serialize();
     }
 
 
@@ -36,7 +35,7 @@ namespace {
 
     INSTANTIATE_TEST_SUITE_P(smoke_RegionYolov3Serialization, RegionYoloLayerTest,
     ::testing::Combine(
-        ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapes_v3)),
+        ::testing::ValuesIn(inShapes_v3),
         ::testing::Values(classes[0]),
         ::testing::Values(coords),
         ::testing::Values(num_regions[1]),

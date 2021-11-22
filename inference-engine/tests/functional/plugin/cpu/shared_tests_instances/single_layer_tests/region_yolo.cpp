@@ -9,65 +9,23 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<ov::test::InputShape> inShapes_caffe = {
-    // dynamic input shapes
-    {
-        // input model dynamic shapes
-        {1, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-        // input tensor shapes
-        {{1, 125, 13, 13}, {1, 125, 13, 13}}
-    },
-    {
-        // input model dynamic shapes with interval limits
-        {1, {125, 255}, {13, 26}, {13, 26}},
-        // input tensor shapes
-        {{1, 125, 13, 13}, {1, 255, 26, 26}}
-    },
-    // static shapes
-    {{1, 125, 13, 13}, {{1, 125, 13, 13}}}
+const std::vector<ngraph::Shape> inShapes_caffe = {
+    {1, 125, 13, 13}
 };
 
-const std::vector<ov::test::InputShape> inShapes_mxnet = {
-    // dynamic input shapes
-    {
-        // input model dynamic shapes
-        {1, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-        // input tensor shapes
-        {{1, 75, 52, 52}, {1, 75, 32, 32}}
-    },
-    {
-        // input model dynamic shapes with interval limits
-        {1, {75, 75}, {32, 52}, {32, 52}},
-        // input tensor shapes
-        {{1, 75, 52, 52}, {1, 75, 32, 32}}
-    },
-    // static shapes
-    {{1, 75, 52, 52}, {{1, 75, 52, 52}}},
-    {{1, 75, 32, 32}, {{1, 75, 32, 32}}},
-    {{1, 75, 26, 26}, {{1, 75, 26, 26}}},
-    {{1, 75, 16, 16}, {{1, 75, 16, 16}}},
-    {{1, 75, 13, 13}, {{1, 75, 13, 13}}},
-    {{1, 75, 8, 8}, {{1, 75, 8, 8}}}
+const std::vector<ngraph::Shape> inShapes_mxnet = {
+    {1, 75, 52, 52},
+    {1, 75, 32, 32},
+    {1, 75, 26, 26},
+    {1, 75, 16, 16},
+    {1, 75, 13, 13},
+    {1, 75, 8, 8}
 };
 
-const std::vector<ov::test::InputShape> inShapes_v3 = {
-    // dynamic input shapes
-    {
-        // input model dynamic shapes
-        {1, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
-        // input tensor shapes
-        {{1, 255, 52, 52}, {1, 125, 13, 13}}
-    },
-    {
-        // input model dynamic shapes with interval limits
-        {1, {125, 255}, {13, 52}, {13, 52}},
-        // input tensor shapes
-        {{1, 255, 52, 52}, {1, 125, 13, 13}}
-    },
-    // static shapes
-    {{1, 255, 52, 52}, {{1, 255, 52, 52}}},
-    {{1, 255, 26, 26}, {{1, 255, 26, 26}}},
-    {{1, 255, 13, 13}, {{1, 255, 13, 13}}}
+const std::vector<ngraph::Shape> inShapes_v3 = {
+    {1, 255, 52, 52},
+    {1, 255, 26, 26},
+    {1, 255, 13, 13}
 };
 
 const std::vector<std::vector<int64_t>> masks = {
