@@ -417,21 +417,24 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
             const auto& tensor_name = item.first;
             const auto type = getType(item.second);
 
-            bool isInput = false;
+            bool tensorFound = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 if (inputs[i].get_names().count(tensor_name)) {
                     preprocessor.input(i).tensor().set_element_type(type);
-                    isInput = true;
+                    tensorFound = true;
                     break;
                 }
             }
-            if (!isInput) {
+            if (!tensorFound) {
                 for (size_t i = 0; i < outputs.size(); i++) {
                     if (outputs[i].get_names().count(tensor_name)) {
                         preprocessor.output(i).tensor().set_element_type(type);
+                        tensorFound = true;
+                        break;
                     }
                 }
             }
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
         }
     }
     if (!il.empty()) {
@@ -451,25 +454,24 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
         for (auto&& item : user_precisions_map) {
             const auto& tensor_name = item.first;
 
-            bool isInput = false;
-            bool isOutput = false;
+            bool tensorFound = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 if (inputs[i].get_names().count(tensor_name)) {
                     preprocessor.input(i).tensor().set_layout(ov::Layout(item.second));
-                    isInput = true;
+                    tensorFound = true;
                     break;
                 }
             }
-            if (!isInput) {
+            if (!tensorFound) {
                 for (size_t i = 0; i < outputs.size(); i++) {
                     if (outputs[i].get_names().count(tensor_name)) {
                         preprocessor.output(i).tensor().set_layout(ov::Layout(item.second));
-                        isOutput = true;
+                        tensorFound = true;
                         break;
                     }
                 }
             }
-            OPENVINO_ASSERT(!isInput && !isOutput, "Model doesn't have input/output with tensor name: ", tensor_name);
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
         }
     }
 
@@ -490,25 +492,24 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
         for (auto&& item : user_precisions_map) {
             const auto& tensor_name = item.first;
 
-            bool isInput = false;
-            bool isOutput = false;
+            bool tensorFound = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 if (inputs[i].get_names().count(tensor_name)) {
                     preprocessor.input(i).network().set_layout(ov::Layout(item.second));
-                    isInput = true;
+                    tensorFound = true;
                     break;
                 }
             }
-            if (!isInput) {
+            if (!tensorFound) {
                 for (size_t i = 0; i < outputs.size(); i++) {
                     if (outputs[i].get_names().count(tensor_name)) {
                         preprocessor.output(i).network().set_layout(ov::Layout(item.second));
-                        isOutput = true;
+                        tensorFound = true;
                         break;
                     }
                 }
             }
-            OPENVINO_ASSERT(!isInput && !isOutput, "Model doesn't have input/output with tensor name: ", tensor_name);
+            OPENVINO_ASSERT(!tensorFound, "Model doesn't have input/output with tensor name: ", tensor_name);
         }
     }
 
