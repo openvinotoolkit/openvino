@@ -290,6 +290,7 @@ def test_softsign():
     assert np.allclose(ng_results, [expected])
 
 
+@pytest.mark.xfail(reason="::getPort() fails for trivial models like: Param->Result", strict=True)
 def test_identity():
     np.random.seed(133391)
     shape = [2, 4]
