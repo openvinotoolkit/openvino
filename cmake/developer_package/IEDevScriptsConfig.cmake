@@ -140,7 +140,7 @@ endif()
 set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
-# Support CMake multiconfiguration for Visual Studio or Xcode build
+# Support CMake multi-configuration for Visual Studio / Ninja or Xcode build
 set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
