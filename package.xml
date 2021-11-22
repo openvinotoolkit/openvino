@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!--
+  Copyright 2021 Intel OpenVINO Authors 
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<package format="2">
+  <name>openvino</name>
+  <version>1.0.0</version>
+  <description>
+	OpenVINO is an AI inference that applies capabilities learned after training 
+	a neural network to yield results. The Intel Distribution of OpenVINO toolkit 
+	enables you to optimize, tune, and run comprehensive AI inference using the 
+	included model optimizer and runtime and development tools.
+  </description>
+  <maintainer email="openvino-owners@intel.com">
+    The OpenVINO Authors
+  </maintainer>
+  <license>Apache 2.0</license>
+
+  <url>https://github.com/openvinotoolkit/openvino</url>
+
+  <author email="openvino-owners@intel.com">
+    The OpenVINO Authors
+  </author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!--
+  <build_depend>g++-static</build_depend>
+  <build_depend>google-mock</build_depend>
+  <build_depend>python-sphinx</build_depend>
+
+  <depend>opencv</depend>
+  <depend>opencl</depend>
+  <depend>tbb</depend>
+  <depend>pythoninterp</depend>
+  <depend>threads</depend>
+  <depend>libgna</depend>
+  <depend>boost</depend>
+  <depend>protobuf</depend>
+  <depend>pugixml</depend>
+  <depend>ade</depend>
+  <depend>plaidml2</depend>
+  -->
+
+  <export>
+    <build_type>cmake</build_type>
+  </export>
+</package>
