@@ -377,6 +377,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
                     if ((param_type == ngraph::element::u8 && old_api_map_type.is_real()) ||
                         (param_type == ngraph::element::i64 && old_api_map_type == ngraph::element::i32)) {
                         parameter->set_element_type(old_api_map_type);
+                        function->validate_nodes_and_infer_types();
                     } else {
                         pre_input.tensor().set_element_type(old_api_map_type);
                     }
