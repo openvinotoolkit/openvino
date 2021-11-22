@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-from numpy.core.defchararray import array
 import pytest
 
 import openvino.opset8 as ops
