@@ -158,7 +158,10 @@ void DetectionOutputLayerTestWithAutoBatching::SetUp() {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
     size_t batch;
+    std::string device;
     std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = this->GetParam();
+    //creating the Auto-batching device with the specific batch size
+    targetDevice = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + device + "(" + std::to_string(batch) + ")";
 
     std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
              attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
