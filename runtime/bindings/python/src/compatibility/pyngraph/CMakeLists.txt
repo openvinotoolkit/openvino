@@ -56,11 +56,6 @@ target_include_directories(_${PROJECT_NAME} PRIVATE "../")
 
 target_link_libraries(_${PROJECT_NAME} PRIVATE openvino::core openvino::frontend::manager)
 
-if(TARGET onnx_ngraph_frontend)
-    add_dependencies(_${PROJECT_NAME} onnx_ngraph_frontend)
-endif()
-
-
 # perform copy
 if(OpenVINO_SOURCE_DIR)
     add_custom_command(TARGET _${PROJECT_NAME}

@@ -37,7 +37,7 @@ private:
         LayoutType layoutType;
         Mode mode;
         size_t blockSize = 0lu;
-        size_t blockStep = 0lu;
+        size_t blockStep = 1lu;
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
     } attrs;
