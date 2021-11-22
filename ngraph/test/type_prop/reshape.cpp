@@ -122,7 +122,8 @@ TEST(type_prop, interval_value_propagation_mul_div) {
 }
 
 TEST(type_prop, interval_value_propagation_mul_div_rhs_shape) {
-    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 5), Dimension(0, 4), Dimension(2, 3)});
+    auto param =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 5), Dimension(0, 4), Dimension(2, 3)});
 
     auto shape_of = make_shared<op::v3::ShapeOf>(param);
 
