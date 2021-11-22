@@ -104,7 +104,7 @@ Options:
     -progress                   Optional. Show progress bar (can affect performance measurement). Default values is "false".
     -shape                      Optional. Set shape for network input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
                                 This parameter affect model input shape and can be dynamic. For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?].
-                                For bounded dimensions specify range 'min..max'. Ex. [min..max,3,?,?].
+                                For bounded dimensions specify range 'min..max'. Ex. [1..10,3,?,?].
     -tensor_shape               Optional if network shapes are all static (original ones or set by -shape.
                                 Required if at least one input shape is dynamic. Set shape for input blobs.
                                 For example, "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]" in case of
