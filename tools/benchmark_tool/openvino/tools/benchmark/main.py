@@ -310,6 +310,11 @@ def run(args):
             if batch_size.is_dynamic and benchmark.api_type == 'sync':
                 raise Exception("Dynamic batch size is supported only in async mode")
 
+        for info in app_inputs_info:
+            if info.is_dynamic and benchmark.api_type == 'sync':
+                raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
+                                   "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
+
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
         if is_flag_set_in_command_line('hint'):
@@ -339,9 +344,6 @@ def run(args):
                                               ('create infer requests time (ms)', duration_ms)
                                           ])
 
-        # Iteration limit
-        benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, benchmark.api_type)
-
         # Prepare input data
         paths_to_input = list()
         if args.paths_to_input:
@@ -352,6 +354,9 @@ def run(args):
                     paths_to_input.append(os.path.abspath(*path))
 
         data_queue = get_input_data(paths_to_input, app_inputs_info)
+
+        # Iteration limit
+        benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, max(len(info.shapes) for info in app_inputs_info), benchmark.api_type)
 
         # Set input tensors before first inference
         for request in requests:
@@ -399,8 +404,6 @@ def run(args):
                                     ])
         if benchmark.legacy_mode:
             logger.info("Legacy mode is enabled, inputs filling only once before measurements.")
-        #else:
-            # TODO: do we need a message that inputs are filling on each iterarion ?
 
         fps, latency_ms, total_duration_sec, iteration = benchmark.infer(requests, data_queue, batch_size, args.latency_percentile, progress_bar)
 

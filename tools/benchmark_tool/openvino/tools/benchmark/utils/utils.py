@@ -158,14 +158,20 @@ def print_inputs_and_outputs_info(function: Function):
                                         f"{' '.join(str(x) for x in  results[i].get_output_partial_shape(0))}")
 
 
-def get_number_iterations(number_iterations: int, nireq: int, api_type: str):
+def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, api_type: str):
     niter = number_iterations
 
     if api_type == 'async' and niter:
-        niter = int((niter + nireq - 1) / nireq) * nireq
-        if number_iterations != niter:
-            logger.warning('Number of iterations was aligned by request number '
-                           f'from {number_iterations} to {niter} using number of requests {nireq}')
+        if num_shapes > nireq:
+            niter = ((niter + num_shapes -1) / num_shapes) * num_shapes
+            if number_iterations != niter:
+                logger.warning('Number of iterations was aligned by number of input shapes '
+                            f'from {number_iterations} to {niter} using number of possible input shapes {num_shapes}')
+        else:
+            niter = int((niter + nireq - 1) / nireq) * nireq
+            if number_iterations != niter:
+                logger.warning('Number of iterations was aligned by request number '
+                            f'from {number_iterations} to {niter} using number of requests {nireq}')
 
     return niter
 
