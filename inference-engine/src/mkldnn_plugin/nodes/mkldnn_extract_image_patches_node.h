@@ -12,22 +12,20 @@
 
 namespace MKLDNNPlugin {
 struct jit_extract_image_patches_params {
-    size_t IC, IH, IW;
-    size_t OB, OH, OW;
+    size_t IW;
+    size_t OH, OW;
     size_t KH, KW;
     size_t SH, SW;
-    size_t RH, RW;
-    size_t PT, PL;
     size_t dtype_size;
     size_t block_size;
     bool need_padding;
 };
 
 struct jit_extract_image_patches_args {
-    size_t h_lo_pad;
-    size_t h_hi_pad;
-    size_t w_lo_pad;
-    size_t w_hi_pad;
+    uint64_t h_lo_pad;
+    uint64_t h_hi_pad;
+    uint64_t w_lo_pad;
+    uint64_t w_hi_pad;
     const void* src;
     void* dst;
 };
@@ -74,7 +72,6 @@ private:
     struct ExtractImagePatchesExecutor {
         ExtractImagePatchesExecutor() {}
         virtual void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) = 0;
-        virtual const jit_extract_image_patches_params& getJpp() const = 0;
         jit_extract_image_patches_params fillJpp(
             const VectorDims& inDims,
             const VectorDims& outDims,
@@ -84,6 +81,14 @@ private:
             const ExtImgPatcherPadType& padType,
             const size_t prcSize);
         virtual ~ExtractImagePatchesExecutor() = default;
+
+        size_t IC = 0;
+        size_t IH = 0;
+        size_t OB = 0;
+        size_t RH = 0;
+        size_t RW = 0;
+        size_t PT = 0;
+        size_t PL = 0;
     };
 
     using executorPtr = std::shared_ptr<ExtractImagePatchesExecutor>;
@@ -100,7 +105,6 @@ private:
             const size_t prcSize);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeOptimizedGeneric(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
-        const jit_extract_image_patches_params& getJpp() const override;
 
         std::unique_ptr<jit_uni_extract_image_patches_kernel> pKernel;
     };
@@ -116,7 +120,6 @@ private:
             const size_t prcSize);
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeReference(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
-        const jit_extract_image_patches_params& getJpp() const override { return jpp; }
 
         jit_extract_image_patches_params jpp;
     };

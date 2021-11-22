@@ -300,9 +300,9 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
     errorPrefix = "ExtractImagePatches layer with name '" + op->get_friendly_name() + "' ";
     auto extImgPatcher = ngraph::as_type_ptr<const ngraph::opset3::ExtractImagePatches>(op);
 
-    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1)
+    if (inputShapes.size() != 1 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << "has incorrect number of input or output edges!"
-                   << " Input: " << getOriginalInputsNumber() << "; Output: " << getOriginalOutputsNumber();
+                   << " Input: " << inputShapes.size() << "; Output: " << outputShapes.size();
 
     if (getInputShapeAtPort(0).getRank() != 4)
         IE_THROW() << errorPrefix << "must have 4D input tensor. Actual: " << getInputShapeAtPort(0).getRank();
@@ -320,20 +320,11 @@ MKLDNNExtractImagePatchesNode::MKLDNNExtractImagePatchesNode(const std::shared_p
         IE_THROW() << errorPrefix << "has unsupported pad type: " << extImgPatcher->get_auto_pad();
     }
 
-    const auto& ksizes = extImgPatcher->get_sizes();
-    const auto& strides = extImgPatcher->get_strides();
-    const auto& rates = extImgPatcher->get_rates();
-    if (ksizes.size() != 2 || strides.size() != 2 || rates.size() != 2)
+    _ksizes = extImgPatcher->get_sizes();;
+    _strides = extImgPatcher->get_strides();
+    _rates = extImgPatcher->get_rates();
+    if (_ksizes.size() != 2 || _strides.size() != 2 || _rates.size() != 2)
         IE_THROW() << errorPrefix << "must have the following attributes with shape {2}: sizes, strides, rates.";
-    _ksizes.clear();
-    _strides.clear();
-    _rates.clear();
-    for (const auto& x : ksizes)
-        _ksizes.push_back(x);
-    for (const auto& x : strides)
-        _strides.push_back(x);
-    for (const auto& x : rates)
-        _rates.push_back(x);
 }
 
 void MKLDNNExtractImagePatchesNode::createPrimitive() {
@@ -381,8 +372,8 @@ void MKLDNNExtractImagePatchesNode::execute(mkldnn::stream strm) {
     if (execPtr) {
         auto src = getParentEdgeAt(0)->getMemoryPtr()->GetPtr();
         auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPtr();
-        const auto& inStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto& outStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto inStrides = getParentEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        const auto outStrides = getChildEdgesAtPort(0)[0]->getMemory().GetDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
         IE_THROW() << "Can't execute extract image patches node. Primitive wasn't created";
@@ -397,17 +388,16 @@ void MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::executeRefer
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const {
     const char* src_data = reinterpret_cast<const char*>(src);
     char* dst_data = reinterpret_cast<char*>(dst);
-    const auto& jpp = getJpp();
 
-    const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * jpp.IC * ostrides[1], jpp.IC * ostrides[1], ostrides[1] };
+    const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * IC * ostrides[1], IC * ostrides[1], ostrides[1] };
 
-    parallel_for4d(jpp.OB, jpp.KH, jpp.KW, jpp.IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t iw_start = kw * jpp.RW - jpp.PL;
-        const int64_t ih_start = kh * jpp.RH - jpp.PT;
+    parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
+        const int64_t iw_start = kw * RW - PL;
+        const int64_t ih_start = kh * RH - PT;
         const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
         const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
 
-        const size_t ih_hpad = std::ceil((jpp.IH - 1.f * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((jpp.IH + -1.f * ih_start) / jpp.SH);
+        const size_t ih_hpad = std::ceil((IH - 1.f * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((IH + -1.f * ih_start) / jpp.SH);
         const size_t iw_hpad = std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW) > jpp.OW ? jpp.OW : std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW);
 
         char* my_dst_ptr = dst_data +
@@ -445,16 +435,16 @@ void MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::executeOptim
     void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const {
     const char* src_data = reinterpret_cast<const char*>(src);
     char* dst_data = reinterpret_cast<char*>(dst);
-    const auto& jpp = getJpp();
+    const auto& jpp = pKernel->jpp;
 
-    const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * jpp.IC * ostrides[1], jpp.IC * ostrides[1], ostrides[1] };
+    const std::vector<size_t> ostrides_partial = { ostrides[0], jpp.KW * IC * ostrides[1], IC * ostrides[1], ostrides[1] };
 
-    parallel_for4d(jpp.OB, jpp.KH, jpp.KW, jpp.IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
-        const int64_t ih_start = kh * jpp.RH - jpp.PT;
-        const int64_t iw_start = kw * jpp.RW - jpp.PL;
+    parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
+        const int64_t ih_start = kh * RH - PT;
+        const int64_t iw_start = kw * RW - PL;
         const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
         const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
-        const size_t ih_hpad = std::ceil((jpp.IH - 1.f * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((jpp.IH - 1.f * ih_start) / jpp.SH);
+        const size_t ih_hpad = std::ceil((IH - 1.f * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((IH - 1.f * ih_start) / jpp.SH);
         const size_t iw_hpad = std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW) > jpp.OW ? jpp.OW : std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW);
 
         size_t dst_offset = ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3];
@@ -481,11 +471,11 @@ jit_extract_image_patches_params MKLDNNExtractImagePatchesNode::ExtractImagePatc
     const size_t prcSize) {
     jit_extract_image_patches_params jpp{};
 
-    jpp.IC = inDims[1];
-    jpp.IH = inDims[2];
+    IC = inDims[1];
+    IH = inDims[2];
     jpp.IW = inDims[3];
 
-    jpp.OB = outDims[0];
+    OB = outDims[0];
     jpp.OH = outDims[2];
     jpp.OW = outDims[3];
 
@@ -495,18 +485,18 @@ jit_extract_image_patches_params MKLDNNExtractImagePatchesNode::ExtractImagePatc
     jpp.SH = strides[0];
     jpp.SW = strides[1];
 
-    jpp.RH = rates[0];
-    jpp.RW = rates[1];
+    RH = rates[0];
+    RW = rates[1];
 
-    jpp.PL = 0;
-    jpp.PT = 0;
+    PL = 0;
+    PT = 0;
     jpp.need_padding = false;
     if (padType != ExtImgPatcherPadType::VALID) {
         const int64_t ihStep = kSizes[0] + (rates[0] - 1) * (kSizes[0] - 1);
         const int64_t iwStep = kSizes[1] + (rates[1] - 1) * (kSizes[1] - 1);
 
         int64_t PW = (std::ceil(1.f * jpp.IW / strides[1]) - 1) * strides[1] + iwStep - jpp.IW;
-        int64_t PH = (std::ceil(1.f * jpp.IH / strides[0]) - 1) * strides[0] + ihStep - jpp.IH;
+        int64_t PH = (std::ceil(1.f * IH / strides[0]) - 1) * strides[0] + ihStep - IH;
 
         int64_t increment_sign = 0;
         if (padType == ExtImgPatcherPadType::SAME_LOWER) {
@@ -516,11 +506,11 @@ jit_extract_image_patches_params MKLDNNExtractImagePatchesNode::ExtractImagePatc
         }
 
         if ((PW > 0) && (PW < iwStep)) {
-            jpp.PL = static_cast<size_t>((PW + increment_sign * (PW % 2)) / 2);
+            PL = static_cast<size_t>((PW + increment_sign * (PW % 2)) / 2);
             jpp.need_padding = true;
         }
         if ((PH > 0) && (PH < ihStep)) {
-            jpp.PT = static_cast<size_t>((PH + increment_sign * (PH % 2)) / 2);
+            PT = static_cast<size_t>((PH + increment_sign * (PH % 2)) / 2);
             jpp.need_padding = true;
         }
     }
@@ -567,12 +557,6 @@ void MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::exec(
     if (!pKernel)
         IE_THROW() << "Can't execute, kernel for extract image patches node is not compiled";
     executeOptimizedGeneric(src, dst, istrides, ostrides);
-}
-
-const jit_extract_image_patches_params& MKLDNNExtractImagePatchesNode::ExtractImagePatchesJitExecutor::getJpp() const {
-    if (!pKernel)
-        IE_THROW() << "Can't get jit eltwise params, kernel for eltwise node is not compiled";
-    return pKernel->jpp;
 }
 
 MKLDNNExtractImagePatchesNode::ExtractImagePatchesRefExecutor::ExtractImagePatchesRefExecutor(

@@ -35,11 +35,8 @@ public:
         result << "netPRC=" << inputPrecision << "_" << "IS=" << CommonTestUtils::partialShape2str({ inputShapes.first }) << "_";
         result << "TS=";
         result << "(";
-        if (!inputShapes.second.empty()) {
-            auto itr = inputShapes.second.begin();
-            do {
-                result << CommonTestUtils::vec2str(*itr);
-            } while (++itr != inputShapes.second.end() && result << "_");
+        for (const auto& targetShape : inputShapes.second) {
+            result << CommonTestUtils::vec2str(targetShape) << "_";
         }
 
         result << ")_" << "kernelSize=" << kernelSize << "_strides=" << strides << "_rates=" << rates << "_padType=" << padType;
@@ -65,8 +62,7 @@ protected:
 
         auto params = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
         auto extImgPatches = std::make_shared<ngraph::opset3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(extImgPatches)};
-        function = std::make_shared<ngraph::Function>(results, params, "ExtractImagePatches");
+        function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }
 };
 
