@@ -23,7 +23,7 @@
 int tmain(int argc, tchar* argv[]) {
     try {
         // -------- Get OpenVINO runtime version --------
-        slog::info << *ov::get_openvino_version() << slog::endl;
+        slog::info << ov::get_openvino_version() << slog::endl;
 
         // -------- Parsing and validation of input arguments --------
         if (argc != 4) {
