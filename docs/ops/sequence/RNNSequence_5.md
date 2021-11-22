@@ -46,7 +46,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 * *direction*
 
-  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* then `num_directions = 1`, if it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements. When the operation is bidirectional, the input goes through forward and reverse ways. The outputs are concatenated.
+  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse*, then `num_directions = 1`. If it is *bidirectional*, then `num_directions = 2`. This `num_directions` value specifies input/output shape requirements. When the operation is bidirectional, the input goes through forward and reverse ways. The outputs are concatenated.
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: `string`
   * **Required**: *yes*
