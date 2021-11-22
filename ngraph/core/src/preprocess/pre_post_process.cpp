@@ -109,6 +109,19 @@ public:
         return m_planes_sub_names;
     }
 
+    void set_memory_type(const std::string& mem_type) {
+        m_memory_type_set = true;
+        m_memory_type = mem_type;
+    }
+
+    const std::string& get_memory_type() const {
+        return m_memory_type;
+    }
+
+    bool is_memory_type_set() const {
+        return m_memory_type_set;
+    }
+
 private:
     ColorFormat m_color_format = ColorFormat::UNDEFINED;
     std::vector<std::string> m_planes_sub_names;
@@ -122,6 +135,9 @@ private:
     int m_spatial_width = -1;
     int m_spatial_height = -1;
     bool m_spatial_shape_set = false;
+
+    std::string m_memory_type = {};
+    bool m_memory_type_set = false;
 };
 
 class OutputTensorInfo::OutputTensorInfoImpl : public TensorInfoImplBase {};
@@ -579,8 +595,19 @@ std::shared_ptr<Function> PrePostProcessor::build() {
                     param->get_default_output().get_tensor().get_names());
                 plane_param->set_friendly_name(param->get_friendly_name());
             }
+            // Fill runtime info
+            plane_param->get_rt_info() = param->get_rt_info();
+            plane_param->output(0).get_rt_info() = param->output(0).get_rt_info();
             if (!input->get_tensor_data()->get_layout().empty()) {
                 plane_param->set_layout(input->get_tensor_data()->get_layout());
+            }
+            if (input->get_tensor_data()->is_memory_type_set()) {
+                if (input->get_tensor_data()->get_memory_type().empty()) {
+                    plane_param->output(0).get_rt_info().erase(TensorInfoMemoryType::get_type_info_static());
+                } else {
+                    plane_param->output(0).get_rt_info()[TensorInfoMemoryType::get_type_info_static()] =
+                        std::make_shared<TensorInfoMemoryType>(input->get_tensor_data()->get_memory_type());
+                }
             }
             new_params.push_back(plane_param);
             nodes.emplace_back(plane_param);
@@ -815,6 +842,15 @@ InputTensorInfo& InputTensorInfo::set_color_format(const ov::preprocess::ColorFo
 InputTensorInfo&& InputTensorInfo::set_color_format(const ov::preprocess::ColorFormat& format,
                                                     const std::vector<std::string>& sub_names) && {
     m_impl->set_color_format(format, sub_names);
+    return std::move(*this);
+}
+
+InputTensorInfo& InputTensorInfo::set_memory_type(const std::string& memory_type) & {
+    m_impl->set_memory_type(memory_type);
+    return *this;
+}
+InputTensorInfo&& InputTensorInfo::set_memory_type(const std::string& memory_type) && {
+    m_impl->set_memory_type(memory_type);
     return std::move(*this);
 }
 

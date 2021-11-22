@@ -898,6 +898,56 @@ TEST(pre_post_process, preprocess_reverse_channels_no_c_dim) {
                  ov::AssertFailure);
 }
 
+TEST(pre_post_process, preprocess_preserve_rt_info) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f->get_parameters()[0]->get_rt_info()["someKey"] = ov::make_variant("someValue");
+    f->input().get_rt_info()["someKey_in"] = ov::make_variant("someValue_in");
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_element_type(element::u8);
+    f = p.build();
+    EXPECT_EQ(f->input().get_element_type(), element::u8);
+
+    ASSERT_EQ(f->get_parameters()[0]->get_rt_info().count("someKey"), 1);
+    auto var0 = std::dynamic_pointer_cast<VariantImpl<std::string>>(f->get_parameters()[0]->get_rt_info()["someKey"]);
+    EXPECT_EQ(var0->get(), "someValue");
+
+    ASSERT_EQ(f->input().get_rt_info().count("someKey_in"), 1);
+    auto var0_in = std::dynamic_pointer_cast<VariantImpl<std::string>>(f->input().get_rt_info()["someKey_in"]);
+    EXPECT_EQ(var0_in->get(), "someValue_in");
+}
+
+TEST(pre_post_process, preprocess_memory_type) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_memory_type("abc");
+    f = p.build();
+    ASSERT_EQ(f->input().get_rt_info().count(TensorInfoMemoryType::get_type_info_static()), 1);
+    auto var0 = std::dynamic_pointer_cast<TensorInfoMemoryType>(
+        f->input().get_rt_info()[TensorInfoMemoryType::get_type_info_static()]);
+    EXPECT_EQ(var0->get(), "abc");
+}
+
+TEST(pre_post_process, preprocess_memory_type_clear) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    f->input().get_rt_info()[TensorInfoMemoryType::get_type_info_static()] = ov::make_variant("abc");
+    auto p = PrePostProcessor(f);
+    p.input().tensor(InputTensorInfo().set_memory_type(""));
+    f = p.build();
+    EXPECT_EQ(f->input().get_rt_info().count(TensorInfoMemoryType::get_type_info_static()), 0);
+}
+
+TEST(pre_post_process, preprocess_memory_type_not_cleared) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(f);
+    p.input().tensor().set_memory_type("abc").set_layout("NHWC");
+    f = p.build();
+
+    ASSERT_EQ(f->input().get_rt_info().count(TensorInfoMemoryType::get_type_info_static()), 1);
+    auto var0 = std::dynamic_pointer_cast<TensorInfoMemoryType>(
+        f->input().get_rt_info()[TensorInfoMemoryType::get_type_info_static()]);
+    EXPECT_EQ(var0->get(), "abc");
+}
+
 // --- PostProcess - set/convert element type ---
 
 TEST(pre_post_process, postprocess_convert_element_type_explicit) {

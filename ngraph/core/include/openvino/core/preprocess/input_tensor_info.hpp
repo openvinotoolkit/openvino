@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
@@ -11,6 +12,20 @@
 
 namespace ov {
 namespace preprocess {
+
+class OPENVINO_API TensorInfoMemoryType : public VariantImpl<std::string> {
+public:
+    OPENVINO_RTTI("memory_type", "0");
+
+    TensorInfoMemoryType() = default;
+
+    explicit TensorInfoMemoryType(const std::string& value) : VariantImpl<std::string>(value) {}
+
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        visitor.on_attribute("value", m_value);
+        return true;
+    }
+};
 
 /// \brief Information about user's input tensor. By default, it will be initialized to same data (type/shape/etc) as
 /// network's input parameter User application can override particular parameters (like 'element_type') according to
@@ -158,6 +173,14 @@ public:
     /// \return Rvalue reference to 'this' to allow chaining with other calls in a builder-like manner.
     InputTensorInfo&& set_color_format(const ov::preprocess::ColorFormat& format,
                                        const std::vector<std::string>& sub_names = {}) &&;
+
+    /// \brief Set memory type runtime information for user's input tensor
+    ///
+    /// \param memory_type Memory type. Refer to specific plugin's documentation for exact string format
+    ///
+    /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
+    InputTensorInfo& set_memory_type(const std::string& memory_type) &;
+    InputTensorInfo&& set_memory_type(const std::string& memory_type) &&;
 };
 
 }  // namespace preprocess
