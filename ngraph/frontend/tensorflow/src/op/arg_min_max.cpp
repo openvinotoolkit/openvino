@@ -26,10 +26,10 @@ OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
 
     // If input dimension is negative, make it positive
     if (tf_dim[0] < 0) {
-        NGRAPH_DEBUG << "Input dimension is negative, make it positive " << tf_dim[0];
+        OPENVINO_DEBUG << "Input dimension is negative, make it positive " << tf_dim[0];
         tf_dim[0] = (int64_t)input_rank + tf_dim[0];
     }
-    NGRAPH_DEBUG << "Axis along which to compute " << tf_dim[0];
+    OPENVINO_DEBUG << "Axis along which to compute " << tf_dim[0];
     size_t k_axis = tf_dim[0];
 
     auto ng_et = node.get_attribute<element::Type>("output_type");

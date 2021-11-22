@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "attr_value.pb.h"
-#include "ngraph/ngraph.hpp"
 #include "node_def.pb.h"
 #include "tensorflow_frontend/decoder.hpp"
 #include "types.pb.h"
