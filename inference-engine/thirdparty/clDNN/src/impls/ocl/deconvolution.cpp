@@ -66,7 +66,7 @@ public:
 #endif
         const auto actual_split = split;
 
-        const auto& input_offset = primitive->input_offset;
+        const auto& pad = primitive->pad;
         const auto& groups = primitive->groups;
 
         auto deconv_params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(
@@ -86,9 +86,9 @@ public:
         uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
         deconv_params.filterSize = { kx, ky, kz };
 
-        deconv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
-                                 (uint32_t)std::max(-input_offset.spatial[1], 0),
-                                 (uint32_t)std::max(-input_offset.spatial[2], 0)};
+        deconv_params.padding = {(uint32_t)std::max(pad.spatial[0], 0),
+                                 (uint32_t)std::max(pad.spatial[1], 0),
+                                 (uint32_t)std::max(pad.spatial[2], 0)};
 
         deconv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
 
