@@ -173,12 +173,24 @@ void MKLDNNBucketizeNode::execute(mkldnn::stream strm) {
 }
 
 void MKLDNNBucketizeNode::prepareParams() {
+    auto& inputTensorMemPtr = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr();
+    auto& inputBinsMemPtr = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr();
+    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Destination memory didn't allocate.";
+    if (!inputTensorMemPtr || !inputTensorMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Input tensor didn't allocate.";
+    if (!inputBinsMemPtr || !inputBinsMemPtr->GetPrimitivePtr())
+        IE_THROW() << "Input bins didn't allocate.";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+
     // update with_bins/num_values/num_bin_values
-    auto input_tensor_dims = getParentEdgeAt(INPUT_TENSOR_PORT)->getMemoryPtr()->getStaticDims();
+    auto input_tensor_dims = inputTensorMemPtr->getStaticDims();
     if (input_tensor_dims.size() < 1) {
         IE_THROW() << errorPrefix << " has incorrect dimensions of the input.";
     }
-    auto input_bin_dims = getParentEdgeAt(INPUT_BINS_PORT)->getMemoryPtr()->getStaticDims();
+    auto input_bin_dims = inputBinsMemPtr->getStaticDims();
     if (input_bin_dims.size() != 1) {
         IE_THROW() << errorPrefix << " has incorrect dimensions of the boundaries tensor.";
     }
@@ -193,7 +205,8 @@ void MKLDNNBucketizeNode::prepareParams() {
 
 void MKLDNNBucketizeNode::createPrimitive() {
     if (inputShapesDefined()) {
-        prepareParams();
+        if (needPrepareParams())
+            prepareParams();
         updateLastInputDims();
     }
 }
