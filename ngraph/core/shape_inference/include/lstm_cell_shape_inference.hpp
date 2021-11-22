@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include <rnn_cell_shape_inference.hpp>
-
+#include <openvino/op/lstm_cell.hpp>
 #include "utils.hpp"
 
 namespace ov {
