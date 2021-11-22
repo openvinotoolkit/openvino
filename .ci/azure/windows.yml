@@ -130,7 +130,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe --build . --config Release
+      call "$(MSVS_VARS_PATH)" && $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe --build . --config Release
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win - IB'
 
