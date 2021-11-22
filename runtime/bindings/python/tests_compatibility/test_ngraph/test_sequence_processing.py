@@ -6,7 +6,6 @@ import numpy as np
 import ngraph as ng
 from tests_compatibility.runtime import get_runtime
 from tests_compatibility.test_ngraph.util import run_op_node
-from tests_compatibility import (xfail_issue_47337)
 
 
 def test_onehot():
@@ -21,7 +20,6 @@ def test_onehot():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_47337
 def test_one_hot():
     data = np.array([0, 1, 2], dtype=np.int32)
     depth = 2

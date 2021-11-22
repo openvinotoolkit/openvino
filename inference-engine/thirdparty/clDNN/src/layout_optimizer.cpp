@@ -488,7 +488,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          input_layout.size.feature[0] % 32 == 0 &&
          weights_layout.size.spatial[1] == 1 && output_layout.size.feature[0] % 64 == 0 &&
          weights_layout.size.batch[0] % 64 == 0 && conv->stride.spatial[0] == 1 && conv->stride.spatial[1] == 1 &&
-         conv->input_offset.spatial[0] == 0 && conv->input_offset.spatial[1] == 0) ||
+         conv->pad.spatial[0] == 0 && conv->pad.spatial[1] == 0) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
@@ -828,7 +828,6 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     int ofm_per_group = output_layout.size.feature[0] / prim->groups;
     int ifm_per_group = input_layout.size.feature[0] / prim->groups;
     int compute_block = 32;
-    bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
     bool valid_int8_dw = is_dw && output_layout.size.batch[0] % 16 == 0;
     bool non_grouped = prim->groups == 1;
     bool is_2d = input_layout.format.spatial_num() == 2;
@@ -854,6 +853,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
     if (use_onednn_impls) {
         /* ***************************** OneDNN impls format selection part ****************************** */
+        bool valid_grouped = !is_dw && prim->groups > 1 && (ofm_per_group % compute_block == 0 && ifm_per_group % compute_block == 0);
         if (i8_u8_input) {
             if ((non_grouped || valid_grouped || valid_int8_dw) && onednn_valid_post_ops && is_2d) {
                 if (input_layout.size.batch[0] % 16 == 0) {
