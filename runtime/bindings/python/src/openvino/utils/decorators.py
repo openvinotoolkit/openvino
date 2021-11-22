@@ -4,7 +4,7 @@
 from functools import wraps
 from typing import Any, Callable
 
-from openvino.impl import Node
+from openvino.impl import Node, Output
 from openvino.utils.types import NodeInput, as_node, as_nodes
 
 
@@ -48,5 +48,14 @@ def binary_op(node_factory_function: Callable) -> Callable:
         node = node_factory_function(left, right, *args, **kwargs)
         node = _set_node_friendly_name(node, **kwargs)
         return node
+
+    return wrapper
+
+
+def custom_preprocess_function(custom_function: Callable) -> Callable:
+    """Convert Node returned from custom_function to Output."""
+    @wraps(custom_function)
+    def wrapper(node: Node) -> Output:
+        return Output._from_node(custom_function(node))
 
     return wrapper

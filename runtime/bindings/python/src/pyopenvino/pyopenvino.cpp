@@ -40,6 +40,7 @@
 #include "pyopenvino/graph/ops/util/regmodule_graph_op_util.hpp"
 #include "pyopenvino/graph/partial_shape.hpp"
 #include "pyopenvino/graph/passes/regmodule_graph_passes.hpp"
+#include "pyopenvino/graph/preprocess/pre_post_process.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/graph/shape.hpp"
 #include "pyopenvino/graph/strides.hpp"
@@ -85,6 +86,9 @@ PYBIND11_MODULE(pyopenvino, m) {
     regmodule_graph_onnx_import(m);
 #endif
     regmodule_graph_op_util(m_op);
+    py::module m_preprocess =
+        m.def_submodule("preprocess", "Package openvino.impl.preprocess that wraps ov::preprocess");
+    regclass_graph_PrePostProcessor(m_preprocess);
     regclass_graph_Function(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);

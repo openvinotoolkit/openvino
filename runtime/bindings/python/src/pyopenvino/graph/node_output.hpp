@@ -81,6 +81,9 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 get_target_inputs : Set[Input]
                     Set of Inputs.
                )");
+    output.def("_from_node", [](const std::shared_ptr<ov::Node>& node) {
+               return ov::Output<ov::Node>(node);
+               });
     output.def("get_tensor",
                &ov::Output<VT>::get_tensor,
                py::return_value_policy::reference_internal,
