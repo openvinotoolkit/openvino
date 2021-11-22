@@ -286,7 +286,7 @@ class MOCK_API InputModelMockPy : public InputModel
                                        "tensor",
                                        "tensor:0",
                                        "0:tensor",
-                                       "tensorAndOp",
+                                       "tensorAndOp:0",
                                        "conv2d:0",
                                        "0:conv2d",
                                        "mock_input1",
