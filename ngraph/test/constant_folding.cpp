@@ -338,7 +338,8 @@ TEST(constant_folding, constant_unary_binary) {
                                                  logical_or_autob_numpy,
                                                  logical_xor_autob_numpy,
                                                  doubles_sqrt,
-                                                 sub_int8},
+                                                 sub_int8,
+                                                 sub_uint8},
                                       ParameterVector{});
     auto func_error = make_shared<Function>(NodeVector{neg_sqrt}, ParameterVector{});
 
