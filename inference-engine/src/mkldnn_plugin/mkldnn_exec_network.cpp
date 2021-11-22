@@ -122,6 +122,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         for (auto &node : GetGraph()._graph.GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+                if (!memoryNode) {
+                    IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+                }
                 auto state_store = memoryNode->getStore();
                 auto state_name = memoryNode->getId();
 
