@@ -32,9 +32,7 @@ constexpr uint32_t copyMaxGrouping = 8;
 constexpr uint32_t transposeMaxSize = 65528;
 
 inline bool IsTranspose2d(const std::vector<size_t>& shape) {
-    auto shape_no_1 = shape;
-    shape_no_1.erase(std::remove(shape_no_1.begin(), shape_no_1.end(), 1), shape_no_1.end());
-    return shape_no_1.size() == 2;
+    return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) { return dim != 1; }) == 2;
 }
 
 inline bool IsTransposeSupported(const std::vector<size_t>& shape) {

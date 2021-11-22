@@ -35,6 +35,14 @@ void ReplaceTransposeWithReshape(std::shared_ptr<ngraph::Node> transpose_node) {
 }
 
 void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string& base_name, bool before_matmul) {
+    auto create_reshape = [](const ngraph::Shape& shape, std::shared_ptr<ngraph::Node> input_node, const std::string& name) {
+        auto reshape_const = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+            ngraph::Shape{shape.size()}, shape);
+        auto node = std::make_shared<ngraph::opset8::Reshape>(input_node, reshape_const, false);
+        node->set_friendly_name(name);
+        return node;
+    };
+
     auto consumers = prev_node->output(0).get_target_inputs();
     const auto orig_shape = prev_node->get_output_shape(0);
     std::vector<size_t> transpose_ids;
@@ -53,10 +61,7 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
     if (!before_matmul) {
         auto shape = prev_node->get_output_shape(0);
         std::swap(shape[0], shape[1]);
-        auto reshape_const_before = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-            ngraph::Shape{shape.size()}, shape);
-        node = std::make_shared<ngraph::opset8::Reshape>(node, reshape_const_before, false);
-        node->set_friendly_name(base_name + "/reshape_after_transpose");
+        node = create_reshape(shape, node, base_name + "/reshape_before_transpose");
         new_ops.push_back(node);
     }
 
@@ -66,10 +71,7 @@ void InsertTranspose(std::shared_ptr<ngraph::Node> prev_node, const std::string&
     new_ops.push_back(node);
 
     if (before_matmul) {
-        auto reshape_const_after = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
-            ngraph::Shape{orig_shape.size()}, orig_shape);
-        node = std::make_shared<ngraph::opset8::Reshape>(node, reshape_const_after, false);
-        node->set_friendly_name(base_name + "/reshape_after_transpose");
+        node = create_reshape(orig_shape, node, base_name + "/reshape_after_transpose");
         new_ops.push_back(node);
     }
 

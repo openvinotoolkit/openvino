@@ -29,7 +29,6 @@ NGRAPH_RTTI_DEFINITION(SwapInputMatMulWithTrailingTranspose, "SwapInputMatMulWit
 static void SwapAndTransposeInputs(
     std::shared_ptr<ngraph::opset8::MatMul> matmul_node,
     const std::string& last_layer_name,
-    bool first_input_const,
     std::shared_ptr<ngraph::Node> add = nullptr,
     std::shared_ptr<ngraph::Node> bias = nullptr,
     std::shared_ptr<ngraph::Node> fq = nullptr,
@@ -65,6 +64,15 @@ static void SwapAndTransposeInputs(
     };
 
     gnalog() << "Swap and transpose inputs for " << matmul_node->get_friendly_name() << "\n";
+
+    bool first_input_const = false;
+    auto first_input = matmul_node->input_value(0).get_node_shared_ptr();
+    if (std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(first_input)) {
+        first_input = first_input->input_value(0).get_node_shared_ptr();
+    }
+    if (std::dynamic_pointer_cast<ngraph::opset8::Constant>(first_input)) {
+        first_input_const = true;
+    }
 
     auto input1 = first_input_const ? transpose_matmul_input(1) : matmul_node->input_value(1);
     auto input2 = first_input_const ? matmul_node->input_value(0) : transpose_matmul_input(0);
@@ -185,18 +193,14 @@ SwapInputMatMul::SwapInputMatMul() {
     auto matmul = CreateMatmuls(matmul1, matmul2);
     auto callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        bool first_input_const = true;
         auto iter = pattern_map.find(matmul1);
-        if (iter == pattern_map.end()) {
-            first_input_const = false;
-            if ((iter = pattern_map.find(matmul2)) == pattern_map.end()) {
-                return false;
-            }
+        if (iter == pattern_map.end() && (iter = pattern_map.find(matmul2)) == pattern_map.end()) {
+            return false;
         }
 
         auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(iter->second.get_node_shared_ptr());
         IE_ASSERT(matmul_node != nullptr);
-        SwapAndTransposeInputs(matmul_node, matmul_node->get_friendly_name(), first_input_const);
+        SwapAndTransposeInputs(matmul_node, matmul_node->get_friendly_name());
         return true;
     };
 
@@ -213,13 +217,9 @@ SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({matmul, bias});
     auto callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        bool first_input_const = true;
         auto iter = pattern_map.find(matmul1);
-        if (iter == pattern_map.end()) {
-            first_input_const = false;
-            if ((iter = pattern_map.find(matmul2)) == pattern_map.end()) {
-                return false;
-            }
+        if (iter == pattern_map.end() && (iter = pattern_map.find(matmul2)) == pattern_map.end()) {
+            return false;
         }
 
         auto matmul_node = std::dynamic_pointer_cast<ngraph::opset8::MatMul>(iter->second.get_node_shared_ptr());
@@ -227,7 +227,6 @@ SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
         SwapAndTransposeInputs(
             matmul_node,
             pattern_map.at(add).get_node_shared_ptr()->get_friendly_name(),
-            first_input_const,
             pattern_map.at(add).get_node_shared_ptr(),
             pattern_map.at(bias).get_node_shared_ptr());
         return true;
@@ -252,13 +251,9 @@ SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
         ngraph::pattern::wrap_type<ngraph::opset8::Constant>()});
     auto callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        bool first_input_const = true;
         auto iter = pattern_map.find(matmul1);
-        if (iter == pattern_map.end()) {
-            first_input_const = false;
-            if ((iter = pattern_map.find(matmul2)) == pattern_map.end()) {
-                return false;
-            }
+        if (iter == pattern_map.end() && (iter = pattern_map.find(matmul2)) == pattern_map.end()) {
+            return false;
         }
 
         auto iter_add = pattern_map.find(add);
@@ -268,7 +263,6 @@ SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
         SwapAndTransposeInputs(
             matmul_node,
             pattern_map.at(fq).get_node_shared_ptr()->get_friendly_name(),
-            first_input_const,
             iter_add != pattern_map.end() ? iter_add->second.get_node_shared_ptr() : nullptr,
             iter_bias != pattern_map.end() ? iter_bias->second.get_node_shared_ptr() : nullptr,
             pattern_map.at(fq).get_node_shared_ptr());
@@ -298,13 +292,9 @@ SwapInputMatMulWithAct::SwapInputMatMulWithAct() {
         ngraph::opset8::Sign, ngraph::opset8::Clamp>({act_input});
     auto callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        bool first_input_const = true;
         auto iter = pattern_map.find(matmul1);
-        if (iter == pattern_map.end()) {
-            first_input_const = false;
-            if ((iter = pattern_map.find(matmul2)) == pattern_map.end()) {
-                return false;
-            }
+        if (iter == pattern_map.end() && (iter = pattern_map.find(matmul2)) == pattern_map.end()) {
+            return false;
         }
 
         auto iter_add = pattern_map.find(add);
@@ -315,7 +305,6 @@ SwapInputMatMulWithAct::SwapInputMatMulWithAct() {
         SwapAndTransposeInputs(
             matmul_node,
             pattern_map.at(act).get_node_shared_ptr()->get_friendly_name(),
-            first_input_const,
             iter_add != pattern_map.end() ? iter_add->second.get_node_shared_ptr() : nullptr,
             iter_bias != pattern_map.end() ? iter_bias->second.get_node_shared_ptr() : nullptr,
             iter_fq != pattern_map.end() ? iter_fq->second.get_node_shared_ptr() : nullptr,
@@ -348,13 +337,9 @@ SwapInputMatMulWithTrailingTranspose::SwapInputMatMulWithTrailingTranspose() {
     auto transpose = ngraph::pattern::wrap_type<ngraph::opset8::Transpose>({transpose_input, ngraph::pattern::any_input()});
     auto callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        bool first_input_const = true;
         auto iter = pattern_map.find(matmul1);
-        if (iter == pattern_map.end()) {
-            first_input_const = false;
-            if ((iter = pattern_map.find(matmul2)) == pattern_map.end()) {
-                return false;
-            }
+        if (iter == pattern_map.end() && (iter = pattern_map.find(matmul2)) == pattern_map.end()) {
+            return false;
         }
 
         auto iter_add = pattern_map.find(add);
@@ -366,7 +351,6 @@ SwapInputMatMulWithTrailingTranspose::SwapInputMatMulWithTrailingTranspose() {
         SwapAndTransposeInputs(
             matmul_node,
             pattern_map.at(transpose).get_node_shared_ptr()->get_friendly_name(),
-            first_input_const,
             iter_add != pattern_map.end() ? iter_add->second.get_node_shared_ptr() : nullptr,
             iter_bias != pattern_map.end() ? iter_bias->second.get_node_shared_ptr() : nullptr,
             iter_fq != pattern_map.end() ? iter_fq->second.get_node_shared_ptr() : nullptr,
