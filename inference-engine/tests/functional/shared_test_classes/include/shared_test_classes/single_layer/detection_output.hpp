@@ -69,4 +69,10 @@ class DetectionOutputLayerTest : public testing::WithParamInterface<DetectionOut
     void SetUp() override;
 };
 
+class DetectionOutputLayerTestWithAutoBatching : public DetectionOutputLayerTest {
+    public:
+        static std::string getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj);
+    protected:
+        void SetUp() override;
+    };
 }  // namespace LayerTestsDefinitions

@@ -27,10 +27,6 @@ std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamIn
         inShapes.resize(3);
     }
 
-    for (size_t i = 0; i < inShapes.size(); i++) {
-        inShapes[i][0] = batch;
-    }
-
     std::ostringstream result;
     result << "IS = { ";
     result << "LOC=" << CommonTestUtils::vec2str(inShapes[0]) << "_";
@@ -148,8 +144,50 @@ void DetectionOutputLayerTest::SetUp() {
 
     auto params = ngraph::builder::makeParams(ngraph::element::f32, inShapes);
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+
     auto detOut = ngraph::builder::makeDetectionOutput(paramOuts, attrs);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
+
+std::string DetectionOutputLayerTestWithAutoBatching::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
+    return DetectionOutputLayerTest::getTestCaseName(obj) + "_WITH_AUTO_BATCH";
+}
+
+void DetectionOutputLayerTestWithAutoBatching::SetUp() {
+    DetectionOutputAttributes commonAttrs;
+    ParamsWhichSizeDepends specificAttrs;
+    size_t batch;
+    std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = this->GetParam();
+
+    std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
+             attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
+
+    inShapes.resize(numInputs);
+    std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
+             inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
+
+    if (inShapes[idxArmConfidence].empty()) {
+        inShapes.resize(3);
+    }
+
+    auto params = ngraph::builder::makeParams(ngraph::element::f32, inShapes);
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
+
+   // no-op with Eltwise that adds zeros
+    // (so that we can tests Auto-Batching's HETERO code-path that splits the DetectionOutput and the rest of the network)
+    ngraph::OutputVector outs;
+    for (int i = 0; i < inShapes.size(); i++) {
+        auto shape = inShapes[i];
+        auto memory_constant = ngraph::builder::makeConstant<float>(ngraph::element::f32, shape,
+                                                                    std::vector<float>(0, ngraph::shape_size(shape)));
+        auto values = std::make_shared<ngraph::opset5::ReadValue>(memory_constant, "memory");
+        auto add = ngraph::builder::makeEltwise(paramOuts[i], values, ngraph::helpers::EltwiseTypes::ADD);
+        outs.push_back(add->output(0));
+    }
+    auto detOut = ngraph::builder::makeDetectionOutput(outs, attrs);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
+    function = std::make_shared<ngraph::Function>(results, params, "EltWiseWithDetectionOutput");
+}
+
 }  // namespace LayerTestsDefinitions
