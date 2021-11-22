@@ -261,13 +261,6 @@ int main(int argc, char* argv[]) {
         next_step();
 
         Core ie;
-        if (FLAGS_d == "TEMPLATE") {
-#ifdef _DEBUG
-            ie.RegisterPlugin("templatePlugind", "TEMPLATE");
-#else
-            ie.RegisterPlugin("templatePlugin", "TEMPLATE");
-#endif
-        }
 
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a
