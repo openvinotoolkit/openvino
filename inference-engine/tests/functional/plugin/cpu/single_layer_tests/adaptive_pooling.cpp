@@ -98,8 +98,7 @@ protected:
 TEST_P(AdaPoolLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "AdaptivePooling");
+    CheckPluginRelatedResults(executableNetwork, "AdaptivePooling");
 }
 
 namespace {
