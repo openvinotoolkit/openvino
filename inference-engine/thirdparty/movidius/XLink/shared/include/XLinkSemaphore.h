@@ -17,6 +17,7 @@
 #  include "win_synchapi.h"
 # else
 #  include <pthread.h>
+#  include <unistd.h>
 #  ifdef __APPLE__
 #   include "pthread_semaphore.h"
 #  else
