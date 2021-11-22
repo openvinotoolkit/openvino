@@ -87,8 +87,7 @@ TEST_P(BatchToSpaceCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "BatchToSpace");
+    CheckPluginRelatedResults(executableNetwork, "BatchToSpace");
 };
 
 namespace {
@@ -98,8 +97,7 @@ const std::vector<Precision> netPrecision = {
         Precision::I8,
         Precision::I32,
         Precision::FP32,
-        // TODO: Should be uncommented after PR #8339 merge
-        // Precision::BF16
+        Precision::BF16
 };
 
 const std::vector<std::vector<int64_t>> blockShape4D1  = {{1, 1, 1, 2}, {1, 2, 2, 1}};
