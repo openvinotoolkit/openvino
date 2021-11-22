@@ -261,3 +261,10 @@ def get_lstm_ends(read_value, assigns, ignore_nodes):
     lstm_outputs = [n for n in get_all_node_outputs(assign_input)
                     if n.name not in ignore_nodes]
     return lstm_outputs
+
+
+def get_node_data_type(node):
+    if node.type != 'Const' and node.in_port(0).get_source() is not None \
+            and node.in_port(0).get_source().is_data_type_defined():
+        return node.in_port(0).get_source().get_data_type()
+    return None
