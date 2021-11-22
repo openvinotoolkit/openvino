@@ -135,9 +135,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
         include(ExternalProject)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
         set(ONEDNN_INSTALL_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-        set(ONEDNN_LIBRARY "${ONEDNN_BUILD_DIR}/src/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
-        set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
-
         if(CMAKE_COMPILER_IS_GNUCXX)
             ie_add_compiler_flags(-Wno-undef)
         endif()
@@ -148,13 +145,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         if(CORES_COUNT EQUAL 0)
             set(CORES_COUNT "")
         endif()
-        ExternalProject_Add(onednn_gpu_build
-            SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
-            BINARY_DIR "${ONEDNN_BUILD_DIR}"
-            INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
-            PREFIX onednn_gpu_build
-            EXCLUDE_FROM_ALL ON
-            CMAKE_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+        set (ONEDNN_CMAKE_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
                        "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
                        "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
                        "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
@@ -178,12 +169,50 @@ if(ENABLE_ONEDNN_FOR_GPU)
                        "-DDNNL_LIBRARY_TYPE=STATIC"
                        "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
                        "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
-                       "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
-            BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target onednn_gpu --parallel ${CORES_COUNT}
-            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}
-            COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
-            BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
-        )
+                       "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}")
+
+        get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+        if (isMultiConfig)
+            set(DIR_PREFIX "/$<CONFIG>/")
+            set(ONEDNN_LIBRARY "${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+            set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}${DIR_PREFIX}${ONEDNN_LIBRARY}")
+            if (WIN32)
+                set(DNNL_COMMAND_SUFFIX "bat" )
+            else()
+                set(DNNL_COMMAND_SUFFIX "sh" )
+            endif()
+            set(DNNL_BUILD_TARGET_COMMAND "${ONEDNN_BUILD_DIR}/target_$<CONFIG>_build.${DNNL_COMMAND_SUFFIX}" )
+            set(DNNL_COPY_TARGET_COMMAND "${ONEDNN_BUILD_DIR}/target_$<CONFIG>_copy.${DNNL_COMMAND_SUFFIX}" )
+            file( GENERATE OUTPUT "${DNNL_BUILD_TARGET_COMMAND}" CONTENT "\"${CMAKE_COMMAND}\" --build . --config $<CONFIG> --target onednn_gpu --parallel ${CORES_COUNT}")
+            file( GENERATE OUTPUT "${DNNL_COPY_TARGET_COMMAND}" CONTENT "\"${CMAKE_COMMAND}\" -E copy ${ONEDNN_BUILD_DIR}src${DIR_PREFIX}${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}" )
+            ExternalProject_Add(onednn_gpu_build
+                SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
+                BINARY_DIR "${ONEDNN_BUILD_DIR}"
+                INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
+                PREFIX onednn_gpu_build
+                EXCLUDE_FROM_ALL ON
+                CMAKE_ARGS ${ONEDNN_CMAKE_ARGS}
+                BUILD_COMMAND ${DNNL_BUILD_TARGET_COMMAND}
+                INSTALL_COMMAND ${DNNL_COPY_TARGET_COMMAND}
+                COMMAND ${CMAKE_COMMAND} -E echo "OneDNN build for GPU complete"
+            )
+        else()
+            set(ONEDNN_LIBRARY "${ONEDNN_BUILD_DIR}/src/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+            set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+            ExternalProject_Add(onednn_gpu_build
+                SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
+                BINARY_DIR "${ONEDNN_BUILD_DIR}"
+                INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
+                PREFIX onednn_gpu_build
+                EXCLUDE_FROM_ALL ON
+                CMAKE_ARGS ${ONEDNN_CMAKE_ARGS}
+                BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target onednn_gpu --parallel ${CORES_COUNT}
+                INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}
+                COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
+                BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
+            )
+            
+        endif()
 
         ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
         ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
@@ -191,12 +220,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # WA: create temp 'include' directory
         file(MAKE_DIRECTORY "${BINARY_DIR}/include")
 
-        add_library(onednn_gpu STATIC IMPORTED GLOBAL)
-        set_target_properties(onednn_gpu PROPERTIES
-            IMPORTED_LOCATION ${ONEDNN_OUTPUT_LIBRARY}
-            INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include>;$<BUILD_INTERFACE:${SOURCE_DIR}/include>"
-            INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
-        add_dependencies(onednn_gpu onednn_gpu_build)
+        if (NOT isMultiConfig)
+            add_library(onednn_gpu STATIC IMPORTED GLOBAL)
+            set_target_properties(onednn_gpu PROPERTIES
+                IMPORTED_LOCATION ${ONEDNN_OUTPUT_LIBRARY}
+                INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include>;$<BUILD_INTERFACE:${SOURCE_DIR}/include>"
+                INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
+            add_dependencies(onednn_gpu onednn_gpu_build)
+        endif()
 
         # TODO: does not work for imported targets; need to import this target in
         # OpenVINOConfig.cmake explicitly
