@@ -57,8 +57,8 @@ const auto params3Inputs = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In, DetectionOutputLayerTest, params3Inputs, DetectionOutputLayerTest::getTestCaseName);
-//INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In_Hetero, DetectionOutputLayerTestWithAutoBatching,
-//        params3Inputs, DetectionOutputLayerTestWithAutoBatching::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput3In_Hetero, DetectionOutputLayerTestWithAutoBatching,
+        params3Inputs, DetectionOutputLayerTestWithAutoBatching::getTestCaseName);
 
 /* =============== 5 inputs cases =============== */
 
@@ -83,7 +83,7 @@ const auto params5Inputs = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput5In, DetectionOutputLayerTest, params5Inputs, DetectionOutputLayerTest::getTestCaseName);
-//INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput5In_Hetero, DetectionOutputLayerTestWithAutoBatching,
-//        params5Inputs, DetectionOutputLayerTestWithAutoBatching::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_DetectionOutput5In_Hetero, DetectionOutputLayerTestWithAutoBatching,
+        params5Inputs, DetectionOutputLayerTestWithAutoBatching::getTestCaseName);
 
 }  // namespace
