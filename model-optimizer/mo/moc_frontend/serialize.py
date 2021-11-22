@@ -15,8 +15,10 @@ from ngraph import function_to_cnn  # pylint: disable=no-name-in-module,import-e
 def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
 
+    print('Functionn={}'.format(len(ngraph_function.get_parameters())))
     network = function_to_cnn(ngraph_function)
 
+    print('Functionn2={}'.format(len(ngraph_function.get_parameters())))
     process_mean_scale(ov_function=ngraph_function, argv=argv)
 
     from mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations
