@@ -13,8 +13,19 @@
 
 namespace py = pybind11;
 
+// Custom holder wrapping returned references to preprocessing objects
+template <typename T>
+class ref_wrapper {
+    std::reference_wrapper<T> impl;
+public:
+    explicit ref_wrapper(T* p) : impl(*p) { }
+    T* get() const { return &impl.get(); }
+};
+
+PYBIND11_DECLARE_HOLDER_TYPE(T, ref_wrapper<T>)
+
 static void regclass_graph_PreProcessSteps(py::module m) {
-    py::class_<ov::preprocess::PreProcessSteps, std::shared_ptr<ov::preprocess::PreProcessSteps>> steps(
+    py::class_<ov::preprocess::PreProcessSteps, ref_wrapper<ov::preprocess::PreProcessSteps>> steps(
         m,
         "PreProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
@@ -23,9 +34,8 @@ static void regclass_graph_PreProcessSteps(py::module m) {
 
     steps.def(
         "mean",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, float value) {
-            me->mean(value);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, float value) {
+            return &me.mean(value);
         },
         py::arg("value"),
         R"(
@@ -42,9 +52,8 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "mean",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const std::vector<float>& values) {
-            me->mean(values);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, const std::vector<float>& values) {
+            return &me.mean(values);
         },
         py::arg("values"),
         R"(
@@ -61,9 +70,8 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "scale",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, float value) {
-            me->scale(value);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, float value) {
+            return &me.scale(value);
         },
         py::arg("value"),
         R"(
@@ -80,9 +88,8 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "scale",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const std::vector<float>& values) {
-            me->scale(values);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, const std::vector<float>& values) {
+            return &me.scale(values);
         },
         py::arg("values"),
         R"(
@@ -99,9 +106,8 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "convert_element_type",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, ov::element::Type type) {
-            me->convert_element_type(type);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, ov::element::Type type) {
+            return &me.convert_element_type(type);
         },
         py::arg("type"),
         R"(
@@ -118,9 +124,8 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "custom",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, py::function op) {
-            me->custom(op.cast<const ov::preprocess::PreProcessSteps::CustomPreprocessOp>());
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, py::function op) {
+            return &me.custom(op.cast<const ov::preprocess::PreProcessSteps::CustomPreprocessOp>());
         },
         py::arg("operation"),
         R"(
@@ -135,52 +140,46 @@ static void regclass_graph_PreProcessSteps(py::module m) {
               )");
     steps.def(
         "convert_color",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const ov::preprocess::ColorFormat& dst_format) {
-            me->convert_color(dst_format);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, const ov::preprocess::ColorFormat& dst_format) {
+            return &me.convert_color(dst_format);
         },
         py::arg("dst_format"));
     steps.def(
         "resize",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me,
+        [](ov::preprocess::PreProcessSteps& me,
            ov::preprocess::ResizeAlgorithm alg,
            size_t dst_height,
            size_t dst_width) {
-            me->resize(alg, dst_height, dst_width);
-            return me;
+            return &me.resize(alg, dst_height, dst_width);
         },
         py::arg("alg"),
         py::arg("dst_height"),
         py::arg("dst_width"));
     steps.def(
         "resize",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, ov::preprocess::ResizeAlgorithm alg) {
-            me->resize(alg);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, ov::preprocess::ResizeAlgorithm alg) {
+            return &me.resize(alg);
         },
         py::arg("alg"));
     steps.def(
         "convert_layout",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const ov::Layout& layout = {}) {
-            me->convert_layout(layout);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, const ov::Layout& layout = {}) {
+            return &me.convert_layout(layout);
         },
         py::arg("dst_layout"));
     steps.def(
         "convert_layout",
-        [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me, const std::vector<uint64_t>& dims) {
-            me->convert_layout(dims);
-            return me;
+        [](ov::preprocess::PreProcessSteps& me, const std::vector<uint64_t>& dims) {
+            return &me.convert_layout(dims);
         },
         py::arg("dims"));
-    steps.def("reverse_channels", [](const std::shared_ptr<ov::preprocess::PreProcessSteps>& me) {
-        me->reverse_channels();
-        return me;
+    steps.def("reverse_channels", [](ov::preprocess::PreProcessSteps& me) {
+        return &me.reverse_channels();
     });
 }
 
 static void regclass_graph_PostProcessSteps(py::module m) {
-    py::class_<ov::preprocess::PostProcessSteps, std::shared_ptr<ov::preprocess::PostProcessSteps>> steps(
+    py::class_<ov::preprocess::PostProcessSteps, ref_wrapper<ov::preprocess::PostProcessSteps>> steps(
         m,
         "PostProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
@@ -189,9 +188,8 @@ static void regclass_graph_PostProcessSteps(py::module m) {
 
     steps.def(
         "convert_element_type",
-        [](const std::shared_ptr<ov::preprocess::PostProcessSteps>& me, ov::element::Type type) {
-            me->convert_element_type(type);
-            return me;
+        [](ov::preprocess::PostProcessSteps& me, ov::element::Type type) {
+            return &me.convert_element_type(type);
         },
         py::arg("type"),
         R"(
@@ -208,23 +206,20 @@ static void regclass_graph_PostProcessSteps(py::module m) {
               )");
     steps.def(
         "convert_layout",
-        [](const std::shared_ptr<ov::preprocess::PostProcessSteps>& me, const ov::Layout& layout = {}) {
-            me->convert_layout(layout);
-            return me;
+        [](ov::preprocess::PostProcessSteps& me, const ov::Layout& layout = {}) {
+            return &me.convert_layout(layout);
         },
         py::arg("dst_layout"));
     steps.def(
         "convert_layout",
-        [](const std::shared_ptr<ov::preprocess::PostProcessSteps>& me, const std::vector<uint64_t>& dims) {
-            me->convert_layout(dims);
-            return me;
+        [](ov::preprocess::PostProcessSteps& me, const std::vector<uint64_t>& dims) {
+            return &me.convert_layout(dims);
         },
         py::arg("dims"));
     steps.def(
         "custom",
-        [](const std::shared_ptr<ov::preprocess::PostProcessSteps>& me, py::function op) {
-            me->custom(op.cast<const ov::preprocess::PostProcessSteps::CustomPostprocessOp>());
-            return me;
+        [](ov::preprocess::PostProcessSteps& me, py::function op) {
+            return &me.custom(op.cast<const ov::preprocess::PostProcessSteps::CustomPostprocessOp>());
         },
         py::arg("operation"),
         R"(
@@ -322,19 +317,19 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
 }
 
 static void regclass_graph_InputInfo(py::module m) {
-    py::class_<ov::preprocess::InputInfo, std::shared_ptr<ov::preprocess::InputInfo>> inp(m, "InputInfo");
+    py::class_<ov::preprocess::InputInfo, ref_wrapper<ov::preprocess::InputInfo>> inp(m, "InputInfo");
     inp.doc() = "openvino.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
 
-    inp.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one input)");
-    inp.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
-    inp.def(py::init<const std::string&>(), R"(Constructor with input tensor name as argument)");
+//    inp.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one input)");
+//    inp.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
+//    inp.def(py::init<const std::string&>(), R"(Constructor with input tensor name as argument)");
 
     inp.def(
         "tensor",
         [](const std::shared_ptr<ov::preprocess::InputInfo>& me,
-           const std::shared_ptr<ov::preprocess::InputTensorInfo>& inputTensorInfo) {
-            me->tensor(std::move(*inputTensorInfo));
-            return me;
+           const std::shared_ptr<ov::preprocess::InputTensorInfo>& inputTensorInfo) -> ov::preprocess::InputInfo* {
+            me.get()->tensor(std::move(*inputTensorInfo));
+            return me.get();
         },
         py::arg("tensor"),
         R"(
@@ -350,30 +345,21 @@ static void regclass_graph_InputInfo(py::module m) {
               )");
     inp.def(
         "preprocess",
-        [](const std::shared_ptr<ov::preprocess::InputInfo>& me,
-           const std::shared_ptr<ov::preprocess::PreProcessSteps>& preProcessSteps) {
-            me->preprocess(std::move(*preProcessSteps));
-            return me;
+        [](ov::preprocess::InputInfo& me) {
+            return &me.preprocess();
         },
-        py::arg("pre_process_steps"),
         R"(
-                Adds builder for actual preprocessing steps for input parameter.
-                Steps can specify various actions, like 'mean', 'scale' and others.
-                Parameters
-                ----------
-                pre_process_steps : PreProcessSteps
-                    Preprocessing steps. It's internal data will be moved to parent InputInfo object.
+                Gets preprocessing steps for input parameter.
                 Returns
                 ----------
-                preprocess : InputInfo
+                preprocess : Current preprocessing steps
                     Reference to itself to allow chaining of calls in client's code in a builder-like manner.
               )");
     inp.def(
         "network",
-        [](const std::shared_ptr<ov::preprocess::InputInfo>& me,
+        [](ov::preprocess::InputInfo& me,
            const std::shared_ptr<ov::preprocess::InputNetworkInfo>& inputNetworkInfo) {
-            me->network(std::move(*inputNetworkInfo));
-            return me;
+            return &me.network(std::move(*inputNetworkInfo));
         },
         py::arg("input_network_info"));
 }
@@ -407,12 +393,9 @@ static void regclass_graph_OutputInfo(py::module m) {
               )");
     out.def(
         "postprocess",
-        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me,
-           const std::shared_ptr<ov::preprocess::PostProcessSteps>& postProcessSteps) {
-            me->postprocess(std::move(*postProcessSteps));
-            return me;
+        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me) {
+            return &me->postprocess();
         },
-        py::arg("post_process_steps"),
         R"(
                 Adds builder for actual postprocessing steps for output parameter.
                 Parameters
@@ -500,22 +483,33 @@ void regclass_graph_PrePostProcessor(py::module m) {
 
     proc.def(
         "input",
-        [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me,
-           const std::shared_ptr<ov::preprocess::InputInfo>& info) {
-            me->input(std::move(*info));
-            return me;
+        [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me) {
+            return &me->input();
         },
-        py::arg("input_info"),
         R"(
-                Adds builder for preprocessing info for input parameter.
-                Parameters
-                ----------
-                input_info : InputInfo
-                    Preprocessing info for input parameter. It's internal data will be moved to PreProcessing object.
+                Gets preprocessing info for input parameter.
                 Returns
                 ----------
-                in : PrePostProcessor
-                    Reference to itself to allow chaining of calls in client's code.
+                input : InputInfo
+                    Reference to input info associated with model's input parameter.
+              )");
+    proc.def(
+            "input",
+            [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me,
+                    const std::string& tensor_name) {
+                return &me->input(tensor_name);
+            },
+            py::arg("tensor_name"),
+            R"(
+                Gets preprocessing info for input parameter.
+                Parameters
+                ----------
+                tensor_name : string
+                    Tensor name of input parameter
+                Returns
+                ----------
+                input : InputInfo
+                    Reference to input info associated with model's input tensor specified by its name.
               )");
     proc.def(
         "output",
