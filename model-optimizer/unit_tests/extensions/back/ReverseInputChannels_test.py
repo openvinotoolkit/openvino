@@ -190,7 +190,7 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         node = Node(graph, 'transpose')
         reverse_channels = Node(graph, 'reverse_channels_down')
-        reverse_channels.axis = -3
+        reverse_channels.axis = int64_array(-3)
 
         keep_moving_up, new_reverses = ReverseChannelsPropagationUp.lift_up_through_transpose(node, reverse_channels)
         self.assertTrue(keep_moving_up is True)
@@ -216,7 +216,7 @@ class ReverseInputChannelsTest(unittest.TestCase):
 
         node = Node(graph, 'transpose')
         reverse_channels = Node(graph, 'reverse_channels_up')
-        reverse_channels.axis = -1
+        reverse_channels.axis = int64_array(-1)
 
         keep_moving_down = ReverseChannelsPropagationDown.pass_rc_through_transpose(node, reverse_channels)
 

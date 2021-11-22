@@ -51,7 +51,7 @@ class InsertReverseChannels(BackReplacementPattern):
     enabled = False
 
     @staticmethod
-    def get_fw_index(node: Node, idx: np.ndarray) -> np.ndarray:
+    def get_fw_index(node: Node, idx: int) -> int:
         if not node.has_valid('rt_info'):
             return idx
 
@@ -137,6 +137,10 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
             return False
         order = node.in_port(1).data.get_value()
         reverse_axis = reverse_channels.axis
+
+        if reverse_channels.axis.size != 1:
+            return False
+
         data_rank = len(list(node.in_port(0).data.get_shape()))
 
         if reverse_axis < 0:
@@ -356,6 +360,10 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             return False
         order = node.in_port(1).data.get_value()
         reverse_axis = reverse_channels.axis
+
+        if reverse_channels.axis.size != 1:
+            return False
+
         data_rank = len(list(node.in_port(0).data.get_shape()))
 
         if reverse_axis < 0:
