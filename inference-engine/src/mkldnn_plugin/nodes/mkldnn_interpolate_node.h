@@ -111,24 +111,29 @@ public:
     void prepareParams() override;
 
 private:
+    struct InterpolateAttrs {
+        InterpolateMode mode;
+        InterpolateCoordTransMode coordTransMode;
+        InterpolateNearestMode nearestMode;
+        bool antialias;
+        float cubeCoeff;
+        std::vector<int> padBegin;
+        std::vector<int> padEnd;
+        InferenceEngine::Precision inPrc;
+        InferenceEngine::Precision outPrc;
+        InterpolateLayoutType layout;
+    } interpAttrs;
+
     class InterpolateExecutor {
         public:
-            InterpolateExecutor(InterpolateMode _mode,
+            InterpolateExecutor(const InterpolateAttrs& interpAttrs,
                                 const VectorDims &srcDims,
                                 const VectorDims &dstDims,
-                                InferenceEngine::Precision inPrc,
-                                InferenceEngine::Precision outPrc,
-                                InterpolateLayoutType layout,
-                                InterpolateCoordTransMode _coordTransMode,
-                                InterpolateNearestMode nearestMode,
-                                const std::vector<int> &padBegin,
-                                const std::vector<int> &padEnd,
-                                const std::vector<float> &dataScales,
-                                bool antialias,
-                                float cubeCoeff);
+                                const std::vector<float> &dataScales);
 
             virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) = 0;
             virtual ~InterpolateExecutor() = default;
+            VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
 
         private:
             void buildTblNN(const SizeVector& srcDimPad5d, const SizeVector& dstDim5d, const std::vector<float>& dataScales,
@@ -160,20 +165,11 @@ private:
 
     class InterpolateJitExecutor : public InterpolateExecutor {
         public:
-            InterpolateJitExecutor(InterpolateMode _mode,
-                                   InferenceEngine::Precision inPrc,
-                                   InferenceEngine::Precision outPrc,
+            InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                    const VectorDims &srcDims,
                                    const VectorDims &dstDims,
-                                   const std::vector<int> &padBegin,
-                                   const std::vector<int> &padEnd,
                                    const std::vector<float> &dataScales,
-                                   InterpolateLayoutType layout,
-                                   InterpolateCoordTransMode _coordTransMode,
-                                   InterpolateNearestMode nearestMode,
-                                   const mkldnn::primitive_attr &attr,
-                                   bool antialias,
-                                   float cubeCoeff);
+                                   const mkldnn::primitive_attr &attr);
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
 
@@ -196,21 +192,11 @@ private:
 
     class InterpolateRefExecutor : public InterpolateExecutor {
         public:
-            InterpolateRefExecutor(InterpolateMode _mode,
-                                   InferenceEngine::Precision inPrc,
-                                   InferenceEngine::Precision outPrc,
+            InterpolateRefExecutor(const InterpolateAttrs& interpAttrs,
                                    const VectorDims &srcDims,
                                    const VectorDims &dstDims,
-                                   const std::vector<int> &padBegin,
-                                   const std::vector<int> &padEnd,
-                                   const std::vector<float> &_dataScales,
-                                   InterpolateLayoutType layout,
-                                   InterpolateCoordTransMode _coordTransMode,
-                                   InterpolateNearestMode nearestMode,
-                                   bool _antialias,
-                                   float cubeCoeff) : dataScales(_dataScales), antialias(_antialias),
-                InterpolateExecutor(_mode, srcDims, dstDims, inPrc, outPrc, layout, _coordTransMode, nearestMode,
-                                    padBegin, padEnd, _dataScales, _antialias, cubeCoeff) {}
+                                   const std::vector<float> &_dataScales) : dataScales(_dataScales), antialias(interpAttrs.antialias),
+                InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales) {}
 
             void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
 
@@ -242,17 +228,8 @@ private:
     static constexpr size_t AXES_ID = 3;
     static constexpr int CUBIC_GRID_LEN = 4;
 
-    InterpolateMode mode;
-    InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
-    bool antialias = false;
-    std::vector<int> padBegin;
-    std::vector<int> padEnd;
     bool hasPad = false;
-    InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
     InterpolateShapeCalcMode shapeCalcMode;
-    InterpolateLayoutType configured_for_layout;
-
-    float cubeCoeff = -0.75;
 
     bool isAxesSpecified = false;
     std::vector<int> axes;

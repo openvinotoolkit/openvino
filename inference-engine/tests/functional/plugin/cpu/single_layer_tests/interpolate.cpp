@@ -417,6 +417,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTes
             ::testing::ValuesIn(filterAdditionalConfig())),
     InterpolateLayerCPUTest::getTestCaseName);
 
+const std::vector<ShapeParams> shapeParams4D_fixed_C = {
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES,
+        InputShape{{}, {{1, 11, 4, 4}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1.f, 1.f, 1.25f, 1.5f}},
+        defaultAxes4D.front()
+    },
+    ShapeParams{
+        ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES,
+        InputShape{{-1, 16, -1, -1}, {{1, 16, 4, 4}, {1, 16, 6, 5}}},
+        ngraph::helpers::InputLayerType::CONSTANT,
+        {{1, 16, 6, 7}},
+        defaultAxes4D.front()
+    }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_InterpolateNN_Layout_PerChannelFuse_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            interpolateCasesNN,
+            ::testing::ValuesIn(shapeParams4D_fixed_C),
+            ::testing::Values(ElementType::f32),
+            ::testing::ValuesIn(filterCPUInfoForDevice()),
+            ::testing::Values(fusingFakeQuantizePerChannelRelu),
+            ::testing::ValuesIn(filterAdditionalConfig())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
 const auto interpolateCasesLinearOnnx = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
         ::testing::ValuesIn(coordinateTransformModes),
