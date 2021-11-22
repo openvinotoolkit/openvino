@@ -111,7 +111,7 @@ public:
        mockPlugin = InferenceEngine::InferencePlugin{{}, mockIPluginPtr};
        // remove annoying ON CALL message
        EXPECT_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).Times(1);
-       mockExeNetwork = {{}, mockPlugin.LoadNetwork(CNNNetwork{}, {})};
+       mockExeNetwork = mockPlugin.LoadNetwork(CNNNetwork{}, {});
 
        // prepare mockicore and cnnNetwork for loading
        core  = std::shared_ptr<MockICore>(new MockICore());
