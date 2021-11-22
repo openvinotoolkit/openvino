@@ -27,8 +27,6 @@
 #include "classification_sample_async.h"
 #include "openvino/openvino.hpp"
 
-using namespace ov::preprocess;
-
 /**
  * @brief Checks input args
  * @param argc number of args
@@ -64,7 +62,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     try {
         // -------- Get OpenVINO Runtime version --------
-        slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
+        slog::info << ov::get_openvino_version() << slog::endl;
 
         // -------- Parsing and validation of input arguments --------
         if (!ParseAndCheckCommandLine(argc, argv)) {
@@ -104,9 +102,9 @@ int main(int argc, char* argv[]) {
         // -------- Step 3. Apply preprocessing --------
         const ov::Layout tensor_layout{"NHWC"};
 
-        PrePostProcessor proc(model);
+        ov::preprocess::PrePostProcessor proc(model);
         // 1) input() with no args assumes a model has a single input
-        InputInfo& input_info = proc.input();
+        ov::preprocess::InputInfo& input_info = proc.input();
         // 2) Set input tensor information:
         // - precision of tensor is supposed to be 'u8'
         // - layout of data is 'NHWC'
