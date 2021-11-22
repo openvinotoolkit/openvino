@@ -488,7 +488,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          input_layout.size.feature[0] % 32 == 0 &&
          weights_layout.size.spatial[1] == 1 && output_layout.size.feature[0] % 64 == 0 &&
          weights_layout.size.batch[0] % 64 == 0 && conv->stride.spatial[0] == 1 && conv->stride.spatial[1] == 1 &&
-         conv->input_offset.spatial[0] == 0 && conv->input_offset.spatial[1] == 0) ||
+         conv->pad.spatial[0] == 0 && conv->pad.spatial[1] == 0) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
