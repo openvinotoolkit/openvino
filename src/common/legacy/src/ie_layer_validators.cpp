@@ -109,6 +109,7 @@ void ConvolutionValidator::parseParams(CNNLayer* layer) {
         IE_THROW() << "Layer is not instance of ConvolutionLayer class";
     }
     convLayer->_out_depth = convLayer->GetParamAsUInt("output");
+    std::cout << __FILE__ << ":" << __LINE__ << " convLayer->_out_depth " << convLayer->_out_depth << std::endl;
 
     convLayer->_kernel.clear();
     convLayer->_stride.clear();
