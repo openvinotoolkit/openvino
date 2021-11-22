@@ -62,6 +62,7 @@ MKLDNNAdaptivePoolingNode::MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngrap
     } else if (one_of(op->get_type_info(), ngraph::op::v8::AdaptiveMaxPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingMax;
     }
+    spatialDimsCount = getInputShapeAtPort(0).getRank() - 2;
 }
 
 void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
