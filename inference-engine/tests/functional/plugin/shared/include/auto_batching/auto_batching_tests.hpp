@@ -65,14 +65,16 @@ TEST_P(AutoBatching_Test, compareAutoBatchingToBatch1) {
     for (size_t i = 0; i < nets.size(); ++i) {
         auto net = nets[i];
 
-        net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
-        net.getInputsInfo().begin()->second->setPrecision(Precision::FP32);
+        // we test single inputs networks only
+        auto inp = net.getInputsInfo().begin()->second;
+        inp->setLayout(Layout::NCHW);
+        inp->setPrecision(Precision::FP32);
         std::map<std::string, std::string> config;
         if (device_name.find("GPU") != std::string::npos)
             config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
         if (device_name.find("CPU") != std::string::npos)
             config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-        auto exec_net_ref = ie.LoadNetwork(net, std::string("BATCH:") +
+        auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) +
                                                    device_name + "(" + std::to_string(num_batch) + ")",
                                                    config);
 
