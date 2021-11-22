@@ -47,9 +47,7 @@ add_library("${CLDNN_BUILD__PROJ}" STATIC
     ${__CLDNN_AllSources}
   )
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-  target_compile_options(${CLDNN_BUILD__PROJ} PRIVATE -Os)
-endif()
+target_compile_options(${CLDNN_BUILD__PROJ} PRIVATE $<$<CONFIG:Release>:-Os>)
 
 set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY PROJECT_LABEL "${CLDNN_BUILD__PROJ_LABEL}")
 
