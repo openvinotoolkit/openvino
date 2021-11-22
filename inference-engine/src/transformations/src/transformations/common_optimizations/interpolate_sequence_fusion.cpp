@@ -69,7 +69,8 @@ bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::sh
     return compatible_axes(fst_axes, snd_axes);
 }
 
-ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
+ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd,
+                                                       pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_sizes_node = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(1).get_node_shared_ptr());
@@ -108,12 +109,15 @@ ngraph::NodeVector subgraph_for_sizes_calculation_mode(const std::shared_ptr<ops
 
     auto div_node = std::make_shared<opset8::Divide>(new_sizes_cast, cast_shape_to_float);
 
-    auto new_interpolate = fst->clone_with_new_inputs({fst->input_value(0), new_sizes_node, div_node, new_axes_node});
+    const auto new_interpolate = ov::as_type_ptr<opset8::Interpolate>(fst->clone_with_new_inputs({fst->input_value(0), new_sizes_node, div_node,
+                                                                      new_axes_node}));
+    matcherPass->register_new_node(new_interpolate);
 
     return {new_sizes_node, new_axes_node, new_sizes_cast, shape_node, gather_axis_node, gather_node, cast_shape_to_float, div_node, new_interpolate};
 }
 
-ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd) {
+ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<opset8::Interpolate>& fst, const std::shared_ptr<opset8::Interpolate>& snd,
+                                                        pass::MatcherPass* matcherPass) {
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
     const auto fst_scales_node = std::dynamic_pointer_cast<opset8::Constant>(fst->input_value(2).get_node_shared_ptr());
@@ -155,7 +159,9 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
     auto floor_node = std::make_shared<opset8::Floor>(add_node);
     auto cast_mul_result_to_int = std::make_shared<opset8::Convert>(floor_node, element::i64);
 
-    auto new_interpolate = fst->clone_with_new_inputs({fst->input_value(0), cast_mul_result_to_int, new_scales_node, new_axes_node});
+    const auto new_interpolate = ov::as_type_ptr<opset8::Interpolate>(fst->clone_with_new_inputs({fst->input_value(0), cast_mul_result_to_int,
+                                                                                                  new_scales_node, new_axes_node}));
+    matcherPass->register_new_node(new_interpolate);
 
     return {new_scales_node, new_axes_node, shape_node, gather_axis_node, gather_node, cast_shape_to_float, mul_node, eps_node,
             add_node, floor_node, cast_mul_result_to_int, new_interpolate};
@@ -178,9 +184,9 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
 
         NodeVector new_subgraph;
         if (fst_interpolate->get_attrs().shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
-            new_subgraph = subgraph_for_sizes_calculation_mode(fst_interpolate, snd_interpolate);
+            new_subgraph = subgraph_for_sizes_calculation_mode(fst_interpolate, snd_interpolate, this);
         } else {
-            new_subgraph = subgraph_for_scales_calculation_mode(fst_interpolate, snd_interpolate);
+            new_subgraph = subgraph_for_scales_calculation_mode(fst_interpolate, snd_interpolate, this);
         }
         if (new_subgraph.empty()) return false;
 
