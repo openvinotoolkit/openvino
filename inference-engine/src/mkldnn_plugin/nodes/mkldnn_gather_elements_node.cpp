@@ -40,8 +40,8 @@ MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph:
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
 
-    const auto dataRank = inputShapes[dataIndex_].getRank();
-    const auto indicesRank = inputShapes[indicesIndex_].getRank();
+    const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
+    const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
     if (dataRank != indicesRank)
         IE_THROW() << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
 

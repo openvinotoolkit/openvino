@@ -98,16 +98,14 @@ protected:
         selectedType = std::string("ref_any_") + ov::element::Type(dPrecision).get_type_name();
         init_input_shapes(shapes);
 
-        const ngraph::ParameterVector params = {
+        ngraph::ParameterVector params = {
             std::make_shared<ngraph::opset1::Parameter>(dPrecision, inputDynamicShapes[0]),
             std::make_shared<ngraph::opset1::Parameter>(iPrecision, inputDynamicShapes[1]),
         };
 
         auto gather = std::make_shared<ngraph::op::v6::GatherElements>(
             params[0], params[1], axis);
-        gather->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gather)};
-        function = std::make_shared<ngraph::Function>(results, params, "GatherElements");
+        function = makeNgraphFunction(dPrecision, params, gather, "GatherElements");
     }
 };
 
@@ -121,14 +119,10 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
 };
 
 const std::vector<std::vector<InputShape>> inDynamicShapeParams = {
-    {{{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
-        {{2, 3, 5, 7}, {3, 4, 6, 8}}},
-     {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
-        {{2, 3, 9, 7}, {3, 4, 4, 8}}}},
-    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 10), ngraph::Dimension(1, 10), ngraph::Dimension(1, 10)},
-        {{3, 4, 6, 8}, {2, 3, 5, 7}}},
-    {{{ngraph::Dimension(1, 10), ngraph::Dimension(1, 10), ngraph::Dimension(1, 10), ngraph::Dimension(1, 10)}},
-        {{3, 4, 4, 8}, {2, 3, 9, 7}}}}
+    {{{-1, -1, -1, -1}, {{2, 3, 5, 7}, {3, 4, 6, 8}}},
+     {{-1, -1, -1, -1}, {{2, 3, 9, 7}, {3, 4, 4, 8}}}},
+    {{{{1, 10}, {1, 10}, {1, 10}, {1, 10}}, {{3, 4, 6, 8}, {2, 3, 5, 7}}},
+     {{{1, 10}, {1, 10}, {1, 10}, {1, 10}}, {{3, 4, 4, 8}, {2, 3, 9, 7}}}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_set1, GatherElementsCPUTest,
