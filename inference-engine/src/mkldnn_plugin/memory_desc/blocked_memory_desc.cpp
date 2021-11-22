@@ -29,3 +29,29 @@ bool BlockedMemoryDesc::isCompatible(const BlockedMemoryDesc &rhs) const {
 
     return dimsEqualWeak(this->getOffsetPadding(), rhs.getOffsetPadding());
 }
+
+std::string BlockedMemoryDesc::serializeFormat() const {
+    std::stringstream result;
+    char startLetter = 'a';
+    std::unordered_set<size_t> blockedAxis;
+    const auto& order = getOrder();
+    const auto& shape = getShape();
+    for (size_t i = shape.getRank(); i < order.size(); ++i) {
+        blockedAxis.insert(order[i]);
+    }
+
+    for (size_t i = 0; i < shape.getRank(); ++i) {
+        char nextLetter = startLetter + order[i];
+        if (blockedAxis.count(i)) {
+            nextLetter = toupper(nextLetter);
+        }
+        result << nextLetter;
+    }
+
+    const auto& blkDims = getBlockDims();
+    for (size_t i = shape.getRank(); i < order.size(); ++i) {
+        result << blkDims[i] << char(startLetter + order[i]);
+    }
+
+    return result.str();
+}
