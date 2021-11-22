@@ -216,6 +216,9 @@ NGRAPH_API std::shared_ptr<op::Constant> get_constant_max_of_type(element::Type_
 /// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::min()
 NGRAPH_API std::shared_ptr<op::Constant> get_constant_min_of_type(element::Type_t t);
 
+/// \brief Returns a Constant storing scalar value equal to std::numeric_limits<t>::lowest()
+NGRAPH_API std::shared_ptr<op::Constant> get_constant_lowest_of_type(element::Type_t t);
+
 /// \brief Checks if size of HostTensorVector is the same as passed size attribute. Then checks
 /// that all the HostTensorPtrs are not equal to nullptr
 NGRAPH_API bool validate_host_tensor_vector(const HostTensorVector& v, const size_t& size);

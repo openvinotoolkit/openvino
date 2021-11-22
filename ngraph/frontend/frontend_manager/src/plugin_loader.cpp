@@ -23,14 +23,14 @@
 #include "openvino/util/file_util.hpp"
 #include "plugin_loader.hpp"
 
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov;
+using namespace ov::frontend;
 
 #ifdef WIN32
 #    define DLOPEN(file_str) LoadLibrary(TEXT(file_str.c_str()))
 #    define DLSYM(obj, func) GetProcAddress(obj, func)
 #    define DLCLOSE(obj)     FreeLibrary(obj)
-#    define DLERROR()        ""
+#    define DLERROR()        std::to_string(GetLastError())
 #else
 #    define DLOPEN(file_str) dlopen(file_str.c_str(), RTLD_LAZY)
 #    define DLSYM(obj, func) dlsym(obj, func)
@@ -43,20 +43,16 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     std::vector<std::string> res;
     try {
+        auto prefix = std::string(FRONTEND_LIB_PREFIX);
+        auto suffix = std::string(FRONTEND_LIB_SUFFIX);
         ov::util::iterate_files(
             path,
-            [&res](const std::string& file, bool is_dir) {
-                if (!is_dir && file.find("_ngraph_frontend") != std::string::npos) {
-#ifdef _WIN32
-                    std::string ext = ".dll";
-#elif defined(__APPLE__)
-                    std::string ext = ".dylib";
-#else
-                    std::string ext = ".so";
-#endif
-                    if (file.find(ext) != std::string::npos) {
-                        res.push_back(file);
-                    }
+            [&res, &prefix, &suffix](const std::string& file_path, bool is_dir) {
+                auto file = ov::util::get_file_name(file_path);
+                if (!is_dir && (prefix.empty() || file.compare(0, prefix.length(), prefix) == 0) &&
+                    file.length() > suffix.length() &&
+                    file.rfind(suffix) == (file.length() - std::string(suffix).length())) {
+                    res.push_back(file_path);
                 }
             },
             // ilavreno: this is current solution for static runtime
@@ -73,7 +69,7 @@ static std::vector<std::string> list_files(const std::string& path) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-std::vector<PluginData> ngraph::frontend::load_plugins(const std::string& dir_name) {
+std::vector<PluginData> ov::frontend::load_plugins(const std::string& dir_name) {
     auto files = list_files(dir_name);
     std::vector<PluginData> res;
     for (const auto& file : files) {

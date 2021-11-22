@@ -388,7 +388,8 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                return srcDescs[i]->isCompatible(*selectedDescs[i].desc);
+                if (!srcDescs[i]->isCompatible(*selectedDescs[i].desc))
+                    return false;
             }
             return true;
         };
@@ -725,7 +726,6 @@ protected:
     }
 
     std::vector<VectorDims> lastInputDims = {};
-
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
 private:

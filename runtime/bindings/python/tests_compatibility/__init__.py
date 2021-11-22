@@ -25,7 +25,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="failed with accuracy issue")
-skip_issue_69443 = pytest.mark.skip(reason="Segmentation fault due to empty pads_begin, pads_end")
+xfail_issue_69443 = xfail_test(reason="Segmentation fault due to empty pads_begin, pads_end")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
@@ -46,7 +46,6 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "TfIdfVectorizer")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "GatherElements")
-xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
@@ -99,8 +98,6 @@ xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
-xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -142,7 +139,6 @@ xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
-xfail_issue_63045 = xfail_test(reason="Maxpool with strides, padding and dilations fail")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")

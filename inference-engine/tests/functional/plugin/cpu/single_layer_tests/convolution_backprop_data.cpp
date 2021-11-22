@@ -51,6 +51,7 @@ public:
         return result.str();
     }
 protected:
+    InferenceEngine::SizeVector kernel, stride;
     void SetUp() override {
         convBackpropDataLayerTestParamsSet basicParamsSet;
         CPUSpecificParams cpuParams;
@@ -76,7 +77,7 @@ protected:
         }
 
         ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
+        InferenceEngine::SizeVector dilation;
         std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
         size_t convOutChannels;
         std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = convParams;
@@ -100,6 +101,17 @@ protected:
 
 TEST_P(DeconvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (!fusedOps.empty()) {
+        bool isSupportedParams = stride[stride.size() - 1] <= kernel[kernel.size() - 1];
+        if (stride.size() > 1)
+            isSupportedParams &= stride[stride.size() - 2] <= kernel[kernel.size() - 2];
+        if (stride.size() > 2)
+            isSupportedParams &= stride[stride.size() - 3] <= kernel[kernel.size() - 3];
+        if (!isSupportedParams) {
+            GTEST_SKIP() << "Fusing with strides more than kernel size was disabled, because oneDNN deconvolution doesn't support it" << std::endl;
+        }
+    }
 
     Run();
     CheckPluginRelatedResults(executableNetwork, "Deconvolution");
