@@ -91,4 +91,7 @@ void regclass_graph_Output(py::module m, std::string typestring)
                 get_tensor : descriptor.Tensor
                     Tensor of the output.
                )");
+    output.def("_from_node", [](const std::shared_ptr<ov::Node>& node) {
+               return ov::Output<ov::Node>(node);
+               });
 }
