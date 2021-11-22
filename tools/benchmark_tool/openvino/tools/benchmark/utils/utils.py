@@ -163,7 +163,7 @@ def get_number_iterations(number_iterations: int, nireq: int, num_shapes: int, a
 
     if api_type == 'async' and niter:
         if num_shapes > nireq:
-            niter = ((niter + num_shapes -1) / num_shapes) * num_shapes
+            niter = int(((niter + num_shapes -1) / num_shapes) * num_shapes)
             if number_iterations != niter:
                 logger.warning('Number of iterations was aligned by number of input shapes '
                             f'from {number_iterations} to {niter} using number of possible input shapes {num_shapes}')

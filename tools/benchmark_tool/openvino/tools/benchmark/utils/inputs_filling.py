@@ -61,6 +61,17 @@ def get_batch_sizes(app_input_info):
     return batch_sizes
 
 
+def get_latency_groups(app_input_info):
+    num_groups = max(len(info.shapes) for info in app_input_info)
+    groups = []
+    for i in range(num_groups):
+        group = {}
+        for info in app_input_info:
+            group[info.name] = info.shapes[i % len(info.shapes)]
+        groups.append(group)
+    return groups
+
+
 def get_input_data(paths_to_input, app_input_info):
     input_file_mapping = parse_paths_to_input(paths_to_input)
     check_input_file_mapping(input_file_mapping, app_input_info)
@@ -97,7 +108,7 @@ def get_input_data(paths_to_input, app_input_info):
                 num_files = len(input_file_mapping[info.name])
                 if num_files > num_shapes and num_files % num_shapes != 0:
                     files_to_be_used = num_files - num_files % num_shapes
-                    logger.warning(f"Number of provided files for input '{info.name}' is not a multiple of the number of"
+                    logger.warning(f"Number of provided files for input '{info.name}' is not a multiple of the number of "
                                 f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
     else:
         if binaries_count + images_count > 1:
@@ -108,15 +119,24 @@ def get_input_data(paths_to_input, app_input_info):
                 num_files = len(image_files) + len(binary_files)
                 if num_files > num_shapes and num_files % num_shapes != 0:
                     files_to_be_used = num_files - num_files % num_shapes
-                    logger.warning(f"Number of provided files for input '{app_input_info[0].name}' is not a multiple of the number of"
+                    logger.warning(f"Number of provided files for input '{app_input_info[0].name}' is not a multiple of the number of "
                                 f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
 
     total_frames = np.prod(batch_sizes)
 
     if input_file_mapping and len(input_file_mapping) < len(app_input_info):
-        not_provided_inputs = set(info.name for info in app_input_info) - set(input_file_mapping)
+        not_provided_inputs_info = [info for info in app_input_info if info.name not in input_file_mapping]
+        for info in not_provided_inputs_info:
+            if len(info.shapes == 0): # TODO: should we allow to provide input files not for each input in dynamic case ?
+                error_message = ""
+                if info.is_image:
+                    error_message = f"Provide tensor shapes to fill input '{info.name} " \
+                                     "with random values or images to process them with original shapes'"
+                else:
+                    error_message = f"Input {info.name} is dynamic. Provide tensor shapes."
+                raise Exception(error_message)
         logger.warning("No input files were given for the inputs: "
-                       f"{', '.join(not_provided_inputs)}. This inputs will be filled with random values!")
+                       f"{', '.join(list(info.name for info in not_provided_inputs_info))}. This inputs will be filled with random values!")
     elif len(image_files) == 0 and len(binary_files) == 0:
         for info in app_input_info:
             if len(info.shapes) == 0:
@@ -371,18 +391,27 @@ def parse_paths_to_input(paths_to_inputs):
 
 def parse_path(path):
     """
-    Parse "input_1:file1,file2,input_2:file3" into a dict
+    Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3" into a dict and extract files if provided path is directory
     """
-    inputs = re.findall(r"([^,]\w+):", path)
-    input_files = [file for file in re.split(r"[^,]\w+:", path) if file]
-    return {
-        input_: files.strip(",").split(",") for input_, files in zip(inputs, input_files)
-    }
+    input_names = re.findall(r"([^,]\w+):", path)
+    input_pathes = [path for path in re.split(r"[^,]\w+:", path) if path]
+    input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(input_names, input_pathes)}
+    input_file_mapping = defaultdict(list)
+    for input_name, _input_pathes in input_path_mapping.items():
+        for _input_path in _input_pathes:
+            input_path = Path(_input_path)
+            if input_path.exists():
+                if input_path.is_dir():
+                    input_file_mapping[input_name] += list(str(input_file) for input_file in input_path.iterdir())
+                elif input_path.is_file:
+                    input_file_mapping[input_name].append(str(input_path))
+            else:
+                raise Exception(f"Path for input '{input_name}' doesn't exist \n {str(input_path)}")
+    return dict(input_file_mapping)
 
 
 def check_input_file_mapping(input_file_mapping, app_input_info):
     check_inputs(app_input_info, input_file_mapping)
-    check_input_file_mapping_files_exists(input_file_mapping)
     check_files_extensions(app_input_info, input_file_mapping)
     check_number_of_parameters_for_each_input(input_file_mapping)
 
@@ -407,10 +436,6 @@ def check_inputs(app_input_info, input_file_mapping):
             f"Available inputs: {list(input_names)}. "
             "Please check `-i` input data"
         )
-
-
-def check_input_file_mapping_files_exists(input_file_mapping):
-    check_files_exist(chain.from_iterable(input_file_mapping.values()))
 
 
 def check_files_exist(input_files_list):
