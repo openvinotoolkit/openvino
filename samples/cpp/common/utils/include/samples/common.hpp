@@ -143,7 +143,8 @@ inline slog::LogStream& operator<<(slog::LogStream& os, const ov::Version& versi
     return os;
 }
 
-inline slog::LogStream& operator<<(slog::LogStream& os, const std::map<std::string, InferenceEngine::Version>& versions) {
+inline slog::LogStream& operator<<(slog::LogStream& os,
+                                   const std::map<std::string, InferenceEngine::Version>& versions) {
     for (auto&& version : versions) {
         os << version.first << slog::endl;
         os << version.second << slog::endl;
