@@ -76,6 +76,11 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/common
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev
         FILES_MATCHING PATTERN "*.hpp")
+        
+install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/
+        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+        COMPONENT ngraph_dev
+        FILES_MATCHING PATTERN "manager.hpp")
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

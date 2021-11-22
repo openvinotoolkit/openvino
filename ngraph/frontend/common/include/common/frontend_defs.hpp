@@ -17,5 +17,5 @@
 #        define FRONTEND_API OPENVINO_CORE_EXPORTS
 #    else
 #        define FRONTEND_API OPENVINO_CORE_IMPORTS
-#    endif  // frontend_manager_EXPORTS
+#    endif  // frontend_common_EXPORTS
 #endif      // USE_STATIC_FRONTEND_COMMON || OPENVINO_STATIC_LIBRARY
