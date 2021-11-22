@@ -541,6 +541,7 @@ bool pwl_search(const DnnActivation& activation_type,
                         n_segments_upper = n_segments_mid;
                     }
                 }
+                gnalog() << "err_pct: " << err_pct << ", allowed_err_pct: " << allowed_err_pct << '\n';
             } while (n_segments_lower <= n_segments_upper);
 
             gnalog() << "n_segments_mid: " << n_segments_mid << " (" << pwl.size() << "), err_pct: " <<
