@@ -310,10 +310,13 @@ def run(args):
             if batch_size.is_dynamic and benchmark.api_type == 'sync':
                 raise Exception("Dynamic batch size is supported only in async mode")
 
+        static_mode = True
         for info in app_inputs_info:
             if info.is_dynamic and benchmark.api_type == 'sync':
                 raise Exception("Benchmarking of the model with dynamic shapes is available for async API only."
                                    "Please use -api async -nstreams 1 -nireq 1 to emulate sync behavior.")
+            elif info.is_dynamic:
+                static_mode = False
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
@@ -370,7 +373,7 @@ def run(args):
                                           ('topology', topology_name),
                                           ('target device', device_name),
                                           ('API', args.api_type),
-                                          ('Legacy mode', str(benchmark.legacy_mode))
+                                          ('Legacy mode', str(benchmark.legacy_mode)),
                                           ('precision', "UNSPECIFIED"),
                                           ('batch size', str(batch_size)),
                                           ('number of iterations', str(benchmark.niter)),
@@ -386,7 +389,7 @@ def run(args):
 
         # ------------------------------------ 10. Measuring performance -----------------------------------------------
 
-        output_string = process_help_inference_string(benchmark, device_number_streams)
+        output_string = (benchmark, device_number_streams)
 
         next_step(additional_info=output_string)
         progress_bar_total_count = 10000
@@ -405,7 +408,7 @@ def run(args):
         if benchmark.legacy_mode:
             logger.info("Legacy mode is enabled, inputs filling only once before measurements.")
 
-        fps, latency_ms, total_duration_sec, iteration = benchmark.infer(requests, data_queue, batch_size, args.latency_percentile, progress_bar)
+        fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration = benchmark.infer(requests, data_queue, batch_size, args.latency_percentile, progress_bar)
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
@@ -433,30 +436,46 @@ def run(args):
                                           ('total number of iterations', str(iteration)),
                                       ])
             if MULTI_DEVICE_NAME not in device_name:
-                if args.latency_percentile == 50:
-                    latency_prefix = 'latency (ms)'
-                else:
-                    latency_prefix = 'latency (' + args.latency_percentile + ' percentile) (ms)'
+                latency_prefix = None
+                if args.latency_percentile == 50 and static_mode:
+                    latency_prefix = 'median latency (ms)'
+                elif args.latency_percentile != 50:
+                    latency_prefix = 'latency (' + str(args.latency_percentile) + ' percentile) (ms)'
+                if latency_prefix:
+                    statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                            [
+                                                (latency_prefix, f'{median_latency_ms:.2f}'),
+                                            ])
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              (latency_prefix, f'{latency_ms:.2f}'),
+                                              ("AVG", f'{avg_latency_ms:.2f}'),
                                           ])
-
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ("MIN", f'{min_latency_ms:.2f}'),
+                                          ])
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ("MAX", f'{max_latency_ms:.2f}'),
+                                          ])
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                       [
                                           ('throughput', f'{fps:.2f}'),
                                       ])
+            statistics.dump()
 
-        if statistics:
-          statistics.dump()
 
         print(f'Count:      {iteration} iterations')
         print(f'Duration:   {get_duration_in_milliseconds(total_duration_sec):.2f} ms')
         if MULTI_DEVICE_NAME not in device_name:
-            if args.latency_percentile == 50:
-                print(f'Latency:    {latency_ms:.2f} ms')
-            else:
-                print(f'Latency ({args.latency_percentile} percentile):    {latency_ms:.2f} ms')
+            print('Latency:')
+            if args.latency_percentile == 50 and static_mode:
+                print(f'Median:    {median_latency_ms:.2f} ms')
+            elif args.latency_percentile != 50:
+                print(f'({args.latency_percentile} percentile):    {median_latency_ms:.2f} ms')
+            print(f"AVG:{avg_latency_ms:.2f} ms")
+            print(f"MIN:{min_latency_ms:.2f} ms")
+            print(f"MAX:{max_latency_ms:.2f} ms")
         print(f'Throughput: {fps:.2f} FPS')
 
         del exe_network

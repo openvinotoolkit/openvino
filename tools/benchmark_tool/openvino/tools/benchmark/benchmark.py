@@ -135,8 +135,11 @@ class Benchmark:
         for infer_request_id in in_fly:
             times.append(requests[infer_request_id].latency)
         times.sort()
-        latency_ms = percentile(times, latency_percentile)
-        fps = len(batch_size) * 1000 / latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
+        median_latency_ms = percentile(times, latency_percentile)
+        avg_latency_ms = sum(times) / len(times)
+        min_latency_ms = times[0]
+        max_latency_ms = times[-1]
+        fps = len(batch_size) * 1000 / median_latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
         if progress_bar:
             progress_bar.finish()
-        return fps, latency_ms, total_duration_sec, iteration
+        return fps, median_latency_ms, avg_latency_ms, min_latency_ms, max_latency_ms, total_duration_sec, iteration
