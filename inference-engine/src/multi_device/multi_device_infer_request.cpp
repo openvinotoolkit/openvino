@@ -63,17 +63,23 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
 
 void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) {
     auto exeNetwork = _exeNetwork.get();
-    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkActualNeeded
-            && !dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkFirstReady && _requestToShareBlobsWith)
+    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->EligibleForDynamicShape() && _requestToShareBlobsWith) {
         _requestToShareBlobsWith->SetBlob(name, blob);
-    else
-	 IInferRequestInternal::SetBlob(name, blob);
+        InputInfo::Ptr foundInput;
+        DataPtr foundOutput;
+        const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
+        if (isInput)
+            _inputs[name] = _requestToShareBlobsWith->GetBlob(name);
+        else
+            _outputs[name] = _requestToShareBlobsWith->GetBlob(name);
+    } else {
+        IInferRequestInternal::SetBlob(name, blob);
+    }
 }
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
     auto exeNetwork = _exeNetwork.get();
-    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkActualNeeded
-            && !dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->_networkFirstReady && _requestToShareBlobsWith)
+    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->EligibleForDynamicShape() && _requestToShareBlobsWith)
         return _requestToShareBlobsWith->GetBlob(name);
     else
         return IInferRequestInternal::GetBlob(name);

@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include "multi_device_exec_network.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
