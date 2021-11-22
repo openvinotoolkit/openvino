@@ -79,6 +79,9 @@ Options:
     -h, --help                  Print a usage message
     -m "<path>"                 Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
     -i "<path>"                 Optional. Path to a folder with images and/or binaries or to specific image or binary file.
+                                In case of dynamic shapes networks with several inputs provide the same number of files for each input (except cases with 1 file for 1 input):
+                                "input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ".
+                                Also you can pass specific keys for inputs: "random" - for fillling input with random data, "image_info" - for filling input with image size.
     -d "<device>"               Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
                                 Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
                                 Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin.
@@ -99,11 +102,20 @@ Options:
     -stream_output              Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
     -t                          Optional. Time, in seconds, to execute topology.
     -progress                   Optional. Show progress bar (can affect performance measurement). Default values is "false".
-    -shape                      Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
+    -shape                      Optional. Set shape for network input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
+                                This parameter affect model input shape and can be dynamic. For dynamic dimensions use symbol `?` or '-1'. Ex. [?,3,?,?].
+                                For bounded dimensions specify range 'min..max'. Ex. [min..max,3,?,?].
+    -tensor_shape               Optional if network shapes are all static (original ones or set by -shape.
+                                Required if at least one input shape is dynamic. Set shape for input blobs.
+                                For example, "[1,3,224,224]" or "input1[1,3,224,224],input2[1,4]" in case of
+                                one input size. In case of several input sizes provide the same number for
+                                each input (except cases with 1 shape for 1 input): "[1,3,128,128][3,3,128,128][1,3,320,320]",
+                                "input1[1,1,128,128][1,1,256,256],input2[80,1]" or "input1[1,192][1,384],input2[1,192][1,384],input3[1,192][1,384],input4[1,192][1,384]"
     -layout                     Optional. Prompts how network layouts should be treated by application. For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.
     -cache_dir "<path>"         Optional. Enables caching of loaded models to specified directory.
     -load_from_file             Optional. Loads model from file directly without ReadNetwork.
     -latency_percentile         Optional. Defines the percentile to be reported in latency metric. The valid range is [1, 100]. The default value is 50 (median).
+    -legacy_mode                Optional. Enable legacy scenario with inputs filling only once before measurements for static models.
 
   CPU-specific performance options:
     -nstreams "<integer>"       Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
@@ -117,10 +129,10 @@ Options:
     -enforcebf16="<true/false>" Optional. By default floating point operations execution in bfloat16 precision are enforced if supported by platform.
     -pin "YES"/"HYBRID_AWARE"/"NUMA"/"NO"
                                 Optional. Explicit inference threads binding options (leave empty to let the OpenVINO to make a choice):
-					            enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
-			                    letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
-			                    threads->(NUMA)nodes ("NUMA") or
-			      	            completely disable ("NO") CPU inference threads pinning.
+                           enabling threads->cores pinning ("YES", which is already default for a conventional CPU),
+                             letting the runtime to decide on the threads->different core types ("HYBRID_AWARE", which is default on the hybrid CPUs)
+                             threads->(NUMA)nodes ("NUMA") or
+                              completely disable ("NO") CPU inference threads pinning.
     -ip "U8"/"FP16"/"FP32"      Optional. Specifies precision for all input layers of the network.
     -op "U8"/"FP16"/"FP32"      Optional. Specifies precision for all output layers of the network.
     -iop                        Optional. Specifies precision for input and output layers by name. Example: -iop "input:FP16, output:FP16". Notice that quotes are required. Overwrites precision from ip and op options for specified layers.
