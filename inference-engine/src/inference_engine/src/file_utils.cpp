@@ -52,7 +52,7 @@ namespace InferenceEngine {
 
 namespace {
 
-template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C>>
+template <typename C, typename = FileUtils::enableIfSupportedChar<C>>
 std::basic_string<C> getPathName(const std::basic_string<C>& s) {
     size_t i = s.rfind(ov::util::FileTraits<C>::file_separator, s.length());
     if (i != std::string::npos) {
