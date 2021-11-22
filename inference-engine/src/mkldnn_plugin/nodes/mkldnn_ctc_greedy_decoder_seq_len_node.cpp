@@ -38,7 +38,9 @@ MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::sh
     if (getOriginalOutputsNumber() != 2)
         IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
 
-    if (!op->get_input_partial_shape(DATA_INDEX)[0].compatible(op->get_input_partial_shape(SEQUENCE_LENGTH_INDEX)[0]))
+    const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
+    const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
+    if (!dimsEqualWeak(dataDims[0], seqDims[0]))
         IE_THROW() << errorPrefix << "has invalid input shapes.";
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
@@ -168,7 +170,6 @@ bool MKLDNNCTCGreedyDecoderSeqLenNode::created() const {
 
 void MKLDNNCTCGreedyDecoderSeqLenNode::createPrimitive() {
     if (inputShapesDefined()) {
-        prepareParams();
         updateLastInputDims();
     }
 }
@@ -177,6 +178,8 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::executeDynamicImpl(dnnl::stream strm) {
     MKLDNNCTCGreedyDecoderSeqLenNode::execute(strm);
 }
 
-void MKLDNNCTCGreedyDecoderSeqLenNode::prepareParams() {}
+bool MKLDNNCTCGreedyDecoderSeqLenNode::needPrepareParams() const {
+    return false;
+}
 
 REG_MKLDNN_PRIM_FOR(MKLDNNCTCGreedyDecoderSeqLenNode, CTCGreedyDecoderSeqLen)

@@ -19,12 +19,12 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
-using TargetShapeParams = std::tuple<size_t,   // Batch size N
-                                     size_t,   // Sequence length T
-                                     size_t>;  // Number of classes
+using CtcGreedyDecoderSeqLenParams = std::tuple<size_t,   // Batch size N
+                                                size_t,   // Sequence length T
+                                                size_t>;  // Number of classes
 
-using InputShapeParams = std::pair<std::vector<ov::PartialShape>,    // bounds for input dynamic shape
-                                   std::vector<TargetShapeParams>>;  // target input dimensions
+using InputShapeParams = std::pair<std::vector<ov::Dimension>,                  // bounds N, T, C, blank
+                                   std::vector<CtcGreedyDecoderSeqLenParams>>;  // target input dimensions
 
 using InputElementParams = std::vector<ElementType>;
 
@@ -85,9 +85,17 @@ protected:
         std::tie(shapes, inType, indexType, mergeRepeated) = GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        inputDynamicShapes = shapes.first;
-        const size_t blank_rank = inputDynamicShapes[2].size();
+        ASSERT_EQ(shapes.first.size(), 4);
+        const auto& in_dyn_N = shapes.first[0];
+        const auto& in_dyn_T = shapes.first[1];
+        const auto& in_dyc_C = shapes.first[2];
+        const auto& in_dyc_blank = shapes.first[3];
+        const size_t blank_rank = in_dyc_blank.get_length();
         ASSERT_TRUE(blank_rank == 0 || blank_rank == 1);
+        inputDynamicShapes = {ov::PartialShape{in_dyn_N, in_dyn_T, in_dyc_C},
+                              ov::PartialShape{in_dyn_N},
+                              blank_rank == 0 ? ov::PartialShape{} : ov::PartialShape{1}};
+
         for (auto& shape : shapes.second) {
             size_t N;
             size_t T;
@@ -164,6 +172,8 @@ protected:
 TEST_P(CTCGreedyDecoderSeqLenLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
+    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
+    // CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoderSeqLen");
 }
 
 namespace {
@@ -173,10 +183,24 @@ const std::vector<ElementType> inputType = {ElementType::f32, ElementType::i32, 
 const std::vector<bool> mergeRepeated{true, false};
 const std::vector<ElementType> indexType = {ElementType::i64, ElementType::i32};
 const std::vector<InputShapeParams> inputShapesCTCDecoder = {
-    {{ov::PartialShape{-1, -1, -1}, ov::PartialShape{-1}, ov::PartialShape{}},
-     {{1, 1, 1}, {1, 6, 10}, {3, 3, 16}, {5, 3, 55}}},
-    {{ov::PartialShape{-1, -1, -1}, ov::PartialShape{-1}, ov::PartialShape{1}},
-     {{1, 1, 1}, {1, 6, 10}, {3, 3, 16}, {5, 3, 55}}},
+    {{ov::Dimension{-1}, ov::Dimension{-1}, ov::Dimension{-1}, ov::Dimension{0}},
+     {CtcGreedyDecoderSeqLenParams{1, 1, 1},
+      CtcGreedyDecoderSeqLenParams{1, 6, 10},
+      CtcGreedyDecoderSeqLenParams{3, 3, 16},
+      CtcGreedyDecoderSeqLenParams{5, 3, 55}}},
+    {{ov::Dimension{-1}, ov::Dimension{-1}, ov::Dimension{-1}, ov::Dimension{1}},
+     {CtcGreedyDecoderSeqLenParams{1, 1, 1},
+      CtcGreedyDecoderSeqLenParams{1, 6, 10},
+      CtcGreedyDecoderSeqLenParams{3, 3, 16},
+      CtcGreedyDecoderSeqLenParams{5, 3, 55}}},
+    {{ov::Dimension{1, 5}, ov::Dimension{1, 6}, ov::Dimension{1, 60}, ov::Dimension{0}},
+     {CtcGreedyDecoderSeqLenParams{1, 6, 10},
+      CtcGreedyDecoderSeqLenParams{3, 3, 16},
+      CtcGreedyDecoderSeqLenParams{5, 3, 55}}},
+    {{ov::Dimension{1, 5}, ov::Dimension{1, 6}, ov::Dimension{1, 60}, ov::Dimension{1}},
+     {CtcGreedyDecoderSeqLenParams{1, 6, 10},
+      CtcGreedyDecoderSeqLenParams{3, 3, 16},
+      CtcGreedyDecoderSeqLenParams{5, 3, 55}}},
 };
 
 const auto basicCases = ::testing::Combine(::testing::ValuesIn(inputShapesCTCDecoder),

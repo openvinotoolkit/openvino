@@ -38,8 +38,10 @@ MKLDNNCTCGreedyDecoderNode::MKLDNNCTCGreedyDecoderNode(const std::shared_ptr<ngr
     if (getOriginalOutputsNumber() != 1)
         IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
 
-    if (!op->get_input_partial_shape(DATA_INDEX)[0].compatible(op->get_input_partial_shape(SEQUENCE_LENGTH_INDEX)[0]) ||
-        !op->get_input_partial_shape(DATA_INDEX)[1].compatible(op->get_input_partial_shape(SEQUENCE_LENGTH_INDEX)[1]))
+    const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
+    const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
+
+    if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1]))
         IE_THROW() << errorPrefix << "has invalid input shapes.";
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v0::CTCGreedyDecoder>(op);
@@ -169,11 +171,12 @@ void MKLDNNCTCGreedyDecoderNode::executeDynamicImpl(dnnl::stream strm) {
 
 void MKLDNNCTCGreedyDecoderNode::createPrimitive() {
     if (inputShapesDefined()) {
-        prepareParams();
         updateLastInputDims();
     }
 }
 
-void MKLDNNCTCGreedyDecoderNode::prepareParams() {}
+bool MKLDNNCTCGreedyDecoderNode::needPrepareParams() const {
+    return false;
+}
 
 REG_MKLDNN_PRIM_FOR(MKLDNNCTCGreedyDecoderNode, CTCGreedyDecoder)

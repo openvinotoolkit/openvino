@@ -20,12 +20,12 @@ using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
-using TargetShapeParams = std::tuple<size_t,   // Sequence length T
-                                     size_t,   // Batch size N
-                                     size_t>;  // Number of classes
+using CtcGreedyDecoderParams = std::tuple<size_t,   // Sequence length T
+                                          size_t,   // Batch size N
+                                          size_t>;  // Number of classes
 
-using InputShapeParams = std::pair<std::vector<ov::PartialShape>,    // bounds for input dynamic shape
-                                   std::vector<TargetShapeParams>>;  // target input dimensions
+using InputShapeParams = std::pair<std::vector<ov::Dimension>,            // bounds for T, N, C
+                                   std::vector<CtcGreedyDecoderParams>>;  // target input dimensions
 
 using CTCGreedyDecoderLayerCPUTestParams = std::tuple<InputShapeParams,  // Input Shape
                                                       ElementType,       // Input precision
@@ -67,9 +67,16 @@ protected:
         std::tie(shapes, inType, mergeRepeated) = GetParam();
 
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        inputDynamicShapes = shapes.first;
+        static int count = 0;
+        std::cout << "Cut count " << count++ << std::endl;
+        // construct input shapes
+        ASSERT_EQ(shapes.first.size(), 3);
+        const auto& in_dyn_T = shapes.first[0];
+        const auto& in_dyn_N = shapes.first[1];
+        const auto& in_dyc_C = shapes.first[2];
+        inputDynamicShapes = {ov::PartialShape{in_dyn_T, in_dyn_N, in_dyc_C}, ov::PartialShape{in_dyn_T, in_dyn_N}};
 
-        for (auto& shape : shapes.second) {
+        for (const auto& shape : shapes.second) {
             size_t T;
             size_t N;
             size_t C;
@@ -127,6 +134,8 @@ protected:
 TEST_P(CTCGreedyDecoderLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
+    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
+    // CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoder");
 }
 
 namespace {
@@ -135,8 +144,25 @@ namespace {
 const std::vector<ElementType> netPrecisions = {ElementType::f32};
 const std::vector<bool> mergeRepeated{true, false};
 const std::vector<InputShapeParams> inputShapesCTCDecoder = {
-    {{ov::PartialShape{-1, -1, -1}, ov::PartialShape{-1, -1}},
-     {{50, 3, 3}, {50, 3, 7}, {50, 3, 8}, {50, 3, 16}, {50, 3, 128}, {50, 3, 49}, {50, 3, 55}, {1, 1, 16}}}};
+    {{ov::Dimension{1, 50}, ov::Dimension{1, 3}, ov::Dimension{2, 150}},
+     {CtcGreedyDecoderParams{1, 1, 16},
+      CtcGreedyDecoderParams{50, 3, 3},
+      CtcGreedyDecoderParams{50, 3, 7},
+      CtcGreedyDecoderParams{50, 3, 8},
+      CtcGreedyDecoderParams{50, 3, 16},
+      CtcGreedyDecoderParams{50, 3, 128},
+      CtcGreedyDecoderParams{50, 3, 49},
+      CtcGreedyDecoderParams{50, 3, 55}}},
+    {{ov::Dimension{-1}, ov::Dimension{-1}, ov::Dimension{-1}},
+     {CtcGreedyDecoderParams{50, 3, 3},
+      CtcGreedyDecoderParams{50, 3, 7},
+      CtcGreedyDecoderParams{50, 3, 8},
+      CtcGreedyDecoderParams{50, 3, 16},
+      CtcGreedyDecoderParams{50, 3, 128},
+      CtcGreedyDecoderParams{50, 3, 49},
+      CtcGreedyDecoderParams{50, 3, 55},
+      CtcGreedyDecoderParams{1, 1, 16}}},
+};
 
 const auto basicCases = ::testing::Combine(::testing::ValuesIn(inputShapesCTCDecoder),
                                            ::testing::ValuesIn(netPrecisions),
