@@ -47,13 +47,13 @@ private:
     bool m_sortResultAcrossBatch = false;
     MulticlassNmsSortResultType m_sortResultType = MulticlassNmsSortResultType::NONE;
 
-    size_t m_numBatches;
-    size_t m_numBoxes;
-    size_t m_numClasses;
-    size_t m_maxBoxesPerBatch;
+    size_t m_numBatches = 0;
+    size_t m_numBoxes = 0;
+    size_t m_numClasses = 0;
+    size_t m_maxBoxesPerBatch = 0;
 
     int m_nmsRealTopk = 0;
-    int m_nmsTopK;
+    int m_nmsTopK = 0;
     float m_iouThreshold = 0.0f;
     float m_scoreThreshold = 0.0f;
 
