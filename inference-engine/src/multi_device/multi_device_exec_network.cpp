@@ -288,6 +288,7 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         return;
     }
 
+    LOG_DEBUG("[AUTOPLUGIN] try to load %s", context.deviceInfo.deviceName.c_str());
     // try to load this candidate device
     TryToLoadNetWork(context, modelPath, network);
 }
@@ -316,8 +317,15 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
         }
     }
 
+    //print errMessage
+    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
+        if (_loadContext[i].isEnabled) {
+            LOG_ERROR("[AUTOPLUGIN] load failed, %s", _loadContext[i].errMessage.c_str());
+        }
+    }
+
     // ToDo need to print failed error mesage
-    IE_THROW() << "[AUTO] load all devices failed";
+    IE_THROW() << "[AUTOPLUGIN] load all devices failed";
 }
 
 void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
