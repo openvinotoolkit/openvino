@@ -308,7 +308,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
+                        if (!ngraph::op::is_output(out.get_node())) {
                             return false;
                         }
                     }
@@ -322,7 +322,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
+                        if (!ngraph::op::is_output(out.get_node())) {
                             return false;
                         }
                     }
@@ -336,7 +336,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
+                        if (!ngraph::op::is_output(out.get_node())) {
                             return false;
                         }
                     }
