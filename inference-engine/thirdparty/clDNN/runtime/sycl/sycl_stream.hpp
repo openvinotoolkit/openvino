@@ -56,6 +56,8 @@ public:
     event::ptr create_base_event() override;
     const sycl_engine& get_sycl_engine() const { return _engine; }
 
+    dnnl::stream& get_onednn_stream() override { throw std::runtime_error("not supported"); }
+
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output_event = false);
 

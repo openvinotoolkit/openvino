@@ -35,7 +35,7 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
     gpu_buffer(sycl_engine* engine, const layout& new_layout, const buffer_type& buffer);
     gpu_buffer(sycl_engine* engine, const layout& layout);
 
-    void* lock(const stream& stream) override;
+    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern) override;
     event::ptr fill(stream& stream) override;

@@ -20,7 +20,10 @@ namespace sycl {
 
 struct sycl_engine : public engine {
 public:
-    sycl_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf);
+    sycl_engine(const device::ptr dev,
+                runtime_types runtime_type,
+                const engine_configuration& conf,
+                const InferenceEngine::ITaskExecutor::Ptr task_executor);
     engine_types type() const override { return engine_types::sycl; };
     runtime_types runtime_type() const override { return _runtime_type; };
 
@@ -40,9 +43,18 @@ public:
     bool extension_supported(std::string extension) const;
 
     stream_ptr create_stream() const override;
+    stream_ptr create_stream(void *handle) const override;
     stream& get_program_stream() const override;
 
-    static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    /// Returns onednn engine object which shares device and context with current engine
+    dnnl::engine& get_onednn_engine() const override { throw std::runtime_error("not supported"); }
+#endif
+
+    static std::shared_ptr<cldnn::engine> create(const device::ptr device,
+                                                 runtime_types runtime_type,
+                                                 const engine_configuration& conf,
+                                                 const InferenceEngine::ITaskExecutor::Ptr task_executor);
 
 private:
     std::vector<std::string> _extensions;

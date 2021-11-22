@@ -22,6 +22,7 @@ public:
 
     device_info get_info() const override { return _info; }
     memory_capabilities get_mem_caps() const override { return _mem_caps; }
+    bool is_same(const device::ptr other) override;
 
     const cl::sycl::device& get_device() const { return _device; }
     const cl::sycl::context& get_context() const { return _context; }

@@ -15,8 +15,11 @@
 namespace cldnn {
 namespace sycl {
 
-sycl_engine::sycl_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf)
-    : engine(dev, conf), _runtime_type(runtime_type) {
+sycl_engine::sycl_engine(const device::ptr dev,
+                         runtime_types runtime_type,
+                         const engine_configuration& conf,
+                         const InferenceEngine::ITaskExecutor::Ptr task_executor)
+    : engine(dev, conf, task_executor), _runtime_type(runtime_type) {
     auto casted = dynamic_cast<sycl_device*>(dev.get());
     if (!casted)
         throw std::runtime_error("[CLDNN] Invalid device type passed to sycl engine");
@@ -153,16 +156,27 @@ stream::ptr sycl_engine::create_stream() const {
     return std::make_shared<sycl_stream>(*this);
 }
 
+stream::ptr sycl_engine::create_stream(void* handle) const {
+    return std::make_shared<sycl_stream>(*this/* , handle */);
+}
+
+
 stream& sycl_engine::get_program_stream() const {
     return *_program_stream;
 }
 
-std::shared_ptr<cldnn::engine> sycl_engine::create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return std::make_shared<sycl::sycl_engine>(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> sycl_engine::create(const device::ptr device,
+                                                   runtime_types runtime_type,
+                                                   const engine_configuration& configuration,
+                                                   const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return std::make_shared<sycl::sycl_engine>(device, runtime_type, configuration, task_executor);
 }
 
-std::shared_ptr<cldnn::engine> create_sycl_engine(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return sycl_engine::create(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> create_sycl_engine(const device::ptr device,
+                                                  runtime_types runtime_type,
+                                                  const engine_configuration& configuration,
+                                                  const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return sycl_engine::create(device, runtime_type, configuration, task_executor);
 }
 
 }  // namespace sycl

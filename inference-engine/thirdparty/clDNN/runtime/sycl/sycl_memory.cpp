@@ -21,8 +21,9 @@ gpu_buffer::gpu_buffer(sycl_engine* engine, const layout& new_layout, const buff
     : memory(engine, new_layout, allocation_type::cl_mem, true)
     , _buffer(buffer) {}
 
-void* gpu_buffer::lock(const stream& /* stream */) {
+void* gpu_buffer::lock(const stream& /* stream */, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
+    assert(type == mem_lock_type::read_write);
     if (0 == _lock_count) {
         access_type acc = _buffer.get_access<cl::sycl::access::mode::read_write>();
         _access.reset(new access_type(acc));

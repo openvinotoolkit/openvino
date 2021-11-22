@@ -12,7 +12,10 @@
 namespace cldnn {
 namespace sycl {
 
-std::shared_ptr<cldnn::engine> create_sycl_engine(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration);
+std::shared_ptr<cldnn::engine> create_sycl_engine(const device::ptr device,
+                                                  runtime_types runtime_type,
+                                                  const engine_configuration& configuration,
+                                                  const InferenceEngine::ITaskExecutor::Ptr task_executor);
 
 }  // namespace sycl
 }  // namespace cldnn

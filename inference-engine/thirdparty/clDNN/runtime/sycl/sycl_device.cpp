@@ -173,8 +173,13 @@ device_info init_device_info(const cl::sycl::device& device) {
     info.supports_imad = get_imad_support(device);
     info.supports_immad = false;
 
-    info.max_threads_per_execution_unit = 7;
-    info.max_threads_per_device = static_cast<uint32_t>(info.execution_units_count * info.max_threads_per_execution_unit);
+
+    info.gfx_ver = {0, 0, 0};
+    info.device_id = driver_dev_id();
+    info.num_slices = 0;
+    info.num_sub_slices_per_slice = 0;
+    info.num_eus_per_sub_slice = 0;
+    info.num_threads_per_eu = 0;
 
     info.supports_usm = false;
 
@@ -209,6 +214,14 @@ sycl_device::sycl_device(const cl::sycl::device& dev, const cl::sycl::context& c
 , _device(dev)
 , _info(init_device_info(dev))
 , _mem_caps(init_memory_caps(dev, _info)) { }
+
+bool sycl_device::is_same(const device::ptr other) {
+    auto casted = downcast<sycl_device>(other.get());
+    if (!casted)
+        return false;
+
+    return _context == casted->get_context() && _device == casted->get_device();
+}
 
 }  // namespace sycl
 }  // namespace cldnn
