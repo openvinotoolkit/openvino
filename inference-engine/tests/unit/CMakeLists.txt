@@ -27,3 +27,5 @@ endif ()
 if(OV_ONNX_FRONTEND_ENABLE)
     add_subdirectory(frontends/onnx_import)
 endif()
+
+add_subdirectory(multi)

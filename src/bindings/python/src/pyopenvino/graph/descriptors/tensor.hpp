@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regmodule_graph_layout_helpers(py::module m);
+void regclass_graph_descriptor_Tensor(py::module m);
