@@ -21,7 +21,7 @@ from mo.graph.graph import Graph, Node
 from mo.graph.port import Port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
-from mo.middle.passes.convert_data_type import convert_node_blobs, convert_blob
+from mo.middle.passes.convert_data_type import convert_blob
 from mo.middle.passes.infer import type_infer
 
 from . import editor as ge
@@ -693,8 +693,15 @@ def create_bias_node(graph: Graph, src_node):
     add_op = Add(graph, {'name': src_node.name + '/add_',
                          'need_shape_inference': True}).create_node()
 
-    # Connect Const to Add node
-    add_op.in_port(1).connect(add_bias.out_port(0))
+    src_node_dtype = src_node.out_port(0).get_data_type() \
+        if src_node.out_port(0).is_data_type_defined() else np.float32
+    cast_op = ge.create_node(graph, src_node.name + '/convert', 'Cast',
+                             {'stop_value_propagation': True, 'dst_type': src_node_dtype})
+    # Connect Const to Convert node
+    cast_op.in_port(0).connect(add_bias.out_port(0))
+
+    # Connect Convert to Add node
+    add_op.in_port(1).connect(cast_op.out_port(0))
 
     # Reconnect src_node -> output to src_node -> Add -> output
     src_node.out_port(0).disconnect()

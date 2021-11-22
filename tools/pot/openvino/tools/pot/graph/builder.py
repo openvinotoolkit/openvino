@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
+import numpy as np
 
 from mo.graph.graph import Graph
 
-from openvino.tools.pot.graph.node_utils import get_node_inputs
+from openvino.tools.pot.graph.node_utils import get_node_input, get_node_inputs
 from .editor import create_node, connect_nodes_by_name
 
 
@@ -60,11 +61,10 @@ def make_copy_fake_quantize(nodes, edges, fq):
         (output_low.name, output_low.type,
          {'value': output_low.value}),
         (output_height.name, output_height.type,
-         {'value': output_height.value}),
-        (weights.name, weights.type, {'value': weights.value.copy()})])
+         {'value': output_height.value})
+        ])
 
     edges.extend([
-        (weights.name, fq.name, {'out': 0, 'in': 0}),
         (input_low.name, fq.name, {'out': 0, 'in': 1}),
         (input_height.name, fq.name, {'out': 0, 'in': 2}),
         (output_low.name, fq.name, {'out': 0, 'in': 3}),
@@ -115,24 +115,24 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     edges.append((input_name, node.name, {'out': 0, 'in': 0}))
 
     parent_nodes = get_node_inputs(node)
+    
+    src_node_dtype = node.out_port(0).get_data_type() \
+        if node.out_port(0).is_data_type_defined() else np.float32
+    convert_name = node.name + '/convert'
+    nodes.append((convert_name, 'Cast', {'stop_value_propagation': True, 'dst_type': src_node_dtype}))
+    
+    weights = parent_nodes[1]
     if parent_nodes[1].type == 'FakeQuantize' and not remove_fake_quantize:
         fq = parent_nodes[1]
+        weights = get_node_input(fq, 0)
         fq_name = make_copy_fake_quantize(nodes, edges, fq)
+        edges.append((convert_name, fq_name, {'out': 0, 'in': 0}))
         edges.append((fq_name, node.name, {'out': 0, 'in': 1}))
     else:
-        weights = parent_nodes[1]
-        nodes.append((weights.name, weights.type, {'value': weights.value.copy()}))
-        edges.append((weights.name, node.name, {'out': 0, 'in': 1}))
+        edges.append((convert_name, node.name, {'out': 0, 'in': 1}))
 
-    if not remove_bias:
-        if parent_nodes[2].type == 'FakeQuantize' and not remove_fake_quantize:
-            fq = parent_nodes[1]
-            fq_name = make_copy_fake_quantize(nodes, edges, fq)
-            edges.append((fq_name, node.name, {'out': 0, 'in': 2}))
-        else:
-            weights = parent_nodes[2]
-            nodes.append((weights.name, weights.type, {'value': weights.value.copy()}))
-            edges.append((weights.name, node.name, {'out': 0, 'in': 2}))
+    nodes.append((weights.name, weights.type, {'value': weights.value.copy()}))
+    edges.append((weights.name, convert_name, {'out': 0, 'in': 0}))
 
     result_name = '{}/out'.format(node.name)
     nodes.append((result_name, 'Result', {}))
