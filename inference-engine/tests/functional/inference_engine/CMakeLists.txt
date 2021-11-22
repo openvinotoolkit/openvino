@@ -33,7 +33,7 @@ set(DEPENDENCIES
 )
 
 if(NGRAPH_IR_FRONTEND_ENABLE)
-    list(APPEND DEPENDENCIES ir_ngraph_frontend)
+    list(APPEND DEPENDENCIES ir_ov_frontend)
 endif()
 
 if(ENABLE_IR_V7_READER)
@@ -74,13 +74,13 @@ if(NGRAPH_ONNX_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
         NGRAPH_ONNX_FRONTEND_ENABLE
         ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx_reader/models/")
-    add_dependencies(${TARGET_NAME} onnx_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} onnx_ov_frontend)
 endif()
 
 if(NGRAPH_PDPD_FRONTEND_ENABLE)
     target_compile_definitions(${TARGET_NAME} PRIVATE
             PADDLE_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/paddle_reader/models/")
-    add_dependencies(${TARGET_NAME} paddlepaddle_ngraph_frontend)
+    add_dependencies(${TARGET_NAME} paddlepaddle_ov_frontend)
 endif()
 
 ie_faster_build(${TARGET_NAME}
@@ -200,6 +200,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
         target_include_directories(${target_name} PRIVATE
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_compile_definitions(${target_name} PRIVATE
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_COMPILE_DEFINITIONS>)
     else()
         # OpenCL headers if any
         if(OPENCL_HEADERS_DIR)

@@ -54,7 +54,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Behavior.*ExecNetSetPrecision.*canSetOutputPrecisionForNetwork.*U8.*)",
         R"(.*CoreThreadingTestsWithIterations.*)",
         R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
-        R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
         R"(.*OVClassNetworkTestP.*(SetAffinityWithConstantBranches|SetAffinityWithKSO).*)",
         // TODO: Issue: CVS-69640
         R"(.*EltwiseLayerTest.*OpType=Prod.*)",

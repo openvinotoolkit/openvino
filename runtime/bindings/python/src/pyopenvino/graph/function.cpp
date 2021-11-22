@@ -14,7 +14,7 @@
 
 namespace py = pybind11;
 
-static const char* CAPSULE_NAME = "ngraph_function";
+static const char* CAPSULE_NAME = "openvino_function";
 
 void set_tensor_names(const ov::ParameterVector& parameters) {
     for (const auto& param : parameters) {
@@ -351,6 +351,42 @@ void regclass_graph_Function(py::module m) {
     function.def("output",
                  (ov::Output<const ov::Node>(ov::Function::*)(const std::string&) const) & ov::Function::output,
                  py::arg("tensor_name"));
+
+    function.def(
+        "add_outputs",
+        [](ov::Function& self, py::handle& outputs) {
+            int i = 0;
+            py::list _outputs;
+            if (!py::isinstance<py::list>(outputs)) {
+                if (py::isinstance<py::str>(outputs)) {
+                    _outputs.append(outputs.cast<py::str>());
+                } else if (py::isinstance<py::tuple>(outputs)) {
+                    _outputs.append(outputs.cast<py::tuple>());
+                } else if (py::isinstance<ov::Output<ov::Node>>(outputs)) {
+                    _outputs.append(outputs.cast<ov::Output<ov::Node>>());
+                } else {
+                    throw py::type_error("Incorrect type of a value to add as output.");
+                }
+            } else {
+                _outputs = outputs.cast<py::list>();
+            }
+
+            for (py::handle output : _outputs) {
+                if (py::isinstance<py::str>(_outputs[i])) {
+                    self.add_output(output.cast<std::string>());
+                } else if (py::isinstance<py::tuple>(output)) {
+                    py::tuple output_tuple = output.cast<py::tuple>();
+                    self.add_output(output_tuple[0].cast<std::string>(), output_tuple[1].cast<int>());
+                } else if (py::isinstance<ov::Output<ov::Node>>(_outputs[i])) {
+                    self.add_output(output.cast<ov::Output<ov::Node>>());
+                } else {
+                    throw py::type_error("Incorrect type of a value to add as output at index " + std::to_string(i) +
+                                         ".");
+                }
+                i++;
+            }
+        },
+        py::arg("outputs"));
 
     function.def("__repr__", [](const ov::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
