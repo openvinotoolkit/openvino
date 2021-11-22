@@ -6,13 +6,13 @@ import pytest
 
 import openvino as ov
 import openvino.opset8 as ops
-from openvino.impl.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo, \
-    OutputTensorInfo, OutputNetworkInfo, InputNetworkInfo, ColorFormat, OutputInfo, \
-    PostProcessSteps, ResizeAlgorithm
 from openvino.impl import Function, Output, Type
 from openvino.utils.decorators import custom_preprocess_function
 from openvino import Core
 from tests.runtime import get_runtime
+from openvino.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo, \
+    OutputTensorInfo, OutputNetworkInfo, InputNetworkInfo, ColorFormat, OutputInfo, \
+    PostProcessSteps, ResizeAlgorithm
 
 
 def test_ngraph_preprocess_mean():
