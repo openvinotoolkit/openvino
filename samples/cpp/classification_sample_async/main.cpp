@@ -62,7 +62,7 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
     try {
         // -------- Get OpenVINO Runtime version --------
-        slog::info << "OpenVINO runtime: " << ov::get_openvino_version() << slog::endl;
+        slog::info << ov::get_openvino_version() << slog::endl;
 
         // -------- Parsing and validation of input arguments --------
         if (!ParseAndCheckCommandLine(argc, argv)) {
