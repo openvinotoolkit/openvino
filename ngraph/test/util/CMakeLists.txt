@@ -4,11 +4,9 @@
 
 file(GLOB_RECURSE UTIL_SRC "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 
-add_library(ngraph_test_util STATIC ${UTIL_SRC})
+add_library(ngraph_test_util STATIC EXCLUDE_FROM_ALL ${UTIL_SRC})
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ngraph_test_util UNITY)
-endif()
+ie_faster_build(ngraph_test_util UNITY)
 
 target_link_libraries(ngraph_test_util PUBLIC ngraph gtest gmock)
 target_include_directories(ngraph_test_util PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

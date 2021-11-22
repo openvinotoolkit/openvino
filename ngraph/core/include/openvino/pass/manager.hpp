@@ -55,9 +55,8 @@ public:
     /// \brief Set flag to enable/disable running Validate pass after executing
     /// each registered pass
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
-    void set_per_pass_validation(bool new_state) {
-        m_per_pass_validation = new_state;
-    }
+    void set_per_pass_validation(bool new_state);
+
     /// \brief Callback is a lambda function that can be used by registered transformations.
     /// The main purpose of this callback is to provide a way for plugins to disable/enable
     /// transformations based on some conditions. In some cases plugins may want not to

@@ -243,9 +243,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_47337,
-        "OnnxBackendNodeModelTest.test_onehot_without_axis_cpu",
-        "OnnxBackendNodeModelTest.test_onehot_with_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_onehot_with_axis_cpu",
         "OnnxBackendNodeModelTest.test_onehot_negative_indices_cpu",
     ),
     (

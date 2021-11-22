@@ -44,16 +44,18 @@ def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict
 class InferRequest(InferRequestBase):
     """InferRequest wrapper."""
 
-    def infer(self, inputs: dict = {}) -> List[np.ndarray]:  # noqa: B006
+    def infer(self, inputs: dict = None) -> List[np.ndarray]:
         """Infer wrapper for InferRequest."""
-        res = super().infer(inputs=normalize_inputs(inputs, get_input_types(self)))
+        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        res = super().infer(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
         return [copy.deepcopy(tensor.data) for tensor in res]
 
-    def start_async(self, inputs: dict = {}, userdata: Any = None) -> None:  # noqa: B006, type: ignore
+    def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for InferRequest."""
-        super().start_async(inputs=normalize_inputs(inputs, get_input_types(self)), userdata=userdata)
+        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        super().start_async(inputs, userdata)
 
 
 class ExecutableNetwork(ExecutableNetworkBase):
@@ -63,9 +65,10 @@ class ExecutableNetwork(ExecutableNetworkBase):
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: dict = {}) -> List[np.ndarray]:  # noqa: B006
+    def infer_new_request(self, inputs: dict = None) -> List[np.ndarray]:
         """Infer wrapper for ExecutableNetwork."""
-        res = super().infer_new_request(inputs=normalize_inputs(inputs, get_input_types(self)))
+        inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
+        res = super().infer_new_request(inputs)
         # Required to return list since np.ndarray forces all of tensors data to match in
         # dimensions. This results in errors when running ops like variadic split.
         return [copy.deepcopy(tensor.data) for tensor in res]
@@ -78,34 +81,45 @@ class AsyncInferQueue(AsyncInferQueueBase):
         """Return i-th InferRequest from AsyncInferQueue."""
         return InferRequest(super().__getitem__(i))
 
-    def start_async(
-        self, inputs: dict = {}, userdata: Any = None  # noqa: B006
-    ) -> None:  # type: ignore
+    def start_async(self, inputs: dict = None, userdata: Any = None) -> None:
         """Asynchronous infer wrapper for AsyncInferQueue."""
-        super().start_async(
-            inputs=normalize_inputs(
-                inputs, get_input_types(self[self.get_idle_request_id()])
-            ),
-            userdata=userdata,
+        inputs = (
+            {}
+            if inputs is None
+            else normalize_inputs(inputs, get_input_types(self[self.get_idle_request_id()]))
         )
+        super().start_async(inputs, userdata)
 
 
 class Core(CoreBase):
     """Core wrapper."""
 
     def compile_model(
-        self, model: Function, device_name: str, config: dict = {}  # noqa: B006
+        self, model: Union[Function, str], device_name: str, config: dict = None
     ) -> ExecutableNetwork:
         """Compile a model from given Function."""
-        return ExecutableNetwork(super().compile_model(model, device_name, config))
+        return ExecutableNetwork(
+            super().compile_model(model, device_name, {} if config is None else config)
+        )
 
     def import_model(
-        self, model_file: str, device_name: str, config: dict = {}  # noqa: B006
+        self, model_file: str, device_name: str, config: dict = None
     ) -> ExecutableNetwork:
         """Compile a model from given model file path."""
-        return ExecutableNetwork(super().import_model(model_file, device_name, config))
+        return ExecutableNetwork(
+            super().import_model(model_file, device_name, {} if config is None else config)
+        )
+
+
+class ExtendedNetwork(ExecutableNetwork):
+    """ExecutableNetwork that additionally holds Core object."""
+
+    def __init__(self, core: Core, net: ExecutableNetwork):
+        super().__init__(net)
+        self.core = core  # needs to store Core object for CPU plugin
 
 
 def compile_model(model_path: str) -> ExecutableNetwork:
     """Compact method to compile model with AUTO plugin."""
-    return Core().compile_model(model_path, "AUTO")
+    core = Core()
+    return ExtendedNetwork(core, core.compile_model(model_path, "AUTO"))

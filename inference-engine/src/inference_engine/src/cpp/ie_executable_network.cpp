@@ -33,7 +33,7 @@ namespace InferenceEngine {
         OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
-ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
+ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so, const IExecutableNetworkInternal::Ptr& impl)
     : _so(so),
       _impl(impl) {
     IE_ASSERT(_impl != nullptr);
