@@ -425,7 +425,7 @@ public:
                 if (impl_type == selected_pd->getImplementationType() &&
                     descsCompatible(srcDescs, selected_pd->getConfig().inConfs) &&
                     descsCompatible(dstDescs, selected_pd->getConfig().outConfs)) {
-                    prepareMemory(selected_pd, itpd);
+                    prepareMemory(itpd);
                     PD prim_desc = createPd<PD, D, FPD>(desc);
                     return {itpd.get()};
                 }
@@ -722,7 +722,7 @@ protected:
         supportedPrimitiveDescriptors.push_back({config, implType});
     }
 
-    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
+    void prepareMemory(mkldnn::primitive_desc_iterator& itpd);
 
     bool isDynamic = false;
 

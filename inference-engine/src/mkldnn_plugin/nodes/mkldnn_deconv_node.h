@@ -45,11 +45,7 @@ public:
     const std::vector<ptrdiff_t>& getStride() { return stride; }
 
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override {
-        // std::cout << vec2str(getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()) << std::endl
-        //           << vec2str(getChildEdgesAtPort(0)[0]->getMemory().getStaticDims()) << std::endl;
-        execute(strm);
-    }
+    void executeDynamicImpl(mkldnn::stream strm) override;
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
     VectorDims deconvShapeInfer(const VectorDims &inDims) const;
@@ -74,6 +70,13 @@ private:
 
     AttrPtr pAttr;
 
+    mkldnn::reorder reorderSrc;
+    mkldnn::reorder reorderWgh;
+    mkldnn::reorder reorderDst;
+    MKLDNNMemoryPtr srcPlanarMemPtr;
+    MKLDNNMemoryPtr wghPlanarMemPtr;
+    MKLDNNMemoryPtr dstPlanarMemPtr;
+
     mkldnn::primitive_attr attr;
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
 
@@ -89,6 +92,18 @@ private:
                                                                                       const mkldnn::memory::desc& wgh_candidate,
                                                                                       const mkldnn::memory::desc& out_candidate,
                                                                                       mkldnn::algorithm alg) const;
+    std::shared_ptr<MKLDNNDescriptor> createMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+                                                             const mkldnn::memory::desc& wghDesc,
+                                                             const mkldnn::memory::desc& dstDesc,
+                                                             bool isWinograd) const;
+
+    void createDeconvPrim(std::shared_ptr<MKLDNNDescriptor> desc,
+                          MKLDNNMemoryPtr srcMemPtr,
+                          MKLDNNMemoryPtr wghMemPtr,
+                          MKLDNNMemoryPtr dstMemPtr,
+                          AttrPtr attr,
+                          impl_desc_type selectedImpl,
+                          bool forceGemm = false);
 
     std::string errorPrefix;
 
