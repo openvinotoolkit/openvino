@@ -107,8 +107,14 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeReshapeEliminationForMatmul, "Tran
 
 ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationForMatmul() {
     MATCHER_SCOPE(TransposeReshapeEliminationForMatmul);
-    auto input_1_pattern = ngraph::pattern::any_input();
-    auto input_2_pattern = ngraph::pattern::any_input();
+    auto input_1_pattern = ngraph::pattern::any_input([] (const Output<Node>& node) -> bool {
+                                                          const auto& shape = node.get_partial_shape();
+                                                          const auto& rank = shape.rank();
+                                                          return rank.is_static() && rank.get_length() == 2 && shape.is_static();
+                                                          });
+    auto input_2_pattern = ngraph::pattern::any_input([] (const Output<Node>& node) -> bool {
+                                                          return node.get_partial_shape().is_static();
+                                                          });
 
     auto const_transpose_before_pattern = ngraph::pattern::wrap_type<opset1::Constant>();
     auto transpose_before_pattern = ngraph::pattern::wrap_type<opset1::Transpose>({input_2_pattern, const_transpose_before_pattern});
@@ -129,10 +135,6 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
         const auto& input_1 = pattern_value_map.at(input_1_pattern);
         const auto& input_2 = pattern_value_map.at(input_2_pattern);
 
-        // this transformation supports only static shapes
-        if (input_1.get_partial_shape().is_dynamic() || input_2.get_partial_shape().is_dynamic())
-            return false;
-
         auto matmul = std::dynamic_pointer_cast<opset1::MatMul>(pattern_value_map.at(matmul_pattern).get_node_shared_ptr());
         if (!matmul)
             return false;
@@ -146,12 +148,6 @@ ngraph::pass::TransposeReshapeEliminationForMatmul::TransposeReshapeEliminationF
         if (!reshape_before || !reshape_after || !reshape_before_constant)
             return false;
         if (!check_input_reshape(reshape_before, reshape_before_constant->cast_vector<int64_t>(), transposed_b))
-            return false;
-
-        // this transformation supports only cases when 2nd input of matmul is transpose->reshape
-        if (matmul->get_input_node_shared_ptr(1) != reshape_before)
-            return false;
-        if (matmul->get_input_shape(0).size() != 2)
             return false;
 
         // check transpose order before and after matmul

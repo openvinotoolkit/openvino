@@ -146,13 +146,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::SoftmaxDecomposition, false>();
     decomp->add_matcher<ngraph::pass::GatherNegativeConstIndicesNormalize>();
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
+    decomp->add_matcher<ngraph::pass::TransposeReshapeEliminationForMatmul>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    // TransposeReshapeEliminationForMatmul must be after EinsumDecomposition
-    manager.register_pass<ngraph::pass::TransposeReshapeEliminationForMatmul>();
 
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
