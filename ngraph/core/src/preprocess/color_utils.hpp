@@ -31,6 +31,12 @@ inline std::string color_format_name(ColorFormat format) {
     case ColorFormat::NV12_SINGLE_PLANE:
         name = "NV12 (single plane)";
         break;
+    case ColorFormat::I420_THREE_PLANES:
+        name = "I420 (multi-plane)";
+        break;
+    case ColorFormat::I420_SINGLE_PLANE:
+        name = "I420 (single plane)";
+        break;
     default:
         name = "Unknown";
         break;
@@ -79,9 +85,10 @@ public:
     }
 };
 
-class ColorFormatInfoNV12_Single : public ColorFormatNHWC {
+// Applicable for both NV12 and I420 formats
+class ColorFormatInfoYUV420_Single : public ColorFormatNHWC {
 public:
-    explicit ColorFormatInfoNV12_Single(ColorFormat format) : ColorFormatNHWC(format) {}
+    explicit ColorFormatInfoYUV420_Single(ColorFormat format) : ColorFormatNHWC(format) {}
 
 protected:
     PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
@@ -120,6 +127,35 @@ protected:
                     result[2] = result[2].get_length() / 2;
                 }
                 result[3] = 2;
+            }
+        }
+        return result;
+    }
+};
+
+class ColorFormatInfoI420_ThreePlanes : public ColorFormatNHWC {
+public:
+    explicit ColorFormatInfoI420_ThreePlanes(ColorFormat format) : ColorFormatNHWC(format) {}
+
+    size_t planes_count() const override {
+        return 3;
+    }
+
+protected:
+    PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
+        PartialShape result = image_shape;
+        if (image_shape.rank().is_static() && image_shape.rank().get_length() == 4) {
+            result[3] = 1;  //  Number of channels is always 1 for I420 planes
+            if (plane_num == 0) {
+                return result;
+            } else {
+                // UV plane has half or width and half of height.
+                if (result[1].is_static()) {
+                    result[1] = result[1].get_length() / 2;
+                }
+                if (result[2].is_static()) {
+                    result[2] = result[2].get_length() / 2;
+                }
             }
         }
         return result;

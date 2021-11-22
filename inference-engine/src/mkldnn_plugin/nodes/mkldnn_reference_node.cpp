@@ -105,3 +105,7 @@ void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
 bool MKLDNNReferenceNode::created() const {
     return getType() == Reference;
 }
+
+bool MKLDNNReferenceNode::needShapeInfer() const {
+    return true;
+}
