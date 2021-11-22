@@ -335,7 +335,7 @@ int main(int argc, char* argv[]) {
             auto network = core.read_model(FLAGS_m);
 
             configurePrePostProcessing(network, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml, FLAGS_oml, FLAGS_ioml);
-            printInputAndOutputs(network);
+            printInputAndOutputsInfo(*network);
             auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
             auto executableNetwork = core.compile_model(network, FLAGS_d, configure());
             loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);

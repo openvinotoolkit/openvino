@@ -310,14 +310,6 @@ void setLayouts(const InferenceEngine::CNNNetwork& network, const std::string io
         }
     }
 }
-
-template <class T>
-T& get_info(std::unordered_map<size_t, T>& info, size_t idx) {
-    if (info.find(idx) == info.end())
-        info[idx] = T(idx);
-    return info[idx];
-}
-
 }  // namespace
 
 void processLayout(InferenceEngine::CNNNetwork& network,
@@ -402,22 +394,20 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
                                 const std::string& iml,
                                 const std::string& oml,
                                 const std::string& ioml) {
-    auto preprocessor = ov::preprocess::PrePostProcessor();
-    std::unordered_map<size_t, ov::preprocess::InputInfo> inputs_info;
-    std::unordered_map<size_t, ov::preprocess::OutputInfo> outputs_info;
+    auto preprocessor = ov::preprocess::PrePostProcessor(function);
     const auto inputs = function->inputs();
     const auto outputs = function->outputs();
     if (!ip.empty()) {
         auto type = getType(ip);
         for (size_t i = 0; i < inputs.size(); i++) {
-            get_info(inputs_info, i).tensor(ov::preprocess::InputTensorInfo().set_element_type(type));
+            preprocessor.input(i).tensor().set_element_type(type);
         }
     }
 
     if (!op.empty()) {
         auto type = getType(op);
         for (size_t i = 0; i < outputs.size(); i++) {
-            get_info(outputs_info, i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(type));
+            preprocessor.output(i).tensor().set_element_type(type);
         }
     }
 
@@ -430,7 +420,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
             bool isInput = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 if (inputs[i].get_names().count(tensor_name)) {
-                    get_info(inputs_info, i).tensor(ov::preprocess::InputTensorInfo().set_element_type(type));
+                    preprocessor.input(i).tensor().set_element_type(type);
                     isInput = true;
                     break;
                 }
@@ -438,7 +428,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
             if (!isInput) {
                 for (size_t i = 0; i < outputs.size(); i++) {
                     if (outputs[i].get_names().count(tensor_name)) {
-                        get_info(outputs_info, i).tensor(ov::preprocess::OutputTensorInfo().set_element_type(type));
+                        preprocessor.output(i).tensor().set_element_type(type);
                     }
                 }
             }
@@ -446,13 +436,13 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
     }
     if (!il.empty()) {
         for (size_t i = 0; i < inputs.size(); i++) {
-            get_info(inputs_info, i).tensor(ov::preprocess::InputTensorInfo().set_layout(ov::Layout(il)));
+            preprocessor.input(i).tensor().set_layout(ov::Layout(il));
         }
     }
 
     if (!ol.empty()) {
         for (size_t i = 0; i < outputs.size(); i++) {
-            get_info(outputs_info, i).tensor(ov::preprocess::OutputTensorInfo().set_layout(ov::Layout(ol)));
+            preprocessor.output(i).tensor().set_layout(ov::Layout(ol));
         }
     }
 
@@ -465,8 +455,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
             bool isOutput = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 if (inputs[i].get_names().count(tensor_name)) {
-                    get_info(inputs_info, i)
-                        .tensor(ov::preprocess::InputTensorInfo().set_layout(ov::Layout(item.second)));
+                    preprocessor.input(i).tensor().set_layout(ov::Layout(item.second));
                     isInput = true;
                     break;
                 }
@@ -474,8 +463,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
             if (!isInput) {
                 for (size_t i = 0; i < outputs.size(); i++) {
                     if (outputs[i].get_names().count(tensor_name)) {
-                        get_info(outputs_info, i)
-                            .tensor(ov::preprocess::OutputTensorInfo().set_layout(ov::Layout(item.second)));
+                        preprocessor.output(i).tensor().set_layout(ov::Layout(item.second));
                         isOutput = true;
                         break;
                     }
@@ -487,13 +475,13 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
 
     if (!iml.empty()) {
         for (size_t i = 0; i < inputs.size(); i++) {
-            get_info(inputs_info, i).network(ov::preprocess::InputNetworkInfo().set_layout(ov::Layout(iml)));
+            preprocessor.input(i).network().set_layout(ov::Layout(iml));
         }
     }
 
     if (!oml.empty()) {
         for (size_t i = 0; i < outputs.size(); i++) {
-            get_info(outputs_info, i).network(ov::preprocess::OutputNetworkInfo().set_layout(ov::Layout(oml)));
+            preprocessor.output(i).network().set_layout(ov::Layout(oml));
         }
     }
 
@@ -506,8 +494,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
             bool isOutput = false;
             for (size_t i = 0; i < inputs.size(); i++) {
                 if (inputs[i].get_names().count(tensor_name)) {
-                    get_info(inputs_info, i)
-                        .network(ov::preprocess::InputNetworkInfo().set_layout(ov::Layout(item.second)));
+                    preprocessor.input(i).network().set_layout(ov::Layout(item.second));
                     isInput = true;
                     break;
                 }
@@ -515,8 +502,7 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
             if (!isInput) {
                 for (size_t i = 0; i < outputs.size(); i++) {
                     if (outputs[i].get_names().count(tensor_name)) {
-                        get_info(outputs_info, i)
-                            .network(ov::preprocess::OutputNetworkInfo().set_layout(ov::Layout(item.second)));
+                        preprocessor.output(i).network().set_layout(ov::Layout(item.second));
                         isOutput = true;
                         break;
                     }
@@ -526,12 +512,5 @@ void configurePrePostProcessing(std::shared_ptr<ov::Function>& function,
         }
     }
 
-    // Set processing
-    for (auto&& it : inputs_info) {
-        preprocessor.input(std::move(it.second));
-    }
-    for (auto&& it : outputs_info) {
-        preprocessor.output(std::move(it.second));
-    }
-    function = preprocessor.build(function);
+    function = preprocessor.build();
 }
