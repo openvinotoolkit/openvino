@@ -665,6 +665,25 @@ void InferenceEnginePython::IECore::addExtension(const std::string& ext_lib_path
     actual.AddExtension(extension, deviceName);
 }
 
+// class PyExtension : public ov::op::Op {
+// public:
+//     OPENVINO_OP("Identity");
+
+//     Identity() = default;
+//     Identity(const ov::Output<ov::Node>& arg);
+//     void validate_and_infer_types() override;
+//     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
+//     bool visit_attributes(ov::AttributeVisitor& visitor) override;
+
+//     bool evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const override;
+//     bool has_evaluate() const override;
+// };
+
+
+void InferenceEnginePython::IECore::addExtension(PyObject* cls) {
+    std::cout << " Helo" << std::endl;
+}
+
 std::vector<std::string> InferenceEnginePython::IECore::getAvailableDevices() {
     return actual.GetAvailableDevices();
 }

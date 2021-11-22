@@ -220,6 +220,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void unregisterPlugin(const string & deviceName) except +
         void registerPlugins(const string & xmlConfigFile) except +
         void addExtension(const string & ext_lib_path, const string & deviceName) except +
+        void addExtension(object) except +
         vector[string] getAvailableDevices() except +
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +
@@ -233,3 +234,5 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef object getPartialShape_capsule(DataPtr)
 
     cdef const size_t product(const SizeVector& dims)
+
+    cdef IENetwork read_network(string path_to_xml, string path_to_bin)

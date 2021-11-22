@@ -185,6 +185,7 @@ struct IECore {
     void unregisterPlugin(const std::string& deviceName);
     void registerPlugins(const std::string& xmlConfigFile);
     void addExtension(const std::string& ext_lib_path, const std::string& deviceName);
+    void addExtension(PyObject* cls);
     std::vector<std::string> getAvailableDevices();
     PyObject* getMetric(const std::string& deviceName, const std::string& name);
     PyObject* getConfig(const std::string& deviceName, const std::string& name);
