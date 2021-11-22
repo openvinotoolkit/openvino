@@ -186,6 +186,17 @@ def get_duration_seconds(time, number_iterations, device):
     return 0
 
 
+def get_latency_groups(app_input_info):
+    num_groups = max(len(info.shapes) for info in app_input_info)
+    groups = []
+    for i in range(num_groups):
+        group_desc = {}
+        for info in app_input_info:
+            group_desc[info.name] = info.shapes[i % len(info.shapes)]
+        groups.append({"group_desc": group_desc, "times": list(), "AVG": 0., "MIN": 0., "MAX": 0.})
+    return groups
+
+
 def get_duration_in_milliseconds(duration):
     return duration * 1000
 

@@ -27,18 +27,18 @@ class DataQueue:
         self.index_map = defaultdict.fromkeys(input_data.keys(), 0)
         self.batch_sizes = batch_sizes
         self.size = len(batch_sizes)
-        self.current_batch_id = 0
+        self.current_group_id = 0
 
     def get_next_input(self):
         data = {}
         for input_name, input_tensors in self.input_data.items():
             data[input_name] = input_tensors[self.index_map[input_name]]
             self.index_map[input_name] = (self.index_map[input_name] + 1) % self.sizes_map[input_name]
-        self.current_batch_id = (self.current_batch_id + 1) % self.size
+        self.current_group_id = (self.current_group_id + 1) % self.size
         return data
 
     def get_next_batch_size(self):
-        return self.batch_sizes[self.current_batch_id]
+        return self.batch_sizes[self.current_group_id]
 
 
 def get_batch_sizes(app_input_info):
@@ -59,17 +59,6 @@ def get_batch_sizes(app_input_info):
             batch_size = 1
         batch_sizes.append(batch_size)
     return batch_sizes
-
-
-def get_latency_groups(app_input_info):
-    num_groups = max(len(info.shapes) for info in app_input_info)
-    groups = []
-    for i in range(num_groups):
-        group = {}
-        for info in app_input_info:
-            group[info.name] = info.shapes[i % len(info.shapes)]
-        groups.append(group)
-    return groups
 
 
 def get_input_data(paths_to_input, app_input_info):

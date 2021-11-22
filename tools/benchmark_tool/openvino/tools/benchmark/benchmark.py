@@ -25,6 +25,7 @@ class Benchmark:
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
         self.api_type = api_type
         self.legacy_mode = legacy_mode
+        self.latency_groups = []
 
     def __del__(self):
         del self.core
@@ -104,13 +105,15 @@ class Benchmark:
                 idle_id = requests.get_idle_request_id()
                 if idle_id in in_fly:
                     times.append(requests[idle_id].latency)
+                    self.latency_groups[requests.userdata[idle_id]]["times"].append(requests[idle_id].latency)
                 else:
                     in_fly.add(idle_id)
+                group_id = data_queue.current_group_id
                 if self.legacy_mode:
                     processed_frames += data_queue.batch_sizes[idle_id % data_queue.size]
                 else:
                     requests[idle_id].set_tensors(data_queue.get_next_input())
-                requests.start_async()
+                requests.start_async(userdata=group_id)
             iteration += 1
 
             exec_time = (datetime.utcnow() - start_time).total_seconds()
@@ -139,6 +142,13 @@ class Benchmark:
         avg_latency_ms = sum(times) / len(times)
         min_latency_ms = times[0]
         max_latency_ms = times[-1]
+
+        for group in self.latency_groups:
+            group["times"].sort()
+            group["AVG"] = sum(group["times"]) / len(group["times"])
+            group["MIN"] = group["times"][0]
+            group["MAX"] = group["times"][-1]
+
         fps = len(batch_size) * 1000 / median_latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
         if progress_bar:
             progress_bar.finish()

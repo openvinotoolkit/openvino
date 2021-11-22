@@ -116,6 +116,8 @@ def parse_args():
                       help='Optional. Path to a file where to store executable graph information serialized.')
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
+    args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Report latencies for each shape in --tensor_shape sequence.', )
     args.add_argument('-legacy_mode', '--legacy_mode', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Enable legacy scenario with inputs filling only once before measurements.', ) # Can it be enabled for dynamic models?
     args.add_argument('-report_type', '--report_type', type=str, required=False,

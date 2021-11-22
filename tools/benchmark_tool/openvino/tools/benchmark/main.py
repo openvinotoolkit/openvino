@@ -15,7 +15,7 @@ from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, get_number_iterations, process_precision, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
     get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
-    print_inputs_and_outputs_info, get_batch_size, load_config, dump_config
+    print_inputs_and_outputs_info, get_batch_size, load_config, dump_config, get_latency_groups
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
@@ -358,6 +358,8 @@ def run(args):
 
         data_queue = get_input_data(paths_to_input, app_inputs_info)
 
+        benchmark.latency_groups = get_latency_groups(app_inputs_info)
+
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, max(len(info.shapes) for info in app_inputs_info), benchmark.api_type)
 
@@ -473,9 +475,18 @@ def run(args):
                 print(f'Median:    {median_latency_ms:.2f} ms')
             elif args.latency_percentile != 50:
                 print(f'({args.latency_percentile} percentile):    {median_latency_ms:.2f} ms')
-            print(f"AVG:{avg_latency_ms:.2f} ms")
-            print(f"MIN:{min_latency_ms:.2f} ms")
-            print(f"MAX:{max_latency_ms:.2f} ms")
+            print(f'AVG:{avg_latency_ms:.2f} ms')
+            print(f'MIN:{min_latency_ms:.2f} ms')
+            print(f'MAX:{max_latency_ms:.2f} ms')
+
+            if args.pcseq and len(benchmark.latency_groups) > 1:
+                print("Latency for each tensor shape group: ")
+                for group in benchmark.latency_groups:
+                    print(group["group_desc"])
+                    print(f'AVG:{group["AVG"]:.2f} ms')
+                    print(f'MIN:{group["MIN"]:.2f} ms')
+                    print(f'MAX:{group["MAX"]:.2f} ms')
+
         print(f'Throughput: {fps:.2f} FPS')
 
         del exe_network
