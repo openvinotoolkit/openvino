@@ -48,6 +48,10 @@ if(ENABLE_MULTI)
     list(APPEND DEPENDENCIES MultiDevicePlugin)
 endif()
 
+if(ENABLE_BATCH)
+    list(APPEND DEPENDENCIES AutoBatchPlugin)
+endif()
+
 if (NOT NGRAPH_ONNX_FRONTEND_ENABLE)
     list(APPEND EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()

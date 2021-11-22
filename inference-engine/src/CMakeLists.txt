@@ -38,7 +38,10 @@ endif()
 if(ENABLE_MULTI)
     add_subdirectory(multi_device)
 endif()
-add_subdirectory(auto_batch)
+
+if(ENABLE_BATCH)
+    add_subdirectory(auto_batch)
+endif()
 
 
 add_subdirectory(inference_engine)

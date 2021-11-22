@@ -25,6 +25,10 @@ if(ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} MultiDevicePlugin)
 endif()
 
+if(ENABLE_BATCH)
+    add_dependencies(${TARGET_NAME} AutoBatchPlugin)
+endif()
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_faster_build(${TARGET_NAME}

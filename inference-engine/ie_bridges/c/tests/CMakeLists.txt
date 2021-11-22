@@ -26,6 +26,10 @@ if(ENABLE_MULTI)
     add_dependencies(${TARGET_NAME} MultiDevicePlugin)
 endif()
 
+if(ENABLE_BATCH)
+    add_dependencies(${TARGET_NAME} AutoBatchPlugin)
+endif()
+
 if(ENABLE_MKL_DNN)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)
 endif()

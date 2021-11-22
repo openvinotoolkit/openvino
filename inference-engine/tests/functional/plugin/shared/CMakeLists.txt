@@ -16,6 +16,11 @@ if(ENABLE_MULTI)
     list(APPEND DEPENDENCIES MultiDevicePlugin)
 endif()
 
+if(ENABLE_BATCH)
+    list(APPEND DEPENDENCIES AutoBatchPlugin)
+endif()
+
+
 # remove once CVS-69781 is fixed
 if(NGRAPH_IR_FRONTEND_ENABLE)
     list(APPEND DEPENDENCIES ir_ov_frontend)
