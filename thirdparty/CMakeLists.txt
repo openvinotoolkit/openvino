@@ -190,7 +190,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target onednn_gpu --parallel ${CORES_COUNT}
             INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}
             COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
-            BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
+            # BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
         )
 
         ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)

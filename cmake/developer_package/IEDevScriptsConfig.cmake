@@ -106,7 +106,7 @@ endif()
 set(CMAKE_CONFIGURATION_TYPES "Release;Debug;RelWithDebInfo;MinSizeRel" CACHE STRING "CMake configuration types")
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
-if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$" AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.17)
+if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
 endif()
 
