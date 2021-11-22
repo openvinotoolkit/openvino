@@ -198,10 +198,15 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         # WA: create temp 'include' directory
         file(MAKE_DIRECTORY "${BINARY_DIR}/include")
+        set(dummy_file "${BINARY_DIR}/dummy.cpp")
+        file(TOUCH ${dummy_file})
 
-        add_library(onednn_gpu INTERFACE IMPORTED GLOBAL)
+        # make sure it's build before used
+        set_source_files_properties(SOURCE "${ONEDNN_LIBRARY}" PROPERTIES GENERATED ON)
+
+        add_library(onednn_gpu STATIC ${dummy_file})
         set_target_properties(onednn_gpu PROPERTIES
-            INTERFACE_LINK_LIBRARIES "${ONEDNN_OUTPUT_LIBRARY}"
+            INTERFACE_LINK_LIBRARIES "${ONEDNN_LIBRARY}"
             INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include>;$<BUILD_INTERFACE:${SOURCE_DIR}/include>"
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
         add_dependencies(onednn_gpu onednn_gpu_build)
