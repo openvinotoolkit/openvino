@@ -514,6 +514,24 @@ bool op::v4::Interpolate::has_evaluate() const {
     return false;
 }
 
+bool op::v4::Interpolate::InterpolateAttrs::operator==(const InterpolateAttrs& other) const {
+    return std::tie(mode,
+                    shape_calculation_mode,
+                    pads_begin,
+                    pads_end,
+                    coordinate_transformation_mode,
+                    nearest_mode,
+                    antialias,
+                    cube_coeff) == std::tie(other.mode,
+                                            other.shape_calculation_mode,
+                                            other.pads_begin,
+                                            other.pads_end,
+                                            other.coordinate_transformation_mode,
+                                            other.nearest_mode,
+                                            other.antialias,
+                                            other.cube_coeff);
+}
+
 namespace ov {
 template <>
 NGRAPH_API EnumNames<ngraph::op::v4::Interpolate::InterpolateMode>&
@@ -584,23 +602,5 @@ std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::CoordinateT
 
 std::ostream& operator<<(std::ostream& s, const op::v4::Interpolate::NearestMode& type) {
     return s << as_string(type);
-}
-
-bool op::v4::Interpolate::InterpolateAttrs::operator==(const InterpolateAttrs& other) const {
-    return std::tie(mode,
-                    shape_calculation_mode,
-                    pads_begin,
-                    pads_end,
-                    coordinate_transformation_mode,
-                    nearest_mode,
-                    antialias,
-                    cube_coeff) == std::tie(other.mode,
-                                            other.shape_calculation_mode,
-                                            other.pads_begin,
-                                            other.pads_end,
-                                            other.coordinate_transformation_mode,
-                                            other.nearest_mode,
-                                            other.antialias,
-                                            other.cube_coeff);
 }
 }  // namespace ov
