@@ -42,20 +42,20 @@ struct pooling : public primitive_base<pooling> {
     /// @param mode Pooling mode.
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param size Pooling kernel size.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the pooling window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor.
     pooling(const primitive_id& id,
             const primitive_id& input,
             pooling_mode mode,
             const tensor& size,
             const tensor& stride,
-            const tensor& input_offset = {0, 0, 0, 0},
+            const tensor& pad = {0, 0, 0, 0},
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           size(size),
           with_output_size(false) {}
@@ -69,22 +69,21 @@ struct pooling : public primitive_base<pooling> {
     /// @param mode Pooling mode.
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param size Pooling kernel size.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the pooling window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     pooling(const primitive_id& id,
             const primitive_id& input,
             const primitive_id& argmax,
             pooling_mode mode,
             const tensor& size,
             const tensor& stride,
-            const tensor& input_offset = {0, 0, 0, 0},
+            const tensor& pad = {0, 0, 0, 0},
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
           argmax(argmax),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           size(size),
           with_output_size(false) {}
@@ -95,14 +94,14 @@ struct pooling : public primitive_base<pooling> {
     /// @param mode Pooling mode.
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param size Pooling kernel size.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the pooling window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     pooling(const primitive_id& id,
             const primitive_id& input,
             pooling_mode mode,
             const tensor& size,
             const tensor& stride,
-            const tensor& input_offset,
+            const tensor& pad,
             tensor output_size,
             const data_types output_data_type,
             const primitive_id& ext_prim_id = "",
@@ -111,7 +110,7 @@ struct pooling : public primitive_base<pooling> {
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           size(size),
           with_output_size(true),
@@ -125,7 +124,7 @@ struct pooling : public primitive_base<pooling> {
     /// @param mode Pooling mode.
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param size Pooling kernel size.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the pooling window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     pooling(const primitive_id& id,
             const primitive_id& input,
@@ -133,7 +132,7 @@ struct pooling : public primitive_base<pooling> {
             pooling_mode mode,
             const tensor& size,
             const tensor& stride,
-            const tensor& input_offset,
+            const tensor& pad,
             tensor output_size,
             const primitive_id& ext_prim_id = "",
             const padding& output_padding = padding())
@@ -141,7 +140,7 @@ struct pooling : public primitive_base<pooling> {
           argmax(argmax),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           size(size),
           with_output_size(true),
@@ -160,7 +159,7 @@ struct pooling : public primitive_base<pooling> {
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(true),
-          input_offset(0, 0, 0, 0),
+          pad(0, 0, 0, 0),
           stride(1, 1, 1, 1),
           size(0, 0, 0, 0),
           with_output_size(false) {}
@@ -172,8 +171,8 @@ struct pooling : public primitive_base<pooling> {
     pooling_mode mode;
     /// @brief Global pooling (kernel size is equal to the spatial dimension of input tensor)
     bool global_pooling;
-    /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the pooling window should start calculations.
-    tensor input_offset;
+    /// @brief Defines logical pad value added to input tensor.
+    tensor pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     tensor stride;
     /// @brief Pooling kernel size.

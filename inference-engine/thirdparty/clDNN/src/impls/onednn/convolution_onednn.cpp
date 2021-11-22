@@ -151,8 +151,8 @@ protected:
 
         auto stride = onednn::convert_spatials(prim->stride, spatials_rank);
         auto dilation = onednn::convert_spatials(prim->dilation, spatials_rank);
-        auto pad_l = onednn::convert_spatials(prim->input_offset, spatials_rank);
-        auto pad_r = onednn::convert_spatials(prim->input_offset, spatials_rank);
+        auto pad_l = onednn::convert_spatials(prim->pad, spatials_rank);
+        auto pad_r = onednn::convert_spatials(prim->pad, spatials_rank);
 
         auto input_md = onednn::layout_to_memory_desc(input.get_output_layout());
         auto weights_md = onednn::layout_to_memory_desc(weights.get_output_layout(), dnnl::memory::format_tag::any);
@@ -161,7 +161,6 @@ protected:
 
         for (size_t i = 0; i < dilation.size(); i++) {
             dilation[i]--;
-            pad_l[i] = -pad_l[i];
             int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
             auto os = output_md.dims()[2 + i];
             auto is = input_md.dims()[2 + i];

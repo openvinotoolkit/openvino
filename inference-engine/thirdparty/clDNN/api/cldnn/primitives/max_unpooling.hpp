@@ -28,19 +28,18 @@ struct max_unpooling : public primitive_base<max_unpooling> {
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// Used only for output size computation.
     /// @param size Pooling kernel size. Used only for output size computation.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the pooling window should start calculations. Used only for output size computation.
+    /// @param pad Defines logical pad value added to input tensor. Used only for output size computation.
     max_unpooling(const primitive_id& id,
                   const primitive_id& input,
                   const primitive_id& argmax,
                   const tensor& size,
                   const tensor& stride,
-                  const tensor& input_offset = {0, 0, 0, 0},
+                  const tensor& pad = {0, 0, 0, 0},
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
           argmax(argmax),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           size(size),
           with_output_size(false) {}
@@ -65,8 +64,8 @@ struct max_unpooling : public primitive_base<max_unpooling> {
     /// @brief Primitive id which contains indices of each max pooling region.
     /// Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.
     primitive_id argmax;
-    /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the pooling window should start calculations.
-    tensor input_offset;
+    /// @brief Defines logical pad value added to input tensor.
+    tensor pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values. Used only for output size computation.
     tensor stride;
     /// @brief Pooling kernel size. Used only for output size computation.
