@@ -71,7 +71,7 @@ protected:
         bool isRepeatsConst;
         std::tie(inputShapes, repeatsData, netPrecision, isRepeatsConst, targetDevice) = basicParamsSet;
 
-        selectedType += std::string("_") + ov::element::Type(netPrecision).get_type_name();
+        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
 
         if (inputShapes.front().first.rank() != 0) {
             inputDynamicShapes.push_back(inputShapes.front().first);
@@ -107,7 +107,6 @@ protected:
         } else {
             tileNode = std::make_shared<ov::op::v0::Tile>(paramOuts[0], paramOuts[1]);
         }
-        tileNode->get_rt_info() = getCPUInfo();
         function = makeNgraphFunction(netPrecision, functionParams, tileNode, "CPUTile");
     }
 
@@ -142,7 +141,7 @@ TEST_P(TileLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-//    CheckPluginRelatedResults(executableNetwork, "Tile");
+    CheckPluginRelatedResults(executableNetwork, "Tile");
 }
 
 namespace {

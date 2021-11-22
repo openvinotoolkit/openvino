@@ -15,7 +15,7 @@ bool MKLDNNTileNode::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             return false;
         }
         if (op->get_input_partial_shape(TILE_REPEATS).is_dynamic()) {
-            errorMessage = "Only constant shape is supported for tile repeats input.";
+            errorMessage = "Only static shape is supported for tile repeats input.";
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
@@ -135,7 +135,7 @@ std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
         std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(TILE_INPUT),
                                                 getParentEdgesAtPort(TILE_INPUT)[0]->getMemory().GetShape().toPartialShape()),
         std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
-                                               getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetShape().getDims(),
+                                               getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetShape().getStaticDims(),
                                                getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().GetPtr())
     };
     const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
@@ -152,7 +152,7 @@ std::vector<VectorDims> MKLDNNTileNode::shapeInfer() const {
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {
     if (optimizedCase) {
-        optimizedExecute(this);
+        optimizedExecute(getParentEdgeAt(TILE_INPUT)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
     } else {
         plainExecute(strm);
     }
@@ -163,7 +163,7 @@ void MKLDNNTileNode::plainExecute(mkldnn::stream strm) {
         return;
     }
 
-    auto& srcMemory = getParentEdgeAt(0)->getMemory();
+    auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
     const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());
     uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());

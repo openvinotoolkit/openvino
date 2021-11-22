@@ -12,8 +12,8 @@
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
 
-SizeVector TileBroadcastCommon::calculateDenseStrides(const SizeVector &dims) {
-    SizeVector strides(dims.size(), 1);
+VectorDims TileBroadcastCommon::calculateDenseStrides(const VectorDims &dims) {
+    VectorDims strides(dims.size(), 1);
 
     for (int i = strides.size() - 2; i >= 0; i--) {
         strides[i] = strides[i + 1] * dims[i + 1];
@@ -22,11 +22,11 @@ SizeVector TileBroadcastCommon::calculateDenseStrides(const SizeVector &dims) {
     return strides;
 }
 
-void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const SizeVector& srcBlockedDims, const SizeVector& blockedRepeats,
-        SizeVector& optimizedDims, SizeVector& optimizedSrcStrides) {
+void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const VectorDims& srcBlockedDims, const VectorDims& blockedRepeats,
+        VectorDims& optimizedDims, VectorDims& optimizedSrcStrides) {
     optimizedDims.clear();
     optimizedSrcStrides.clear();
-    SizeVector srcBlockedStrides = calculateDenseStrides(srcBlockedDims);
+    VectorDims srcBlockedStrides = calculateDenseStrides(srcBlockedDims);
 
     for (int i = 0; i < srcBlockedDims.size(); i++) {
         optimizedDims.push_back(blockedRepeats[i]);
@@ -57,29 +57,30 @@ void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const SizeVector& srcBl
     }
 }
 
-bool TileBroadcastCommon::canBeExecutedInBlockedLayout(VectorDims srcBlockedDims, SizeVector blockedRepeats,
+bool TileBroadcastCommon::canBeExecutedInBlockedLayout(VectorDims srcBlockedDims, VectorDims blockedRepeats,
         const size_t elemsInBlock) {
-    if (srcBlockedDims.empty() || blockedRepeats.empty() || elemsInBlock == 0lu || blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0)
+    if (srcBlockedDims.empty() || blockedRepeats.empty() || elemsInBlock == 0lu || srcBlockedDims[1] == Shape::UNDEFINED_DIM ||
+            blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0)
         return false;
 
     srcBlockedDims[1] = div_up(srcBlockedDims[1], elemsInBlock);
     srcBlockedDims.push_back(elemsInBlock);
     blockedRepeats.push_back(1);
 
-    SizeVector optimizedDims, optimizedSrcStrides;
+    VectorDims optimizedDims, optimizedSrcStrides;
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
     constexpr size_t maxNDims = 6lu;
     return optimizedDims.size() <= maxNDims;
 }
 
-bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, SizeVector blockedRepeats) {
+bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, VectorDims blockedRepeats) {
     srcBlockedDims.push_back(srcBlockedDims[1]);
     srcBlockedDims.erase(srcBlockedDims.begin() + 1);
     blockedRepeats.push_back(blockedRepeats[1]);
     blockedRepeats.erase(blockedRepeats.begin() + 1);
 
-    SizeVector optimizedDims, optimizedSrcStrides;
+    VectorDims optimizedDims, optimizedSrcStrides;
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
     constexpr size_t maxNDims = 6lu;
@@ -166,12 +167,12 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const MKLDNNNode 
     return supportedPrimitiveDescriptors;
 }
 
-bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, SizeVector& srcBlockedDims, SizeVector& dstBlockedDims) {
+bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims) {
     while (srcBlockedDims.size() < dstBlockedDims.size()) {
         srcBlockedDims.insert(srcBlockedDims.begin(), 1);
     }
 
-    SizeVector blockedRepeats = repeats;
+    VectorDims blockedRepeats = repeats;
     // for nC(d)hw16c and nC(d)hw8c layouts
     while (blockedRepeats.size() < dstBlockedDims.size()) {
         blockedRepeats.push_back(1);
@@ -182,7 +183,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, SizeVec
         blockedRepeats.erase(blockedRepeats.begin() + 1);
     }
 
-    SizeVector optimizedDims, optimizedSrcStrides;
+    VectorDims optimizedDims, optimizedSrcStrides;
     fillOptimizedDimsAndSrcStrides(srcBlockedDims, blockedRepeats, optimizedDims, optimizedSrcStrides);
 
     constexpr size_t maxNDims = 6lu;
@@ -194,7 +195,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, SizeVec
         optimizedSrcStrides.insert(optimizedSrcStrides.begin(), 1);
     }
 
-    SizeVector optimizedDstStrides = calculateDenseStrides(optimizedDims);
+    VectorDims optimizedDstStrides = calculateDenseStrides(optimizedDims);
 
     size_t dataSize = node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc->getPrecision().size();
     for (int i = 0; i < optimizedDims.size(); i++) {
@@ -210,9 +211,9 @@ bool TileBroadcastCommon::prepareOptimizedParams(const MKLDNNNode *node, SizeVec
     return true;
 }
 
-void TileBroadcastCommon::optimizedExecute(MKLDNNNode *node) {
-    auto srcData = reinterpret_cast<const char *>(node->getParentEdgeAt(0)->getMemory().GetPtr());
-    auto dstData = reinterpret_cast<char *>(node->getChildEdgeAt(0)->getMemory().GetPtr());
+void TileBroadcastCommon::optimizedExecute(const MKLDNNMemoryPtr& srcMemory, const MKLDNNMemoryPtr& dstMemory) {
+    auto srcData = reinterpret_cast<const char *>(srcMemory->GetPtr());
+    auto dstData = reinterpret_cast<char *>(dstMemory->GetPtr());
 
     if (optimizedParams.srcStrides[5] == 0) {
         parallel_for5d(optimizedParams.dims[0], optimizedParams.dims[1], optimizedParams.dims[2], optimizedParams.dims[3], optimizedParams.dims[4],

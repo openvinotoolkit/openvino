@@ -9,30 +9,35 @@
 #include <memory>
 #include <vector>
 
+
+namespace MKLDNNPlugin {
+
 class TileBroadcastCommon {
 protected:
-    static MKLDNNPlugin::VectorDims calculateDenseStrides(const MKLDNNPlugin::VectorDims &dims);
-    std::vector<MKLDNNPlugin::NodeDesc> getSupportedConfigs(const MKLDNNPlugin::MKLDNNNode *node);
-    bool prepareOptimizedParams(const MKLDNNPlugin::MKLDNNNode *node, MKLDNNPlugin::VectorDims& srcBlockedDims, MKLDNNPlugin::VectorDims& dstBlockedDims);
+    static VectorDims calculateDenseStrides(const VectorDims &dims);
+    std::vector<NodeDesc> getSupportedConfigs(const MKLDNNNode *node);
+    bool prepareOptimizedParams(const MKLDNNNode *node, VectorDims& srcBlockedDims, VectorDims& dstBlockedDims);
 
-    void optimizedExecute(MKLDNNPlugin::MKLDNNNode *node);
+    void optimizedExecute(const MKLDNNMemoryPtr& srcMemory, const MKLDNNMemoryPtr& dstMemory);
 
-    mutable MKLDNNPlugin::VectorDims repeats;
+    VectorDims repeats;
     bool optimizedCase = false;
     bool constMap[3] = { false };
     mutable bool needPrepareParamsVar = false;
 
 private:
-    static void fillOptimizedDimsAndSrcStrides(const MKLDNNPlugin::VectorDims &srcBlockedDims, const MKLDNNPlugin::VectorDims &blockedRepeats,
-            MKLDNNPlugin::VectorDims &optimizedDims, MKLDNNPlugin::VectorDims &optimizedSrcStrides);
+    static void fillOptimizedDimsAndSrcStrides(const VectorDims &srcBlockedDims, const VectorDims &blockedRepeats,
+            VectorDims &optimizedDims, VectorDims &optimizedSrcStrides);
 
-    static bool canBeExecutedInBlockedLayout(MKLDNNPlugin::VectorDims srcDims, MKLDNNPlugin::VectorDims repeats, const size_t elemsInBlock);
-    static bool canBeExecutedInNSPCLayout(MKLDNNPlugin::VectorDims srcDims, MKLDNNPlugin::VectorDims repeats);
+    static bool canBeExecutedInBlockedLayout(VectorDims srcDims, VectorDims repeats, const size_t elemsInBlock);
+    static bool canBeExecutedInNSPCLayout(VectorDims srcDims, VectorDims repeats);
 
     struct {
-        MKLDNNPlugin::VectorDims dims;
-        MKLDNNPlugin::VectorDims srcStrides;
-        MKLDNNPlugin::VectorDims dstStrides;
+        VectorDims dims;
+        VectorDims srcStrides;
+        VectorDims dstStrides;
         size_t copySize;
     } optimizedParams;
 };
+
+}  // namespace MKLDNNPlugin

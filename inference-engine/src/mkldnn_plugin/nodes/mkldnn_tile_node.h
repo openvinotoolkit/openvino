@@ -21,7 +21,6 @@ public:
     void executeDynamicImpl(mkldnn::stream strm) override {
         execute(strm);
     }
-    void plainExecute(mkldnn::stream strm);
     bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -33,13 +32,15 @@ protected:
     std::vector<VectorDims> shapeInfer() const override;
 
 private:
+    void plainExecute(mkldnn::stream strm);
+
     static constexpr size_t TILE_INPUT = 0lu;
     static constexpr size_t TILE_REPEATS = 1lu;
 
     int axis = -1;
     int tiles = 0;
     bool noTiling = false;
-    mutable InferenceEngine::SizeVector originRepeats;
+    InferenceEngine::SizeVector originRepeats;
 
     std::string errorPrefix;
 };

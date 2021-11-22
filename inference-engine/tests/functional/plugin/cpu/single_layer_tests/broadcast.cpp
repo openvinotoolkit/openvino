@@ -80,7 +80,7 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType += std::string("_") + ov::element::Type(netPrecision).get_type_name();
+        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(netPrecision).name();
 
         if (inputShapes.front().first.rank() != 0) {
             inputDynamicShapes.push_back(inputShapes.front().first);
@@ -150,7 +150,6 @@ protected:
             }
         }
 
-        broadcastOp->get_rt_info() = getCPUInfo();
         function = makeNgraphFunction(netPrecision, functionParams, broadcastOp, "Broadcast");
     }
 
@@ -191,7 +190,7 @@ TEST_P(BroadcastLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-//    CheckPluginRelatedResults(executableNetwork, "Broadcast");
+    CheckPluginRelatedResults(executableNetwork, "Broadcast");
 }
 
 namespace {

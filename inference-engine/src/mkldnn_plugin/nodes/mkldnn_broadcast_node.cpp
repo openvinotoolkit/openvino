@@ -28,16 +28,16 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ov::N
             errorMessage = "Only NUMPY and EXPLICIT broadcast types are supported.";
             return false;
         }
-        if (op->get_input_partial_shape(TARGET_SHAPE_IDX).rank().is_dynamic() ||
-                op->get_input_partial_shape(AXES_MAPPING_IDX).rank().is_dynamic()) {
-            errorMessage = "Only constant ranks are supported for target shape and axes mapping inputs.";
+        if (op->get_input_partial_shape(TARGET_SHAPE_IDX).is_dynamic() ||
+                op->get_input_size() > AXES_MAPPING_IDX && op->get_input_partial_shape(AXES_MAPPING_IDX).is_dynamic()) {
+            errorMessage = "Only static shapes are supported for target shape and axes mapping inputs.";
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
                 (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
                  op->get_input_size() > AXES_MAPPING_IDX &&
                  !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX)))) {
-            errorMessage = "Only constant shapes are supported for target shape and axes mapping inputs.";
+            errorMessage = "Only constant target shapes and axis mapping inputs are supported for static shapes.";
             return false;
         }
     } catch (...) {
@@ -192,12 +192,12 @@ std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
             std::make_shared<ov::op::v0::Parameter>(opToShapeInfer->get_input_element_type(INPUT_DATA_IDX),
                             getParentEdgesAtPort(INPUT_DATA_IDX)[0]->getMemory().GetShape().toPartialShape()),
             std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
-                            getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetShape().getDims(),
+                            getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetShape().getStaticDims(),
                             getParentEdgesAtPort(TARGET_SHAPE_IDX)[0]->getMemory().GetPtr())
         };
-    if (opToShapeInfer->get_input_size()) {
+    if (opToShapeInfer->get_input_size() > AXES_MAPPING_IDX) {
         inputsForShapeInfer.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32,
-                        getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetShape().getDims(),
+                        getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetShape().getStaticDims(),
                         getParentEdgesAtPort(AXES_MAPPING_IDX)[0]->getMemory().GetPtr()));
     }
     const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
@@ -215,7 +215,7 @@ std::vector<VectorDims> MKLDNNBroadcastNode::shapeInfer() const {
 
 void MKLDNNBroadcastNode::execute(mkldnn::stream strm) {
     if (optimizedCase) {
-        optimizedExecute(this);
+        optimizedExecute(getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
     } else {
         plainExecute(strm);
     }
