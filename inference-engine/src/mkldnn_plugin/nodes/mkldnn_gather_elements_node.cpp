@@ -63,7 +63,7 @@ void MKLDNNGatherElementsNode::createPrimitive() {
 }
 
 void MKLDNNGatherElementsNode::prepareParams() {
-    const auto& dataDims = getParentEdgeAt(dataIndex_)->getMemory().getStaticDims();
+    const auto& dataDims = getParentEdgesAtPort(dataIndex_)[0]->getMemory().getStaticDims();
     const auto& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     strideAxDst_ = 1;
     for (int i = dstDims.size() - 1; i > axis_; i--)
