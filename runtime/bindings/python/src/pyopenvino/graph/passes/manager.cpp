@@ -4,13 +4,8 @@
 
 #include "openvino/pass/manager.hpp"
 
-#include <pybind11/chrono.h>
-#include <pybind11/complex.h>
-#include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-
-#include <tuple>
 
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pass.hpp"
@@ -20,13 +15,10 @@
 
 namespace py = pybind11;
 
-using Version = ov::pass::Serialize::Version;
 
 // TODO:
 // better expections
-// ov::Version binding??
-// tests
-
+// better docs
 namespace {
 class ManagerWrapper : public ov::pass::Manager {
 public:
