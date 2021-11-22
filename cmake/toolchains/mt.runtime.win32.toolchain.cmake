@@ -33,6 +33,7 @@ endmacro()
 ov_set_msvc_runtime(ENABLE_TBBBIND_2_5 ${use_dynamic_runtime})
 # ONNX
 ov_set_msvc_runtime(ONNX_USE_MSVC_STATIC_RUNTIME ${use_static_runtime})
+ov_set_msvc_runtime(ONNX_USE_MSVC_SHARED_RUNTIME ${use_dynamic_runtime})
 # pugixml
 ov_set_msvc_runtime(STATIC_CRT ${use_static_runtime})
 # protobuf
