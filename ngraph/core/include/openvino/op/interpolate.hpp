@@ -187,6 +187,12 @@ public:
               nearest_mode(nearest_mode),
               antialias(antialias),
               cube_coeff(cube_coeff) {}
+
+        bool operator==(const InterpolateAttrs& other) const;
+
+        inline bool operator!=(const InterpolateAttrs& other) const {
+            return !operator==(other);
+        }
     };
 
     Interpolate() = default;

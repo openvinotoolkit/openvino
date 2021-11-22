@@ -13,18 +13,12 @@
 #include <vector>
 
 #include <ngraph/opsets/opset8.hpp>
+// #include <ngraph/op/interpolate.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
 namespace {
 using namespace ngraph;
-
-bool compatible_attrs(const opset8::Interpolate::InterpolateAttrs& fst_attrs, const opset8::Interpolate::InterpolateAttrs& snd_attrs) {
-    return std::tie(fst_attrs.mode, fst_attrs.shape_calculation_mode, fst_attrs.pads_begin, fst_attrs.pads_end,
-                    fst_attrs.coordinate_transformation_mode, fst_attrs.nearest_mode, fst_attrs.antialias, fst_attrs.cube_coeff) ==
-           std::tie(snd_attrs.mode, snd_attrs.shape_calculation_mode, snd_attrs.pads_begin, snd_attrs.pads_end,
-                    snd_attrs.coordinate_transformation_mode, snd_attrs.nearest_mode, snd_attrs.antialias, snd_attrs.cube_coeff);
-}
 
 bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vector<int64_t>& snd_axes_vector) {
     std::set<int64_t> fst_axes_set(fst_axes_vector.begin(), fst_axes_vector.end());
@@ -68,7 +62,7 @@ bool can_be_fused(const std::shared_ptr<opset8::Interpolate>& fst, const std::sh
         }
     }
 
-    if (!compatible_attrs(fst->get_attrs(), snd->get_attrs()) || !is_candidate_for_fusion(fst) || !is_candidate_for_fusion(snd)) return false;
+    if (fst->get_attrs() != snd->get_attrs() || !is_candidate_for_fusion(fst) || !is_candidate_for_fusion(snd)) return false;
 
     const auto fst_axes = get_interpolated_axes(fst);
     const auto snd_axes = get_interpolated_axes(snd);
