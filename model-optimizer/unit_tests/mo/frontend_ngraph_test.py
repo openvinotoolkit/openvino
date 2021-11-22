@@ -43,6 +43,15 @@ def test_moc_extractor():
     assert not status.returncode
 
 
+def test_moc_mean_scale():
+    setup_env()
+    args = [sys.executable, '-m', 'pytest',
+            os.path.join(os.path.dirname(__file__), 'moc_frontend/moc_mean_scale_test_actual.py'), '-s']
+
+    status = subprocess.run(args, env=os.environ)
+    assert not status.returncode
+
+
 def test_main_test():
     setup_env()
     args = [sys.executable, '-m', 'pytest',
