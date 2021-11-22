@@ -101,7 +101,7 @@ void MKLDNNRangeNode::execute(mkldnn::stream strm) {
     }
 }
 template <typename data_t>
-size_t MKLDNNRangeNode::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) const noexcept {
+size_t MKLDNNRangeNode::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t *stepPtr) const {
     data_t start = 0, limit = 0, delta = 0;
     if (startPtr == nullptr)
         startPtr = &start;
@@ -123,7 +123,7 @@ size_t MKLDNNRangeNode::getWorkAmount(data_t *startPtr, data_t *stopPtr, data_t 
     }
 }
 template <typename data_t>
-InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() noexcept {
+InferenceEngine::StatusCode MKLDNNRangeNode::rangeKernel() {
     data_t start = 0, delta = 0;
     size_t work_amount_dst = getWorkAmount<data_t>(&start, nullptr, &delta);
     if (isDynamicNode()) {

@@ -45,8 +45,8 @@ private:
 
     // for Deformable PSROIPolling
     bool noTrans;
-    int partSize;
-    float transStd;
+    int partSize = 1;
+    float transStd = 1.f;
 
     std::string errorPrefix;
 

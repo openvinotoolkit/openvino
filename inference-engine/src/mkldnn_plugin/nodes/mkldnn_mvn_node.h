@@ -122,7 +122,8 @@ private:
     MVNEpsMode epsMode_;
 
     InferenceEngine::Precision input_prec, output_prec;
-    size_t src_data_size, dst_data_size;
+    size_t src_data_size = 0;
+    size_t dst_data_size = 0;
 
     mkldnn::primitive_attr attr;
 

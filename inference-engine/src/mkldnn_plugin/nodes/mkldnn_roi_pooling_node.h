@@ -25,8 +25,8 @@ struct jit_roi_pooling_params {
 
     InferenceEngine::Precision src_prc;
     InferenceEngine::Precision dst_prc;
-    int src_data_size;
-    int dst_data_size;
+    int src_data_size = 0;
+    int dst_data_size = 0;
 
     Algorithm alg;
 };

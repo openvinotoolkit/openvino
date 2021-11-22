@@ -29,7 +29,7 @@ private:
     const size_t indicesIndex_ = 1;
 
     size_t axis_;
-    size_t dataTypeSize_;
+    size_t dataTypeSize_ = 0;
     int strideAxDst_;
     int dstAxDim_;
     int strideAx1Diff_ = 0;

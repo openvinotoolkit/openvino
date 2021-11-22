@@ -26,12 +26,12 @@ public:
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
-    template <typename data_t>
-    InferenceEngine::StatusCode rangeKernel() noexcept;
-    template <typename data_t>
-    size_t getWorkAmount(data_t *startPtr = nullptr, data_t *stopPtr = nullptr, data_t *stepPtr = nullptr) const noexcept;
-
 private:
+    template <typename data_t>
+    InferenceEngine::StatusCode rangeKernel();
+    template <typename data_t>
+    size_t getWorkAmount(data_t* startPtr = nullptr, data_t* stopPtr = nullptr, data_t* stepPtr = nullptr) const;
+
     static const size_t RANGE_START = 0;
     static const size_t RANGE_LIMIT = 1;
     static const size_t RANGE_DELTA = 2;

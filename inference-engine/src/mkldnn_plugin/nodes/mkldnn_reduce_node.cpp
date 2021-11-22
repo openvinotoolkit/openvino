@@ -1825,7 +1825,8 @@ inline void MKLDNNReduceNode::reduce_kernel_process(const uint8_t *in_p, uint8_t
 }
 
 inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
-    const float divisor = static_cast<float>(IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW));
+    const size_t integerDivisor = IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
+    const float divisor = static_cast<float>(integerDivisor);
     if (planar_layout) {
         size_t parallel_amount = OB * OC * OD;
         parallel_for(parallel_amount, [&](size_t i) {

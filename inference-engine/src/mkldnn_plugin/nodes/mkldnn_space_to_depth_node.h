@@ -31,7 +31,7 @@ private:
 
     Mode mode;
     size_t blockSize;
-    size_t blockStep;
+    size_t blockStep = 1;
 
     std::unique_ptr<PermuteKernel> permuteKernel;
 };
