@@ -128,7 +128,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
            { {0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f}, ngraph::element::f32, {1, 6, 1, 1} },
        },
        "Concatenation",
-       "U8", 
+       "U8",
        1
     },
     // Q/DQ with multi-channels subtract
@@ -161,7 +161,7 @@ const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> pa
 const std::vector<std::vector<ngraph::PartialShape>> shapes = {
     {{ 1, 1, 16, 16 }, { 1, 2, 16, 16 }, { 1, 3, 16, 16 }}
 };
-    
+
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
@@ -170,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     MoveFakeQuantizeTransformation::getTestCaseName);
-}  // testValues1
+} // namespace testValues1
 
 namespace testValues2 {
 
@@ -202,4 +202,4 @@ namespace testValues2 {
             ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn(params)),
         MoveFakeQuantizeTransformation::getTestCaseName);
-}  // testValues2
+} // namespace testValues2
