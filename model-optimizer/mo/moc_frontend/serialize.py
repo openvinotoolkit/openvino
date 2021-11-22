@@ -3,7 +3,6 @@
 
 import argparse
 import os
-from mo.moc_frontend.mean_scale import process_mean_scale
 from mo.pipeline.common import get_ir_version
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
 from mo.utils.cli_parser import get_meta_info, parse_transform
@@ -15,11 +14,7 @@ from openvino import function_to_cnn  # pylint: disable=no-name-in-module,import
 def moc_emit_ir(ngraph_function: Function, argv: argparse.Namespace):
     output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
 
-    print('Functionn={}'.format(len(ngraph_function.get_parameters())))
     network = function_to_cnn(ngraph_function)
-
-    print('Functionn2={}'.format(len(ngraph_function.get_parameters())))
-    process_mean_scale(ov_function=ngraph_function, argv=argv)
 
     from mo.back.offline_transformations import apply_user_transformations, apply_moc_transformations
     apply_user_transformations(network, parse_transform(argv.transform))
