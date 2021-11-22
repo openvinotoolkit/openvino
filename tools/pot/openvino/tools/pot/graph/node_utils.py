@@ -23,7 +23,8 @@ def get_node_input_ports(node: Node):
     :return: list of node inputs
     """
     sources_ports = [parent.get_source() for parent in node.in_ports().values()]
-    return [port if port is not None else None for port in sources_ports]
+    return [port for port in sources_ports if port is not None]
+
 
 def get_node_input(node: Node, in_port: int):
     """
@@ -264,7 +265,7 @@ def get_lstm_ends(read_value, assigns, ignore_nodes):
 
 
 def get_node_data_type(node):
-    if node is not None and node.type != 'Const' and node.in_port(0).get_source() is not None \
+    if node.type != 'Const' and node.in_port(0).get_source() is not None \
             and node.in_port(0).get_source().is_data_type_defined():
         return node.in_port(0).get_source().get_data_type()
     return None
