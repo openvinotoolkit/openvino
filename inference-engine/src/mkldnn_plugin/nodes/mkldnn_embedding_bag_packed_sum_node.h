@@ -29,7 +29,7 @@ private:
     void initFromInputs() override;
     void getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
 
-    const int* _indices;
+    const int* _indices = nullptr;
     size_t _batch = 0;
     size_t _indicesPerBag = 0;
 };
