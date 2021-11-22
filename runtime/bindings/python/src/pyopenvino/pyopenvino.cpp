@@ -30,6 +30,7 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/layout_helpers.hpp"
@@ -52,7 +53,7 @@ std::string get_version() {
     auto version = ov::get_openvino_version();
     std::string version_str = std::to_string(OPENVINO_VERSION_MAJOR) + ".";
     version_str += std::to_string(OPENVINO_VERSION_MINOR) + ".";
-    version_str += version->buildNumber;
+    version_str += version.buildNumber;
     return version_str;
 }
 
@@ -74,6 +75,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_AxisSet(m);
     regclass_graph_AxisVector(m);
     regclass_graph_Coordinate(m);
+    regclass_graph_descriptor_Tensor(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
