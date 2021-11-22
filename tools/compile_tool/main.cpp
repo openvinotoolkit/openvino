@@ -282,40 +282,6 @@ std::string getFileNameFromPath(const std::string& path,
     }
 }
 
-void printInputAndOutputs(const std::shared_ptr<const ov::Function>& network) {
-    std::cout << "Model inputs:" << std::endl;
-    for (auto&& input : network->inputs()) {
-        std::string layout;
-        if (auto parameter = dynamic_cast<const ov::op::v0::Parameter *>(input.get_node())) {
-            layout = parameter->get_layout().to_string();
-        }
-        std::cout << "    names: {";
-        for (const auto& name : input.get_names()) {
-            if (name != *input.get_names().begin()) {
-                std::cout << ", ";
-            }
-            std::cout << name;
-        }
-        std::cout << "} : " << input.get_element_type() << " / " << layout << std::endl;
-    }
-    std::cout << "Model outputs:" << std::endl;
-    for (auto&& output : network->outputs()) {
-        std::string layout;
-        if (auto result = dynamic_cast<const ov::op::v0::Result *>(output.get_node())) {
-            layout = result->get_layout().to_string();
-        }
-        std::cout << "    names: {";
-        for (const auto& name : output.get_names()) {
-            if (name != *output.get_names().begin()) {
-                std::cout << ", ";
-            }
-            std::cout << name;
-        }
-        std::cout << "} : " << output.get_element_type() << " / " << layout << std::endl;
-    }
-}
-
-
 using TimeDiff = std::chrono::milliseconds;
 
 int main(int argc, char* argv[]) {

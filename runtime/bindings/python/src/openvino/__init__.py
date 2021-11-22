@@ -6,46 +6,32 @@
 
 from pkg_resources import get_distribution, DistributionNotFound
 
-__path__ = __import__('pkgutil').extend_path(__path__, __name__) # type: ignore # mypy issue #1422
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore # mypy issue #1422
 
 try:
     __version__ = get_distribution("openvino-core").version
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
-from openvino.ie_api import BlobWrapper
-from openvino.ie_api import infer
-from openvino.ie_api import async_infer
-from openvino.ie_api import get_result
-from openvino.ie_api import blob_from_file
 
+# Openvino pybind bindings and python extended classes
 from openvino.impl import Dimension
 from openvino.impl import Function
 from openvino.impl import Node
 from openvino.impl import PartialShape
 from openvino.impl import Layout
 
-from openvino.pyopenvino import Core
-from openvino.pyopenvino import IENetwork
-from openvino.pyopenvino import ExecutableNetwork
+from openvino.ie_api import Core
+from openvino.ie_api import ExecutableNetwork
+from openvino.ie_api import InferRequest
+from openvino.ie_api import AsyncInferQueue
 from openvino.pyopenvino import Version
 from openvino.pyopenvino import Parameter
-from openvino.pyopenvino import InputInfoPtr
-from openvino.pyopenvino import InputInfoCPtr
-from openvino.pyopenvino import DataPtr
-from openvino.pyopenvino import TensorDesc
-from openvino.pyopenvino import get_version
-from openvino.pyopenvino import StatusCode
-from openvino.pyopenvino import InferQueue
-from openvino.pyopenvino import InferRequest  # TODO: move to ie_api?
-from openvino.pyopenvino import Blob
-from openvino.pyopenvino import PreProcessInfo
-from openvino.pyopenvino import MeanVariant
-from openvino.pyopenvino import ResizeAlgorithm
-from openvino.pyopenvino import ColorFormat
-from openvino.pyopenvino import PreProcessChannel
 from openvino.pyopenvino import Tensor
+from openvino.pyopenvino import ProfilingInfo
+from openvino.pyopenvino import get_version
 
+# Import opsets
 from openvino import opset1
 from openvino import opset2
 from openvino import opset3
@@ -54,6 +40,10 @@ from openvino import opset5
 from openvino import opset6
 from openvino import opset7
 from openvino import opset8
+
+# Helper functions for openvino module
+from openvino.ie_api import tensor_from_file
+from openvino.ie_api import compile_model
 
 # Extend Node class to support binary operators
 Node.__add__ = opset8.add
@@ -72,16 +62,3 @@ Node.__lt__ = opset8.less
 Node.__le__ = opset8.less_equal
 Node.__gt__ = opset8.greater
 Node.__ge__ = opset8.greater_equal
-
-# Patching for Blob class
-# flake8: noqa: F811
-# this class will be removed
-Blob = BlobWrapper
-# Patching ExecutableNetwork
-ExecutableNetwork.infer = infer
-# Patching InferRequest
-InferRequest.infer = infer
-InferRequest.async_infer = async_infer
-InferRequest.get_result = get_result
-# Patching InferQueue
-InferQueue.async_infer = async_infer

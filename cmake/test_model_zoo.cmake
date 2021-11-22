@@ -136,7 +136,7 @@ if(ENABLE_TESTS)
         add_dependencies(test_model_zoo test_pip_prerequsites)
     endif()
 
-    if (NGRAPH_PDPD_FRONTEND_ENABLE)
+    if (NGRAPH_PDPD_FRONTEND_ENABLE AND NGRAPH_UNIT_TEST_ENABLE)
         add_dependencies(test_model_zoo paddlepaddle_test_models)
     endif()
 
