@@ -8,7 +8,7 @@ add_library(cpuSpecificRtInfo STATIC ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/uti
                                      ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin/utils/rt_info/memory_formats_attribute.cpp)
 target_link_libraries(cpuSpecificRtInfo PRIVATE ngraph)
 
-set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin)
+set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:MKLDNNPlugin,SOURCE_DIR>)
 set(DEPENDENCIES MKLDNNPlugin)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo)
 if (NGRAPH_ONNX_FRONTEND_ENABLE)

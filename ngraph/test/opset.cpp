@@ -141,7 +141,7 @@ TEST(opset, opset8_dump) {
         std::cout << t.name << " ";
     }
     std::cout << std::endl;
-    ASSERT_EQ(165, opset.get_types_info().size());
+    ASSERT_EQ(167, opset.get_types_info().size());
 }
 
 class MyOpOld : public ov::op::Op {
@@ -196,17 +196,18 @@ TEST(opset, custom_opset) {
     ov::OpSet opset;
 #ifndef OPENVINO_STATIC_LIBRARY
     opset.insert<MyOpOld>();
-    opset.insert<MyOpNewFromOld>();
-    opset.insert<MyOpIncorrect>();
 #endif
+    opset.insert<MyOpIncorrect>();
+    opset.insert<MyOpNewFromOld>();
     opset.insert<MyOpNew>();
 #ifdef OPENVINO_STATIC_LIBRARY
-    ASSERT_EQ(opset.get_types_info().size(), 1);
+    EXPECT_EQ(opset.get_types_info().size(), 2);
 #else
-    ASSERT_EQ(opset.get_types_info().size(), 3);
+    EXPECT_EQ(opset.get_types_info().size(), 3);
+    EXPECT_TRUE(opset.contains_type("MyOpOld"));
+    // TODO: why is it not registered?
+    EXPECT_TRUE(opset.contains_type("MyOpNewFromOld"));
 #endif
-    ASSERT_TRUE(opset.contains_type("MyOpNew"));
-    ASSERT_TRUE(opset.contains_type("MyOpOld"));
-    ASSERT_TRUE(opset.contains_type("MyOpNewFromOld"));
-    ASSERT_FALSE(opset.contains_type("MyOpIncorrect"));
+    EXPECT_TRUE(opset.contains_type("MyOpNew"));
+    EXPECT_FALSE(opset.contains_type("MyOpIncorrect"));
 }

@@ -54,8 +54,4 @@ endforeach()
 set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
     };\n")
 
-
-message("${IE_PLUGINS_DECLARATIONS}")
-message("${IE_PLUGINS_MAP_DEFINITION}")
-
 configure_file("${IE_PLUGINS_HPP_HEADER_IN}" "${IE_PLUGINS_HPP_HEADER}" @ONLY)

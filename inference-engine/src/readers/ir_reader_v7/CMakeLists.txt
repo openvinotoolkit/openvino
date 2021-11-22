@@ -45,15 +45,18 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-if(NOT BUILD_SHARED_LIBS)
-    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
-else()
+if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
+else()
+    # for static linkage the dependencies are in opposite order
+    target_link_libraries(inference_engine PRIVATE ${TARGET_NAME})
 endif()
 
 # code style
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+# Install rules
 
 # for ieFuncTests
 install(TARGETS ${TARGET_NAME}
@@ -67,3 +70,5 @@ else()
     install(TARGETS ${TARGET_NAME}
             LIBRARY DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
+
+ov_install_static_lib(${TARGET_NAME} core)
