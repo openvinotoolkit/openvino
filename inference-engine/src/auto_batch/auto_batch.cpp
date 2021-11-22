@@ -287,7 +287,7 @@ InferenceEngine::IInferRequestInternal::Ptr AutoBatchExecutableNetwork::CreateIn
             workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
                 while (1) {
                     std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(1000));
+                    auto status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(100));
                     // as we pop the tasks from the queue only here
                     // it is ok to call unsafe_size (as the _tasks can only grow in parallel)
                     const int sz = workerRequestPtr->_tasks.unsafe_size();
@@ -537,41 +537,45 @@ IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadExeNetworkImpl(con
     InferenceEngine::SoExecutableNetworkInternal executableNetworkForDevice;
     auto needLoop = deviceName.find("GPU") != std::string::npos;
     do {
-        CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
-        const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
-        ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
-        for (const InputsDataMap::value_type &item : inputInfo) {
-            auto layout = item.second->getTensorDesc().getLayout();
-            if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
-                || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
-                || layout == InferenceEngine::Layout::NDHWC) {
-                if (1 == shapes[item.first][0]) { // do not reshape/re-batch originally batched networks
-                    shapes[item.first][0] = metaDevice.batchForDevice;
-                    std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")"
-                              << " by the batch"
-                              << std::endl;
+        try {
+            CNNNetwork clonedNetwork(InferenceEngine::cloneNetwork(network));
+            const InputsDataMap inputInfo = clonedNetwork.getInputsInfo();
+            ICNNNetwork::InputShapes shapes = clonedNetwork.getInputShapes();
+            for (const InputsDataMap::value_type &item : inputInfo) {
+                auto layout = item.second->getTensorDesc().getLayout();
+                if (layout == InferenceEngine::Layout::NC || layout == InferenceEngine::Layout::NCDHW
+                    || layout == InferenceEngine::Layout::NCHW || layout == InferenceEngine::Layout::NHWC
+                    || layout == InferenceEngine::Layout::NDHWC) {
+                    if (1 == shapes[item.first][0]) { // do not reshape/re-batch originally batched networks
+                        shapes[item.first][0] = metaDevice.batchForDevice;
+                        std::cout << "  reshaping the input " << item.first << " (layout " << layout << ")"
+                                  << " by the batch"
+                                  << std::endl;
+                    }
                 }
             }
-        }
-        std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
-        clonedNetwork.reshape(shapes);
-        executableNetworkForDevice = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
-        if (executableNetworkForDevice == nullptr)
-            IE_THROW(NotFound) << "Failed to load Executable network the device "
-                               << "that the BATCH device is initialized to work with";
+            std::cout << "Reshaped network by batch to  " << metaDevice.batchForDevice << std::endl;
 
-        if (deviceName.find("GPU") != std::string::npos) {
-            const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
-            const uint64_t footprint = executableNetworkForDevice->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
-            std::cout << "!!!!!!!!!!!!!! (BATCHED):" << footprint << std::endl;
-            if (footprint < total_mem) {
-              break;
-            } else {// WA for inaccurate footprint estimations
-                std::cout << "WA for inaccurate footprint estimations!!!" << std::endl;
-                metaDevice.batchForDevice /= 2;
+            clonedNetwork.reshape(shapes);
+            executableNetworkForDevice = GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig);
+            if (executableNetworkForDevice == nullptr)
+                IE_THROW(NotFound) << "Failed to load Executable network the device "
+                                   << "that the BATCH device is initialized to work with";
+
+            if (deviceName.find("GPU") != std::string::npos) {
+                const uint64_t total_mem = GetCore()->GetMetric(deviceName, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+                const uint64_t footprint = executableNetworkForDevice->GetMetric(GPU_METRIC_KEY(NETWORK_MEM_FOOTPRINT));
+                std::cout << "!!!!!!!!!!!!!! (BATCHED):" << footprint << std::endl;
+                if (footprint < total_mem)
+                    break;
+                else // WA for inaccurate footprint estimations
+                    throw NETWORK_NOT_LOADED;
             }
+        } catch (...) {
+            std::cout << "WA for network failure!!!" << std::endl;
+            metaDevice.batchForDevice /= 2;
         }
-    } while (needLoop);
+    } while (needLoop && (metaDevice.batchForDevice));
     return std::make_shared<AutoBatchExecutableNetwork>(executableNetworkForDevice,
                                                         networkWithoutBatch,
                                                         metaDevice,
