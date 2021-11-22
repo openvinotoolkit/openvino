@@ -86,10 +86,10 @@ bool MKLDNNOneHotNode::needShapeInfer() const {
 std::vector<VectorDims> MKLDNNOneHotNode::shapeInfer() const {
     depth = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr())[0];
 
-    std::vector<VectorDims> result({getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()});
-    result.front().insert(result.front().begin() + axis, depth);
+    auto result = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    result.insert(result.begin() + axis, depth);
 
-    return result;
+    return { result };
 }
 
 void MKLDNNOneHotNode::initSupportedPrimitiveDescriptors() {
