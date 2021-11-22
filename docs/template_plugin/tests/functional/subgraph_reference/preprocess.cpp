@@ -763,6 +763,77 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
     return res;
 }
 
+static RefPreprocessParams convert_color_i420_to_bgr_three_planes() {
+    RefPreprocessParams res("convert_color_i420_to_bgr_three_planes");
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
+        p.input().preprocess().convert_color(ColorFormat::BGR);
+        return p.build();
+    };
+
+    // clang-format off
+    auto input_y = std::vector<uint8_t> {81, 81, 145, 145,      // RRGG
+                                         81, 81, 145, 145,      // RRGG
+                                         41, 41, 81, 81,        // BBRR
+                                         41, 41, 81, 81};       // BBRR
+    auto input_shape_y = Shape{1, 4, 4, 1};
+    auto input_u = std::vector<uint8_t> {90,      // R (2x2)
+                                         54,       // G (2x2)
+                                         240,     // B (2x2)
+                                         90};     // R (2x2)
+    auto input_v = std::vector<uint8_t> {240,      // R (2x2)
+                                         34,       // G (2x2)
+                                         110,     // B (2x2)
+                                         240};     // R (2x2)
+    auto input_shape_uv = Shape{1, 2, 2, 1};
+    auto exp_out = std::vector<uint8_t> {0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
+                                         0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
+                                         255, 0, 0,  255, 0, 0,  0, 0, 255,  0, 0, 255,
+                                         255, 0, 0,  255, 0, 0,  0, 0, 255,  0, 0, 255};
+    auto out_shape = Shape{1, 4, 4, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::u8, input_shape_y, input_y);
+    res.inputs.emplace_back(element::u8, input_shape_uv, input_u);
+    res.inputs.emplace_back(element::u8, input_shape_uv, input_v);
+    res.expected.emplace_back(out_shape, element::u8, exp_out);
+    return res;
+}
+
+static RefPreprocessParams convert_color_i420_single_plane() {
+    RefPreprocessParams res("convert_color_i420_single_plane");
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+        p.input().preprocess().convert_color(ColorFormat::RGB);
+        return p.build();
+    };
+
+    // clang-format off
+    auto input = std::vector<float> {  81, 81, 145, 145,      // RRGG
+                                       81, 81, 145, 145,      // RRGG
+                                       41, 41, 81, 81,        // BBRR
+                                       41, 41, 81, 81,        // BBRR
+                                       90, 54, 240, 90, 240, 34, 110, 240};     // UV (RGBR)
+    auto input_shape = Shape{1, 6, 4, 1};
+    auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
+                                       255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
+                                       0, 0, 255,  0, 0, 255,  255, 0, 0,  255, 0, 0,    // BBRR
+                                       0, 0, 255,  0, 0, 255,  255, 0, 0,  255, 0, 0,    // BBRR
+    };
+    auto out_shape = Shape{1, 4, 4, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::f32, input_shape, input);
+    res.expected.emplace_back(out_shape, element::f32, exp_out);
+    return res;
+}
+
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
@@ -978,6 +1049,8 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         convert_color_nv12_single_plane(),
         convert_color_nv12_layout_resize(),
         element_type_before_convert_color_nv12(),
+        convert_color_i420_to_bgr_three_planes(),
+        convert_color_i420_single_plane(),
         postprocess_2_inputs_basic(),
         post_convert_layout_by_dims(),
         post_convert_layout_by_dims_multi(),
