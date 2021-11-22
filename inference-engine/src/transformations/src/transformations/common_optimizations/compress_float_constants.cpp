@@ -9,7 +9,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#include "transformations/rt_info/old_api_map_attribute.hpp"
+#include "transformations/rt_info/old_api_map_element_type_attribute.hpp"
 #include "itt.hpp"
 
 
@@ -99,21 +99,7 @@ ov::pass::AddOldApiMapToParameters::AddOldApiMapToParameters() {
             return false;
         auto p_type = param_node->get_element_type();
         if (p_type == ov::element::f32 || p_type == ov::element::f64) {
-            std::vector<uint64_t> order;
-            if (ov::has_old_api_map(node)) {
-                auto old_api = ov::get_old_api_map(node).get();
-                order = old_api.get_order();
-            } else {
-                auto p_rank = param_node->get_partial_shape().rank();
-                if (p_rank.is_static()) {
-                    auto r = p_rank.get_length();
-                    order.resize(r);
-                    std::iota(order.begin(), order.end(), 0);
-                } else {
-                    return false;
-                }
-            }
-            ov::set_old_api_map(node, ov::OldApiMap(ov::OldApiMapAttr(order, ov::element::Type_t::f16)));
+            ov::set_old_api_map_element_type(node, ov::OldApiMapElementType(ov::element::Type_t::f16));
         } else {
             return false;
         }

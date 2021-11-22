@@ -44,7 +44,8 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
             ${FLAG_NAME}=1)
 
     target_link_libraries(${TARGET_NAME} PRIVATE
-            IEBehaviorSharedTests)
+            IEBehaviorSharedTests
+            openvino::util)
 
     target_include_directories(${TARGET_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests)
@@ -57,7 +58,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
         target_include_directories(${TARGET_NAME} PRIVATE
                 $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
                 ${CMAKE_CURRENT_SOURCE_DIR}/myriad_tests
-                ${IE_MAIN_SOURCE_DIR}/src/inference_engine/src
+                $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src
                 ${XLINK_INCLUDE}
                 ${XLINK_PLATFORM_INCLUDE})
         target_link_libraries(${TARGET_NAME} PRIVATE mvnc)

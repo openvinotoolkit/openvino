@@ -957,14 +957,14 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getInputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getOutputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
@@ -1372,7 +1372,7 @@ void MKLDNNNode::createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& o
     ngraph::OutputVector inputsForShapeInfer;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
-            inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i));
+            inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ngraph::OutputVector{}));
         } else {
             inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
                                                                                       op->get_input_partial_shape(i)));
