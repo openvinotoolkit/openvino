@@ -226,7 +226,7 @@ TEST(type_prop, lstm_cell_invalid_input_dynamic_rank) {
     auto H_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
     auto C_t = make_shared<opset4::Parameter>(element::f32, PartialShape{batch_size, hidden_size});
 
-    auto check_dynamic_lstm = [](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
+    auto check_dynamic_lstm = [=](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
         return lstm->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                lstm->output(1).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                lstm->output(0).get_element_type() == lstm->input(0).get_element_type();
@@ -274,7 +274,7 @@ TEST(type_prop, lstm_cell_shape_from_partial) {
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
 
-    auto check_dynamic_lstm = [](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
+    auto check_dynamic_lstm = [=](const shared_ptr<opset4::LSTMCell>& lstm) -> bool {
         return lstm->output(0).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                lstm->output(1).get_partial_shape() == PartialShape{batch_size, hidden_size} &&
                lstm->output(0).get_element_type() == lstm->input(0).get_element_type();
