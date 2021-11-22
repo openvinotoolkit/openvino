@@ -150,7 +150,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::DropoutWithRandomUniformReplacer>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
-    manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
@@ -176,6 +175,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
     manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
+    manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
