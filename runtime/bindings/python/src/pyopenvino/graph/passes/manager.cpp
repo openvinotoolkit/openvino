@@ -40,9 +40,8 @@ public:
     //                 throw ov::Exception("Invoked with too many arguments! The possible args are: xml_path and
     //                 bin_path");
     //             }
-    //             const auto xml_path = kwargs.contains("xml_path") ? py::cast<std::string>(kwargs["xml_path"]) :
-    //             py::cast<std::string>(args[0]); const auto bin_path = kwargs.contains("bin_path") ?
-    //             py::cast<std::string>(kwargs["bin_path"]) : py::cast<std::string>(args[1]);
+    //             const auto xml_path = kwargs.contains("xml_path") ? py::cast<std::string>(kwargs["xml_path"]) : py::cast<std::string>(args[0]);
+    //             const auto bin_path = kwargs.contains("bin_path") ? py::cast<std::string>(kwargs["bin_path"]) : py::cast<std::string>(args[1]);
     //             push_pass<ov::pass::Serialize>(xml_path, bin_path, Version::UNSPECIFIED);
     //         } else {
     //              throw ov::Exception("No required paths specified for saving .xml and .bin files!");
