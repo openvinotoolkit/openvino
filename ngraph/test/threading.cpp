@@ -2,36 +2,95 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include <chrono>
 #include <mutex>
+#include <queue>
 #include <thread>
 #include <vector>
 
 #include "atomic_guard.hpp"
-#include "gtest/gtest.h"
-#include "ngraph/ngraph.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
+#include "openvino/core/function.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace ngraph;
 using namespace std;
 
+std::shared_ptr<ov::Function> create_complex_function(size_t wide = 50) {
+    const auto& split_subgraph = [](const ov::Output<ov::Node>& input) -> ov::OutputVector {
+        auto relu = std::make_shared<ov::opset8::Relu>(input);
+        auto type_relaxed =
+            std::make_shared<ngraph::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
+                                                                        std::vector<element::Type>{element::f32},
+                                                                        relu);
+        auto axis_node = ov::opset8::Constant::create(ov::element::i64, Shape{}, {1});
+        auto split = std::make_shared<ov::opset8::Split>(type_relaxed, axis_node, 2);
+        return split->outputs();
+    };
+    const auto& concat_subgraph = [](const ov::OutputVector& inputs) -> ov::Output<ov::Node> {
+        auto concat = std::make_shared<ov::opset8::Concat>(inputs, 1);
+        auto type_relaxed =
+            std::make_shared<ngraph::op::TypeRelaxed<ov::opset8::Asin>>(std::vector<element::Type>{element::f32},
+                                                                        std::vector<element::Type>{element::f32},
+                                                                        concat);
+        auto relu = std::make_shared<ov::opset8::Relu>(concat);
+        return relu->output(0);
+    };
+
+    auto parameter = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic(4));
+    std::queue<ov::Output<ov::Node>> nodes;
+    {
+        auto outputs = split_subgraph(parameter->output(0));
+        for (const auto& out : outputs) {
+            nodes.push(out);
+        }
+    }
+
+    while (nodes.size() < wide) {
+        auto first = nodes.front();
+        nodes.pop();
+        auto outputs = split_subgraph(first);
+
+        for (const auto& out : outputs) {
+            nodes.push(out);
+        }
+    }
+
+    while (nodes.size() > 1) {
+        auto first = nodes.front();
+        nodes.pop();
+        auto second = nodes.front();
+        nodes.pop();
+        auto out = concat_subgraph(ov::OutputVector{first, second});
+
+        nodes.push(out);
+    }
+    auto result = std::make_shared<ov::opset8::Result>(nodes.front());
+    return std::make_shared<Function>(ov::ResultVector{result}, ov::ParameterVector{parameter});
+}
+
 TEST(threading, get_friendly_name) {
     const size_t number = 20;
     Shape shape{};
-    auto a = make_shared<op::Parameter>(element::i32, shape);
-    auto iconst0 = op::Constant::create(element::i32, Shape{}, {0});
-    auto add_a1 = make_shared<op::v1::Add>(a, iconst0);
-    auto add_a2 = make_shared<op::v1::Add>(add_a1, iconst0);
-    auto add_a3 = make_shared<op::v1::Add>(add_a2, iconst0);
-    auto abs_add_a3 = std::make_shared<op::Abs>(add_a3);
+    auto a = make_shared<ov::opset8::Parameter>(element::i32, shape);
+    auto iconst0 = ov::opset8::Constant::create(element::i32, Shape{}, {0});
+    auto add_a1 = make_shared<ov::opset8::Add>(a, iconst0);
+    auto add_a2 = make_shared<ov::opset8::Add>(add_a1, iconst0);
+    auto add_a3 = make_shared<ov::opset8::Add>(add_a2, iconst0);
+    auto abs_add_a3 = std::make_shared<ov::opset8::Abs>(add_a3);
 
     auto b = make_shared<op::Parameter>(element::i32, shape);
-    auto add_b1 = make_shared<op::v1::Add>(b, iconst0);
-    auto add_b2 = make_shared<op::v1::Add>(add_b1, iconst0);
-    auto abs_add_b2 = std::make_shared<op::Abs>(add_b2);
+    auto add_b1 = make_shared<ov::opset8::Add>(b, iconst0);
+    auto add_b2 = make_shared<ov::opset8::Add>(add_b1, iconst0);
+    auto abs_add_b2 = std::make_shared<ov::opset8::Abs>(add_b2);
 
-    auto graph = make_shared<op::v1::Multiply>(abs_add_a3, abs_add_b2);
+    auto graph = make_shared<ov::opset8::Multiply>(abs_add_a3, abs_add_b2);
 
-    auto f = std::make_shared<Function>(ngraph::NodeVector{graph}, ParameterVector{a, b});
+    auto f = std::make_shared<Function>(ov::NodeVector{graph}, ParameterVector{a, b});
 
     const auto compare_names = [](const std::vector<std::string>& names) {
         static std::unordered_set<std::string> ref_names;
@@ -86,4 +145,40 @@ TEST(threading, check_atomic_guard) {
         th.join();
     }
     ASSERT_EQ(result, 15);
+}
+
+TEST(threading, clone_with_new_inputs) {
+    auto function = create_complex_function(100);
+    const auto cloneNodes = [&](const std::shared_ptr<const ngraph::Function>& f) {
+        auto orderedOps = function->get_ordered_ops();
+        std::vector<std::shared_ptr<ov::Node>> nodes;
+        for (const auto& op : orderedOps) {
+            ngraph::OutputVector inputsForShapeInfer;
+            std::shared_ptr<ngraph::Node> opToShapeInfer;
+
+            const auto inSize = op->get_input_size();
+            for (size_t i = 0; i < inSize; i++) {
+                if (dynamic_cast<ov::opset8::Constant*>(op->get_input_node_ptr(i))) {
+                    inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
+                } else {
+                    inputsForShapeInfer.push_back(
+                        std::make_shared<ov::opset8::Parameter>(op->get_input_element_type(i),
+                                                                op->get_input_partial_shape(i)));
+                }
+            }
+
+            opToShapeInfer = op->clone_with_new_inputs(inputsForShapeInfer);
+            nodes.push_back(opToShapeInfer);
+        }
+    };
+
+    const size_t numThreads = 6;
+    std::vector<std::thread> threads(numThreads);
+
+    for (auto&& thread : threads)
+        thread = std::thread(cloneNodes, function);
+
+    for (auto&& th : threads) {
+        th.join();
+    }
 }
