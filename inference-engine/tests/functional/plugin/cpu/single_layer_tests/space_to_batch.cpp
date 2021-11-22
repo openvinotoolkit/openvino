@@ -14,7 +14,7 @@ using namespace ov::test;
 namespace CPULayerTestsDefinitions  {
 
 using SpaceToBatchLayerTestCPUParams = std::tuple<
-        std::vector<InputShape>,            // Input shapes
+        InputShape,            // Input shapes
         std::vector<int64_t>,               // block shape
         std::vector<int64_t>,               // pads begin
         std::vector<int64_t>,               // pads end
@@ -25,25 +25,21 @@ class SpaceToBatchCPULayerTest : public testing::WithParamInterface<SpaceToBatch
                                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SpaceToBatchLayerTestCPUParams> &obj) {
-        std::vector<InputShape> inputShapes;
+        InputShape inputShapes;
         std::vector<int64_t> blockShape, padsBegin, padsEnd;
         Precision netPrecision;
         CPUSpecificParams cpuParams;
         std::tie(inputShapes, blockShape, padsBegin, padsEnd, netPrecision, cpuParams) = obj.param;
         std::ostringstream result;
-        if (inputShapes.front().first.size() != 0) {
+        if (inputShapes.first.size() != 0) {
             result << "IS=(";
-            for (const auto &shape : inputShapes) {
-                result << CommonTestUtils::partialShape2str({shape.first}) << "_";
-            }
+            result << CommonTestUtils::partialShape2str(std::vector<ngraph::PartialShape>{inputShapes.first}) << "_";
             result.seekp(-1, result.cur);
             result << ")_";
         }
         result << "TS=";
-        for (const auto& shape : inputShapes) {
-            for (const auto& item : shape.second) {
-                result << CommonTestUtils::vec2str(item) << "_";
-            }
+        for (const auto &item : inputShapes.second) {
+            result << CommonTestUtils::vec2str(item) << "_";
         }
         result << "blockShape=" << CommonTestUtils::vec2str(blockShape) << "_";
         result << "padsBegin=" << CommonTestUtils::vec2str(padsBegin) << "_";
@@ -57,7 +53,7 @@ protected:
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
-        std::vector<InputShape>  inputShapes;
+        InputShape  inputShapes;
         std::vector<int64_t> blockShape, padsBegin, padsEnd;
         Precision netPrecision;
         CPUSpecificParams cpuParams;
@@ -66,8 +62,8 @@ protected:
 
         auto ngPrec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         inType = outType = ngPrec;
-
-        init_input_shapes(inputShapes);
+        const std::vector<InputShape> inputShapesVec{inputShapes};
+        init_input_shapes(inputShapesVec);
 
         if (strcmp(netPrecision.name(), "U8") == 0)
             selectedType = std::string("ref_any_") + "I8";
@@ -76,10 +72,8 @@ protected:
 
         auto params = ngraph::builder::makeDynamicParams(ngPrec, {inputDynamicShapes.front()});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto b2s = ngraph::builder::makeSpaceToBatch(paramOuts[0], ngPrec, blockShape, padsBegin, padsEnd);
-        b2s->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(b2s)};
-        function = std::make_shared<ngraph::Function>(results, params, "SpaceToBatch");
+        auto s2b = ngraph::builder::makeSpaceToBatch(paramOuts[0], ngPrec, blockShape, padsBegin, padsEnd);
+        function = makeNgraphFunction(inType, params, s2b, "SpaceToBatchCPU");
     }
 };
 
@@ -87,8 +81,7 @@ TEST_P(SpaceToBatchCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "SpaceToBatch");
+    CPUTestsBase::CheckPluginRelatedResults(executableNetwork, "SpaceToBatch");
 };
 
 namespace {
@@ -105,37 +98,29 @@ const std::vector<std::vector<int64_t>> blockShape4D1 = {{1, 2, 1, 2}, {1, 1, 2,
 const std::vector<std::vector<int64_t>> padsBegin4D1 = {{0, 0, 0, 1}, {0, 0, 2, 1}, {0, 0, 4, 3}};
 const std::vector<std::vector<int64_t>> padsEnd4D1   = {{0, 0, 0, 1}, {0, 0, 4, 1}, {0, 0, 2, 3}};
 
-std::vector<std::vector<ov::Shape>> staticInputShapes4D1 = {{{1, 16, 8, 12}, {1, 32, 8, 8}}};
+std::vector<ov::Shape> staticInputShapes4D1 = {{1, 16, 8, 12}, {1, 32, 8, 8}};
 
-std::vector<std::vector<InputShape>> dynamicInputShapes4D1 = {
-        {
-                {{{-1, -1, -1, -1}, {{1, 6, 4, 8}, {2, 4, 8, 10}, {1, 8, 4, 10}}}},
-                {{{{1, 4}, {2, 16}, 6, -1}, {{4, 8, 6, 4}, {1, 6, 6, 8}, {2, 12, 6, 4}}}}
-        }
+std::vector<InputShape> dynamicInputShapes4D1 = {
+                {{-1, -1, -1, -1}, {{1, 6, 4, 8}, {2, 4, 8, 10}, {1, 8, 4, 10}}},
+                {{{1, 4}, {2, 16}, 6, -1}, {{4, 8, 6, 4}, {1, 6, 6, 8}, {2, 12, 6, 4}}}
 };
 
-std::vector<std::vector<InputShape>> dynamicInputShapes4D1Blocked = {
-        {
-                {{{-1, 16, -1, -1}, {{1, 16, 4, 6}, {2, 16, 6, 6}, {4, 16, 4, 8}}}}
-        }
+std::vector<InputShape> dynamicInputShapes4D1Blocked = {
+                {{-1, 16, -1, -1}, {{1, 16, 4, 6}, {2, 16, 6, 6}, {4, 16, 4, 8}}}
 };
 
 const std::vector<std::vector<int64_t>> blockShape4D2 = { {1, 2, 4, 3}, {1, 4, 4, 1}};
 const std::vector<std::vector<int64_t>> padsBegin4D2 = {{0, 0, 0, 0}, {0, 0, 4, 3}};
 const std::vector<std::vector<int64_t>> padsEnd4D2   = {{0, 0, 4, 0}, {0, 0, 4, 3}};
 
-std::vector<std::vector<ov::Shape>> staticInputShapes4D2 = {{{1, 16, 12, 12}, {1, 32, 12, 15}}};
-std::vector<std::vector<InputShape>> dynamicInputShapes4D2 = {
-        {
-                {{{-1, -1, -1, -1}, {{1, 4, 8, 9}, {2, 8, 12, 9}, {6, 12, 4, 12}}}},
-                 {{{2, {4, 16}, -1, -1}, {{2, 8, 4, 9}, {2, 4, 8, 6}, {2, 12, 12, 3}}}}
-        }
+std::vector<ov::Shape> staticInputShapes4D2 = {{1, 16, 12, 12}, {1, 32, 12, 15}};
+std::vector<InputShape> dynamicInputShapes4D2 = {
+                {{-1, -1, -1, -1}, {{1, 4, 8, 9}, {2, 8, 12, 9}, {6, 12, 4, 12}}},
+                 {{2, {4, 16}, -1, -1}, {{2, 8, 4, 9}, {2, 4, 8, 6}, {2, 12, 12, 3}}}
 };
 
-std::vector<std::vector<InputShape>> dynamicInputShapes4D2Blocked = {
-        {
+std::vector<InputShape> dynamicInputShapes4D2Blocked = {
                  {{-1, 16, -1, -1}, {{2, 16, 4, 15}, {2, 16, 8, 12}, {3, 16, 12, 9}}}
-        }
 };
 
 const std::vector<CPUSpecificParams> cpuParamsWithBlock_4D = {
@@ -220,19 +205,15 @@ const std::vector<std::vector<int64_t>> blockShape5D = {{1, 1, 2, 2, 1}, {1, 2, 
 const std::vector<std::vector<int64_t>> padsBegin5D = {{0, 0, 0, 0, 0}, {0, 0, 4, 0, 0}, {0, 0, 0, 2, 3}};
 const std::vector<std::vector<int64_t>> padsEnd5D   = {{0, 0, 0, 0, 0}, {0, 0, 0, 4, 3}, {0, 0, 4, 2, 3}};
 
-std::vector<std::vector<ov::Shape>> staticInputShapes5D = {{{2, 16, 4, 6, 12}, {1, 32, 8, 8, 6}, {1, 16, 4, 12, 12}}};
+std::vector<ov::Shape> staticInputShapes5D = {{2, 16, 4, 6, 12}, {1, 32, 8, 8, 6}, {1, 16, 4, 12, 12}};
 
-std::vector<std::vector<InputShape>> dynamicInputShapes5D = {
-        {
-                {{{-1, -1, -1, -1, -1}, {{2, 2, 12, 4, 15}, {4, 4, 8, 6, 9}, {3, 6, 4, 2, 12}}}},
-                {{{{1, 10}, {2, 20}, {4, 50}, -1, -1}, {{3, 12, 8, 6, 9}, {5, 10, 4, 8, 15}, {6, 8, 20, 4, 12}}}}
-        }
+std::vector<InputShape> dynamicInputShapes5D = {
+                {{-1, -1, -1, -1, -1}, {{2, 2, 12, 4, 15}, {4, 4, 8, 6, 9}, {3, 6, 4, 2, 12}}},
+                {{{1, 10}, {2, 20}, {4, 50}, -1, -1}, {{3, 12, 8, 6, 9}, {5, 10, 4, 8, 15}, {6, 8, 20, 4, 12}}}
 };
 
-std::vector<std::vector<InputShape>> dynamicInputShapes5DBlocked = {
-        {
-                {{{-1, 16, -1, -1, -1}, {{2, 16, 4, 6, 9}, {5, 16, 16, 4, 6}, {7, 16, 8, 2, 3}}}}
-        }
+std::vector<InputShape> dynamicInputShapes5DBlocked = {
+                {{-1, 16, -1, -1, -1}, {{2, 16, 4, 6, 9}, {5, 16, 16, 4, 6}, {7, 16, 8, 2, 3}}}
 };
 
 const std::vector<CPUSpecificParams> cpuParamsWithBlock_5D = {
