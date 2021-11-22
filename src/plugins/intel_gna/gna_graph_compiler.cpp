@@ -351,6 +351,12 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     uint32_t total_conv_kernel_size = convolution._kernel_x * convolution._out_depth * in_channels;
     const uint32_t single_conv_kernel_size = convolution._kernel_x * in_channels;
     auto actual_kernel_size = details::product(convolution._weights->getTensorDesc().getDims());
+
+    DEBUG_VALUE(convolution._kernel_x);
+    DEBUG_VALUE(convolution._out_depth);
+    DEBUG_VALUE(in_channels);
+    DEBUG_VALUE_ITERABLE(convolution._weights->getTensorDesc().getDims());
+
     if (total_conv_kernel_size != actual_kernel_size) {
         THROW_GNA_LAYER_EXCEPTION(&convolution) << "Weights size does not equal kernel size "
             << actual_kernel_size << " vs " << total_conv_kernel_size;

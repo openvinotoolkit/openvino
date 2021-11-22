@@ -641,6 +641,7 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 }
 #endif
 
+//#undef DEBUG_USE_NEW_PASS
 #define DEBUG_USE_NEW_PASS 1
 
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
@@ -703,9 +704,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
+
 #ifdef DEBUG_USE_NEW_PASS
+        manager.register_pass<ngraph::pass::Serialize>("/home/ekotov/ngraph_debug/before.xml", "/home/ekotov/ngraph_debug/before.bin"); // DEBUG
         manager.register_pass<TransposeNCHW>();
+        manager.register_pass<ngraph::pass::Serialize>("/home/ekotov/ngraph_debug/after.xml", "/home/ekotov/ngraph_debug/after.bin"); // DEBUG
 #endif
+
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -741,6 +746,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         pass_config->disable<ngraph::pass::TransposeReduction>();
         // Operations Max and Min aren't supported
         pass_config->disable<ngraph::pass::ConcatReduceFusion>();
+        manager.register_pass<ngraph::pass::Serialize>("/home/ekotov/ngraph_debug/final.xml", "/home/ekotov/ngraph_debug/final.bin"); // DEBUG
+        manager.register_pass<ngraph::pass::VisualizeTree>("/home/ekotov/ngraph_debug/ngraph_final.png"); // DEBUG
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
         isNgraphPassesUsed = true;
