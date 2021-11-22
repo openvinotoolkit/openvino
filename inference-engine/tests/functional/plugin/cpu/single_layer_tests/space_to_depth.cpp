@@ -74,9 +74,7 @@ protected:
 
         auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
         auto d2s = ngraph::builder::makeSpaceToDepth(params[0], mode, blockSize);
-        d2s->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(d2s)};
-        function = std::make_shared<ngraph::Function>(results, params, "SpaceToDepthCPU");
+        function = makeNgraphFunction(inType, params, d2s, "SpaceToDepthCPU");
     }
 };
 

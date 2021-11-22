@@ -40,13 +40,13 @@ private:
         size_t blockStep = 0lu;
         size_t dataSize = 1lu;
         size_t nSpatialDims = 0lu;
-        VectorDims srcBlockedDims;
-        VectorDims dstBlockedDims;
     } attrs;
 
-    struct SpaceToDepthExecutor {
-        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs);
-        void exec(MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int MB);
+    struct SpaceToDepthExecutor final {
+        SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs,
+                             const VectorDims& srcBlockedDims,
+                             const VectorDims& dstBlockedDims);
+        void exec(const uint8_t* srcData, uint8_t* dstData, const int MB);
         ~SpaceToDepthExecutor() = default;
 
     private:
