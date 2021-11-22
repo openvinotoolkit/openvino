@@ -271,7 +271,8 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
     int num_conv_parents = 0;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         const auto n = node->get_input_node_shared_ptr(i);
-        num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n));
+        num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n) ||
+                GetSnippetsNodeType(n) == SnippetsNodeType::FusedWithConvolution);
     }
     // Todo: strictly speaking, BinaryConvolution allows other ops fused before the Add
     return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
