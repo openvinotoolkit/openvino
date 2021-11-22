@@ -1398,7 +1398,7 @@ void MKLDNNEltwiseNode::prepareParams() {
                 break;
 
             for (int j = 1; j < dims_in.size(); j++) {
-                if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                if (dims_in[j].back() != dims_in[0].back()) {
                     hasDifferentDims = true;
                 }
             }
@@ -1410,11 +1410,6 @@ void MKLDNNEltwiseNode::prepareParams() {
             bool canCollapse = true;
             for (int i = 0; i < dims_in.size(); i++) {
                 if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                    if (dims_in[i][dims_in[i].size() - 1] == 1) {
-                        canCollapse = false;
-                        break;
-                    }
-
                     if (hasDifferentDims) {
                         canCollapse = false;
                         break;
