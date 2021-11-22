@@ -45,7 +45,7 @@ template <cpu_isa_t isa>
 struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_binarization_kernel)
 
-    explicit jit_uni_binarization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_binarization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(std::move(jqp)), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -213,7 +213,7 @@ template <cpu_isa_t isa>
 struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_quantization_kernel)
 
-    explicit jit_uni_quantization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(jqp), jit_generator() {}
+    explicit jit_uni_quantization_kernel(jit_quantize_params jqp) : jit_uni_quantize_kernel(std::move(jqp)), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();

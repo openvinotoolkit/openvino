@@ -47,7 +47,6 @@ private:
     bool isDW = false;
     bool isInt8 = false;
     size_t groupNum = 1;
-    size_t outDepth;
     size_t IC;
     size_t OC;
     std::vector<ptrdiff_t> kernel;
