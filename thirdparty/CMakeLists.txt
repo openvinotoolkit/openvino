@@ -199,9 +199,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # WA: create temp 'include' directory
         file(MAKE_DIRECTORY "${BINARY_DIR}/include")
 
-        add_library(onednn_gpu STATIC IMPORTED GLOBAL)
+        add_library(onednn_gpu INTERFACE IMPORTED GLOBAL)
         set_target_properties(onednn_gpu PROPERTIES
-            IMPORTED_LOCATION ${ONEDNN_OUTPUT_LIBRARY}
+            INTERFACE_LINK_LIBRARIES "${ONEDNN_OUTPUT_LIBRARY}"
             INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include>;$<BUILD_INTERFACE:${SOURCE_DIR}/include>"
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
         add_dependencies(onednn_gpu onednn_gpu_build)

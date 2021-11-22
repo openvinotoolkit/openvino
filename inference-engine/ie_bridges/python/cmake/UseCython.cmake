@@ -230,7 +230,7 @@ function( compile_pyx _name generated_file )
     set( no_docstrings_arg "--no-docstrings" )
   endif()
 
-  set( cython_debug_arg "$<$<CONFIG:Debug,RelWithDebInfo>:--gdb>" )
+  set( cython_debug_arg "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:--gdb>" )
 
   if( "${PYTHONLIBS_VERSION_STRING}" MATCHES "^3." )
     set( version_arg "-3" )
