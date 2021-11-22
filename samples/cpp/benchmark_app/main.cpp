@@ -1051,12 +1051,13 @@ int main(int argc, char* argv[]) {
             if (FLAGS_pcseq && latency_groups.size() > 1) {
                 std::cout << "Latency for each tensor shape group:" << std::endl;
                 for (size_t i = 0; i < app_inputs_info.size(); ++i) {
+                    std::cout << i << ".";
                     for (auto& item : app_inputs_info[i]) {
                         std::stringstream input_shape;
                         auto shape = item.second.tensorShape;
                         std::copy(shape.begin(), shape.end() - 1, std::ostream_iterator<int>(input_shape, ","));
                         input_shape << shape.back();
-                        std::cout << "  " << item.first << " : " << getShapeString(item.second.tensorShape);
+                        std::cout << " " << item.first << " : " << getShapeString(item.second.tensorShape);
                     }
                     std::cout << std::endl;
                     std::cout << "\tAvg:    "
