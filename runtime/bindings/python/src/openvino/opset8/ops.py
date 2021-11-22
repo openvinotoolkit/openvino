@@ -389,6 +389,7 @@ def if_op(
                                        inputs are connected with body parameters.
     @param      output_desc:           Two lists (for then_body and else_body) which contain rules how If
                                        outputs are connected with body results.
+    @param      name:                  The optional name for the created output node.
                 
     @return: The new node which performs If operation.
     """
