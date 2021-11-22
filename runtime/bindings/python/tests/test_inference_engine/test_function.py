@@ -8,7 +8,7 @@ import pytest
 import openvino.opset8 as ops
 
 from openvino import Function, Tensor
-from openvino.descriptor import Tensor as TensorDescriptor
+from openvino.descriptor import Tensor as DescriptorTensor
 
 from openvino.impl import PartialShape, Shape
 
@@ -24,7 +24,7 @@ def test_function_add_outputs_tensor_name():
     assert len(function.get_results()) == 1
     function.add_outputs("relu_t1")
     assert len(function.get_results()) == 2
-    assert isinstance(function.outputs[1].get_tensor(), TensorDescriptor)
+    assert isinstance(function.outputs[1].get_tensor(), DescriptorTensor)
     assert "relu_t1" in function.outputs[1].get_tensor().names
 
 
