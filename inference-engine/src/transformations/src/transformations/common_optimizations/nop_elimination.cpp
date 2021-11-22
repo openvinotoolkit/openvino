@@ -511,8 +511,8 @@ pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
     auto concat_pattern = pattern::wrap_type<opset8::Concat>();
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto concat = m.get_match_root();
-        auto concat_inputs = concat->input_values();
-        concat_inputs.erase(std::remove_if(concat_inputs.begin(), concat_inputs.end(),
+        auto fixed_concat_inputs = concat->input_values();
+        fixed_concat_inputs.erase(std::remove_if(fixed_concat_inputs.begin(), fixed_concat_inputs.end(),
             [](const Output<Node>& input) {
                 const auto& in_shape = input.get_partial_shape();
                 if (in_shape.rank().is_static()) {
@@ -523,13 +523,13 @@ pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
                         return false;
                     });}
                     return false;
-                }), concat_inputs.end());
+                }), fixed_concat_inputs.end());
 
-        bool inputs_removed = concat->get_input_size() > concat_inputs.size();
+        bool inputs_removed = concat->get_input_size() > fixed_concat_inputs.size();
         if (inputs_removed) {
-            concat->set_arguments(concat_inputs);
+            concat->set_arguments(fixed_concat_inputs);
         }
-        return inputs_removed;
+        return false;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
@@ -615,7 +615,7 @@ ngraph::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDangling
             }
             multi_subgraph_op->set_arguments(op_inputs);
         }
-        return pass_required;
+        return false;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(multi_subgraph_op_pattern, matcher_name);
     this->register_matcher(m, callback);
