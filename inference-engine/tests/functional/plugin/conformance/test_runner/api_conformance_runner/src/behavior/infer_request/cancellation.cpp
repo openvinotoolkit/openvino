@@ -3,19 +3,16 @@
 //
 
 #include "behavior/infer_request/cancellation.hpp"
-#include "conformance.hpp"
+#include "api_conformance_helpers.hpp"
 
 namespace {
 using namespace BehaviorTestsDefinitions;
 using namespace ConformanceTests;
-
-const std::vector<std::map<std::string, std::string>> configsCancel = {
-        {},
-};
+using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, InferRequestCancellationTests,
                          ::testing::Combine(
                                  ::testing::Values(targetDevice),
-                                 ::testing::ValuesIn(configsCancel)),
+                                 ::testing::ValuesIn(emptyConfig)),
                          InferRequestCancellationTests::getTestCaseName);
 }  // namespace
