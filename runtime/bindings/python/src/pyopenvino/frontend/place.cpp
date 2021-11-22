@@ -9,16 +9,13 @@
 #include "frontend_manager.hpp"
 #include "frontend_manager/frontend_exceptions.hpp"
 #include "frontend_manager/frontend_manager.hpp"
-#include "pyngraph/function.hpp"
+#include "pyopenvino/graph/function.hpp"
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Place(py::module m) {
-    py::class_<ov::frontend::Place, std::shared_ptr<ov::frontend::Place>> place(m,
-                                                                                "Place",
-                                                                                py::dynamic_attr(),
-                                                                                py::module_local());
-    place.doc() = "ngraph.impl.Place wraps ngraph::frontend::Place";
+void regclass_frontend_Place(py::module m) {
+    py::class_<ov::frontend::Place, std::shared_ptr<ov::frontend::Place>> place(m, "Place", py::dynamic_attr());
+    place.doc() = "openvino.frontend.Place wraps ov::frontend::Place";
 
     place.def("is_input",
               &ov::frontend::Place::is_input,

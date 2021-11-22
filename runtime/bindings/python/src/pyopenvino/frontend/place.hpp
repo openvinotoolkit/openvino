@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_InputModel(py::module m);
+void regclass_frontend_Place(py::module m);

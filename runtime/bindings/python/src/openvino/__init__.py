@@ -42,6 +42,7 @@ from openvino import opset7
 from openvino import opset8
 
 # Helper functions for openvino module
+from openvino.helpers import function_to_cnn
 from openvino.ie_api import tensor_from_file
 from openvino.ie_api import compile_model
 

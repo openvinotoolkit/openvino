@@ -28,6 +28,10 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/tensor.hpp"
+#include "pyopenvino/frontend/frontend.hpp"
+#include "pyopenvino/frontend/frontend_manager.hpp"
+#include "pyopenvino/frontend/inputmodel.hpp"
+#include "pyopenvino/frontend/place.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
@@ -113,5 +117,14 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
 
+    regclass_frontend_Place(m);
+    regclass_frontend_InitializationFailureFrontEnd(m);
+    regclass_frontend_GeneralFailureFrontEnd(m);
+    regclass_frontend_OpConversionFailureFrontEnd(m);
+    regclass_frontend_OpValidationFailureFrontEnd(m);
+    regclass_frontend_NotImplementedFailureFrontEnd(m);
+    regclass_frontend_FrontEndManager(m);
+    regclass_frontend_FrontEnd(m);
+    regclass_frontend_InputModel(m);
     regmodule_offline_transformations(m);
 }
