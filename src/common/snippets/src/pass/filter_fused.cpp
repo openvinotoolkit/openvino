@@ -144,7 +144,8 @@ bool canBePerformedAsScaleShift(std::shared_ptr<Node> node) {
 bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
     return SupportsFusingWithConvolution_SumActivation(node) ||
         ov::is_type<ngraph::op::Tanh>(node) ||
-        ov::is_type<ngraph::op::Gelu>(node) ||
+        ov::is_type<ngraph::op::v0::Gelu>(node) ||
+        ov::is_type<ngraph::op::v7::Gelu>(node) ||
         ov::is_type<ngraph::op::Abs>(node) ||
         ov::is_type<ngraph::op::Sqrt>(node) ||
         canBePerformedAsScaleShift(node);

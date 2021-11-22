@@ -151,6 +151,18 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == supportedPrecision) ? 0 : -1;
             portConfig.constant = false;
             portConfig.desc = createMemoryDesc(inputShapes[i], supportedPrecision, offset);
+            if (inputShapes[i].getDims()[0] == 1) {
+                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                auto strides = denseDesc->getStrides();
+                strides[0] = Shape::UNDEFINED_DIM;
+                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                         denseDesc->getShape(),
+                                                                         denseDesc->getBlockDims(),
+                                                                         denseDesc->getOrder(),
+                                                                         denseDesc->getOffsetPadding(),
+                                                                         denseDesc->getOffsetPaddingToData(),
+                                                                         strides);
+            }
             config.inConfs[i] = portConfig;
         }
         config.outConfs.resize(outputShapes.size());
@@ -159,6 +171,18 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
             portConfig.inPlace = -1;
             portConfig.constant = false;
             portConfig.desc = createMemoryDesc(outputShapes[i], supportedPrecision, offset);
+            if (outputShapes[i].getDims()[0] == 1) {
+                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                auto strides = denseDesc->getStrides();
+                strides[0] = Shape::UNDEFINED_DIM;
+                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                         denseDesc->getShape(),
+                                                                         denseDesc->getBlockDims(),
+                                                                         denseDesc->getOrder(),
+                                                                         denseDesc->getOffsetPadding(),
+                                                                         denseDesc->getOffsetPaddingToData(),
+                                                                         strides);
+            }
             config.outConfs[i] = portConfig;
         }
 
