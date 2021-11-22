@@ -14,6 +14,14 @@ else()
     set(use_dynamic_runtime ON)
 endif()
 
+# CMAKE_MSVC_RUNTIME_LIBRARY is available since cmake 3.15
+if(use_static_runtime AND CMAKE_MSVC_RUNTIME_LIBRARY MATCHES "^MultiThreaded.*DLL$")
+    message(FATAL_ERROR "Misleading configuration, CMAKE_MSVC_RUNTIME_LIBRARY is ${CMAKE_MSVC_RUNTIME_LIBRARY}")
+else()
+    set(CMAKE_MSVC_RUNTIME_LIBRARY
+        MultiThreaded$<$<CONFIG:Debug>:Debug>$<$<BOOL:${use_dynamic_runtime}>:DLL>)
+endif()
+
 if(use_static_runtime)
     foreach(lang C CXX)
         foreach(build_type "" "_DEBUG" "_MINSIZEREL" "_RELEASE" "_RELWITHDEBINFO")
