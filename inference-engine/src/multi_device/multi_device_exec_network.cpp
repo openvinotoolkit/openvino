@@ -350,9 +350,9 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                for (const auto& cfg : supported_config_keys) {
                     try {
                         LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str(),
-                                cfg.c_str(), _loadContext[ACTUALDEVICE].executableNetwork.GetConfig(cfg).as<std::string>().cstr());
+                                cfg.c_str(), _loadContext[ACTUALDEVICE].executableNetwork->GetConfig(cfg).as<std::string>().c_str());
                     } catch (...) {
-                    };
+                    }
                }
                });
 }

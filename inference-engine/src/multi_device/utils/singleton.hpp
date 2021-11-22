@@ -13,6 +13,14 @@
 
 #include "non_copyable.hpp"
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
+namespace MultiDevicePlugin {
 template <typename Type>
 class Singleton : public NonCopyable {
 public:
@@ -34,5 +42,6 @@ protected:
 
 template <typename Type>
 std::once_flag Singleton<Type>::m_onceFlag;
+} // namespace MultiDevicePlugin
 
 #endif //MULTIDEVICEPLUGIN_SINGLETON_H

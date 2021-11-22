@@ -9,6 +9,14 @@
 #include <cstdint>
 #include <string>
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
+namespace MultiDevicePlugin {
 #ifdef WIN32
 #include <windows.h>
 #include <winsock.h>
@@ -47,5 +55,6 @@ void setName(const std::string& name);
 void getName(char* name, size_t size);
 void saveThreadInfo(const std::string& threadName, const std::string& saveFile = "threads.info");
 } // namespace ThreadUtils
+} // namespace MultiDevicePlugin
 
 #endif //MULTIDEVICEPLUGIN_THREADUTILS_H

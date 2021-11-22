@@ -10,6 +10,14 @@
 
 #include "log.hpp"
 #include <ie_plugin_config.hpp>
+
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
 #define HLogger MultiDevicePlugin::Log::instance()
 
 #define HLogPrint(isOn, isTraceCallStack, logLevel, level, tag, ...) \

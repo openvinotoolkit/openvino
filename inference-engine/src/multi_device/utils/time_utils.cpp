@@ -9,6 +9,7 @@
 #include <sstream>
 #include "time_utils.hpp"
 
+namespace MultiDevicePlugin {
 namespace TimeUtils {
 
 bool localtimeSafe(const time_t* time, struct tm* result) {
@@ -70,3 +71,4 @@ std::string getCurrentTime() {
     return ss.str();
 }
 } // namespace TimeUtils
+} // namespace MultiDevicePlugin

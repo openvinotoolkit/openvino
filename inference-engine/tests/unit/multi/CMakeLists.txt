@@ -11,7 +11,7 @@ add_definitions(-DMULTIUNITTEST)
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS ${IE_MAIN_SOURCE_DIR}/src/multi_device
+        ADDITIONAL_SOURCE_DIRS ${IE_MAIN_SOURCE_DIR}/src/multi_device ${IE_MAIN_SOURCE_DIR}/src/multi_device/utils
         INCLUDES
             ${IE_MAIN_SOURCE_DIR}/src/multi_device
         LINK_LIBRARIES

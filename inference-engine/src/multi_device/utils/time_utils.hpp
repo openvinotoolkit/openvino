@@ -10,6 +10,14 @@
 #include <ctime>
 #include <string>
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
+namespace MultiDevicePlugin {
 namespace TimeUtils {
 class StopWatch {
 public:
@@ -45,5 +53,6 @@ std::string getCurrentTime();
 std::string putTime(std::chrono::system_clock::time_point tp, const char* format);
 std::string formatTimeMilli(std::chrono::system_clock::time_point tp); // format tp to HH:MM:SS.mmm
 } // namespace TimeUtils
+} // namespace MultiDevicePlugin
 
 #endif //MULTIDEVICEPLUGIN_TIMEUTILS_H

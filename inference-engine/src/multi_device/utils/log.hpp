@@ -16,6 +16,13 @@
 #include "time_utils.hpp"
 #include "thread_utils.hpp"
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
 #ifdef COLOR_LOG
 #define COL(x) "\033[1;" #x ";40m"
 #define COL_END "\033[0m"

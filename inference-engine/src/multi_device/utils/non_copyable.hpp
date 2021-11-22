@@ -7,6 +7,14 @@
 #ifndef MULTIDEVICEPLUGIN_NONCOPYABLE_H
 #define MULTIDEVICEPLUGIN_NONCOPYABLE_H
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
+namespace MultiDevicePlugin {
 class NonCopyable {
 public:
     NonCopyable(const NonCopyable&) = delete;
@@ -19,5 +27,6 @@ protected:
     NonCopyable() = default;
     virtual ~NonCopyable() = default;
 };
+} // namespace MultiDevicePlugin
 
 #endif //MULTIDEVICEPLUGIN_NONCOPYABLE_H

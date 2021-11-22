@@ -10,6 +10,7 @@
 #include "thread_utils.hpp"
 #include <mutex>
 
+namespace MultiDevicePlugin {
 namespace ThreadUtils {
 void setName(const std::string& name) {
     setName(name.c_str());
@@ -102,5 +103,5 @@ void getName(char* name, size_t size) {
 #else
 #endif
 } // namespace ThreadUtils
-
+} // namespace MultiDevicePlugin
 
