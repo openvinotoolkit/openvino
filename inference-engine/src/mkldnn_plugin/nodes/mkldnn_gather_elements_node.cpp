@@ -37,7 +37,7 @@ MKLDNNGatherElementsNode::MKLDNNGatherElementsNode(const std::shared_ptr<ngraph:
     }
     errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
 
-    if (op->get_input_size() != 2 || op->get_output_size() != 1)
+    if (inputShapes.size() != 2 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
 
     const auto dataRank = inputShapes[dataIndex_].getRank();
