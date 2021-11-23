@@ -9,10 +9,8 @@ cmake_policy(SET CMP0025 NEW)
 
 project(Samples)
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-    message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 

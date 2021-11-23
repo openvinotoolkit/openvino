@@ -230,10 +230,7 @@ function( compile_pyx _name generated_file )
     set( no_docstrings_arg "--no-docstrings" )
   endif()
 
-  if( "${CMAKE_BUILD_TYPE}" STREQUAL "Debug" OR
-        "${CMAKE_BUILD_TYPE}" STREQUAL "RelWithDebInfo" )
-      set( cython_debug_arg "--gdb" )
-  endif()
+  set( cython_debug_arg "$<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:--gdb>" )
 
   if( "${PYTHONLIBS_VERSION_STRING}" MATCHES "^3." )
     set( version_arg "-3" )
