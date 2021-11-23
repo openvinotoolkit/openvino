@@ -76,7 +76,8 @@ using binding_oberver_ptr = std::unique_ptr<soft_affinity_observer, soft_affinit
 
 inline binding_oberver_ptr construct_binding_observer(tbb::task_arena& ta, const constraints& c) {
     binding_oberver_ptr observer{};
-    if (c.core_type >= 0 && win::core_types().size() > 1) {
+    auto ct = win::core_types();
+    if (ct.size() > 1 && std::find(std::begin(ct), std::end(ct), c.core_type) != std::end(ct)) {
         observer.reset(new soft_affinity_observer{ta, c.core_type});
         observer->observe(true);
     }
@@ -94,6 +95,9 @@ namespace info {
         return tbb::this_task_arena::max_concurrency();
     }
     inline int default_concurrency(detail::constraints c) {
+        if (c.max_concurrency > 0) {
+            return c.max_concurrency;
+        }
         if (c.core_type != tbb::task_arena::automatic) {
             return win::default_concurrency(c.core_type);
         }

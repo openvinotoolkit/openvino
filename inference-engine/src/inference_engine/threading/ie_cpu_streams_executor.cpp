@@ -13,6 +13,7 @@
 #include <climits>
 #include <cassert>
 #include <utility>
+#include <iostream>
 
 #include "threading/ie_thread_local.hpp"
 #include "ie_parallel_custom_arena.hpp"
@@ -91,6 +92,7 @@ struct CPUStreamsExecutor::Impl {
                        const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                            ? custom::info::core_types().back() // running on Big cores only
                            : custom::info::core_types().front(); // running on Little cores only
+                        std::cout << "if branch, core_type is " << (int)selected_core_type << " concurrency is " << concurrency << std::endl;
                        _taskArena.reset(new custom::task_arena{
                            custom::task_arena::constraints{}.set_core_type(selected_core_type).set_max_concurrency(concurrency)});
                    }
@@ -101,6 +103,7 @@ struct CPUStreamsExecutor::Impl {
                     const auto streamId_wrapped = _streamId % total_streams;
                     const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(), _impl->total_streams_on_core_types.cend(),
                         [streamId_wrapped](const decltype(_impl->total_streams_on_core_types)::value_type & p) { return p.second > streamId_wrapped; })->first;
+                    std::cout << "else branch, core_type is " << (int)selected_core_type << " concurrency is " << concurrency << std::endl;
                     _taskArena.reset(new custom::task_arena{
                         custom::task_arena::constraints{}.set_core_type(selected_core_type).set_max_concurrency(concurrency)});
                 }

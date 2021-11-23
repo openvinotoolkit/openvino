@@ -12,7 +12,7 @@
 
 namespace win {
 
-constexpr bool debug_mode = false;
+constexpr bool debug_mode = true;
 
 extern std::map<BYTE, std::vector<DWORD>> core_types_map;
 extern std::vector<BYTE> core_types_ids_vector;
@@ -101,6 +101,10 @@ inline std::vector<BYTE> core_types() {
     }
 
     initialization_state = true;
+
+    printf("--- core types size: %d\n", core_types_ids_vector.size());
+    printf("--- first element: %d\n", core_types_ids_vector.front());
+    printf("--- last element: %d\n", core_types_ids_vector.back());
     return core_types_ids_vector;
 }
 
@@ -115,7 +119,9 @@ class soft_affinity_observer : public tbb::task_scheduler_observer {
 public:
     soft_affinity_observer( tbb::task_arena &a, BYTE core_type_id )
         : tbb::task_scheduler_observer(a), my_core_type_id(core_type_id)
-    {}
+    {
+        printf("pin arena to %d eff class\n", my_core_type_id);
+    }
 
     void on_scheduler_entry( bool ) override {
         // for (auto& el: win::core_types_map[my_core_type_id]) {
