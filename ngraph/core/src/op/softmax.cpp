@@ -101,7 +101,6 @@ bool op::v1::Softmax::has_evaluate() const {
 }
 
 // *** SOFTMAX OP SET V8 ***
-BWDCMP_RTTI_DEFINITION(op::v8::Softmax);
 
 op::v8::Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -119,7 +118,7 @@ void op::v8::Softmax::validate_and_infer_types() {
     if (input_shape.rank().is_static()) {
         int64_t rank = static_cast<int64_t>(input_shape.rank().get_length());
         NODE_VALIDATION_CHECK(this,
-                              -rank <= m_axis < rank,
+                              -rank <= m_axis && m_axis < rank,
                               "Reduction axis (",
                               m_axis,
                               ") is out of bounds (argument shape: ",
@@ -141,7 +140,7 @@ bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
     auto rank = static_cast<int64_t>(inputs[0]->get_shape().size());
-    NGRAPH_CHECK(-rank <= m_axis < rank,
+    NGRAPH_CHECK(-rank <= m_axis && m_axis < rank,
                  "Reduction axis (",
                  m_axis,
                  ") is out of bounds (argument shape: ",

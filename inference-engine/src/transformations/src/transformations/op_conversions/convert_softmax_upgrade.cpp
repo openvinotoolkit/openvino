@@ -9,23 +9,20 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 
-using namespace std;
-using namespace ngraph;
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSoftmax1ToSoftmax8, "ConvertSoftmax1ToSoftmax8", 0);
 
-NGRAPH_RTTI_DEFINITION(pass::ConvertSoftmax1ToSoftmax8, "ConvertSoftmax1ToSoftmax8", 0);
-
-pass::ConvertSoftmax1ToSoftmax8::ConvertSoftmax1ToSoftmax8() {
+ngraph::pass::ConvertSoftmax1ToSoftmax8::ConvertSoftmax1ToSoftmax8() {
     MATCHER_SCOPE(ConvertSoftmax1ToSoftmax8);
 
     auto softmax_v1_pattern = pattern::wrap_type<opset1::Softmax>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto softmax_v1_node = dynamic_pointer_cast<opset1::Softmax>(m.get_match_root());
+        auto softmax_v1_node = std::dynamic_pointer_cast<opset1::Softmax>(m.get_match_root());
         if (!softmax_v1_node)
             return false;
 
         auto axis = static_cast<int64_t>(softmax_v1_node->get_axis());
-        auto softmax_v8_node = make_shared<opset8::Softmax>(softmax_v1_node->input_value(0), axis);
+        auto softmax_v8_node = std::make_shared<opset8::Softmax>(softmax_v1_node->input_value(0), axis);
         softmax_v8_node->set_friendly_name(softmax_v1_node->get_friendly_name());
         copy_runtime_info(softmax_v1_node, softmax_v8_node);
         replace_node(softmax_v1_node, softmax_v8_node);
@@ -33,6 +30,6 @@ pass::ConvertSoftmax1ToSoftmax8::ConvertSoftmax1ToSoftmax8() {
         return true;
     };
 
-    auto m = make_shared<pattern::Matcher>(softmax_v1_pattern, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(softmax_v1_pattern, matcher_name);
     register_matcher(m, callback);
 }

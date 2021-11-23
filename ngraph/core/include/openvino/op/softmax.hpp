@@ -50,8 +50,7 @@ namespace v8 {
 /// \brief Softmax operation with with negative axis values
 class OPENVINO_API Softmax : public Op {
 public:
-    OPENVINO_OP("Softmax", "opset8", op::Op, 8);
-    BWDCMP_RTTI_DECLARATION;
+    OPENVINO_OP("Softmax", "opset8");
 
     Softmax() = default;
     /// \brief Constructs a softmax operation.
