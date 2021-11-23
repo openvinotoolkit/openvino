@@ -27,11 +27,6 @@ def decode_name_with_port(input_model: InputModel, node_name: str):
         found_node_names.append('Tensor:' + node_name)
         found_nodes.append(node)
 
-    node = input_model.get_place_by_operation_name(node_name)
-    if node:
-        found_node_names.append('Operation:' + node_name)
-        found_nodes.append(node)
-
     regexp_post = r'(.+):(\d+)'
     match_post = re.search(regexp_post, node_name)
     if match_post:
