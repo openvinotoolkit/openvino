@@ -4,31 +4,17 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/op/matrix_nms.hpp"
-#include "openvino/op/constant.hpp"
+#include "openvino/opsets/opset8.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
 using namespace ov;
 
 namespace {
-struct Attributes {
-    int nms_top_k;
-    float score_threshold;
-    op::v8::MatrixNms::SortResultType sort_result_type;
-    int keep_top_k;
-    int background_class;
-    op::v8::MatrixNms::DecayFunction decay_function;
-    float gaussian_sigma;
-    float post_threshold;
-    ov::element::Type output_type;
-    bool sort_result_across_batch;
-    bool normalized;
-};
-
 struct MatrixNmsParams {
     MatrixNmsParams(
-        const Attributes& attrs,
+        const opset8::MatrixNms::Attributes& attrs,
         const Tensor& boxes, const Tensor& scores,
         const Tensor& expectedSelectedScores, const Tensor& expectedSelectedIndices,
         const Tensor& expectedValidOutputs, const std::string& testcaseName = "") :
@@ -37,7 +23,7 @@ struct MatrixNmsParams {
         expectedSelectedScores(expectedSelectedScores), expectedSelectedIndices(expectedSelectedIndices),
         expectedValidOutputs(expectedValidOutputs), testcaseName(testcaseName) {}
 
-    Attributes attrs;
+    opset8::MatrixNms::Attributes attrs;
     Tensor boxes;
     Tensor scores;
     Tensor expectedSelectedScores;
@@ -80,21 +66,9 @@ public:
 
 private:
     static std::shared_ptr<Function> CreateFunction(const MatrixNmsParams& params) {
-        op::v8::MatrixNms::Attributes attrs;
-        attrs.nms_top_k = params.attrs.nms_top_k;
-        attrs.score_threshold = params.attrs.score_threshold;
-        attrs.sort_result_type = params.attrs.sort_result_type;
-        attrs.keep_top_k = params.attrs.keep_top_k;
-        attrs.background_class = params.attrs.background_class;
-        attrs.decay_function = params.attrs.decay_function;
-        attrs.gaussian_sigma = params.attrs.gaussian_sigma;
-        attrs.post_threshold = params.attrs.post_threshold;
-        attrs.output_type = params.attrs.output_type;
-        attrs.sort_result_across_batch = params.attrs.sort_result_across_batch;
-        attrs.normalized = params.attrs.normalized;
-        const auto boxes = std::make_shared<op::v0::Parameter>(params.boxes.type, PartialShape::dynamic());
-        const auto scores = std::make_shared<op::v0::Parameter>(params.scores.type, PartialShape::dynamic());
-        const auto nms = std::make_shared<op::v8::MatrixNms>(boxes, scores, attrs);
+        const auto boxes = std::make_shared<opset1::Parameter>(params.boxes.type, PartialShape::dynamic());
+        const auto scores = std::make_shared<opset1::Parameter>(params.scores.type, PartialShape::dynamic());
+        const auto nms = std::make_shared<opset8::MatrixNms>(boxes, scores, params.attrs);
         const auto f = std::make_shared<Function>(nms->outputs(), ParameterVector{boxes, scores});
         return f;
     }
@@ -111,17 +85,17 @@ std::vector<MatrixNmsParams> generateParams() {
     using T_IND = typename element_type_traits<ET_IND>::value_type;
     std::vector<MatrixNmsParams> params {
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 0,                                          // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
@@ -136,17 +110,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_output_type_i64"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 0,                                          // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
@@ -161,17 +135,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_output_type_i32"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 0,                                          // background_class
-                op::v8::MatrixNms::DecayFunction::GAUSSIAN, // decay_function
+                opset8::MatrixNms::DecayFunction::GAUSSIAN, // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
@@ -186,17 +160,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_gaussian"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 0,                                          // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {2, 6, 4}, std::vector<T>{
@@ -215,17 +189,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {2}, std::vector<T_IND>{3, 3}),                              // expected_valid_outputs
             "matrix_nms_two_batches_two_classes"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                true,                                       // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.5f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                true,                                       // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {2, 6, 4}, std::vector<T>{
@@ -249,17 +223,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {2}, std::vector<T_IND>{4, 4}),                              // expected_valid_outputs
             "matrix_nms_two_batches_two_classes_by_score_cross_batch"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::CLASSID, // sort_result_type
+                true,                                       // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::CLASSID, // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.5f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                true,                                       // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {2, 6, 4}, std::vector<T>{
@@ -283,17 +257,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {2}, std::vector<T_IND>{4, 4}),                              // expected_valid_outputs
             "matrix_nms_two_batches_two_classes_by_classid_cross_batch"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::CLASSID, // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::CLASSID, // sort_result_type
+                3,                                          // nms_top_k
                 3,                                          // keep_top_k
                 0,                                          // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {2, 6, 4}, std::vector<T>{
@@ -312,17 +286,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {2}, std::vector<T_IND>{3, 3}),                              // expected_valid_outputs
             "matrix_nms_by_keep_top_k"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
@@ -338,17 +312,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{6}),                                 // expected_valid_outputs
             "matrix_nms_background"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
@@ -363,17 +337,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{3}),                                 // expected_valid_outputs
             "matrix_nms_flipped_coordinates"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.8f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
@@ -388,17 +362,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{2}),                                 // expected_valid_outputs
             "matrix_nms_post_threshold"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.3f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 10, 4}, std::vector<T>{
@@ -413,17 +387,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
             "matrix_nms_identical_boxes"),
         MatrixNmsParams(
-            Attributes{
-                2,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                2,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
@@ -438,17 +412,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{2}),                                 // expected_valid_outputs
             "matrix_nms_nms_top_k"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 0.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 1, 4}, std::vector<T>{0.0, 0.0, 1.0, 1.0}),                  // boxes
@@ -459,17 +433,17 @@ std::vector<MatrixNmsParams> generateParams() {
             Tensor(ET_IND, {1}, std::vector<T_IND>{1}),                                 // expected_valid_outputs
             "matrix_nms_single_box"),
         MatrixNmsParams(
-            Attributes{
-                3,                                          // nms_top_k
+            {
+                opset8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                false,                                      // sort_result_across_batch
+                ET_IND,                                     // output_type
                 2.0f,                                       // score_threshold
-                op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+                3,                                          // nms_top_k
                 -1,                                         // keep_top_k
                 -1,                                         // background_class
-                op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
+                opset8::MatrixNms::DecayFunction::LINEAR,   // decay_function
                 2.0f,                                       // gaussian_sigma
                 0.0f,                                       // post_threshold
-                ET_IND,                                     // output_type
-                false,                                      // sort_result_across_batch
                 true,                                       // normalized
             },
             Tensor(ET, {1, 6, 4}, std::vector<T>{
