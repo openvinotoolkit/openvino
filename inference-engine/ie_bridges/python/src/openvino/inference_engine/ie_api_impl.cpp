@@ -790,22 +790,17 @@ public:
     }
 
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-        // auto castedNode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
-        // if (castedNode) {
-        //     std::cout << castedNode->get_attrs().get_type_name() << " | " << opName << std::endl;
-        //     for (auto it : castedNode->get_attrs()) {
-        //         std::cout << it.first << " " << it.second << std::endl;
-        //     }
-        // }
-        // TODO: check layer op name.
-        if (std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node)) {
+        auto castedNode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+        if (castedNode && castedNode->get_attrs().get_type_name() == opName) {
             return {"CPU"};
         }
         return {};
     }
 
     InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-        if (std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node) && implType == "CPU") {
+        auto castedNode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+        if (castedNode && implType == "CPU" &&
+            castedNode->get_attrs().get_type_name() == opName) {
             return std::make_shared<PyLayerImpl>(node, impl);
         }
         return nullptr;

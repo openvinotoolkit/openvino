@@ -20,6 +20,7 @@ std::shared_ptr<ov::Node> ov::op::util::FrameworkNode::clone_with_new_inputs(con
     for (size_t i = 0; i < get_output_size(); ++i) {
         node->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
     }
+    node->set_attrs(get_attrs());
     return node;
 }
 

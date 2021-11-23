@@ -234,5 +234,3 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef object getPartialShape_capsule(DataPtr)
 
     cdef const size_t product(const SizeVector& dims)
-
-    cdef IENetwork read_network(string path_to_xml, string path_to_bin)
