@@ -37,7 +37,6 @@
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
-#include "pyopenvino/graph/ops/sink.hpp"
 #include "pyopenvino/graph/ops/util/regmodule_graph_op_util.hpp"
 #include "pyopenvino/graph/partial_shape.hpp"
 #include "pyopenvino/graph/passes/regmodule_graph_passes.hpp"
@@ -81,7 +80,6 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
-    regclass_graph_op_Sink(m_op);
 
 #if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
     regmodule_graph_onnx_import(m);
