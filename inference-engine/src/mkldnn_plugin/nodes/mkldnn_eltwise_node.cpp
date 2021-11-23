@@ -79,7 +79,8 @@ template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    explicit jit_uni_eltwise_generic(jit_eltwise_params jep, MKLDNNEltwiseNode& eltwiseNode) : jit_uni_eltwise_kernel(jep, eltwiseNode), jit_generator() {}
+    explicit jit_uni_eltwise_generic(jit_eltwise_params jep, MKLDNNEltwiseNode& eltwiseNode) :
+        jit_uni_eltwise_kernel(std::move(jep), eltwiseNode), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -128,6 +129,9 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
                 post_op_emitters.push_back(create_eltwise_emitter(*eltwiseNode.getFusedWith()[i].get(), exec_prc));
             } else if (eltwiseNode.getFusedWith()[i].get()->getType() == FakeQuantize) {
                auto fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
+               if (!fakeQuantizeNode) {
+                   IE_THROW() << "Cannot cast " << eltwiseNode.getFusedWith()[i]->getName() << " to MKLDNNFakeQuantizeNode";
+               }
                fakeQuantizeNode->appendPostOps(post_ops);
 
                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
@@ -1181,7 +1185,20 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 portConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
             portConfig.constant = false;
 
-            portConfig.desc = createMemoryDesc(getInputShapeAtPort(i), inputPrecisions[i], offset);
+            const auto &srcShape = getInputShapeAtPort(i);
+            portConfig.desc = createMemoryDesc(srcShape, inputPrecisions[i], offset);
+            if (!isDynamicNode() && srcShape.getDims()[0] == 1) {
+                const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+                auto strides = denseDesc->getStrides();
+                strides[0] = Shape::UNDEFINED_DIM;
+                portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                         denseDesc->getShape(),
+                                                                         denseDesc->getBlockDims(),
+                                                                         denseDesc->getOrder(),
+                                                                         denseDesc->getOffsetPadding(),
+                                                                         denseDesc->getOffsetPaddingToData(),
+                                                                         strides);
+            }
 
             config.inConfs.push_back(portConfig);
         }
@@ -1190,7 +1207,20 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         portConfig.inPlace = -1;
         portConfig.constant = false;
 
-        portConfig.desc = createMemoryDesc(getOutputShapeAtPort(0), outputPrecision, offset);
+        const auto &dstShape = getOutputShapeAtPort(0);
+        portConfig.desc = createMemoryDesc(dstShape, outputPrecision, offset);
+        if (!isDynamicNode() && dstShape.getDims()[0] == 1) {
+            const auto denseDesc = portConfig.desc->as<BlockedMemoryDesc>();
+            auto strides = denseDesc->getStrides();
+            strides[0] = Shape::UNDEFINED_DIM;
+            portConfig.desc = std::make_shared<CpuBlockedMemoryDesc>(denseDesc->getPrecision(),
+                                                                     denseDesc->getShape(),
+                                                                     denseDesc->getBlockDims(),
+                                                                     denseDesc->getOrder(),
+                                                                     denseDesc->getOffsetPadding(),
+                                                                     denseDesc->getOffsetPaddingToData(),
+                                                                     strides);
+        }
 
         config.outConfs.push_back(portConfig);
 
@@ -1364,11 +1394,11 @@ void MKLDNNEltwiseNode::prepareParams() {
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
                (!isDynBatchEnabled || (currentOutBlkDims.size() - collapsedDims > 2))) {
-            if (jep.dims.size() - collapsedDims - 2 < 0)
+            if (static_cast<int>(jep.dims.size()) - collapsedDims - 2 < 0)
                 break;
 
             for (int j = 1; j < dims_in.size(); j++) {
-                if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                if (dims_in[j].back() != dims_in[0].back()) {
                     hasDifferentDims = true;
                 }
             }
@@ -1380,11 +1410,6 @@ void MKLDNNEltwiseNode::prepareParams() {
             bool canCollapse = true;
             for (int i = 0; i < dims_in.size(); i++) {
                 if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                    if (dims_in[i][dims_in[i].size() - 1] == 1) {
-                        canCollapse = false;
-                        break;
-                    }
-
                     if (hasDifferentDims) {
                         canCollapse = false;
                         break;

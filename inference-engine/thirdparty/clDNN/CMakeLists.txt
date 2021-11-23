@@ -13,12 +13,16 @@ project("${CLDNN__PROJ_NAME}")
 # ======================================================================================================
 # ======================================================================================================
 if (ENABLE_ONEDNN_FOR_GPU)
-    ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
-    ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
+    get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+    if (isMultiConfig)
+        ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
+        ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
 
-    set(ONEDNN_TARGET_NAME onednn_gpu)
-    set(ONEDNN_INCLUDE_DIRS "${BINARY_DIR}/include/" "${SOURCE_DIR}/include/")
-    set(ONEDNN_LIBRARY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        set(ONEDNN_INCLUDE_DIRS "${BINARY_DIR}/include/" "${SOURCE_DIR}/include/")
+        set(ONEDNN_LIBRARY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    else()
+        set(ONEDNN_LIBRARY "onednn_gpu")
+    endif()
 endif()
 
 if(ENABLE_GPU_DEBUG_CAPS)

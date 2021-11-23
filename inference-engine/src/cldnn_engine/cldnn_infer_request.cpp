@@ -755,6 +755,21 @@ void CLDNNInferRequest::copy_input_data(std::shared_ptr<cldnn::network> network,
     }
 }
 
+Blob::Ptr CLDNNInferRequest::host_blob_from_device_blob(Blob::Ptr blobPtr) {
+    uint8_t* bufferMem = nullptr;
+    auto clblobPtr = std::dynamic_pointer_cast<InferenceEngine::gpu::ClBlob>(blobPtr);
+    if (clblobPtr) {
+        const auto memPtr = getBlobImpl(clblobPtr.get())->getMemory();
+        if (memPtr->get_allocation_type() == cldnn::allocation_type::usm_host) {
+            bufferMem = reinterpret_cast<uint8_t*>(memPtr->get_internal_params().mem);
+        }
+    }
+    Blob::Ptr hostBlob = create_host_blob(blobPtr->getTensorDesc(), bufferMem);
+    hostBlob->allocate();
+
+    return hostBlob;
+}
+
 void CLDNNInferRequest::allocate_inputs() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::allocate_inputs");
     auto inputLayouts = m_graph->GetInputLayouts();
@@ -786,7 +801,7 @@ void CLDNNInferRequest::allocate_inputs() {
             } else {
                 auto blobPtr = create_device_blob(desc, litr->second);
                 _deviceInputs[name] = blobPtr;
-                _inputs[name] = blobPtr;
+                _inputs[name] = host_blob_from_device_blob(blobPtr);
             }
         }
     }
@@ -832,7 +847,7 @@ void CLDNNInferRequest::allocate_outputs() {
         }
         auto blobPtr = create_device_blob(desc, output_layout);
         _deviceOutputs[no.first] = blobPtr;
-        _outputs[no.first] = blobPtr;
+        _outputs[no.first] = host_blob_from_device_blob(blobPtr);
         outputsMap[no.first] = outputID;
     }
 }

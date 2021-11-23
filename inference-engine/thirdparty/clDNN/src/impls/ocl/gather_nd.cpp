@@ -29,6 +29,7 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
 
         gather_nd_params.indices_rank = arg.get_primitive()->indices_rank;
         gather_nd_params.batch_dims = arg.get_primitive()->batch_dims;
+        gather_nd_params.batch_merged_output = arg.get_primitive()->batch_merged_output;
 
         gather_nd_params.inputs.push_back(convert_data_tensor(arg.input(1).get_output_layout()));
 

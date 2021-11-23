@@ -11,6 +11,7 @@ using namespace ov::test::subgraph;
 namespace {
 std::vector<std::vector<ov::Shape>>  inShapes = {
         {{2}},
+        {{}, {34100}},
         {{2, 200}},
         {{10, 200}},
         {{1, 10, 100}},
