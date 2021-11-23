@@ -171,12 +171,12 @@ struct quantize_fuse_params : fuse_params {
     float out_scale;
     float out_shift;
 
-    size_t in_range_lo_idx;
-    size_t in_range_hi_idx;
-    size_t in_scale_idx;
-    size_t in_shift_idx;
-    size_t out_scale_idx;
-    size_t out_shift_idx;
+    size_t in_range_lo_idx = 0;
+    size_t in_range_hi_idx = 0;
+    size_t in_scale_idx = 0;
+    size_t in_shift_idx = 0;
+    size_t out_scale_idx = 0;
+    size_t out_shift_idx = 0;
 };
 
 }  // namespace kernel_selector

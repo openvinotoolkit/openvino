@@ -13,7 +13,7 @@ Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppressio
     auto out_dt = params.output.GetDType();
 
     auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
-        if (candidate != Datatype::F32 || candidate != Datatype::F16)
+        if (candidate != Datatype::F32 && candidate != Datatype::F16)
             return current;
 
         return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;

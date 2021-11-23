@@ -441,7 +441,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 
     std::vector<cl::Event> clevents;
     for (auto& ev : events) {
-        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get()))
+        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get()))
             clevents.push_back(ocl_base_ev->get());
     }
 

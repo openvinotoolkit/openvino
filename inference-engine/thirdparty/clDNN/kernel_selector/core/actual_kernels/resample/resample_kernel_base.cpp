@@ -251,23 +251,11 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
 
 Datatype ResampleKernelBase::GetAccumulatorType(const resample_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
-    auto out_dt = params.output.GetDType();
 
     if (params.resampleType == ResampleType::NEAREST_NEIGHBOR)
         return in_dt;
 
-    auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
-        if (candidate != Datatype::F32 || candidate != Datatype::F16)
-            return current;
-
-        return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;
-    };
-
-    Datatype fp_type = Datatype::F32;
-    fp_type = smaller_fp_type(fp_type, in_dt);
-    fp_type = smaller_fp_type(fp_type, out_dt);
-
-    return fp_type;
+    return Datatype::F32;
 }
 
 }  // namespace kernel_selector

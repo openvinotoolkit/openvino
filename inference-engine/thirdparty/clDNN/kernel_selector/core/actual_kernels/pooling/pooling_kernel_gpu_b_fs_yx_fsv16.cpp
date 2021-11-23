@@ -155,10 +155,6 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
 }
 
 KernelsData PoolingKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    const auto& pooling_p = static_cast<const pooling_params&>(params);
-    if (pooling_p.output.Batch().v == 1)
-        return GetCommonKernelsData(params, options);
-    else
-        return GetCommonKernelsData(params, options);
+    return GetCommonKernelsData(params, options);
 }
 }  // namespace kernel_selector
