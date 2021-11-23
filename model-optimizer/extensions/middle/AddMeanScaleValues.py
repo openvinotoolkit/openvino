@@ -52,13 +52,16 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         name = input_node.soft_get('name', input_node.id) + '/' + preprocessing_name
         preprocessing = create_op_with_const_inputs(graph, op=op, port_value_dict={1: value}, op_attrs={'name': name})
 
-        # There are models with pattern Parameter(uint8) -> Convert(float).
-        # Adding mean/scale leads to the following: Parameter(uint8) -> Mean/Scale -> Convert(float) which is incorrect.
-        # To fix this mean and scale preprocessing node is inserted after Convert(float) node.
-        out_node = input_node.out_port(0).get_destination().node
-        if out_node.soft_get('type') == "Convert" and (out_node.soft_get('dst_type') == np.float32 or out_node.soft_get('dst_type') == np.float16):
-            if len(input_node.out_port(0).get_destinations()) == 1:
-                input_node = out_node
+        if input_node.has_port('out', 0) and len(input_node.out_port(0).get_destinations()) == 0:
+            # There are models with pattern Parameter(uint8) -> Convert(float).
+            # Adding mean/scale leads to the following:
+            # Parameter(uint8) -> Mean/Scale -> Convert(float) which is incorrect.
+            # To fix this mean and scale preprocessing node is inserted after Convert(float) node.
+            out_node = input_node.out_port(0).get_destination().node
+            if out_node.soft_get('type') == "Convert" and (out_node.soft_get('dst_type') == np.float32 or
+                                                           out_node.soft_get('dst_type') == np.float16):
+                if len(input_node.out_port(0).get_destinations()) == 1:
+                    input_node = out_node
 
         for dst in input_node.out_port(0).get_destinations():
             if dst.node.soft_get('type') != 'ShapeOf':
