@@ -46,8 +46,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(smoke_DetectionOutput5In).*)",
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
-            // INT8 StridedSlice not supported
-            R"(.*(LPT/StridedSliceTransformation).*)",
             // TODO: Issue: 48106
             R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
             // TODO: Issue: 54194
