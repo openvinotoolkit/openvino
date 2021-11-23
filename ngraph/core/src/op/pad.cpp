@@ -200,7 +200,24 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
     } else {
         pad_value = pad_zero_value.data();
     }
+
+    // compute pads_begin and pads_end CoordinateDiffs from pads_begin
+    // and pads_end shapes and reshape output to determine shape
+    // (in case pads_begin and pads_end are Parameters, output is dynamic with static rank).
+
+    op::v0::Constant pads_begin_const(inputs[1]);
+    CoordinateDiff pads_begin_coord(pads_begin_const.cast_vector<ptrdiff_t>());
+    op::v0::Constant pads_end_const(inputs[2]);
+    CoordinateDiff pads_end_coord(pads_end_const.cast_vector<ptrdiff_t>());
+
+    auto data_shape = data->get_shape();
+    ov::Shape padded_shape(data_shape.size());
+    for (size_t i = 0; i < data_shape.size(); ++i) {
+        padded_shape[i] = data_shape[i] + pads_begin_coord[i] + pads_end_coord[i];
+    }
+
     const auto& out = outputs[0];
+    out->set_shape(padded_shape);
 
     ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
                                     pad_value,
@@ -208,8 +225,8 @@ bool op::v1::Pad::evaluate_pad(const HostTensorVector& outputs, const HostTensor
                                     elem_size,
                                     data->get_shape(),
                                     out->get_shape(),
-                                    get_pads_begin(),
-                                    get_pads_end(),
+                                    pads_begin_coord,
+                                    pads_end_coord,
                                     get_pad_mode());
 
     return true;
