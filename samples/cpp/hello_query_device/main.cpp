@@ -117,7 +117,11 @@ int main(int argc, char* argv[]) {
             for (auto&& metricName : supportedMetrics) {
                 if (metricName != METRIC_KEY(SUPPORTED_METRICS) && metricName != METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
                     std::cout << "\t\t" << metricName << " : " << std::flush;
-                    printParameterValue(core.get_metric(device, metricName));
+                    if (metricName == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
+                        std::cout << "The result depends on the model size" << std::endl;
+                    } else {
+                        printParameterValue(core.get_metric(device, metricName));
+                    }
                 }
             }
 
