@@ -34,7 +34,7 @@ public:
 enum class SnippetsNodeType : int64_t {SubgraphStart, SubgraphBody,
                                         NotSet, Ignored,
                                         FusedTerminator,
-                                        FusedWithConvolution, FusedWithConvolutionSumActivation,
+                                        FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
                                         FusedWithMatMul, FusedWithMisc};
 void SetSnippetsNodeType(std::shared_ptr<Node> node, SnippetsNodeType);
 SnippetsNodeType GetSnippetsNodeType(std::shared_ptr<Node> node);

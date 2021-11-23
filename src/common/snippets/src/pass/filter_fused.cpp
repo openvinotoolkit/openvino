@@ -153,8 +153,14 @@ bool SupportsFusingWithConvolution_Simple(std::shared_ptr<Node> node) {
 // Convolution is a special case, since it supports peculiar fusings
 bool isSuitableConvolutionParent(std::shared_ptr<Node> node) {
     const bool is_suitable_node = ov::is_type<ngraph::op::v1::Convolution>(node) ||
-                                  ov::is_type<ngraph::op::v1::GroupConvolution>(node) ||
-                                  ov::is_type<ngraph::op::v1::BinaryConvolution>(node);
+                                  ov::is_type<ngraph::op::v1::GroupConvolution>(node);
+    // has a single output, connected to a single child
+    const auto out = node->outputs();
+    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    return is_suitable_node && has_only_child;
+}
+bool isSuitableBinaryConvolutionParent(std::shared_ptr<Node> node) {
+    const bool is_suitable_node = ov::is_type<ngraph::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
     const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
@@ -271,10 +277,10 @@ bool isSuitableParentForFusingSumActivation(std::shared_ptr<Node> node) {
     int num_conv_parents = 0;
     for (size_t i = 0; i < node->get_input_size(); i++) {
         const auto n = node->get_input_node_shared_ptr(i);
+        //BinaryConvolution allows other ops to be fused before the Add, while Convolution doesn't
         num_conv_parents += (isSuitableConvolutionParent(n) || isFusedBiasNode(n) ||
-                GetSnippetsNodeType(n) == SnippetsNodeType::FusedWithConvolution);
+                GetSnippetsNodeType(n) == SnippetsNodeType::FusedWithBinaryConvolution);
     }
-    // Todo: strictly speaking, BinaryConvolution allows other ops fused before the Add
     return getNumNonConstInputs(node) == 2 && num_conv_parents >=1;
 }
 bool isSuitableChildForFusingSumActivation(std::shared_ptr<Node> node) {
@@ -330,6 +336,9 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
             // Initiate fusing chain
             SetSnippetsNodeType(node, SnippetsNodeType::FusedWithConvolution);
             continue;
+        } else if (isSuitableBinaryConvolutionParent(node)) {
+            SetSnippetsNodeType(node, SnippetsNodeType::FusedWithBinaryConvolution);
+            continue;
         } else if (isSuitableMiscParent(node)) {
             SetSnippetsNodeType(node, SnippetsNodeType::FusedWithMisc);
             continue;
@@ -340,15 +349,17 @@ bool FilterFused::run_on_function(std::shared_ptr<Function> f) {
         for (const auto fusingChainType : getContinuableChains(node)) {
             if (isSuitableChildForFusingSimple(node)) {
                 PropagateIfHasOnlyChild(node, fusingChainType);
-            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution) {
+            } else if (fusingChainType == SnippetsNodeType::FusedWithConvolution ||
+                    fusingChainType == SnippetsNodeType::FusedWithBinaryConvolution) {
                 if (isSuitableParentForFusingSumActivation(node)) {
                     PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolutionSumActivation);
                 // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
                 } else if (isSuitablePoolChild(node)) {
-                    PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolution);
+                    PropagateIfHasOnlyChild(node, fusingChainType);
                 }
             } else if (fusingChainType == SnippetsNodeType::FusedWithConvolutionSumActivation &&
                         isSuitableChildForFusingSumActivation(node)) {
+                // Todo: Chain could be converted from FusedWithBinaryConvolution to FusedWithConvolution at this point
                 // Set FusedWithConvolution, so the fusing chain could be propagated
                 PropagateIfHasOnlyChild(node, SnippetsNodeType::FusedWithConvolution);
             } else if (fusingChainType == SnippetsNodeType::FusedWithMatMul) {
