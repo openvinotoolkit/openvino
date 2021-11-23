@@ -114,7 +114,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::ShuffleChannelsFusion>(false);
     common_fusions->add_matcher<ngraph::pass::SpaceToBatchFusion>();
     common_fusions->add_matcher<ngraph::pass::BatchToSpaceFusion>();
-    common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
