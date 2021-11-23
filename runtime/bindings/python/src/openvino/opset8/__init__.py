@@ -55,7 +55,7 @@ from openvino.opset1.ops import floor
 from openvino.opset1.ops import floor_mod
 from openvino.opset8.ops import gather
 from openvino.opset6.ops import gather_elements
-from openvino.opset5.ops import gather_nd
+from openvino.opset8.ops import gather_nd
 from openvino.opset1.ops import gather_tree
 from openvino.opset7.ops import gelu
 from openvino.opset1.ops import greater

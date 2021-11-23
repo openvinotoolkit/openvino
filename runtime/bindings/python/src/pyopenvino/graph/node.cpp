@@ -149,6 +149,23 @@ void regclass_graph_Node(py::module m) {
                 get_output_partial_shape : PartialShape
                     PartialShape of the output i
              )");
+    node.def("get_output_tensor",
+             &ov::Node::get_output_tensor,
+             py::arg("i"),
+             py::return_value_policy::reference_internal,
+             R"(
+                Returns the tensor for output i
+
+                Parameters
+                ----------
+                i : int
+                    Index of the output.
+
+                Returns
+                ----------
+                get_output_tensor : descriptor.Tensor
+                    Tensor of the output i
+             )");
     node.def("get_type_name",
              &ov::Node::get_type_name,
              R"(

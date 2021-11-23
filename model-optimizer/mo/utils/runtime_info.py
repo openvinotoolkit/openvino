@@ -24,10 +24,21 @@ class RTInfo:
 
         Example of usage:
         rt_info = RTInfo()
-        rt_info.info[('old_api_map', 0)] = OldAPIMap()
+        rt_info.info[('old_api_map_order', 0)] = OldAPIMapOrder()
 
         """
         self.info = defaultdict(dict)
+
+    def contains(self, attribute_name: str):
+        attr_count = [key[0] for key in list(self.info.keys())].count(attribute_name)
+        assert attr_count <= 1, 'Incorrect rt_info attribute, got more than one {}.'.format(attribute_name)
+        return attr_count > 0
+
+    def get_attribute_version(self, attribute_name: str):
+        for name, version in list(self.info.keys()):
+            if name == attribute_name:
+                return version
+        raise Exception("rt_info does not contain attribute with name {}".format(attribute_name))
 
 
 class RTInfoElement:
@@ -47,16 +58,22 @@ class RTInfoElement:
         Get version of RTInfoElement.
         """
 
+    @abc.abstractmethod
+    def get_name(self):
+        """
+        Get name of RTInfoElement.
+        """
 
-class OldAPIMap(RTInfoElement):
+
+class OldAPIMapOrder(RTInfoElement):
     """
-    Class that stores old API map information, which includes legacy type and transpose orders
-    required for obtaining IR in old API.
+    Class that stores transpose order required for obtaining IR in old API.
     """
 
     def __init__(self, version=0):
         self.info = defaultdict(dict)
         self.version = version
+        self.name = "old_api_map_order"
 
     def old_api_transpose_parameter(self, inv: int64_array):
         self.info['inverse_order'] = inv
@@ -64,42 +81,15 @@ class OldAPIMap(RTInfoElement):
     def old_api_transpose_result(self, order: int64_array):
         self.info['order'] = order
 
-    def old_api_convert(self, legacy_type: np.dtype):
-        self.info['legacy_type'] = legacy_type
-
     def serialize_old_api_map_for_parameter(self, node) -> Dict:
-        result = {}
-        if 'legacy_type' not in self.info and 'inverse_order' not in self.info:
-            return result
-
-        result['order'] = ''
-        result['element_type'] = 'undefined'
-
-        if 'legacy_type' in self.info:
-            result['element_type'] = np_data_type_to_destination_type(self.info['legacy_type'])
-        else:
-            if node.has_port('out', 0) and not node.out_port(0).disconnected():
-                result['element_type'] = np_data_type_to_destination_type(node.out_port(0).get_data_type())
-
-        if 'inverse_order' in self.info:
-            result['order'] = ','.join(map(str, self.info['inverse_order']))
-        else:
-            if node.has_port('out', 0) and not node.out_port(0).disconnected():
-                result['order'] = list(range(len(node.out_port(0).data.get_shape())))
-
-        return result
+        if 'inverse_order' not in self.info:
+            return {}
+        return {'value': ','.join(map(str, self.info['inverse_order']))}
 
     def serialize_old_api_map_for_result(self, node) -> Dict:
         if 'order' not in self.info:
             return {}
-
-        result = {'element_type': 'undefined'}
-        if node.has_port('in', 0) and node.has_valid('_in_port_precision'):
-            result['element_type'] = np_data_type_to_destination_type(node.soft_get('_in_port_precision')[0])
-
-        result['order'] = ','.join(map(str, self.info['order']))
-
-        return result
+        return {'value': ','.join(map(str, self.info['order']))}
 
     def serialize(self, node) -> Dict:
         result = {}
@@ -111,3 +101,30 @@ class OldAPIMap(RTInfoElement):
 
     def get_version(self):
         return self.version
+
+    def get_name(self):
+        return self.name
+
+
+class OldAPIMapElementType(RTInfoElement):
+    """
+    Class that stores legacy type required for obtaining IR in old API.
+    """
+    def __init__(self, version=0):
+        self.info = defaultdict(dict)
+        self.version = version
+        self.name = "old_api_map_element_type"
+
+    def set_legacy_type(self, legacy_type: np.dtype):
+        self.info['legacy_type'] = legacy_type
+
+    def serialize(self, node) -> Dict:
+        if 'legacy_type' not in self.info:
+            return {}
+        return {'value': np_data_type_to_destination_type(self.info['legacy_type'])}
+
+    def get_version(self):
+        return self.version
+
+    def get_name(self):
+        return self.name

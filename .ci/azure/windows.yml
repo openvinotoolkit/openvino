@@ -21,6 +21,14 @@ resources:
 
 jobs:
 - job: Win
+  strategy:
+    matrix:
+      Dynamic:
+        CMAKE_BUILD_SHARED_LIBS: 'ON'
+      Static:
+        CMAKE_BUILD_SHARED_LIBS: 'OFF'
+    maxParallel: 2
+
   # About 150% of total time
   timeoutInMinutes: 120
 
@@ -103,6 +111,8 @@ jobs:
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements.txt
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements_dev.txt
       rem Speed up build
+      certutil -urlcache -split -f https://github.com/Kitware/CMake/releases/download/v3.17.0/cmake-3.17.0-win64-x64.zip cmake-3.17.0-win64-x64.zip
+      powershell -command "Expand-Archive -Force cmake-3.17.0-win64-x64.zip"
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
       git clone https://github.com/google/gtest-parallel.git
@@ -111,7 +121,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_TEMPLATE_PLUGIN=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+      call "$(MSVS_VARS_PATH)" && $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe -GNinja -DENABLE_ONEDNN_FOR_GPU=OFF -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_CLDNN=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_GAPI_PREPROCESSING=$(CMAKE_BUILD_SHARED_LIBS) -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
@@ -127,14 +137,14 @@ jobs:
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List bin files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+  - script: $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(REPO_DIR)\inference-engine\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
+  - script: $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(REPO_DIR)\inference-engine\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
@@ -144,27 +154,31 @@ jobs:
   - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
+    continueOnError: false
 
   - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
+    continueOnError: false
 
   - script: rd /Q /S $(BUILD_DIR)
     displayName: 'Clean build dir'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:TEST-NGraphUT.xml
     workingDirectory: $(INSTALL_TEST_DIR)
     displayName: 'nGraph UT'
     continueOnError: false
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddlepaddle_tests --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_output=xml:TEST-PaddlePaddle.xml
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddlepaddle_tests --gtest_print_time=1 --gtest_output=xml:TEST-PaddlePaddle.xml
     displayName: 'PaddlePaddle Frontend UT'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\tensorflow_tests --gtest_print_time=1 --gtest_output=xml:TEST-Tensorflow.xml
     displayName: 'Tensorflow Frontend UT'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       set PATH=$(IB_DIR);%PATH%
@@ -183,6 +197,7 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\gnaUnitTests --gtest_output=xml:TEST-gnaUnitTests.xml
     displayName: 'GNA UT'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
@@ -190,6 +205,10 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\onnxImporterUnitTests --gtest_output=xml:TEST-onnxImporterUnitTests.xml
     displayName: 'ONNX Importer UT'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:TEST-ieMultiPluginUnitTests.xml
+    displayName: 'MULTI UT'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
@@ -206,6 +225,7 @@ jobs:
       call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio*:*smoke_GRUSequenceCommonZeroClip/GRUSequenceTest.CompareWithRefs/mode=CONVERT_TO_TI_MAX_SEQ_LEN_CONST_seq_lengths* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=24
     displayName: 'CPU FuncTests - IB'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'OFF')
 
   - script: |
       set DATA_PATH=$(MODELS_PATH)

@@ -52,6 +52,7 @@
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/common_optimizations/subtract_fusion.hpp>
+#include <transformations/common_optimizations/reshape_sequence_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0);
 
@@ -68,6 +69,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     }
 
     ngraph::pass::Manager manager(get_pass_config());
+    manager.set_per_pass_validation(false);
 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     if (m_low_precision_enabled) {
@@ -79,10 +81,15 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     }
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::Validate>();
+
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
-    // execute it at the beginning of the pipeline.
+    // execute it at the beginning of the pipeline. Also, this pass resolves
+    // dynamism, so we have to execute type/shape propagation after.
     manager.register_pass<ngraph::pass::FuseFilteringBoxesBySize>();
+    manager.register_pass<ngraph::pass::Validate>();
+
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::SimplifyShapeOfSubGraph>();
     if (!m_use_shapes) {
@@ -91,9 +98,7 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // workaround until dynamism in NMS is not supported
     manager.register_pass<ngraph::pass::ConvertNmsGatherPathToUnsigned>();
 
-    if (m_use_shapes) {
-        manager.register_pass<ngraph::pass::StridedSliceOptimization>();
-    }
+    manager.register_pass<ngraph::pass::StridedSliceOptimization>(m_use_shapes);
 
     manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
 
@@ -130,6 +135,8 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     common_fusions->add_matcher<ngraph::pass::SplitConcatPairToInterpolateFusion>(m_use_shapes);
     common_fusions->add_matcher<ngraph::pass::DivideFusion>();
     common_fusions->add_matcher<ngraph::pass::SubtractFusion>();
+    common_fusions->add_matcher<ngraph::pass::TransposeToReshape>();
+    common_fusions->add_matcher<ngraph::pass::ReshapeSequenceFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
     manager.register_pass<ngraph::pass::BinarizeWeights>();
