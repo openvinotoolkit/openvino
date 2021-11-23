@@ -46,7 +46,7 @@ def build_graph(graph_attrs, meta_data, nodes, edges):
 
 
 def make_copy_fake_quantize(nodes, edges, fq):
-    weights, input_low, input_height, output_low, output_height = get_node_inputs(fq)
+    _, input_low, input_height, output_low, output_height = get_node_inputs(fq)
 
     fq_attrs = deepcopy(fq.attrs())
     if fq.has_valid('levels'):
@@ -94,13 +94,12 @@ def make_copy_graph_attrs(model, input_name, input_shape):
     return graph_attrs, meta_data
 
 
-def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False, remove_fake_quantize=False):
+def build_graph_for_node(model, input_name, input_shape, node, remove_fake_quantize=False):
     """ Build the Graph (input - node - output). The Convolution, FullyConnected node types are supported.
      :param model: source model
      :param input_name: name of the input node in the generated graph
      :param input_shape: shape of the input node in the generated graph
      :param node: node for which graph (input - node - output) will be generated
-     :param remove_bias: remove bias in the generated graph
      :param remove_fake_quantize: remove fake quantize nodes in the generated graph
      :return: generated graph.
     """
@@ -115,12 +114,12 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     edges.append((input_name, node.name, {'out': 0, 'in': 0}))
 
     parent_nodes = get_node_inputs(node)
-    
+
     src_node_dtype = node.out_port(0).get_data_type() \
         if node.out_port(0).is_data_type_defined() else np.float32
     convert_name = node.name + '/convert'
     nodes.append((convert_name, 'Cast', {'stop_value_propagation': True, 'dst_type': src_node_dtype}))
-    
+
     weights = parent_nodes[1]
     if parent_nodes[1].type == 'FakeQuantize' and not remove_fake_quantize:
         fq = parent_nodes[1]
