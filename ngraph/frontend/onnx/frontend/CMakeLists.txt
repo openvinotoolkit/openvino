@@ -4,7 +4,7 @@
 
 set(TARGET_NAME onnx_ov_frontend)
 
-set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 15 CACHE INTERNAL "Supported version of ONNX operator set")
 set(ONNX_FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)

@@ -144,18 +144,25 @@ void Graph::convert_to_ngraph_nodes() {
 }
 
 void Graph::remove_dangling_parameters() {
+    const auto any_tensor_name_matches_onnx_output = [](const Output<ov::Node>& param_output,
+                                                        const ONNX_NAMESPACE::GraphProto& graph) {
+        const auto found_in_outputs = [&graph](const std::string& tensor_name) {
+            const auto& graph_outputs = graph.output();
+            return std::any_of(std::begin(graph_outputs),
+                               std::end(graph_outputs),
+                               [&tensor_name](const ONNX_NAMESPACE::ValueInfoProto& output) {
+                                   return tensor_name == output.name();
+                               });
+        };
+        const auto& param_tensor_names = param_output.get_tensor().get_names();
+        return std::any_of(std::begin(param_tensor_names), std::end(param_tensor_names), found_in_outputs);
+    };
+
     for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();) {
         auto output = (*param_it)->output(0);
         if (output.get_target_inputs().size() == 0) {
-            const auto& name = output.get_tensor().get_any_name();
-            const auto& onnx_outputs = m_model->get_graph().output();
-            auto out_it = std::find_if(onnx_outputs.begin(),
-                                       onnx_outputs.end(),
-                                       [&name](const ONNX_NAMESPACE::ValueInfoProto& output) -> bool {
-                                           return output.name() == name;
-                                       });
-            if (out_it == onnx_outputs.end()) {
-                m_cache->remove_node(name);
+            if (!any_tensor_name_matches_onnx_output(output, m_model->get_graph())) {
+                m_cache->remove_node(param_it->get()->get_friendly_name());
                 param_it = m_parameters.erase(param_it);
                 continue;
             }
@@ -276,7 +283,7 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
             NGRAPH_SUPPRESS_DEPRECATED_START
             ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
             NGRAPH_SUPPRESS_DEPRECATED_END
-            ng_subgraph_outputs[i].get_tensor().set_names({onnx_node.output(i)});
+            ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
         }
         return;
     }

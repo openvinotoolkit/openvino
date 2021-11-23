@@ -63,6 +63,11 @@ inline bool has_decompression_converts(const std::shared_ptr<const ngraph::Funct
 }
 
 inline std::string create_ie_output_name(const ngraph::Output<const ngraph::Node>& output) {
+    const auto& prev_layer = output.get_node_shared_ptr();
+    if (prev_layer->get_type_info() == ov::op::v0::Parameter::get_type_info_static()) {
+        return prev_layer->get_friendly_name();
+    }
+
     std::string out_name;
     NGRAPH_SUPPRESS_DEPRECATED_START
     auto tensor_name = output.get_tensor().get_name();
@@ -70,7 +75,6 @@ inline std::string create_ie_output_name(const ngraph::Output<const ngraph::Node
     if (!tensor_name.empty()) {
         out_name = std::move(tensor_name);
     } else {
-        const auto& prev_layer = output.get_node_shared_ptr();
         out_name = prev_layer->get_friendly_name();
         if (prev_layer->get_output_size() != 1) {
             out_name += "." + std::to_string(output.get_index());
