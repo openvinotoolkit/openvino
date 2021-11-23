@@ -5,11 +5,11 @@
 #include "preprocess_steps_impl.hpp"
 
 #include "color_utils.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -287,6 +287,32 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
             context.color_format() = dst_format;
             return res;
         }
+        if (context.color_format() == ColorFormat::RGBX) {
+            if (dst_format == ColorFormat::RGB) {
+                auto res = cut_last_channel(nodes, function, context);
+                context.color_format() = dst_format;
+                return res;
+            } else if (dst_format == ColorFormat::BGR) {
+                auto cut = cut_last_channel(nodes, function, context);
+                auto reverse = reverse_channels(std::get<0>(cut), function, context);
+                bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                context.color_format() = dst_format;
+                return std::make_tuple(std::get<0>(reverse), updated);
+            }
+        }
+        if (context.color_format() == ColorFormat::BGRX) {
+            if (dst_format == ColorFormat::BGR) {
+                auto res = cut_last_channel(nodes, function, context);
+                context.color_format() = dst_format;
+                return res;
+            } else if (dst_format == ColorFormat::RGB) {
+                auto cut = cut_last_channel(nodes, function, context);
+                auto reverse = reverse_channels(std::get<0>(cut), function, context);
+                bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                context.color_format() = dst_format;
+                return std::make_tuple(std::get<0>(reverse), updated);
+            }
+        }
         OPENVINO_ASSERT(false,
                         "Source color format '",
                         color_format_name(context.color_format()),
@@ -332,6 +358,24 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
     auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
     auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
     return std::make_tuple(std::vector<Output<Node>>{convert}, false);
+}
+
+std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const std::vector<Output<Node>>& nodes,
+                                                                           const std::shared_ptr<Function>& function,
+                                                                           PreprocessingContext& context) {
+    OPENVINO_ASSERT(nodes.size() == 1, "Internal error: can't cut X channel for multi-plane inputs");
+    OPENVINO_ASSERT(ov::layout::has_channels(context.layout()),
+                    "Layout ",
+                    context.layout().to_string(),
+                    " doesn't have `channels` dimension");
+    auto channels_idx = ov::layout::channels_idx(context.layout());
+
+    auto start = opset8::Constant::create(element::i32, {1}, {0});
+    auto stop = opset8::Constant::create(element::i32, {1}, {-1});  // Everything except last channel
+    auto step = opset8::Constant::create(element::i32, {1}, {1});
+    auto axis = opset8::Constant::create(element::i32, {1}, {channels_idx});  // E.g. 3
+    auto slice = std::make_shared<ov::op::v8::Slice>(nodes[0], start, stop, step, axis);
+    return std::make_tuple(std::vector<Output<Node>>{slice}, false);
 }
 
 //------------- Post processing ------
