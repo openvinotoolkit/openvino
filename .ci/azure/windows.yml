@@ -56,7 +56,7 @@ jobs:
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
     PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.7.6\x64
     CMAKE_VERSION: 3.21.0
-    CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-win64-x64\cmake-$(CMAKE_VERSION)-win64-x64\bin\cmake.exe
+    CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
     CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
 
   steps:
@@ -117,8 +117,8 @@ jobs:
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements.txt
       python -m pip install -r $(REPO_DIR)\model-optimizer\requirements_dev.txt
       rem Speed up build
-      certutil -urlcache -split -f https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-win64-x64.zip cmake-$(CMAKE_VERSION)-win64-x64.zip
-      powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-win64-x64.zip"
+      certutil -urlcache -split -f https://github.com/Kitware/CMake/releases/download/v$(CMAKE_VERSION)/cmake-$(CMAKE_VERSION)-windows-x86_64.zip cmake-$(CMAKE_VERSION)-windows-x86_64.zip
+      powershell -command "Expand-Archive -Force cmake-$(CMAKE_VERSION)-windows-x86_64.zip"
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
       git clone https://github.com/google/gtest-parallel.git
