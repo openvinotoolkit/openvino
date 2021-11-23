@@ -35,6 +35,7 @@ inline std::vector<preprocess_func> GPU_smoke_preprocess_functions() {
         preprocess_func(cvt_color_nv12_cvt_layout_resize, "cvt_color_nv12_cvt_layout_resize", 1.f),
         preprocess_func(cvt_color_i420_to_rgb_single_plane, "cvt_color_i420_to_rgb_single_plane", 1.f),
         preprocess_func(cvt_color_i420_to_bgr_three_planes, "cvt_color_i420_to_bgr_three_planes", 1.f),
+        preprocess_func(cvt_color_bgrx_to_bgr, "cvt_color_bgrx_to_bgr", 0.01f),
     };
 }
 
