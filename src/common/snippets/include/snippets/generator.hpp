@@ -115,7 +115,7 @@ public:
      * @param f runction in canonical for for table-based code generation
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<Function>& f) const;
+    code generate(std::shared_ptr<Function>& f, const void* compile_params = nullptr) const;
 
 protected:
     std::shared_ptr<TargetMachine> target;

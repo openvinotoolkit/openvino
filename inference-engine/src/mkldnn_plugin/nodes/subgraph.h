@@ -8,6 +8,7 @@
 
 #include <mkldnn.hpp>
 #include <cpu/x64/jit_generator.hpp>
+#include "emitters/jit_snippets_emitters.hpp"
 
 #include "mkldnn_node.h"
 #include "snippets/op/subgraph.hpp"
@@ -40,17 +41,17 @@ public:
 private:
     static const size_t rank6D {6};
 
-    typedef void (*kernel)(const void *, const void *, const void *);
+    typedef void (*kernel)(const void *, const void *);
 
     // Interpret snippet with nGraph reference
     void interpret() const;
 
-    void define_shedule();
+    void define_schedule();
 
     void generate();
 
     // Evaluates generated snippet using parallel backend
-    void shedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const;
+    void schedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const;
 
     // Local copy of subgraph node for canonization & code generation
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet;
@@ -58,7 +59,7 @@ private:
     // store it here since MKLDNN eraces CNNLayers at some point
     std::shared_ptr<ngraph::snippets::op::Subgraph> snippet_ref;
 
-    // Holds generated snippet with information about how to shedule it
+    // Holds generated snippet with information about how to schedule it
     ngraph::snippets::Schedule schedule;
 
     // Holds ISA version used is codeGeneration target
@@ -86,29 +87,7 @@ private:
     std::vector<int64_t> sch_dims = {};
     std::vector<int64_t> sch_offsets_in = {};
     std::vector<int64_t> sch_offsets_out = {};
-
-    // Minimalistic structure which encapsulates kernel arguments
-    struct CallArgs {
-        void push(int64_t arg) {
-            args[nargs].i = arg;
-            nargs++;
-        }
-        void push(const uint8_t* arg) {
-            args[nargs].ptr = arg;
-            nargs++;
-        }
-        const void* raw() const {
-            return &args[0];
-        }
-    private:
-        union param {
-            const uint8_t* ptr;
-            int64_t i;
-        };
-
-        std::array<param, 8> args = {};
-        size_t nargs = {0};
-    };
+    bool canUseOptimizedImpl = true;
 };
 
 }  // namespace MKLDNNPlugin

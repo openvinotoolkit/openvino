@@ -207,8 +207,16 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.run_passes(m_body);
 }
 
-snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                                    ngraph::pass::Manager opt) {
+snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
+                                                    const BlockedShapeVector& input_shapes,
+                                                    const void* compile_params) {
+    return generate(output_shapes, input_shapes, ngraph::pass::Manager(), compile_params);
+}
+
+snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes,
+                                                    const BlockedShapeVector& input_shapes,
+                                                    ngraph::pass::Manager opt,
+                                                    const void* compile_params) {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::generate")
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
@@ -220,10 +228,10 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
     // generation flow
     snippets::pass::AssignRegisters().run_on_model(m_body);
 
-    // shedule generation should go here and be target agnostic
+    // schedule generation should go here and be target agnostic
 
     // actual code emission
-    ngraph::snippets::code ptr = m_generator->generate(m_body);
+    ngraph::snippets::code ptr = m_generator->generate(m_body, compile_params);
 
     // chack that body doesnt have constants for scheduling
     std::vector<std::shared_ptr<opset1::Constant>> constants;
@@ -234,7 +242,7 @@ snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& ou
             }
         }
     }
-    NGRAPH_CHECK(!constants.size(), "External constants detected. Snippet is illigal for sheduling");
+    NGRAPH_CHECK(!constants.size(), "External constants detected. Snippet is illigal for scheduling");
 
     // check resulting shapes are broadcastable to each other so can be scheduled
     Shape work_size = m_body->output(0).get_shape();

@@ -209,7 +209,7 @@ void MKLDNNSnippetNode::selectOptimalPrimitiveDescriptor() {
 void MKLDNNSnippetNode::createPrimitive() {
     // schedule definition part
     // it defines offsets, strides and sizes for snippet kernel scheduling
-    define_shedule();
+    define_schedule();
 
     // code generation part
     // it might be worth to generate explicitly for scheduler work amount for now,
@@ -238,8 +238,8 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
         outputs[i] = reinterpret_cast<uint8_t*>(mem.GetPtr());
     }
 
-    if (tensorRank == rank6D) {
-        shedule_6d(outputs, inputs);
+    if (tensorRank == rank6D && canUseOptimizedImpl) {
+        schedule_6d(outputs, inputs);
         return;
     } else {
          IE_THROW() << "The node can't be scheduled as a 6d tensor";
@@ -307,7 +307,7 @@ static auto collapseLastDims(std::vector<int64_t>& dims, int dimsToCollapse) -> 
     }
 }
 
-void MKLDNNSnippetNode::define_shedule() {
+void MKLDNNSnippetNode::define_schedule() {
     const auto config = getSelectedPrimitiveDescriptor()->getConfig();
     const auto dataSize = config.inConfs[0].desc->getPrecision().size();
     // store to use as an execution domain
@@ -505,40 +505,37 @@ void MKLDNNSnippetNode::generate() {
         ngraph::element::Type precision = (blockedDesc->getPrecision() == Precision::FP32) ? ngraph::element::f32 : ngraph::element::undefined;
         return std::make_tuple(shape, blocking, precision);
     });
-
-    schedule = snippet->generate(output_shapes, input_shapes);
+    jit_snippets_compile_args jep;
+    jep.output_dims = dims_out[max_rank_out_desc_idx];
+    std::copy(sch_dims.begin(), sch_dims.end(), jep.scheduler_dims);
+    std::copy(sch_offsets_in.begin(), sch_offsets_in.end(), jep.scheduler_offsets);
+    std::copy(sch_offsets_out.begin(), sch_offsets_out.end(), &jep.scheduler_offsets[sch_offsets_in.size()]);
+    size_t harness_num_dims = jep.output_dims.size() - 1;
+    if (harness_num_dims > SNIPPETS_MAX_HARNESS_DIMS) {
+        canUseOptimizedImpl = false;
+        harness_num_dims = SNIPPETS_MAX_HARNESS_DIMS;
+    }
+    for (size_t i = 0; i < inputShapes.size(); i++) {
+        auto b = offsets_in[i].begin();
+        std::copy(b, b + harness_num_dims, &jep.data_offsets[i * harness_num_dims]);
+    }
+    for (size_t i = 0; i < outputShapes.size(); i++) {
+        auto b = offsets_out[i].begin();
+        std::copy(b, b + harness_num_dims, &jep.data_offsets[(inputShapes.size() + i) * harness_num_dims]);
+    }
+    schedule = snippet->generate(output_shapes, input_shapes, reinterpret_cast<void*>(&jep));
 }
 
-void MKLDNNSnippetNode::shedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
-    size_t n = inputs.size();
-    size_t m = outputs.size();
+void MKLDNNSnippetNode::schedule_6d(const std::vector<uint8_t *>& outputs, const std::vector<const uint8_t *>& inputs) const {
     auto dom = dims_out[max_rank_out_desc_idx];
-
-    // SchduleInfo/ Domen = d0 .. dN
-    CallArgs sch;
-    for (const auto& d : sch_dims)
-        sch.push(d);
-
-    // SchduleInfo/ Offsets
-    CallArgs off;
-    for (const auto& offset : sch_offsets_in)
-        off.push(offset);
-    for (const auto& offset : sch_offsets_out)
-        off.push(offset);
-
+    jit_snippets_const_args const_args;
+    std::copy(inputs.begin(), inputs.end(), const_args.src_ptrs);
+    std::copy(outputs.begin(), outputs.end(), const_args.dst_ptrs);
     // < N, C, H, W > < 1, 1, N, C*H*W>
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
-        [&](size_t d0, size_t d1, size_t d2, size_t d3, size_t d4) {
-            CallArgs ca;
-            // Benchmarking for overhead
-            for (size_t i = 0; i < n; i++) {
-                ca.push(inputs[i] + d0*offsets_in[i][0] + d1*offsets_in[i][1] + d2*offsets_in[i][2] + d3*offsets_in[i][3] + d4*offsets_in[i][4]);
-            }
-            for (size_t i = 0; i < m; i++) {
-                ca.push(outputs[i] + d0*offsets_out[i][0] + d1*offsets_out[i][1] + d2*offsets_out[i][2] + d3*offsets_out[i][3] + d4*offsets_out[i][4]);
-            }
-
-            schedule.get_callable<kernel>()(ca.raw(), sch.raw(), off.raw());
+        [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
+            int64_t indexes[] = {d0, d1, d2, d3, d4};
+            schedule.get_callable<kernel>()(indexes, &const_args);
         });
 }
 

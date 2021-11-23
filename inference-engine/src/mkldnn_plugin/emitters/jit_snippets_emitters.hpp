@@ -8,8 +8,24 @@
 #include <ngraph/variant.hpp>
 
 #include "jit_emitter.hpp"
+using namespace Xbyak;
+using namespace MKLDNNPlugin;
 
-namespace MKLDNNPlugin {
+#define SNIPPETS_MAX_SNIPPETS_DIMS 7
+#define SNIPPETS_MAX_HARNESS_DIMS 5
+#define SNIPPETS_MAX_TILE_RANK 2
+#define GET_OFF(field) offsetof(jit_snippets_const_args, field)
+struct jit_snippets_const_args {
+    const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
+    void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
+};
+
+struct jit_snippets_compile_args {
+    int64_t scheduler_dims[SNIPPETS_MAX_TILE_RANK] = {};
+    int64_t scheduler_offsets[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
+    int64_t data_offsets[SNIPPETS_MAX_SNIPPETS_DIMS * SNIPPETS_MAX_HARNESS_DIMS] = {};
+    std::vector<int64_t> output_dims = {};
+};
 
 class KernelEmitter : public jit_emitter {
 public:
@@ -17,7 +33,11 @@ public:
     // region
     const std::shared_ptr<ngraph::Node>& n)
     : jit_emitter(h, isa, n) {
-        code = ngraph::as_type_ptr<ngraph::snippets::op::Kernel>(n)->region;
+        const auto kernel = ngraph::as_type_ptr<ngraph::snippets::op::Kernel>(n);
+        code = kernel->region;
+        if (!kernel->compile_params)
+            IE_THROW() << "KernelEmitter invoked without compile_params";
+        _jep = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -26,6 +46,7 @@ public:
               const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         emit_impl(in, out, pool, gpr, nullptr);
     }
+    jit_snippets_compile_args _jep;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -33,32 +54,48 @@ private:
                    const std::vector<size_t>& pool,
                    const std::vector<size_t>& gpr,
                    const MKLDNNPlugin::emitter_context *emit_context) const override {
-        auto tile_rank = in[0]; // count of tile dimensions
-        auto nparams = in[1];
+        const size_t tile_rank = in[0]; // count of tile dimensions
+        const size_t num_inputs = in[1];
+        const size_t num_outputs = in[2];
+        const size_t num_params = num_inputs + num_outputs;
         int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        Xbyak::Reg64 params   { dnnl::impl::cpu::x64::abi_param1 };
-        Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_param2 };
-        Xbyak::Reg64 offsets_ { dnnl::impl::cpu::x64::abi_param3 };
-        Xbyak::Reg64 offsets  { dnnl::impl::cpu::x64::abi_not_param1 };
+        Xbyak::Reg64 reg_indexes   { dnnl::impl::cpu::x64::abi_param1 };
+        Xbyak::Reg64 reg_const_params { dnnl::impl::cpu::x64::abi_param2 };
+        #ifdef _WIN32
+        Xbyak::Reg64 reg_tmp_64 { Xbyak::Operand::RDI };
+        #else
+        Xbyak::Reg64 reg_tmp_64 { Xbyak::Operand::RCX };
+        #endif
 
         if (tile_rank != 2)
             IE_THROW() << "Kernel of codegen supports only Tile2D" << std::endl;
 
         h->preamble();
 
-        // to avoid register conflicts on Win systems
-        h->mov(offsets, offsets_);
+        std::vector<Xbyak::Reg64> regs(num_params);
 
-        // ptrs
-        std::vector<Xbyak::Reg64> regs(nparams);
-        for (auto i = 0; i < nparams; i++) {
+        const int64_t harness_num_dims = _jep.output_dims.size() - 1;
+        auto init_ptrs_with_offsets = [&](Reg64 pointer, const int64_t *offsets) {
+            for (int j = 0; j < harness_num_dims; j++) {
+                if (_jep.output_dims[j] != 1 && offsets[j] != 0) {
+                    h->mov(reg_tmp_64, offsets[j]);
+                    h->imul(reg_tmp_64, h->ptr[reg_indexes + j * sizeof(size_t)]);
+                    h->add(pointer, reg_tmp_64);
+                }
+            }
+        };
+        for (auto i = 0; i < num_params; i++) {
             regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
-            h->mov(regs[i], h->ptr[params + i * sizeof(int64_t)]);
+            if (i < num_inputs)
+                h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
+            else
+                h->mov(regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+            init_ptrs_with_offsets(regs[i], &_jep.data_offsets[i * harness_num_dims]);
         }
 
         // external amount
-        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + nparams);
-        h->mov(amount, h->ptr[schedule + (tile_rank - 1) * sizeof(int64_t)]);
+        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + num_params);
+        h->mov(amount, _jep.scheduler_dims[tile_rank-1]);
 
         for (auto& c : code) {
             c.first->emit_code(c.second.first, c.second.second, pool, gpr);
@@ -75,7 +112,11 @@ public:
     TileEmitter(mkldnn::impl::cpu::x64::jit_generator* h, mkldnn::impl::cpu::x64::cpu_isa_t isa,
     const std::shared_ptr<ngraph::Node>& n)
     : jit_emitter(h, isa, n) {
-        code = ngraph::as_type_ptr<ngraph::snippets::op::Tile>(n)->region;
+        const auto kernel = ngraph::as_type_ptr<ngraph::snippets::op::Tile>(n);
+        code = kernel->region;
+        if (!kernel->compile_params)
+            IE_THROW() << "KernelEmitter invoked without compile_params";
+        _jep = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     }
 
     size_t get_inputs_num() const override {return 0;}
@@ -84,6 +125,7 @@ public:
               const std::vector<size_t> &pool = {}, const std::vector<size_t> &gpr = {}) const override {
         emit_impl(in, out, pool, gpr, nullptr);
     }
+    jit_snippets_compile_args _jep;
 
 private:
     void emit_impl(const std::vector<size_t>& in,
@@ -92,23 +134,21 @@ private:
                    const std::vector<size_t>& gpr,
                    const MKLDNNPlugin::emitter_context *emit_context) const override {
         const size_t inc = in[0];
-        auto nparams = in[1];
-        auto dim = in[2]; // number of tile dimension
+        const size_t num_params = in[1];
+        const size_t dim = in[2]; // number of tile dimension
         const int reg64_tmp_start { 8 }; // R8, R9, R10, R11, R12, R13, R14, R15 inputs+outputs+1
-        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + nparams); // amount
-        Xbyak::Reg64 schedule { dnnl::impl::cpu::x64::abi_param2 };
-        Xbyak::Reg64 offsets  { dnnl::impl::cpu::x64::abi_not_param1 };
+        Xbyak::Reg64 amount = Xbyak::Reg64(reg64_tmp_start + num_params); // amount
         std::array<Xbyak::Label, 2> for_body;
         // If R15 is not used, reserve it for use in scalar to avoid redundant push-pop's.
         // todo: Do we need explicitly check that code contains ScalarEmitter?
-        std::vector<size_t> local_gpr = reg64_tmp_start + nparams < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
-        std::vector<Xbyak::Reg64> regs(nparams);
-        for (auto i = 0; dim > 0 && i < nparams; i++)
+        std::vector<size_t> local_gpr = reg64_tmp_start + num_params < 15 ? std::vector<size_t>{15} : std::vector<size_t>{};
+        std::vector<Xbyak::Reg64> regs(num_params);
+        for (auto i = 0; dim > 0 && i < num_params; i++)
             regs[i] = Xbyak::Reg64(reg64_tmp_start + i);
 
         // internal full tile should to have new full work amount after every iteration of external tile
         if (dim == 0 && inc != 1)
-            h->mov(amount, h->ptr[schedule + dim * sizeof(int64_t)]);
+            h->mov(amount, _jep.scheduler_dims[dim]);
 
         h->cmp(amount, inc);
         h->jl(for_body[1], Xbyak::CodeGenerator::T_NEAR);
@@ -121,8 +161,11 @@ private:
             h->pop(amount);
 
             // we need to add offset for ptrs only in external tiles because stores and loaders in internal tiles have default offsets
-            for (auto i = 0; dim > 0 && i < nparams; i++)
-                h->add(regs[i], h->ptr[offsets + i * sizeof(int64_t)]);
+            for (auto i = 0; dim > 0 && i < num_params; i++) {
+                if (_jep.scheduler_offsets[i] != 0) {
+                    h->add(regs[i], _jep.scheduler_offsets[i]);
+                }
+            }
 
             h->sub(amount, inc);
             h->cmp(amount, inc);
@@ -514,5 +557,3 @@ private:
 private:
     bool shouldPostIncrement;
 };
-
-} // namespace MKLDNNPlugin
