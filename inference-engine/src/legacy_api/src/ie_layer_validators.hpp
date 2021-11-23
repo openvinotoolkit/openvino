@@ -103,6 +103,13 @@ public:
     void parseParams(CNNLayer* layer) override;
 };
 
+class TileValidator : public LayerValidator {
+public:
+    explicit TileValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+};
+
 class BatchNormalizationValidator : public LayerValidator {
 public:
     explicit BatchNormalizationValidator(const std::string& _type);
@@ -128,15 +135,7 @@ class ScaleShiftValidator : public LayerValidator {
 public:
     explicit ScaleShiftValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-};
-
-class TileValidator : public LayerValidator {
-public:
-    explicit TileValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
-};
+    void parseParams(CNNLayer* layer) override;};
 
 class ReshapeValidator : public LayerValidator {
 public:

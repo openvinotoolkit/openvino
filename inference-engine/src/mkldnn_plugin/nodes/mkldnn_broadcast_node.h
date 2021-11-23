@@ -47,10 +47,8 @@ private:
     static constexpr size_t TARGET_SHAPE_IDX = 1;
     static constexpr size_t AXES_MAPPING_IDX = 2;
 
-    // Class members below are mutable due to they are used in constant function shapeInfer.
-    // TODO: make shapeInfer not constant?
-    mutable std::vector<int32_t> targetShape;
-    mutable std::vector<int32_t> axesMapping;
+    std::vector<int32_t> targetShape;
+    std::vector<int32_t> axesMapping;
 
     std::string errorPrefix;
 };

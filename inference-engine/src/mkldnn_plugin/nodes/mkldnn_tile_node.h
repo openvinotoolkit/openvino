@@ -40,7 +40,7 @@ private:
     int axis = -1;
     int tiles = 0;
     bool noTiling = false;
-    InferenceEngine::SizeVector originRepeats;
+    VectorDims originRepeats;
 
     std::string errorPrefix;
 };

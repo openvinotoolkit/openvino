@@ -29,14 +29,14 @@ bool MKLDNNBroadcastNode::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
         if (op->get_input_partial_shape(TARGET_SHAPE_IDX).is_dynamic() ||
-                op->get_input_size() > AXES_MAPPING_IDX && op->get_input_partial_shape(AXES_MAPPING_IDX).is_dynamic()) {
+                (op->get_input_size() > AXES_MAPPING_IDX && op->get_input_partial_shape(AXES_MAPPING_IDX).is_dynamic())) {
             errorMessage = "Only static shapes are supported for target shape and axes mapping inputs.";
             return false;
         }
         if (!isDynamicNgraphNode(op) &&
                 (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX)) ||
-                 op->get_input_size() > AXES_MAPPING_IDX &&
-                 !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX)))) {
+                 (op->get_input_size() > AXES_MAPPING_IDX &&
+                 !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_MAPPING_IDX))))) {
             errorMessage = "Only constant target shapes and axis mapping inputs are supported for static shapes.";
             return false;
         }

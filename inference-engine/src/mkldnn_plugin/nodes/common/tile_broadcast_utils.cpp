@@ -60,7 +60,7 @@ void TileBroadcastCommon::fillOptimizedDimsAndSrcStrides(const VectorDims& srcBl
 bool TileBroadcastCommon::canBeExecutedInBlockedLayout(VectorDims srcBlockedDims, VectorDims blockedRepeats,
         const size_t elemsInBlock) {
     if (srcBlockedDims.empty() || blockedRepeats.empty() || elemsInBlock == 0lu || srcBlockedDims[1] == Shape::UNDEFINED_DIM ||
-            blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0)
+            (blockedRepeats[1] != 1 && srcBlockedDims[1] % elemsInBlock != 0))
         return false;
 
     srcBlockedDims[1] = div_up(srcBlockedDims[1], elemsInBlock);
