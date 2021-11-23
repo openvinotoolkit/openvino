@@ -17,8 +17,9 @@ from openvino import Function, Layout
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     """
     Internal function. Updates mean/scale values from array to dictionary
-    :param: input_nodes Parameters of input model
+    :param: input_nodes Inputs of model
     :param: mean_scale_val Parsed 'mean_scale_val' object from command line arguments
+    :param: scale Global scale factor for all inputs from --scale command line arguments
     """
     if not isinstance(mean_scale_val, dict):
         if len(mean_scale_val) != len(input_nodes):
@@ -27,9 +28,13 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
         data = np.copy(mean_scale_val)
         mean_scale_val = {}
         for idx, node in enumerate(input_nodes):
+            names_list = list(node.get_tensor().get_names())
+            if not names_list:
+                continue
+            node_name = names_list[0]
             mean_scale_val.update(
                 {
-                    node.get_friendly_name(): {
+                    node_name: {
                         'mean': data[idx][0],
                         'scale': data[idx][1]
                     }
@@ -37,51 +42,20 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
             )
 
     if scale:
-        for idx, node in enumerate(input_nodes):
-            old_val = mean_scale_val[node.get_friendly_name()] if node.get_friendly_name() in mean_scale_val else None
+        for node in input_nodes:
+            names_list = list(node.get_tensor().get_names())
+            if not names_list:
+                continue
+            node_name = names_list[0]
+            old_val = mean_scale_val[node_name] if node_name in mean_scale_val else None
             mean_scale_val.update(
                 {
-                    node.get_friendly_name(): {
+                    node_name: {
                         'mean': old_val['mean'] if old_val and 'mean' in old_val else None,
                         'scale': scale
                     }
                 }
             )
-    return mean_scale_val
-
-
-def add_scale_to_dict(input_nodes: list, mean_scale_val: dict, scale):
-    """
-    Internal function. Adds global 'scale' to each input node
-    :param: input_nodes Parameters of input model
-    :param: mean_scale_val Parsed 'mean_scale_val' object from command line arguments
-    """
-    if not isinstance(mean_scale_val, dict):
-        if len(mean_scale_val) != len(input_nodes):
-            raise Error('Numbers of inputs and mean/scale values do not match. ')
-
-        data = np.copy(mean_scale_val)
-        mean_scale_val = {}
-        for idx, node in enumerate(input_nodes):
-            mean_scale_val.update(
-                {
-                    node.get_friendly_name(): {
-                        'mean': data[idx][0],
-                        'scale': data[idx][1]
-                    }
-                }
-            )
-    if scale:
-        for idx, node in enumerate(input_nodes):
-            mean_scale_val.update(
-                {
-                    node.get_friendly_name(): {
-                        'mean': mean_scale_val[node.get_friendly_name()]['mean'],
-                        'scale': scale
-                    }
-                }
-            )
-
     return mean_scale_val
 
 
@@ -94,14 +68,12 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     """
     prep = PrePostProcessor(ov_function)
 
-    params = ov_function.get_parameters()
-
     if argv.mean_scale_values:
         mean_scale_values = argv.mean_scale_values
     else:
         mean_scale_values = {}
 
-    mean_scale_values = update_mean_scale_to_dict(input_nodes=params,
+    mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
                                                   scale=argv.scale)
 
@@ -125,14 +97,14 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
             prep.input(node_name).preprocess().mean(node_mean_scale_values['mean'])
         if node_mean_scale_values['scale'] is not None:
             prep.input(node_name).preprocess().scale(node_mean_scale_values['scale'])
-        print('Mean/Scale Preprocessing applied for {}'.format(node_name))
+        log.debug('Mean/Scale preprocessing applied to {}'.format(node_name))
 
     # Apply reverse-input-channels
     if argv.reverse_input_channels:
         for ov_input in ov_function.inputs:
             node_name = list(ov_input.get_tensor().get_names())[0]
             prep.input(node_name).preprocess().reverse_channels()
-            print('Reverse_input_channels preprocessing applied for {}'.format(node_name))
+            log.debug('reverse_input_channels preprocessing applied to {}'.format(node_name))
 
     # Apply preprocessing builder to a function
     ov_function = prep.build()
