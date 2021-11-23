@@ -146,7 +146,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     int* selected_indices = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
 
-    float* selected_outputs = selected_outputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    float* selected_outputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
 
     int* selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
 

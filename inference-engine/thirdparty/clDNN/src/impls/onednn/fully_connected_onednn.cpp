@@ -142,7 +142,7 @@ public:
             }
         }
 
-        auto attr = get_primitive_attributes(arg);
+        auto attr = arg.get_onednn_primitive_attributes();
         dnnl::primitive_desc prim_desc{&desc->data, attr.get(), engine.get_onednn_engine(), nullptr};
 
         return new fully_connected_onednn(arg, desc, attr, prim_desc, get_weights_reorder(arg, prim_desc));

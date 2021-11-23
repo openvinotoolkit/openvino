@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 
+#define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
+
 namespace Common {
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
     static const std::map<ov::element::Type, py::dtype> ov_type_to_dtype_mapping = {
@@ -45,42 +47,130 @@ const std::map<py::str, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
-InferenceEngine::Layout get_layout_from_string(const std::string& layout) {
-    static const std::unordered_map<std::string, InferenceEngine::Layout> layout_str_to_enum = {
-        {"ANY", InferenceEngine::Layout::ANY},
-        {"NHWC", InferenceEngine::Layout::NHWC},
-        {"NCHW", InferenceEngine::Layout::NCHW},
-        {"NCDHW", InferenceEngine::Layout::NCDHW},
-        {"NDHWC", InferenceEngine::Layout::NDHWC},
-        {"OIHW", InferenceEngine::Layout::OIHW},
-        {"GOIHW", InferenceEngine::Layout::GOIHW},
-        {"OIDHW", InferenceEngine::Layout::OIDHW},
-        {"GOIDHW", InferenceEngine::Layout::GOIDHW},
-        {"SCALAR", InferenceEngine::Layout::SCALAR},
-        {"C", InferenceEngine::Layout::C},
-        {"CHW", InferenceEngine::Layout::CHW},
-        {"HW", InferenceEngine::Layout::HW},
-        {"NC", InferenceEngine::Layout::NC},
-        {"CN", InferenceEngine::Layout::CN},
-        {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
-    return layout_str_to_enum.at(layout);
+ov::runtime::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
+    // Check if passed array has C-style contiguous memory layout.
+    bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
+    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
+    std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
+
+    // If memory is going to be shared it needs to be contiguous before
+    // passing to the constructor. This case should be handled by advanced
+    // users on their side of the code.
+    if (shared_memory) {
+        if (is_contiguous) {
+            std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
+            return ov::runtime::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
+        } else {
+            throw ov::Exception("Tensor with shared memory must be C contiguous!");
+        }
+    }
+    // Convert to contiguous array if not already C-style.
+    if (!is_contiguous) {
+        array = Common::as_contiguous(array, type);
+    }
+    // Create actual Tensor and copy data.
+    auto tensor = ov::runtime::Tensor(type, shape);
+    // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
+    // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
+    py::buffer_info buf = array.request();
+    std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
+    return tensor;
 }
 
-const std::string& get_layout_from_enum(const InferenceEngine::Layout& layout) {
-    static const std::unordered_map<int, std::string> layout_int_to_str_map = {{0, "ANY"},
-                                                                               {1, "NCHW"},
-                                                                               {2, "NHWC"},
-                                                                               {3, "NCDHW"},
-                                                                               {4, "NDHWC"},
-                                                                               {64, "OIHW"},
-                                                                               {95, "SCALAR"},
-                                                                               {96, "C"},
-                                                                               {128, "CHW"},
-                                                                               {192, "HW"},
-                                                                               {193, "NC"},
-                                                                               {194, "CN"},
-                                                                               {200, "BLOCKED"}};
-    return layout_int_to_str_map.at(layout);
+py::array as_contiguous(py::array& array, ov::element::Type type) {
+    switch (type) {
+    // floating
+    case ov::element::f64:
+        return array.cast<py::array_t<double, py::array::c_style | py::array::forcecast>>();
+    case ov::element::f32:
+        return array.cast<py::array_t<float, py::array::c_style | py::array::forcecast>>();
+    // signed
+    case ov::element::i64:
+        return array.cast<py::array_t<int64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i32:
+        return array.cast<py::array_t<int32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i16:
+        return array.cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::i8:
+        return array.cast<py::array_t<int8_t, py::array::c_style | py::array::forcecast>>();
+    // unsigned
+    case ov::element::u64:
+        return array.cast<py::array_t<uint64_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u32:
+        return array.cast<py::array_t<uint32_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u16:
+        return array.cast<py::array_t<uint16_t, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u8:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // other
+    case ov::element::boolean:
+        return array.cast<py::array_t<bool, py::array::c_style | py::array::forcecast>>();
+    case ov::element::u1:
+        return array.cast<py::array_t<uint8_t, py::array::c_style | py::array::forcecast>>();
+    // need to create a view on array to cast it correctly
+    case ov::element::f16:
+    case ov::element::bf16:
+        return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
+    default:
+        throw ov::Exception("Tensor cannot be created as contiguous!");
+        break;
+    }
+}
+
+const ov::runtime::Tensor& cast_to_tensor(const py::handle& tensor) {
+    return tensor.cast<const ov::runtime::Tensor&>();
+}
+
+const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) {
+    Containers::TensorNameMap result_map;
+    for (auto&& input : inputs) {
+        std::string name;
+        if (py::isinstance<py::str>(input.first)) {
+            name = input.first.cast<std::string>();
+        } else {
+            throw py::type_error("incompatible function arguments!");
+        }
+        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+            auto tensor = Common::cast_to_tensor(input.second);
+            result_map[name] = tensor;
+        } else {
+            throw ov::Exception("Unable to cast tensor " + name + "!");
+        }
+    }
+    return result_map;
+}
+
+const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs) {
+    Containers::TensorIndexMap result_map;
+    for (auto&& input : inputs) {
+        int idx;
+        if (py::isinstance<py::int_>(input.first)) {
+            idx = input.first.cast<int>();
+        } else {
+            throw py::type_error("incompatible function arguments!");
+        }
+        if (py::isinstance<ov::runtime::Tensor>(input.second)) {
+            auto tensor = Common::cast_to_tensor(input.second);
+            result_map[idx] = tensor;
+        } else {
+            throw ov::Exception("Unable to cast tensor " + std::to_string(idx) + "!");
+        }
+    }
+    return result_map;
+}
+
+void set_request_tensors(ov::runtime::InferRequest& request, const py::dict& inputs) {
+    if (!inputs.empty()) {
+        for (auto&& input : inputs) {
+            if (py::isinstance<py::str>(input.first)) {
+                request.set_tensor(input.first.cast<std::string>(), Common::cast_to_tensor(input.second));
+            } else if (py::isinstance<py::int_>(input.first)) {
+                request.set_input_tensor(input.first.cast<size_t>(), Common::cast_to_tensor(input.second));
+            } else {
+                throw py::type_error("Incompatible key type for tensor named: " + input.first.cast<std::string>());
+            }
+        }
+    }
 }
 
 PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
@@ -185,107 +275,13 @@ PyObject* parse_parameter(const InferenceEngine::Parameter& param) {
     }
 }
 
-bool is_TBlob(const py::handle& blob) {
-    if (py::isinstance<InferenceEngine::TBlob<float>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<double>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<int8_t>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<int16_t>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<int32_t>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<int64_t>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<uint8_t>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<uint16_t>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<uint32_t>>(blob)) {
-        return true;
-    } else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob)) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-const std::shared_ptr<InferenceEngine::Blob> cast_to_blob(const py::handle& blob) {
-    if (py::isinstance<InferenceEngine::TBlob<float>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<double>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<double>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<int8_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int8_t>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<int16_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int16_t>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<int32_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int32_t>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<int64_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<int64_t>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<uint8_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint8_t>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<uint16_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint16_t>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<uint32_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint32_t>>&>();
-    } else if (py::isinstance<InferenceEngine::TBlob<uint64_t>>(blob)) {
-        return blob.cast<const std::shared_ptr<InferenceEngine::TBlob<uint64_t>>&>();
-    } else {
-        IE_THROW() << "Unsupported data type for when casting to blob!";
-        // return nullptr;
-    }
-}
-
-void blob_from_numpy(const py::handle& arr, InferenceEngine::Blob::Ptr blob) {
-    if (py::isinstance<py::array_t<float>>(arr)) {
-        Common::fill_blob<float>(arr, blob);
-    } else if (py::isinstance<py::array_t<double>>(arr)) {
-        Common::fill_blob<double>(arr, blob);
-    } else if (py::isinstance<py::array_t<bool>>(arr)) {
-        Common::fill_blob<bool>(arr, blob);
-    } else if (py::isinstance<py::array_t<int8_t>>(arr)) {
-        Common::fill_blob<int8_t>(arr, blob);
-    } else if (py::isinstance<py::array_t<int16_t>>(arr)) {
-        Common::fill_blob<int16_t>(arr, blob);
-    } else if (py::isinstance<py::array_t<int32_t>>(arr)) {
-        Common::fill_blob<int32_t>(arr, blob);
-    } else if (py::isinstance<py::array_t<int64_t>>(arr)) {
-        Common::fill_blob<int64_t>(arr, blob);
-    } else if (py::isinstance<py::array_t<uint8_t>>(arr)) {
-        Common::fill_blob<uint8_t>(arr, blob);
-    } else if (py::isinstance<py::array_t<uint16_t>>(arr)) {
-        Common::fill_blob<uint16_t>(arr, blob);
-    } else if (py::isinstance<py::array_t<uint32_t>>(arr)) {
-        Common::fill_blob<uint32_t>(arr, blob);
-    } else if (py::isinstance<py::array_t<uint64_t>>(arr)) {
-        Common::fill_blob<uint64_t>(arr, blob);
-    } else {
-        IE_THROW() << "Unsupported data type for when filling blob!";
-    }
-}
-
-void set_request_blobs(InferenceEngine::InferRequest& request, const py::dict& dictonary) {
-    for (auto&& pair : dictonary) {
-        const std::string& name = pair.first.cast<std::string>();
-        if (py::isinstance<py::array>(pair.second)) {
-            Common::blob_from_numpy(pair.second, request.GetBlob(name));
-        } else if (is_TBlob(pair.second)) {
-            request.SetBlob(name, Common::cast_to_blob(pair.second));
-        } else {
-            IE_THROW() << "Unable to set blob " << name << "!";
-        }
-    }
-}
-
-uint32_t get_optimal_number_of_requests(const InferenceEngine::ExecutableNetwork& actual) {
+uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual) {
     try {
-        auto parameter_value = actual.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+        auto parameter_value = actual.get_metric(METRIC_KEY(SUPPORTED_METRICS));
         auto supported_metrics = parameter_value.as<std::vector<std::string>>();
         const std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
         if (std::find(supported_metrics.begin(), supported_metrics.end(), key) != supported_metrics.end()) {
-            parameter_value = actual.GetMetric(key);
+            parameter_value = actual.get_metric(key);
             if (parameter_value.is<unsigned int>())
                 return parameter_value.as<unsigned int>();
             else
