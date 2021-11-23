@@ -11,7 +11,7 @@ from pathlib import Path
 from itertools import chain
 from numpy.core.numeric import allclose
 
-from openvino import Tensor
+from openvino import Tensor, PartialShape
 from openvino.impl import Shape
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
@@ -245,7 +245,7 @@ def fill_blob_with_image(image_paths, info, batch_sizes):
             image_filename = image_paths[image_index]
             logger.info(f'Prepare image {image_filename}')
             image = cv2.imread(image_filename)
-            if not process_with_original_shapes: # TODO: check if info.partial_shape is compatible with image shape
+            if not process_with_original_shapes:
                 new_im_size = (widthes[i % num_shapes], heights[i % num_shapes])
                 if image.shape[:-1] != new_im_size:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
@@ -266,7 +266,12 @@ def fill_blob_with_image(image_paths, info, batch_sizes):
 
             if process_with_original_shapes:
                 expanded = np.expand_dims(image, 0)
-                info.tensor_shapes.append(Shape(expanded.shape))
+                p_shape = PartialShape(expanded.shape)
+                if info.partial_shape.compatible(p_shape):
+                    info.tensor_shapes.append(p_shape.to_shape())
+                else:
+                    raise Exception(f"Tensor shape '{str(p_shape)}' provided for input '{info.name}' "
+                                    f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
                 tensors.append(Tensor(expanded))
             else:
                 images[b] = image

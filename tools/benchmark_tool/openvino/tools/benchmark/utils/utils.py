@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
-from logging import exception
+from logging import exception, log
 from openvino import Core, Function, PartialShape, Dimension, Layout
 from openvino.impl import Type
 from openvino.impl.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
@@ -560,8 +560,8 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
         # Update shape with batch if needed
         if batch_size != 0:
             if batch_size.is_static and tensor_shape_map:
-                 raise Exception(f"provide batch size in tensor_shape for dynamic model")
-            if 'N' in info.layout:
+                 logger.warning(f"Batch size will be ignored. Provide batch deminsion in tensor_shape parameter.")
+            elif 'N' in info.layout:
                 batch_index = info.layout.index('N')
                 if info.partial_shape[batch_index] != batch_size:
                     info.partial_shape[batch_index] = batch_size
@@ -573,9 +573,14 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
         if info.name in tensor_shape_map.keys() and info.is_dynamic:
             for p_shape in tensor_shape_map[info.name]:
                 if p_shape.is_dynamic:
-                    raise Exception(f"tensor_shape {p_shape} is not static.")
+                    raise Exception(f"Tensor shape always should be static, {str(p_shape)} is dynamic.")
+                elif info.partial_shape.compatible(p_shape):
+                    info.tensor_shapes.append(p_shape.to_shape())
                 else:
-                    info.tensor_shapes.append(p_shape.to_shape())  # TODO: check if info.partial_shape is compatible with tensor shape
+                    raise Exception(f"Tensor shape '{str(p_shape)}' provided for input '{info.name}' "
+                                    f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
+        elif info.name in tensor_shape_map.keys():
+            logger.warning(f"Input '{info.name}' has static shape. Provided tensor shapes for this input will be ignored.")
 
         input_info.append(info)
 
