@@ -509,7 +509,7 @@ cdef class IECore:
     def add_extension(self, extension_path: str, device_name: str):
         self.impl.addExtension(extension_path.encode(), device_name.encode())
 
-    def add_py_extension(self, obj : int):
+    def add_py_extension(self, obj):
         self.impl.addExtension(obj)
 
     ## Gets a general runtime metric for dedicated hardware. Enables to request common device properties,

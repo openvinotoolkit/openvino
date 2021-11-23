@@ -8,6 +8,9 @@
 #include "ngraph/partial_shape.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include <numpy/arrayobject.h>
+
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map<std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
                                                                    {"FP64", InferenceEngine::Precision::FP64},
@@ -665,23 +668,157 @@ void InferenceEnginePython::IECore::addExtension(const std::string& ext_lib_path
     actual.AddExtension(extension, deviceName);
 }
 
-// class PyExtension : public ov::op::Op {
-// public:
-//     OPENVINO_OP("Identity");
+class PyLayerImpl : public InferenceEngine::ILayerExecImpl {
+public:
+    explicit PyLayerImpl(const std::shared_ptr<ngraph::Node>& node, PyObject* impl) {
+        this->impl = impl;
 
-//     Identity() = default;
-//     Identity(const ov::Output<ov::Node>& arg);
-//     void validate_and_infer_types() override;
-//     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-//     bool visit_attributes(ov::AttributeVisitor& visitor) override;
+        inpShapes.resize(node->get_input_size());
+        for (int i = 0; i < inpShapes.size(); ++i) {
+            inpShapes[i] = node->get_input_shape(i);
+        }
 
-//     bool evaluate(ov::runtime::TensorVector& outputs, const ov::runtime::TensorVector& inputs) const override;
-//     bool has_evaluate() const override;
-// };
+        outShapes.resize(node->get_output_size());
+        for (int i = 0; i < outShapes.size(); ++i) {
+            outShapes[i] = node->get_output_shape(i);
+        }
+    }
+
+    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
+                                                           InferenceEngine::ResponseDesc* resp) noexcept override {
+        std::vector<InferenceEngine::DataConfig> inDataConfig;
+        std::vector<InferenceEngine::DataConfig> outDataConfig;
+
+        // Allow any offset before data
+        size_t offset((std::numeric_limits<size_t>::max)());
+
+        // Input shapes
+        for (auto& inpShape : inpShapes) {
+            InferenceEngine::SizeVector order(inpShape.size());
+            std::iota(order.begin(), order.end(), 0);
+
+            InferenceEngine::DataConfig inpConf;
+            inpConf.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, inpShape, {inpShape, order, offset});
+            inDataConfig.push_back(inpConf);
+        }
+
+        // Output shapes
+        for (auto& outShape : outShapes) {
+            InferenceEngine::SizeVector order(outShape.size());
+            std::iota(order.begin(), order.end(), 0);
+
+            InferenceEngine::DataConfig outConf;
+            outConf.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32, outShape, {outShape, order, offset});
+            outDataConfig.push_back(outConf);
+
+        }
+        InferenceEngine::LayerConfig layerConfig;
+        layerConfig.inConfs = inDataConfig;
+        layerConfig.outConfs = outDataConfig;
+
+        conf.push_back(layerConfig);
+
+        return InferenceEngine::StatusCode::OK;
+    }
+
+    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& config,
+                                     InferenceEngine::ResponseDesc* resp) noexcept override {
+        return InferenceEngine::OK;
+    }
+
+    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs,
+                                        std::vector<InferenceEngine::Blob::Ptr>& outputs,
+                                        InferenceEngine::ResponseDesc* resp) noexcept override {
+        std::cout << "execute" << std::endl;
+        _import_array();
+
+        PyObject* args = PyList_New(inputs.size());
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            void* data = inputs[i]->buffer();
+            std::vector<size_t> dims = inputs[i]->getTensorDesc().getDims();
+            std::vector<npy_intp> npy_dims(dims.begin(), dims.end());
+            PyObject* arr = PyArray_SimpleNewFromData(dims.size(), npy_dims.data(), NPY_FLOAT32, data);
+            PyList_SET_ITEM(args, i, arr);
+        }
+        PyObject* res = PyObject_CallMethodObjArgs(impl, PyUnicode_FromString("execute"), args, NULL);
+        Py_DECREF(args);
 
 
-void InferenceEnginePython::IECore::addExtension(PyObject* cls) {
-    std::cout << " Helo" << std::endl;
+        void* data = PyArray_DATA((PyArrayObject*)res);
+        std::memcpy(outputs[0]->buffer(), data, outputs[0]->byteSize());
+
+        return InferenceEngine::OK;
+    }
+
+private:
+    std::vector<ngraph::Shape> inpShapes;
+    std::vector<ngraph::Shape> outShapes;
+    PyObject* impl;
+};
+
+class PyExtension : public InferenceEngine::IExtension
+{
+public:
+    explicit PyExtension(PyObject* def) {
+        // Create an instance of custom class
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+        PyObject* args = nullptr;
+        impl = PyObject_CallObject(def, args);
+
+        // Get a layer type
+        PyObject* op = PyObject_GetAttrString(impl, "op");
+        PyObject* bytes = PyUnicode_AsUTF8String(op);
+        opName = PyBytes_AsString(bytes);
+        Py_XDECREF(bytes);
+        Py_DECREF(op);
+
+        PyGILState_Release(gstate);
+    }
+
+    void Unload() noexcept override {}
+    void Release() noexcept override { delete this; }
+    void GetVersion(const InferenceEngine::Version*&) const noexcept override {}
+
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        std::map<std::string, ngraph::OpSet> opsets;
+        ngraph::OpSet opset;
+        opset.insert<ov::op::util::FrameworkNode>();
+        opsets["util"] = opset;
+        return opsets;
+    }
+
+    std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
+        // auto castedNode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+        // if (castedNode) {
+        //     std::cout << castedNode->get_attrs().get_type_name() << " | " << opName << std::endl;
+        //     for (auto it : castedNode->get_attrs()) {
+        //         std::cout << it.first << " " << it.second << std::endl;
+        //     }
+        // }
+        // TODO: check layer op name.
+        if (std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node)) {
+            return {"CPU"};
+        }
+        return {};
+    }
+
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+        if (std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node) && implType == "CPU") {
+            return std::make_shared<PyLayerImpl>(node, impl);
+        }
+        return nullptr;
+    }
+
+private:
+    PyObject* impl;
+    std::string opName;
+};
+
+
+void InferenceEnginePython::IECore::addExtension(PyObject* impl) {
+    actual.AddExtension(std::make_shared<PyExtension>(impl), "CPU");
 }
 
 std::vector<std::string> InferenceEnginePython::IECore::getAvailableDevices() {
