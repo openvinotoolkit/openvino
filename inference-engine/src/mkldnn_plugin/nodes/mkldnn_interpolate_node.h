@@ -167,15 +167,16 @@ private:
     SizeVector dstDim;
     SizeVector srcDim;
     SizeVector srcDimPad;
-    int spatialDimSize;
+    int spatialDimSize = 1;
 
     mkldnn::primitive_attr attr;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
     InferenceEngine::Precision inputPrec, outputPrec;
-    size_t srcDataSize, dstDataSize;
+    size_t srcDataSize = 0;
+    size_t dstDataSize = 0;
 
-    InterpolateLayoutType configured_for_layout;
+    InterpolateLayoutType configured_for_layout = InterpolateLayoutType::planar;
 
     std::vector<int> indexTable;
 

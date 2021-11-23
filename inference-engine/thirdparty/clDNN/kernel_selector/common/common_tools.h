@@ -5,6 +5,7 @@
 #pragma once
 #include "common_types.h"
 #include <type_traits>
+#include <stdexcept>
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -27,7 +28,7 @@ inline uint32_t BytesPerElement(Datatype dt) {
         case Datatype::INT64:
             return 8;
         default:
-            return 0;
+            throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
     }
 }
 
@@ -42,7 +43,7 @@ inline uint32_t BytesPerElement(WeightsType wt) {
         case WeightsType::BINARY:
             return 4;
         default:
-            return 0;
+            throw std::runtime_error("[GPU] BytesPerElement doesn't support given precision");
     }
 }
 

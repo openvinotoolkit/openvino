@@ -1277,6 +1277,9 @@ void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph)
         if (!childNode->getFusedWith().empty())
             return false;
         auto interpolateNode = dynamic_cast<MKLDNNInterpolateNode*>(parentNode.get());
+        if (!interpolateNode) {
+            IE_THROW() << "Cannot cast " << parentNode->getName() << " to MKLDNNInterpolateNode";
+        }
         return interpolateNode->canFuse(childNode);
     };
 
@@ -1922,8 +1925,8 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         return rnnNode && !rnnNode->hasNativeOrder() && node->outputShapes[0].getRank() == 4 && node->outputShapes[0].getDims()[1] == 1;
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
-        auto& parentNode = graphNodes[i];
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto parentNode = graphNodes[i];
         if (!isSutableParentNode(parentNode)) {
             continue;
         }
@@ -1934,15 +1937,15 @@ void MKLDNNGraphOptimizer::reshapeRnnSeq(MKLDNNGraph &graph) {
         const auto newShape = Shape(origShape);
         parentNode->outputShapes[0] = newShape;
 
-        for (size_t i = 0; i < childrenEdges.size(); i++) {
-            auto edge = childrenEdges[i];
+        for (size_t j = 0; j < childrenEdges.size(); j++) {
+            auto edge = childrenEdges[j];
             auto childNode = edge->getChild();
 
             const auto secondInput = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ngraph::Shape{1}, std::vector<int>{1});
             const auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze>(
                 std::make_shared<ngraph::opset1::Parameter>(details::convertPrecision(parentNode->getOriginalOutputPrecisionAtPort(0)),
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
-            unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(i));
+            unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
             const auto cpuUnsqueeze = std::make_shared<MKLDNNReshapeNode>(unsqueeze, graph.getEngine(), graph.weightsCache);
             graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);
