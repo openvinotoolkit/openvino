@@ -136,25 +136,27 @@ void MKLDNNGatherNDNode::execute(mkldnn::stream strm) {
     if (!execPtr)
         THROW_ERROR << "has not compiled executor.";
 
-    const int32_t* indices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr()->GetPtr());
-    execPtr->exec(getParentEdgeAt(GATHERND_DATA)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr(), indices);
+    execPtr->exec(getParentEdgeAt(GATHERND_DATA)->getMemoryPtr(),
+                  getParentEdgeAt(GATHERND_INDEXES)->getMemoryPtr(),
+                  getChildEdgeAt(0)->getMemoryPtr());
 }
 
-void MKLDNNGatherNDNode::GatherNDExecutor::exec(const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int32_t* indices) {
+void MKLDNNGatherNDNode::GatherNDExecutor::exec(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
     if (dataLength > 1) {
-        gatherBlocks(srcMemPtr, dstMemPtr, indices);
+        gatherBlocks(srcMemPtr, idxMemPtr, dstMemPtr);
         return;
     }
 
-    GatherNDContext ctx { this, srcMemPtr, dstMemPtr, indices };
+    GatherNDContext ctx { this, srcMemPtr, idxMemPtr, dstMemPtr };
     OV_SWITCH(MKLDNNPlugin, GatherNDEmitter, ctx, dataSize,
               OV_CASE(sizeof(PrecisionTrait<Precision::I32>::value_type), PrecisionTrait<Precision::I32>::value_type),
               OV_CASE(sizeof(PrecisionTrait<Precision::I16>::value_type), PrecisionTrait<Precision::I16>::value_type),
               OV_CASE(sizeof(PrecisionTrait<Precision::I8>::value_type), PrecisionTrait<Precision::I8>::value_type));
 }
 
-void MKLDNNGatherNDNode::GatherNDExecutor::gatherBlocks(const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int32_t* indices) {
+void MKLDNNGatherNDNode::GatherNDExecutor::gatherBlocks(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
     const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
     uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -189,9 +191,10 @@ void MKLDNNGatherNDNode::GatherNDExecutor::gatherBlocks(const MKLDNNMemoryPtr& s
 }
 
 template <typename dataType>
-void MKLDNNGatherNDNode::GatherNDExecutor::gatherElementwise(const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int32_t* indices) {
-    const auto *srcData = reinterpret_cast<const dataType *>(srcMemPtr->GetPtr());
-    auto *dstData = reinterpret_cast<dataType *>(dstMemPtr->GetPtr());
+void MKLDNNGatherNDNode::GatherNDExecutor::gatherElementwise(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    const dataType* srcData = reinterpret_cast<const dataType*>(srcMemPtr->GetPtr());
+    const int32_t* indices = reinterpret_cast<const int32_t*>(idxMemPtr->GetPtr());
+    dataType* dstData = reinterpret_cast<dataType*>(dstMemPtr->GetPtr());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);

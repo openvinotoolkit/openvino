@@ -42,12 +42,12 @@ private:
     struct GatherNDExecutor {
         GatherNDExecutor(const GatherNDAttributes& attrs);
         ~GatherNDExecutor() = default;
-        void exec(const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int32_t* indices);
+        void exec(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr);
 
     private:
         template <typename dataType>
-        void gatherElementwise(const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int32_t* indices);
-        void gatherBlocks(const MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr, const int32_t* indices);
+        void gatherElementwise(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr);
+        void gatherBlocks(const MKLDNNMemoryPtr& srcMemPtr, const MKLDNNMemoryPtr& idxMemPtr, MKLDNNMemoryPtr& dstMemPtr);
 
         size_t batchSize = 1lu;
         size_t cycles = 1lu;
@@ -64,14 +64,14 @@ private:
         struct GatherNDContext {
             GatherNDExecutor* executor;
             const MKLDNNMemoryPtr srcMemPtr;
+            const MKLDNNMemoryPtr idxMemPtr;
             MKLDNNMemoryPtr dstMemPtr;
-            const int32_t* indices;
         };
 
         template<typename T>
         struct GatherNDEmitter {
             void operator()(GatherNDContext& ctx) {
-                ctx.executor->gatherElementwise<T>(ctx.srcMemPtr, ctx.dstMemPtr, ctx.indices);
+                ctx.executor->gatherElementwise<T>(ctx.srcMemPtr, ctx.idxMemPtr, ctx.dstMemPtr);
             }
         };
     };
