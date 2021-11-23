@@ -507,50 +507,92 @@ bool pwl_search(const DnnActivation& activation_type,
                 pwl[1].m = 1.0;
                 pwl[1].b = 0.0;
         } else {
-            double err_pct = 0;
-            double err = 0;
-            int n_segments_lower = 2;
-            int n_segments_upper = 2;
-            do {
-                n_segments_lower = n_segments_upper;
-                n_segments_upper = std::min(n_segments_upper * 2, pwl_max_num_segments == 0 ? n_segments_upper * 2 : pwl_max_num_segments);
-                if (!pivot_search(pwl, activation_type, n_segments_upper - 1, l_bound, u_bound, threshold, err, max_iteration_number)) {
-                    break;
+            using search_data_t = std::tuple<int, double, std::vector<pwl_t>>;
+            auto search = [&](search_data_t& search_data) {
+                if (pwl_max_num_segments > 0 && std::get<0>(search_data) > pwl_max_num_segments) {
+                    gnalog() << "Exceeded the maximum number of segments (" << std::get<0>(search_data) << ")\n";
+                    return false;
                 }
-                err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
-            } while (n_segments_upper != pwl_max_num_segments && allowed_err_pct < err_pct);
 
-            int n_segments_mid = 0;
-            const double epsilon = 1e-10;
-            do {
-                auto new_n_segments_mid = n_segments_lower + (n_segments_upper - n_segments_lower + 1) / 2;
-                if (n_segments_mid == new_n_segments_mid)
-                    break;
-
-                n_segments_mid = new_n_segments_mid;
-                if (!pivot_search(pwl, activation_type, n_segments_mid - 1, l_bound, u_bound, threshold, err, max_iteration_number)) {
-                    n_segments_upper = n_segments_mid - 1;
-                    err_pct = std::numeric_limits<double>::max();
-                } else {
-                    err_pct = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
-                    if (std::abs(allowed_err_pct - err_pct) < epsilon) {
-                        break;
-                    } else if (allowed_err_pct < err_pct) {
-                        n_segments_lower = n_segments_mid + 1;
-                    } else {
-                        n_segments_upper = n_segments_mid;
-                    }
+                double err = 0;
+                if (!pivot_search(std::get<2>(search_data),
+                                  activation_type,
+                                  std::get<0>(search_data) - 1,
+                                  l_bound,
+                                  u_bound,
+                                  threshold,
+                                  err,
+                                  max_iteration_number)) {
+                    return false;
                 }
-                gnalog() << "err_pct: " << err_pct << ", allowed_err_pct: " << allowed_err_pct << '\n';
-            } while (n_segments_lower <= n_segments_upper);
 
-            gnalog() << "n_segments_mid: " << n_segments_mid << " (" << pwl.size() << "), err_pct: " <<
-                err_pct << ", allowed_err_pct: " << allowed_err_pct << ", l_bound: " << l_bound << ", u_bound: " << u_bound << '\n';
-            if (pwl_max_num_segments > 0 && n_segments_mid > pwl_max_num_segments ||
-                allowed_err_pct > 0 && allowed_err_pct < err_pct && std::abs(allowed_err_pct - err_pct) >= epsilon) {
+                std::get<1>(search_data) = calculate_error_pct(activation_type, l_bound, u_bound, err, samples);
+                return true;
+            };
+
+            std::pair<search_data_t, search_data_t> boundary;
+            std::get<0>(boundary.first) = 2;
+            if (!search(boundary.first)) {
                 gnalog() << "Failed to converge in pwl_search!\n";
                 return false;
             }
+
+            const double epsilon = 1e-10;
+            std::get<0>(boundary.second) = 2 * std::get<0>(boundary.first);
+            search_data_t* next = &boundary.second;
+            search_data_t current;
+            do {
+                if (!search(*next)) {
+                    std::get<0>(boundary.second) = std::get<0>(boundary.first) +
+                        (std::get<0>(boundary.second) - std::get<0>(boundary.first)) / 2;
+                    next = &boundary.second;
+                } else if (allowed_err_pct > std::get<1>(boundary.second)) {
+                    if (std::abs(allowed_err_pct - std::get<1>(*next)) < epsilon) {
+                        boundary.first = *next;
+                        break;
+                    } else {
+                        if (!std::get<2>(current).empty()) {
+                            if (allowed_err_pct < std::get<1>(current)) {
+                                boundary.first = current;
+                            } else {
+                                boundary.second = current;
+                            }
+
+                            if (std::abs(std::get<0>(boundary.first) - std::get<0>(boundary.second)) == 1) {
+                                if (std::abs(allowed_err_pct - std::get<1>(boundary.first)) <
+                                        std::abs(allowed_err_pct - std::get<1>(boundary.second)) &&
+                                    (allowed_err_pct == 0 ||
+                                        allowed_err_pct > std::get<1>(boundary.first) ||
+                                        std::abs(allowed_err_pct - std::get<1>(boundary.first)) < epsilon)) {
+                                    break;
+                                } else {
+                                    boundary.first = boundary.second;
+                                    break;
+                                }
+                            }
+                        }
+
+                        std::get<0>(current) = std::get<0>(boundary.first) +
+                            (std::get<0>(boundary.second) - std::get<0>(boundary.first)) / 2;
+                        next = &current;
+                    }
+                } else {
+                    boundary.first = boundary.second;
+                    std::get<0>(boundary.second) = 2 * std::get<0>(boundary.second);
+                    next = &boundary.second;
+                }
+            } while (std::get<0>(boundary.first) < std::get<0>(boundary.second));
+
+            gnalog() << "\tSegments number: " << std::get<0>(boundary.first) << " (" << std::get<2>(boundary.first).size()
+                << ")\n\tError pct: " << std::get<1>(boundary.first) << " (" << allowed_err_pct << ")\n\tRange [" << l_bound
+                << ", " << u_bound << "]\n";
+            if (allowed_err_pct > 0 && allowed_err_pct < std::get<1>(boundary.first) &&
+                std::abs(allowed_err_pct - std::get<1>(boundary.first)) >= epsilon) {
+                gnalog() << "Failed to converge in pwl_search!\n";
+                return false;
+            }
+
+            pwl = std::move(std::get<2>(boundary.first));
         }
     }
 
