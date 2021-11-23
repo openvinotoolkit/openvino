@@ -57,7 +57,7 @@ jobs:
     PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.7.6\x64
     CMAKE_VERSION: 3.21.0
     CMAKE_CMD: $(WORK_DIR)\cmake-$(CMAKE_VERSION)-windows-x86_64\cmake-$(CMAKE_VERSION)-windows-x86_64\bin\cmake.exe
-    CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+    OV_CMAKE_TOOLCHAIN_FILE: $(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
 
   steps:
   - script: |
@@ -126,7 +126,7 @@ jobs:
     displayName: 'Install dependencies'
 
   - powershell: |
-      Write-Host "##vso[task.setvariable variable=CMAKE_TOOLCHAIN_FILE]$(CMAKE_TOOLCHAIN_FILE)"
+      Write-Host "##vso[task.setvariable variable=CMAKE_TOOLCHAIN_FILE]$(OV_CMAKE_TOOLCHAIN_FILE)"
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
     displayName: "Set cmake toolchain"
 

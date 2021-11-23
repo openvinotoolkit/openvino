@@ -8,7 +8,7 @@ set(TARGET_NAME "cnpy")
 
 add_library(${TARGET_NAME} STATIC cnpy.cpp)
 
-if(CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
     target_compile_options(${TARGET_NAME} PUBLIC -Wno-unused-variable
                                           PRIVATE -Wno-all)
 endif()
