@@ -387,7 +387,7 @@ inline std::shared_ptr<Function> cvt_color_i420_to_bgr_three_planes() {
 
 inline std::shared_ptr<Function> cvt_color_bgrx_to_bgr() {
     using namespace ov::preprocess;
-    auto function = create_preprocess_2inputs(element::f32, PartialShape{1, 32, 32, 3});
+    auto function = create_preprocess_2inputs(element::f32, PartialShape{1, 160, 160, 3});
     auto p = PrePostProcessor(function);
     p.input(0).tensor().set_color_format(ColorFormat::BGRX);
     p.input(0).preprocess().convert_color(ColorFormat::BGR);
