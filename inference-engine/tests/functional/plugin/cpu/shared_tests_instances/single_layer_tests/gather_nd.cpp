@@ -41,7 +41,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_Set1, GatherNDLayerTest,
                             ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set1, GatherNDLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set1, GatherND8LayerTest,
                          ::testing::Combine(
                                  gatherNDArgsSubset1,
                                  ::testing::ValuesIn(dPrecisions),
@@ -67,7 +67,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND5_Set2, GatherNDLayerTest,
                             ::testing::Values<Config>({})),
                         GatherNDLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set2, GatherNDLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8_Set2, GatherND8LayerTest,
                          ::testing::Combine(
                                  gatherNDArgsSubset2,
                                  ::testing::ValuesIn(dPrecisions),
