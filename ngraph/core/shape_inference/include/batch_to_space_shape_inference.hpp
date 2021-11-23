@@ -20,6 +20,8 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
     const auto& block_shape = input_shapes[1];
@@ -56,53 +58,67 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                                   " and ",
                                   data_rank);
         }
-    }
-
-    std::vector<int64_t> block_val, crops_begin_val, crops_end_val;
-
-    if (data_shape.is_static() && get_data_as_int64<T>(1, op, block_val, constant_data) &&
-        get_data_as_int64<T>(2, op, crops_begin_val, constant_data) &&
-        get_data_as_int64<T>(3, op, crops_end_val, constant_data)) {
-        bool block_vals_valid = std::all_of(begin(block_val), end(block_val), [](int64_t elem) {
-            return elem >= 1;
-        });
-        NODE_VALIDATION_CHECK(op, block_vals_valid, "Elements of block_shape input must be greater or equal to one.");
-
-        bool crops_begin_vals_valid = std::all_of(begin(crops_begin_val), end(crops_begin_val), [](int64_t elem) {
-            return elem >= 0;
-        });
-        bool crops_end_vals_valid = std::all_of(begin(crops_end_val), end(crops_end_val), [](int64_t elem) {
-            return elem >= 0;
-        });
-        NODE_VALIDATION_CHECK(op,
-                              crops_begin_vals_valid && crops_end_vals_valid,
-                              "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
-
-        int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
-
-        NODE_VALIDATION_CHECK(op,
-                              data_shape[0].get_length() % block_prod == 0,
-                              "The input data's 'batch' axis size: ",
-                              data_shape[0],
-                              " must be a multiple of",
-                              " product of block_shape values: ",
-                              block_prod);
-
-        for (size_t idx = 0; idx < data_shape.size(); idx++) {
-            const bool is_valid_crops_and_shape =
-                crops_begin_val[idx] + crops_end_val[idx] <= block_val[idx] * data_shape[idx].get_length();
-            NODE_VALIDATION_CHECK(op,
-                                  is_valid_crops_and_shape,
-                                  "crops_begin[i] + crops_end[i] must be less or equal to "
-                                  "block_shape[i] * input_shape[i]");
-        }
 
         auto& output_shape = output_shapes[0];
         output_shape.resize(data_shape.size());
-        output_shape[0] = data_shape[0].get_length() / block_prod;
-        for (size_t idx = 1; idx < output_shape.size(); ++idx) {
-            output_shape[idx] =
-                data_shape[idx].get_length() * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx];
+
+        std::vector<int64_t> block_val, crops_begin_val, crops_end_val;
+
+        if (get_data_as_int64<T>(1, op, block_val, constant_data) &&
+            get_data_as_int64<T>(2, op, crops_begin_val, constant_data) &&
+            get_data_as_int64<T>(3, op, crops_end_val, constant_data)) {
+            bool block_vals_valid = std::all_of(begin(block_val), end(block_val), [](int64_t elem) {
+                return elem >= 1;
+            });
+            NODE_VALIDATION_CHECK(op,
+                                  block_vals_valid,
+                                  "Elements of block_shape input must be greater or equal to one.");
+
+            bool crops_begin_vals_valid = std::all_of(begin(crops_begin_val), end(crops_begin_val), [](int64_t elem) {
+                return elem >= 0;
+            });
+            bool crops_end_vals_valid = std::all_of(begin(crops_end_val), end(crops_end_val), [](int64_t elem) {
+                return elem >= 0;
+            });
+            NODE_VALIDATION_CHECK(op,
+                                  crops_begin_vals_valid && crops_end_vals_valid,
+                                  "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
+
+            int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
+
+            if (data_shape[0].is_static()) {
+                NODE_VALIDATION_CHECK(op,
+                                      data_shape[0].get_length() % block_prod == 0,
+                                      "The input data's 'batch' axis size: ",
+                                      data_shape[0],
+                                      " must be a multiple of",
+                                      " product of block_shape values: ",
+                                      block_prod);
+                const bool is_valid_crops_and_shape =
+                    crops_begin_val[0] + crops_end_val[0] <= block_val[0] * data_shape[0].get_length();
+                NODE_VALIDATION_CHECK(op,
+                                      is_valid_crops_and_shape,
+                                      "crops_begin[0] + crops_end[0] must be less or equal to "
+                                      "block_shape[0] * input_shape[0]");
+                output_shape[0] = data_shape[0].get_length() / block_prod;
+
+            } else {
+                // Set the output batch dimension to be same with input[0] batch dimesion for the dynamic.
+                output_shape[0] = data_shape[0];
+            }
+
+            for (size_t idx = 1; idx < data_shape.size(); idx++) {
+                if (data_shape[idx].is_static()) {
+                    const bool is_valid_crops_and_shape =
+                        crops_begin_val[idx] + crops_end_val[idx] <= block_val[idx] * data_shape[idx].get_length();
+                    NODE_VALIDATION_CHECK(op,
+                                          is_valid_crops_and_shape,
+                                          "crops_begin[i] + crops_end[i] must be less or equal to "
+                                          "block_shape[i] * input_shape[i]");
+                }
+                output_shape[idx] = data_shape[idx] * DimType{block_val[idx]} - DimType{crops_begin_val[idx]} -
+                                    DimType{crops_end_val[idx]};
+            }
         }
     } else {
         // For PartialShape, Set the output to be dynamic;

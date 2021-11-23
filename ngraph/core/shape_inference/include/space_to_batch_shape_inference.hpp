@@ -20,6 +20,7 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 1);
 
     const auto& data_shape = input_shapes[0];
@@ -30,35 +31,43 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
                               "The data tensor with rank lower than 2 is not supported (data rank: ",
                               data_shape.size(),
                               ")");
-    }
 
-    std::vector<int64_t> block_val, pads_begin_val, pads_end_val;
+        std::vector<int64_t> block_val, pads_begin_val, pads_end_val;
 
-    if (data_shape.is_static() && get_data_as_int64<T>(1, op, block_val, constant_data) &&
-        get_data_as_int64<T>(2, op, pads_begin_val, constant_data) &&
-        get_data_as_int64<T>(3, op, pads_end_val, constant_data)) {
-        int64_t block_prod = 1;
-        for (long idx : block_val)
-            block_prod *= idx;
         auto& output_shape = output_shapes[0];
         output_shape.resize(data_shape.size());
-        output_shape[0] = data_shape[0].get_length() * block_prod;
+        if (get_data_as_int64<T>(1, op, block_val, constant_data) &&
+            get_data_as_int64<T>(2, op, pads_begin_val, constant_data) &&
+            get_data_as_int64<T>(3, op, pads_end_val, constant_data)) {
+            int64_t block_prod = 1;
+            for (long idx : block_val)
+                block_prod *= idx;
 
-        for (size_t idx = 1; idx < output_shape.size(); ++idx) {
-            NODE_VALIDATION_CHECK(op, block_val[idx] > 0, "block_shape values must be greater than 0");
-            NODE_VALIDATION_CHECK(
-                op,
-                (pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx]) % block_val[idx] == 0,
-                "The dimension on position: ",
-                idx,
-                " equal to: ",
-                pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx],
-                " must be a multiple of block_values[i]: ",
-                block_val[idx]);
-            output_shape[idx] =
-                (pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx]) / block_val[idx];
+            output_shape[0] = data_shape[0] * DimType{block_prod};
+
+            for (size_t idx = 1; idx < output_shape.size(); ++idx) {
+                NODE_VALIDATION_CHECK(op, block_val[idx] > 0, "block_shape values must be greater than 0");
+                if (data_shape[idx].is_static()) {
+                    NODE_VALIDATION_CHECK(
+                        op,
+                        (pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx]) % block_val[idx] == 0,
+                        "The dimension on position: ",
+                        idx,
+                        " equal to: ",
+                        pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx],
+                        " must be a multiple of block_values[i]: ",
+                        block_val[idx]);
+                    output_shape[idx] =
+                        (pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx]) / block_val[idx];
+                } else {
+                    // Set the output space dimension to be same with input[0] space dimensions for the partial shape.
+                    output_shape[idx] = data_shape[idx];
+                }
+            }
         }
-    } else {
+    }
+
+    else {
         // For PartialShape, Set the output to be dynamic;
         // For StaticShape, throw error caused by implicitly constructing StaticShape with PartialShape argument;
         output_shapes[0] = ov::PartialShape::dynamic(data_rank);

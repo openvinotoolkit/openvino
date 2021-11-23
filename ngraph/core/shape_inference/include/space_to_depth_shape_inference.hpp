@@ -18,6 +18,7 @@ template <class T>
 void shape_infer(const ov::op::v0::SpaceToDepth* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
+    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
 
     const auto& data_shape = input_shapes[0];
@@ -28,28 +29,32 @@ void shape_infer(const ov::op::v0::SpaceToDepth* op,
                               "The input tensor with rank lower than 3 is not supported (input rank: ",
                               data_shape.size(),
                               ")");
-    }
 
-    if (data_shape.is_static()) {
         const auto block_size = op->get_block_size();
-        auto multiplier = std::pow(block_size, data_shape.size() - 2);
+        NODE_VALIDATION_CHECK(op, block_size > 0, "The block size must begreater then 0 ", block_size);
+        const int64_t multiplier = std::pow(block_size, data_shape.size() - 2);
 
         auto& out_shape = output_shapes[0];
         out_shape.resize(data_shape.size());
 
-        out_shape[0] = data_shape[0].get_length();
-        out_shape[1] = multiplier * data_shape[1].get_length();
+        out_shape[0] = data_shape[0];
+        out_shape[1] = DimType{multiplier} * data_shape[1];
         for (size_t i = 2; i < out_shape.size(); i++) {
-            NODE_VALIDATION_CHECK(op,
-                                  block_size > 0 && !(data_shape[i].get_length() % block_size),
-                                  "The dimension on position: ",
-                                  i,
-                                  " equal to: ",
-                                  data_shape[i],
-                                  " must be a multiple of m_blocksize: ",
-                                  block_size);
+            if (data_shape[i].is_static()) {
+                NODE_VALIDATION_CHECK(op,
+                                      !(data_shape[i].get_length() % block_size),
+                                      "The dimension on position: ",
+                                      i,
+                                      " equal to: ",
+                                      data_shape[i],
+                                      " must be a multiple of m_blocksize: ",
+                                      block_size);
 
-            out_shape[i] = data_shape[i].get_length() / block_size;
+                out_shape[i] = data_shape[i].get_length() / block_size;
+            } else {
+                // Just set the output space dimension to be input space dimension when not static.
+                out_shape[i] = data_shape[i];
+            }
         }
     } else {
         // For PartialShape, Set the output to be dynamic;
