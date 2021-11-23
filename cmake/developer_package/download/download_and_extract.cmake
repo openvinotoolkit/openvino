@@ -124,6 +124,8 @@ function (DownloadOrExtractInternal URL archive_path unpacked_path folder fattal
         if (${result})
           set (downloadStatus "OK")
         endif()
+      else()
+        set (downloadStatus "OK")
       endif()
     else()
       debug_message("archive found on FS : ${archive_path}, however we cannot check it's checksum and think that it is invalid")
