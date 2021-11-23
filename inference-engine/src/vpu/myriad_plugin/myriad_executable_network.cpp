@@ -80,7 +80,7 @@ ExecutableNetwork::ExecutableNetwork(
     if (copyNetwork.getFunction() && copyNetwork.getFunction()->is_dynamic()) {
         copyNetwork = InferenceEngine::details::cloneNetwork(network);
         auto function = copyNetwork.getFunction();
-        for (auto input : function->get_parameters()) {
+        for (const auto& input : function->get_parameters()) {
             if (input->get_partial_shape().is_dynamic()) {
                 auto inputShape = input->get_partial_shape();
                 const auto inDataParam = std::make_shared<ngraph::opset3::Parameter>(
@@ -98,13 +98,13 @@ ExecutableNetwork::ExecutableNetwork(
             }
         }
         copyNetwork = ie::CNNNetwork(function);
-        for (auto inputInf : network.getInputsInfo()) {
+        for (const auto& inputInf : network.getInputsInfo()) {
             auto& copyInput = copyNetwork.getInputsInfo()[inputInf.first];
             copyInput->setPrecision(inputInf.second->getPrecision());
             copyInput->setLayout(inputInf.second->getLayout());
             copyInput->getPreProcess() = inputInf.second->getPreProcess();
         }
-        for (auto outputInf : network.getOutputsInfo()) {
+        for (const auto& outputInf : network.getOutputsInfo()) {
             *copyNetwork.getOutputsInfo()[outputInf.first].get() = *outputInf.second.get();
         }
     }
