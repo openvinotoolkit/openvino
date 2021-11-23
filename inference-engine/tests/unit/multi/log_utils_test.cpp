@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "plugin/mock_log_utils.hpp"
+#include <future>
 using ::testing::_;
 using namespace MockMultiDevice;
 #ifdef WIN32
@@ -89,11 +90,33 @@ TEST_P(LogUtilsTest, setEnvNotAffectSetLogLevel) {
 
 //can not test ENV case. because of the ENV variable is readed at the
 //beginning of test application and modify it in runtime is not valid
+//still need to test it in different platform manully
 //TEST_P(LogUtilsTest, setEnvLogLevel) {
 //    SetTestEnv("AUTO_LOG_LEVEL", _envLogLevel);
 //    EXPECT_CALL(*(HLogger), print(_)).Times(_expectCallNum);
 //    printLog();
 //}
+//
+
+TEST(smoke_Auto_BehaviorTests, LogUtilsSingleton) {
+    std::vector<std::future<void>> futureVect;
+    std::shared_ptr<Log> instanceVector[20];
+    for (unsigned int i = 0; i < 20; i++) {
+        auto future = std::async(std::launch::async, [this, &instanceVector, i] {
+                instanceVector[i] = Log::instance();
+                });
+        futureVect.push_back(std::move(future));
+    }
+
+    for (auto& future : futureVect) {
+        future.wait();
+    }
+
+    for (unsigned int i = 0; i < 19; i++) {
+        EXPECT_NE(instanceVector[i].get(), nullptr);
+        EXPECT_EQ(instanceVector[i].get(), instanceVector[i+1].get());
+    }
+}
 
 const std::vector<ConfigParams> testConfigs =
 {ConfigParams {"LOG_NONE", "0", 0},
