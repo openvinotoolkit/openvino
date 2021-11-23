@@ -613,7 +613,11 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
     switch (dt) {
     case cldnn::data_types::u8:
     case cldnn::data_types::i8: {
-        if (info.supports_imad) {
+        if (info.supports_immad) {
+            // ATS[gfx_12.5]: 8 systolic pipelines * (32-bit / 8-bit) * 4-lines * 2-FPU * 2-FMA
+            // DG2[gfx_12.7]: 4 systolic pipelines * (32-bit / 8-bit) * 4-lines * 2-FPU * 2-FMA
+            opsPerComputeBlock = (info.gfx_ver.major == 12 && info.gfx_ver.minor == 5) ? 512 : 256;
+        } else if (info.supports_imad) {
             // fma * simd size
             opsPerComputeBlock = 2 * 32;
         } else {
@@ -625,8 +629,14 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
         break;
     }
     case cldnn::data_types::f16: {
-        // fma * simd size
-        opsPerComputeBlock = 2 * 16;
+        if (info.supports_immad) {
+            // ATS[gfx_12.5]: 8 systolic pipelines * (32-bit / 16-bit) * 4-lines * 2-FPU * 2-FMA
+            // DG2[gfx_12.7]: 4 systolic pipelines * (32-bit / 16-bit) * 4-lines * 2-FPU * 2-FMA
+            opsPerComputeBlock = (info.gfx_ver.major == 12 && info.gfx_ver.minor == 5) ? 256 : 128;
+        } else {
+            // fma * simd size
+            opsPerComputeBlock = 2 * 16;
+        }
         break;
     }
     case cldnn::data_types::f32: {
