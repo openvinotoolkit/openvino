@@ -51,7 +51,6 @@ MKLDNNGatherNDNode::MKLDNNGatherNDNode(const std::shared_ptr<ngraph::Node>& op, 
     } else {
         THROW_ERROR << "has support only opset5.";
     }
-
     if (attrs.batchDims >= std::min(inputDataRank, indicesDimsRank))
         THROW_ERROR << "has invalid batch_dims attribute: " << attrs.batchDims;
 }
