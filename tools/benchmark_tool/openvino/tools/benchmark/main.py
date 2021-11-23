@@ -55,7 +55,7 @@ def run(args):
 
         if ext == BLOB_EXTENSION:
             is_network_compiled = True
-            print("Network is compiled")
+            print("Model is compiled")
 
         # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
         next_step(step_id=2)
@@ -359,6 +359,11 @@ def run(args):
         data_queue = get_input_data(paths_to_input, app_inputs_info)
 
         benchmark.latency_groups = get_latency_groups(app_inputs_info)
+
+        if len(benchmark.latency_groups) > 1:
+            logger.info(f"Defined {len(benchmark.latency_groups)} tensor groups:")
+            for group in benchmark.latency_groups:
+                print(f"\t{str(group)}")
 
         # Iteration limit
         benchmark.niter = get_number_iterations(benchmark.niter, benchmark.nireq, max(len(info.shapes) for info in app_inputs_info), benchmark.api_type)

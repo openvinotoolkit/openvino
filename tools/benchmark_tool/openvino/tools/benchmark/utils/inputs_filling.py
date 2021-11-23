@@ -8,11 +8,8 @@ import numpy as np
 from glob import glob
 from collections import defaultdict
 from pathlib import Path
-from itertools import chain
-from numpy.core.numeric import allclose
 
 from openvino import Tensor, PartialShape
-from openvino.impl import Shape
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
@@ -116,7 +113,7 @@ def get_input_data(paths_to_input, app_input_info):
     if input_file_mapping and len(input_file_mapping) < len(app_input_info):
         not_provided_inputs_info = [info for info in app_input_info if info.name not in input_file_mapping]
         for info in not_provided_inputs_info:
-            if len(info.shapes == 0): # TODO: should we allow to provide input files not for each input in dynamic case ?
+            if len(info.shapes == 0): # if input is dynamic and no tensor shapes were provided
                 error_message = ""
                 if info.is_image:
                     error_message = f"Provide tensor shapes to fill input '{info.name} " \
@@ -160,31 +157,31 @@ def get_input_data(paths_to_input, app_input_info):
         if info.is_image:
             # input is image
             if info.name in input_file_mapping:
-                data[info.name] = fill_blob_with_image(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
+                data[info.name] = get_image_tensors(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
                 continue
 
             if len(image_files) > 0:
-                data[info.name] = fill_blob_with_image(image_files[:files_to_be_used], info, batch_sizes)
+                data[info.name] = get_image_tensors(image_files[:files_to_be_used], info, batch_sizes)
                 continue
 
         if len(binary_files) or info.name in input_file_mapping:
             if info.name in input_file_mapping:
-                data[info.name] = fill_blob_with_binary(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
+                data[info.name] = get_binary_tensors(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
                 continue
 
-            data[info.name] = fill_blob_with_binary(binary_files[:files_to_be_used], info, batch_sizes)
+            data[info.name] = get_binary_tensors(binary_files[:files_to_be_used], info, batch_sizes)
             continue
 
         if info.is_image_info and len(image_sizes) == 1:
                 image_size = image_sizes[0]
                 logger.info(f"Create input tensors for input '{info.name}' with image sizes: {image_size}")
-                data[info.name] = fill_blob_with_image_info(image_size, info)
+                data[info.name] = get_image_info_tensors(image_size, info)
                 continue
 
         # fill with random data
         logger.info(f"Fill input '{info.name}' with random values "
                                 f"({'image' if info.is_image else 'some binary data'} is expected)")
-        data[info.name] = fill_blob_with_random(info)
+        data[info.name] = fill_tensors_with_random(info)
     if len(batch_sizes) == 0:
         batch_sizes = get_batch_sizes(app_input_info) # update batch sizes in case getting tensor shapes from images
     return DataQueue(data, batch_sizes)
@@ -222,7 +219,7 @@ def get_extension(file_path):
     return file_path.split(".")[-1].upper()
 
 
-def fill_blob_with_image(image_paths, info, batch_sizes):
+def get_image_tensors(image_paths, info, batch_sizes):
     processed_frames = 0
     widthes = info.widthes if info.is_dynamic else [len(info.width)]
     heights = info.heights if info.is_dynamic else [len(info.height)]
@@ -299,7 +296,7 @@ def get_dtype(precision):
     raise Exception("Can't find data type for precision: " + precision)
 
 
-def fill_blob_with_binary(binary_paths, info, batch_sizes):
+def get_binary_tensors(binary_paths, info, batch_sizes):
     num_shapes = len(info.shapes)
     if info.is_dynamic and num_shapes == 0:
         raise Exception("Tensor shapes must be specified for binary inputs and dynamic model")
@@ -348,7 +345,7 @@ def get_image_sizes(app_input_info):
     return image_sizes
 
 
-def fill_blob_with_image_info(image_sizes, layer):
+def get_image_info_tensors(image_sizes, layer):
     im_infos = []
     for shape, image_size in zip(layer.shapes, image_sizes):
         im_info = np.ndarray(shape)
@@ -359,7 +356,7 @@ def fill_blob_with_image_info(image_sizes, layer):
     return im_infos
 
 
-def fill_blob_with_random(layer):
+def fill_tensors_with_random(layer):
     dtype, rand_min, rand_max = get_dtype(layer.element_type.get_type_name())
     # np.random.uniform excludes high: add 1 to have it generated
     if np.dtype(dtype).kind in ['i', 'u', 'b']:
