@@ -450,15 +450,33 @@ def run(args):
                                             ])
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ("AVG", f'{avg_latency_ms:.2f}'),
+                                              ("avg latency", f'{avg_latency_ms:.2f}'),
                                           ])
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ("MIN", f'{min_latency_ms:.2f}'),
+                                              ("min latency", f'{min_latency_ms:.2f}'),
                                           ])
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ("MAX", f'{max_latency_ms:.2f}'),
+                                              ("max latency", f'{max_latency_ms:.2f}'),
+                                          ])
+                if args.pcseq and len(benchmark.latency_groups) > 1:
+                    for group in benchmark.latency_groups:
+                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ("group", str(group)),
+                                          ])
+                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ("avg latency", f'{group.avg:.2f}'),
+                                          ])
+                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ("min latency", f'{group.min:.2f}'),
+                                          ])
+                        statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ("max latency", f'{group.max:.2f}'),
                                           ])
             statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                       [
@@ -482,10 +500,10 @@ def run(args):
             if args.pcseq and len(benchmark.latency_groups) > 1:
                 print("Latency for each tensor shape group: ")
                 for group in benchmark.latency_groups:
-                    print(group["group_desc"])
-                    print(f'AVG:{group["AVG"]:.2f} ms')
-                    print(f'MIN:{group["MIN"]:.2f} ms')
-                    print(f'MAX:{group["MAX"]:.2f} ms')
+                    print(str(group))
+                    print(f'AVG:{group.avg:.2f} ms')
+                    print(f'MIN:{group.min:.2f} ms')
+                    print(f'MAX:{group.max:.2f} ms')
 
         print(f'Throughput: {fps:.2f} FPS')
 

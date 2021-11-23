@@ -142,6 +142,7 @@ def get_precision(element_type: Type):
         return format_map[element_type.get_type_name()]
     raise Exception("Can't find  precision for openvino element type: " + str(element_type))
 
+
 def print_inputs_and_outputs_info(function: Function):
     parameters = function.get_parameters()
     input_names = get_input_output_names(parameters)
@@ -186,15 +187,30 @@ def get_duration_seconds(time, number_iterations, device):
     return 0
 
 
+class LatencyGroup:
+    def __init__(self, input_names, input_shapes):
+        self.input_names = input_names
+        self.input_shapes = input_shapes
+        self.times = list()
+        self.avg = 0.
+        self.min = 0.
+        self.max = 0.
+
+    def __str__(self):
+        return str().join(f"{name}: {str(shape)} " for name, shape in zip(self.input_names, self.input_shapes))
+
+
 def get_latency_groups(app_input_info):
     num_groups = max(len(info.shapes) for info in app_input_info)
-    groups = []
+    latency_groups = []
     for i in range(num_groups):
-        group_desc = {}
+        names = list()
+        shapes = list()
         for info in app_input_info:
-            group_desc[info.name] = info.shapes[i % len(info.shapes)]
-        groups.append({"group_desc": group_desc, "times": list(), "AVG": 0., "MIN": 0., "MAX": 0.})
-    return groups
+            names.append(info.name)
+            shapes.append(info.shapes[i % len(info.shapes)])
+        latency_groups.append(LatencyGroup(names, shapes))
+    return latency_groups
 
 
 def get_duration_in_milliseconds(duration):

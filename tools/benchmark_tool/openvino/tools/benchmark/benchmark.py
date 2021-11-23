@@ -105,7 +105,7 @@ class Benchmark:
                 idle_id = requests.get_idle_request_id()
                 if idle_id in in_fly:
                     times.append(requests[idle_id].latency)
-                    self.latency_groups[requests.userdata[idle_id]]["times"].append(requests[idle_id].latency)
+                    self.latency_groups[requests.userdata[idle_id]].times.append(requests[idle_id].latency)
                 else:
                     in_fly.add(idle_id)
                 group_id = data_queue.current_group_id
@@ -144,10 +144,11 @@ class Benchmark:
         max_latency_ms = times[-1]
 
         for group in self.latency_groups:
-            group["times"].sort()
-            group["AVG"] = sum(group["times"]) / len(group["times"])
-            group["MIN"] = group["times"][0]
-            group["MAX"] = group["times"][-1]
+            if group.times:
+                group.times.sort()
+                group.avg = sum(group.times) / len(group.times)
+                group.min = group.times[0]
+                group.max = group.times[-1]
 
         fps = len(batch_size) * 1000 / median_latency_ms if self.api_type == 'sync' else processed_frames / total_duration_sec
         if progress_bar:
