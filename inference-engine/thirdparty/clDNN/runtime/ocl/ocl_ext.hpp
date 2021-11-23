@@ -643,7 +643,11 @@ public:
     UsmHolder(const cl::UsmHelper& usmHelper, void* ptr) : _usmHelper(usmHelper), _ptr(ptr) { }
     void* ptr() { return _ptr; }
     ~UsmHolder() {
-        _usmHelper.free_mem(_ptr);
+        try {
+            _usmHelper.free_mem(_ptr);
+        } catch (...) {
+            // Exception may happen only when clMemFreeINTEL function is unavailable, thus can't free memory properly
+        }
     }
 private:
     const cl::UsmHelper& _usmHelper;
