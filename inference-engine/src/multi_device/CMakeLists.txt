@@ -5,11 +5,10 @@
 set (TARGET_NAME "MultiDevicePlugin")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp)
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.hpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "MULTI"
-              SOURCES ${SOURCES} ${HEADERS}
+              SOURCES ${SOURCES} 
               VERSION_DEFINES_FOR multi_device_plugin.cpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
