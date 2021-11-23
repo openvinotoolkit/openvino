@@ -21,8 +21,8 @@ using OpImplParams = std::tuple<
         std::string,                         // Target Device
         std::map<std::string, std::string>>; // Plugin Config
 
-class OpImplCheckBaseClass : public testing::WithParamInterface<OpImplParams>,
-                             public CommonTestUtils::TestsCommon {
+class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
+                        public CommonTestUtils::TestsCommon {
 protected:
     LayerTestsUtils::Summary& summary = LayerTestsUtils::Summary::getInstance();
     std::shared_ptr<ov::runtime::Core> core = ov::test::utils::PluginCache::get().core();

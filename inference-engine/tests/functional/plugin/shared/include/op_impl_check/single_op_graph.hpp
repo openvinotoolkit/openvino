@@ -5,6 +5,7 @@
 #pragma once
 
 #include <functional_test_utils/layer_test_utils/summary.hpp>
+#include <ngraph_functions/subgraph_builders.hpp>
 
 namespace ov {
 namespace test {
@@ -15,7 +16,12 @@ static std::vector<std::shared_ptr<ov::Function>> createFunctions() {
     for (const auto& opset : opsets) {
         std::cout << opset.size();
     }
-    return {nullptr};
+    const std::vector<std::shared_ptr<ov::Function>> a = {
+            ngraph::builder::subgraph::makeConvPoolRelu(),
+            ngraph::builder::subgraph::makeConvPoolReluNonZero(),
+            nullptr
+    };
+    return a;
 }
 
 }  // namespace subgraph

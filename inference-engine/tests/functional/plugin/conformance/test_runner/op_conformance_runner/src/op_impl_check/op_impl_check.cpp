@@ -10,14 +10,12 @@ namespace ConformanceTests {
 using namespace ov::test::subgraph;
 
 namespace {
-
-
 INSTANTIATE_TEST_SUITE_P(conformance,
-                         OpImplCheckBaseClass,
+                         OpImplCheckTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(createFunctions()),
                                  ::testing::Values(targetDevice),
                                  ::testing::Values(pluginConfig)),
-                         OpImplCheckBaseClass::getTestCaseName);
+                         OpImplCheckTest::getTestCaseName);
 } // namespace
 } // namespace ConformanceTests
