@@ -34,6 +34,16 @@ void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
+ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+    ov::SinkVector sinks;
+    for (const auto& node : nodes) {
+        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
+        NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
+        sinks.push_back(sink);
+    }
+    return sinks;
+}
+
 void regclass_graph_Function(py::module m) {
     py::class_<ov::Function, std::shared_ptr<ov::Function>> function(m, "Function", py::module_local());
     function.doc() = "openvino.impl.Function wraps ov::Function";
@@ -43,12 +53,7 @@ void regclass_graph_Function(py::module m) {
                              const ov::ParameterVector& params,
                              const std::string& name) {
                      set_tensor_names(params);
-                     ov::SinkVector sinks;
-                     for (const auto& node : nodes) {
-                         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
-                         NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
-                         sinks.push_back(sink);
-                     }
+                     const auto sinks = cast_to_sink_vector(nodes);
                      return std::make_shared<ov::Function>(res, sinks, params, name);
                  }),
                  py::arg("results"),
@@ -97,11 +102,11 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init([](const std::shared_ptr<ov::Node>& results,
+    function.def(py::init([](const std::shared_ptr<ov::Node>& result,
                              const ov::ParameterVector& parameters,
                              const std::string& name) {
                      set_tensor_names(parameters);
-                     return std::make_shared<ov::Function>(results, parameters, name);
+                     return std::make_shared<ov::Function>(result, parameters, name);
                  }),
                  py::arg("result"),
                  py::arg("parameters"),
@@ -111,7 +116,7 @@ void regclass_graph_Function(py::module m) {
 
                     Parameters
                     ----------
-                    results : Node
+                    result : Node
                         Node to be used as result.
 
                     parameters : List[op.Parameter]
@@ -120,35 +125,6 @@ void regclass_graph_Function(py::module m) {
                     name : str
                         String to set as function's friendly name.
                  )");
-
-    function.def(py::init([](const ov::ResultVector& results,
-                             const ov::SinkVector& sinks,
-                             const ov::ParameterVector& parameters,
-                             const std::string& name) {
-                     set_tensor_names(parameters);
-                     return std::make_shared<ov::Function>(results, sinks, parameters, name);
-                 }),
-                 py::arg("results"),
-                 py::arg("sinks"),
-                 py::arg("parameters"),
-                 py::arg("name") = ""),
-        R"(
-            Create user-defined Function which is a representation of a model
-
-            Parameters
-            ----------
-            results : List[op.Result]
-                List of results.
-
-            sinks : List[op.Sink]
-                List of sinks.
-
-            parameters : List[op.Parameter]
-                List of parameters.
-
-            name : str
-                String to set as function's friendly name.
-            )";
 
     function.def(
         py::init([](const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name) {
@@ -174,10 +150,11 @@ void regclass_graph_Function(py::module m) {
         )";
 
     function.def(py::init([](const ov::OutputVector& results,
-                             const ov::SinkVector& sinks,
+                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
                              const ov::ParameterVector& parameters,
                              const std::string& name) {
                      set_tensor_names(parameters);
+                     const auto sinks = cast_to_sink_vector(nodes);
                      return std::make_shared<ov::Function>(results, sinks, parameters, name);
                  }),
                  py::arg("results"),
@@ -192,8 +169,8 @@ void regclass_graph_Function(py::module m) {
             results : List[Output]
                 List of outputs.
 
-            sinks : List[op.Sink]
-                List of sinks.
+            sinks : List[Node]
+                List of Nodes to be used as Sinks (e.g. Assign ops).
 
             parameters : List[op.Parameter]
                 List of parameters.
@@ -201,13 +178,13 @@ void regclass_graph_Function(py::module m) {
             name : str
                 String to set as function's friendly name.
             )";
-
     function.def(py::init([](const ov::ResultVector& results,
-                             const ov::SinkVector& sinks,
+                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
                              const ov::ParameterVector& parameters,
                              const ov::op::util::VariableVector& variables,
                              const std::string& name) {
                      set_tensor_names(parameters);
+                     const auto sinks = cast_to_sink_vector(nodes);
                      return std::make_shared<ov::Function>(results, sinks, parameters, variables, name);
                  }),
                  py::arg("results"),
@@ -223,8 +200,8 @@ void regclass_graph_Function(py::module m) {
             results : List[op.Result]
                 List of results.
 
-            sinks : List[op.Sink]
-                List of sinks
+            sinks : List[Node]
+                List of Nodes to be used as Sinks (e.g. Assign ops).
 
             parameters : List[op.Parameter]
                 List of parameters.
@@ -237,11 +214,12 @@ void regclass_graph_Function(py::module m) {
             )";
 
     function.def(py::init([](const ov::OutputVector& results,
-                             const ov::SinkVector& sinks,
+                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
                              const ov::ParameterVector& parameters,
                              const ov::op::util::VariableVector& variables,
                              const std::string& name) {
                      set_tensor_names(parameters);
+                     const auto sinks = cast_to_sink_vector(nodes);
                      return std::make_shared<ov::Function>(results, sinks, parameters, variables, name);
                  }),
                  py::arg("results"),
@@ -257,8 +235,8 @@ void regclass_graph_Function(py::module m) {
             results : List[Output]
                 List of results.
 
-            sinks : List[op.Sink]
-                List of sinks.
+            sinks : List[Node]
+                List of Nodes to be used as Sinks (e.g. Assign ops).
 
             parameters : List[op.Parameter]
                 List of parameters.
