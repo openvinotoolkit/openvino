@@ -21,7 +21,7 @@ using GroupDeconvSpecParams = LayerTestsDefinitions::groupConvBackpropSpecificPa
 using DeconvInputData = std::tuple<InputShape,                           // data shape
                                    ngraph::helpers::InputLayerType,      // 'output_shape' input type
                                    std::vector<std::vector<int32_t>>,    // values for 'output_shape'
-                                   CPUSpecificParams>;
+                                   std::vector<CPUSpecificParams>>;
 
 using GroupDeconvLayerCPUTestParamsSet = std::tuple<GroupDeconvSpecParams,
                                                     DeconvInputData,
@@ -36,7 +36,7 @@ public:
         GroupDeconvSpecParams basicParamsSet;
         DeconvInputData inputData;
         ElementType prec;
-        CPUSpecificParams cpuParams;
+        std::vector<CPUSpecificParams> cpuParams;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
         std::tie(basicParamsSet, inputData, prec, fusingParams, additionalConfig) = obj.param;
@@ -79,7 +79,9 @@ public:
             result << ")_";
         }
 
-        result << CPUTestsBase::getTestCaseName(cpuParams);
+        if (!cpuParams.empty()) {
+            result << CPUTestsBase::getTestCaseName(cpuParams.front());
+        }
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         if (!additionalConfig.empty()) {
@@ -197,7 +199,7 @@ protected:
 
         GroupDeconvSpecParams basicParamsSet;
         DeconvInputData inputData;
-        CPUSpecificParams cpuParams;
+        std::vector<CPUSpecificParams> cpuParams;
         fusingSpecificParams fusingParams;
         std::map<std::string, std::string> additionalConfig;
         std::tie(basicParamsSet, inputData, prec, fusingParams, additionalConfig) = this->GetParam();
@@ -210,7 +212,12 @@ protected:
         InputShape inputShape;
         ngraph::helpers::InputLayerType outShapeType;
         std::tie(inputShape, outShapeType, outShapeData, cpuParams) = inputData;
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+
+        if (cpuParams.empty()) {
+            GTEST_SKIP();
+        }
+
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams.front();
 
         if (additionalConfig[InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16] == InferenceEngine::PluginConfigParams::YES) {
             inType = outType = prec = ElementType::bf16;
@@ -312,25 +319,25 @@ const std::vector<DeconvInputData> Planar_2D_inputs = {
         InputShape{{}, {{ 2, 12, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({conv_gemm_2D}).front()
+        filterCPUInfoForDevice({conv_gemm_2D})
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({conv_gemm_2D}).front()
+        filterCPUInfoForDevice({conv_gemm_2D})
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}},
-        filterCPUInfoForDevice({conv_gemm_2D}).front()
+        filterCPUInfoForDevice({conv_gemm_2D})
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
         ngraph::helpers::InputLayerType::PARAMETER,
         {{15, 15}, {9, 10}, {9, 9}},
-        filterCPUInfoForDevice({conv_gemm_2D}).front()
+        filterCPUInfoForDevice({conv_gemm_2D})
     }
 };
 
@@ -370,25 +377,25 @@ const std::vector<DeconvInputData> Planar_3D_inputs = {
         InputShape{{}, {{ 2, 12, 7, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({conv_gemm_3D}).front()
+        filterCPUInfoForDevice({conv_gemm_3D})
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({conv_gemm_3D}).front()
+        filterCPUInfoForDevice({conv_gemm_3D})
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15, 15}},
-        filterCPUInfoForDevice({conv_gemm_3D}).front()
+        filterCPUInfoForDevice({conv_gemm_3D})
     },
     DeconvInputData{
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
         ngraph::helpers::InputLayerType::PARAMETER,
         {{15, 15, 15}, {9, 10, 10}, {9, 9, 9}},
-        filterCPUInfoForDevice({conv_gemm_3D}).front()
+        filterCPUInfoForDevice({conv_gemm_3D})
     }
 };
 
@@ -429,25 +436,25 @@ const std::vector<DeconvInputData> Blocked_2D_inputs = {
         InputShape{{}, {{ 2, 64, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({conv_avx512_2D}).front()
+        filterCPUInfoForDevice({conv_avx512_2D})
     },
     DeconvInputData{
         InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({deconv_blk_ref_2D}).front()
+        filterCPUInfoForDevice({deconv_blk_ref_2D})
     },
     DeconvInputData{
         InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}},
-        filterCPUInfoForDevice({deconv_blk_ref_2D}).front()
+        filterCPUInfoForDevice({deconv_blk_ref_2D})
     },
     DeconvInputData{
         InputShape{{-1, 64, -1, -1}, {{ 2, 64, 7, 7}, { 2, 64, 5, 7}, { 1, 64, 9, 4}}},
         ngraph::helpers::InputLayerType::PARAMETER,
         {{15, 15}, {9, 10}, {9, 9}},
-        filterCPUInfoForDevice({deconv_blk_ref_2D}).front()
+        filterCPUInfoForDevice({deconv_blk_ref_2D})
     }
 };
 
@@ -488,19 +495,19 @@ const std::vector<DeconvInputData> Blocked_3D_inputs = {
         InputShape{{-1, 32, -1, -1, -1}, {{ 1, 32, 5, 5, 5}, { 2, 32, 5, 7, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({deconv_blk_ref_3D}).front()
+        filterCPUInfoForDevice({deconv_blk_ref_3D})
     },
     DeconvInputData{
         InputShape{{-1, 32, -1, -1, -1}, {{ 1, 32, 5, 5, 5}, { 2, 32, 5, 7, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{7, 7, 7}},
-        filterCPUInfoForDevice({deconv_blk_ref_3D}).front()
+        filterCPUInfoForDevice({deconv_blk_ref_3D})
     },
     DeconvInputData{
         InputShape{{-1, 32, -1, -1, -1}, {{ 1, 32, 5, 5, 5}, { 2, 32, 5, 7, 5}}},
         ngraph::helpers::InputLayerType::PARAMETER,
         {{7, 7, 7}, {7, 9, 7}},
-        filterCPUInfoForDevice({deconv_blk_ref_3D}).front()
+        filterCPUInfoForDevice({deconv_blk_ref_3D})
     }
 };
 
@@ -522,7 +529,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Blocked_FP32_static, GroupDeconvol
         ::testing::Values(DeconvInputData{InputShape{{}, {{ 2, 64, 7, 7, 7 }}},
                                           ngraph::helpers::InputLayerType::CONSTANT,
                                           {},
-                                          filterCPUInfoForDevice({conv_avx512_3D}).front()}),
+                                          filterCPUInfoForDevice({conv_avx512_3D})}),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
@@ -534,7 +541,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_Blocked_BF16_static, GroupDeconvol
         ::testing::Values(DeconvInputData{InputShape{{}, {{ 2, 64, 7, 7, 7 }}},
                                           ngraph::helpers::InputLayerType::CONSTANT,
                                           {},
-                                          filterCPUInfoForDevice({conv_avx512_3D}).front()}),
+                                          filterCPUInfoForDevice({conv_avx512_3D})}),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
@@ -576,25 +583,25 @@ const std::vector<DeconvInputData> dw_2D_inputs = {
         InputShape{{}, {{ 2, 32, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({conv_avx512_dw_2D}).front()
+        filterCPUInfoForDevice({conv_avx512_dw_2D})
     },
     DeconvInputData{
         InputShape{{-1, 32, -1, -1}, {{ 1, 32, 5, 5}, { 2, 32, 5, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({conv_avx512_dw_2D}).front()
+        filterCPUInfoForDevice({conv_avx512_dw_2D})
     },
     DeconvInputData{
         InputShape{{-1, 32, -1, -1}, {{ 1, 32, 5, 5}, { 2, 32, 5, 7}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{7, 7}},
-        filterCPUInfoForDevice({conv_avx512_dw_2D}).front()
+        filterCPUInfoForDevice({conv_avx512_dw_2D})
     },
     DeconvInputData{
         InputShape{{-1, 32, -1, -1}, {{ 1, 32, 5, 5}, { 2, 32, 5, 7}}},
         ngraph::helpers::InputLayerType::PARAMETER,
         {{7, 7}, {7, 9}},
-        filterCPUInfoForDevice({conv_avx512_dw_2D}).front()
+        filterCPUInfoForDevice({conv_avx512_dw_2D})
     }
 };
 

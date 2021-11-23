@@ -37,7 +37,7 @@ bool MKLDNNDeconvolutionNode::isSupportedOperation(const std::shared_ptr<const n
             return false;
         }
         if (op->get_input_partial_shape(1).is_dynamic() || (op->get_input_size() > 2 && op->get_input_partial_shape(2).is_dynamic())) {
-            errorMessage = "Doesn't support dynamic 'weights' and 'output_shape' shapes";
+            errorMessage = "Doesn't support dynamic shapes for 'weights' and 'output_shape' inputs";
             return false;
         }
     } catch (...) {
@@ -103,8 +103,8 @@ MKLDNNDeconvolutionNode::MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::N
             kernel.push_back(weightDims[withGroups + 2 + i]);
         }
 
-        withOutputShape = inputShapes.size() == 3;
-        if (isDynamicNode() && withOutputShape &&
+        extOutShape = inputShapes.size() == 3;
+        if (isDynamicNode() && extOutShape &&
                 op->get_input_node_shared_ptr(2)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
             outSpatialDims = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2))->cast_vector<int32_t>();
         }
@@ -163,16 +163,16 @@ bool MKLDNNDeconvolutionNode::canBeExecutedInInt8() const {
     if (!withGroups && stride.back() > 3)
         return false;
     if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_common)) {
-        auto inDims = getOutputShapeAtPort(0).getMaxDims();
-        if (std::any_of(inDims.begin(), inDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
+        const auto& inMaxDims = getOutputShapeAtPort(0).getMaxDims();
+        if (std::any_of(inMaxDims.begin(), inMaxDims.end(), [](Dim dim) { return dim == Shape::UNDEFINED_DIM; })) {
             return false;
         }
         // heuristicConst = 2^26
         // heuristicParam = IC^2 * SP
         auto heuristicConst = 67108864;
         auto heuristicParam = IC * IC;
-        for (int i = 2; i < inDims.size(); i++)
-            heuristicParam *= inDims[i];
+        for (int i = 2; i < inMaxDims.size(); i++)
+            heuristicParam *= inMaxDims[i];
         if (heuristicParam > heuristicConst)
             return false;
     }
@@ -254,7 +254,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     auto dummyInShape = MemoryDescUtils::makeDummyShape(getInputShapeAtPort(0));
     auto dummyOutShape = MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0));
     if (isDynamicNode()) {
-        if (withOutputShape && outSpatialDims.empty()) {
+        if (extOutShape && outSpatialDims.empty()) {
             outSpatialDims.resize((getInputShapeAtPort(0).getRank() - 2), 64);
         }
         dummyOutShape = Shape(deconvShapeInfer(dummyInShape.getStaticDims()));
@@ -371,7 +371,7 @@ bool MKLDNNDeconvolutionNode::needShapeInfer() const {
     if (inputShapesModified()) {
         return true;
     }
-    if (withOutputShape) {
+    if (extOutShape) {
         if (outSpatialDims.empty()) {
             return true;
         }
@@ -386,14 +386,10 @@ bool MKLDNNDeconvolutionNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNDeconvolutionNode::shapeInfer() const {
-    if (withOutputShape) {
+    if (extOutShape) {
         const auto &shapeMemPtr = getParentEdgesAtPort(2)[0]->getMemoryPtr();
         const int32_t *outShapePtr = reinterpret_cast<const int32_t *>(shapeMemPtr->GetPtr());
-        if (outSpatialDims.empty())
-            outSpatialDims.resize(shapeMemPtr->getStaticDims()[0]);
-        for (size_t i = 0; i < outSpatialDims.size(); i++) {
-            outSpatialDims[i] = outShapePtr[i];
-        }
+        outSpatialDims.assign(outShapePtr, outShapePtr + shapeMemPtr->getStaticDims()[0]);
     }
     const auto &dataMemPtr = getParentEdgesAtPort(0)[0]->getMemoryPtr();
     return {deconvShapeInfer(dataMemPtr->getStaticDims())};
@@ -578,7 +574,7 @@ void MKLDNNDeconvolutionNode::prepareParams() {
             pAttr = initPrimitiveAttr();
         }
         pAttrLocal = pAttr;
-        if (autoPad || withOutputShape) {
+        if (autoPad || extOutShape) {
             initPadding(opToShapeInfer);
         }
         initPaddingR(inMemoryDesc->getShape(), outMemoryDesc->getShape());

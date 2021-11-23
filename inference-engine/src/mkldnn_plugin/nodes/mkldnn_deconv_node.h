@@ -56,7 +56,7 @@ private:
     bool isDW = false;
     bool isInt8 = false;
     bool autoPad = false;
-    bool withOutputShape = false;
+    bool extOutShape = false;
     size_t groupNum = 1;
     size_t IC;
     size_t OC;
