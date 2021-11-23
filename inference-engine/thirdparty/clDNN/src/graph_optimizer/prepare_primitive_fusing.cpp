@@ -382,7 +382,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                      biases,
                                                                      desc->groups,
                                                                      desc->stride,
-                                                                     desc->input_offset,
+                                                                     desc->pad,
                                                                      desc->dilation,
                                                                      conv.get_output_layout().size,
                                                                      conv.get_output_layout().data_type,
@@ -420,7 +420,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          biases,
                                                                          desc->groups,
                                                                          desc->stride,
-                                                                         desc->input_offset,
+                                                                         desc->pad,
                                                                          deconv.get_output_layout().size,
                                                                          desc->grouped_weights_shape);
 
