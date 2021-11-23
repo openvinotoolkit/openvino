@@ -548,9 +548,9 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
                 elif(shape[3] == image_colors_dim):
                     info.layout = "NHWC"
             elif num_dims == image_colors_dim:
-                if(shape[1]) == image_colors_dim:
+                if(shape[0]) == image_colors_dim:
                     info.layout = "CHW"
-                elif(shape[3] == image_colors_dim):
+                elif(shape[2] == image_colors_dim):
                     info.layout = "HWC"
             elif num_dims == 2:
                 info.layout = "NC"
