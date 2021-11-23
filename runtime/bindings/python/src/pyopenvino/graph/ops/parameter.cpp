@@ -35,4 +35,6 @@ void regclass_graph_op_Parameter(py::module m) {
     parameter.def("get_partial_shape",
                   (ov::PartialShape & (ov::op::v0::Parameter::*)()) & ov::op::v0::Parameter::get_partial_shape);
     parameter.def("set_partial_shape", &ov::op::v0::Parameter::set_partial_shape);
+    parameter.def("set_layout", &ov::op::v0::Parameter::set_layout);
+    parameter.def("get_layout", &ov::op::v0::Parameter::get_layout);
 }
