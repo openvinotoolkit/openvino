@@ -66,21 +66,18 @@ protected:
     void SetUp() override {
         InputShape shapes;
         StridedSliceParams ssParams;
-        ElementType elementType;
         CPUSpecificParams cpuParams;
-        std::tie(shapes, ssParams, elementType, cpuParams) = this->GetParam();
+        std::tie(shapes, ssParams, inType, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(inType).name();
+        selectedType = makeSelectedTypeStr("ref", inType);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes({shapes});
 
-        auto params = ngraph::builder::makeDynamicParams(elementType, inputDynamicShapes);
-        auto ss = ngraph::builder::makeStridedSlice(params[0], ssParams.begin, ssParams.end, ssParams.strides, elementType, ssParams.beginMask,
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto ss = ngraph::builder::makeStridedSlice(params[0], ssParams.begin, ssParams.end, ssParams.strides, inType, ssParams.beginMask,
                                                     ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
-        ss->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
-        function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
+        function = makeNgraphFunction(inType, params, ss, "StridedSlice");
     }
 };
 
@@ -88,8 +85,7 @@ TEST_P(StridedSliceLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: need to uncomment when this method will be updated
-    // CheckPluginRelatedResults(executableNetwork, "StridedSlice");
+    CheckPluginRelatedResults(executableNetwork, "StridedSlice");
 }
 
 namespace {

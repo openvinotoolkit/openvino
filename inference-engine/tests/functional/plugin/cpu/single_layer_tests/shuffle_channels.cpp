@@ -2,74 +2,80 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/shuffle_channels.hpp>
+#include "shared_test_classes/single_layer/shuffle_channels.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ngraph::opset3;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
 
-typedef std::tuple<
-        LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet,
-        CPUSpecificParams> ShuffleChannelsLayerCPUTestParamsSet;
+using ShuffleChannelsLayerCPUTestParamsSet = std::tuple<
+        InputShape,                                             // Input shape
+        ElementType,                                            // Input element type
+        LayerTestsDefinitions::shuffleChannelsSpecificParams,
+        CPUSpecificParams>;
 
 class ShuffleChannelsLayerCPUTest : public testing::WithParamInterface<ShuffleChannelsLayerCPUTestParamsSet>,
-                                     virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                                     virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet> obj) {
-        LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet basicParamsSet;
+        InputShape shapes;
+        ElementType inType;
+        LayerTestsDefinitions::shuffleChannelsSpecificParams shuffleChannelsParams;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = obj.param;
+        int axis, group;
+        std::tie(axis, group) = shuffleChannelsParams;
 
-        std::ostringstream result;
-        result << LayerTestsDefinitions::ShuffleChannelsLayerTest::getTestCaseName(
-                     testing::TestParamInfo<LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet>(basicParamsSet, 0));
+        std::ostringstream results;
+        results << "IS=" << CommonTestUtils::partialShape2str({shapes.first}) << "_";
+        results << "TS=";
+        for (const auto& item : shapes.second) {
+            results << CommonTestUtils::vec2str(item) << "_";
+        }
+        results << "Prc=" << inType << "_";
+        results << "Axis=" << std::to_string(axis) << "_";
+        results << "Group=" << std::to_string(group) << "_";
+        results << CPUTestsBase::getTestCaseName(cpuParams);
 
-        result << CPUTestsBase::getTestCaseName(cpuParams);
-
-        return result.str();
+        return results.str();
     }
 
 protected:
     void SetUp() override {
-        LayerTestsDefinitions::shuffleChannelsLayerTestParamsSet basicParamsSet;
+        InputShape shapes;
+        ElementType inType;
+        LayerTestsDefinitions::shuffleChannelsSpecificParams shuffleChannelsParams;
+        int axis, group;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = this->GetParam();
+        std::tie(axis, group) = shuffleChannelsParams;
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        LayerTestsDefinitions::shuffleChannelsSpecificParams shuffleChannelsParams;
-        std::vector<size_t> inputShape;
-        Precision netPrecision;
-        std::tie(shuffleChannelsParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
-
-        int axis, group;
-        std::tie(axis, group) = shuffleChannelsParams;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
-                ngraph::builder::makeShuffleChannels(paramOuts[0], axis, group));
-        shuffleChannels->get_rt_info() = getCPUInfo();
-        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shuffleChannels)};
-        function = std::make_shared<ngraph::Function>(results, params, "shuffleChannels");
-
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
-        selectedType.push_back('_');
-        selectedType += netPrecision.name();
+        selectedType = makeSelectedTypeStr(selectedType, inType);
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        init_input_shapes({shapes});
+
+        auto params = ngraph::builder::makeDynamicParams(inType, inputDynamicShapes);
+        auto shuffleChannels = std::dynamic_pointer_cast<ngraph::opset3::ShuffleChannels>(
+                ngraph::builder::makeShuffleChannels(params[0], axis, group));
+        function = makeNgraphFunction(inType, params, shuffleChannels, "ShuffleChannels");
     }
 };
 
 TEST_P(ShuffleChannelsLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    Run();
+    run();
     CheckPluginRelatedResults(executableNetwork, "ShuffleChannels");
 }
 
@@ -135,87 +141,117 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice5DBlock() {
 }
 /* ========== */
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::BF16,
-        InferenceEngine::Precision::I8
+const std::vector<ElementType> inputElementType = {
+        ElementType::f32,
+        ElementType::bf16,
+        ElementType::i8
 };
 
 const auto shuffleChannelsParams4D = ::testing::Combine(
-        ::testing::ValuesIn(std::vector<int>{-4, -2, 0, 1, 2, 3}),
-        ::testing::ValuesIn(std::vector<int>{1, 2, 4, 8})
+        ::testing::ValuesIn(std::vector<int>{-4, -2, 0, 1, 3}),
+        ::testing::ValuesIn(std::vector<int>{1, 2, 4})
 );
 
 const auto shuffleChannelsParams5D = ::testing::Combine(
-        ::testing::ValuesIn(std::vector<int>{-5, -1, 0, 1, 2, 3, 4}),
-        ::testing::ValuesIn(std::vector<int>{1, 2, 3, 6})
+        ::testing::ValuesIn(std::vector<int>{-5, -3, -1, 0, 1, 3}),
+        ::testing::ValuesIn(std::vector<int>{1, 2, 3})
 );
-
-INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerCPUTest,
-        ::testing::Combine(
-            ::testing::Combine(
-                shuffleChannelsParams4D,
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({16, 24, 32, 40})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-            ::testing::ValuesIn(filterCPUInfoForDevice4D())),
-        ShuffleChannelsLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels5D, ShuffleChannelsLayerCPUTest,
-        ::testing::Combine(
-            ::testing::Combine(
-                shuffleChannelsParams5D,
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({12, 18, 12, 18, 24})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-            ::testing::ValuesIn(filterCPUInfoForDevice5D())),
-        ShuffleChannelsLayerCPUTest::getTestCaseName);
 
 const auto shuffleChannelsParams4DBlock = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{-4, -2, -1, 0, 2, 3}),
-        ::testing::ValuesIn(std::vector<int>{1, 2, 4, 8})
+        ::testing::ValuesIn(std::vector<int>{1, 2, 4})
 );
 
 const auto shuffleChannelsParams5DBlock = ::testing::Combine(
         ::testing::ValuesIn(std::vector<int>{-5, -2, -1, 0, 2, 3, 4}),
-        ::testing::ValuesIn(std::vector<int>{1, 2, 3, 6})
+        ::testing::ValuesIn(std::vector<int>{1, 2, 3})
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels4DBlock, ShuffleChannelsLayerCPUTest,
-        ::testing::Combine(
-            ::testing::Combine(
-                shuffleChannelsParams4DBlock,
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({40, 32, 24, 16})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-            ::testing::ValuesIn(filterCPUInfoForDevice4DBlock())),
-        ShuffleChannelsLayerCPUTest::getTestCaseName);
+const std::vector<InputShape> inputShapesDynamic4D = {
+        {{-1, -1, -1, -1},
+         {{8, 4, 4, 4}, {8, 16, 8, 4}}},
 
-INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannels5DBlock, ShuffleChannelsLayerCPUTest,
-        ::testing::Combine(
-            ::testing::Combine(
-                shuffleChannelsParams5DBlock,
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t >({18, 12, 18, 12, 30})),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-            ::testing::ValuesIn(filterCPUInfoForDevice5DBlock())),
-        ShuffleChannelsLayerCPUTest::getTestCaseName);
+        {{-1, 8, -1, -1},
+         {{8, 8, 8, 8}, {8, 8, 4, 16}}},
+
+        {{{4, 32}, {4, 32}, {4, 32}, {4, 32}},
+         {{4, 12, 8, 8}, {8, 32, 12, 4}}},
+};
+
+const std::vector<InputShape> inputShapesDynamic5D = {
+        {{-1, -1, -1, -1, -1},
+         {{6, 6, 6, 6, 6}, {12, 6, 12, 12, 12}}},
+
+        {{-1, 18, -1, -1, -1},
+         {{6, 18, 12, 6, 12}, {6, 18, 6, 6, 6}}},
+
+        {{{6, 24}, {6, 24}, {6, 24}, {6, 24}, {6, 24}},
+         {{24, 12, 6, 6, 6}, {12, 24, 6, 12, 12}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsStatic4D, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(static_shapes_to_test_representation({{16, 24, 32, 40}})),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams4D,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice4D())),
+                        ShuffleChannelsLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsDynamic4D, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesDynamic4D),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams4D,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice4D())),
+                        ShuffleChannelsLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsStatic5D, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(static_shapes_to_test_representation({{6, 24, 12, 12, 6}})),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams5D,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice5D())),
+                         ShuffleChannelsLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsDynamic5D, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesDynamic5D),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams5D,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice5D())),
+                         ShuffleChannelsLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsStatic4DBlock, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(static_shapes_to_test_representation({{40, 32, 24, 16}})),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams4DBlock,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice4DBlock())),
+                         ShuffleChannelsLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsDynamic4DBlock, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesDynamic4D),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams4DBlock,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice4DBlock())),
+                         ShuffleChannelsLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsStatic5DBlock, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(static_shapes_to_test_representation({{18, 12, 18, 12, 30}})),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams5DBlock,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice5DBlock())),
+                         ShuffleChannelsLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ShuffleChannelsDynamic5DBlock, ShuffleChannelsLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(inputShapesDynamic5D),
+                                 ::testing::ValuesIn(inputElementType),
+                                 shuffleChannelsParams5DBlock,
+                                 ::testing::ValuesIn(filterCPUInfoForDevice5DBlock())),
+                         ShuffleChannelsLayerCPUTest::getTestCaseName);
 
 } // namespace
 
