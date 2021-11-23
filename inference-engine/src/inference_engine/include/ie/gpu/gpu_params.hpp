@@ -98,7 +98,18 @@ DECLARE_GPU_PARAM_VALUE(OCL_BUFFER);
  * @brief Shared OpenCL 2D image blob
  */
 DECLARE_GPU_PARAM_VALUE(OCL_IMAGE2D);
-
+/**
+ * @brief Shared USM pointer allocated by user
+ */
+DECLARE_GPU_PARAM_VALUE(USM_USER_BUFFER);
+/**
+ * @brief Shared USM pointer type with host allocation type allocated by plugin
+ */
+DECLARE_GPU_PARAM_VALUE(USM_HOST_BUFFER);
+/**
+ * @brief Shared USM pointer type with device allocation type allocated by plugin
+ */
+DECLARE_GPU_PARAM_VALUE(USM_DEVICE_BUFFER);
 /**
  * @brief Shared video decoder surface or D3D 2D texture blob
  */
