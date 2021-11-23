@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import onnx
 
-from extensions.front.onnx.detection_output import DetectionOutputFrontExtractor
+from extensions.front.onnx.detection_output_ext import DetectionOutputFrontExtractor
 from extensions.ops.DetectionOutput import DetectionOutput
 from mo.ops.op import Op
 from unit_tests.utils.extractors import PB
