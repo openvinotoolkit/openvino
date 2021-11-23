@@ -48,8 +48,7 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::CNNNetwork &network, std::sh
     }()},
     m_config(config),
     m_taskExecutor{ _taskExecutor },
-    m_waitExecutor(InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor",
-        config.throughput_streams > 1 ? config.throughput_streams : 1 })) {
+    m_waitExecutor(InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
     if (nullptr == casted_context) {
@@ -156,7 +155,6 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        metrics.push_back(GPU_METRIC_KEY(MEMORY_STATISTICS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
@@ -168,16 +166,6 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) 
         if (m_config.perfHintsConfig.ovPerfHint != CONFIG_VALUE(LATENCY))
             nr *= 2;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, nr);
-    } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS)) {
-        std::map<std::string, uint64_t> statistics;
-        if (m_context != nullptr) {
-            auto impl = getContextImpl(m_context);
-            impl->acquire_lock();
-            std::shared_ptr<cldnn::engine> eng = impl->GetEngine();
-            eng->get_memory_statistics(&statistics);
-            impl->release_lock();
-        }
-        IE_SET_METRIC_RETURN(GPU_MEMORY_STATISTICS, statistics);
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric: " << name;
     }

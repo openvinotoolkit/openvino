@@ -9,14 +9,18 @@
 #include <mutex>
 #include <ngraph/factory.hpp>
 #include <ngraph/node.hpp>
+#include <openvino/core/preprocess/input_tensor_info.hpp>
 #include <openvino/core/variant.hpp>
 #include <set>
 #include <transformations/rt_info/disable_constant_folding.hpp>
+#include <transformations/rt_info/disable_fp16_compression.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/rt_info/nms_selected_indices.hpp>
-#include <transformations/rt_info/old_api_map_attribute.hpp>
+#include <transformations/rt_info/old_api_map_element_type_attribute.hpp>
+#include <transformations/rt_info/old_api_map_order_attribute.hpp>
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include <transformations/rt_info/strides_property.hpp>
+#include <transformations/rt_info/decompression.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
 

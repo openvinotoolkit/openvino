@@ -368,7 +368,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
-        auto& cand = candidates.top();
+        auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
@@ -497,6 +497,9 @@ void network::allocate_primitives() {
                     auto eltw_in_layout = eltw_in.get_output_layout();
                     auto out_layout = node->get_output_layout();
 
+                    if (!fused_op.node->as<eltwise>().get_primitive()->needs_onednn_sum_post_op(eltw_in_layout))
+                        continue;
+
                     if (eltw_in_layout.size == out_layout.size &&
                         eltw_in_layout.format == out_layout.format &&
                         eltw_in_layout.data_padding == out_layout.data_padding &&
@@ -615,7 +618,8 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
-            GPU_DEBUG_COUT << "Execute " << inst->id() << std::endl;
+            GPU_DEBUG_COUT << "Execute " << inst->id() << ", memory type: "
+                           << inst->output_memory().get_allocation_type() << std::endl;
         }
 
         // If a node has mutable input or it's an output, then the input/output buffers might be changed

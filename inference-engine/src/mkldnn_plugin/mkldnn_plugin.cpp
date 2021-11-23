@@ -6,6 +6,7 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
+#include "mkldnn_extension.h"
 #include "mkldnn_itt.h"
 #include "mkldnn_serialize.h"
 
@@ -29,6 +30,8 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -115,7 +118,7 @@ using namespace InferenceEngine;
 
 Engine::Engine() {
     _pluginName = "CPU";
-    extensionManager->AddExtension(std::make_shared<Extensions::Cpu::MKLDNNExtensions>());
+    extensionManager->AddExtension(std::make_shared<MKLDNNPlugin::MKLDNNExtension>());
 }
 
 Engine::~Engine() {
@@ -126,6 +129,7 @@ Engine::~Engine() {
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =
@@ -135,7 +139,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
-
     auto get_convert_precisions = []() {
         precisions_array array = {
             {ngraph::element::i64,     ngraph::element::i32},
@@ -159,6 +162,8 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     static const auto precisions = get_convert_precisions();
 
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+    manager.register_pass<ngraph::pass::TransposeSinking>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
@@ -183,6 +188,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
+    manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
 
@@ -298,6 +304,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
             [](const_node_ptr &node) -> bool {
                 for (size_t i = 0; i < node->get_output_size(); i++) {
@@ -441,8 +448,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     for (const auto &ii : _networkInputs) {
         auto input_precision = ii.second->getPrecision();
-        if (input_precision != InferenceEngine::Precision::FP32 &&
+        if (input_precision != InferenceEngine::Precision::FP64 &&
+            input_precision != InferenceEngine::Precision::FP32 &&
             input_precision != InferenceEngine::Precision::I32 &&
+            input_precision != InferenceEngine::Precision::U32 &&
             input_precision != InferenceEngine::Precision::U16 &&
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::I8 &&
@@ -524,13 +533,15 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     // network is below general threshold
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
+
+                int ovPerfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;  // set thru SetConfig to the plugin
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
-                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
-                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
-                if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
-                    num_streams = std::min(num_streams,
-                            PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
+                if (num_requests != config.end()) {
+                    // arrived with config to the LoadNetwork (and thus higher pri)
+                    ovPerfHintNumRequests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+                }
+                num_streams = std::min(num_streams, std::max(ovPerfHintNumRequests, 1));
+
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
            }
         }

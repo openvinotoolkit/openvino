@@ -49,6 +49,7 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
+    void setup_stream_graph();
     void preprocess_notify();
     void enqueue_notify();
     void wait_notify();
@@ -69,9 +70,9 @@ private:
     std::map<std::string, cldnn::primitive_id> inputsMap;
     std::map<std::string, cldnn::primitive_id> outputsMap;
 
-    bool m_useProfiling;
-    bool m_useStreams;
-    bool m_useExternalQueue;
+    bool m_useProfiling = false;
+    bool m_useStreams = false;
+    bool m_useExternalQueue = false;
     std::shared_ptr<CLDNNGraph> m_graph;
 
     // dynamic batch stuff
@@ -91,12 +92,11 @@ private:
                          const cldnn::layout& inputLayout, const InferenceEngine::Blob &inputBlob,
                          buf_info* bi = nullptr);
 
+    InferenceEngine::Blob::Ptr host_blob_from_device_blob(const InferenceEngine::Blob::Ptr blobPtr);
     void allocate_inputs();
     void allocate_outputs();
     void allocate_inputs_dynamic();
     void allocate_outputs_dynamic();
-
-    void setStreamGraph();
 
     std::map<cldnn::primitive_id, cldnn::network_output> internal_outputs;
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> internal_outputs_dynamic;

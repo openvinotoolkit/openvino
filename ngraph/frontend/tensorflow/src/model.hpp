@@ -14,7 +14,7 @@ namespace frontend {
 class OpPlaceTF;
 class TensorPlaceTF;
 
-class InputModelTF : public ngraph::frontend::InputModel {
+class InputModelTF : public ov::frontend::InputModel {
     friend class FrontEndTF;
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
@@ -26,17 +26,17 @@ class InputModelTF : public ngraph::frontend::InputModel {
 public:
     explicit InputModelTF(const GraphIterator::Ptr& graph_iterator);
 
-    std::vector<ngraph::frontend::Place::Ptr> get_inputs() const override;
-    std::vector<ngraph::frontend::Place::Ptr> get_outputs() const override;
-    ngraph::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
-    void override_all_outputs(const std::vector<ngraph::frontend::Place::Ptr>& outputs) override;
-    void override_all_inputs(const std::vector<ngraph::frontend::Place::Ptr>& inputs) override;
-    void extract_subgraph(const std::vector<ngraph::frontend::Place::Ptr>& inputs,
-                          const std::vector<ngraph::frontend::Place::Ptr>& outputs) override;
-    void set_partial_shape(ngraph::frontend::Place::Ptr place, const ov::PartialShape&) override;
-    ov::PartialShape get_partial_shape(ngraph::frontend::Place::Ptr place) const override;
-    void set_element_type(ngraph::frontend::Place::Ptr place, const ov::element::Type&) override;
-    void set_tensor_value(ngraph::frontend::Place::Ptr place, const void* value) override;
+    std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
+    std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
+    ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
+    void override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) override;
+    void override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs) override;
+    void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
+                          const std::vector<ov::frontend::Place::Ptr>& outputs) override;
+    void set_partial_shape(ov::frontend::Place::Ptr place, const ov::PartialShape&) override;
+    ov::PartialShape get_partial_shape(ov::frontend::Place::Ptr place) const override;
+    void set_element_type(ov::frontend::Place::Ptr place, const ov::element::Type&) override;
+    void set_tensor_value(ov::frontend::Place::Ptr place, const void* value) override;
 };
 }  // namespace frontend
 }  // namespace ov
