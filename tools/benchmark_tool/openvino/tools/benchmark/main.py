@@ -205,11 +205,11 @@ def run(args):
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
         if load_from_file_enabled and not is_network_compiled:
             next_step()
-            print("Skipping the step for loading network from file")
+            print("Skipping the step for loading model from file")
             next_step()
-            print("Skipping the step for loading network from file")
+            print("Skipping the step for loading model from file")
             next_step()
-            print("Skipping the step for loading network from file")
+            print("Skipping the step for loading model from file")
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
@@ -221,7 +221,7 @@ def run(args):
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('compile model time (ms)', duration_ms)
+                                              ('load network time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
             batch_size = get_batch_size(app_inputs_info)
@@ -239,7 +239,7 @@ def run(args):
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('read model time (ms)', duration_ms)
+                                              ('read network time (ms)', duration_ms)
                                           ])
 
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
@@ -250,10 +250,10 @@ def run(args):
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
                 logger.info(
-                    'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
+                    'Reshaping model: {}'.format(', '.join("'{}': {}".format(k, str(v)) for k, v in shapes.items())))
                 function.reshape(shapes)
                 duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
-                logger.info(f"Reshape network took {duration_ms} ms")
+                logger.info(f"Reshape model took {duration_ms} ms")
                 if statistics:
                     statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                               [
@@ -283,7 +283,7 @@ def run(args):
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('compile model time (ms)', duration_ms)
+                                              ('load network time (ms)', duration_ms)
                                           ])
         else:
             next_step()
@@ -303,7 +303,7 @@ def run(args):
             if statistics:
                 statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
                                           [
-                                              ('import model time (ms)', duration_ms)
+                                              ('import network time (ms)', duration_ms)
                                           ])
             app_inputs_info, _ = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
             batch_size = get_batch_size(app_inputs_info)
