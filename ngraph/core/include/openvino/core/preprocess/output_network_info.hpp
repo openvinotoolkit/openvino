@@ -14,17 +14,15 @@ namespace preprocess {
 /// info may not be needed. However it can be set to specify additional information about network, like 'layout'.
 ///
 /// Example of usage of network 'layout':
-/// Support network has output parameter with shape {1, 3, 224, 224} and `NHWC` layout. User may need to transpose
+/// Support network has output result with shape {1, 3, 224, 224} and `NHWC` layout. User may need to transpose
 /// output picture to interleaved format {1, 224, 224, 3}. This can be done with the following code
 ///
 /// \code{.cpp}
-/// <network has output parameter with shape {1, 3, 224, 224}>
-/// auto proc =
-/// PrePostProcessor()
-///     .output(OutputInfo()
-///            .network(OutputNetworkInfo().set_layout("NCHW")
-///            .preprocess(PostProcessSteps().convert_layout("NHWC")))
-///     );
+///     <network has output result with shape {1, 3, 224, 224}>
+///     auto proc = PrePostProcessor(function);
+///     proc.output().network().set_layout("NCHW");
+///     proc.output().postprocess().convert_layout("NHWC");
+///     function = proc.build();
 /// \endcode
 class OPENVINO_API OutputNetworkInfo final {
     class OutputNetworkInfoImpl;

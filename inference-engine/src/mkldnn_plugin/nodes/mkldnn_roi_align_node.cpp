@@ -238,7 +238,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
         auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(ceil(binWidth)) : samplingRatio;
         auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
 
-        uint64_t numSamplesInBin = samplingRatioX * samplingRatioY;
+        uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
 
         float sampleDistanceX = binWidth / samplingRatioX;
         float sampleDistanceY = binHeight / samplingRatioY;
