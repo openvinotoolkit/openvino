@@ -125,9 +125,13 @@ jobs:
     workingDirectory: $(WORK_DIR)
     displayName: 'Install dependencies'
 
+  - powershell: |
+      Write-Host "##vso[task.setvariable variable=CMAKE_TOOLCHAIN_FILE]$(CMAKE_TOOLCHAIN_FILE)"
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
+    displayName: "Set cmake toolchain"
+
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      set CMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE)
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -GNinja -DENABLE_ONEDNN_FOR_GPU=OFF -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_CLDNN=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_GAPI_PREPROCESSING=$(CMAKE_BUILD_SHARED_LIBS) -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.7.6\x64\include" -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.7.6\x64\libs\python37.lib" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
@@ -137,7 +141,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(CMAKE_CMD) --build . --config Release -j8"
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="$(CMAKE_CMD) --build . --config Release"
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win - IB'
 
@@ -166,16 +170,12 @@ jobs:
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: |
-      set CMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE)
-      $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat -i $(INSTALL_DIR)
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
     continueOnError: false
 
-  - script: |
-      set CMAKE_TOOLCHAIN_FILE=$(CMAKE_TOOLCHAIN_FILE)
-      $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
+  - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat -i $(INSTALL_DIR)
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
     continueOnError: false
@@ -196,6 +196,7 @@ jobs:
     workingDirectory: $(INSTALL_DIR)
     displayName: 'Samples Smoke Tests'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: rd /Q /S $(BUILD_DIR)
     displayName: 'Clean build dir'

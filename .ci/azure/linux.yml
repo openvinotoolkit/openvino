@@ -332,6 +332,7 @@ jobs:
     workingDirectory: $(INSTALL_DIR)/samples_bin
     displayName: 'Samples Smoke Tests'
     continueOnError: false
+    condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
       export DATA_PATH=$(MODELS_PATH)
