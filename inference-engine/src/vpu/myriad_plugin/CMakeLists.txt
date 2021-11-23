@@ -42,10 +42,6 @@ target_link_libraries(${TARGET_NAME}
         mvnc inference_engine_legacy vpu_graph_transformer)
 
 # MyriadPlugin is not safe to unload it at runtime
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.|ARM.)")
-    set(ARM ON)
-endif()
-
 if((LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
    OR ARM)
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_OPTIONS "-Wl,-z,nodelete")
