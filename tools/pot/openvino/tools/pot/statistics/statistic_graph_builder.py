@@ -76,10 +76,15 @@ class StatisticGraphBuilder:
                     if node_name_in_graph in nodes_names:
                         nodes_names.remove(node_name_in_graph)
 
-                    model_graph.graph['additional_outputs'] = node_name_in_graph.split('|')
-                    results = AddOutputRecursive().find_and_replace_pattern(model_graph)
-                    assert len(results) == 1
-                    result_name = results[0].name
+                    # Don't need adding extra output to the same node, but for another algo
+                    if node_name_in_graph in output_to_node_names.values():
+                        result_name = next((result for result, node in output_to_node_names.items()
+                                            if node == node_name_in_graph))
+                    else:
+                        model_graph.graph['additional_outputs'] = node_name_in_graph.split('|')
+                        results = AddOutputRecursive().find_and_replace_pattern(model_graph)
+                        assert len(results) == 1
+                        result_name = results[0].name
                     if node_name in stats_layout:
                         stats_layout[result_name] = stats_layout.pop(node_name)
                     stat_aliases[algo_name][result_name] = stat_aliases[algo_name].pop(node_name)
