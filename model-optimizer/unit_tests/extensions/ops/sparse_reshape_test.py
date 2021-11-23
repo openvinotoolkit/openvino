@@ -63,8 +63,8 @@ class TestSparseReshape(unittest.TestCase):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
                                             input_actual_shape=[dyn, 5, 6],
-                                            new_shape=[0, -1],
-                                            ref_out_shape=[dyn, 30])
+                                            new_shape=[5, -1],
+                                            ref_out_shape=[5, dyn])
 
     def test_static_shape_3(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
@@ -81,6 +81,13 @@ class TestSparseReshape(unittest.TestCase):
                                             ref_out_shape=[1, 30])
 
     def test_static_shape_5(self):
+        # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
+        self.build_and_test_shape_inference(input_indices_sparse_shape=[11, 2],
+                                            input_actual_shape=[dyn, 30],
+                                            new_shape=[1, dyn],
+                                            ref_out_shape=[1, dyn])
+
+    def test_static_shape_6(self):
         # ref_output_indices_shape = np.array([11, 3], dtype=np.int32)
         sparse_shape = [11, 2]
         input_indices_value = np.arange(0, np.prod(sparse_shape)).reshape(sparse_shape)

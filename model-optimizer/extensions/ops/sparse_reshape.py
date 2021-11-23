@@ -3,14 +3,15 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import dynamic_dimension, is_fully_defined, shape_array, strict_compare_tensors
+from mo.front.common.partial_infer.utils import dynamic_dimension, is_fully_defined, shape_array, strict_compare_tensors, dynamic_dimension_value
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
 class SparseReshape(Op):
     """
-    SparseReshape operation reshapes a sparse tensor in COO format. It recomputes indices for a new dense shape.
+    SparseReshape operation reshapes a sparse tensor in COO format (https://en.wikipedia.org/wiki/Sparse_matrix#Coordinate_list_(COO))
+    It recomputes indices for a new dense shape.
     """
     op = 'SparseReshape'
 
@@ -39,61 +40,25 @@ class SparseReshape(Op):
 
         assert input_shape is not None and new_shape is not None, \
             "Values for input shape and new shape must be defined"
-        assert np.count_nonzero(new_shape == -1) <= 1, \
+        assert len(np.argwhere(new_shape == -1)) <= 1, \
             "Value -1 occurs in new shape value more than once"
+        assert len(np.argwhere(new_shape < -1)) == 0, \
+            "Only non-negative or -1 values are allowed"
 
-        num_of_input_elements = np.prod(input_shape)
-        num_of_output_elements = 1
-        for index, x in enumerate(new_shape):
-            if x is dynamic_dimension:
-                num_of_output_elements = dynamic_dimension
-                break
-            elif x == 0 and node.has_and_set('special_zero'):
-                if input_shape[index] is not dynamic_dimension:
-                    num_of_output_elements *= input_shape[index]
-            elif x != -1:
-                num_of_output_elements *= x
-
-        # input_shape = [dyn, 5, 6], new_shape = [0, -1] => output_shape [dyn, 30]
-        dyns_are_copied = True  # true if there are no dyns or all of them are copied with "0" magic value
-        if not is_fully_defined(input_shape):
-            for index, x in enumerate(input_shape):
-                if x is dynamic_dimension:
-                    if index >= len(new_shape) or new_shape[index] != 0:
-                        dyns_are_copied = False
-
-        undefined_dim = dynamic_dimension
-        if num_of_output_elements is not dynamic_dimension and dyns_are_copied and \
-                is_fully_defined(new_shape):
-            undefined_dim = num_of_input_elements // num_of_output_elements
-        output_shape = []
-        for index, x in enumerate(new_shape):
-            if x == 0 and node.has_and_set('special_zero'):
-                output_shape.append(input_shape[index])
-            elif x == -1:
-                output_shape.append(undefined_dim)
-            else:
-                output_shape.append(x)
-
-        # even if the new_shape contains some dynamic values we can calculate the actual value by deducing it from the
-        # input shape if it is static: input_shape = [5, 3, 8], new_shape = [4, d] => output_shape = [4, 30]
-        if is_fully_defined(input_shape) and not is_fully_defined(new_shape):
-            dynamic_indices = np.argwhere([item is dynamic_dimension for item in new_shape])
-            num_of_output_elements = 1
-            if dynamic_indices.size == 1:
-                for index, x in enumerate(new_shape):
-                    if x == 0 and node.has_and_set('special_zero'):
-                        num_of_output_elements *= input_shape[index]
-                    elif x is not dynamic_dimension and x != -1:
-                        num_of_output_elements *= x
-            assert num_of_input_elements % num_of_output_elements == 0, \
-                'Incorrect number of output elements deduced for node {}: '.format(name)
-            output_shape[dynamic_indices[0][0]] = num_of_input_elements // num_of_output_elements
-
+        output_shape = np.ma.masked_array(new_shape, mask=new_shape == -1)
         assert not is_fully_defined(input_shape) or not is_fully_defined(output_shape) or \
                np.prod(input_shape) == np.prod(output_shape), \
             "Number of elements in input {} and output {} of dynamic reshape node {} mismatch" \
             "".format(input_shape, output_shape, name)
+
+        # we can deduce -1 only if input_shape is fully defined and
+        # there is one dynamic dimension in output_shape
+        if is_fully_defined(input_shape) and np.ma.count_masked(output_shape) == 1:
+            undefined_dim_size = np.prod(input_shape) // np.prod(output_shape)
+
+            undefined_idx = np.where(output_shape == dynamic_dimension)[0][0]
+            output_shape[undefined_idx] = undefined_dim_size
+            output_shape.mask[undefined_idx] = False
 
         node.out_port(1).data.set_value(shape_array(output_shape))
         output_indices_shape = np.concatenate((input_indices_shape[0:1], new_shape_shape))
