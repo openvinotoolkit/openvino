@@ -38,27 +38,54 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         }
       }
       {
-        SCOPED_TIMER(create_exenetwork);
-        if (TimeTest::fileExt(model) == "blob") {
-          SCOPED_TIMER(import_network);
-          exeNetwork = ie.ImportNetwork(model, device);
-        }
-        else {
-          {
-            SCOPED_TIMER(read_network);
-            cnnNetwork = ie.ReadNetwork(model);
-            batchSize = cnnNetwork.getBatchSize();
-          }
-          {
-            SCOPED_TIMER(load_network);
-            if (isVPUCompilerMLIR) {
-                exeNetwork = ie.LoadNetwork(cnnNetwork, device, {{"VPUX_COMPILER_TYPE", "MLIR"}});
+        if (not isCacheEnabled) {
+            SCOPED_TIMER(create_exenetwork);
+
+            if (TimeTest::fileExt(model) == "blob") {
+              SCOPED_TIMER(import_network);
+              exeNetwork = ie.ImportNetwork(model, device);
             }
             else {
-                exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+              {
+                SCOPED_TIMER(read_network);
+                cnnNetwork = ie.ReadNetwork(model);
+                batchSize = cnnNetwork.getBatchSize();
+              }
+
+              {
+                SCOPED_TIMER(load_network);
+                if (isVPUCompilerMLIR) {
+                    exeNetwork = ie.LoadNetwork(cnnNetwork, device, {{"VPUX_COMPILER_TYPE", "MLIR"}});
+                }
+                else {
+                    exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+                }
+              }
+            }
+        }
+        else {
+            SCOPED_TIMER(load_network);
+            exeNetwork = ie.LoadNetwork(model, device);
+        }
+       }
+
+      {
+          SCOPED_TIMER(first_inference);
+          inferRequest = exeNetwork.CreateInferRequest();
+
+          {
+            SCOPED_TIMER(fill_inputs)
+            const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+            if (isCacheEnabled) {
+                 fillBlobs(inferRequest, inputsInfo, 1);
+            }
+            else {
+                batchSize = batchSize != 0 ? batchSize : 1;
+                fillBlobs(inferRequest, inputsInfo, batchSize);
             }
           }
-        }
+
+          inferRequest.Infer();
       }
     }
 

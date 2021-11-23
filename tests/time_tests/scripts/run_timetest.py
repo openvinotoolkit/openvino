@@ -62,8 +62,6 @@ def get_cache_stats(flatten_data):
         'full_run_using_cache': flatten_data['full_run'],
         'first_inference_latency_using_cache': flatten_data['first_inference_latency'],
         'load_plugin': flatten_data['load_plugin'],
-        'create_exenetwork_using_cache': flatten_data['create_exenetwork'],
-        'read_network': flatten_data['read_network'],
         'load_network_using_cache': flatten_data['load_network'],
         'first_inference': flatten_data['first_inference'],
         'fill_inputs': flatten_data['fill_inputs'],
