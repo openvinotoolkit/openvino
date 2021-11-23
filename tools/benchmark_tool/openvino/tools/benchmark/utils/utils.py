@@ -5,7 +5,7 @@ import datetime
 from logging import exception, log
 from openvino import Core, Function, PartialShape, Dimension, Layout
 from openvino.impl import Type
-from openvino.impl.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
+from openvino.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
