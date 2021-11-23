@@ -70,7 +70,7 @@ private:
     std::string errorPrefix;
 
     struct ExtractImagePatchesExecutor {
-        ExtractImagePatchesExecutor() {}
+        ExtractImagePatchesExecutor() = default;
         virtual void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) = 0;
         jit_extract_image_patches_params fillJpp(
             const VectorDims& inDims,
@@ -82,6 +82,7 @@ private:
             const size_t prcSize);
         virtual ~ExtractImagePatchesExecutor() = default;
 
+    protected:
         size_t IC = 0;
         size_t IH = 0;
         size_t OB = 0;
@@ -106,6 +107,7 @@ private:
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeOptimizedGeneric(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
 
+    private:
         std::unique_ptr<jit_uni_extract_image_patches_kernel> pKernel;
     };
 
@@ -121,6 +123,7 @@ private:
         void exec(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) override;
         void executeReference(void* src, void* dst, const VectorDims& istrides, const VectorDims& ostrides) const;
 
+    private:
         jit_extract_image_patches_params jpp;
     };
 };
