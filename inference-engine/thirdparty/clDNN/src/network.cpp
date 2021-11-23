@@ -368,7 +368,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
-        auto& cand = candidates.top();
+        auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
