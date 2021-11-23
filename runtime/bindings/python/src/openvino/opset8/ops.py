@@ -375,7 +375,8 @@ def slice(
         start: NodeInput,
         stop: NodeInput,
         step: NodeInput,
-        axes: NodeInput = None
+        axes: Optional[NodeInput] = None,
+        name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates Slice operation.
 
@@ -384,6 +385,8 @@ def slice(
     @param  stop: The node providing stop indices (exclusively).
     @param  step: The node providing step values.
     @param  axes: The optional node providing axes to slice, default [0, 1, ..., len(start)-1].
+    @param  name: The optional name for the created output node.
+    @return The new node performing Slice operation.
     """
     if axes is None:
         inputs = as_nodes(data, start, stop, step)

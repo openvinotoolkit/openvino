@@ -15,6 +15,13 @@
 #include "multi_device_infer_request.hpp"
 #include "multi_device_exec_network.hpp"
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
+
 namespace MultiDevicePlugin {
 
 class MultiDeviceAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
