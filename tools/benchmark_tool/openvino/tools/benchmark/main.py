@@ -130,6 +130,10 @@ def run(args):
                 config[device]['PERFORMANCE_HINT'] = args.perf_hint.upper()
                 if is_flag_set_in_command_line('nireq'):
                     config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
+            elif "AUTO" == device_name:
+                config[device]['PERFORMANCE_HINT'] = "THROUGHPUT"
+                if is_flag_set_in_command_line('nireq'):
+                    config[device]['PERFORMANCE_HINT_NUM_REQUESTS'] = str(args.number_infer_requests)
             ## the rest are individual per-device settings (overriding the values the device will deduce from perf hint)
             def set_throughput_streams():
                 key = get_device_type_from_name(device) + "_THROUGHPUT_STREAMS"
@@ -314,13 +318,16 @@ def run(args):
 
         # --------------------- 8. Querying optimal runtime parameters --------------------------------------------------
         next_step()
-        if is_flag_set_in_command_line('hint'):
+        if is_flag_set_in_command_line('hint') or "AUTO" == device_name:
             ## actual device-deduced settings for the hint
             for device in devices:
                 keys = benchmark.core.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
                 logger.info(f'DEVICE: {device}')
                 for k in keys:
-                    logger.info(f'  {k}  , {exe_network.get_config(k)}')
+                    try:
+                        logger.info(f'  {k}  , {exe_network.get_config(k)}')
+                    except:
+                        pass
 
         # Update number of streams
         for device in device_number_streams.keys():

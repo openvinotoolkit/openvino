@@ -191,6 +191,10 @@ int main(int argc, char* argv[]) {
             ie.AddExtension(extension_ptr);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
+        // Set throughput when loading AUTO device if hint is empty.
+        if (FLAGS_d == "AUTO" && FLAGS_hint.empty()) {
+            FLAGS_hint = "throughput";
+        }
 
         // Load clDNN Extensions
         if ((FLAGS_d.find("GPU") != std::string::npos) && !FLAGS_c.empty()) {
