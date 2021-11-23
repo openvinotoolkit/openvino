@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import logging as log
 
 from mo.front.common.layout import get_features_dim
 from mo.utils.error import Error
@@ -10,7 +11,7 @@ from mo.utils.utils import refer_to_faq_msg
 import numpy as np
 
 from openvino.preprocess import PrePostProcessor, InputInfo, InputTensorInfo, PreProcessSteps
-from openvino import Function
+from openvino import Function, Layout
 
 
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
@@ -106,14 +107,32 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
 
     print('Debug: names={}'.format(ov_function.input(0).get_tensor().get_names()))
     print('Debug: mean/scale values: {}'.format(mean_scale_values))
-    # TODO: set source/target layout from argv options (Issue 55816)
+    layout_items = {}
+    # TODO: construct layout_items from argv options (Issue 55816)
+    # Test code
+    layout_items = {'inputX1': {'source_layout': 'nchw', 'target_layout': 'nhwc'},
+                    'inputX2': {'source_layout': 'nhwc', 'target_layout': None}
+                    }
+    for node_name, layout_values in layout_items.items():
+        if layout_values['source_layout'] is not None:
+            prep.input(node_name).network().set_layout(Layout(layout_values['source_layout']))
+        if layout_values['target_layout'] is not None:
+            prep.input(node_name).tensor().set_layout(Layout(layout_values['target_layout']))
 
     for node_name, node_mean_scale_values in mean_scale_values.items():
-        # Apply mean/scale
+        # Apply mean first, then scale
         if node_mean_scale_values['mean'] is not None:
             prep.input(node_name).preprocess().mean(node_mean_scale_values['mean'])
         if node_mean_scale_values['scale'] is not None:
             prep.input(node_name).preprocess().scale(node_mean_scale_values['scale'])
-        print('Preprocessing applied for {}'.format(node_name))
+        print('Mean/Scale Preprocessing applied for {}'.format(node_name))
 
+    # Apply reverse-input-channels
+    if argv.reverse_input_channels:
+        for ov_input in ov_function.inputs:
+            node_name = list(ov_input.get_tensor().get_names())[0]
+            prep.input(node_name).preprocess().reverse_channels()
+            print('Reverse_input_channels preprocessing applied for {}'.format(node_name))
+
+    # Apply preprocessing builder to a function
     ov_function = prep.build()

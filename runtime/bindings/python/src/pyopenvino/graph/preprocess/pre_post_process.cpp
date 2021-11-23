@@ -30,7 +30,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
         "PreProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
 
-    steps.def(py::init<>());
+//    steps.def(py::init<>());
 
     steps.def(
         "mean",
@@ -184,7 +184,7 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         "PostProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
 
-    steps.def(py::init<>());
+//    steps.def(py::init<>());
 
     steps.def(
         "convert_element_type",
@@ -235,12 +235,12 @@ static void regclass_graph_PostProcessSteps(py::module m) {
 }
 
 static void regclass_graph_InputTensorInfo(py::module m) {
-    py::class_<ov::preprocess::InputTensorInfo, std::shared_ptr<ov::preprocess::InputTensorInfo>> info(
+    py::class_<ov::preprocess::InputTensorInfo, ref_wrapper<ov::preprocess::InputTensorInfo>> info(
         m,
         "InputTensorInfo");
     info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
 
-    info.def(py::init<>());
+//    info.def(py::init<>());
 
     info.def(
         "set_element_type",
@@ -261,9 +261,8 @@ static void regclass_graph_InputTensorInfo(py::module m) {
                 tensor : InputTensorInfo
                     Reference to itself to allow chaining of calls in client's code in a builder-like manner.
               )");
-    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, const ov::Layout& layout) {
-        me->set_layout(layout);
-        return me;
+    info.def("set_layout", [](ov::preprocess::InputTensorInfo& me, const ov::Layout& layout) {
+        return &me.set_layout(layout);
     });
     info.def("set_spatial_dynamic_shape", [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me) {
         me->set_spatial_dynamic_shape();
@@ -326,22 +325,15 @@ static void regclass_graph_InputInfo(py::module m) {
 
     inp.def(
         "tensor",
-        [](const std::shared_ptr<ov::preprocess::InputInfo>& me,
-           const std::shared_ptr<ov::preprocess::InputTensorInfo>& inputTensorInfo) -> ov::preprocess::InputInfo* {
-            me.get()->tensor(std::move(*inputTensorInfo));
-            return me.get();
+        [](ov::preprocess::InputInfo& me) {
+            return &me.tensor();
         },
-        py::arg("tensor"),
         R"(
-                Adds builder for actual tensor information of client's input.
-                Parameters
-                ----------
-                tensor : InputTensorInfo
-                    Client's input tensor information. It's internal data will be moved to parent InputInfo object.
+                Gets tensor information of client's input.
                 Returns
                 ----------
-                tensor : InputInfo
-                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
+                tensor : InputTensorInfo
+                    Tensor information for client's input.
               )");
     inp.def(
         "preprocess",
@@ -357,11 +349,9 @@ static void regclass_graph_InputInfo(py::module m) {
               )");
     inp.def(
         "network",
-        [](ov::preprocess::InputInfo& me,
-           const std::shared_ptr<ov::preprocess::InputNetworkInfo>& inputNetworkInfo) {
-            return &me.network(std::move(*inputNetworkInfo));
-        },
-        py::arg("input_network_info"));
+        [](ov::preprocess::InputInfo& me) {
+            return &me.network();
+        });
 }
 
 static void regclass_graph_OutputInfo(py::module m) {
@@ -432,16 +422,15 @@ static void regclass_graph_OutputNetworkInfo(py::module m) {
 }
 
 static void regclass_graph_InputNetworkInfo(py::module m) {
-    py::class_<ov::preprocess::InputNetworkInfo, std::shared_ptr<ov::preprocess::InputNetworkInfo>> info(
+    py::class_<ov::preprocess::InputNetworkInfo, ref_wrapper<ov::preprocess::InputNetworkInfo>> info(
         m,
         "InputNetworkInfo");
     info.doc() = "openvino.impl.preprocess.InputNetworkInfo wraps ov::preprocess::InputNetworkInfo";
 
-    info.def(py::init<>());
+    // info.def(py::init<>());
 
-    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::InputNetworkInfo>& me, const ov::Layout& layout) {
-        me->set_layout(layout);
-        return me;
+    info.def("set_layout", [](ov::preprocess::InputNetworkInfo& me, const ov::Layout& layout) {
+        return &me.set_layout(layout);
     });
 }
 
