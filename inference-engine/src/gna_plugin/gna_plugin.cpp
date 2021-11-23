@@ -711,6 +711,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertReshapeAroundMatmulWithFq>();
         manager.register_pass<InsertReshapeAroundMatmulWithAdd>();
         manager.register_pass<InsertReshapeAroundMatmul>();
+        manager.register_pass<SwapInputMatMulWithTrailingTranspose>();
+        manager.register_pass<SwapInputMatMulWithAct>();
         manager.register_pass<SwapInputMatMulWithFq>();
         manager.register_pass<SwapInputMatMulWithBias>();
         manager.register_pass<SwapInputMatMul>();
