@@ -23,7 +23,7 @@ namespace InferenceEngine {
  * Such context represents a scope on the device within which executable
  * networks and remote memory blobs can exist, function and exchange data.
  */
-class RemoteContext : public std::enable_shared_from_this<RemoteContext> {
+class INFERENCE_ENGINE_API_CLASS(RemoteContext) : public std::enable_shared_from_this<RemoteContext> {
 public:
     /**
      * @brief A smart pointer to the RemoteContext object
@@ -109,6 +109,14 @@ public:
      * @return A pointer to plugin object that implements RemoteBlob interface.
      */
     virtual RemoteBlob::Ptr CreateBlob(const TensorDesc& tensorDesc, const ParamMap& params = {}) = 0;
+
+    /**
+     * @brief Allocates host accessible memory blob friendly for the device in current context
+     * Returns a pointer to the object which implements MemoryBlob interface.
+     * @param tensorDesc Defines the layout and dims of the blob
+     * @return A pointer to host accessible MemoryBlob object
+     */
+    virtual MemoryBlob::Ptr CreateHostBlob(const TensorDesc& tensorDesc);
 
     /**
      * @brief Returns a map of device-specific parameters required for low-level

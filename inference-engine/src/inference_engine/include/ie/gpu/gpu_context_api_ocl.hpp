@@ -133,6 +133,49 @@ public:
 
 /**
  * @brief This class represents an abstraction for GPU plugin remote blob
+ * which can be shared with user-supplied USM pointer.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
+ * @note User can obtain USM pointer from this class.
+ */
+class USMBlob : public ClBlob, public details::param_map_obj_getter {
+public:
+    /**
+     * @brief A smart pointer to the ClBufferBlob object
+     */
+    using Ptr = std::shared_ptr<USMBlob>;
+
+    /**
+     * @brief Creates a ClBufferBlob object with the specified dimensions and layout.
+     * @param tensorDesc Tensor description
+     */
+    explicit USMBlob(const TensorDesc& tensorDesc) : ClBlob(tensorDesc) {}
+
+    /**
+     * @brief Returns the underlying OpenCL memory object handle.
+     * @return underlying OpenCL memory object handle
+     */
+    void* get() {
+        const auto& params = getParams();
+        auto itrType = params.find(GPU_PARAM_KEY(SHARED_MEM_TYPE));
+        if (itrType == params.end())
+            IE_THROW() << "Parameter of type " << GPU_PARAM_KEY(SHARED_MEM_TYPE) << " not found";
+
+        auto mem_type = itrType->second.as<std::string>();
+        if (mem_type != GPU_PARAM_VALUE(USM_USER_BUFFER) && mem_type != GPU_PARAM_VALUE(USM_HOST_BUFFER) &&
+            mem_type != GPU_PARAM_VALUE(USM_DEVICE_BUFFER))
+            IE_THROW() << "Unexpected USM blob type: " << mem_type;
+
+        auto itrHandle = params.find(GPU_PARAM_KEY(MEM_HANDLE));
+        if (itrHandle == params.end()) {
+            IE_THROW() << "No parameter " << GPU_PARAM_KEY(MEM_HANDLE) << " found";
+        }
+
+        return itrHandle->second.as<gpu_handle_param>();
+    }
+};
+
+/**
+ * @brief This class represents an abstraction for GPU plugin remote blob
  * which can be shared with user-supplied OpenCL 2D Image.
  * The plugin object derived from this class can be obtained with CreateBlob() call.
  * @note User can obtain OpenCL image handle from this class.

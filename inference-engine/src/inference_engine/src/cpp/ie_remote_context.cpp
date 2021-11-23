@@ -69,6 +69,15 @@ RemoteTensor RemoteContext::create_tensor(const element::Type& element_type,
     });
 }
 
+Tensor RemoteContext::create_host_tensor(const element::Type element_type, const Shape& shape) {
+    OV_REMOTE_CONTEXT_STATEMENT({
+        auto blob = _impl->CreateHostBlob(
+            {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
+        blob->allocate();
+        return {_so, blob};
+    });
+}
+
 ie::ParamMap RemoteContext::get_params() const {
     OV_REMOTE_CONTEXT_STATEMENT(return _impl->getParams());
 }

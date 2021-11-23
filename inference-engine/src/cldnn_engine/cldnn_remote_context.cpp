@@ -38,6 +38,24 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
+    case BT_USM_SHARED:
+        return{
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_USER_BUFFER) },
+            { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
+            { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
+        };
+    case BT_USM_HOST_INTERNAL:
+        return{
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER) },
+            { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
+            { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
+        };
+    case BT_USM_DEVICE_INTERNAL:
+        return{
+            { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_DEVICE_BUFFER) },
+            { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
+            { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
+        };
 #ifdef _WIN32
     case BT_DX_BUF_SHARED:
         return{
@@ -81,7 +99,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
     return lockedHolder != nullptr;
 }
 
-void CLDNNRemoteBlobImpl::allocate() noexcept {
+void CLDNNRemoteBlobImpl::allocate() {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::Allocate");
     assert(m_memObject == nullptr);
 
@@ -91,11 +109,23 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL: {
-        m_memObject = eng->allocate_memory(m_layout);
+        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::cl_mem);
+        break;
+    }
+    case BlobType::BT_USM_HOST_INTERNAL: {
+        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::usm_host);
+        break;
+    }
+    case BlobType::BT_USM_DEVICE_INTERNAL: {
+        m_memObject = eng->allocate_memory(m_layout, cldnn::allocation_type::usm_device);
         break;
     }
     case BlobType::BT_BUF_SHARED: {
         m_memObject = eng->share_buffer(m_layout, m_mem);
+        break;
+    }
+    case BlobType::BT_USM_SHARED: {
+        m_memObject = eng->share_usm(m_layout, m_mem);
         break;
     }
 #ifdef _WIN32
@@ -139,6 +169,9 @@ std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept 
 }
 
 void CLDNNRemoteBlobImpl::lock() const {
+    if (!is_allocated()) {
+        IE_THROW(NotAllocated) << "[GPU] Remote blob can't be locked as it's not allocated";
+    }
     lockedHolder = std::unique_ptr<cldnn::mem_lock<uint8_t>>(new cldnn::mem_lock<uint8_t>(m_memObject, m_stream));
     auto ptr = lockedHolder->data();
     _handle = reinterpret_cast<void*>(ptr);
@@ -295,15 +328,17 @@ std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
 
     auto engine_type = cldnn::engine_types::ocl;
     auto runtime_type = cldnn::runtime_types::ocl;
-    // Use actual runtime and engine types
-    cldnn::device_query device_query(engine_type, runtime_type);
-    auto all_devices = device_query.get_available_devices();
-    auto current_device = m_engine->get_device();
+    try {
+        // Use actual runtime and engine types
+        cldnn::device_query device_query(engine_type, runtime_type);
+        auto all_devices = device_query.get_available_devices();
+        auto current_device = m_engine->get_device();
 
-    for (auto& kv : all_devices) {
-        if (current_device->is_same(kv.second))
-            return devName + "." + kv.first;
-    }
+        for (auto& kv : all_devices) {
+            if (current_device->is_same(kv.second))
+                return devName + "." + kv.first;
+        }
+    } catch (...) { }
 
     if (!m_config.device_id.empty())
         devName += "." + m_config.device_id;

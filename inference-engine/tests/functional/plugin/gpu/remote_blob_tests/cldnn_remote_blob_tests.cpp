@@ -84,6 +84,61 @@ TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
     }
 }
 
+
+TEST_F(RemoteBlob_Test, smoke_canInputPluginRemoteBlob) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    CNNNetwork net(fn_ptr);
+
+    net.getInputsInfo().begin()->second->setLayout(Layout::NCHW);
+    net.getInputsInfo().begin()->second->setPrecision(Precision::U8);
+
+    // TODO: Issue: investigate issue with IECore
+    auto ie = InferenceEngine::Core();
+    auto exec_net = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+
+    // regular inference
+    auto inf_req_regular = exec_net.CreateInferRequest();
+    InferenceEngine::Blob::Ptr fakeImageData = FuncTestUtils::createAndFillBlob(
+            net.getInputsInfo().begin()->second->getTensorDesc());
+    inf_req_regular.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
+
+    inf_req_regular.Infer();
+    auto outputBlob_regular = inf_req_regular.GetBlob(net.getOutputsInfo().begin()->first);
+
+    // inference using remote blob
+    auto inf_req_shared = exec_net.CreateInferRequest();
+    auto cldnn_context = exec_net.GetContext();
+    cl_context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context)->get();
+    auto ocl_instance = std::make_shared<OpenCL>(ctx);
+
+    auto dims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
+    size_t imSize = dims[1] * dims[2] * dims[3];
+
+    Blob::Ptr shared_blob = make_shared_blob(net.getInputsInfo().begin()->second->getTensorDesc(), cldnn_context);
+    shared_blob->allocate();
+    {
+        cl::Buffer shared_buffer = *shared_blob->as<gpu::ClBufferBlob>();
+        void *buffer = fakeImageData->buffer();
+        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, imSize, buffer);
+    }
+
+    inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, shared_blob);
+
+    inf_req_shared.Infer();
+    auto outputBlob_shared = inf_req_shared.GetBlob(net.getOutputsInfo().begin()->first);
+
+    // compare results
+    {
+        ASSERT_EQ(net.getOutputsInfo().begin()->second->getPrecision(), InferenceEngine::Precision::FP32);
+        ASSERT_EQ(outputBlob_regular->size(), outputBlob_shared->size());
+        auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+        FuncTestUtils::compareBlobs(outputBlob_regular, outputBlob_shared, thr);
+    }
+}
+
+
 TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
     auto fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     CNNNetwork net(fn_ptr);

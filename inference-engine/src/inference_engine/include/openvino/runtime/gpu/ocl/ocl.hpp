@@ -118,6 +118,36 @@ public:
 };
 
 /**
+ * @brief This class represents an abstraction for GPU plugin remote tensor
+ * which can be shared with user-supplied USM device pointer.
+ * The plugin object derived from this class can be obtained with ClContext::create_tensor() call.
+ * @note User can obtain USM pointer from this class.
+ */
+class USMTensor : public RemoteTensor {
+public:
+    /**
+     * @brief Checks that type defined runtime paramters are presented in remote object
+     * @param tensor a tensor to check
+     */
+    static void type_check(const Tensor& tensor) {
+        RemoteTensor::type_check(tensor,
+                                 {{GPU_PARAM_KEY(MEM_HANDLE), {}},
+                                  {GPU_PARAM_KEY(SHARED_MEM_TYPE),
+                                   {GPU_PARAM_VALUE(USM_USER_BUFFER),
+                                    GPU_PARAM_VALUE(USM_HOST_BUFFER),
+                                    GPU_PARAM_VALUE(USM_DEVICE_BUFFER)}}});
+    }
+
+    /**
+     * @brief Returns the underlying USM pointer.
+     * @return underlying USM pointer
+     */
+    void* get() {
+        return static_cast<void*>(get_params().at(GPU_PARAM_KEY(MEM_HANDLE)).as<void*>());
+    }
+};
+
+/**
  * @brief This class represents an abstraction for GPU plugin remote context
  * which is shared with OpenCL context object.
  * The plugin object derived from this class can be obtained either with
@@ -125,14 +155,14 @@ public:
  */
 class ClContext : public RemoteContext {
 protected:
-    using RemoteContext::create_tensor;
-
     /**
      * @brief GPU device name
      */
     static constexpr const char* device_name = "GPU";
 
 public:
+    // Needed to make create_tensor overloads from base class visible for user
+    using RemoteContext::create_tensor;
     /**
      * @brief Checks that type defined runtime paramters are presented in remote object
      * @param remote_context remote context to check
@@ -220,7 +250,7 @@ public:
      * @brief This function is used to obtain remote tensor object from user-supplied cl_mem object
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param buffer A cl_mem object wrapped by a remote tensor
+     * @param buffer A cl_mem object that should be wrapped by a remote tensor
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const cl_mem buffer) {
@@ -233,7 +263,7 @@ public:
      * @brief This function is used to obtain remote tensor object from user-supplied cl::Buffer object
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param buffer A cl::Buffer object wrapped by a remote tensor
+     * @param buffer A cl::Buffer object that should be wrapped by a remote tensor
      * @return A remote tensor instance
      */
     ClBufferTensor create_tensor(const element::Type type, const Shape& shape, const cl::Buffer& buffer) {
@@ -244,7 +274,7 @@ public:
      * @brief This function is used to obtain remote tensor object from user-supplied cl::Image2D object
      * @param type Tensor element type
      * @param shape Tensor shape
-     * @param image A cl::Image2D object wrapped by a remote tensor
+     * @param image A cl::Image2D object that should be wrapped by a remote tensor
      * @return A remote tensor instance
      */
     ClImage2DTensor create_tensor(const element::Type type, const Shape& shape, const cl::Image2D& image) {
@@ -252,7 +282,43 @@ public:
                            {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(image.get())}};
         return create_tensor(type, shape, params);
     }
+
+    /**
+     * @brief This function is used to obtain remote tensor object from user-supplied USM pointer
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @param usm_ptr A USM pointer that should be wrapped by a remote tensor
+     * @return A remote tensor instance
+     */
+    USMTensor create_tensor(const element::Type type, const Shape& shape, void* usm_ptr) {
+        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_USER_BUFFER)},
+                           {GPU_PARAM_KEY(MEM_HANDLE), static_cast<gpu_handle_param>(usm_ptr)}};
+        return create_tensor(type, shape, params);
+    }
+
+    /**
+     * @brief This function is used to allocate USM tensor with host allocation type
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @return A remote tensor instance
+     */
+    USMTensor create_usm_host_tensor(const element::Type type, const Shape& shape) {
+        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_HOST_BUFFER)}};
+        return create_tensor(type, shape, params);
+    }
+
+    /**
+     * @brief This function is used to allocate USM tensor with device allocation type
+     * @param type Tensor element type
+     * @param shape Tensor shape
+     * @return A remote tensor instance
+     */
+    USMTensor create_usm_device_tensor(const element::Type type, const Shape& shape) {
+        ParamMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(USM_DEVICE_BUFFER)}};
+        return create_tensor(type, shape, params);
+    }
 };
+
 }  // namespace ocl
 }  // namespace gpu
 }  // namespace runtime
