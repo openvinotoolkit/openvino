@@ -48,7 +48,6 @@
    Get Started with One-Command Demo <openvino_docs_get_started_get_started_scripts>
    Get Started with Step-by-step Demo <openvino_docs_get_started_get_started_demos>
    Get Started with Tutorials <tutorials>
-   Learning Path <openvino_docs_get_started_get_started_instructions>
 
 .. toctree::
    :maxdepth: 1
