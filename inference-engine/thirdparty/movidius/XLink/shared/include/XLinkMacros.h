@@ -19,6 +19,14 @@
             x = base; \
     }
 
+// Avoid problems with unsigned, first compare and then give the new value
+#define CIRCULAR_DECREMENT(x, maxVal) \
+    do { \
+        if ((x) == 0) \
+            (x) = (maxVal); \
+        else \
+            (x)--; \
+    } while(0)
 
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((!(sizeof(x) % sizeof(0[x])))))
 #ifndef MIN

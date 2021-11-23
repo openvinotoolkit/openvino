@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <errno.h>
 #include "stdio.h"
 #include "stdint.h"
 #include "string.h"
@@ -130,7 +131,9 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     temp.protocol = X_LINK_ANY_PROTOCOL;
     XLINK_RET_IF_FAIL(DispatcherStart(&temp)); //myriad has one
 
-    sem_wait(&pingSem);
+    while(((sem_wait(&pingSem) == -1) && errno == EINTR)
+        continue;
+
 #endif
 
     return X_LINK_SUCCESS;
@@ -204,7 +207,7 @@ XLinkError_t XLinkConnect(XLinkHandler_t* handler)
     event.deviceHandle = link->deviceHandle;
     DispatcherAddEvent(EVENT_LOCAL, &event);
 
-    if (DispatcherWaitEventComplete(&link->deviceHandle)) {
+    if (DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT)) {
         DispatcherClean(&link->deviceHandle);
         return X_LINK_TIMEOUT;
     }
@@ -250,10 +253,13 @@ XLinkError_t XLinkResetRemote(linkId_t id)
     event.deviceHandle = link->deviceHandle;
     mvLog(MVLOG_DEBUG, "sending reset remote event\n");
     DispatcherAddEvent(EVENT_LOCAL, &event);
-    XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle),
+    XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle, XLINK_NO_RW_TIMEOUT),
         X_LINK_TIMEOUT);
 
-    if(XLink_sem_wait(&link->dispatcherClosedSem)) {
+    int rc;
+    while(((rc = XLink_sem_wait(&link->dispatcherClosedSem)) == -1) && errno == EINTR)
+        continue;
+    if(rc) {
         mvLog(MVLOG_ERROR,"can't wait dispatcherClosedSem\n");
         return X_LINK_ERROR;
     }
