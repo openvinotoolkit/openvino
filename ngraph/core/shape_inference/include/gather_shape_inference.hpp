@@ -26,7 +26,7 @@ void inline create_shape(int64_t& rank, ShapeT& shape) {
 }
 
 template <class T>
-void shape_infer(GatherBase* op,
+void shape_infer(const GatherBase* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
@@ -47,10 +47,10 @@ void shape_infer(GatherBase* op,
                               "Axis input must be scalar or have 1 element. But instead got axis_shape = ",
                               axis_pshape);
     }
+
     int64_t batch_dims = op->get_batch_dims();
-    if (indices_rank.is_static()) {
-        const auto indices_rank_value = indices_rank.get_length();
-        batch_dims = ov::normalize_axis(op, batch_dims, indices_rank_value, -indices_rank_value, indices_rank_value);
+    if (batch_dims < 0 && indices_rank.is_static()) {
+        batch_dims += indices_rank.get_length();
     }
 
     std::vector<int64_t> axes_val;
@@ -59,13 +59,10 @@ void shape_infer(GatherBase* op,
 
     if (axis_is_set) {
         axis = axes_val[0];
-    }
 
-    if (axis_is_set && data_rank.is_static()) {
-        axis = ov::normalize_axis(op, axis, data_rank);
-    }
-
-    if (axis_is_set) {
+        if (data_rank.is_static()) {
+            axis = ov::normalize_axis(op, axis, data_rank);
+        }
         // batch_dims, axis both can be positive by default or after normalization if data_rank &
         // indices_rank are static.
         // If at least one of them is negative we cannot check their consistency.
@@ -75,6 +72,15 @@ void shape_infer(GatherBase* op,
                               batch_dims,
                               ", axis = ",
                               axis);
+    }
+
+    if (indices_rank.is_static() && batch_dims >= 0) {
+        NODE_VALIDATION_CHECK(op,
+                              batch_dims <= indices_rank.get_length(),
+                              "The batch_dims must be <= indices_rank. But instead got: batch_dims = ",
+                              batch_dims,
+                              ", indices_rank = ",
+                              indices_rank.get_length());
     }
 
     if (data_rank.is_static() && indices_rank.is_static()) {

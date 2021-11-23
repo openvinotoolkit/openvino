@@ -9,20 +9,18 @@
 namespace ov {
 namespace op {
 namespace v6 {
-template<class ShapeT>
+template <class ShapeT>
 void inline create_shape(ShapeT& shape) {
     OPENVINO_UNREACHABLE("[ShapeInfer] PartialShape cannot reach");
 }
 
-template<>
+template <>
 void inline create_shape(PartialShape& shape) {
     shape = PartialShape::dynamic();
 }
 
 template <class T>
-void shape_infer(GatherElements* op,
-                 const std::vector<T>& input_shapes,
-                 std::vector<T>& output_shapes) {
+void shape_infer(const GatherElements* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1);
     using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
 
@@ -32,7 +30,7 @@ void shape_infer(GatherElements* op,
     auto indices_rank = indices_pshape.rank();
     auto& output_shape = output_shapes[0];
 
-    int64_t axis = op->get_axis();
+    int64_t axis = op->m_axis;
     if (data_rank.is_static())
         axis = ov::normalize_axis(op, axis, data_rank);
 

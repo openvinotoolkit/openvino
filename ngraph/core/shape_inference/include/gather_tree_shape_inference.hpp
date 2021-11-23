@@ -8,7 +8,7 @@ namespace ov {
 namespace op {
 namespace v1 {
 template <class T>
-void shape_infer(GatherTree* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void shape_infer(const GatherTree* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 1);
     const auto& step_ids_pshape = input_shapes[0];
     const auto& parent_idx_pshape = input_shapes[1];

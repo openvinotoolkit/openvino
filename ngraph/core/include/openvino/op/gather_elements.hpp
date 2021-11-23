@@ -34,6 +34,10 @@ public:
 
 private:
     int64_t m_axis;
+    template <class T>
+    void friend shape_infer(const GatherElements* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes);
 };
 }  // namespace v6
 }  // namespace op

@@ -51,6 +51,14 @@ public:
 
 protected:
     int64_t m_axis;
+
+private:
+    template <class T>
+    void friend shape_infer(const OneHot* op,
+                            const std::vector<T>& input_shapes,
+                            std::vector<T>& output_shapes,
+                            const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data);
+    void friend inline resolve_axis(OneHot* op);
 };
 }  // namespace v1
 }  // namespace op

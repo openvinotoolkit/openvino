@@ -22,13 +22,13 @@ TEST(StaticShapeInferenceTest, OneHotTest) {
 
     std::vector<PartialShape> input_shapes = {PartialShape{3}, PartialShape{}, PartialShape{}, PartialShape{}},
                               output_shapes = {PartialShape{}};
-    shape_infer(ont_hot.get(), input_shapes, output_shapes);
+    shape_infer(ont_hot.get(), input_shapes, output_shapes, {});
     ASSERT_EQ(output_shapes[0], (PartialShape{3, 2}));
     std::vector<StaticShape> static_input_shapes = {StaticShape{3},
                                                     StaticShape{},
                                                     StaticShape{},
                                                     StaticShape{}},
                              static_output_shapes = {StaticShape{}};
-    shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes);
+    shape_infer(ont_hot.get(), static_input_shapes, static_output_shapes, {});
     ASSERT_EQ(static_output_shapes[0], (StaticShape{3, 2}));
 }
