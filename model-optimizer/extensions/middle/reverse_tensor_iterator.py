@@ -126,7 +126,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                         port['start'] = None
                         port['end'] = None
 
-        # disconnect subgraph for seg length calculation
+        # disconnect subgraph for seq length calculation
         direct_reverse.in_port(1).disconnect()
         inverse_reverse.in_port(1).disconnect()
         # Remove reverses
