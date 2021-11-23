@@ -63,7 +63,7 @@ inline std::string getFileName(const std::string& filePath) {
 }
 
 inline int getDebugLevel() {
-    return parseInteger(std::getenv("AUTO_LOG_LEVEL"));
+    return parseInteger(std::getenv("OPENVINO_LOG_LEVEL"));
 }
 const int debug_level = getDebugLevel();
 

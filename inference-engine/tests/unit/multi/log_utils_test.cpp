@@ -83,7 +83,7 @@ TEST_P(LogUtilsTest, setLogLevel) {
 TEST_P(LogUtilsTest, setEnvNotAffectSetLogLevel) {
     EXPECT_CALL(*(HLogger), print(_)).Times(_expectCallNum);
     setLogLevel(_logLevel);
-    SetTestEnv("AUTO_LOG_LEVEL", "3");
+    SetTestEnv("OPENVINO_LOG_LEVEL", "3");
     printLog();
 }
 
