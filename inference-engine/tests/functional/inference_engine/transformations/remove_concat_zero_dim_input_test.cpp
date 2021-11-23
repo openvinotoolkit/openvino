@@ -122,6 +122,7 @@ TEST(TransformationTests, RemoveConcatZeroDimInputPartiallyKnowShape) {
         manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
+        f->validate_nodes_and_infer_types();
     }
 
     {
@@ -181,6 +182,7 @@ TEST(TransformationTests, RemoveConcatZeroDimTwoInputs) {
         manager.register_pass<ngraph::pass::NopElimination>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
+        f->validate_nodes_and_infer_types();
     }
 
     {
