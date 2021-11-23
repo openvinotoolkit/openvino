@@ -31,7 +31,7 @@ OutputVector translate_concat_op(const NodeContext& node) {
     }
 
     std::vector<int64_t> tf_concat_axis_vec;
-    get_static_input_vec(node, axis_idx, &tf_concat_axis_vec);
+    get_const_input(node, axis_idx, &tf_concat_axis_vec);
     int64_t concat_axis = tf_concat_axis_vec[0];
 
     OutputVector ng_args;

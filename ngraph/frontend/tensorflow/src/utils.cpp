@@ -4,8 +4,7 @@
 
 #include "utils.hpp"
 
-void ov::frontend::tf::tf_shape_to_ngraph_shape(const tensorflow::TensorShapeProto& tf_shape,
-                                                ov::PartialShape* ng_shape) {
+void ov::frontend::tf::tf_shape_to_ov_shape(const tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape) {
     std::vector<ov::Dimension> dims;
     for (int i = 0; i < tf_shape.dim_size(); i++) {
         dims.emplace_back(tf_shape.dim(i).size());

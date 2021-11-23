@@ -123,10 +123,10 @@ OutputVector translate_crop_and_resize_op(const NodeContext& node) {
                 interpolate_attrs.mode = Interpolate::InterpolateMode::NEAREST;
             }
 
-            Transpose<0, 3, 1, 2>(ng_crop);
+            transpose<0, 3, 1, 2>(ng_crop);
             auto ng_output =
                 make_shared<Interpolate>(ng_crop, ng_size, ng_scales, ng_axes, interpolate_attrs)->output(0);
-            Transpose<0, 2, 3, 1>(ng_output);
+            transpose<0, 2, 3, 1>(ng_output);
             ng_crop_outputs.at(i) = ng_output;
         }
 

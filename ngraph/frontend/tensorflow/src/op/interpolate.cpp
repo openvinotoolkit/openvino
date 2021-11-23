@@ -36,9 +36,9 @@ ov::OutputVector translate_interpolate_op(const NodeContext& node) {
     auto ng_scales = make_shared<Divide>(ng_sizes, ng_spatial_shape);
     auto ng_axes = make_shared<Constant>(element::i32, Shape{2}, std::vector<int>({2, 3}));
 
-    Transpose<0, 3, 1, 2>(input);
+    transpose<0, 3, 1, 2>(input);
     auto res = make_shared<Interpolate>(input, input_sizes, ng_scales, ng_axes, interpolate_attrs)->output(0);
-    Transpose<0, 2, 3, 1>(res);
+    transpose<0, 2, 3, 1>(res);
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};
 }

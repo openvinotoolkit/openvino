@@ -21,11 +21,11 @@
 #pragma once
 
 #include "graph_iterator_proto.hpp"
-#include "ngraph/log.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph_conversions.hpp"
 #include "node_context.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino_conversions.hpp"
 
 namespace ov {
 namespace frontend {
@@ -69,10 +69,10 @@ void make_padding(const std::string& tf_padding_type,
     }
 }
 
-void tf_shape_to_ngraph_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
+void tf_shape_to_ov_shape(const ::tensorflow::TensorShapeProto& tf_shape, ov::PartialShape* ng_shape);
 
 template <typename T>
-void get_static_input_vec(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
+void get_const_input(const NodeContext& node, int64_t input_index, std::vector<T>* vector) {
     auto ng_input = node.get_input(input_index);
     if (auto constant = std::dynamic_pointer_cast<opset8::Constant>(ng_input.get_node_shared_ptr())) {
         *vector = constant->cast_vector<T>();
@@ -87,7 +87,7 @@ void get_static_input_vec(const NodeContext& node, int64_t input_index, std::vec
 // Modified with an extra `VecT` parameter to handle the case where the type
 // in the std::vector does not match TensorFlow's notion of what the C++ type
 // should be (e.g. when T is `bool`, we actually need a std::vector of `char` for
-// compatibility with nGraph).
+// compatibility with OpenVINO).
 template <typename T, typename VecT = T>
 void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_shape, std::vector<VecT>* values) {
     TF_OP_VALIDATION_CHECK(node, node.get_op_type() == "Const", "Node is expected to be Constant.");
@@ -104,7 +104,7 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
 
     const tensorflow::TensorShapeProto& shape = tensor_proto.tensor_shape();
     ov::PartialShape pshape;
-    tf_shape_to_ngraph_shape(shape, &pshape);
+    tf_shape_to_ov_shape(shape, &pshape);
     *const_tensor_shape = pshape.get_shape();
     TF_OP_VALIDATION_CHECK(node, pshape.is_static(), "Dynamic shapes are not supported in Constant conversion.");
     auto tensor_content = tensor_proto.tensor_content();
@@ -171,8 +171,8 @@ void values_from_const_node(const NodeContext& node, ov::Shape* const_tensor_sha
                     val_i = tensor_proto.double_val()[i];
                 break;
             default:
-                NGRAPH_DEBUG << "Const node has empty tensor_proto and we don't know how to "
-                                "handle this element type";
+                OPENVINO_DEBUG << "Const node has empty tensor_proto and we don't know how to "
+                                  "handle this element type";
                 FRONT_END_THROW("Encountered unknown element type " + DataType_Name(dt) + " on an empty tensor_proto");
             }
             TF_OP_VALIDATION_CHECK(node, val_size != 0, "Empty values vector");

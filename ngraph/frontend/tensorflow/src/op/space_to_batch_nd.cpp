@@ -20,10 +20,10 @@ OutputVector translate_batch_nd_and_space_nd_op(const NodeContext& node) {
     // ng_crops should be of shape N=[ng_input.get_shape()).size()]
     // But TF's ng_crops input is limited only to the spatial dimensions (neither
     // batch nor innermost),
-    // which would mean ngraph inputs have missing ng_crops[0] and ng_crops[N].
+    // which would mean OV inputs have missing ng_crops[0] and ng_crops[N].
     // Hence, pad ng_crops with zeros at both ends
 
-    // return with input if rank < 2 as ngraph's impl doesn't support it
+    // return with input if rank < 2 as OV's impl doesn't support it
     const auto& input_pshape = input.get_partial_shape();
     const auto& block_shape_pshape = block_shape.get_partial_shape();
     if (input_pshape.rank().is_static() && block_shape_pshape.rank().is_static()) {

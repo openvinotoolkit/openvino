@@ -47,8 +47,7 @@ shared_ptr<Variant> DecoderTFProto::get_attribute(const string& name, const Vari
 
     if (is_type<string>(type_info)) {
         return create_variant<string>(attrs[0].s());
-    }
-    if (is_type<int64_t>(type_info)) {
+    } else if (is_type<int64_t>(type_info)) {
         return create_variant<int64_t>(attrs[0].i());
     } else if (is_type<vector<int64_t>>(type_info)) {
         vector<int64_t> longs;

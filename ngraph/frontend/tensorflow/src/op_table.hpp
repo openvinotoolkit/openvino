@@ -8,9 +8,9 @@
 #include <map>
 #include <string>
 
-#include "ngraph_conversions.hpp"
 #include "node_context.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino_conversions.hpp"
 #include "utils.hpp"
 
 namespace ov {

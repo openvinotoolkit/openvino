@@ -46,7 +46,7 @@ OutputVector translate_pad_op(const NodeContext& node) {
 
     // Set pads_begin & pads_end (from the pad_val_op)
     std::vector<int64_t> paddings;
-    get_static_input_vec(node, 1, &paddings);
+    get_const_input(node, 1, &paddings);
     if (paddings.size() % 2 != 0) {
         TF_OP_VALIDATION_CHECK(node,
                                false,

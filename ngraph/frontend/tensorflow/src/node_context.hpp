@@ -3,15 +3,15 @@
 //
 
 #pragma once
-#include <tensorflow_frontend/utility.hpp>
 
 #include "exceptions.hpp"
 #include "openvino/core/variant.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
+#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
 
-#define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
+#define OPENVINO_VARIANT_DECLARATION(TYPE, info)                                          \
     template <>                                                                           \
     class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
     public:                                                                               \
@@ -20,18 +20,18 @@
     }
 
 namespace ov {
-NGRAPH_VARIANT_DECLARATION(int32_t, "Variant::int32");
-NGRAPH_VARIANT_DECLARATION(uint64_t, "Variant::uint64_t");
-NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
-NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
-NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
-NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
-NGRAPH_VARIANT_DECLARATION(ov::element::Type, "Variant::ov_element_type");
-NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
-NGRAPH_VARIANT_DECLARATION(ov::PartialShape, "Variant::ngraph_PartialShape");
-NGRAPH_VARIANT_DECLARATION(std::vector<std::string>, "Variant::string_vector");
-NGRAPH_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
-NGRAPH_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
+OPENVINO_VARIANT_DECLARATION(int32_t, "Variant::int32");
+OPENVINO_VARIANT_DECLARATION(uint64_t, "Variant::uint64_t");
+OPENVINO_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
+OPENVINO_VARIANT_DECLARATION(float, "Variant::float");
+OPENVINO_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
+OPENVINO_VARIANT_DECLARATION(bool, "Variant::bool");
+OPENVINO_VARIANT_DECLARATION(ov::element::Type, "Variant::ov_element_type");
+OPENVINO_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
+OPENVINO_VARIANT_DECLARATION(ov::PartialShape, "Variant:ov_PartialShape");
+OPENVINO_VARIANT_DECLARATION(std::vector<std::string>, "Variant::string_vector");
+OPENVINO_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
+OPENVINO_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
 }  // namespace ov
 
 namespace ov {

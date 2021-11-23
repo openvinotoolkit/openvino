@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <ngraph/ngraph.hpp>
 #include <string>
-#include <tensorflow_frontend/decoder.hpp>
 #include <vector>
 
 #include "attr_value.pb.h"
 #include "node_def.pb.h"
+#include "tensorflow_frontend/decoder.hpp"
 #include "types.pb.h"
 
 namespace ov {

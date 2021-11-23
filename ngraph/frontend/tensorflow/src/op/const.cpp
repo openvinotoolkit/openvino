@@ -18,7 +18,7 @@ using ConstMap = std::map<ov::element::Type,
                           std::pair<std::function<void(const NodeContext&, ov::element::Type, ov::Output<ov::Node>&)>,
                                     const ov::element::Type>>;
 
-const ConstMap& TF_NGRAPH_CONST_MAP() {
+const ConstMap& TF_OPENVINO_CONST_MAP() {
     static const ConstMap the_map = {
         {ov::element::f32, make_pair(make_const_op<float>, ov::element::f32)},
         {ov::element::f64, make_pair(make_const_op<double>, ov::element::f64)},
@@ -43,23 +43,13 @@ OutputVector translate_const_op(const NodeContext& node) {
     auto dt = node.get_attribute<ov::element::Type>("dtype");
     Output<Node> res;
 
-    // For some reason the following do not work (no specialization of
-    // tensorflow::checkpoint::SavedTypeTraits...)
-    // case DataType::DT_UINT32:
-    //   TF_RETURN_IF_ERROR(make_const_op<uint32>(op, element::u32,
-    //   &ng_node));
-    //   break;
-    // case DataType::DT_UINT64:
-    //   TF_RETURN_IF_ERROR(make_const_op<uint64>(op, element::u64,
-    //   &ng_node));
-    //   break;
+    // TODO: fix DT_UINT32 and DT_UINT64 support
+    // no specialization of tensorflow::checkpoint::SavedTypeTraits...)
     try {
-        const auto& func_param = TF_NGRAPH_CONST_MAP().at(dt);
+        const auto& func_param = TF_OPENVINO_CONST_MAP().at(dt);
         func_param.first(node, func_param.second, res);
     } catch (const std::out_of_range&) {
-        TF_OP_VALIDATION_CHECK(node,
-                               false,
-                               "Failed to translate Constant with target ngraph type:" + dt.get_type_name());
+        TF_OP_VALIDATION_CHECK(node, false, "Failed to translate Constant with target OV type:" + dt.get_type_name());
     }
     set_node_name(node.get_name(), res.get_node_shared_ptr());
     return {res};

@@ -49,7 +49,7 @@ OutputVector translate_max_pool_op(const NodeContext& node) {
                  padding_below,
                  padding_above);
 
-    // TODO: remove this once nGraph supports negative padding
+    // TODO: remove this once OV supports negative padding
     // (CoordinateDiff) for MaxPool
     Shape ng_padding_below(padding_below.begin(), padding_below.end());
     Shape ng_padding_above(padding_above.begin(), padding_above.end());
