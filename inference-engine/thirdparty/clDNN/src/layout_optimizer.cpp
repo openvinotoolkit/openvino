@@ -308,7 +308,13 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         // Remove Reorder for Convolution: b_fs_yx_fsv32 (i8/u8) -> b_fs_yx_fsv16 (fp32/fp16)
         if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv32 && fmt_next == format::b_fs_yx_fsv16 &&
             !data_type_traits::is_floating_point(prev_dt) && data_type_traits::is_floating_point(next_dt)) {
-            return true;
+            auto& node = prev.get_users().front();
+            // Avoid to fuse padding reorder to previous onednn convolution
+            if (prev.is_type<convolution>() && prev.as<convolution>().get_preferred_impl_type() == impl_types::onednn &&
+                (node->get_output_layout().data_padding != prev.get_output_layout().data_padding))
+                return false;
+            else
+                return true;
         }
 
         if (next.is_type<quantize>())
@@ -488,7 +494,7 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
          input_layout.size.feature[0] % 32 == 0 &&
          weights_layout.size.spatial[1] == 1 && output_layout.size.feature[0] % 64 == 0 &&
          weights_layout.size.batch[0] % 64 == 0 && conv->stride.spatial[0] == 1 && conv->stride.spatial[1] == 1 &&
-         conv->input_offset.spatial[0] == 0 && conv->input_offset.spatial[1] == 0) ||
+         conv->pad.spatial[0] == 0 && conv->pad.spatial[1] == 0) ||
         // Winograd
         should_use_winograd_2x3_s1(conv, input_layout, weights_layout, _output_size_handling_enabled))
         return true;
@@ -1102,6 +1108,16 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
     return false;
 }
 
+bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
+    auto in_layout = node.get_dependencies().front()->get_output_layout();
+    auto out_layout = node.get_output_layout();
+    // Check if padding exists
+    if (node.get_preferred_impl_type() == impl_types::onednn && (in_layout.data_padding || out_layout.data_padding))
+        return false;
+    else
+        return true;
+}
+
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
     impl_types preferred_impl = impl_types::any;
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
@@ -1207,6 +1223,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
             if (((has_groups && !enable_onednn_dw_fp16_conv) || first_conv) &&
                 (output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::bs_fs_yx_bsv32_fsv16) &&
                 (!conv.get_primitive()->needs_onednn_bfyx_to_fsv16(format::bfyx, output_layout.format, input_layout, output_layout)))
+                impl_candidate = impl_types::ocl;
+            if (conv.get_output_layout().format == format::b_fs_yx_fsv32 && first_conv)
                 impl_candidate = impl_types::ocl;
         }
 

@@ -14,7 +14,6 @@
 #include <string>
 
 #include "cpp/ie_memory_state.hpp"
-#include "details/ie_so_loader.h"
 #include "ie_blob.h"
 #include "ie_iinfer_request.hpp"
 
@@ -33,7 +32,7 @@ class ICompletionCallbackWrapper;
  * It can throw exceptions safely for the application, where it is properly handled.
  */
 class INFERENCE_ENGINE_API_CLASS(InferRequest) {
-    details::SharedObjectLoader _so;
+    std::shared_ptr<void> _so;
     std::shared_ptr<IInferRequestInternal> _impl;
 
     /**
@@ -42,7 +41,7 @@ class INFERENCE_ENGINE_API_CLASS(InferRequest) {
      * destroyed.
      * @param impl Initialized shared pointer
      */
-    InferRequest(const details::SharedObjectLoader& so, const std::shared_ptr<IInferRequestInternal>& impl);
+    InferRequest(const std::shared_ptr<void>& so, const std::shared_ptr<IInferRequestInternal>& impl);
     friend class ExecutableNetwork;
 
 public:

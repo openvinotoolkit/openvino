@@ -8,20 +8,17 @@
 #include "pyngraph/axis_vector.hpp"
 #include "pyngraph/coordinate.hpp"
 #include "pyngraph/coordinate_diff.hpp"
-#include "pyngraph/function.hpp"
-#include "pyngraph/node.hpp"
-#include "pyngraph/node_factory.hpp"
-#include "pyngraph/node_input.hpp"
-#include "pyngraph/node_output.hpp"
-#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
-#    include "pyngraph/onnx_import/onnx_import.hpp"
-#endif
 #include "pyngraph/dimension.hpp"
 #include "pyngraph/discrete_type_info.hpp"
 #include "pyngraph/frontend/frontend.hpp"
 #include "pyngraph/frontend/frontend_manager.hpp"
 #include "pyngraph/frontend/inputmodel.hpp"
 #include "pyngraph/frontend/place.hpp"
+#include "pyngraph/function.hpp"
+#include "pyngraph/node.hpp"
+#include "pyngraph/node_factory.hpp"
+#include "pyngraph/node_input.hpp"
+#include "pyngraph/node_output.hpp"
 #include "pyngraph/ops/constant.hpp"
 #include "pyngraph/ops/parameter.hpp"
 #include "pyngraph/ops/result.hpp"
@@ -67,9 +64,6 @@ PYBIND11_MODULE(_pyngraph, m) {
     regclass_pyngraph_op_Constant(m_op);
     regclass_pyngraph_op_Parameter(m_op);
     regclass_pyngraph_op_Result(m_op);
-#if defined(NGRAPH_ONNX_FRONTEND_ENABLE)
-    regmodule_pyngraph_onnx_import(m);
-#endif
     regmodule_pyngraph_op_util(m_op);
     regclass_pyngraph_Function(m);
     regmodule_pyngraph_passes(m);

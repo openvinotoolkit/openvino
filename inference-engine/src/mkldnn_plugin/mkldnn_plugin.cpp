@@ -129,6 +129,7 @@ Engine::~Engine() {
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT) {
     ngraph::pass::Manager manager;
+    manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
 
     const bool useLpt =
@@ -187,6 +188,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
         manager.register_pass<ngraph::pass::low_precision::ConvertSubtractConstant>(
             std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8, ngraph::element::i4, ngraph::element::u4 });
     }
+    manager.register_pass<ngraph::pass::Validate>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
     manager.register_pass<ngraph::pass::EliminateConvert>();
 
@@ -531,13 +533,15 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                     // network is below general threshold
                     num_streams = std::max(default_num_streams, num_streams_less_aggressive);
                 }
+
+                int ovPerfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;  // set thru SetConfig to the plugin
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
-                if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
-                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
-                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
-                if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
-                    num_streams = std::min(num_streams,
-                            PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
+                if (num_requests != config.end()) {
+                    // arrived with config to the LoadNetwork (and thus higher pri)
+                    ovPerfHintNumRequests = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+                }
+                num_streams = std::min(num_streams, std::max(ovPerfHintNumRequests, 1));
+
                 config[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = std::to_string(num_streams);
            }
         }
