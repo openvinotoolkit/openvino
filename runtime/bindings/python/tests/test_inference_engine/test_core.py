@@ -318,6 +318,80 @@ def test_add_extension(device):
     # assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)
 
 
+def test_py_extension(device):
+    model = bytes(b"""<net name="Network" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="2,2,2,1"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="operation" id="1" type="CustomAdd" version="util">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>2</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>""")
+
+    class CustomAdd:
+        op = "CustomAdd"
+
+        def execute(self, inputs):
+            return inputs[0] + 11
+
+    from openvino.inference_engine import IECore
+
+    core = IECore()
+    core.add_py_extension(CustomAdd)
+    network = core.read_network(bytes(model), b'', init_from_buffer=True)
+
+    input_blob = next(iter(network.input_info))
+    n, c, h, w = network.input_info[input_blob].input_data.shape
+
+    input_values = np.ndarray(buffer=np.array([1, 2, 3, 4, 5, 6, 7, 8]), shape = (n, c, h, w), dtype=int)
+    expected = np.ndarray(buffer=np.array([12, 13, 14, 15, 16, 17, 18, 19]),
+    shape = (n, c, h, w), dtype=int)
+
+    exec_network = core.load_network(network, device)
+    computed = exec_network.infer(inputs={input_blob : input_values})
+    output_blob = next(iter(network.outputs))
+    assert np.allclose(expected, computed[output_blob], atol=1e-2, rtol=1e-2)
+
+
 def test_read_model_from_buffer_no_weights(device):
     model = bytes(b"""<net name="add_model" version="10">
     <layers>
