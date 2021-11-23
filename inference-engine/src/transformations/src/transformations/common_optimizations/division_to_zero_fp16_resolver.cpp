@@ -30,9 +30,20 @@ ov::pass::DivisionToZeroFP16Resolver::DivisionToZeroFP16Resolver() {
     auto add = std::make_shared<opset8::Add>(input_2, eps_const_pattern);
     auto max_or_add = std::make_shared<pattern::op::Or>(OutputVector{max, add});
     auto divide = std::make_shared<opset8::Divide>(input_1, max_or_add);
+    auto pow_exp = pattern::wrap_type<opset8::Constant>();
+    auto pow_pattern = std::make_shared<opset8::Power>(max_or_add, pow_exp);
+    auto div_or_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, pow_pattern});
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
+
+        const auto pow = std::dynamic_pointer_cast<opset8::Power>(m.get_match_root());
+        if (pow) {
+            const auto pow_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(pow_exp).get_node_shared_ptr());
+            for (float val : pow_const->get_vector<float>())
+                if (val >= 0)  // only for negative exponents
+                    return false;
+        }
 
         const auto eps_const = std::dynamic_pointer_cast<opset8::Constant>(pattern_to_output.at(eps_const_pattern).get_node_shared_ptr());
         if (!eps_const)
@@ -50,6 +61,6 @@ ov::pass::DivisionToZeroFP16Resolver::DivisionToZeroFP16Resolver() {
         return true;
     };
 
-    auto m = std::make_shared<pattern::Matcher>(divide, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(div_or_pow, matcher_name);
     register_matcher(m, callback);
 }

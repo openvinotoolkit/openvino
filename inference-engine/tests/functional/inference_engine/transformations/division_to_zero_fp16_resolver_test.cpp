@@ -42,14 +42,75 @@ TEST_F(TransformationTestsF, DivisionToZeroMinimalPattern) {
         auto divide = std::make_shared<opset4::Divide>(input_1, add);
 
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, PowWithNegativeExponent) {
+    const float eps_value = 1.e-12;
+    {
+        auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = opset4::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<opset4::Add>(input_2, eps_const);
+        auto pow_exp_const = opset4::Constant::create(element::f32, Shape{1}, {-1.77});
+        auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
+
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
 
         manager.register_pass<pass::DivisionToZeroFP16Resolver>();
     }
+
+    {
+        auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = opset4::Constant::create(element::f32, Shape{1}, {normalized_fp16_min});
+        auto add = std::make_shared<opset4::Add>(input_2, eps_const);
+        auto pow_exp_const = opset4::Constant::create(element::f32, Shape{1}, {-1.77});
+        auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
+
+        function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, PowWithPozitiveExponent) {
+    // graph should be left unchanged
+    const float eps_value = 1.e-12;
+    {
+        auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = opset4::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<opset4::Add>(input_2, eps_const);
+        auto pow_exp_const = opset4::Constant::create(element::f32, Shape{1}, {1.77});
+        auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
+
+        function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
+
+        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
+    }
+
+    {
+        auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
+        auto eps_const = opset4::Constant::create(element::f32, Shape{1}, {eps_value});
+        auto add = std::make_shared<opset4::Add>(input_2, eps_const);
+        auto pow_exp_const = opset4::Constant::create(element::f32, Shape{1}, {1.77});
+        auto pow = std::make_shared<opset4::Power>(add, pow_exp_const);
+        auto mul = std::make_shared<opset4::Multiply>(input_1, pow);
+
+        function_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{input_1, input_2});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, DivisionToZeroMinimalPatternUnchanged) {
     // if eps_value is greater than normalized_fp16_min then leave graph unchanged
-    const float eps_value = 0.000099f;
+    const float eps_value = 0.0001f;
     {
         auto input_1 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
         auto input_2 = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -70,9 +131,8 @@ TEST_F(TransformationTestsF, DivisionToZeroMinimalPatternUnchanged) {
         auto divide = std::make_shared<opset4::Divide>(input_1, add);
 
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input_1, input_2});
-
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, DivisionToZeroWithMax) {
@@ -106,11 +166,12 @@ TEST_F(TransformationTestsF, DivisionToZeroWithMax) {
 
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 
 TEST_F(TransformationTestsF, DivisionToZeroWithAdd) {
-    const float eps_value = 0.000099f;
+    const float eps_value = 1.e-12;
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, PartialShape::dynamic(3));
         auto exp = opset4::Constant::create(element::f32, Shape{}, {2.f});
@@ -139,7 +200,6 @@ TEST_F(TransformationTestsF, DivisionToZeroWithAdd) {
         auto divide = std::make_shared<opset4::Divide>(input, sqrt);
 
         function_ref = std::make_shared<Function>(NodeVector{divide}, ParameterVector{input});
-
-        manager.register_pass<pass::DivisionToZeroFP16Resolver>();
     }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
