@@ -371,8 +371,8 @@ def run(args):
         # Set input tensors before first inference
         for request in requests:
             request.set_tensors(data_queue.get_next_input())
-        #if data_queue.size <= benchmark.nireq: # TODO: Should we enable it if there is no need to set new tensors each time ?
-            #benchmark.legacy_mode = True
+        if data_queue.size <= benchmark.nireq: # TODO: Should we enable it if there is no need to set new tensors each time ?
+            benchmark.legacy_mode = True
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
