@@ -168,6 +168,9 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
         } else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
             cl::Buffer buf(static_cast<cl_mem>(params.mem), true);
             return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf);
+        } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
+            cl::UsmMemory usm_buffer(get_usm_helper(), params.mem);
+            return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
         } else {
             throw std::runtime_error("unknown shared object fromat or type");
         }
