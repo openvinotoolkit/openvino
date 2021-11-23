@@ -740,7 +740,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
     } else if (name == GPU_METRIC_KEY(MAX_BATCH_SIZE)) {
         GPU_DEBUG_GET_INSTANCE(debug_config);
         const auto& config = _impl->m_configs.GetConfig(device_id);
-        auto n_streams = config.throughput_streams;
+        uint32_t n_streams = static_cast<uint32_t>(config.throughput_streams);
         uint64_t occupied_device_mem = 0;
         auto statistic_result = GetMetric(GPU_METRIC_KEY(MEMORY_STATISTICS), options).as<std::map<std::string, uint64_t>>();
         auto occupied_usm_dev = statistic_result.find("usm_device_current");
@@ -748,7 +748,7 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
             occupied_device_mem = occupied_usm_dev->second;
         }
 
-        auto available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
+        int64_t available_device_mem = device_info.max_global_mem_size - occupied_device_mem;
         GPU_DEBUG_IF(debug_config->verbose >= 2) {
             GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] available memory is " << available_device_mem
                            << " (occupied: " << occupied_device_mem << ")" << std::endl;
@@ -852,8 +852,10 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         transformations.apply(nGraphFunc);
         program = std::make_shared<Program>(cloned_network, engine, config, false, true);
         std::pair<int64_t, int64_t> device_memory_usage =  program->GetCompiledProgram(0)->get_estimated_device_mem_usage();
-        max_batch_size = std::max(1L, static_cast<int64_t>((available_device_mem - device_memory_usage.first)
-                                / (n_streams * std::max(1UL, (device_memory_usage.second / base_batch_size)))));
+        int64_t mem_for_general = std::max(static_cast<int64_t>(1L),
+                                  static_cast<int64_t>(static_cast<int64_t>(available_device_mem) - device_memory_usage.first));
+        int64_t mem_per_batch = std::max(static_cast<int64_t>(1L), (device_memory_usage.second / static_cast<int64_t>(base_batch_size)));
+        max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
         GPU_DEBUG_IF(debug_config->verbose >= 1) {
             GPU_DEBUG_COUT << "Base batch size: " << base_batch_size  << std::endl;
             GPU_DEBUG_COUT << "Const mem usage: " << device_memory_usage.first  << std::endl;
