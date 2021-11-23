@@ -28,7 +28,9 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/tensor.hpp"
+#include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/layout_helpers.hpp"
@@ -38,6 +40,7 @@
 #include "pyopenvino/graph/ops/util/regmodule_graph_op_util.hpp"
 #include "pyopenvino/graph/partial_shape.hpp"
 #include "pyopenvino/graph/passes/regmodule_graph_passes.hpp"
+#include "pyopenvino/graph/preprocess/pre_post_process.hpp"
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/graph/shape.hpp"
 #include "pyopenvino/graph/strides.hpp"
@@ -51,7 +54,7 @@ std::string get_version() {
     auto version = ov::get_openvino_version();
     std::string version_str = std::to_string(OPENVINO_VERSION_MAJOR) + ".";
     version_str += std::to_string(OPENVINO_VERSION_MINOR) + ".";
-    version_str += version->buildNumber;
+    version_str += version.buildNumber;
     return version_str;
 }
 
@@ -73,6 +76,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     regclass_graph_AxisSet(m);
     regclass_graph_AxisVector(m);
     regclass_graph_Coordinate(m);
+    regclass_graph_descriptor_Tensor(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Constant(m_op);
     regclass_graph_op_Parameter(m_op);
@@ -82,6 +86,9 @@ PYBIND11_MODULE(pyopenvino, m) {
     regmodule_graph_onnx_import(m);
 #endif
     regmodule_graph_op_util(m_op);
+    py::module m_preprocess =
+        m.def_submodule("preprocess", "Package openvino.impl.preprocess that wraps ov::preprocess");
+    regclass_graph_PrePostProcessor(m_preprocess);
     regclass_graph_Function(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
@@ -100,6 +107,7 @@ PYBIND11_MODULE(pyopenvino, m) {
 
     regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);
+    regclass_VariableState(m);
     regclass_Version(m);
     regclass_Parameter(m);
     regclass_AsyncInferQueue(m);
