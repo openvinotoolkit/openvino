@@ -20,7 +20,6 @@ from tests import (
     xfail_issue_38699,
     xfail_issue_38701,
     xfail_issue_38706,
-    xfail_issue_38708,
     xfail_issue_38710,
     xfail_issue_38713,
     xfail_issue_38724,
@@ -49,7 +48,6 @@ from tests import (
     xfail_issue_63136,
     xfail_issue_63137,
     xfail_issue_63138,
-    xfail_issue_69443,
     xfail_issue_69444,
 )
 from tests.test_onnx.utils.onnx_backend import OpenVinoTestBackend
@@ -126,12 +124,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_lstm_defaults_cpu",
         "OnnxBackendNodeModelTest.test_lstm_with_initial_bias_cpu",
         "OnnxBackendNodeModelTest.test_lstm_with_peepholes_cpu",
-    ),
-    (
-        xfail_issue_69443,
-        "OnnxBackendNodeModelTest.test_constant_pad_cpu",
-        "OnnxBackendNodeModelTest.test_edge_pad_cpu",
-        "OnnxBackendNodeModelTest.test_reflect_pad_cpu",
     ),
     (
         xfail_issue_39658,
@@ -216,15 +208,9 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_batch_uniandbigrams_skip5_cpu",
         "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_onlybigrams_skip5_cpu",
     ),
-    (xfail_issue_38706, "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (
-        xfail_issue_38708,
-        "OnnxBackendNodeModelTest.test_slice_default_steps_cpu",
-        "OnnxBackendNodeModelTest.test_slice_negative_axes_cpu",
-        "OnnxBackendNodeModelTest.test_slice_neg_steps_cpu",
-        "OnnxBackendNodeModelTest.test_slice_neg_cpu",
-        "OnnxBackendNodeModelTest.test_slice_cpu",
-        "OnnxBackendNodeModelTest.test_slice_end_out_of_bounds_cpu",
+        xfail_issue_38706,
+        "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu",
         "OnnxBackendNodeModelTest.test_slice_start_out_of_bounds_cpu",
     ),
     (
@@ -250,9 +236,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_47337,
-        "OnnxBackendNodeModelTest.test_onehot_without_axis_cpu",
-        "OnnxBackendNodeModelTest.test_onehot_with_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_onehot_with_axis_cpu",
         "OnnxBackendNodeModelTest.test_onehot_negative_indices_cpu",
     ),
     (

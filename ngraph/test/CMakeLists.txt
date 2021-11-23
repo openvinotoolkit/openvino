@@ -133,6 +133,7 @@ set(SRC
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
+    type_prop/convert_color_i420.cpp
     type_prop/convert_color_nv12.cpp
     type_prop/convolution.cpp
     type_prop/convolution_backprop_data.cpp
@@ -290,6 +291,7 @@ set(SRC
     visitors/op/clamp.cpp
     visitors/op/constant.cpp
     visitors/op/convert.cpp
+    visitors/op/convert_color_i420.cpp
     visitors/op/convert_color_nv12.cpp
     visitors/op/convolution_backprop.cpp
     visitors/op/convolution.cpp
@@ -500,7 +502,6 @@ set(MULTI_TEST_SRC
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
     backend/tile.in.cpp
-    backend/topk.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
@@ -614,9 +615,9 @@ if (OV_COMPILER_IS_CLANG)
 endif()
 
 if (NGRAPH_ONNX_FRONTEND_ENABLE)
-    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ngraph_frontend SOURCE_DIR)
+    get_target_property(ONNX_FRONTEND_SRC_DIR onnx_ov_frontend SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_FRONTEND_SRC_DIR}/src)
-    target_link_libraries(unit-test PRIVATE onnx_ngraph_frontend onnx_test_util)
+    target_link_libraries(unit-test PRIVATE onnx_ov_frontend onnx_test_util)
     if (LINUX)
         target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
     elseif(APPLE)
@@ -625,7 +626,7 @@ if (NGRAPH_ONNX_FRONTEND_ENABLE)
 endif()
 
 if(NGRAPH_IR_FRONTEND_ENABLE)
-    add_dependencies(unit-test ir_ngraph_frontend)
+    add_dependencies(unit-test ir_ov_frontend)
 endif()
 
 install(TARGETS unit-test

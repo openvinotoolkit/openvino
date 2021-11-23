@@ -134,10 +134,10 @@ def get_files_by_extensions(paths_to_input, extensions):
             check_files_exist(files)
             return files
 
-    return get_files_by_extensions_for_not_list_of_files(paths_to_input, extensions)
+    return get_files_by_extensions_for_directory_or_list_of_files(paths_to_input, extensions)
 
 
-def get_files_by_extensions_for_not_list_of_files(paths_to_input, extensions):
+def get_files_by_extensions_for_directory_or_list_of_files(paths_to_input, extensions):
     input_files = list()
 
     for path_to_input in paths_to_input:
@@ -150,8 +150,8 @@ def get_files_by_extensions_for_not_list_of_files(paths_to_input, extensions):
             file_extension = get_extension(file)
             if file_extension in extensions:
                 input_files.append(file)
-        input_files.sort()
-        return input_files
+    input_files.sort()
+    return input_files
 
 
 def get_extension(file_path):

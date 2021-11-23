@@ -262,6 +262,7 @@ def get_lstm_ends(read_value, assigns, ignore_nodes):
                     if n.name not in ignore_nodes]
     return lstm_outputs
 
+
 def create_node_name(input_node, mode=tuple):
     """
     Returns key for node input.
@@ -273,3 +274,10 @@ def create_node_name(input_node, mode=tuple):
         port_number = input_node.in_port(0).get_source().out
         key = (input_node.name, port_number) if mode == tuple else f"{input_node.name}.{port_number}"
     return key
+
+
+def get_node_data_type(node):
+    if node.type != 'Const' and node.in_port(0).get_source() is not None \
+            and node.in_port(0).get_source().is_data_type_defined():
+        return node.in_port(0).get_source().get_data_type()
+    return None

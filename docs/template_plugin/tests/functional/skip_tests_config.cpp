@@ -88,11 +88,24 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceSpaceToBatchLayerTest.*dType=u4.*)",
         // CVS-64066
         R"(.*ReferenceGRUCellTestHardsigmoidActivationFunction.*gru_cell_hardsigmoid_activation_function)",
+        // CVS-71381
+        R"(.*ReferenceExpLayerTest.*u32.*)",
+        R"(.*ReferenceExpLayerTest.*u64.*)",
+        // CVS-64054
+        R"(.*ReferenceTopKTest.*aType=i8.*)",
+        R"(.*ReferenceTopKTest.*aType=i16.*)",
+        R"(.*ReferenceTopKTest.*aType=u8.*)",
+        R"(.*ReferenceTopKTest.*aType=u16.*)",
+        R"(.*ReferenceTopKTest.*aType=bf16.*)",
+        R"(.*ReferenceTopKTest.*aType=f64.*)",
     };
 
 #ifdef _WIN32
     // CVS-63989
      retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");
+    // CVS-64054
+    retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_max_sort_none)");
+    retVector.emplace_back(R"(.*ReferenceTopKTest.*topk_min_sort_none)");
 #endif
     return retVector;
 }
