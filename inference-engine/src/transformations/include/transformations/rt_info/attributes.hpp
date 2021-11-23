@@ -9,6 +9,7 @@
 #include <mutex>
 #include <ngraph/factory.hpp>
 #include <ngraph/node.hpp>
+#include <openvino/core/preprocess/input_tensor_info.hpp>
 #include <openvino/core/variant.hpp>
 #include <set>
 #include <transformations/rt_info/disable_constant_folding.hpp>
