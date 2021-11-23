@@ -189,7 +189,12 @@ const std::vector<ElementType> netPRCs {
     ElementType::bf16
 };
 
-std::vector<CPUSpecificParams> specificParams = {{{}, {}, {"jit_gemm"}, "jit_gemm"}};
+std::vector<CPUSpecificParams> filterSpecificParams() {
+    std::vector<CPUSpecificParams> specificParams;
+    specificParams.push_back(CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"});
+
+    return specificParams;
+}
 
 /* ============= FullyConnected ============= */
 namespace fullyConnected {
@@ -241,7 +246,7 @@ const auto fullyConnectedParams2D = ::testing::Combine(::testing::ValuesIn(IS2D)
 const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D),
-                                             ::testing::ValuesIn(specificParams));
+                                             ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
 
@@ -275,7 +280,7 @@ const auto fullyConnectedParams3D = ::testing::Combine(::testing::ValuesIn(IS3D)
 const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet3D),
-                                             ::testing::ValuesIn(specificParams));
+                                             ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
 
@@ -305,7 +310,7 @@ const std::vector<ShapeRelatedParams> IS2D_Brgemm = {
 std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
     std::vector<CPUSpecificParams> specificParams;
     if (with_cpu_x86_avx512_core()) {
-        specificParams.push_back({{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
     }
 
     return specificParams;
@@ -516,7 +521,7 @@ const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),
 const auto testParams = ::testing::Combine(matMulParams,
                                            ::testing::Values(MatMulNodeType::MatMul),
                                            ::testing::ValuesIn(matmulFusingParams),
-                                           ::testing::ValuesIn(specificParams));
+                                           ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
 
