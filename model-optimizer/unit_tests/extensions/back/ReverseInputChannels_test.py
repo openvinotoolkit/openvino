@@ -240,4 +240,4 @@ class ReverseInputChannelsTest(unittest.TestCase):
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 2) == 1)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, 3) == 2)
         self.assertTrue(InsertReverseChannels.get_fw_index(node, -2) == 1)
-        self.assertTrue(type(InsertReverseChannels.get_fw_index(node, int64_array(0))) == np.ndarray)
+        self.assertTrue(type(InsertReverseChannels.get_fw_index(node, 0)) == int)

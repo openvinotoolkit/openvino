@@ -75,7 +75,7 @@ class InsertReverseChannels(BackReplacementPattern):
 
         assert len(order) > idx >= 0, \
             'Channel index {} is incompatible with old_api_map in node {}.'.format(idx, node_name)
-        return int64_array(list(order).index(idx))
+        return list(order).index(idx)
 
     def find_and_replace_pattern(self, graph: Graph):
         all_params = [(p.soft_get('name', p.id), p, list(p.out_port(0).data.get_shape()))
@@ -94,7 +94,7 @@ class InsertReverseChannels(BackReplacementPattern):
                       extra={'is_warning': True})
 
         for name, parameter, _ in suitable_params:
-            reverse_index = self.get_fw_index(parameter, 1)
+            reverse_index = int64_array(self.get_fw_index(parameter, 1))
 
             if parameter.out_port(0).disconnected():
                 continue
@@ -137,9 +137,6 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
             return False
         order = node.in_port(1).data.get_value()
         reverse_axis = reverse_channels.axis
-
-        if reverse_channels.axis.size != 1:
-            return False
 
         data_rank = len(list(node.in_port(0).data.get_shape()))
 
@@ -360,9 +357,6 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             return False
         order = node.in_port(1).data.get_value()
         reverse_axis = reverse_channels.axis
-
-        if reverse_channels.axis.size != 1:
-            return False
 
         data_rank = len(list(node.in_port(0).data.get_shape()))
 
