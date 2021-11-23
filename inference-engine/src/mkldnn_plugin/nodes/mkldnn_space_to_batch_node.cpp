@@ -18,10 +18,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNSpaceToBatchNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto spaceToBatch = std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(op);
         if (!spaceToBatch) {
             errorMessage = "Only opset2 SpaceToBatch operation is supported";
@@ -48,16 +44,15 @@ MKLDNNSpaceToBatchNode::MKLDNNSpaceToBatchNode(const std::shared_ptr<ngraph::Nod
 
     errorPrefix = "BatchToSpace layer with name '" + op->get_friendly_name() + "'";
 
-    if (op->get_input_size() != 4 || op->get_output_size() != 1)
+    if (inputShapes.size() != 4 || outputShapes.size() != 1)
         IE_THROW() << errorPrefix << " has incorrect number of input or output edges!";
 
-    inDims = op->get_input_shape(0);
-    outDims = op->get_output_shape(0);
-    if (inDims.size() < 4 || inDims.size() > 5)
-        IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inDims.size();
-    if (inDims.size() != outDims.size())
+    const size_t srcRank = getInputShapeAtPort(0).getRank();
+    const size_t dstRank = getOutputShapeAtPort(0).getRank();
+    if (srcRank < 4 || srcRank > 5)
+        IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << srcRank;
+    if (srcRank != dstRank)
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
-
     blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
     padsBeginIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<size_t>();
 }
@@ -66,6 +61,7 @@ void MKLDNNSpaceToBatchNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    const auto &inDims = getInputShapeAtPort(0).getDims();
     const auto precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
@@ -83,7 +79,7 @@ void MKLDNNSpaceToBatchNode::initSupportedPrimitiveDescriptors() {
                           {LayoutType::ncsp}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
-    if (inDims[1] % 8 == 0) {
+    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 8 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
                               {LayoutType::ncsp},
                               {LayoutType::ncsp},
@@ -91,7 +87,7 @@ void MKLDNNSpaceToBatchNode::initSupportedPrimitiveDescriptors() {
                              {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
-    if (inDims[1] % 16 == 0) {
+    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 16 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
                               {LayoutType::ncsp},
                               {LayoutType::ncsp},
@@ -115,6 +111,9 @@ template<typename T>
 void MKLDNNSpaceToBatchNode::SpaceToBatchKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+
+    const auto &inDims = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getStaticDims();
+    const auto &outDims = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getStaticDims();
 
     const bool blocked = getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp16c) ||
                          getParentEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::nCsp8c);
