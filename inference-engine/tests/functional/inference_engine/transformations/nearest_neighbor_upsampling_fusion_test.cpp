@@ -52,7 +52,7 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
         }
         auto concat_1 = std::make_shared<ngraph::opset8::Concat>(concat_1_inputs_vec, 0);
 
-        auto reshape_1 = std::make_shared<ngraph::opset8::Reshape>(input, concat_1);
+        auto reshape_1 = std::make_shared<ngraph::opset8::Reshape>(input, concat_1, true);
 
         ngraph::OutputVector concat_2_inputs_vec(input_rank);
         auto unsqueeze_before_concat_2_axes = ngraph::opset8::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
@@ -79,7 +79,7 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
         const auto mul_const = ngraph::opset8::Constant::create(ngraph::element::i64, mul_const_shape, mul_const_value);
         const auto mul = std::make_shared<ngraph::opset8::Multiply>(reshape_1, mul_const);
 
-        auto reshape_2 = std::make_shared<ngraph::opset8::Reshape>(mul, concat_2);
+        auto reshape_2 = std::make_shared<ngraph::opset8::Reshape>(mul, concat_2, true);
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshape_2 }, ngraph::ParameterVector{ input });
         manager.register_pass<ngraph::pass::NearestNeighborUpsamplingFusion>();
     }
