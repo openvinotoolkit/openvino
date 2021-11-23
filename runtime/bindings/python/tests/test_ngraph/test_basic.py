@@ -24,6 +24,11 @@ def test_ngraph_function_api():
     parameter_b = ops.parameter(shape, dtype=np.float32, name="B")
     parameter_c = ops.parameter(shape, dtype=np.float32, name="C")
     model = (parameter_a + parameter_b) * parameter_c
+
+    assert parameter_a.element_type == Type.f32
+    assert parameter_a.partial_shape == PartialShape([2, 2])
+    parameter_a.layout = ov.Layout("NCWH")
+    assert parameter_a.layout == ov.Layout("NCWH")
     function = Function(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
@@ -44,7 +49,12 @@ def test_ngraph_function_api():
     assert list(function.get_output_shape(0)) == [2, 2]
     assert (function.get_parameters()[1].get_partial_shape()) == PartialShape([3, 4, 5])
     assert len(function.get_parameters()) == 3
-    assert len(function.get_results()) == 1
+    results = function.get_results()
+    assert len(results) == 1
+    assert results[0].get_output_element_type(0) == Type.f32
+    assert results[0].get_output_partial_shape(0) == PartialShape([2, 2])
+    results[0].layout = ov.Layout("NC")
+    assert results[0].layout.to_string() == ov.Layout("NC")
     assert function.get_friendly_name() == "TestFunction"
 
 
