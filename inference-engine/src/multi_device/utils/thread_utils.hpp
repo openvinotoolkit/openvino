@@ -16,11 +16,11 @@
 #define MOCKTESTMACRO
 #endif
 
-namespace MultiDevicePlugin {
 #ifdef WIN32
 #include <windows.h>
 #include <winsock.h>
 #include <intrin.h>
+namespace MultiDevicePlugin {
 namespace ThreadUtils {
 DWORD getThreadId();
 } // namespace ThreadUtils
@@ -29,16 +29,19 @@ DWORD getThreadId();
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+namespace MultiDevicePlugin {
 namespace ThreadUtils {
 long getThreadId();
 } // namespace ThreadUtils
 #elif defined(__APPLE__)
 #include <pthread.h>
 #include <sys/proc_info.h>
+namespace MultiDevicePlugin {
 namespace ThreadUtils {
 long getThreadId();
 } // namespace ThreadUtils
 #else
+namespace MultiDevicePlugin {
 namespace ThreadUtils {
 long getThreadId();
 } // namespace ThreadUtils

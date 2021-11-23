@@ -28,5 +28,3 @@ public:
     static MockLog* _mockLog;
 };
 }// namespace MockMultiDevice
-#define HLogger MockMultiDevice::MockLog::GetInstance()
-#include "utils/log_util.hpp"

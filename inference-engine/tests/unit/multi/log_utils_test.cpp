@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "plugin/mock_log_utils.hpp"
+#include "utils/log_util.hpp"
 #include <future>
 using ::testing::_;
 using namespace MockMultiDevice;

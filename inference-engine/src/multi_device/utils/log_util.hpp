@@ -12,9 +12,10 @@
 #include <ie_plugin_config.hpp>
 
 #ifdef  MULTIUNITTEST
+#include "plugin/mock_log_utils.hpp"
 #define MOCKTESTMACRO virtual
 #define MultiDevicePlugin MockMultiDevicePlugin
-#include "plugin/mock_log_utils.hpp"
+#define HLogger MockMultiDevice::MockLog::GetInstance()
 #else
 #define MOCKTESTMACRO
 #define HLogger MultiDevicePlugin::Log::instance()
