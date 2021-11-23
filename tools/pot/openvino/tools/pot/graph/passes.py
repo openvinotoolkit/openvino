@@ -693,15 +693,8 @@ def create_bias_node(graph: Graph, src_node):
     add_op = Add(graph, {'name': src_node.name + '/add_',
                          'need_shape_inference': True}).create_node()
 
-    src_node_dtype = src_node.out_port(0).get_data_type() \
-        if src_node.out_port(0).is_data_type_defined() else np.float32
-    cast_op = ge.create_node(graph, src_node.name + '/convert', 'Cast',
-                             {'stop_value_propagation': True, 'dst_type': src_node_dtype})
-    # Connect Const to Convert node
-    cast_op.in_port(0).connect(add_bias.out_port(0))
-
-    # Connect Convert to Add node
-    add_op.in_port(1).connect(cast_op.out_port(0))
+    # Connect Const to Add node
+    add_op.in_port(1).connect(add_bias.out_port(0))
 
     # Reconnect src_node -> output to src_node -> Add -> output
     src_node.out_port(0).disconnect()
@@ -709,6 +702,7 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
+    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
 def create_fake_quantize_node(graph: Graph, name):

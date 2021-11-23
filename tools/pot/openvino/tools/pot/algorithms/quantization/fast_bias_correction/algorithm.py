@@ -75,7 +75,7 @@ class FastBiasCorrection(Algorithm):
 
             input_shape = nu.get_input_shape_for_bias(op_node)
             op_model = mu.build_model_for_node(model, input_node.name, input_shape, op_node,
-                                               target_device=self._config['target_device'])
+                                               remove_bias=True, target_device=self._config['target_device'])
 
             # We need to get output from the biased operation
             if nu.get_bias_for_node(op_node):

@@ -86,7 +86,7 @@ def get_all_operation_nodes(model: NXModel):
             for node in ge.get_all_operation_nodes(model_dict['model'])]
 
 
-def build_model_for_node(nx_model, input_name, input_shape, node,
+def build_model_for_node(nx_model, input_name, input_shape, node, remove_bias=False,
                          remove_fake_quantize=False, target_device='ANY'):
     """ Build Model containing Subgraph of NXModel (input - node - output).
     The Convolution, FullyConnected node types are supported.
@@ -94,6 +94,7 @@ def build_model_for_node(nx_model, input_name, input_shape, node,
     :param input_name: name of the input node in the generated graph
     :param input_shape: shape of the input node in the generated graph
     :param node: node for which graph (input - node - output) will be generated
+    :param remove_bias: remove bias in the generated graph
     :param remove_fake_quantize: remove fake quantize nodes in the generated graph
     :param target_device: device for processing
     :return: generated NXModel instance.
@@ -103,7 +104,7 @@ def build_model_for_node(nx_model, input_name, input_shape, node,
     if len(candidates) > 1:
         raise RuntimeError('Name collision: {}'.format(input_name))
     model = candidates[0]
-    op_graph = gb.build_graph_for_node(model, input_name, input_shape, node, remove_fake_quantize)
+    op_graph = gb.build_graph_for_node(model, input_name, input_shape, node, remove_bias, remove_fake_quantize)
     return NXModel(graph=op_graph, target_device=target_device)
 
 
