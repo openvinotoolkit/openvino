@@ -183,6 +183,7 @@ public:
     impl_types get_preferred_impl_type(program_node& node, format preferred_format);
 
     bool are_data_types_suitable_for_onednn(program_node& node);
+    bool are_layouts_suitable_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
