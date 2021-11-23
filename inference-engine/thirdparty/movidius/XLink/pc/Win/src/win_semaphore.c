@@ -85,6 +85,19 @@ int sem_timedwait(sem_t *sem, const struct timespec *ts) {
 }
 
 
+//Wait for a semaphore
+int sem_trywait(sem_t *sem){
+    if (sem == NULL || *sem == NULL) {
+        return ls_set_errno(EINVAL);
+    }
+    sem_t s = *sem;
+    if (WaitForSingleObject(s->handle, 0) != WAIT_OBJECT_0) {
+        return ls_set_errno(EINVAL);
+    }
+    return 0;
+}
+
+
 //Release a semaphone
 int sem_post(sem_t *sem){
     if (sem == NULL || *sem == NULL){
