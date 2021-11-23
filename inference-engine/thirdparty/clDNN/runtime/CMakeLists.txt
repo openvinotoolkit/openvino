@@ -66,14 +66,7 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
   )
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  if(OV_GENERATOR_MULTI_CONFIG)
-    add_dependencies(${CLDNN_BUILD__PROJ} onednn_gpu_build)
-    foreach(dir IN LISTS ONEDNN_INCLUDE_DIRS)
-      target_include_directories("${CLDNN_BUILD__PROJ}" PUBLIC $<BUILD_INTERFACE:${dir}>)
-    endforeach()
-    target_compile_definitions("${CLDNN_BUILD__PROJ}" PUBLIC ENABLE_ONEDNN_FOR_GPU)
-  endif()
-  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC ${ONEDNN_LIBRARY})
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu)
 endif()
 
 if(WIN32)
