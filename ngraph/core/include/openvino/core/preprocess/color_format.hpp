@@ -17,7 +17,11 @@ enum class ColorFormat {
     /// \brief Image in I420 format represented as separate tensors for Y, U and V planes.
     I420_THREE_PLANES,
     RGB,
-    BGR
+    BGR,
+    /// \brief Image in RGBX interleaved format (4 channels)
+    RGBX,
+    /// \brief Image in BGRX interleaved format (4 channels)
+    BGRX
 };
 
 }  // namespace preprocess

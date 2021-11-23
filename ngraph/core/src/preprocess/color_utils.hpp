@@ -37,6 +37,12 @@ inline std::string color_format_name(ColorFormat format) {
     case ColorFormat::I420_SINGLE_PLANE:
         name = "I420 (single plane)";
         break;
+    case ColorFormat::RGBX:
+        name = "RGBX";
+        break;
+    case ColorFormat::BGRX:
+        name = "BGRX";
+        break;
     default:
         name = "Unknown";
         break;
@@ -157,6 +163,21 @@ protected:
                     result[2] = result[2].get_length() / 2;
                 }
             }
+        }
+        return result;
+    }
+};
+
+class ColorFormatInfo_RGBX_Base : public ColorFormatNHWC {
+public:
+    explicit ColorFormatInfo_RGBX_Base(ColorFormat format) : ColorFormatNHWC(format) {}
+
+protected:
+    PartialShape calculate_shape(size_t plane_num, const PartialShape& image_shape) const override {
+        PartialShape result = image_shape;
+        if (image_shape.rank().is_static() && image_shape.rank().get_length() == 4) {
+            result[3] = 4;
+            return result;
         }
         return result;
     }

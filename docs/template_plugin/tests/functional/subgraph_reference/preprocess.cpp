@@ -71,26 +71,24 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
 }
 
-static std::shared_ptr<Function> create_2inputs(element::Type type, const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
-    data1->set_friendly_name("input1");
-    data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto c1 = op::v0::Constant::create(type, {1}, {0});
-    auto op1 = std::make_shared<op::v1::Add>(data1, c1);
-    op1->set_friendly_name("Add01");
-    auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
-    data2->get_output_tensor(0).set_names({"tensor_input2"});
-    data2->set_friendly_name("input2");
-    auto c2 = op::v0::Constant::create(type, {1}, {0});
-    auto op2 = std::make_shared<op::v1::Add>(data2, c2);
-    op2->set_friendly_name("Add02");
-    auto res1 = std::make_shared<op::v0::Result>(op1);
-    res1->set_friendly_name("Result1");
-    res1->get_output_tensor(0).set_names({"tensor_output1"});
-    auto res2 = std::make_shared<op::v0::Result>(op2);
-    res2->set_friendly_name("Result2");
-    res2->get_output_tensor(0).set_names({"tensor_output2"});
-    return std::make_shared<ov::Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
+template <int N>
+static std::shared_ptr<Function> create_n_inputs(element::Type type, const PartialShape& shape) {
+    auto params = ParameterVector();
+    auto results = ResultVector();
+    for (int i = 1; i <= N; i++) {
+        auto param = std::make_shared<op::v0::Parameter>(type, shape);
+        param->set_friendly_name("input" + std::to_string(i));
+        param->get_output_tensor(0).set_names({"tensor_input" + std::to_string(i)});
+        auto c1 = op::v0::Constant::create(type, {1}, {0});
+        auto op1 = std::make_shared<op::v1::Add>(param, c1);
+        op1->set_friendly_name("Add" + std::to_string(i));
+        auto res1 = std::make_shared<op::v0::Result>(op1);
+        res1->set_friendly_name("Result" + std::to_string(i));
+        res1->get_output_tensor(0).set_names({"tensor_output" + std::to_string(i)});
+        results.push_back(res1);
+        params.push_back(param);
+    }
+    return std::make_shared<ov::Function>(results, params);
 }
 
 static RefPreprocessParams simple_mean_scale() {
@@ -242,7 +240,7 @@ static RefPreprocessParams test_lvalue() {
 static RefPreprocessParams test_2_inputs_basic() {
     RefPreprocessParams res("test_2_inputs_basic");
     res.function = []() {
-        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 1});
+        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 1});
         f = PrePostProcessor(f).input(InputInfo(0)
                                              .preprocess(
                                                      PreProcessSteps()
@@ -837,7 +835,7 @@ static RefPreprocessParams convert_color_i420_single_plane() {
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
-        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 2});
+        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
         f = PrePostProcessor(f)
                 .output(OutputInfo("tensor_output1")
                                 .network(OutputNetworkInfo().set_layout("NCHW"))
@@ -901,7 +899,7 @@ static RefPreprocessParams post_convert_layout_by_dims_multi() {
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
-        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 2});
+        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
         f = PrePostProcessor(f)
                 .input(InputInfo(0)
                                 .tensor(InputTensorInfo().set_element_type(element::u8))
@@ -969,6 +967,43 @@ static RefPreprocessParams reverse_channels_nchw() {
     res.expected.emplace_back(Shape{1, 2, 2, 2}, element::f32, std::vector<float>{5, 6, 7, 8, 1, 2, 3, 4});
     return res;
 }
+
+static RefPreprocessParams color_cut_last_channel() {
+    RefPreprocessParams res("color_cut_last_channel");
+    auto input_tensor = Tensor(Shape{1, 2, 2, 4}, element::f32, std::vector<float>{1, 2, 3, 4,
+                                                                                   5, 6, 7, 8,
+                                                                                   3, 4, 5, 6,
+                                                                                   6, 7, 8, 9});
+    auto exp_3_channels = Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1, 2, 3,
+                                                                                     5, 6, 7,
+                                                                                     3, 4, 5,
+                                                                                     6, 7, 8});
+    auto inv_3_channels = Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{3, 2, 1,
+                                                                                     7, 6, 5,
+                                                                                     5, 4, 3,
+                                                                                     8, 7, 6});
+    res.function = []() {
+        auto f = create_n_inputs<4>(element::f32, Shape{1, 2, 2, 3});
+        auto prep = PrePostProcessor(f);
+        prep.input(0).tensor().set_color_format(ColorFormat::RGBX);
+        prep.input(0).preprocess().convert_color(ColorFormat::RGB);
+
+        prep.input(1).tensor().set_color_format(ColorFormat::RGBX);
+        prep.input(1).preprocess().convert_color(ColorFormat::BGR);
+
+        prep.input(2).tensor().set_color_format(ColorFormat::BGRX);
+        prep.input(2).preprocess().convert_color(ColorFormat::BGR);
+
+        prep.input(3).tensor().set_color_format(ColorFormat::BGRX);
+        prep.input(3).preprocess().convert_color(ColorFormat::RGB);
+        return prep.build();
+    };
+
+    res.inputs = std::vector<Tensor>{input_tensor, input_tensor, input_tensor, input_tensor};
+    res.expected = std::vector<Tensor>{exp_3_channels, inv_3_channels, exp_3_channels, inv_3_channels};
+    return res;
+}
+
 
 static RefPreprocessParams reverse_channels_dyn_layout() {
     RefPreprocessParams res("reverse_channels_dyn_layout");
@@ -1057,6 +1092,7 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         pre_and_post_processing(),
         rgb_to_bgr(),
         bgr_to_rgb(),
+        color_cut_last_channel(),
         reverse_channels_nchw(),
         reverse_channels_dyn_layout(),
         reverse_dyn_shape(),

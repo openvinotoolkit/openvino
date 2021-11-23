@@ -23,6 +23,10 @@ std::unique_ptr<ColorFormatInfo> ColorFormatInfo::get(ColorFormat format) {
     case ColorFormat::BGR:
         res.reset(new ColorFormatNHWC(format));
         break;
+    case ColorFormat::RGBX:
+    case ColorFormat::BGRX:
+        res.reset(new ColorFormatInfo_RGBX_Base(format));
+        break;
     default:
         res.reset(new ColorFormatInfo(format));
         break;

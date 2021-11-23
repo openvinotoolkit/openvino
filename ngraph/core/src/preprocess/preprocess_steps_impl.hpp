@@ -191,6 +191,10 @@ private:
                                                                         const std::shared_ptr<Function>& function,
                                                                         PreprocessingContext& context);
 
+    static std::tuple<std::vector<Output<Node>>, bool> cut_last_channel(const std::vector<Output<Node>>& nodes,
+                                                                        const std::shared_ptr<Function>& function,
+                                                                        PreprocessingContext& context);
+
 private:
     std::list<InternalPreprocessOp> m_actions;
     std::list<std::vector<uint64_t>> m_layout_converts;
