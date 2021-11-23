@@ -192,11 +192,13 @@ public:
     /// Index for parameter, or -1
     int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
 
-    /// \brief Return index of output. Return -1 if value not matched.
+    /// \brief Return the index of this function's Result represented by the "value" Output object.
+    /// This method returns -1 if an the passed output is not related to the Results of a function.
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
 
-    /// \brief Return index of output. Return -1 if value not matched.
+    /// \brief Return the index of this function's Result represented by the "value" Output object.
+    /// This method returns -1 if an the passed output is not related to the Results of a function.
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
 
