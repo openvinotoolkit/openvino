@@ -71,33 +71,31 @@ static std::shared_ptr<Function> create_simple_function(element::Type type, cons
     return std::make_shared<ov::Function>(ResultVector{res}, ParameterVector{data1});
 }
 
-static std::shared_ptr<Function> create_2inputs(element::Type type, const PartialShape& shape) {
-    auto data1 = std::make_shared<op::v0::Parameter>(type, shape);
-    data1->set_friendly_name("input1");
-    data1->get_output_tensor(0).set_names({"tensor_input1"});
-    auto c1 = op::v0::Constant::create(type, {1}, {0});
-    auto op1 = std::make_shared<op::v1::Add>(data1, c1);
-    op1->set_friendly_name("Add01");
-    auto data2 = std::make_shared<op::v0::Parameter>(type, shape);
-    data2->get_output_tensor(0).set_names({"tensor_input2"});
-    data2->set_friendly_name("input2");
-    auto c2 = op::v0::Constant::create(type, {1}, {0});
-    auto op2 = std::make_shared<op::v1::Add>(data2, c2);
-    op2->set_friendly_name("Add02");
-    auto res1 = std::make_shared<op::v0::Result>(op1);
-    res1->set_friendly_name("Result1");
-    res1->get_output_tensor(0).set_names({"tensor_output1"});
-    auto res2 = std::make_shared<op::v0::Result>(op2);
-    res2->set_friendly_name("Result2");
-    res2->get_output_tensor(0).set_names({"tensor_output2"});
-    return std::make_shared<ov::Function>(ResultVector{res1, res2}, ParameterVector{data1, data2});
+template <int N>
+static std::shared_ptr<Function> create_n_inputs(element::Type type, const PartialShape& shape) {
+    auto params = ParameterVector();
+    auto results = ResultVector();
+    for (int i = 1; i <= N; i++) {
+        auto param = std::make_shared<op::v0::Parameter>(type, shape);
+        param->set_friendly_name("input" + std::to_string(i));
+        param->get_output_tensor(0).set_names({"tensor_input" + std::to_string(i)});
+        auto c1 = op::v0::Constant::create(type, {1}, {0});
+        auto op1 = std::make_shared<op::v1::Add>(param, c1);
+        op1->set_friendly_name("Add" + std::to_string(i));
+        auto res1 = std::make_shared<op::v0::Result>(op1);
+        res1->set_friendly_name("Result" + std::to_string(i));
+        res1->get_output_tensor(0).set_names({"tensor_output" + std::to_string(i)});
+        results.push_back(res1);
+        params.push_back(param);
+    }
+    return std::make_shared<ov::Function>(results, params);
 }
 
 static RefPreprocessParams simple_mean_scale() {
     RefPreprocessParams res("simple_mean_scale");
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-        f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().mean(1.f).scale(2.f))).build(f);
+        f = PrePostProcessor(f).input(InputInfo().preprocess(PreProcessSteps().mean(1.f).scale(2.f))).build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 3, 2, 2}, element::f32, std::vector<float>{1., 3., 5., 7., 9., 11., 13., 15., 17., 19., 21., 23.});
@@ -109,7 +107,7 @@ static RefPreprocessParams scale_then_mean() {
     RefPreprocessParams res("scale_then_mean");
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{1, 3, 2, 2});
-        f = PrePostProcessor().input(InputInfo().preprocess(PreProcessSteps().scale(2.0f).mean(2.0f))).build(f);
+        f = PrePostProcessor(f).input(InputInfo().preprocess(PreProcessSteps().scale(2.0f).mean(2.0f))).build();
         return f;
     };
 
@@ -122,14 +120,14 @@ static RefPreprocessParams convert_only() {
     RefPreprocessParams res("convert_only");
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{1, 1, 2, 2});
-        f = PrePostProcessor().input(InputInfo()
+        f = PrePostProcessor(f).input(InputInfo()
                 .tensor(InputTensorInfo().set_element_type(element::i16))
                 .preprocess(PreProcessSteps()
                 .convert_element_type(element::f32)
                 .scale(3.f)
                 .convert_element_type(element::u8)
                 .convert_element_type(element::f32)))
-                        .build(f);
+                        .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 1, 2, 2}, element::i16, std::vector<int16_t>{2, 3, 4, 5});
@@ -141,14 +139,14 @@ static RefPreprocessParams convert_element_type_and_scale() {
     RefPreprocessParams res("convert_element_type_and_scale");
     res.function = []() {
         auto f = create_simple_function(element::u8, Shape{1, 3, 2, 2});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_element_type(element::i16))
                                .preprocess(PreProcessSteps()
                                                    .convert_element_type(element::f32)
                                                    .scale(2.f)
                                                    .convert_element_type(element::u8)))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -163,11 +161,11 @@ static RefPreprocessParams tensor_element_type_and_scale() {
     RefPreprocessParams res("tensor_element_type_and_scale");
     res.function = []() {
         auto f = create_simple_function(element::i8, Shape{1, 3, 1, 1});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
             .input(InputInfo()
                            .tensor(InputTensorInfo().set_element_type(element::f32))
                            .preprocess(PreProcessSteps().scale(2.0f).convert_element_type(element::i8)))
-            .build(f);
+            .build();
         return f;
     };
 
@@ -180,13 +178,13 @@ static RefPreprocessParams custom_preprocessing() {
     RefPreprocessParams res("custom_preprocessing");
     res.function = []() {
         auto f = create_simple_function(element::i32, Shape{1, 3, 1, 1});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
             .input(InputInfo().preprocess(PreProcessSteps().custom([](const Output<Node>& node) {
                 auto abs = std::make_shared<op::v0::Abs>(node);
                 abs->set_friendly_name(node.get_node_shared_ptr()->get_friendly_name() + "/abs");
                 return abs;
             })))
-            .build(f);
+            .build();
         return f;
     };
 
@@ -199,7 +197,7 @@ static RefPreprocessParams test_lvalue() {
     RefPreprocessParams res("test_lvalue");
     res.function = []() {
         auto f = create_simple_function(element::i8, Shape{1, 3, 1, 1});
-        auto p = PrePostProcessor();
+        auto p = PrePostProcessor(f);
         auto p1 = std::move(p);
         p = std::move(p1);
         auto inputInfo = InputInfo();
@@ -230,7 +228,7 @@ static RefPreprocessParams test_lvalue() {
             inputInfo.preprocess(std::move(same));
         }
         p.input(std::move(inputInfo));
-        f = p.build(f);
+        f = p.build();
         return f;
     };
 
@@ -242,8 +240,8 @@ static RefPreprocessParams test_lvalue() {
 static RefPreprocessParams test_2_inputs_basic() {
     RefPreprocessParams res("test_2_inputs_basic");
     res.function = []() {
-        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 1});
-        f = PrePostProcessor().input(InputInfo(0)
+        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 1});
+        f = PrePostProcessor(f).input(InputInfo(0)
                                              .preprocess(
                                                      PreProcessSteps()
                                                              .mean(1.f)))
@@ -252,7 +250,7 @@ static RefPreprocessParams test_2_inputs_basic() {
                                 .preprocess(PreProcessSteps()
                                                     .mean(1.f)
                                                     .scale(2.0f)))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -267,11 +265,11 @@ static RefPreprocessParams mean_scale_vector_tensor_layout() {
     RefPreprocessParams res("mean_scale_vector_tensor_layout");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 3, 2, 1});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_layout("NC??"))
                                .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f})))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -284,11 +282,11 @@ static RefPreprocessParams mean_scale_dynamic_layout() {
     RefPreprocessParams res("mean_scale_dynamic_layout");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 1, 3});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_layout("N...C"))
                                .preprocess(PreProcessSteps().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f})))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -301,13 +299,13 @@ static RefPreprocessParams resize_to_network_height() {
     RefPreprocessParams res("resize_to_network_height");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 1, 1});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_spatial_dynamic_shape())
                                .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
                                .network(InputNetworkInfo().set_layout("NHWC"))
                 )
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(element::f32, Shape{1, 4, 1, 1}, std::vector<float>{0., 2., 4., 6.});
@@ -319,12 +317,12 @@ static RefPreprocessParams resize_to_network_width() {
     RefPreprocessParams res("resize_to_network_width");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 2, 2});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_spatial_dynamic_shape())
                                .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
                                .network(InputNetworkInfo().set_layout("NCHW")))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(element::f32, Shape{1, 1, 2, 6}, std::vector<float>{0., 1., 2., 3., 4., 5.,
@@ -339,12 +337,12 @@ static RefPreprocessParams resize_from_spatial_dims() {
         auto f = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 1, 1, 1});
         auto t = InputTensorInfo();
         t.set_spatial_static_shape(1, 4);
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(std::move(t))
                                .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_CUBIC))
                                .network(InputNetworkInfo().set_layout("NCHW")))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(element::f32, Shape{1, 1, 1, 7}, std::vector<float>{0., 0.25, 1., 2.25, 4., 6.25, 9});
@@ -356,13 +354,13 @@ static RefPreprocessParams resize_i8() {
     RefPreprocessParams res("resize_i8");
     res.function = []() {
         auto f = create_simple_function(element::i8, PartialShape{1, 3, 1, 1});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo()
                                     .set_spatial_dynamic_shape())
                                .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_LINEAR))
                                .network(InputNetworkInfo().set_layout("NCHW")))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(element::i8, Shape{1, 3, 2, 2}, std::vector<int8_t>{0, 0, 0, 0,
@@ -376,12 +374,12 @@ static RefPreprocessParams resize_to_network_width_height() {
     RefPreprocessParams res("resize_to_network_width_height");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 1, 4, 4});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_spatial_static_shape(5, 5))
                                .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_NEAREST))
                                .network(InputNetworkInfo().set_layout("...HW")))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -406,12 +404,12 @@ static RefPreprocessParams resize_to_specified_width_height() {
     RefPreprocessParams res("resize_to_specified_width_height");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 1, Dimension::dynamic(), Dimension::dynamic()});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_spatial_dynamic_shape())
                                .preprocess(PreProcessSteps().resize(ResizeAlgorithm::RESIZE_NEAREST, 4, 4))
                                .network(InputNetworkInfo().set_layout("...HW")))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -448,9 +446,9 @@ static RefPreprocessParams resize_lvalues() {
         i.tensor(std::move(t));
         i.preprocess(std::move(s));
         i.network(std::move(n));
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(std::move(i))
-                .build(f);
+                .build();
         return f;
     };
     // clang-format off
@@ -473,11 +471,11 @@ static RefPreprocessParams convert_layout_nhwc_to_nchw_lvalue() {
         auto p = PreProcessSteps();
         p.convert_layout("NCHW");
 
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_layout("NHWC"))
                                .preprocess(std::move(p)))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
@@ -497,11 +495,11 @@ static RefPreprocessParams convert_layout_nhwc_to_net_no_tensor_shape() {
         f->get_parameters()[0]->set_layout("NCHW");
         auto p = PreProcessSteps();
         p.convert_layout();
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo().set_layout("NHWC"))
                                .preprocess(std::move(p)))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
@@ -518,10 +516,10 @@ static RefPreprocessParams convert_layout_by_dims() {
     RefPreprocessParams res("convert_layout_by_dims");
     res.function = []() {
         auto f = create_simple_function(element::u8, {1, 3, 2, 2});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .preprocess(PreProcessSteps().convert_layout({0, 3, 1, 2})))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
@@ -541,9 +539,9 @@ static RefPreprocessParams convert_layout_by_dims_multi() {
         auto p = PreProcessSteps();
         p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
         p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo().preprocess(std::move(p)))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
@@ -564,10 +562,10 @@ static RefPreprocessParams convert_layout_by_dims_multi_layout() {
         p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
         p.mean({1, 2, 2});              // Apply means to 'C' channel
         p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo().tensor(InputTensorInfo().set_layout("N??C"))
                                .preprocess(std::move(p)))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0, RGB]
@@ -584,7 +582,7 @@ static RefPreprocessParams resize_and_convert_layout() {
     RefPreprocessParams res("resize_and_convert_layout");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 2});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo()
                                                .set_layout("NCHW")
@@ -593,7 +591,7 @@ static RefPreprocessParams resize_and_convert_layout() {
                                                    .resize(ResizeAlgorithm::RESIZE_LINEAR)
                                                    .convert_layout())
                                .network(InputNetworkInfo().set_layout("NHWC")))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -622,13 +620,13 @@ static RefPreprocessParams convert_color_nv12_to_bgr_two_planes() {
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo()
                                                .set_color_format(ColorFormat::NV12_TWO_PLANES))
                                .preprocess(PreProcessSteps()
                                                    .convert_color(ColorFormat::BGR)))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -661,13 +659,13 @@ static RefPreprocessParams convert_color_nv12_single_plane() {
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo()
                                                .set_color_format(ColorFormat::NV12_SINGLE_PLANE))
                                .preprocess(PreProcessSteps()
                                                    .convert_color(ColorFormat::RGB)))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -696,7 +694,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 3, 2, 2});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo()
                                                .set_color_format(ColorFormat::NV12_SINGLE_PLANE)
@@ -708,7 +706,7 @@ static RefPreprocessParams convert_color_nv12_layout_resize() {
                                                    .convert_element_type(element::f32)
                                                    .resize(ResizeAlgorithm::RESIZE_NEAREST))
                                .network(InputNetworkInfo().set_layout("NCHW")))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -736,7 +734,7 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
     res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 3});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .input(InputInfo()
                                .tensor(InputTensorInfo()
                                                .set_element_type(element::u8)
@@ -745,7 +743,7 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
                                                    .convert_element_type(element::f32)
                                                    .convert_color(ColorFormat::RGB))
                                .network(InputNetworkInfo().set_layout("NHWC")))
-                .build(f);
+                .build();
         return f;
     };
 
@@ -763,11 +761,82 @@ static RefPreprocessParams element_type_before_convert_color_nv12() {
     return res;
 }
 
+static RefPreprocessParams convert_color_i420_to_bgr_three_planes() {
+    RefPreprocessParams res("convert_color_i420_to_bgr_three_planes");
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::u8, PartialShape{1, 4, 4, 3});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_color_format(ColorFormat::I420_THREE_PLANES);
+        p.input().preprocess().convert_color(ColorFormat::BGR);
+        return p.build();
+    };
+
+    // clang-format off
+    auto input_y = std::vector<uint8_t> {81, 81, 145, 145,      // RRGG
+                                         81, 81, 145, 145,      // RRGG
+                                         41, 41, 81, 81,        // BBRR
+                                         41, 41, 81, 81};       // BBRR
+    auto input_shape_y = Shape{1, 4, 4, 1};
+    auto input_u = std::vector<uint8_t> {90,      // R (2x2)
+                                         54,       // G (2x2)
+                                         240,     // B (2x2)
+                                         90};     // R (2x2)
+    auto input_v = std::vector<uint8_t> {240,      // R (2x2)
+                                         34,       // G (2x2)
+                                         110,     // B (2x2)
+                                         240};     // R (2x2)
+    auto input_shape_uv = Shape{1, 2, 2, 1};
+    auto exp_out = std::vector<uint8_t> {0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
+                                         0, 0, 255,  0, 0, 255,  0, 255, 0,  0, 255, 0,
+                                         255, 0, 0,  255, 0, 0,  0, 0, 255,  0, 0, 255,
+                                         255, 0, 0,  255, 0, 0,  0, 0, 255,  0, 0, 255};
+    auto out_shape = Shape{1, 4, 4, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::u8, input_shape_y, input_y);
+    res.inputs.emplace_back(element::u8, input_shape_uv, input_u);
+    res.inputs.emplace_back(element::u8, input_shape_uv, input_v);
+    res.expected.emplace_back(out_shape, element::u8, exp_out);
+    return res;
+}
+
+static RefPreprocessParams convert_color_i420_single_plane() {
+    RefPreprocessParams res("convert_color_i420_single_plane");
+    res.abs_threshold = 1.f; // Allow small color conversion deviations
+    res.rel_threshold = 1.f; // Ignore relative pixel values comparison (100%)
+    res.function = []() {
+        auto f = create_simple_function(element::f32, PartialShape{1, 4, 4, 3});
+        auto p = PrePostProcessor(f);
+        p.input().tensor().set_color_format(ColorFormat::I420_SINGLE_PLANE);
+        p.input().preprocess().convert_color(ColorFormat::RGB);
+        return p.build();
+    };
+
+    // clang-format off
+    auto input = std::vector<float> {  81, 81, 145, 145,      // RRGG
+                                       81, 81, 145, 145,      // RRGG
+                                       41, 41, 81, 81,        // BBRR
+                                       41, 41, 81, 81,        // BBRR
+                                       90, 54, 240, 90, 240, 34, 110, 240};     // UV (RGBR)
+    auto input_shape = Shape{1, 6, 4, 1};
+    auto exp_out = std::vector<float> {255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
+                                       255, 0, 0,  255, 0, 0,  0, 255, 0,  0, 255, 0,    // RRGG
+                                       0, 0, 255,  0, 0, 255,  255, 0, 0,  255, 0, 0,    // BBRR
+                                       0, 0, 255,  0, 0, 255,  255, 0, 0,  255, 0, 0,    // BBRR
+    };
+    auto out_shape = Shape{1, 4, 4, 3};
+    // clang-format on
+    res.inputs.emplace_back(element::f32, input_shape, input);
+    res.expected.emplace_back(out_shape, element::f32, exp_out);
+    return res;
+}
+
 static RefPreprocessParams postprocess_2_inputs_basic() {
     RefPreprocessParams res("postprocess_2_inputs_basic");
     res.function = []() {
-        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 2});
-        f = PrePostProcessor()
+        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
+        f = PrePostProcessor(f)
                 .output(OutputInfo("tensor_output1")
                                 .network(OutputNetworkInfo().set_layout("NCHW"))
                                 .postprocess(PostProcessSteps().convert_layout())
@@ -775,7 +844,7 @@ static RefPreprocessParams postprocess_2_inputs_basic() {
                 .output(OutputInfo("tensor_output2")
                                 .postprocess(PostProcessSteps().convert_element_type())
                                 .tensor(OutputTensorInfo().set_element_type(element::u8)))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::f32, std::vector<float>{1.1, 2.1, 3.1, 4.1, 5.1, 6.1});
@@ -789,10 +858,10 @@ static RefPreprocessParams post_convert_layout_by_dims() {
     RefPreprocessParams res("post_convert_layout_by_dims");
     res.function = []() {
         auto f = create_simple_function(element::u8, {1, 2, 2, 3});
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .output(OutputInfo()
                                .postprocess(PostProcessSteps().convert_layout({0, 3, 1, 2})))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::u8, std::vector<uint8_t>{1,  2,  3,       // [H=0, W=0, RGB]
@@ -812,9 +881,9 @@ static RefPreprocessParams post_convert_layout_by_dims_multi() {
         auto p = PostProcessSteps();
         p.convert_layout({0, 1, 3, 2}); // NHWC->NHCW
         p.convert_layout({0, 2, 1, 3}); // NHCW->NCHW
-        f = PrePostProcessor()
+        f = PrePostProcessor(f)
                 .output(OutputInfo().postprocess(std::move(p)))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1,  2,  3,       // [H=0, W=0]
@@ -830,8 +899,8 @@ static RefPreprocessParams post_convert_layout_by_dims_multi() {
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
-        auto f = create_2inputs(element::f32, Shape{1, 3, 1, 2});
-        f = PrePostProcessor()
+        auto f = create_n_inputs<2>(element::f32, Shape{1, 3, 1, 2});
+        f = PrePostProcessor(f)
                 .input(InputInfo(0)
                                 .tensor(InputTensorInfo().set_element_type(element::u8))
                                 .preprocess(PreProcessSteps().convert_element_type(element::f32).mean(1.f)))
@@ -844,7 +913,7 @@ static RefPreprocessParams pre_and_post_processing() {
                 .output(OutputInfo("tensor_output2")
                                 .postprocess(PostProcessSteps().convert_element_type())
                                 .tensor(OutputTensorInfo().set_element_type(element::u8)))
-                .build(f);
+                .build();
         return f;
     };
     res.inputs.emplace_back(Shape{1, 3, 1, 2}, element::u8, std::vector<uint8_t>{1, 2, 3, 4, 5, 6});
@@ -858,9 +927,9 @@ static RefPreprocessParams rgb_to_bgr() {
     RefPreprocessParams res("rgb_to_bgr");
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
-        f = PrePostProcessor().input(InputInfo()
+        f = PrePostProcessor(f).input(InputInfo()
                                              .tensor(InputTensorInfo().set_color_format(ColorFormat::RGB))
-                                             .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))).build(f);
+                                             .preprocess(PreProcessSteps().convert_color(ColorFormat::BGR))).build();
         return f;
     };
 
@@ -873,9 +942,9 @@ static RefPreprocessParams bgr_to_rgb() {
     RefPreprocessParams res("bgr_to_rgb");
     res.function = []() {
         auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
-        f = PrePostProcessor().input(InputInfo()
+        f = PrePostProcessor(f).input(InputInfo()
                 .tensor(InputTensorInfo().set_color_format(ColorFormat::BGR))
-                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build(f);
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build();
         return f;
     };
 
@@ -888,9 +957,9 @@ static RefPreprocessParams reverse_channels_nchw() {
     RefPreprocessParams res("reverse_channels_nchw");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 2, 2, 2});
-        f = PrePostProcessor().input(InputInfo()
+        f = PrePostProcessor(f).input(InputInfo()
                                              .tensor(InputTensorInfo().set_layout("NCHW"))
-                                             .preprocess(PreProcessSteps().reverse_channels())).build(f);
+                                             .preprocess(PreProcessSteps().reverse_channels())).build();
         return f;
     };
 
@@ -899,13 +968,50 @@ static RefPreprocessParams reverse_channels_nchw() {
     return res;
 }
 
+static RefPreprocessParams color_cut_last_channel() {
+    RefPreprocessParams res("color_cut_last_channel");
+    auto input_tensor = Tensor(Shape{1, 2, 2, 4}, element::f32, std::vector<float>{1, 2, 3, 4,
+                                                                                   5, 6, 7, 8,
+                                                                                   3, 4, 5, 6,
+                                                                                   6, 7, 8, 9});
+    auto exp_3_channels = Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{1, 2, 3,
+                                                                                     5, 6, 7,
+                                                                                     3, 4, 5,
+                                                                                     6, 7, 8});
+    auto inv_3_channels = Tensor(Shape{1, 2, 2, 3}, element::f32, std::vector<float>{3, 2, 1,
+                                                                                     7, 6, 5,
+                                                                                     5, 4, 3,
+                                                                                     8, 7, 6});
+    res.function = []() {
+        auto f = create_n_inputs<4>(element::f32, Shape{1, 2, 2, 3});
+        auto prep = PrePostProcessor(f);
+        prep.input(0).tensor().set_color_format(ColorFormat::RGBX);
+        prep.input(0).preprocess().convert_color(ColorFormat::RGB);
+
+        prep.input(1).tensor().set_color_format(ColorFormat::RGBX);
+        prep.input(1).preprocess().convert_color(ColorFormat::BGR);
+
+        prep.input(2).tensor().set_color_format(ColorFormat::BGRX);
+        prep.input(2).preprocess().convert_color(ColorFormat::BGR);
+
+        prep.input(3).tensor().set_color_format(ColorFormat::BGRX);
+        prep.input(3).preprocess().convert_color(ColorFormat::RGB);
+        return prep.build();
+    };
+
+    res.inputs = std::vector<Tensor>{input_tensor, input_tensor, input_tensor, input_tensor};
+    res.expected = std::vector<Tensor>{exp_3_channels, inv_3_channels, exp_3_channels, inv_3_channels};
+    return res;
+}
+
+
 static RefPreprocessParams reverse_channels_dyn_layout() {
     RefPreprocessParams res("reverse_channels_dyn_layout");
     res.function = []() {
         auto f = create_simple_function(element::f32, PartialShape{1, 1, 3, 2});
-        f = PrePostProcessor().input(InputInfo()
+        f = PrePostProcessor(f).input(InputInfo()
                 .tensor(InputTensorInfo().set_color_format(ColorFormat::BGR).set_layout("...CN"))
-                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build(f);
+                .preprocess(PreProcessSteps().convert_color(ColorFormat::RGB))).build();
         return f;
     };
 
@@ -921,9 +1027,9 @@ static RefPreprocessParams reverse_dyn_shape() {
                                                                    Dimension::dynamic(),
                                                                    Dimension::dynamic(),
                                                                    Dimension::dynamic()});
-        f = PrePostProcessor().input(InputInfo()
+        f = PrePostProcessor(f).input(InputInfo()
                                              .tensor(InputTensorInfo().set_layout("NCHW"))
-                                             .preprocess(PreProcessSteps().reverse_channels())).build(f);
+                                             .preprocess(PreProcessSteps().reverse_channels())).build();
         return f;
     };
 
@@ -938,9 +1044,9 @@ static RefPreprocessParams reverse_fully_dyn_shape() {
         auto f = create_simple_function(element::u8, PartialShape::dynamic());
         auto p = PreProcessSteps();
         p.reverse_channels();
-        f = PrePostProcessor().input(InputInfo()
+        f = PrePostProcessor(f).input(InputInfo()
                                              .tensor(InputTensorInfo().set_layout("...C??"))
-                                             .preprocess(std::move(p))).build(f);
+                                             .preprocess(std::move(p))).build();
         return f;
     };
 
@@ -978,12 +1084,15 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
         convert_color_nv12_single_plane(),
         convert_color_nv12_layout_resize(),
         element_type_before_convert_color_nv12(),
+        convert_color_i420_to_bgr_three_planes(),
+        convert_color_i420_single_plane(),
         postprocess_2_inputs_basic(),
         post_convert_layout_by_dims(),
         post_convert_layout_by_dims_multi(),
         pre_and_post_processing(),
         rgb_to_bgr(),
         bgr_to_rgb(),
+        color_cut_last_channel(),
         reverse_channels_nchw(),
         reverse_channels_dyn_layout(),
         reverse_dyn_shape(),

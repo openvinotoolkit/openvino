@@ -23,6 +23,7 @@ std::string to_string(py::handle handle) {
 
 void regclass_Core(py::module m) {
     py::class_<ov::runtime::Core, std::shared_ptr<ov::runtime::Core>> cls(m, "Core");
+
     cls.def(py::init<const std::string&>(), py::arg("xml_config_file") = "");
 
     cls.def("set_config",
@@ -35,11 +36,39 @@ void regclass_Core(py::module m) {
         (ov::runtime::ExecutableNetwork(
             ov::runtime::Core::*)(const std::shared_ptr<const ov::Function>&, const std::string&, const ConfigMap&)) &
             ov::runtime::Core::compile_model,
-        py::arg("network"),
+        py::arg("model"),
         py::arg("device_name"),
         py::arg("config") = py::dict());
 
+    cls.def("compile_model",
+            (ov::runtime::ExecutableNetwork(
+                ov::runtime::Core::*)(const std::string&, const std::string&, const ConfigMap&)) &
+                ov::runtime::Core::compile_model,
+            py::arg("model_path"),
+            py::arg("device_name"),
+            py::arg("config") = py::dict());
+
     cls.def("get_versions", &ov::runtime::Core::get_versions);
+
+    cls.def(
+        "read_model",
+        [](ov::runtime::Core& self, py::bytes model, py::bytes weights) {
+            // works on view in order to omit copying bytes into string
+            py::buffer_info info(py::buffer(weights).request());
+            size_t bin_size = static_cast<size_t>(info.size);
+            // if weights are not empty
+            if (bin_size) {
+                const uint8_t* bin = reinterpret_cast<const uint8_t*>(info.ptr);
+                ov::runtime::Tensor tensor(ov::element::Type_t::u8, {bin_size});
+                std::memcpy(tensor.data(), bin, bin_size);
+                return self.read_model(model, tensor);
+            }
+            // create empty tensor of type u8
+            ov::runtime::Tensor tensor(ov::element::Type_t::u8, {});
+            return self.read_model(model, tensor);
+        },
+        py::arg("model"),
+        py::arg("weights") = py::bytes());
 
     cls.def("read_model",
             (std::shared_ptr<ov::Function>(ov::runtime::Core::*)(const std::string&, const std::string&) const) &

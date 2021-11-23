@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <frontend_manager/frontend.hpp>
-#include <tensorflow_frontend/decoder.hpp>
+#include "frontend_manager/frontend.hpp"
+#include "tensorflow_frontend/decoder.hpp"
 
 namespace ov {
 namespace frontend {

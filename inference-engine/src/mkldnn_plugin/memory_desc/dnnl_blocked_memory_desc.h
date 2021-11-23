@@ -95,13 +95,6 @@ private:
 
     void recomputeDefaultStrides();
 
-    /**
-     * Try to define original format tag use on creation
-     *
-     * @return format tag if was able to define it
-     */
-    mkldnn::memory::format_tag getFormat() const;
-
     friend DnnlMemoryDescPtr MKLDNNExtensionUtils::makeDescriptor(const mkldnn::memory::desc &desc);
     friend std::shared_ptr<DnnlBlockedMemoryDesc> MKLDNNExtensionUtils::makeUndefinedDesc(const mkldnn::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;

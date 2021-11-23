@@ -11,7 +11,7 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}/include
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         DEPENDENCIES
-            ir_ngraph_frontend
+            ir_ov_frontend
         LINK_LIBRARIES
             PRIVATE
                 gflags
