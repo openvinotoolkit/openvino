@@ -312,10 +312,6 @@ jobs:
         $(REPO_DIR)/tests/samples_tests
       workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
 
-  - script: ninja
-    workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
-    displayName: 'Build Samples Tests'
-
   - script: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
     workingDirectory: $(BUILD_SAMPLES_TESTS_DIR)
     displayName: 'Install Samples Tests'
