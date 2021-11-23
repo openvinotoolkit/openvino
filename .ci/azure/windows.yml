@@ -121,7 +121,8 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe -GNinja -DCMAKE_TOOLCHAIN_FILE=$(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake -DENABLE_ONEDNN_FOR_GPU=OFF -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_CLDNN=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_GAPI_PREPROCESSING=$(CMAKE_BUILD_SHARED_LIBS) -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+      set CMAKE_TOOLCHAIN_FILE=$(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+      call "$(MSVS_VARS_PATH)" && $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe -GNinja -DENABLE_ONEDNN_FOR_GPU=OFF -DENABLE_GNA=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_CLDNN=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_GAPI_PREPROCESSING=$(CMAKE_BUILD_SHARED_LIBS) -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) -DENABLE_REQUIREMENTS_INSTALL=OFF -DENABLE_FASTER_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DENABLE_STRICT_DEPENDENCIES=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.7.6\x64\python.exe" -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
 
@@ -151,12 +152,16 @@ jobs:
   - script: dir $(INSTALL_DIR) /s
     displayName: 'List install files'
 
-  - script: $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat
+  - script: |
+      set CMAKE_TOOLCHAIN_FILE=$(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+      $(INSTALL_DIR)\samples\cpp\build_samples_msvc.bat
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build cpp samples'
     continueOnError: false
 
-  - script: $(INSTALL_DIR)\samples\c\build_samples_msvc.bat
+  - script: |
+      set CMAKE_TOOLCHAIN_FILE=$(REPO_DIR)\cmake\toolchains\mt.runtime.win32.toolchain.cmake
+      $(INSTALL_DIR)\samples\c\build_samples_msvc.bat
     workingDirectory: $(BUILD_SAMPLES_DIR)
     displayName: 'Build c samples'
     continueOnError: false
