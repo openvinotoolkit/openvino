@@ -13,7 +13,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS ${IE_MAIN_SOURCE_DIR}/src/multi_device ${IE_MAIN_SOURCE_DIR}/src/multi_device/utils
         INCLUDES
-            ${IE_MAIN_SOURCE_DIR}/src/multi_device
+            ${IE_MAIN_SOURCE_DIR}/src/multi_device ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             inference_engine_lp_transformations
             ngraphFunctions

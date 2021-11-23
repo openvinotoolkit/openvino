@@ -94,12 +94,17 @@ public:
     template <typename... Args>
     void doLog(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
         const char* func, long line, const char* tag, const char* fmt, Args... args);
+#ifdef MULTIUNITTEST
+    Log(std::string unittest):Log() {
+    }
+#endif
 
 private:
     Log();
     friend Singleton<Log>;
     static std::string colorBegin(LogLevel logLevel);
     static std::string colorEnd(LogLevel logLevel);
+    MOCKTESTMACRO void print(std::stringstream& stream);
 
 private:
     std::mutex mutex;
@@ -165,6 +170,10 @@ inline void Log::setLogLevel(LogLevel logLevel_) {
     std::lock_guard<std::mutex> autoLock(mutex);
     logLevel = static_cast<uint32_t>(logLevel_);
 }
+
+inline void Log::print(std::stringstream& stream) {
+    std::cout << stream.str() << std::endl;
+}
 template <typename... Args>
 inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const char* levelStr, const char* file,
     const char* func, const long line, const char* tag, const char* fmt, Args... args) {
@@ -195,7 +204,7 @@ inline void Log::doLog(bool on, bool isTraceCallStack, LogLevel level, const cha
     std::snprintf (&buffer[0], sizeof(buffer), compatibleString.c_str(), "", args...);
     stream << ' ' << buffer << suffix << colorEnd(level);
     std::lock_guard<std::mutex> autoLock(mutex);
-    std::cout << stream.str() << std::endl;
+    print(stream);
 }
 
 inline std::string Log::colorBegin(MultiDevicePlugin::LogLevel logLevel) {

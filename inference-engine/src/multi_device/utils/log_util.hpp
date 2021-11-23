@@ -14,11 +14,12 @@
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
 #define MultiDevicePlugin MockMultiDevicePlugin
+#include "plugin/mock_log_utils.hpp"
 #else
 #define MOCKTESTMACRO
+#define HLogger MultiDevicePlugin::Log::instance()
 #endif
 
-#define HLogger MultiDevicePlugin::Log::instance()
 
 #define HLogPrint(isOn, isTraceCallStack, logLevel, level, tag, ...) \
     HLogger->doLog(isOn, isTraceCallStack, logLevel, level, __FILE__, __func__, __LINE__, tag, __VA_ARGS__)
