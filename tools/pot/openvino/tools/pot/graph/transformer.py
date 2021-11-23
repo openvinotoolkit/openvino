@@ -69,7 +69,9 @@ class GraphTransformer:
         for model_dict in model.models:
             self.fq_insertion.ignored_params = ignored_params_[model_dict['name']] if model.is_cascade \
                 else ignored_params_
-            for_graph_and_each_sub_graph_recursively(model_dict['model'], self._insert_fake_quantize)
+            self._insert_fake_quantize(model_dict['model'])
+            # TODO: Uncomment to enable subgraphs quantization
+            # for_graph_and_each_sub_graph_recursively(model_dict['model'], self._insert_fake_quantize)
             add_fullname_for_nodes(model_dict['model'])
         return model
 

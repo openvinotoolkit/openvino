@@ -84,7 +84,7 @@ Please find the possible options and their description in the `config/default_qu
 4.  The next option is `stat_subset_size`. It controls the size of the calibration dataset used by POT to collect statistics for quantization parameters initialization.
 It is assumed that this dataset should contain a sufficient number of representative samples. Thus, varying this parameter may affect accuracy (the higher is better). 
 However, we empirically found that 300 samples are sufficient to get representative statistics in most cases.
-5.  The last option is `ignored_scope`. It allows excluding some layers from the quantization process, i.e. their inputs will not be quantized. It may be helpful for some patterns for which it is known in advance that they drop accuracy when executing in low-precision. To add a layer from subgraph of model to `ignored_scope` list all nested subgraphs on the path to the layer like `(subgraph_1, subgraph_2, ..., node_name)`.
+5.  The last option is `ignored_scope`. It allows excluding some layers from the quantization process, i.e. their inputs will not be quantized. It may be helpful for some patterns for which it is known in advance that they drop accuracy when executing in low-precision.
 For example, `DetectionOutput` layer of SSD model expressed as a subgraph should not be quantized to preserve the accuracy of Object Detection models.
 One of the sources for the ignored scope can be the AccuracyAware algorithm which can revert layers back to the original precision (see details below).
 
