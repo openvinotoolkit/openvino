@@ -70,12 +70,12 @@ Let's explore both approaches in details on `Convolution` operation.
 ### FakeQuantize operation  
 In this case `FakeQuantize` operation is used on activations and quantized constant on weights. Original input model:  
 
-![](img/model_fq_and_convolution.common.png)
+![Original model with FakeQuantize](img/model_fq_and_convolution.common.png)
 
 ### Quantize and dequantization operations  
 In this case `FakeQuantize` operation and `Convert` are used as quantize operation and return quantized low precision tensor. After quantize operation on activations there are `Convert` and dequantization operations to compensate decomposition. Original input model:
 
-![](img/model_qdq_and_convolution.common.png)
+![Original model with Q/DQ](img/model_qdq_and_convolution.common.png)
 
 In both cases result is the same. In LPT result model you can see, that:
 1. if necessary, `FakeQuantize` operations on activations were decomposed to two part: 
@@ -86,12 +86,12 @@ In both cases result is the same. In LPT result model you can see, that:
 
 LPT result model:  
 
-![](img/fq_and_convolution.transformed.png)
+![Result model](img/model_fq_and_convolution.transformed.png)
 
 ### Low precision transformations pipeline
 LPT transformation pipeline has several steps. For each transformation inside one step pattern matcher is unique per transformation, but each operation can be assigned to several transformations.
 
-![](img/low_precision_transformation_pipeline.png)
+![Low precision transformations pipeline](img/low_precision_transformation_pipeline.png)
 
 Inside each step LPT transformations handle input model operation by operation, applying transformation matching pattern for each transformation from the step to an operation, and execute transformation if pattern is matched. Decomposition transformation decomposes `FakeQuantize` to quantize and dequantization operations. Dequantization operations from previous transformation result is used for the current one and so on, until the end of the model is achieved.
 
