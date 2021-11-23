@@ -4,7 +4,6 @@
 #pragma once
 
 #include "common/frontend_exceptions.hpp"
-
 #include "openvino/core/node.hpp"
 
 namespace ov {
