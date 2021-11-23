@@ -13,8 +13,7 @@ project("${CLDNN__PROJ_NAME}")
 # ======================================================================================================
 # ======================================================================================================
 if (ENABLE_ONEDNN_FOR_GPU)
-    get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-    if (isMultiConfig)
+    if(OV_GENERATOR_MULTI_CONFIG)
         ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
         ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
 

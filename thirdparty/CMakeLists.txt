@@ -171,8 +171,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                        "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
                        "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}")
 
-        get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-        if (isMultiConfig)
+        if(OV_GENERATOR_MULTI_CONFIG)
             set(DIR_PREFIX "/$<CONFIG>/")
             set(ONEDNN_LIBRARY "${CMAKE_STATIC_LIBRARY_PREFIX}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
             set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}${DIR_PREFIX}${ONEDNN_LIBRARY}")
@@ -220,7 +219,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # WA: create temp 'include' directory
         file(MAKE_DIRECTORY "${BINARY_DIR}/include")
 
-        if (NOT isMultiConfig)
+        if (NOT OV_GENERATOR_MULTI_CONFIG )
             add_library(onednn_gpu STATIC IMPORTED GLOBAL)
             set_target_properties(onednn_gpu PROPERTIES
                 IMPORTED_LOCATION ${ONEDNN_OUTPUT_LIBRARY}
