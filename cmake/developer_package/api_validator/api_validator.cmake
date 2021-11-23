@@ -110,7 +110,7 @@ function(_ie_add_api_validator_post_build_step)
         set(output_file "${CMAKE_BINARY_DIR}/api_validator/${target_name}.txt")
 
         add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
-            COMMAND ${CMAKE_COMMAND}
+            COMMAND ${CMAKE_COMMAND} --config $<CONFIG>
                 -D UWP_API_VALIDATOR=${UWP_API_VALIDATOR}
                 -D UWP_API_VALIDATOR_TARGET=$<TARGET_FILE:${target}>
                 -D UWP_API_VALIDATOR_APIS=${UWP_API_VALIDATOR_APIS}
