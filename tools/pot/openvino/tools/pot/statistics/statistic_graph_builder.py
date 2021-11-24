@@ -31,9 +31,7 @@ class StatisticGraphBuilder:
         for algo_name, node_stats in copy_stat_aliases.items():
             for node_name, stats in node_stats.items():
                 node_name_in_graph = node_name[0] if isinstance(node_name, tuple) else node_name
-                pos = node_name_in_graph.find('/pre_fq_input')
-                if pos != -1:
-                    node_name_in_graph = node_name_in_graph[:pos]
+                node_name_in_graph = node_name_in_graph.replace('/pre_fq_input', '')
                 node = get_node_by_name(model, node_name_in_graph)
                 node_in_main_graph = get_node_by_name(model, node_name_in_graph.split('|')[0])
                 model_graph = node_in_main_graph.graph

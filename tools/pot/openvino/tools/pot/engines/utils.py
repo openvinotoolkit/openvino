@@ -109,10 +109,11 @@ def update_stats(stats_layout: dict, stat_aliases: dict, old_key: str, new_key: 
             stat_aliases[algo_name][new_key] = stat_aliases[algo_name].pop(old_key)
 
 
-def restore_original_node_names(result_names, accumulated_stats, stats_layout, stat_aliases):
-    for out_name, original_node_name in result_names.items():
-        accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
-        update_stats(stats_layout, stat_aliases, out_name, original_node_name)
+def restore_original_node_names(output2node, accumulated_stats, stats_layout, stat_aliases):
+    if output2node and stats_layout:
+        for out_name, original_node_name in output2node.items():
+            accumulated_stats[original_node_name] = accumulated_stats.pop(out_name)
+            update_stats(stats_layout, stat_aliases, out_name, original_node_name)
 
 
 def align_stat_names_with_results(result_names, nodes_name, output2node, stats_layout, stat_aliases):
@@ -125,9 +126,10 @@ def align_stat_names_with_results(result_names, nodes_name, output2node, stats_l
     :param: stats_layout: dict of stats collection functions
     :param: stat_aliases: dict of algorithms collections stats
     """
-    for original_out_name in nodes_name:
-        if original_out_name not in result_names and (original_out_name, 0) not in stats_layout:
-            out_name_with_port = original_out_name + '.0'
-            assert out_name_with_port in result_names
-            update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
-            output2node[out_name_with_port] = original_out_name
+    if output2node:
+        for original_out_name in nodes_name:
+            if original_out_name not in result_names and (original_out_name, 0) not in stats_layout:
+                out_name_with_port = original_out_name + '.0'
+                assert out_name_with_port in result_names
+                update_stats(stats_layout, stat_aliases, original_out_name, out_name_with_port)
+                output2node[out_name_with_port] = original_out_name

@@ -1,7 +1,6 @@
 # Copyright (C) 2020-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from .editor import add_fullname_for_nodes
 from .special_operations import QUANTIZE_AGNOSTIC_OPERATIONS
 from .passes import InsertFakeQuantize, FakeQuantizePropagation, FakeQuantizeOptimization, RemoveFakeQuantize, \
@@ -71,6 +70,7 @@ class GraphTransformer:
                 else ignored_params_
             self._insert_fake_quantize(model_dict['model'])
             # TODO: Uncomment to enable subgraphs quantization
+            # from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
             # for_graph_and_each_sub_graph_recursively(model_dict['model'], self._insert_fake_quantize)
             add_fullname_for_nodes(model_dict['model'])
         return model

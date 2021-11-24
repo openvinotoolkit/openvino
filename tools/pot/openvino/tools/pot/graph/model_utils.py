@@ -52,7 +52,8 @@ def compress_model_weights(model: NXModel):
         compress_weights(model_dict['model'])
 
 
-def get_nodes_by_type(model: NXModel, types: list, recursively=True):
+# TODO: set recursively = True to enable subgraphs quantization
+def get_nodes_by_type(model: NXModel, types: list, recursively: bool = False):
     """ Returns all nodes with type from types collection
     :param model: NXModel model
     :param types: list of required types
@@ -79,7 +80,8 @@ def get_node_by_name(model: NXModel, name: str) -> Node:
     return names[0] if names else None
 
 
-def get_all_operation_nodes(model: NXModel, recursively: bool = True):
+# TODO: set recursively = True to enable subgraphs quantization
+def get_all_operation_nodes(model: NXModel, recursively: bool = False):
     """ Returns sequence of all nodes in all graphs
     :param model: NXModel model
     :param recursively: whether return all nodes from the model

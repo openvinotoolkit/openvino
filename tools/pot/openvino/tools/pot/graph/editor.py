@@ -40,7 +40,8 @@ def find_node(graph: Graph, name):
     return None
 
 
-def get_node_by_name(graph: Graph, name: str, recursively: bool = True) -> Node:
+# TODO: set recursively = True to enable subgraphs quantization
+def get_node_by_name(graph: Graph, name: str, recursively: bool = False) -> Node:
     """ Returns node by name
     :param graph: NetworkX model to take node
     :param name: name of the node
@@ -103,7 +104,8 @@ def connect_nodes_by_name(graph: Graph, src_node_name, src_port, dst_node_name, 
     connect_nodes(src_node, src_port, dst_node, dst_port)
 
 
-def get_all_operation_nodes(graph: Graph, recursively: bool = True):
+# TODO: set recursively = True to enable subgraphs quantization
+def get_all_operation_nodes(graph: Graph, recursively: bool = False):
     """ Returns sequence of all nodes in graph
     :param graph: NetworkX model to take nodes
     :param recursively: whether return all nodes from the graph
@@ -118,7 +120,8 @@ def get_all_operation_nodes(graph: Graph, recursively: bool = True):
     return graph.get_op_nodes()
 
 
-def get_nodes_by_type(graph: Graph, types: list, recursively: bool = True) -> list:
+# TODO: set recursively = True to enable subgraphs quantization
+def get_nodes_by_type(graph: Graph, types: list, recursively: bool = False) -> list:
     """ Returns all nodes with type from types collection
      :param graph: NetworkX model to collect nodes
      :param types: list of required types
