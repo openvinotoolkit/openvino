@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "frontend_manager/extension.hpp"
+#include "common/extension.hpp"
 #include "ngraph/function.hpp"
 
 namespace ONNX_NAMESPACE {

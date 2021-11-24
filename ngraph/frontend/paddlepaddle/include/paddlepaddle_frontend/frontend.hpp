@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <frontend_manager/extension.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <common/extension.hpp>
+#include <manager.hpp>
 
 #include "exceptions.hpp"
 #include "model.hpp"

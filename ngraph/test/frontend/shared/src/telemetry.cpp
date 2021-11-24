@@ -4,7 +4,7 @@
 
 #include "telemetry.hpp"
 
-#include <frontend_manager/extension.hpp>
+#include <common/extension.hpp>
 
 #include "utils.hpp"
 

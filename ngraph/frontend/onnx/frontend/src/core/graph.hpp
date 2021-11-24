@@ -10,9 +10,9 @@
 #include <string>
 #include <vector>
 
+#include "common/extension.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
-#include "frontend_manager/extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "onnx_import/core/operator_set.hpp"

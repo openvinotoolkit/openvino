@@ -37,7 +37,7 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                    DEFINITIONS
                        $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
                    ADDITIONAL_INCLUDE_DIRECTORIES
-                       $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                       $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
                        FILEDESCRIPTION "nGraph ONNX frontend library")
@@ -45,7 +45,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PUBLIC ngraph
-        PRIVATE frontend_manager::static
+        PRIVATE frontend_common::static
         PRIVATE ngraph::builder openvino::util onnx_common inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>

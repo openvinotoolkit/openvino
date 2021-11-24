@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <frontend_manager/extension.hpp>
+#include <common/extension.hpp>
 #include <istream>
 #include <map>
 #include <memory>
