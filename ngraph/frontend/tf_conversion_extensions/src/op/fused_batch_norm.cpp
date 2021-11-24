@@ -3,8 +3,8 @@
 //
 
 #include "conversion_extensions.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "node_context.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -21,7 +21,7 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     auto ng_variance = node.get_input(4);
 
     auto data_format = node.get_attribute<std::string>("data_format");
-    FRONT_END_GENERAL_CHECK( data_format == "NHWC" || data_format == "NCHW", "Unsupported data format");
+    FRONT_END_GENERAL_CHECK(data_format == "NHWC" || data_format == "NCHW", "Unsupported data format");
     bool is_nhwc = (data_format == "NHWC");
     NGRAPH_DEBUG << "data_format: " << data_format;
     // TODO: where does 0.0001 come from?
@@ -33,7 +33,7 @@ OutputVector translate_fused_batch_norm_op(const NodeContext& node) {
     convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_batch_norm);
 
     string activation_mode = node.get_attribute<string>("activation_mode");
-    FRONT_END_GENERAL_CHECK( activation_mode == "Relu", "Unsupported _FusedBatchNormEx activation mode");
+    FRONT_END_GENERAL_CHECK(activation_mode == "Relu", "Unsupported _FusedBatchNormEx activation mode");
     auto relu_op = make_shared<Relu>(ng_batch_norm);
     set_node_name(node.get_name(), relu_op);
     return {relu_op};

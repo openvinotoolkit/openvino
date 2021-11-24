@@ -3,8 +3,8 @@
 //
 
 #include "conversion_extensions.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "node_context.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -30,7 +30,7 @@ OutputVector translate_fused_mat_mul_op(const NodeContext& node) {
     auto ng_bias_shape = ng_bias.get_shape();
 
     if (ng_bias_shape.size() != 1) {
-        FRONT_END_GENERAL_CHECK( false, "Bias argument to BiasAdd does not have one dimension");
+        FRONT_END_GENERAL_CHECK(false, "Bias argument to BiasAdd does not have one dimension");
     }
 
     auto ng_add = make_shared<Add>(ng_matmul, ng_bias);
@@ -42,11 +42,11 @@ OutputVector translate_fused_mat_mul_op(const NodeContext& node) {
         } else if (fused_ops[1] == "Relu6") {
             return {make_shared<Clamp>(ng_add, 0, 6)};
         } else {
-            FRONT_END_GENERAL_CHECK( false, "Expected activation to be Relu or Relu6 but got " + fused_ops[1]);
+            FRONT_END_GENERAL_CHECK(false, "Expected activation to be Relu or Relu6 but got " + fused_ops[1]);
         }
     } else {
         // Adding this here to catch future changes in _FusedMatMul
-        FRONT_END_GENERAL_CHECK( false, "Unsupported combination");
+        FRONT_END_GENERAL_CHECK(false, "Unsupported combination");
     }
 }
 }  // namespace op

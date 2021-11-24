@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tensorflow_frontend/utility.hpp>
 #include <tensorflow_frontend/extension.hpp>
 #include <tensorflow_frontend/frontend.hpp>
+#include <tensorflow_frontend/utility.hpp>
 
-#include "utils.hpp"
 #include "ngraph_conversions.hpp"
 #include "openvino/core/node.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -22,9 +22,7 @@ OP_CONVERTER(translate_fused_batch_norm_op);
 OP_CONVERTER(translate_depthwise_conv_2d_native_op);
 OP_CONVERTER(translate_retval_op);
 
-}
-}
-}
-}
-
-
+}  // namespace op
+}  // namespace tf
+}  // namespace frontend
+}  // namespace ov

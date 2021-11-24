@@ -3,9 +3,8 @@
 //
 
 #include "conversion_extensions.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "node_context.hpp"
-
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -28,15 +27,14 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
         auto tf_padding_type = node.get_attribute<std::string>("padding");
 
         if (tf_data_format != "NHWC" && tf_data_format != "NCHW") {
-            FRONT_END_GENERAL_CHECK( false, "Conv2D data format is neither NHWC nor NCHW");
+            FRONT_END_GENERAL_CHECK(false, "Conv2D data format is neither NHWC nor NCHW");
         }
 
         // TF Kernel Test Checks
         // Strides in the batch and depth dimension is not supported
         if (tf_strides[0] != 1 || tf_strides[is_nhwc ? 3 : 1] != 1) {
-            FRONT_END_GENERAL_CHECK(
-                                   false,
-                                   "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Strides in batch and depth dimensions is not supported: " + node.get_op_type());
         }
 
         Strides ng_strides(2);
@@ -72,7 +70,7 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
     if (vec_str_cmp(fused_ops, {"BiasAdd"}) || vec_str_cmp(fused_ops, {"BiasAdd", "Relu"}) ||
         vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"})) {
         if (num_args != 1) {
-            FRONT_END_GENERAL_CHECK( false, "FusedConv2DBiasAdd has incompatible num_args");
+            FRONT_END_GENERAL_CHECK(false, "FusedConv2DBiasAdd has incompatible num_args");
         }
 
         auto ng_input = node.get_input(0), ng_filter = node.get_input(1), ng_bias = node.get_input(2),
@@ -81,7 +79,7 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
         auto ng_conv_shape = ng_conv.get_shape();
         auto ng_bias_shape = ng_bias.get_shape();
         if (ng_bias_shape.size() != 1) {
-            FRONT_END_GENERAL_CHECK( false, "Bias argument to BiasAdd does not have one dimension");
+            FRONT_END_GENERAL_CHECK(false, "Bias argument to BiasAdd does not have one dimension");
         }
 
         std::vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
@@ -107,7 +105,7 @@ OutputVector translate_fused_conv_2d_op(const NodeContext& node) {
     } else if (vec_str_cmp(fused_ops, {"FusedBatchNorm"}) || vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu"}) ||
                vec_str_cmp(fused_ops, {"FusedBatchNorm", "Relu6"})) {
         if (num_args != 4) {
-            FRONT_END_GENERAL_CHECK( false, "FusedConv2D with FusedBatchNorm has incompatible num_args");
+            FRONT_END_GENERAL_CHECK(false, "FusedConv2D with FusedBatchNorm has incompatible num_args");
         }
 
         auto ng_input = node.get_input(0), ng_filter = node.get_input(1), ng_scale = node.get_input(2),

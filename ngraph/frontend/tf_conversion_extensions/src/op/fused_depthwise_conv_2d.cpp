@@ -3,8 +3,8 @@
 //
 
 #include "conversion_extensions.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "node_context.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -13,7 +13,6 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     auto ng_input = node.get_input(0);
     auto ng_filter = node.get_input(1);
@@ -21,9 +20,8 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     auto tf_dilations = node.get_attribute<std::vector<int32_t>>("dilations");
     auto tf_padding_type = node.get_attribute<std::string>("padding");
     auto tf_data_format = node.get_attribute<std::string>("data_format");
-    FRONT_END_GENERAL_CHECK(
-                           tf_data_format == "NHWC" || tf_data_format == "NCHW",
-                           "DepthwiseConv2D data format is neither NHWC nor NCHW");
+    FRONT_END_GENERAL_CHECK(tf_data_format == "NHWC" || tf_data_format == "NCHW",
+                            "DepthwiseConv2D data format is neither NHWC nor NCHW");
     bool is_nhwc = (tf_data_format == "NHWC");
     Strides ng_strides(2);
     Strides ng_dilations(2);
@@ -64,21 +62,20 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
 
     auto op_type = node.get_op_type();
     if (op_type == "DepthwiseConv2dNative") {
-    convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_conv);
-    set_node_name(node.get_name(), ng_conv.get_node_shared_ptr());
-    return {ng_conv};
+        convert_nchw_to_nhwc(node.get_name(), is_nhwc, ng_conv);
+        set_node_name(node.get_name(), ng_conv.get_node_shared_ptr());
+        return {ng_conv};
     } else if (op_type == "_FusedDepthwiseConv2dNative") {
         int num_args = node.get_attribute<int>("num_args");
         auto fused_ops = node.get_attribute<vector<string>>("fused_ops");
-        FRONT_END_GENERAL_CHECK(
-                               vec_str_cmp(fused_ops, {"BiasAdd"}) || vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"}),
-                               "Unsupported fused operations.");
-        FRONT_END_GENERAL_CHECK( num_args == 1, "FusedDepthwiseConv2dNativeBiasAdd has incompatible num_args");
+        FRONT_END_GENERAL_CHECK(vec_str_cmp(fused_ops, {"BiasAdd"}) || vec_str_cmp(fused_ops, {"BiasAdd", "Relu6"}),
+                                "Unsupported fused operations.");
+        FRONT_END_GENERAL_CHECK(num_args == 1, "FusedDepthwiseConv2dNativeBiasAdd has incompatible num_args");
         auto ng_bias = node.get_input(2);
 
         auto ng_conv_shape = ng_conv.get_shape();
         auto ng_bias_shape = ng_bias.get_shape();
-        FRONT_END_GENERAL_CHECK( ng_bias_shape.size() == 1, "Bias argument to BiasAdd does not have one dimension");
+        FRONT_END_GENERAL_CHECK(ng_bias_shape.size() == 1, "Bias argument to BiasAdd does not have one dimension");
 
         std::vector<size_t> reshape_pattern_values(ng_conv_shape.size(), 1U);
         reshape_pattern_values[1] = ng_bias.get_shape().front();
@@ -99,9 +96,9 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
             return {ng_add};
         }
     }
-    FRONT_END_GENERAL_CHECK( false, "Unsupported operation type.");
-}
-}
+    FRONT_END_GENERAL_CHECK(false, "Unsupported operation type.");
 }
 }  // namespace op
 }  // namespace tf
+}  // namespace frontend
+}  // namespace ov

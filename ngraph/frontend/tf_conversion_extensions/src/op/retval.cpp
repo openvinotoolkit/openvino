@@ -3,8 +3,8 @@
 //
 
 #include "conversion_extensions.hpp"
-#include "openvino/opsets/opset8.hpp"
 #include "node_context.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -17,9 +17,7 @@ namespace op {
 OutputVector translate_retval_op(const NodeContext& node) {
     // Make sure that this _Retval only has one input node.
     if (node.get_input_size() != 1) {
-        FRONT_END_GENERAL_CHECK(
-                               false,
-                               "_Retval has " + to_string(node.get_input_size()) + " inputs, should have 1");
+        FRONT_END_GENERAL_CHECK(false, "_Retval has " + to_string(node.get_input_size()) + " inputs, should have 1");
     }
 
     // auto ret_val_index = node.get_attribute<int>("index");
