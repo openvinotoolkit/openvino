@@ -5,11 +5,11 @@
 #include "preprocess_steps_impl.hpp"
 
 #include "color_utils.hpp"
-#include "ngraph/opsets/opset1.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
 #include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -83,19 +83,19 @@ void PreStepsList::add_convert_impl(const element::Type& type) {
         if (t == element::Type{}) {
             t = ctxt.target_element_type();
         }
-        bool convert_added = false;
         for (const auto& node : nodes) {
             OPENVINO_ASSERT(node.get_element_type().is_static(),
                             "Can't insert 'convert_element_type' for dynamic source tensor type.");
             if (t != node.get_element_type()) {
                 auto convert = std::make_shared<op::v0::Convert>(node, t);
                 res.emplace_back(convert);
-                convert_added = true;
             } else {
                 res.emplace_back(node);
             }
         }
-        return std::make_tuple(res, convert_added);
+        // return false to avoid excess function revalidations as conversion of types
+        // doesn't require shape or type propagation.
+        return std::make_tuple(res, false);
     });
 }
 
@@ -173,7 +173,9 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
         auto perm_constant = op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
         context.layout() = dst_layout;  // Update context's current layout
-        return std::make_tuple(std::vector<Output<Node>>{transpose}, true);
+        // return false to avoid excess function revalidations as layout conversion
+        // doesn't require shape or type propagation.
+        return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
     });
 }
 
@@ -192,9 +194,10 @@ void PreStepsList::add_convert_layout_impl(const std::vector<uint64_t>& dims) {
         auto new_layout = layout::apply_permutation(context.layout(), dims);
         auto perm_constant = op::v0::Constant::create<uint64_t>(element::u64, Shape{dims.size()}, dims);
         auto transpose = std::make_shared<op::v1::Transpose>(nodes[0], perm_constant);
-        auto res = std::make_tuple(std::vector<Output<Node>>{transpose}, true);
         context.layout() = std::move(new_layout);  // Update context's current layout
-        return res;
+        // return false to avoid excess function revalidations as layout conversion
+        // doesn't require shape or type propagation.
+        return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
     });
 }
 
@@ -241,12 +244,74 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
             }
             context.color_format() = dst_format;
             return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+        } else if (context.color_format() == ColorFormat::I420_SINGLE_PLANE) {
+            OPENVINO_ASSERT(nodes.size() == 1, "Internal error: single plane I420 image can't have multiple inputs");
+            std::shared_ptr<Node> convert;
+            switch (dst_format) {
+            case ColorFormat::RGB:
+                convert = std::make_shared<op::v8::I420toRGB>(nodes[0]);
+                break;
+            case ColorFormat::BGR:
+                convert = std::make_shared<op::v8::I420toBGR>(nodes[0]);
+                break;
+            default:
+                OPENVINO_ASSERT(false,
+                                "Unsupported conversion from I420 to '",
+                                color_format_name(dst_format),
+                                "' format:");
+            }
+            context.color_format() = dst_format;
+            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
+        } else if (context.color_format() == ColorFormat::I420_THREE_PLANES) {
+            OPENVINO_ASSERT(nodes.size() == 3, "Internal error: three-plane I420 image must have exactly three inputs");
+            std::shared_ptr<Node> convert;
+            switch (dst_format) {
+            case ColorFormat::RGB:
+                convert = std::make_shared<op::v8::I420toRGB>(nodes[0], nodes[1], nodes[2]);
+                break;
+            case ColorFormat::BGR:
+                convert = std::make_shared<op::v8::I420toBGR>(nodes[0], nodes[1], nodes[2]);
+                break;
+            default:
+                OPENVINO_ASSERT(false,
+                                "Unsupported conversion from I420 to '",
+                                color_format_name(dst_format),
+                                "' format:");
+            }
+            context.color_format() = dst_format;
+            return std::make_tuple(std::vector<Output<Node>>{convert}, true);
         }
         if ((context.color_format() == ColorFormat::RGB || context.color_format() == ColorFormat::BGR) &&
             (dst_format == ColorFormat::RGB || dst_format == ColorFormat::BGR)) {
             auto res = reverse_channels(nodes, function, context);
             context.color_format() = dst_format;
             return res;
+        }
+        if (context.color_format() == ColorFormat::RGBX) {
+            if (dst_format == ColorFormat::RGB) {
+                auto res = cut_last_channel(nodes, function, context);
+                context.color_format() = dst_format;
+                return res;
+            } else if (dst_format == ColorFormat::BGR) {
+                auto cut = cut_last_channel(nodes, function, context);
+                auto reverse = reverse_channels(std::get<0>(cut), function, context);
+                bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                context.color_format() = dst_format;
+                return std::make_tuple(std::get<0>(reverse), updated);
+            }
+        }
+        if (context.color_format() == ColorFormat::BGRX) {
+            if (dst_format == ColorFormat::BGR) {
+                auto res = cut_last_channel(nodes, function, context);
+                context.color_format() = dst_format;
+                return res;
+            } else if (dst_format == ColorFormat::RGB) {
+                auto cut = cut_last_channel(nodes, function, context);
+                auto reverse = reverse_channels(std::get<0>(cut), function, context);
+                bool updated = std::get<1>(cut) | std::get<1>(reverse);
+                context.color_format() = dst_format;
+                return std::make_tuple(std::get<0>(reverse), updated);
+            }
         }
         OPENVINO_ASSERT(false,
                         "Source color format '",
@@ -293,6 +358,24 @@ std::tuple<std::vector<Output<Node>>, bool> PreStepsList::reverse_channels(const
     auto constant_axis = op::v0::Constant::create(element::i32, {1}, {channels_idx});
     auto convert = std::make_shared<op::v8::Gather>(nodes[0], range, constant_axis);
     return std::make_tuple(std::vector<Output<Node>>{convert}, false);
+}
+
+std::tuple<std::vector<Output<Node>>, bool> PreStepsList::cut_last_channel(const std::vector<Output<Node>>& nodes,
+                                                                           const std::shared_ptr<Function>& function,
+                                                                           PreprocessingContext& context) {
+    OPENVINO_ASSERT(nodes.size() == 1, "Internal error: can't cut X channel for multi-plane inputs");
+    OPENVINO_ASSERT(ov::layout::has_channels(context.layout()),
+                    "Layout ",
+                    context.layout().to_string(),
+                    " doesn't have `channels` dimension");
+    auto channels_idx = ov::layout::channels_idx(context.layout());
+
+    auto start = opset8::Constant::create(element::i32, {1}, {0});
+    auto stop = opset8::Constant::create(element::i32, {1}, {-1});  // Everything except last channel
+    auto step = opset8::Constant::create(element::i32, {1}, {1});
+    auto axis = opset8::Constant::create(element::i32, {1}, {channels_idx});  // E.g. 3
+    auto slice = std::make_shared<ov::op::v8::Slice>(nodes[0], start, stop, step, axis);
+    return std::make_tuple(std::vector<Output<Node>>{slice}, false);
 }
 
 //------------- Post processing ------

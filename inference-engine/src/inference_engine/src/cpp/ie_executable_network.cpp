@@ -33,7 +33,7 @@ namespace InferenceEngine {
         OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
-ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
+ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so, const IExecutableNetworkInternal::Ptr& impl)
     : _so(so),
       _impl(impl) {
     IE_ASSERT(_impl != nullptr);
@@ -63,16 +63,6 @@ void ExecutableNetwork::reset(IExecutableNetwork::Ptr newActual) {
 
 ExecutableNetwork::operator IExecutableNetwork::Ptr() {
     return std::make_shared<ExecutableNetworkBase>(_impl);
-}
-
-std::vector<VariableState> ExecutableNetwork::QueryState() {
-    std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT({
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState{_so, state});
-        }
-    });
-    return controller;
 }
 
 InferRequest ExecutableNetwork::CreateInferRequest() {

@@ -12,7 +12,7 @@ For an in-depth description of clDNN, see [Inference Engine source files](https:
 * "GPU" is an alias for "GPU.0"
 * If the system doesn't have an integrated GPU, then devices are enumerated starting from 0.
 
-For demonstration purposes, see the [Hello Query Device C++ Sample](../../../inference-engine/samples/hello_query_device/README.md) that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
+For demonstration purposes, see the [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
 ```sh
 ./hello_query_device
@@ -121,6 +121,15 @@ When specifying key values as raw strings (that is, when using Python API), omit
 | `KEY_DUMP_KERNELS`    | `YES` / `NO`                    | `NO`              | Dump the final kernels used for custom layers. **Deprecated**. Will be removed in the next release             |
 | `KEY_TUNING_MODE`     | `TUNING_DISABLED` <br /> `TUNING_CREATE` <br />  `TUNING_USE_EXISTING`            | `TUNING_DISABLED` | Disable inference kernel tuning     <br /> Create tuning file (expect much longer runtime)  <br />         Use an existing tuning file. **Deprecated**. Will be removed in the next release |
 | `KEY_TUNING_FILE`     | `"<filename>"`                  | `""`              | Tuning file to create / use. **Deprecated**. Will be removed in the next release |
+
+## Quering GPU specific metric keys
+* MEMORY_STATISTICS : Returns overall memory statistics of `GPU` device allocated by engine with allocation types. If the network has `TensorIterator` or `Loop` operation which is not unrolled, there will be additional allocation at the first inference phase. In such a case, querying for `MEMORY_STATISTICS` should be done after first inference for more accurate result. The code below demonstrates how to query overall memory statistics of `GPU` device:
+
+@snippet snippets/GPU_Metric0.cpp part0
+
+* MAX_BATCH_SIZE : Returns maximum batch size for a given network which is not only executable but also does not lose performance due to the memory swap impact. Note that the returned value may not aligned to power of 2. Also, MODEL_PTR is the required option for this metric since the available max batch size depends on the model size. If the MODEL_PTR is not given, it will return 1. The example code to set the required and optional configs for this metic is available in the following snippet:
+
+@snippet snippets/GPU_Metric1.cpp part1
 
 ## GPU Context and Video Memory Sharing RemoteBlob API
 

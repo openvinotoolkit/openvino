@@ -110,6 +110,10 @@ onnx_model_scatterND_param_i64_indices
 IE_CPU.onnx_constant_sparse_tensor_int64_3x4
 IE_CPU.onnx_constant_sparse_tensor_uint64_3x4
 
+# I64 ONNX Clip Failing on ubuntu18/20_release CI
+IE_CPU.onnx_clip_no_min_no_max_int64 # -2147483648 is not close to 2147483647 at index 2
+IE_CPU.onnx_clip_no_min_set_max_int64 # -1 is not close to 2147483647 at index 0
+
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
 onnx_model_argmin_int32
@@ -1564,3 +1568,5 @@ IE_CPU.onnx_model_gather_float_2D_neg_indices
 onnx_model_skip_layer_normalization_dynamic_shapes
 # Doesn't support op with dynamic shapes
 onnx_model_embed_layer_normalization_dynamic_shapes
+# CPU plug-in doesn't support operation with dynamic rank
+onnx_model_attention_dynamic_shapes
