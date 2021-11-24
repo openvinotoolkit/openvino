@@ -10,7 +10,6 @@ namespace GNAPluginNS {
 struct GNAFlags {
     uint8_t gna_lib_async_threads_num = 1;
 
-    bool compact_mode = false;
     bool exclusive_async_requests = false;
     bool uniformPwlDesign = false;
     float pwlMaxErrorPercent = 1.0f;
@@ -18,5 +17,10 @@ struct GNAFlags {
     bool sw_fp32 = false;
     bool performance_counting = false;
     bool input_low_precision = false;
+#ifdef  GNA_DEBUG
+    bool compact_mode = false;
+#else
+    bool compact_mode = true;
+#endif
 };
 }  // namespace GNAPluginNS
