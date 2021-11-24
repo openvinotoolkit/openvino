@@ -6,25 +6,8 @@
 
 #include <ostream>
 #include <ie_common.h>
-#include <iostream>
 
-#define DEBUG_CHECKPOINT std::cout << "EMUTEX DEBUG CHECKPOINT " << __FILE__ << ":" << __LINE__ << ":" << __PRETTY_FUNCTION__ << std::endl;
-
-#define DEBUG_VALUE(x) std::cout << "EMUTEX DEBUG " << __FILE__ << ":" << __LINE__ << " " << #x << " = " << x << std::endl;
-
-template <typename T>
-void debug_values_iterable(const std::string & name, const T & t)
-{
-    int i = 0;
-    for (const auto & item : t)
-    {
-        std::cout << name << " item #" << ++i << " " << item << std::endl;
-    }
-}
-
-#define DEBUG_VALUE_ITERABLE(x) std::cout << "EMUTEX DEBUG " << __FILE__ << ":" << __LINE__ << " " << #x << std::endl; debug_values_iterable(#x, x);
-
-#define GNA_DEBUG
+// #define GNA_DEBUG
 #ifdef  GNA_DEBUG
 #include <iostream>
 /**
