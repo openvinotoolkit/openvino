@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
+import numpy as np
 
 from mo.graph.graph import Graph
 
@@ -145,5 +146,6 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     weights_node = get_node_input(src_node, 1)
     weights_node = get_node_input(weights_node, 0) \
         if weights_node.type == 'FakeQuantize' else weights_node
-    weights_node.out_node(0)['Insert_Convert_operation_after'] = True
+    if weights_node.out_port(0).get_data_type() == np.float16:
+        weights_node.out_node(0)['Insert_Convert_operation_after'] = True
     return graph
