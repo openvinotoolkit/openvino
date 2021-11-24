@@ -2,91 +2,132 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include <shared_test_classes/single_layer/extract_image_patches.hpp>
+#include "ngraph_functions/builders.hpp"
 
-using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
-using LayerTestsDefinitions::extractImagePatchesTuple;
+using extractImagePatchesParams = typename std::tuple<
+    InputShape,         // input shape
+    ElementType,        // Network precision
+    ov::Shape,          // kernel size
+    ov::Strides,        // strides
+    ov::Shape,          // rates
+    ov::op::PadType>;   // pad type
 
-typedef std::tuple<
-    extractImagePatchesTuple,
-    CPUSpecificParams> extractImagePatchesCPUTestParamsSet;
-
-class ExtractImagePatchesLayerCPUTest : public testing::WithParamInterface<extractImagePatchesCPUTestParamsSet>,
-    virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+class ExtractImagePatchesLayerCPUTest : public testing::WithParamInterface<extractImagePatchesParams>,
+                                        virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<extractImagePatchesCPUTestParamsSet> obj) {
-        extractImagePatchesTuple basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<extractImagePatchesParams> obj) {
+        InputShape inputShapes;
+        ElementType inputPrecision;
+        ov::Shape kernelSize;
+        ov::Strides strides;
+        ov::Shape rates;
+        ov::op::PadType padType;
+        std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::ExtractImagePatchesTest::getTestCaseName(testing::TestParamInfo<extractImagePatchesTuple>(
-            basicParamsSet, 0));
+        result << "netPRC=" << inputPrecision << "_" << "IS=" << CommonTestUtils::partialShape2str({ inputShapes.first }) << "_";
+        result << "TS=";
+        result << "(";
+        for (const auto& targetShape : inputShapes.second) {
+            result << CommonTestUtils::vec2str(targetShape) << "_";
+        }
 
-        result << CPUTestsBase::getTestCaseName(cpuParams);
+        result << ")_" << "kernelSize=" << kernelSize << "_strides=" << strides << "_rates=" << rates << "_padType=" << padType;
         return result.str();
     }
 protected:
     void SetUp() override {
-        extractImagePatchesTuple basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+        InputShape inputShapes;
+        ElementType inputPrecision;
+        ov::Shape kernelSize;
+        ov::Strides strides;
+        ov::Shape rates;
+        ov::op::PadType padType;
+        std::tie(inputShapes, inputPrecision, kernelSize, strides, rates, padType) = this->GetParam();
 
-        std::vector<size_t> inputShape, kernel, strides, rates;
-        ngraph::op::PadType pad_type;
-        InferenceEngine::Precision netPrecision;
-        std::tie(inputShape, kernel, strides, rates, pad_type, netPrecision, inPrc, outPrc, inLayout, targetDevice) = basicParamsSet;
-        selectedType = std::string("ref_any_") + netPrecision.name();
+        selectedType = makeSelectedTypeStr("ref_any", inputPrecision);
+        if (inputPrecision == ElementType::bf16) {
+            rel_threshold = 1e-2;
+        }
 
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto inputNode = std::make_shared<ngraph::opset6::Parameter>(ngPrc, ngraph::Shape(inputShape));
-        ngraph::ParameterVector params = {inputNode};
+        init_input_shapes({ inputShapes });
 
-        auto extImgPatches = std::make_shared<ngraph::opset6::ExtractImagePatches>(
-                inputNode, ngraph::Shape(kernel), ngraph::Strides(strides), ngraph::Shape(rates), pad_type);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(extImgPatches)};
-        function = std::make_shared<ngraph::Function>(results, params, "ExtractImagePatches");
+        auto params = ngraph::builder::makeDynamicParams(inputPrecision, inputDynamicShapes);
+        auto extImgPatches = std::make_shared<ngraph::opset3::ExtractImagePatches>(params[0], kernelSize, strides, rates, padType);
+        function = makeNgraphFunction(inputPrecision, params, extImgPatches, "ExtractImagePatches");
     }
 };
 
 TEST_P(ExtractImagePatchesLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    Run();
+    run();
     CheckPluginRelatedResults(executableNetwork, "ExtractImagePatches");
 }
 
 namespace {
-    const std::vector<std::vector<size_t>> inShapes = {{2, 3, 13, 37}};
-    const std::vector<std::vector<size_t>> kSizes = {{1, 5}, {3, 4}, {3, 1}};
-    const std::vector<std::vector<size_t>> strides = {{1, 2}, {2, 2}, {2, 1}};
-    const std::vector<std::vector<size_t>> rates = {{1, 3}, {3, 3}, {3, 1}};
+const std::vector<InputShape> inputShapes = {
+    InputShape{{}, {{2, 3, 13, 37}}},
+    InputShape{
+        // dynamic
+        {-1, -1, -1, -1},
+        // static
+        {{2, 3, 13, 37}, {6, 4, 14, 14}, {8, 12, 15, 16}}
+    },
+    InputShape{
+        // dynamic
+        {{5, 15}, {6, 17}, {10, 15}, {13, 16}},
+        // static
+        {{5, 17, 10, 15}, {15, 10, 12, 13}, {10, 10, 15, 16}}
+    },
+};
 
-    const std::vector<ngraph::op::PadType> autoPads = {ngraph::op::PadType::VALID, ngraph::op::PadType::SAME_UPPER, ngraph::op::PadType::SAME_LOWER};
-    const std::vector<Precision> netPrecision = {Precision::I8, Precision::BF16, Precision::FP32};
-    const CPUSpecificParams CPUParams = emptyCPUSpec;
+const std::vector<ElementType> inputPrecisions = {
+    ElementType::i8,
+    ElementType::bf16,
+    ElementType::f32
+};
 
-const auto Layer_params = ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(kSizes),
-        ::testing::ValuesIn(strides),
-        ::testing::ValuesIn(rates),
-        ::testing::ValuesIn(autoPads),
-        ::testing::ValuesIn(netPrecision),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU));
+const std::vector<ov::Shape> kSizes = {
+    {1, 5},
+    {3, 4},
+    {3, 1}
+};
 
-INSTANTIATE_TEST_SUITE_P(smoke_ExtractImagePatches_CPU, ExtractImagePatchesLayerCPUTest,
-                        ::testing::Combine(Layer_params, ::testing::Values(CPUParams)),
-                        ExtractImagePatchesLayerCPUTest::getTestCaseName);
+const std::vector<ov::Strides> strides = {
+    {1, 2},
+    {2, 2},
+    {2, 1}
+};
+
+const std::vector<ov::Shape> rates = {
+    {1, 3},
+    {3, 3},
+    {3, 1}
+};
+
+const std::vector<ov::op::PadType> autoPads = {
+    ov::op::PadType::VALID,
+    ov::op::PadType::SAME_UPPER,
+    ov::op::PadType::SAME_LOWER
+};
+
+const auto params = ::testing::Combine(
+    ::testing::ValuesIn(inputShapes),
+    ::testing::ValuesIn(inputPrecisions),
+    ::testing::ValuesIn(kSizes),
+    ::testing::ValuesIn(strides),
+    ::testing::ValuesIn(rates),
+    ::testing::ValuesIn(autoPads));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ExtractImagePatches_CPU, ExtractImagePatchesLayerCPUTest, params, ExtractImagePatchesLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
