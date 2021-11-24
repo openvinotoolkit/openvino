@@ -256,9 +256,12 @@ DECLARE_CONFIG_VALUE(YES);
 DECLARE_CONFIG_VALUE(NO);
 
 /**
- * @brief Auto-batching to the `#batch`.
+ * @brief Auto-batching configuration: device + batch size
  */
 DECLARE_CONFIG_KEY(AUTO_BATCH);
+/**
+ * @brief Auto-batching configuration: timeout
+ */
 DECLARE_CONFIG_KEY(AUTO_BATCH_TIMEOUT);
 
 /**
