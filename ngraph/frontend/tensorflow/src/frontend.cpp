@@ -3,6 +3,8 @@
 //
 
 #include <tensorflow_frontend/frontend.hpp>
+#include <tensorflow_frontend/extension.hpp>
+#include "so_extension.hpp"
 #include <tensorflow_frontend/graph_iterator.hpp>
 
 #include "model.hpp"
@@ -346,4 +348,15 @@ void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
     ov::pass::Manager manager;
     manager.register_pass<ov::frontend::tf::pass::TransposeSinkingOVTF>();
     manager.run_passes(function);
+}
+
+void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension> &extension) {
+    if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
+        add_extension(so_ext->extension());
+        m_extensions.push_back(so_ext);
+    } else if (const auto& conv_ext = std::dynamic_pointer_cast<ov::frontend::ConversionExtension>(extension)) {
+        m_op_translators.insert({conv_ext->get_op_type(), conv_ext->get_converter()});
+        m_extensions.push_back(conv_ext);
+        std::cout << "Translator for " << conv_ext->get_op_type() << " registered." << std::endl;
+    }
 }

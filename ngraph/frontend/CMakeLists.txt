@@ -21,4 +21,5 @@ endif()
 
 if (NGRAPH_TF_FRONTEND_ENABLE)
     add_subdirectory(tensorflow)
+    add_subdirectory(tf_conversion_extensions)
 endif()

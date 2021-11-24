@@ -2,16 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "tensorflow_ov_frontend")
+set(TARGET_NAME "tf_conversion_extensions")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(${TARGET_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
@@ -49,60 +46,22 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIO
 
 # Create library
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
-add_library(openvino::frontend::tensorflow ALIAS ${TARGET_NAME})
 
-add_dependencies(${TARGET_NAME} ${TARGET_NAME}_proto)
-
-ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
-                    ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
-
+get_target_property(TENSORFLOW_FRONTEND_SRC_DIR tensorflow_ov_frontend SOURCE_DIR)
 target_include_directories(${TARGET_NAME}
         PUBLIC
             $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>
         PRIVATE
+            ${TENSORFLOW_FRONTEND_SRC_DIR}/src/
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_BINARY_DIR})
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
-                                                         ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static openvino::util tensorflow_ov_frontend libprotobuf)
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format")
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
-
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
-                                     PRIVATE ngraph::builder inference_engine_transformations libprotobuf openvino::util)
-
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                        EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
-
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::tensorflow)
-
-# Add include path to so_extension.hpp
-set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend.cpp
-        APPEND PROPERTY INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/ngraph/core/src/")
+add_dependencies(${TARGET_NAME} tensorflow_ov_frontend)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT tests EXCLUDE_FROM_ALL
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT tests EXCLUDE_FROM_ALL
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT tests EXCLUDE_FROM_ALL)
-
-# TODO: add install commands once TensorFlow frontend is complete, and delete the install above
-#install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-#        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-#        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-#        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
-
-#install(DIRECTORY ${${TARGET_NAME}_INCLUDE_DIR}/tensorflow_frontend
-#        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
-#        COMPONENT ngraph_dev
-#        FILES_MATCHING PATTERN "*.hpp")
-#
-#export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-#       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

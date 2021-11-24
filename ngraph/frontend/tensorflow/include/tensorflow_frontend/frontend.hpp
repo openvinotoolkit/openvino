@@ -11,6 +11,7 @@
 #include "frontend_manager/input_model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/variant.hpp"
+#include "openvino/core/extension.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
@@ -28,10 +29,6 @@ public:
     using CreatorFunction = std::function<::ov::OutputVector(const ::ov::frontend::tf::NodeContext&)>;
     using TranslatorDictionaryType = std::map<const std::string, const CreatorFunction>;
 
-private:
-    TranslatorDictionaryType m_op_translators;
-
-public:
     FrontEndTF();
 
     /// \brief Completely convert the model
@@ -66,6 +63,9 @@ public:
         return "tf";
     }
 
+    /// \brief Register base extension in the FrontEnd
+    /// \param extension base extension
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
     bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;
@@ -78,6 +78,8 @@ private:
                          bool fail_fast,
                          bool no_conversion,
                          std::shared_ptr<ov::Function>& ng_function) const;
+    std::vector<Extension::Ptr> m_extensions;
+    TranslatorDictionaryType m_op_translators;
 };
 }  // namespace frontend
 }  // namespace ov
