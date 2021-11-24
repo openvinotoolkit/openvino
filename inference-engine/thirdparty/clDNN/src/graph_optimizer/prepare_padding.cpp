@@ -61,7 +61,7 @@ void prepare_padding::run(program& p) {
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
                                                                                filter_size,
-                                                                               prim->input_offset,
+                                                                               prim->pad,
                                                                                prim->stride,
                                                                                prim->dilation,
                                                                                false,
@@ -80,7 +80,7 @@ void prepare_padding::run(program& p) {
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                                prim->output_size,
                                                                                filter_size,
-                                                                               prim->input_offset,
+                                                                               prim->pad,
                                                                                prim->stride,
                                                                                {1, 1, 1, 1},
                                                                                true,
@@ -100,7 +100,7 @@ void prepare_padding::run(program& p) {
                     needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                               prim->output_size,
                                                                               prim->size,
-                                                                              prim->input_offset,
+                                                                              prim->pad,
                                                                               prim->stride,
                                                                               {1, 1, 1, 1},
                                                                               false,
@@ -170,20 +170,20 @@ void prepare_padding::run(program& p) {
         layout filter_layout = filter_node.get_output_layout();
 
         // Compute initial required paddings for primitive used as input for convolution.
-        auto input_offset = conv->input_offset;
+        auto pad = conv->pad;
         auto stride = conv->stride;
         auto dilation = conv->dilation;
 
-        auto input_limit_x = input_offset.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
+        auto input_limit_x = -pad.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
                              (filter_layout.size.spatial[0] - 1) * dilation.spatial[0] + 1;
-        auto input_limit_y = input_offset.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
+        auto input_limit_y = -pad.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
                              (filter_layout.size.spatial[1] - 1) * dilation.spatial[1] + 1;
-        auto input_limit_z = input_offset.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
+        auto input_limit_z = -pad.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
                              (filter_layout.size.spatial[2] - 1) * dilation.spatial[2] + 1;
 
-        auto padding_begin_x = std::max(-input_offset.spatial[0], 0);
-        auto padding_begin_y = std::max(-input_offset.spatial[1], 0);
-        auto padding_begin_z = std::max(-input_offset.spatial[2], 0);
+        auto padding_begin_x = std::max(pad.spatial[0], 0);
+        auto padding_begin_y = std::max(pad.spatial[1], 0);
+        auto padding_begin_z = std::max(pad.spatial[2], 0);
         auto padding_end_x = std::max(input_limit_x - prev_prim_output_layout.size.spatial[0], 0);
         auto padding_end_y = std::max(input_limit_y - prev_prim_output_layout.size.spatial[1], 0);
         auto padding_end_z = std::max(input_limit_z - prev_prim_output_layout.size.spatial[2], 0);
@@ -229,20 +229,20 @@ void prepare_padding::run(program& p) {
         auto prev_prim_output_layout = conv_input_node.get_output_layout();
 
         // Compute initial required paddings for primitive used as input for convolution.
-        auto input_offset = conv->input_offset;
+        auto pad = conv->pad;
         auto stride = conv->stride;
         auto dilation = conv->dilation;
 
-        auto input_limit_x = input_offset.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
+        auto input_limit_x = -pad.spatial[0] + (conv_layout.size.spatial[0] - 1) * stride.spatial[0] +
                              (filter_layout.size.spatial[0] - 1) * dilation.spatial[0] + 1;
-        auto input_limit_y = input_offset.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
+        auto input_limit_y = -pad.spatial[1] + (conv_layout.size.spatial[1] - 1) * stride.spatial[1] +
                              (filter_layout.size.spatial[1] - 1) * dilation.spatial[1] + 1;
-        auto input_limit_z = input_offset.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
+        auto input_limit_z = -pad.spatial[2] + (conv_layout.size.spatial[2] - 1) * stride.spatial[2] +
                              (filter_layout.size.spatial[2] - 1) * dilation.spatial[2] + 1;
 
-        auto padding_begin_x = std::max(-input_offset.spatial[0], 0);
-        auto padding_begin_y = std::max(-input_offset.spatial[1], 0);
-        auto padding_begin_z = std::max(-input_offset.spatial[2], 0);
+        auto padding_begin_x = std::max(pad.spatial[0], 0);
+        auto padding_begin_y = std::max(pad.spatial[1], 0);
+        auto padding_begin_z = std::max(pad.spatial[2], 0);
         auto padding_end_x = std::max(input_limit_x - prev_prim_output_layout.size.spatial[0], 0);
         auto padding_end_y = std::max(input_limit_y - prev_prim_output_layout.size.spatial[1], 0);
         auto padding_end_z = std::max(input_limit_z - prev_prim_output_layout.size.spatial[2], 0);

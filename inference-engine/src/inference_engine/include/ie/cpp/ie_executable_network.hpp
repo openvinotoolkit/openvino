@@ -18,7 +18,6 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
-#include "details/ie_so_loader.h"
 #include "ie_iexecutable_network.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
@@ -36,7 +35,7 @@ class IExecutableNetworkInternal;
  * @brief This is an interface of an executable network
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
-    details::SharedObjectLoader _so;
+    std::shared_ptr<void> _so;
     std::shared_ptr<IExecutableNetworkInternal> _impl;
 
     /**
@@ -45,7 +44,7 @@ class INFERENCE_ENGINE_API_CLASS(ExecutableNetwork) {
      * object is destroyed.
      * @param impl Initialized shared pointer
      */
-    ExecutableNetwork(const details::SharedObjectLoader& so, const std::shared_ptr<IExecutableNetworkInternal>& impl);
+    ExecutableNetwork(const std::shared_ptr<void>& so, const std::shared_ptr<IExecutableNetworkInternal>& impl);
     friend class Core;
     friend class ov::runtime::Core;
 

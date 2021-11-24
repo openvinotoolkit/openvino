@@ -4,16 +4,14 @@
 
 #include "model.hpp"
 
-#include <frontend_manager/frontend_exceptions.hpp>
 #include <fstream>
-#include <openvino/opsets/opset7.hpp>
 #include <queue>
-#include <tensorflow_frontend/graph_iterator.hpp>
 
-#include "graph_iterator_proto.hpp"
-#include "ngraph_conversions.hpp"
+#include "frontend_manager/frontend_exceptions.hpp"
 #include "node_context.hpp"
+#include "openvino/opsets/opset7.hpp"
 #include "place.hpp"
+#include "tensorflow_frontend/graph_iterator.hpp"
 #include "utils.hpp"
 
 using namespace google;

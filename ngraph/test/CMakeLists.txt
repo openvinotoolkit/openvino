@@ -485,9 +485,7 @@ set(MULTI_TEST_SRC
     backend/aliased_output.in.cpp
     backend/api.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
-    backend/concat.in.cpp
     backend/dyn_reshape.in.cpp
     backend/dynamic.in.cpp
     backend/experimental_detectron_prior_grid.in.cpp
@@ -501,8 +499,6 @@ set(MULTI_TEST_SRC
     backend/non_max_suppression.in.cpp
     backend/region_yolo.in.cpp
     backend/sqrt.in.cpp
-    backend/tile.in.cpp
-    backend/topk.in.cpp
     backend/unhandled_op.in.cpp
     backend/validate_call.in.cpp
     backend/zero_sized.in.cpp
