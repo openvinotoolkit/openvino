@@ -112,7 +112,7 @@ class TestPreprocessingMOC(unittest.TestCase):
     def test_mean_vector3(self):
         argv = Namespace(mean_scale_values={'input2': {'mean': np.array([2., 4., 8.]), 'scale': None}}, scale=None)
         function = create_function2(shape2=[1, 3, 224, 224])
-        apply_preprocessing(ngraph_function=function,
+        apply_preprocessing(ov_function=function,
                             argv=argv)
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')

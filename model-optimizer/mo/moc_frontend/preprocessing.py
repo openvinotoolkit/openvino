@@ -23,7 +23,7 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     """
     if not isinstance(mean_scale_val, dict):
         if len(mean_scale_val) != len(input_nodes):
-            raise Error('Numbers of inputs and mean/scale values do not match. ')
+            raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
 
         data = np.copy(mean_scale_val)
         mean_scale_val = {}
@@ -59,6 +59,21 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
+def check_mean_scale_values(ov_inputs: list, mean_scale_values: dict) :
+    log.debug('Check mean/scale values: {}'.format(mean_scale_values))
+    inputs_used = {}
+    for name, mean_scale in mean_scale_values.items():
+        input_found = False
+        for ov_input in ov_inputs:
+            if name in ov_input.get_tensor().get_names():
+                if ov_input in inputs_used:
+                    raise Error('Mean/Scale values for {} and {} point to same model input.'.format(name, inputs_used[ov_input]))
+                inputs_used[ov_input] = name
+                input_found = True
+                break
+        if not input_found:
+            raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
+
 def guess_source_layouts_by_mean_scale(ov_function: Function, layout_items, mean_scale_values: dict, argv: argparse.Namespace):
     """
     Internal function. Try to guess source layout for input by its shape and/or framework
@@ -72,16 +87,60 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_items, mean
     # layout_items = {'inputX1': {'source_layout': '?c...', 'target_layout': 'nhwc', 'source_guessed': True},
     #                 'inputX2': {'source_layout': '???c', 'target_layout': None, 'source_guessed': True}
     #                 }
-    for idx, input in enumerate(ov_function.inputs):
-        layout_exists = False
-        for name in input.get_tensor().get_names():
-            if name in layout_items:
-                layout_item = layout_items[name]
-                if 'source_layout' in layout_item and layout_item['source_layout'] is not None:
-                    layout_exists = True
-                    break
-        if not layout_exists:
+    check_mean_scale_values(ov_function.inputs, mean_scale_values)
+    for ms_name, mean_scale in mean_scale_values.items():
+        num_channels_mean = len(mean_scale['mean']) if mean_scale['mean'] is not None else 0
+        num_channels_scale = len(mean_scale['scale']) if hasattr(mean_scale['scale'], '__len__') else 0
+        if num_channels_mean > 1 and num_channels_scale > 1 and num_channels_mean != num_channels_scale:
+            raise Error('Mean/Scale values for {} have different sizes: {} {}'.format(num_channels_mean, num_channels_scale))
 
+        need_channels = True if num_channels_mean > 1 or num_channels_scale > 1 else False
+        if need_channels: # Mean/scale is complex and needs 'channels' specified in layout
+            num_channels = num_channels_mean if num_channels_mean > 1 else num_channels_scale
+            for idx, input in enumerate(ov_function.inputs):
+                if ms_name in input.get_tensor().get_names():
+                    layout_exists = False
+                    layout_item = None
+                    for name in input.get_tensor().get_names():
+                        if name in layout_items:
+                            layout_item = layout_items[name]
+                            if 'source_layout' in layout_item and layout_item['source_layout'] is not None:
+                                layout_exists = True
+                            break
+
+                    if not layout_exists:
+                        shape = input.get_partial_shape()
+                        if shape.rank.is_static:
+                            dim_idx_found = -1
+                            for dim_idx in range(shape.rank.get_length()):
+                                dim = shape.get_dimension(dim_idx)
+                                if dim.is_static and dim.get_length() == num_channels:
+                                    if dim_idx_found >= 0:
+                                        raise Error('Can\'t define channels dimension for {}. '
+                                                    'Input shape is {}, needed channels {}. '
+                                                    'Conflicting dimensions: {} and {}'
+                                                    .format(ms_name, shape, num_channels, dim_idx_found, dim_idx))
+                                    dim_idx_found = dim_idx
+                            if dim_idx_found < 0:
+                                raise Error('Can\'t define channels dimension for {}. Input shape is {}, needed channels {}'.format(ms_name, shape, num_channels))
+                            layout_str = "?" * shape.rank.get_length()
+                            layout_str = layout_str[:dim_idx_found] + 'C' + layout_str[dim_idx_found+1:]
+                            if layout_item is not None:
+                                # Update
+                                pass
+                            else:
+                                layout_items[ms_name] = {
+                                    'source_layout': layout_str,
+                                    'target_layout': None,
+                                    'source_guessed': True
+                                }
+                # Find dimension that matches to number of required channels
+                # E.g. if user specifiies mean=[2,2,2], find dimension with '3' rank
+
+
+
+
+    log.debug('Layout items after guess: {}'.format(layout_items))
     return layout_items
 
 def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
@@ -142,4 +201,4 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
             for idx, input in enumerate(ov_function.inputs):
                 if node_name in input.get_tensor().get_names():
                     log.debug('Clearing guessed layout {} for {}'.format(layout_values['source_layout'], node_name))
-                    ov_function.get_parameters()[idx].set_layout(Layout())
+                    ov_function.get_parameters()[idx].layout = Layout()
