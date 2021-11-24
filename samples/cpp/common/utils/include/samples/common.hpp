@@ -593,6 +593,7 @@ static UNUSED void printPerformanceCounts(
     if (bshowHeader) {
         stream << std::endl << "performance counts:" << std::endl << std::endl;
     }
+    std::ios::fmtflags fmt(std::cout.flags());
 
     auto performanceMapSorted = perfCountersSorted(performanceMap);
 
@@ -629,6 +630,7 @@ static UNUSED void printPerformanceCounts(
     std::cout << std::endl;
     std::cout << "Full device name: " << deviceName << std::endl;
     std::cout << std::endl;
+    std::cout.flags(fmt);
 }
 
 static UNUSED void printPerformanceCounts(InferenceEngine::InferRequest request,
