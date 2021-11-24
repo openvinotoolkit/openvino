@@ -101,6 +101,24 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that guessed layout (?C??) is not appeared in input1
         self.assertEqual(function.get_parameters()[0].layout, Layout())
 
+    def test_scale_vector3_layout(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([2., 4., 8.]), 'mean': None}},
+                         layout_values={'input1': {'source_layout': 'nhwc'}},
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 3, 3])  # Not clear to which 3 should scale be applied
+
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=[2., 4., 8.], shape=[1, 1, 1, 3])
+
+        # Verify that input2 is not affected
+        op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertEqual(op_node.get_type_name(), 'Relu')
+
+        # Verify that layout (NHWC) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nhwc'))
+
     def test_mean_single(self):
         argv = Namespace(mean_scale_values={'input1': {'mean': np.array([4.]), 'scale': None}}, scale=None)
         function = create_function2()
@@ -204,8 +222,16 @@ class TestPreprocessingMOC(unittest.TestCase):
             apply_preprocessing(ov_function=function,
                                 argv=argv)
 
-    def test_error_no_node_name_found(self):
+    def test_mean_scale_error_no_node_name_found(self):
         argv = Namespace(mean_scale_values={'not_found': {'scale': np.array([1.]), 'mean': np.array([1.])}},
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
+        with self.assertRaisesRegex(Error, '.*question.*83.*'):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)
+
+    def test_layout_error_no_node_name_found(self):
+        argv = Namespace(layout_values={'not_found': {'source_layout': 'nhwc'}},
                          scale=None)
         function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
         with self.assertRaisesRegex(Error, '.*question.*83.*'):
@@ -279,6 +305,21 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that guessed layouts are not appeared in input1,input2
         self.assertEqual(function.get_parameters()[0].layout, Layout())
         self.assertEqual(function.get_parameters()[1].layout, Layout())
+
+    def test_reverse_input_channels_layout(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None,
+                         layout_values={'input1a': { 'source_layout': 'nhwc' },
+                                        'input2a': { 'source_layout': 'nchw' }
+                                        })
+        function = create_function2(shape1=[1, 224, 224, 4], shape2=[1, 4, 224, 224])
+        apply_preprocessing(ov_function=function,
+                            argv=argv)
+        # Verify that some operations are inserted.
+        # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was called
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')
 
     def test_reverse_input_channels_2_channels(self):
         argv = Namespace(reverse_input_channels=True,

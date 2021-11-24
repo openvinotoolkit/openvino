@@ -58,14 +58,14 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def check_mean_scale_keys(ov_inputs: list, mean_scale_keys: list):
+def check_keys_valid(ov_function: Function, keys: list):
     inputs_used = {}
-    for name in mean_scale_keys:
+    for name in keys:
         input_found = False
-        for ov_input in ov_inputs:
+        for ov_input in ov_function.inputs:
             if name in ov_input.get_tensor().get_names():
                 if ov_input in inputs_used:
-                    raise Error('Mean/Scale for {} and {} point to same model input.'
+                    raise Error('Key for {} and {} point to same model input.'
                                 .format(name, inputs_used[ov_input]))
                 inputs_used[ov_input] = name
                 input_found = True
@@ -120,7 +120,6 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
     :param: mean_scale_values Dictionary with mean/scale values defined for each argument
     :return: updated layout items with guessed layouts
     """
-    check_mean_scale_keys(ov_inputs=ov_function.inputs, mean_scale_keys=mean_scale_values.keys())
     for ms_name, mean_scale in mean_scale_values.items():
         num_channels_mean = len(mean_scale['mean']) if mean_scale['mean'] is not None else 0
         num_channels_scale = len(mean_scale['scale']) if hasattr(mean_scale['scale'], '__len__') else 0
@@ -145,7 +144,7 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
             for name in ov_input.get_tensor().get_names():
                 if name in layout_values:
                     layout_item = layout_values[name]
-                    if 'source_layout' in layout_item and layout_item['source_layout'] is not None:
+                    if layout_item.get('source_layout'):
                         layout_exists = True
                     break
 
@@ -176,7 +175,7 @@ def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_valu
         for name in ov_input.get_tensor().get_names():
             if name in layout_values:
                 layout_item = layout_values[name]
-                if 'source_layout' in layout_item and layout_item['source_layout'] is not None:
+                if layout_item.get('source_layout'):
                     layout_exists = True
                 break
 
@@ -203,7 +202,7 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     """
     prep = PrePostProcessor(ov_function)
 
-    if argv.mean_scale_values:
+    if 'mean_scale_values' in argv and argv.mean_scale_values:
         mean_scale_values = argv.mean_scale_values
     else:
         mean_scale_values = {}
@@ -216,16 +215,19 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     if 'layout_values' in argv and argv.layout_values:
         layout_values = argv.layout_values
 
+    check_keys_valid(ov_function=ov_function, keys=mean_scale_values.keys())
+    check_keys_valid(ov_function=ov_function, keys=layout_values.keys())
+
     layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)
     need_reverse = 'reverse_input_channels' in argv and argv.reverse_input_channels
     if need_reverse:
         layout_values = guess_source_layouts_for_reverse_channels(ov_function=ov_function,
-                                                                 layout_values=layout_values)
+                                                                  layout_values=layout_values)
 
     for node_name, layout_value in layout_values.items():
-        if layout_value['source_layout'] is not None:
+        if layout_value.get('source_layout'):
             prep.input(node_name).network().set_layout(Layout(layout_value['source_layout']))
-        if layout_value['target_layout'] is not None:
+        if layout_value.get('target_layout'):
             prep.input(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
 
     for node_name, node_mean_scale_values in mean_scale_values.items():
@@ -249,9 +251,8 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
 
     # Remove guessed layout values from ov_function (these values shall not be serialized to IR
     for node_name, layout_value in layout_values.items():
-        if 'source_guessed' in layout_value and \
-                layout_value['source_guessed'] and \
-                layout_value['target_layout'] is None:
+        if layout_value.get('source_guessed') and \
+                not layout_value.get('target_layout'):
             # search for parameter object
             for idx, ov_input in enumerate(ov_function.inputs):
                 if node_name in ov_input.get_tensor().get_names():
