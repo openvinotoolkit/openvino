@@ -79,7 +79,7 @@ def parse_args():
                       help='Optional. '
                            'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.'
                            'This parameter affect model Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.')
-    args.add_argument('-tensor_shape', type=str, required=False, default='',
+    args.add_argument('-data_shape', type=str, required=False, default='',
                       help='Optional. '
                            'Optional if network shapes are all static (original ones or set by -shape).'
                            'Required if at least one input shape is dynamic and input images are not provided.'
@@ -117,7 +117,7 @@ def parse_args():
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
     args.add_argument('-pcseq', '--pcseq', type=str2bool, required=False, default=False, nargs='?', const=True,
-                      help='Optional. Report latencies for each shape in --tensor_shape sequence.', )
+                      help='Optional. Report latencies for each shape in -data_shape sequence.', )
     args.add_argument('-legacy_mode', '--legacy_mode', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Enable legacy scenario with inputs filling only once before measurements.', ) # Can it be enabled for dynamic models?
     args.add_argument('-report_type', '--report_type', type=str, required=False,

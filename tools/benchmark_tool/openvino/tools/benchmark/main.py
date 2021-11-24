@@ -223,7 +223,7 @@ def run(args):
                                           [
                                               ('load network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
             batch_size = get_batch_size(app_inputs_info)
             if batch_size.is_dynamic and benchmark.api_type == 'sync':
                 raise Exception("Dynamic batch size is supported only in async mode")
@@ -245,7 +245,7 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.get_parameters())
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, function.get_parameters())
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { info.name : info.partial_shape for info in app_inputs_info }
@@ -305,7 +305,7 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = get_inputs_info(args.shape, args.tensor_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
+            app_inputs_info, _ = get_inputs_info(args.shape, args.data_shape, args.layout, args.batch_size, args.input_scale, args.input_mean, exe_network.get_runtime_function().get_parameters())
             batch_size = get_batch_size(app_inputs_info)
             if batch_size.is_dynamic and benchmark.api_type == 'sync':
                 raise Exception("Dynamic batch size is supported only in async mode")
@@ -504,7 +504,7 @@ def run(args):
             print(f'MAX:        {max_latency_ms:.2f} ms')
 
             if args.pcseq and len(benchmark.latency_groups) > 1:
-                print("Latency for each tensor shape group: ")
+                print("Latency for each data shape group: ")
                 for group in benchmark.latency_groups:
                     print(f"{str(group)}")
                     print(f'AVG:        {group.avg:.2f} ms')

@@ -95,7 +95,7 @@ def get_input_data(paths_to_input, app_input_info):
                 if num_files > num_shapes and num_files % num_shapes != 0:
                     files_to_be_used = num_files - num_files % num_shapes
                     logger.warning(f"Number of provided files for input '{info.name}' is not a multiple of the number of "
-                                f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
+                                f"provided data shapes. Only {files_to_be_used} files will be used for each input")
     else:
         if binaries_count + images_count > 1:
             raise Exception("Number of inputs more than one, provide input names for each file/folder")
@@ -106,31 +106,31 @@ def get_input_data(paths_to_input, app_input_info):
                 if num_files > num_shapes and num_files % num_shapes != 0:
                     files_to_be_used = num_files - num_files % num_shapes
                     logger.warning(f"Number of provided files for input '{app_input_info[0].name}' is not a multiple of the number of "
-                                f"provided tensor shapes. Only {files_to_be_used} files will be used for each input")
+                                f"provided data shapes. Only {files_to_be_used} files will be used for each input")
 
     total_frames = np.prod(batch_sizes)
 
     if input_file_mapping and len(input_file_mapping) < len(app_input_info):
         not_provided_inputs_info = [info for info in app_input_info if info.name not in input_file_mapping]
         for info in not_provided_inputs_info:
-            if len(info.shapes == 0): # if input is dynamic and no tensor shapes were provided
+            if len(info.shapes == 0): # if input is dynamic and no data shapes were provided
                 error_message = ""
                 if info.is_image:
-                    error_message = f"Provide tensor shapes to fill input '{info.name} " \
+                    error_message = f"Provide data shapes to fill input '{info.name} " \
                                      "with random values or images to process them with original shapes'"
                 else:
-                    error_message = f"Input {info.name} is dynamic. Provide tensor shapes."
+                    error_message = f"Input {info.name} is dynamic. Provide data shapes."
                 raise Exception(error_message)
         logger.warning("No input files were given for the inputs: "
                        f"{', '.join(list(info.name for info in not_provided_inputs_info))}. This inputs will be filled with random values!")
     elif len(image_files) == 0 and len(binary_files) == 0:
         for info in app_input_info:
             if len(info.shapes) == 0:
-                raise Exception("No input images were given, provide tensor_shape.")
+                raise Exception("No input images were given, provide data_shape.")
         logger.warning("No input files were given: all inputs will be filled with random values!")
     else:
         max_binary_can_be_used = 0
-        if total_frames: # if tensor shapes are defined already
+        if total_frames: # if data shapes are defined already
             max_binary_can_be_used = binaries_count * total_frames
         if max_binary_can_be_used > 0 and len(binary_files) == 0:
             logger.warning(f"No supported binary inputs found! "
@@ -142,7 +142,7 @@ def get_input_data(paths_to_input, app_input_info):
                                         f"but only {len(binary_files)} were provided")
 
         max_images_can_be_used = 0
-        if total_frames: # if tensor shapes are defined already
+        if total_frames: # if data shapes are defined already
             max_images_can_be_used = images_count * total_frames
         if max_images_can_be_used > 0 and len(image_files) == 0:
             logger.warning(f"No supported image inputs found! Please check your "
@@ -183,7 +183,7 @@ def get_input_data(paths_to_input, app_input_info):
                                 f"({'image' if info.is_image else 'some binary data'} is expected)")
         data[info.name] = fill_tensors_with_random(info)
     if len(batch_sizes) == 0:
-        batch_sizes = get_batch_sizes(app_input_info) # update batch sizes in case getting tensor shapes from images
+        batch_sizes = get_batch_sizes(app_input_info) # update batch sizes in case getting data shapes from images
     return DataQueue(data, batch_sizes)
 
 
@@ -265,9 +265,9 @@ def get_image_tensors(image_paths, info, batch_sizes):
                 expanded = np.expand_dims(image, 0)
                 p_shape = PartialShape(expanded.shape)
                 if info.partial_shape.compatible(p_shape):
-                    info.tensor_shapes.append(p_shape.to_shape())
+                    info.data_shapes.append(p_shape.to_shape())
                 else:
-                    raise Exception(f"Tensor shape '{str(p_shape)}' provided for input '{info.name}' "
+                    raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
                                     f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
                 tensors.append(Tensor(expanded))
             else:
@@ -299,7 +299,7 @@ def get_dtype(precision):
 def get_binary_tensors(binary_paths, info, batch_sizes):
     num_shapes = len(info.shapes)
     if info.is_dynamic and num_shapes == 0:
-        raise Exception("Tensor shapes must be specified for binary inputs and dynamic model")
+        raise Exception("Data shapes must be specified for binary inputs and dynamic model")
     num_binaries = len(binary_paths)
     niter = max(num_shapes, num_binaries)
     processed_frames = 0

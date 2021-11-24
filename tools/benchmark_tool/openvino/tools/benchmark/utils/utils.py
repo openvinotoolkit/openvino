@@ -344,12 +344,12 @@ def get_input_output_names(nodes):
     return [node.friendly_name for node in nodes] # get_friendly_name() or get_name() ?
 
 
-def get_tensor_shapes_map(tensor_shape_string, input_names):
+def get_data_shapes_map(data_shape_string, input_names):
     # Parse parameter string like "input0[shape1][shape2],input1[shape1]" or "[shape1][shape2]" (applied to all inputs)
     return_value = {}
-    if tensor_shape_string:
-        tensor_shape_string += ','
-        matches = re.findall(r'(.*?\[.*?\]),', tensor_shape_string)
+    if data_shape_string:
+        data_shape_string += ','
+        matches = re.findall(r'(.*?\[.*?\]),', data_shape_string)
         if matches:
             for match in matches:
                 input_name = match[:match.find('[')]
@@ -362,7 +362,7 @@ def get_tensor_shapes_map(tensor_shape_string, input_names):
                 else:
                     raise Exception(f"Model has several inputs, provide input names")
         else:
-            raise Exception(f"Can't parse input parameter: {tensor_shape_string}")
+            raise Exception(f"Can't parse input parameter: {data_shape_string}")
     return return_value
 
 
@@ -410,7 +410,7 @@ class AppInputInfo:
         self.element_type = None
         self.layout = ""
         self.partial_shape = None
-        self.tensor_shapes = []
+        self.data_shapes = []
         self.scale = []
         self.mean = []
         self.name = None
@@ -437,7 +437,7 @@ class AppInputInfo:
             raise Exception(f"Error: Can't get {character} from layout {self.layout}")
         d_index = self.layout.index(character)
         dims = []
-        for shape in self.tensor_shapes:
+        for shape in self.data_shapes:
             dims.append(shape[d_index])
         return dims
 
@@ -446,7 +446,7 @@ class AppInputInfo:
         if self.is_static:
             return [self.partial_shape.to_shape()]
         else:
-            return self.tensor_shapes
+            return self.data_shapes
 
     @property
     def width(self):
@@ -516,11 +516,11 @@ def parse_batch_size(batch_size_str):
         return Dimension(0)
 
 
-def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
+def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, scale_string, mean_string, parameters):
     input_names = get_input_output_names(parameters)
     shape_map = parse_input_parameters(shape_string, input_names)
-    tensor_shape_map = get_tensor_shapes_map(tensor_shape_string, input_names)
-    check_number_of_parameters_for_each_input(tensor_shape_map)
+    data_shape_map = get_data_shapes_map(data_shape_string, input_names)
+    check_number_of_parameters_for_each_input(data_shape_map)
     layout_map = parse_input_parameters(layout_string, input_names)
     batch_size = parse_batch_size(batch_size)
     reshape = False
@@ -562,8 +562,8 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
 
         # Update shape with batch if needed
         if batch_size != 0:
-            if batch_size.is_static and tensor_shape_map:
-                 logger.warning(f"Batch size will be ignored. Provide batch deminsion in tensor_shape parameter.")
+            if batch_size.is_static and data_shape_map:
+                 logger.warning(f"Batch size will be ignored. Provide batch deminsion in data_shape parameter.")
             else:
                 batch_index = 0
                 if 'N' in info.layout:
@@ -575,18 +575,18 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
                     info.partial_shape[batch_index] = batch_size
                     reshape = True
 
-        # Tensor shape
-        if info.name in tensor_shape_map.keys() and info.is_dynamic:
-            for p_shape in tensor_shape_map[info.name]:
+        # Data shape
+        if info.name in data_shape_map.keys() and info.is_dynamic:
+            for p_shape in data_shape_map[info.name]:
                 if p_shape.is_dynamic:
-                    raise Exception(f"Tensor shape always should be static, {str(p_shape)} is dynamic.")
+                    raise Exception(f"Data shape always should be static, {str(p_shape)} is dynamic.")
                 elif info.partial_shape.compatible(p_shape):
-                    info.tensor_shapes.append(p_shape.to_shape())
+                    info.data_shapes.append(p_shape.to_shape())
                 else:
-                    raise Exception(f"Tensor shape '{str(p_shape)}' provided for input '{info.name}' "
+                    raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
                                     f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
-        elif info.name in tensor_shape_map.keys():
-            logger.warning(f"Input '{info.name}' has static shape. Provided tensor shapes for this input will be ignored.")
+        elif info.name in data_shape_map.keys():
+            logger.warning(f"Input '{info.name}' has static shape. Provided data shapes for this input will be ignored.")
 
         input_info.append(info)
 
