@@ -308,9 +308,8 @@ void remove_redundant_reorders::run(program& p) {
 
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
-            const bool ignore_conditions = input.is_type<depth_to_space>() || input.is_type<region_yolo>();
 
-            if (!ignore_conditions && node.is_output())
+            if (node.is_output())
                 continue;
 
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
@@ -319,13 +318,43 @@ void remove_redundant_reorders::run(program& p) {
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
-            if (!ignore_conditions && (input.get_users().size() != 1 || node.get_users().empty()))
+            if (input.get_users().size() != 1 || node.get_users().empty())
                 continue;
 
             bool same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>() ||
-                                               input.is_type<depth_to_space>() || input.is_type<region_yolo>());
+            bool allowed_dt_conversion_fuse = (input.is_type<one_hot>() || input.is_type<permute>());
             if (!same_data_type && !allowed_dt_conversion_fuse)
+                continue;
+
+            if (!lo.can_fuse_reorder_to_prev(input, node.get_users().front(), input.get_output_layout().format, output_layout.format))
+                continue;
+
+            auto old_output_layout_of_input = input.get_output_layout();
+            input.set_output_layout(output_layout, false);
+            if (input.type()->does_possible_implementation_exist(input)) {
+                p.replace_all_usages(node, input);
+                p.add_optimized_primitive_info(node.id());
+                p.remove_all_connections(node);
+                p.remove_if_dangling(node);
+            } else {
+                input.set_output_layout(old_output_layout_of_input, false);
+            }
+        }
+    }
+
+    // This pass removed reorder if previous node can store directly to required layout
+    itr = p.get_processing_order().begin();
+    if (enable_reorder_fusing) {
+        while (itr != p.get_processing_order().end()) {
+            auto& node_ptr = *itr++;
+            if (!node_ptr->is_type<reorder>())  // only care for reorders
+                continue;
+
+            auto& node = node_ptr->as<reorder>();
+
+            auto& input = node.input();
+            auto output_layout = node.get_output_layout();
+            if (!input.is_type<depth_to_space>() && !input.is_type<region_yolo>())
                 continue;
 
             if (!lo.can_fuse_reorder_to_prev(input, node.get_users().front(), input.get_output_layout().format, output_layout.format))
@@ -342,6 +371,7 @@ void remove_redundant_reorders::run(program& p) {
             }
         }
     }
+
     // This pass removed reorder if the next node supports reorder's input format and data type doesn't change
     itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
