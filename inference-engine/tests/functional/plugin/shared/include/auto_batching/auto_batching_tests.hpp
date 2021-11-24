@@ -74,7 +74,7 @@ TEST_P(AutoBatching_Test, compareAutoBatchingToBatch1) {
             config[CONFIG_KEY(GPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
         if (device_name.find("CPU") != std::string::npos)
             config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = std::to_string(num_streams);
-        auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) +
+        auto exec_net_ref = ie.LoadNetwork(net, std::string(CommonTestUtils::DEVICE_BATCH) + ":" +
                                                    device_name + "(" + std::to_string(num_batch) + ")",
                                                    config);
 
