@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
+from typing import List
 
 import networkx as nx
 
@@ -121,7 +122,7 @@ def partial_infer(graph: Graph, start_node: str = None):
     return graph
 
 
-def infer_nodes(graph: Graph, nodes: list[Node], constant_subgraph_only: bool = False):
+def infer_nodes(graph: Graph, nodes: List[Node], constant_subgraph_only: bool = False):
     """
     Run "infer" function of the specified nodes.
 
@@ -141,8 +142,8 @@ def infer_nodes(graph: Graph, nodes: list[Node], constant_subgraph_only: bool = 
                     # 'ShapeOf' operation
                     if constant_subgraph_only:
                         in_values = [port.data.get_value() for port in node.in_ports().values()]
-                        if node.soft_get('op') == 'Parameter' or \
-                                (any(value is None for value in in_values) and node.soft_get('op') != 'ShapeOf'):
+                        if node.soft_get('op') == 'Parameter' or any(value is None for value in in_values) or \
+                                (node.soft_get('op') == 'ShapeOf' and node.in_port(0).data.get_shape() is None):
                             continue
 
                     if debug_logger:
