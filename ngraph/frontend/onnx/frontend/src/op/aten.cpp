@@ -6,6 +6,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/opsets/opset8.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
 
@@ -43,17 +44,15 @@ OutputVector aten(const Node& node) {
             const auto data_type = inputs[0].get_element_type();
             const auto ind_type = inputs[1].get_element_type();
 
-            const auto weights_shape_node = std::make_shared<default_opset::ShapeOf>(inputs[0], ind_type);
-            const auto weights_rank_node = std::make_shared<default_opset::ShapeOf>(weights_shape_node, ind_type);
-
             const auto zero_const = std::make_shared<default_opset::Constant>(ind_type, Shape{}, 0);
             const auto one_const = std::make_shared<default_opset::Constant>(ind_type, Shape{1}, 1);
 
             // Shape aligned node, filled with zeros
             const auto zero_of_data_type_const = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
-            const auto weights_last_dim_idx = std::make_shared<default_opset::Subtract>(weights_rank_node, one_const);
+            const auto weights_shape_node = std::make_shared<default_opset::ShapeOf>(inputs[0], ind_type);
+            const auto weights_last_dim_idx = std::make_shared<default_opset::Constant>(element::i32, Shape{1}, -1);
             const auto weights_last_dim =
-                std::make_shared<default_opset::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
+                std::make_shared<opset8::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
             const auto zero_col_node =
                 std::make_shared<default_opset::Broadcast>(zero_of_data_type_const, weights_last_dim);
             const auto default_embeddings_node = std::make_shared<default_opset::Unsqueeze>(zero_col_node, zero_const);
