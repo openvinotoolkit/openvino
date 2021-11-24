@@ -3,7 +3,6 @@
 //
 
 #include "openvino/openvino.hpp"
-#include "protobuf/stubs/logging.h"
 
 #define COUNT_OF(A) (sizeof(A) / sizeof(A[0]))
 const char kSplitSequence[] = {'F', 'U', 'Z', 'Z', '_', 'N', 'E', 'X', 'T', '_', 'F', 'I', 'E', 'L', 'D'};
