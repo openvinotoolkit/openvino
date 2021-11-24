@@ -10,6 +10,9 @@ file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
 
 set(${TARGET_NAME}_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+# Create named folders for the sources within the .vcproj
+# Empty name lists them directly under the .vcproj
+
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
@@ -47,6 +50,13 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIO
 # Create library
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 
+add_dependencies(${TARGET_NAME} ${TARGET_NAME}_proto)
+
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                    INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                    ADDITIONAL_INCLUDE_DIRECTORIES
+                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+
 get_target_property(TENSORFLOW_FRONTEND_SRC_DIR tensorflow_ov_frontend SOURCE_DIR)
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -57,7 +67,16 @@ target_include_directories(${TARGET_NAME}
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             ${CMAKE_CURRENT_BINARY_DIR})
 
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS}
+                                                         ${CMAKE_CURRENT_BINARY_DIR})
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static openvino::util tensorflow_ov_frontend libprotobuf)
+
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
+                        EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
 
 add_dependencies(${TARGET_NAME} tensorflow_ov_frontend)
 
