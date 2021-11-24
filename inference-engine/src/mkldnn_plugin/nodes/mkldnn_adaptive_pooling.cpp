@@ -59,6 +59,7 @@ MKLDNNAdaptivePoolingNode::MKLDNNAdaptivePoolingNode(const std::shared_ptr<ngrap
         algorithm = Algorithm::AdaptivePoolingMax;
     }
     spatialDimsCount = getInputShapeAtPort(0).getRank() - 2;
+    spatialDimsValue.resize(spatialDimsCount);
 }
 
 void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
@@ -83,6 +84,42 @@ void MKLDNNAdaptivePoolingNode::getSupportedDescriptors() {
     if (getOutputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
         IE_THROW() << errorPrefix << "must keep data rank";
     }
+}
+
+bool MKLDNNAdaptivePoolingNode::needShapeInfer() const {
+    const auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    for (size_t i = 0; i < spatialDimsCount; i++) {
+        if (spatialDimsValue[i] != newSpatialDimsPtr[i])
+            return true;
+    }
+    return MKLDNNNode::needShapeInfer();
+}
+
+std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
+    const auto input = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims();
+    const auto spatialDims = getParentEdgesAtPort(1)[0]->getMemory().GetShape().getStaticDims();
+    const auto inputRank = input.size();
+    const auto spatialDimsSize = spatialDims[0];
+
+    std::vector<Dim> output(inputRank);
+    output[0] = input[0];
+    output[1] = input[1];
+    auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
+    for (size_t i = 0; i < spatialDimsSize; i++) {
+        output[i + 2] = newSpatialDimsPtr[i];
+        spatialDimsValue[i] = newSpatialDimsPtr[i];
+    }
+
+    std::vector<VectorDims> result = {};
+    if (algorithm == Algorithm::AdaptivePoolingAvg) {
+        result.resize(1);
+        result[0] = output;
+    } else {
+        result.resize(2);
+        result[0] = output;
+        result[1] = output;
+    }
+    return result;
 }
 
 void MKLDNNAdaptivePoolingNode::initSupportedPrimitiveDescriptors() {
