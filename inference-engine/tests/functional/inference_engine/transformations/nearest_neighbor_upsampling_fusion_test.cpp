@@ -22,9 +22,12 @@ using namespace testing;
 TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
     ngraph::Shape input_shape { 1, 120, 150, 32 };
     size_t input_rank = input_shape.size();
-    std::vector<int64_t> new_spatial_shape { 240, 450};
-    ngraph::Shape scales_as_shape_elements {2, 3};
-    std::vector<float> scales_as_floats {2.0f, 3.0f};
+    std::vector<int64_t> new_spatial_shape { 240, 450 };
+    std::vector<float> scales_as_floats { 2.0f, 3.0f };
+    std::vector<int64_t> constants_for_concat_1 { 1, 120, 1, 150, 1, 32 };
+    std::vector<int64_t> constants_for_concat_2 { 1, 240, 450, 32 };
+    ngraph::Shape mul_const_shape {1, 1, 2, 1, 3, 1}
+    std::vector<int64_t> mul_const_value {1, 1, 1, 1, 1, 1};
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
         auto shape_node = std::make_shared<ngraph::opset8::ShapeOf>(input);
@@ -37,11 +40,6 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
 
         ngraph::OutputVector concat_1_inputs_vec(2 + 2 * (input_rank - 2));
         concat_1_inputs_vec[0] = strided_slice_node;
-        std::vector<int64_t> constants_for_concat_1(2 + 2 * (input_rank - 2), 1);
-        for (size_t i = 1; i <= input_rank - 2; ++i) {
-            constants_for_concat_1[2 * (i - 1) + 1] = static_cast<int64_t>(input_shape[i]);
-        }
-        constants_for_concat_1.back() = static_cast<int64_t>(input_shape.back());
         for (size_t i = 1; i < 2 + 2 * (input_rank - 2); ++i) {
             const auto unsqueezed_const = ngraph::opset8::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{constants_for_concat_1[i]});
             const auto unsqueeze_axis = ngraph::opset8::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
@@ -54,11 +52,6 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
 
         ngraph::OutputVector concat_2_inputs_vec(input_rank);
         concat_2_inputs_vec[0] = strided_slice_node;
-        std::vector<int64_t> constants_for_concat_2(input_rank);
-        for (size_t i = 1; i <= input_rank - 2; ++i) {
-            constants_for_concat_2[i] = new_spatial_shape[i];
-        }
-        constants_for_concat_2.back() = static_cast<int64_t>(input_shape.back());
         for (size_t i = 1; i < input_rank; ++i) {
             const auto unsqueezed_const = ngraph::opset8::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{constants_for_concat_2[i]});
             const auto unsqueeze_axis = ngraph::opset8::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
@@ -67,11 +60,6 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
         }
         auto concat_2 = std::make_shared<ngraph::opset8::Concat>(concat_2_inputs_vec, 0);
 
-        ngraph::Shape mul_const_shape(2 + 2 * (input_rank - 2), static_cast<size_t>(1));
-        std::vector<int64_t> mul_const_value(ngraph::shape_size(scales_as_shape_elements), static_cast<int64_t>(1));
-        for (uint64_t i = 1; i <= input_rank - 2; ++i) {
-            mul_const_shape[2 * i] = scales_as_shape_elements[2 * (i - 1)];
-        }
         const auto mul_const = ngraph::opset8::Constant::create(ngraph::element::i64, mul_const_shape, mul_const_value);
         const auto mul = std::make_shared<ngraph::opset8::Multiply>(reshape_1, mul_const);
 
