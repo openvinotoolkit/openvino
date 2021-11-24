@@ -10,7 +10,8 @@
 #include <openvino/core/function.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
+#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -44,7 +45,7 @@ TEST(TransformationTests, RemoveLoopDanglingParameters) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -92,7 +93,7 @@ TEST(TransformationTests, RemoveLoopManyDanglingParameters) {
 
         pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -144,7 +145,7 @@ TEST(TransformationTests, RemoveLoopManyDanglingParameters2) {
 
         pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -188,7 +189,8 @@ TEST(TransformationTests, RemoveLoopDanglingParametersIfConcatEmptyTensor) {
 
         pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveConcatZeroDimInput>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -236,7 +238,7 @@ TEST(TransformationTests, RemoveIfDanglingParametersFromBodiesAndInputs) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -286,7 +288,7 @@ TEST(TransformationTests, RemoveIfDanglingParametersOnlyFromBodies) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -341,7 +343,7 @@ TEST(TransformationTests, RemoveIfManyDanglingParameters) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -394,7 +396,7 @@ TEST(TransformationTests, RemoveIfDanglingParamFromOneBodyAndUpdateAllDescriptio
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -438,7 +440,7 @@ TEST(TransformationTests, RemoveTensorIteratorDanglingParameter) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -485,7 +487,7 @@ TEST(TransformationTests, RemoveTensorIteratorManyDanglingParameters) {
 
         ov::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<pass::RemoveMultiSubGraphOpDanglingParams>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

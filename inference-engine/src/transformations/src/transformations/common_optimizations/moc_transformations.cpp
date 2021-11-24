@@ -48,7 +48,9 @@
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/common_optimizations/batch_to_space_fusion.hpp>
 #include <transformations/common_optimizations/mul_conv_fusion.hpp>
-#include "transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp"
+#include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
+#include <transformations/common_optimizations/split_concat_pair_to_interpolate_fusion.hpp>
 #include <transformations/op_conversions/convert_divide.hpp>
 #include <transformations/common_optimizations/divide_fusion.hpp>
 #include <transformations/common_optimizations/subtract_fusion.hpp>
@@ -79,11 +81,8 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     if (!m_use_shapes) {
         manager.register_pass<ngraph::pass::DisableShapeOfConstantFolding>();
     }
-    auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
-    eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
-    eliminations->add_matcher<ngraph::pass::NopElimination>(m_use_shapes /* do not use shape for elimination */);
-    eliminations->set_name("ngraph::pass::CommonEliminations");
-
+    manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
+    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
     manager.register_pass<ngraph::pass::DisableRandomUniformConstantFolding>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::Validate>();
@@ -113,6 +112,11 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // because it replaces pattern that may contain Transposes which must be optimized before
     // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
     transpose_sinking->add_matcher<ngraph::pass::SplitSqueezeConcatFusion>();
+
+    auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
+    eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
+    eliminations->add_matcher<ngraph::pass::NopElimination>(m_use_shapes /* do not use shape for elimination */);
+    eliminations->set_name("ngraph::pass::CommonEliminations");
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
