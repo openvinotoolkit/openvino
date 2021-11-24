@@ -670,8 +670,24 @@ void InferenceEnginePython::IECore::addExtension(const std::string& ext_lib_path
 
 class PyLayerImpl : public InferenceEngine::ILayerExecImpl {
 public:
-    explicit PyLayerImpl(const std::shared_ptr<ngraph::Node>& node, PyObject* impl) {
-        this->impl = impl;
+    explicit PyLayerImpl(const std::shared_ptr<ngraph::Node>& node, PyObject* def) {
+        PyGILState_STATE gstate;
+        gstate = PyGILState_Ensure();
+
+        auto castedNode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
+        PyObject* data = PyDict_New();
+        for (auto it : castedNode->get_attrs()) {
+            PyDict_SetItemString(data, it.first.c_str(), PyUnicode_FromString(it.second.c_str()));
+        }
+
+        // Create an instance of custom class
+        PyObject* args = PyTuple_New(1);
+        PyTuple_SetItem(args, 0, data);
+        impl = PyObject_CallObject(def, args);
+        Py_DECREF(data);
+        Py_DECREF(args);
+
+        PyGILState_Release(gstate);
 
         inpShapes.resize(node->get_input_size());
         for (int i = 0; i < inpShapes.size(); ++i) {
@@ -729,7 +745,6 @@ public:
     InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs,
                                         std::vector<InferenceEngine::Blob::Ptr>& outputs,
                                         InferenceEngine::ResponseDesc* resp) noexcept override {
-        std::cout << "execute" << std::endl;
         _import_array();
 
         PyObject* args = PyList_New(inputs.size());
@@ -746,6 +761,7 @@ public:
 
         void* data = PyArray_DATA((PyArrayObject*)res);
         std::memcpy(outputs[0]->buffer(), data, outputs[0]->byteSize());
+        Py_DECREF(res);
 
         return InferenceEngine::OK;
     }
@@ -760,21 +776,14 @@ class PyExtension : public InferenceEngine::IExtension
 {
 public:
     explicit PyExtension(PyObject* def) {
-        // Create an instance of custom class
-        PyGILState_STATE gstate;
-        gstate = PyGILState_Ensure();
-
-        PyObject* args = nullptr;
-        impl = PyObject_CallObject(def, args);
+        this->def = def;
 
         // Get a layer type
-        PyObject* op = PyObject_GetAttrString(impl, "op");
+        PyObject* op = PyObject_GetAttrString(def, "op");
         PyObject* bytes = PyUnicode_AsUTF8String(op);
         opName = PyBytes_AsString(bytes);
-        Py_XDECREF(bytes);
+        Py_DECREF(bytes);
         Py_DECREF(op);
-
-        PyGILState_Release(gstate);
     }
 
     void Unload() noexcept override {}
@@ -801,13 +810,13 @@ public:
         auto castedNode = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(node);
         if (castedNode && implType == "CPU" &&
             castedNode->get_attrs().get_type_name() == opName) {
-            return std::make_shared<PyLayerImpl>(node, impl);
+            return std::make_shared<PyLayerImpl>(node, def);
         }
         return nullptr;
     }
 
 private:
-    PyObject* impl;
+    PyObject* def;
     std::string opName;
 };
 

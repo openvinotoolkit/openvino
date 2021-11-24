@@ -333,6 +333,7 @@ def test_py_extension(device):
             </output>
         </layer>
         <layer name="operation" id="1" type="CustomAdd" version="util">
+            <data  add="11"/>
             <input>
                 <port id="1" precision="FP32">
                     <dim>2</dim>
@@ -370,8 +371,11 @@ def test_py_extension(device):
     class CustomAdd:
         op = "CustomAdd"
 
+        def __init__(self, data):
+            self.add = float(data.get("add", 0))
+
         def execute(self, inputs):
-            return inputs[0] + 11
+            return inputs[0] + self.add
 
     from openvino.inference_engine import IECore
 
