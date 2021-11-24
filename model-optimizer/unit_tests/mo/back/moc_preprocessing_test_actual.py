@@ -11,7 +11,7 @@ import numpy as np
 
 try:
     # pylint: disable=no-name-in-module,import-error
-    from mo.moc_frontend.preprocessing import apply_preprocessing
+    from mo.back.preprocessing import apply_preprocessing
 
     # pylint: disable=no-name-in-module,import-error
     import openvino.opset8 as ops
