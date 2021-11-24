@@ -445,7 +445,8 @@ def run(args):
             if MULTI_DEVICE_NAME not in device_name:
                 latency_prefix = None
                 if args.latency_percentile == 50 and static_mode:
-                    latency_prefix = 'median latency (ms)'
+                    #latency_prefix = 'median latency (ms)'
+                    latency_prefix = 'latency (ms)'
                 elif args.latency_percentile != 50:
                     latency_prefix = 'latency (' + str(args.latency_percentile) + ' percentile) (ms)'
                 if latency_prefix:
