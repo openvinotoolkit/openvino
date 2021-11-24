@@ -67,6 +67,8 @@ def test_timetest(instance, executable, niter, cl_cache_dir, model_cache_dir, te
         "cache": cache,
         "vpu_mlir_compiler": vpu_mlir_compiler
     }
+    assert not (exe_args["cache"] and exe_args["vpu_mlir_compiler"]), \
+        "Only one or none of --cache and --vpu_mlir_compiler arguments is required"
     logging.info("Run timetest once to generate any cache")
     retcode, msg, _, _ = run_timetest({**exe_args, "niter": 1}, log=logging)
     assert retcode == 0, f"Run of executable for warm up failed: {msg}"

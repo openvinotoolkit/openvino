@@ -166,12 +166,14 @@ def cli_parser():
 
 if __name__ == "__main__":
     args = cli_parser()
-
+    cli_args = dict(args._get_kwargs())
+    assert not (cli_args['cache'] and cli_args['vpu_mlir_compiler']), \
+        "Only one or none of -c and -v arguments is required"
     logging.basicConfig(format="[ %(levelname)s ] %(message)s",
                         level=logging.DEBUG, stream=sys.stdout)
 
     exit_code, _, aggr_stats, _ = run_timetest(
-        dict(args._get_kwargs()), log=logging)  # pylint: disable=protected-access
+        dict(cli_args), log=logging)  # pylint: disable=protected-access
     if args.stats_path:
         # Save aggregated results to a file
         with open(args.stats_path, "w") as file:
