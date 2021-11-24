@@ -199,7 +199,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type,
                                               const InferenceEngine::ITaskExecutor::Ptr task_executor) {
     switch (engine_type) {
         case engine_types::ocl: return ocl::create_ocl_engine(device, runtime_type, configuration, task_executor);
-        case engine_types::ze: return ze::create_ze_engine(device, runtime_type, configuration);
+        case engine_types::ze: return ze::create_ze_engine(device, runtime_type, configuration, task_executor);
         default: throw std::runtime_error("Invalid engine type");
     }
 }

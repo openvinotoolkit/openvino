@@ -15,8 +15,9 @@
 namespace cldnn {
 namespace ze {
 
-ze_engine::ze_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf)
-    : engine(dev, conf) {
+ze_engine::ze_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf,
+                                                        const InferenceEngine::ITaskExecutor::Ptr task_executor)
+    : engine(dev, conf, task_executor) {
     if (runtime_type != runtime_types::ze) {
         throw std::runtime_error("Invalid runtime type specified for ze engine. Only ze runtime is supported");
     }
@@ -41,6 +42,14 @@ const ze_context_handle_t ze_engine::get_context() const {
         throw std::runtime_error("Invalid device type for ze_engine");
     return casted->get_context();
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::engine& ze_engine::get_onednn_engine() const {
+    if (!_onednn_engine)
+        throw std::runtime_error("[GPU] onednn engine is nullptr");
+    return *_onednn_engine;
+}
+#endif
 
 const ze_device_handle_t ze_engine::get_device() const {
     auto casted = std::dynamic_pointer_cast<ze_device>(_device);
@@ -160,16 +169,22 @@ stream::ptr ze_engine::create_stream() const {
     return std::make_shared<ze_stream>(*this);
 }
 
+stream::ptr ze_engine::create_stream(void* handle) const {
+    return std::make_shared<ze_stream>(*this, handle);
+}
+
 stream& ze_engine::get_program_stream() const {
     return *_program_stream;
 }
 
-std::shared_ptr<cldnn::engine> ze_engine::create(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return std::make_shared<ze_engine>(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> ze_engine::create(const device::ptr device, runtime_types runtime_type,
+                                    const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return std::make_shared<ze_engine>(device, runtime_type, configuration, task_executor);
 }
 
-std::shared_ptr<cldnn::engine> create_ze_engine(const device::ptr device, runtime_types runtime_type, const engine_configuration& configuration) {
-    return ze_engine::create(device, runtime_type, configuration);
+std::shared_ptr<cldnn::engine> create_ze_engine(const device::ptr device, runtime_types runtime_type,
+                                    const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor) {
+    return ze_engine::create(device, runtime_type, configuration, task_executor);
 }
 
 }  // namespace ze

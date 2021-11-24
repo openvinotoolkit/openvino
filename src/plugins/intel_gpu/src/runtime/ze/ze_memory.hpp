@@ -181,7 +181,7 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     gpu_usm(ze_engine* engine, const layout& new_layout, const ze::UsmMemory& usm_buffer, allocation_type type);
     gpu_usm(ze_engine* engine, const layout& layout, allocation_type type);
 
-    void* lock(const stream& stream) override;
+    void* lock(const stream& stream, mem_lock_type type) override;
     void unlock(const stream& stream) override;
     const ze::UsmMemory& get_buffer() const { return _buffer; }
     ze::UsmMemory& get_buffer() { return _buffer; }

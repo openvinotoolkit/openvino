@@ -27,6 +27,8 @@ public:
     const ze_device_handle_t get_device() const { return _device; }
     const ze_context_handle_t get_context() const { return _context; }
 
+    bool is_same(const device::ptr other) override;
+
     ~ze_device();
 
 private:

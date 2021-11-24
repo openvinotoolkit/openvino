@@ -52,6 +52,7 @@ public:
     ze_command_list_handle_t get_queue() const { return _command_list; }
 
     explicit ze_stream(const ze_engine& engine);
+    ze_stream(const ze_engine &engine, void *handle);
     ze_stream(ze_stream&& other)
         : stream(other._engine.configuration().queue_type)
         , _engine(other._engine)
@@ -79,6 +80,12 @@ public:
     ze_event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    dnnl::stream& get_onednn_stream() override;
+#endif
+
+    static queue_types detect_queue_type(void* queue_handle);
+
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
@@ -90,6 +97,10 @@ private:
     ze_event_handle_t _last_barrier_ev;
     uint32_t event_idx = 0;
     sync_methods sync_method;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
+#endif
 };
 
 }  // namespace ze

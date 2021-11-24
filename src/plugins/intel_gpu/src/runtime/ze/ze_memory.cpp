@@ -266,7 +266,7 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     }
 }
 
-void* gpu_usm::lock(const stream& stream) {
+void* gpu_usm::lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) {
     assert(get_allocation_type() != allocation_type::usm_device && "Can't lock usm device memory!");
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {

@@ -117,8 +117,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_imad = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_DP4A) != 0;;
     info.supports_immad = false;
 
-    info.max_threads_per_execution_unit = device_properties.numThreadsPerEU;
-    info.max_threads_per_device = static_cast<uint32_t>(info.execution_units_count * info.max_threads_per_execution_unit);
+    info.num_threads_per_eu = device_properties.numThreadsPerEU;
 
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
@@ -165,6 +164,14 @@ ze_device::ze_device(ze_driver_handle_t driver, ze_device_handle_t device)
 , _mem_caps(init_memory_caps(device, _info)) {
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
     ZE_CHECK(zeContextCreate(driver, &context_desc, &_context));
+}
+
+bool ze_device::is_same(const device::ptr other) {
+    auto casted = downcast<ze_device>(other.get());
+    if (!casted)
+        return false;
+
+    return _context == casted->get_context() && _device == casted->get_device() && _driver == casted->get_driver();
 }
 
 ze_device::~ze_device() {

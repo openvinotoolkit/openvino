@@ -117,8 +117,26 @@ void set_arguments_impl(ze_kernel_handle_t kernel,
         }
     }
 }
+
+sync_methods get_expected_sync_method(const engine_configuration &config) {
+    return config.enable_profiling ? sync_methods::events : config.queue_type == queue_types::out_of_order ? sync_methods::barriers
+                                                                                                           : sync_methods::none;
+}
+
 }  // namespace
-ze_stream::ze_stream(const ze_engine& engine) : stream(engine.configuration().queue_type), _engine(engine) {
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::stream& ze_stream::get_onednn_stream() {
+    if (!_onednn_stream)
+        throw std::runtime_error("[GPU] onednn stream is nullptr");
+    return *_onednn_stream;
+}
+#endif
+
+ze_stream::ze_stream(const ze_engine& engine)
+    : stream(engine.configuration().queue_type)
+    , _engine(engine)
+    , sync_method(get_expected_sync_method(engine.configuration())) {
     auto context = engine.get_context();
     auto device = engine.get_device();
     auto config = engine.configuration();
@@ -154,6 +172,39 @@ ze_stream::ze_stream(const ze_engine& engine) : stream(engine.configuration().qu
     // };
 
     // ZE_CHECK(zeEventPoolCreate(context, &event_pool_desc, 0, nullptr, &_event_pool));
+}
+
+ze_stream::ze_stream(const ze_engine &engine, void *handle)
+    : stream(engine.configuration().queue_type)
+    , _engine(engine)
+    , sync_method(get_expected_sync_method(engine.configuration())) {
+    //auto casted_handle = static_cast<ze_command_queue>(handle);
+    //_command_queue = ocl_queue_type(casted_handle, true);
+    throw std::runtime_error("ze_stream::ze_stream(const ze_engine &engine, void *handle)");
+    // if (ze_stream::detect_queue_type(handle) != engine.configuration().queue_type)
+    //     throw std::runtime_error("Inconsistent engine config and external user queue are passed to ze_stream");
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // auto config = engine.configuration();
+    // if (config.queue_type == queue_types::in_order) {
+    //     auto onednn_engine = engine.get_onednn_engine();
+    //     _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
+    // }
+#endif
+}
+
+queue_types ze_stream::detect_queue_type(void *queue_handle) {
+    // ze_command_list_handle_t queue = static_cast<ze_command_list_handle_t>(queue_handle);
+    // ze_command_queue_priority_t properties;
+
+    //auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
+    // auto status = zeDeviceGetCommandQueueGroupProperties(_engine.get_device(), sizeof(ze_command_queue_priority_t), &properties);
+    // if (status != ZE_RESULT_SUCCESS) {
+    //     throw std::runtime_error("Can't get queue properties for user handle\n");
+    // }
+
+    // return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? queue_types::out_of_order : queue_types::in_order;
+    return queue_types::out_of_order;
 }
 
 void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
