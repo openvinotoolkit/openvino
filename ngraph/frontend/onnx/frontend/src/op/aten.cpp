@@ -21,10 +21,12 @@ OutputVector aten(const Node& node) {
     std::string operator_name = node.get_attribute_value<std::string>("operator", "");
     CHECK_VALID_NODE(node,
                      operator_name == "embedding_bag",
-                     "Only `embedding_bag` is supported as ATen operator attribute.");
+                     "Only `embedding_bag` is supported as ATen `operator` attribute.");
 
     const int64_t mode = node.get_attribute_value<int64_t>("mode");
-    CHECK_VALID_NODE(node, mode == 0, "Unsupported mode, only `sum` as ATen embedding_bag `mode` attribute.");
+    CHECK_VALID_NODE(node,
+                     mode == 0,
+                     "Unsupported mode, only `sum` is supported as ATen embedding_bag `mode` attribute.");
     CHECK_VALID_NODE(node, inputs.size() >= 2, "Minimum 2 inputs are required, Got: ", inputs.size());
 
     std::shared_ptr<ov::Node> embedding_bag;
