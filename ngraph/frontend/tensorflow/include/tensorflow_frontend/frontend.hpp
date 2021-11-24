@@ -9,9 +9,9 @@
 
 #include "frontend_manager/frontend.hpp"
 #include "frontend_manager/input_model.hpp"
+#include "openvino/core/extension.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/variant.hpp"
-#include "openvino/core/extension.hpp"
 #include "tensorflow_frontend/utility.hpp"
 
 namespace ov {
@@ -66,6 +66,7 @@ public:
     /// \brief Register base extension in the FrontEnd
     /// \param extension base extension
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
+
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts
     bool supported_impl(const std::vector<std::shared_ptr<ov::Variant>>& variants) const override;

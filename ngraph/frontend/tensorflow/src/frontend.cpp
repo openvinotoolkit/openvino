@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "tensorflow_frontend/frontend.hpp"
+
 #include "model.hpp"
 #include "op_table.hpp"
 #include "openvino/pass/manager.hpp"
@@ -9,7 +11,6 @@
 #include "pass/transpose_sinking.hpp"
 #include "so_extension.hpp"
 #include "tensorflow_frontend/extension.hpp"
-#include "tensorflow_frontend/frontend.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
@@ -350,7 +351,7 @@ void FrontEndTF::normalize(std::shared_ptr<ov::Function> function) const {
     manager.run_passes(function);
 }
 
-void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension> &extension) {
+void FrontEndTF::add_extension(const std::shared_ptr<ov::Extension>& extension) {
     if (const auto& so_ext = std::dynamic_pointer_cast<ov::detail::SOExtension>(extension)) {
         add_extension(so_ext->extension());
         m_extensions.push_back(so_ext);

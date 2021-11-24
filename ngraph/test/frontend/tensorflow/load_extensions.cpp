@@ -3,8 +3,8 @@
 //
 
 #include <frontend_manager/frontend_manager.hpp>
-#include <tensorflow_frontend/frontend.hpp>
 #include <tensorflow_frontend/extension.hpp>
+#include <tensorflow_frontend/frontend.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "tf_utils.hpp"
@@ -35,6 +35,9 @@ TEST(LoadExtensions, Lambda) {
     ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
     ASSERT_NE(frontEnd, nullptr);
 
-    frontEnd->add_extension(std::make_shared<ov::frontend::ConversionExtension>("Stub",
-                            [](const ov::frontend::tf::NodeContext& node) -> ov::OutputVector { return OutputVector(); }));
+    frontEnd->add_extension(std::make_shared<ov::frontend::ConversionExtension>(
+        "Stub",
+        [](const ov::frontend::tf::NodeContext& node) -> ov::OutputVector {
+            return OutputVector();
+        }));
 }
