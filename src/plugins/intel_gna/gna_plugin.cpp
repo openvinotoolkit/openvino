@@ -82,6 +82,7 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/transpose_nchw.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
