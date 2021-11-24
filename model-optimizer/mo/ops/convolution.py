@@ -125,7 +125,7 @@ class Convolution(Op):
                 raise Error("Cannot reshape weights to kernel shape")
 
             if not is_fully_defined(kernel_shape):
-                num_undefined = np.count_nonzero(shape_array(kernel_shape).mask is True)
+                num_undefined = np.count_nonzero(kernel_shape.mask is True)  # pylint: disable=no-member
                 if num_undefined > 1:
                     raise Error('Too many undefined dimensions of the kernel shape for node {}. Use --input_shape '
                                 'command line parameter to specify model input shapes'.format(node.soft_get('name',
