@@ -10,7 +10,10 @@
 #include <openvino/pass/make_stateful.hpp>
 #include <pot_transformations.hpp>
 #include <pruning.hpp>
+#include <transformations/common_optimizations/compress_float_constants.hpp>
+#include <transformations/common_optimizations/mark_precision_sensitive_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/serialize.hpp>
 
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
@@ -81,4 +84,26 @@ void regmodule_offline_transformations(py::module m) {
         },
         py::arg("function"),
         py::arg("param_res_names"));
+
+    m_offline_transformations.def(
+        "compress_model_transformation",
+        [](std::shared_ptr<ov::Function> function) {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
+            manager.register_pass<ov::pass::CompressFloatConstants>();
+            manager.run_passes(function);
+        },
+        py::arg("function"));
+
+    // todo: remove as serialize as part of passManager api will be merged
+    m_offline_transformations.def(
+        "serialize",
+        [](std::shared_ptr<ov::Function> function, const std::string& path_to_xml, const std::string& path_to_bin) {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::Serialize>(path_to_xml, path_to_bin);
+            manager.run_passes(function);
+        },
+        py::arg("function"),
+        py::arg("model_path"),
+        py::arg("weights_path"));
 }
