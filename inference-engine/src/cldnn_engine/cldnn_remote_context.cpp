@@ -5,7 +5,7 @@
 #include <memory>
 #include "cldnn_remote_context.h"
 #include "cldnn_itt.h"
-
+#include "cldnn_engine.h"
 #include "cldnn/runtime/device_query.hpp"
 
 using namespace InferenceEngine;
@@ -274,34 +274,23 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     auto iter = device_map.find(m_config.device_id);
     auto& dev = iter != device_map.end() ? iter->second : device_map.begin()->second;
 
-    {
-        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl::Create");
-        bool enable_profiling = (m_config.useProfiling ||
-                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
-                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
-        cldnn::queue_types queue_type;
-        if (m_external_queue) {
-            queue_type = cldnn::stream::detect_queue_type(engine_type, m_external_queue);
-        } else if (dev->get_info().supports_immad) {
-            queue_type = cldnn::queue_types::in_order;
-        } else {
-            queue_type = cldnn::queue_types::out_of_order;
-        }
+    bool enable_profiling = (m_config.useProfiling ||
+                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
+                            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache));
 
-
-        ITaskExecutor::Ptr task_executor = std::make_shared<CPUStreamsExecutor>(m_config.task_exec_config);
-        bool use_unified_shared_memory = true;
-        m_engine = cldnn::engine::create(engine_type, runtime_type, dev,
-                                                    cldnn::engine_configuration(enable_profiling,
-                                                                                queue_type,
-                                                                                m_config.sources_dumps_dir,
-                                                                                m_config.queuePriority,
-                                                                                m_config.queueThrottle,
-                                                                                m_config.memory_pool_on,
-                                                                                use_unified_shared_memory,
-                                                                                m_config.kernels_cache_dir,
-                                                                                m_config.throughput_streams), task_executor);
-    }
+    auto engine_params = clDNNEngine::GetEngineParams(m_config, dev, m_external_queue);
+    m_engine = cldnn::engine::create(engine_params.engine_type,
+                                     engine_params.runtime_type, dev,
+                                     cldnn::engine_configuration(enable_profiling,
+                                         engine_params.queue_type,
+                                         m_config.sources_dumps_dir,
+                                         m_config.queuePriority,
+                                         m_config.queueThrottle,
+                                         m_config.memory_pool_on,
+                                         engine_params.use_unified_shared_memory,
+                                         m_config.kernels_cache_dir,
+                                         m_config.throughput_streams),
+                                     engine_params.task_executor);
 }
 
 ParamMap CLDNNExecutionContextImpl::getParams() const {

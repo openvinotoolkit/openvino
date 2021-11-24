@@ -59,7 +59,8 @@ enum class build_option_type {
     /// @brief Name for serialization process
     serialize_network,
     load_program,
-    force_implementations
+    force_implementations,
+    partial_build_program
 };
 
 /// @brief Tuning mode.
@@ -141,6 +142,7 @@ struct build_option {
     /// @brief Specifies user defined implementation details to use.
     static std::shared_ptr<const build_option> force_implementations(implementation_forcing_map forcing);
 
+    static std::shared_ptr<const build_option> partial_build_program(bool set = false);
     virtual ~build_option() = default;
 
 private:
@@ -362,6 +364,12 @@ struct build_option_traits<build_option_type::force_implementations> {
     static std::shared_ptr<const build_option> make_default() { return build_option::force_implementations({}); }
 };
 
+template <>
+struct build_option_traits<build_option_type::partial_build_program> {
+    typedef build_option_bool<build_option_type::partial_build_program> object_type;
+    static std::shared_ptr<const build_option> make_default() { return build_option::partial_build_program(); }
+};
+
 #endif
 }  // namespace detail
 
@@ -410,6 +418,11 @@ inline std::shared_ptr<const build_option> build_option::load_program(const std:
 inline std::shared_ptr<const build_option> build_option::force_implementations(implementation_forcing_map forcing) {
     return std::make_shared<build_option_force_implementations>(std::move(forcing));
 }
+
+inline std::shared_ptr<const build_option> build_option::partial_build_program(bool enable) {
+    return std::make_shared<build_option_bool<build_option_type::partial_build_program>>(enable);
+}
+
 #endif
 
 /// @brief Represents program build options list.

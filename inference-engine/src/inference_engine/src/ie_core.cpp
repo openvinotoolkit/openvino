@@ -668,7 +668,9 @@ public:
         return res;
     }
 
-    ie::Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
+    ie::Parameter GetMetric(const std::string& deviceName,
+                            const std::string& name,
+                            const ie::ParamMap& options = {}) const override {
         // HETERO case
         {
             if (deviceName.find("HETERO:") == 0) {
@@ -697,6 +699,9 @@ public:
         }
 
         auto parsed = parseDeviceNameIntoConfig(deviceName);
+        for (auto o : options) {
+            parsed._config.insert(o);
+        }
 
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
@@ -1385,8 +1390,8 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         _impl->GetCPPPluginByName(parsed._deviceName).get_config(name, parsed._config));
 }
 
-Parameter Core::GetMetric(const std::string& deviceName, const std::string& name) const {
-    return _impl->GetMetric(deviceName, name);
+Parameter Core::GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options) const {
+    return _impl->GetMetric(deviceName, name, options);
 }
 
 std::vector<std::string> Core::GetAvailableDevices() const {

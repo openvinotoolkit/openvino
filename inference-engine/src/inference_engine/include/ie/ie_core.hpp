@@ -242,9 +242,10 @@ public:
      *
      * @param deviceName - A name of a device to get a metric value.
      * @param name - metric name to request.
+     * @param options - optional parameters to get a metric value
      * @return Metric value corresponding to metric key.
      */
-    Parameter GetMetric(const std::string& deviceName, const std::string& name) const;
+    Parameter GetMetric(const std::string& deviceName, const std::string& name, const ParamMap& options = {}) const;
 
     /**
      * @brief Returns devices available for neural networks inference
