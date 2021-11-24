@@ -43,7 +43,7 @@ public:
                 push_pass<ov::pass::Serialize>(xml_path, bin_path, Version::UNSPECIFIED);
             } else if (num_of_args == 1) {
                 const auto file_paths = kwargs.contains("output_files") ? py::cast<FilePaths>(kwargs["output_files"])
-                                                                       : py::cast<FilePaths>(args[0]);
+                                                                        : py::cast<FilePaths>(args[0]);
                 push_pass<ov::pass::Serialize>(file_paths.first, file_paths.second, Version::UNSPECIFIED);
             } else {
                 throw ov::Exception("Invoked with wrong number of arguments! Please be sure to provide paths where "
