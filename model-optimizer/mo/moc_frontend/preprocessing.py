@@ -59,18 +59,29 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def guess_source_layouts(ov_function: Function, layout_items, argv: argparse.Namespace):
+def guess_source_layouts_by_mean_scale(ov_function: Function, layout_items, mean_scale_values: dict, argv: argparse.Namespace):
     """
     Internal function. Try to guess source layout for input by its shape and/or framework
     :param: ov_function Original model
     :param: layout_items Existing source/target layout items specified by user
+    :param: mean_scale_values Dictionary with mean/scale values defined for each argument
     :param: argv Parsed command line arguments
     :return: updated layout items with guessed layouts
     """
     # Test code
-    layout_items = {'inputX1': {'source_layout': 'nchw', 'target_layout': 'nhwc', 'source_guessed': True},
-                    'inputX2': {'source_layout': 'nhwc', 'target_layout': None, 'source_guessed': True}
-                    }
+    # layout_items = {'inputX1': {'source_layout': '?c...', 'target_layout': 'nhwc', 'source_guessed': True},
+    #                 'inputX2': {'source_layout': '???c', 'target_layout': None, 'source_guessed': True}
+    #                 }
+    for idx, input in enumerate(ov_function.inputs):
+        layout_exists = False
+        for name in input.get_tensor().get_names():
+            if name in layout_items:
+                layout_item = layout_items[name]
+                if 'source_layout' in layout_item and layout_item['source_layout'] is not None:
+                    layout_exists = True
+                    break
+        if not layout_exists:
+
     return layout_items
 
 def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
@@ -92,13 +103,14 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
                                                   scale=argv.scale)
 
     # TODO: construct layout_items from argv options (Issue 55816)
-    layout_items = {}  # Should be argv.layouts
+    layout_items = {}
     # Test code, real values should be taken from argv.layouts
-    layout_items = {'inputX1': {'source_layout': None, 'target_layout': 'nhwc'},
-                    'inputX2': {'source_layout': None, 'target_layout': None}
-                    }
+    # layout_items = {'inputX1': {'source_layout': None, 'target_layout': 'nhwc'},
+    #                 'inputX2': {'source_layout': None, 'target_layout': None}
+    #                 }
 
-    layout_items = guess_source_layouts(ov_function, layout_items, argv)
+    layout_items = guess_source_layouts_by_mean_scale(ov_function, layout_items, mean_scale_values, argv)
+
     for node_name, layout_values in layout_items.items():
         if layout_values['source_layout'] is not None:
             prep.input(node_name).network().set_layout(Layout(layout_values['source_layout']))
@@ -114,7 +126,7 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
         log.debug('Mean/Scale preprocessing applied to {}'.format(node_name))
 
     # Apply reverse-input-channels
-    if argv.reverse_input_channels:
+    if 'reverse_input_channels' in argv and argv.reverse_input_channels:
         for ov_input in ov_function.inputs:
             node_name = list(ov_input.get_tensor().get_names())[0]
             prep.input(node_name).preprocess().reverse_channels()
