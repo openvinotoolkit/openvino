@@ -20,6 +20,7 @@
 
 #ifdef GNA_HEAP_PROFILER
 #include <iomanip>
+#include <fstream>
 #endif
 
 namespace GNAPluginNS {

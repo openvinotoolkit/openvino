@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "gna_plugin_log.hpp"
+
 namespace GNAPluginNS {
 namespace memory {
 
