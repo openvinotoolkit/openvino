@@ -21,7 +21,7 @@ public:
     std::shared_ptr<ov::Function> decode(InputModel::Ptr model) const override;
     std::string get_name() const override;
     bool supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const override;
-    void add_extension(const std::shared_ptr<ov::Extension>& extensions) override;
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
     InputModel::Ptr load_impl(const std::vector<std::shared_ptr<Variant>>& params) const override;

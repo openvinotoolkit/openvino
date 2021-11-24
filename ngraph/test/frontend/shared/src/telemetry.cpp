@@ -29,7 +29,7 @@ void FrontEndTelemetryTest::initParamTest() {
 
 ///////////////////////////////////////////////////////////////////
 
-TEST_P(FrontEndTelemetryTest, testSetElementType) {
+TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
     std::shared_ptr<ov::Function> function;
     {
         using namespace std::placeholders;

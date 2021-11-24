@@ -67,7 +67,7 @@ public:
         return "tf";
     }
 
-    void add_extension(const std::shared_ptr<ov::Extension>& extensions) override;
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
     /// \brief Check if FrontEndTensorflow can recognize model from given parts

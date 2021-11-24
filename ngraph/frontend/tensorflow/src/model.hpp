@@ -4,11 +4,10 @@
 
 #pragma once
 
+#include "frontend_manager/extension.hpp"
 #include "frontend_manager/input_model.hpp"
 #include "frontend_manager/place.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
-
-#include "frontend_manager/extension.hpp"
 
 namespace ov {
 namespace frontend {

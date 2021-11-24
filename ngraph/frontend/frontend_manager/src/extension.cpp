@@ -4,7 +4,7 @@
 
 #include "frontend_manager/extension.hpp"
 
-ov::frontend::TelemetryExtension::TelemetryExtension(std::string event_category,
+ov::frontend::TelemetryExtension::TelemetryExtension(const std::string& event_category,
                                                      ov::frontend::TelemetryExtension::event_callback& send_event,
                                                      ov::frontend::TelemetryExtension::error_callback& send_error,
                                                      ov::frontend::TelemetryExtension::error_callback& send_stack_trace)

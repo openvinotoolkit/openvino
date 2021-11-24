@@ -48,7 +48,7 @@ public:
     /// \return Paddle frontend name.
     std::string get_name() const override;
 
-    void add_extension(const std::shared_ptr<ov::Extension>& extensions) override;
+    void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
     /// \brief Check if FrontEndPDPD can recognize model from given parts
