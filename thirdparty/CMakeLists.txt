@@ -131,10 +131,6 @@ endif()
 #
 
 if(ENABLE_ONEDNN_FOR_GPU)
-    if(OV_GENERATOR_MULTI_CONFIG AND CMAKE_VERSION VERSION_LESS 3.21)
-        message(FATAL_ERROR "OneDNN for GPU build requires cmake 3.21 and higher or set -DENABLE_ONEDNN_FOR_GPU=OFF")
-    endif()
-
     function(build_onednn_gpu)
         include(ExternalProject)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")

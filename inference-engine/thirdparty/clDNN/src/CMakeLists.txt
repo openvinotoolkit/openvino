@@ -127,7 +127,7 @@ target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
 )
 
 if(ENABLE_ONEDNN_FOR_GPU)
-  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu)
+  target_link_libraries("${CLDNN_BUILD__PROJ}" PUBLIC onednn_gpu_tgt)
 endif()
 
 if(COMMAND add_cpplint_target)
