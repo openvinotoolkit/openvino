@@ -14,6 +14,7 @@
 
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::Type>);
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::TypeVector>);
+BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<ov::element::Type>);
 
 namespace {
 class TypeInfo {

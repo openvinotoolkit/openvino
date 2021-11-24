@@ -21,6 +21,7 @@
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/variant.hpp"
 
 namespace ov {
 namespace element {
@@ -201,6 +202,19 @@ public:
     OPENVINO_RTTI("AttributeAdapter<ov::element::TypeVector>");
     BWDCMP_RTTI_DECLARATION;
     AttributeAdapter(ov::element::TypeVector& value) : DirectValueAccessor<ov::element::TypeVector>(value) {}
+};
+
+template <>
+class OPENVINO_API VariantWrapper<ov::element::Type> : public VariantImpl<ov::element::Type> {
+public:
+    OPENVINO_RTTI("VariantWrapper<ov::element::Type>");
+    BWDCMP_RTTI_DECLARATION;
+
+    static std::shared_ptr<VariantWrapper<ov::element::Type>> create(const value_type& value) {
+        return std::make_shared<VariantWrapper<ov::element::Type>>(value);
+    }
+
+    explicit VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 };
 
 }  // namespace ov
