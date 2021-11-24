@@ -79,7 +79,6 @@ memory::ptr engine::attach_memory(const layout& layout, void* ptr) {
 
 memory::ptr engine::allocate_memory(const layout& layout, bool reset) {
     allocation_type type = get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
-    std::cout << "allocate_memory" << std::endl;
     return allocate_memory(layout, type, reset);
 }
 
