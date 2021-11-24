@@ -14,7 +14,6 @@ try:
     from mo.moc_frontend.preprocessing import apply_preprocessing
 
     # pylint: disable=no-name-in-module,import-error
-    import openvino as ov
     import openvino.opset8 as ops
     from openvino import Function, Layout, PartialShape
 
@@ -26,9 +25,11 @@ except Exception:
 
 def create_function2(shape1=[2, 2], shape2=[2, 2]):
     input1 = ops.parameter(shape1, dtype=np.float32, name="input1")
+    input1.get_output_tensor(0).set_names({'input1', 'input1a'})
     relu1 = ops.relu(input1)
     res1 = ops.result(relu1, "res1")
     input2 = ops.parameter(shape2, dtype=np.float32, name="input2")
+    input2.get_output_tensor(0).set_names({'input2', 'input2a'})
     relu2 = ops.relu(input2)
     res2 = ops.result(relu2, "res2")
     function = Function(results=[res1, res2], parameters=[input1, input2], name="TestFunction")
@@ -129,8 +130,9 @@ class TestPreprocessingMOC(unittest.TestCase):
         self.assertEqual(function.get_parameters()[1].layout, Layout())
 
     def test_mean_scale(self):
-        argv = Namespace(mean_scale_values={'input2': {'mean': np.array([1., 2., 3.]),
-                                                       'scale': np.array([2., 4., 8.])}}, scale=None)
+        argv = Namespace(mean_scale_values={'input2a': {'mean': np.array([1., 2., 3.]),
+                                                        'scale': np.array([2., 4., 8.])}},
+                         scale=None)
         function = create_function2(shape2=[1, 3, 224, 224])
         apply_preprocessing(ov_function=function,
                             argv=argv)
@@ -221,7 +223,7 @@ class TestPreprocessingMOC(unittest.TestCase):
     def test_error_dimension_not_clear(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.]), 'mean': None}},
                          scale=None)
-        function = create_function2(shape1=[1, 3, 3, 3]) # Not clear to which dimension should scale be applied
+        function = create_function2(shape1=[1, 3, 3, 3])  # Not clear to which 3 should scale be applied
         with self.assertRaises(Exception):
             apply_preprocessing(ov_function=function,
                                 argv=argv)
@@ -231,6 +233,24 @@ class TestPreprocessingMOC(unittest.TestCase):
                                                        'mean': np.array([1., 2., 3.])}},
                          scale=None)
         function = create_function2(shape1=[1, 3, 4, 224])
+        with self.assertRaises(Exception):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)
+
+    def test_error_2_names_to_same_input(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.])},
+                                            'input1a': {'scale': np.array([1., 2., 3.])}},
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 224, 224])
+        with self.assertRaises(Exception):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)
+
+    def test_error_2_names_to_same_input_single_value(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([2.])},
+                                            'input1a': {'scale': np.array([3.])}},
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 224, 224])
         with self.assertRaises(Exception):
             apply_preprocessing(ov_function=function,
                                 argv=argv)
