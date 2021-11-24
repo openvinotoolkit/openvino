@@ -107,6 +107,36 @@ def test_ngraph_preprocess_mean_scale_convert():
     assert np.equal(output2, expected_output2).all()
 
 
+def test_ngraph_preprocess_input_by_tensor_name():
+    shape = [2, 2]
+    param1 = ops.parameter(shape, dtype=np.int32, name="A")
+    param2 = ops.parameter(shape, dtype=np.int32, name="B")
+    function = Function([param1, param2], [param1, param2], "TestFunction")
+
+    @custom_preprocess_function
+    def custom_preprocess(output: Output):
+        return ops.abs(output)
+
+    p = PrePostProcessor(function)
+    inp2 = p.input("B")
+    inp2.tensor().set_element_type(Type.i32)
+    inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
+    inp1 = p.input("A")
+    inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
+    function = p.build()
+
+    input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
+    input_data2 = np.array([[1, 3], [5, 7]]).astype(np.int32)
+    expected_output1 = np.array([[1, 0], [1, 3]]).astype(np.float32)
+    expected_output2 = np.array([[0, 1], [2, 3]]).astype(np.float32)
+
+    runtime = get_runtime()
+    computation = runtime.computation(function)
+    [output1, output2] = computation(input_data1, input_data2)
+    assert np.equal(output1, expected_output1).all()
+    assert np.equal(output2, expected_output2).all()
+
+
 def test_ngraph_preprocess_output_postprocess():
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.int32, name="A")
@@ -170,11 +200,20 @@ def test_ngraph_preprocess_spatial_static_shape():
 @pytest.mark.parametrize(
     "algorithm, color_format1, color_format2, is_failing",
     [(ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_SINGLE_PLANE, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_THREE_PLANES, True),
      (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_SINGLE_PLANE, True),
+     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.RGBX, True),
+     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.BGRX, True),
      (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_TWO_PLANES, True),
+     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.I420_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.UNDEFINED, True),
      (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.BGR, False),
      (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGB, False),
+     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGBX, True),
+     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.BGRX, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_SINGLE_PLANE, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_THREE_PLANES, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True)])
