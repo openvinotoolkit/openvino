@@ -379,6 +379,8 @@ static void regenum_graph_ColorFormat(py::module m) {
         .value("UNDEFINED", ov::preprocess::ColorFormat::UNDEFINED)
         .value("NV12_SINGLE_PLANE", ov::preprocess::ColorFormat::NV12_SINGLE_PLANE)
         .value("NV12_TWO_PLANES", ov::preprocess::ColorFormat::NV12_TWO_PLANES)
+        .value("I420_SINGLE_PLANE", ov::preprocess::ColorFormat::I420_SINGLE_PLANE)
+        .value("I420_THREE_PLANES", ov::preprocess::ColorFormat::I420_THREE_PLANES)
         .value("RGB", ov::preprocess::ColorFormat::RGB)
         .value("BGR", ov::preprocess::ColorFormat::BGR)
         .export_values();
