@@ -358,8 +358,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         bool needs_split_reorder = false;
         bool use_onednn_impls = lo.get_optimization_attributes().use_onednn_impls;
         if (node->is_type<convolution>() && use_onednn_impls)
-            needs_split_reorder = node->as<convolution>().get_primitive()->needs_onednn_bfyx_to_fsv16(in_layout.format, out_layout.format,
-                                                                                                      in_layout, current_layout);
+            needs_split_reorder = lo.needs_onednn_bfyx_to_blocked(in_layout.format, out_layout.format, in_layout, node->as<convolution>());
 
         auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
                                            in_layout,
