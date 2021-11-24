@@ -110,7 +110,9 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    virtual Parameter GetMetric(const std::string& deviceName, const std::string& name) const = 0;
+    virtual Parameter GetMetric(const std::string& deviceName,
+                                const std::string& name,
+                                const ParamMap& options = {}) const = 0;
 
     /**
      * @brief Gets configuration dedicated to device behaviour.
