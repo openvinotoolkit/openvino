@@ -2413,6 +2413,8 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
             if (it != splitLayerInfoItem.splitOutputLayers.end()) {
                 gnalog()  << "Connecting " << splitName << " input \n";
+                // splitting layer should take the execution order from the connected layer
+                splittingLayer->userValue = layer->userValue;
                 auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset + offset, 0);
                 gnalog()  << "Connected \n";
                 return res;
