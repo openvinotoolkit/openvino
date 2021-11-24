@@ -74,13 +74,13 @@ def check_mean_scale_values(ov_inputs: list, mean_scale_values: dict) :
         if not input_found:
             raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
 
-def guess_source_layouts_by_mean_scale(ov_function: Function, layout_items, mean_scale_values: dict, argv: argparse.Namespace):
+
+def guess_source_layouts_by_mean_scale(ov_function: Function, layout_items, mean_scale_values: dict):
     """
     Internal function. Try to guess source layout for input by its shape and/or framework
     :param: ov_function Original model
     :param: layout_items Existing source/target layout items specified by user
     :param: mean_scale_values Dictionary with mean/scale values defined for each argument
-    :param: argv Parsed command line arguments
     :return: updated layout items with guessed layouts
     """
     # Test code
@@ -134,14 +134,64 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_items, mean
                                     'target_layout': None,
                                     'source_guessed': True
                                 }
-                # Find dimension that matches to number of required channels
-                # E.g. if user specifiies mean=[2,2,2], find dimension with '3' rank
-
-
-
-
     log.debug('Layout items after guess: {}'.format(layout_items))
     return layout_items
+
+
+def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_items):
+    """
+    Internal function. Try to guess source layout for input by finding dimension with size=3 (RGB/BGR)
+    :param: ov_function Original model
+    :param: layout_items Existing source/target layout items specified by user
+    :param: mean_scale_values Dictionary with mean/scale values defined for each argument
+    :param: argv Parsed command line arguments
+    :return: updated layout items with guessed layouts
+    """
+    # Test code
+    # layout_items = {'inputX1': {'source_layout': '?c...', 'target_layout': 'nhwc', 'source_guessed': True},
+    #                 'inputX2': {'source_layout': '???c', 'target_layout': None, 'source_guessed': True}
+    #                 }
+    for idx, input in enumerate(ov_function.inputs):
+        layout_exists = False
+        layout_item = None
+        first_name = list(input.get_tensor().get_names())[0]
+        for name in input.get_tensor().get_names():
+            if name in layout_items:
+                layout_item = layout_items[name]
+                if 'source_layout' in layout_item and layout_item['source_layout'] is not None:
+                    layout_exists = True
+                break
+
+        if not layout_exists:
+            shape = input.get_partial_shape()
+            if shape.rank.is_static:
+                dim_idx_found = -1
+                for dim_idx in range(shape.rank.get_length()):
+                    dim = shape.get_dimension(dim_idx)
+                    if dim.is_static and dim.get_length() == 3:
+                        if dim_idx_found >= 0:
+                            raise Error('Can\'t determine channels dimension for {}. '
+                                        'Input shape is {} and shall have only one dimension with length = 3. '
+                                        'Conflicting dimensions: {} and {}'
+                                        .format(first_name, shape, dim_idx_found, dim_idx))
+                        dim_idx_found = dim_idx
+                if dim_idx_found < 0:
+                    raise Error('Can\'t define channels dimension for {}. Input shape is {}, needed channels 3'.format(first_name, shape))
+                layout_str = "?" * shape.rank.get_length()
+                layout_str = layout_str[:dim_idx_found] + 'C' + layout_str[dim_idx_found+1:]
+                if layout_item is not None:
+                    # TODO: Update
+                    pass
+                else:
+                    layout_items[first_name] = {
+                        'source_layout': layout_str,
+                        'target_layout': None,
+                        'source_guessed': True
+                    }
+
+    log.error('Layout items after guess: {}'.format(layout_items))
+    return layout_items
+
 
 def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     """
@@ -168,7 +218,10 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     #                 'inputX2': {'source_layout': None, 'target_layout': None}
     #                 }
 
-    layout_items = guess_source_layouts_by_mean_scale(ov_function, layout_items, mean_scale_values, argv)
+    layout_items = guess_source_layouts_by_mean_scale(ov_function, layout_items, mean_scale_values)
+    need_reverse = 'reverse_input_channels' in argv and argv.reverse_input_channels
+    if need_reverse:
+        layout_items = guess_source_layouts_for_reverse_channels(ov_function=ov_function, layout_items=layout_items)
 
     for node_name, layout_values in layout_items.items():
         if layout_values['source_layout'] is not None:
@@ -184,8 +237,9 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
             prep.input(node_name).preprocess().scale(node_mean_scale_values['scale'])
         log.debug('Mean/Scale preprocessing applied to {}'.format(node_name))
 
-    # Apply reverse-input-channels
-    if 'reverse_input_channels' in argv and argv.reverse_input_channels:
+    # Apply reverse_input_channels
+    if need_reverse:
+        guess_source_layouts_for_reverse_channels(ov_function=ov_function, layout_items=layout_items)
         for ov_input in ov_function.inputs:
             node_name = list(ov_input.get_tensor().get_names())[0]
             prep.input(node_name).preprocess().reverse_channels()

@@ -16,7 +16,7 @@ try:
     # pylint: disable=no-name-in-module,import-error
     import openvino as ov
     import openvino.opset8 as ops
-    from openvino import Function, PartialShape
+    from openvino import Function, Layout, PartialShape
 
 except Exception:
     print("No OpenVINO API available,"
@@ -97,6 +97,9 @@ class TestPreprocessingMOC(unittest.TestCase):
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertEqual(op_node.get_type_name(), 'Relu')
 
+        # Verify that guessed layout (?C??) is not appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout())
+
     def test_mean_single(self):
         argv = Namespace(mean_scale_values={'input1': {'mean': np.array([4.]), 'scale': None}}, scale=None)
         function = create_function2()
@@ -122,6 +125,9 @@ class TestPreprocessingMOC(unittest.TestCase):
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertEqual(op_node.get_type_name(), 'Relu')
 
+        # Verify that guessed layout (?C??) is not appeared in input2
+        self.assertEqual(function.get_parameters()[1].layout, Layout())
+
     def test_mean_scale(self):
         argv = Namespace(mean_scale_values={'input2': {'mean': np.array([1., 2., 3.]),
                                                        'scale': np.array([2., 4., 8.])}}, scale=None)
@@ -140,6 +146,9 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that input1 is not affected
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertEqual(op_node.get_type_name(), 'Relu')
+
+        # Verify that guessed layout (?C??) is not appeared in input2
+        self.assertEqual(function.get_parameters()[1].layout, Layout())
 
     def test_no_param_name(self):
         argv = Namespace(mean_scale_values=list(np.array([(np.array([1., 2., 3.]), np.array([2., 4., 6.])),
@@ -160,6 +169,10 @@ class TestPreprocessingMOC(unittest.TestCase):
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
         self.check_mean_constant(op_node, expected=[7., 8.], shape=[1, 2, 1, 1])
+
+        # Verify that guessed layouts are not appeared in inputs
+        self.assertEqual(function.get_parameters()[0].layout, Layout())
+        self.assertEqual(function.get_parameters()[1].layout, Layout())
 
     def test_no_param_name_single_value(self):
         argv = Namespace(mean_scale_values=list(np.array([(np.array([1.]), None),
@@ -204,3 +217,19 @@ class TestPreprocessingMOC(unittest.TestCase):
         with self.assertRaises(Exception):
             apply_preprocessing(ov_function=function,
                                 argv=argv)
+
+    def test_reverse_input_channels(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 224, 224])
+        apply_preprocessing(ov_function=function,
+                            argv=argv)
+        # Verify that some operations are inserted.
+        # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was called
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')
+
+        # Verify that guessed layouts are not appeared in input1,input2
+        self.assertEqual(function.get_parameters()[0].layout, Layout())
+        self.assertEqual(function.get_parameters()[1].layout, Layout())
