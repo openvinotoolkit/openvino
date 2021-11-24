@@ -84,6 +84,7 @@ def test_serialize_pass():
     os.remove(xml_path)
     os.remove(bin_path)
 
+
 def test_serialize_pass_v2():
     core = Core()
     xml_path = "./serialized_function.xml"
@@ -111,8 +112,8 @@ def test_compress_model_transformation():
     node_constant = ov.opset8.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
     node_ceil = ov.opset8.ceiling(node_constant)
     func = Function(node_ceil, [], "TestFunction")
-    assert func.get_ordered_ops()[0].get_element_type().get_type_name() == 'f32'
+    assert func.get_ordered_ops()[0].get_element_type().get_type_name() == "f32"
     compress_model_transformation(func)
 
     assert func is not None
-    assert func.get_ordered_ops()[0].get_element_type().get_type_name() == 'f16'
+    assert func.get_ordered_ops()[0].get_element_type().get_type_name() == "f16"
