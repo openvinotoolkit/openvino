@@ -182,15 +182,7 @@ private:
     size_t outputScaleSize;
     size_t outputShiftSize;
 
-    // mkldnn style post ops data representation
     bool isPostOpDataInitialized = false;
-    mkldnn::impl::shifts_t<float> cropLowData;
-    mkldnn::impl::shifts_t<float> cropHighData;
-    mkldnn::impl::scales_t inputScaleData;
-    mkldnn::impl::shifts_t<float> inputShiftData;
-    mkldnn::impl::scales_t outputScaleData;
-    mkldnn::impl::shifts_t<float> outputShiftData;
-
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;
     bool isOutputLowBroadcasted = false;

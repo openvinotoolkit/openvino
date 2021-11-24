@@ -1356,10 +1356,10 @@ private:
 
                 auto quant = post_op.quantization;
 
-                float crop_low = quant.crop_low_data->shifts_[quant.crop_low_data->count_ == 1 ? 0 : index_c];
-                float crop_high = quant.crop_high_data->shifts_[quant.crop_high_data->count_ == 1 ? 0 : index_c];
-                float input_scale = quant.input_scale_data->scales_[quant.input_scale_data->count_ == 1 ? 0 : index_c];
-                float input_shift = quant.input_shift_data->shifts_[quant.input_shift_data->count_ == 1 ? 0 : index_c];
+                float crop_low = quant.data[quant.crop_low][!quant.per_channel[quant.crop_low] ? 0 : index_c];
+                float crop_high = quant.data[quant.crop_high][!quant.per_channel[quant.crop_high] ? 0 : index_c];
+                float input_scale = quant.data[quant.inp_scale][!quant.per_channel[quant.inp_scale] ? 0 : index_c];
+                float input_shift = quant.data[quant.inp_scale][!quant.per_channel[quant.inp_scale] ? 0 : index_c];
 
                 dst_value = nstl::min(crop_high, nstl::max(crop_low, dst_value));
                 dst_value = dst_value * input_scale + input_shift;
@@ -1369,8 +1369,8 @@ private:
                 }
 
                 if (do_dequantization) {
-                    float output_scale = quant.output_scale_data->scales_[quant.output_scale_data->count_ == 1 ? 0 : index_c];
-                    float output_shift = quant.output_shift_data->shifts_[quant.output_shift_data->count_ == 1 ? 0 : index_c];
+                    float output_scale = quant.data[quant.output_scale][!quant.per_channel[quant.output_scale] ? 0 : index_c];
+                    float output_shift = quant.data[quant.output_shift][!quant.per_channel[quant.output_shift] ? 0 : index_c];
                     dst_value = dst_value * output_scale + output_shift;
                 }
             }
