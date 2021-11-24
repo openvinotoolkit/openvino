@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
     std::vector<float> scales_as_floats { 2.0f, 3.0f };
     std::vector<int64_t> constants_for_concat_1 { 1, 120, 1, 150, 1, 32 };
     std::vector<int64_t> constants_for_concat_2 { 1, 240, 450, 32 };
-    ngraph::Shape mul_const_shape {1, 1, 2, 1, 3, 1}
+    ngraph::Shape mul_const_shape {1, 1, 2, 1, 3, 1};
     std::vector<int64_t> mul_const_value {1, 1, 1, 1, 1, 1};
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
