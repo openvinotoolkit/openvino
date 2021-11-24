@@ -49,11 +49,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 57108
         R"(.*QueryNetworkHETEROWithMULTINoThrow_V10.*)",
         R"(.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
-        // TODO: Issue 58162
-        R"(.*HoldersTestOnImportedNetwork\.CreateRequestWithCoreRemoved.*)",
-        // TODO: Issue 58621
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualNoThrow.*)",
-        R"(.*IEClassNetworkTestP\.LoadNetworkActualHeteroDeviceNoThrow.*)",
         // Not implemented yet:
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
         R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
