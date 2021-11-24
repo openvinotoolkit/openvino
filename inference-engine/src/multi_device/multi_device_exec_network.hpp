@@ -131,7 +131,6 @@ protected:
 class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
                                      public InferenceEngine::ITaskExecutor {
 public:
-    friend class MultiDeviceInferRequest;
     using Ptr = std::shared_ptr<MultiDeviceExecutableNetwork>;
     struct WorkerInferRequest {
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
@@ -194,8 +193,6 @@ private:
     void TryToLoadNetWork(AutoLoadContext& context,
                           const std::string& modelPath,
                           const InferenceEngine::CNNNetwork& network);
-    bool EligibleForDynamicShape() { return _loadContext[ACTUALDEVICE].deviceInfo.deviceName.find("CPU") != std::string::npos
-                                            && _loadContext[ACTUALDEVICE].isLoadSuccess;}
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
