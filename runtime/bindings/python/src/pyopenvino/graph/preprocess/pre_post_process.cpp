@@ -17,20 +17,20 @@ namespace py = pybind11;
 template <typename T>
 class ref_wrapper {
     std::reference_wrapper<T> impl;
+
 public:
-    explicit ref_wrapper(T* p) : impl(*p) { }
-    T* get() const { return &impl.get(); }
+    explicit ref_wrapper(T* p) : impl(*p) {}
+    T* get() const {
+        return &impl.get();
+    }
 };
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, ref_wrapper<T>)
 
 static void regclass_graph_PreProcessSteps(py::module m) {
-    py::class_<ov::preprocess::PreProcessSteps, ref_wrapper<ov::preprocess::PreProcessSteps>> steps(
-        m,
-        "PreProcessSteps");
+    py::class_<ov::preprocess::PreProcessSteps, ref_wrapper<ov::preprocess::PreProcessSteps>> steps(m,
+                                                                                                    "PreProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
-
-//    steps.def(py::init<>());
 
     steps.def(
         "mean",
@@ -184,8 +184,6 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         "PostProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
 
-//    steps.def(py::init<>());
-
     steps.def(
         "convert_element_type",
         [](ov::preprocess::PostProcessSteps& me, ov::element::Type type) {
@@ -235,18 +233,14 @@ static void regclass_graph_PostProcessSteps(py::module m) {
 }
 
 static void regclass_graph_InputTensorInfo(py::module m) {
-    py::class_<ov::preprocess::InputTensorInfo, ref_wrapper<ov::preprocess::InputTensorInfo>> info(
-        m,
-        "InputTensorInfo");
+    py::class_<ov::preprocess::InputTensorInfo, ref_wrapper<ov::preprocess::InputTensorInfo>> info(m,
+                                                                                                   "InputTensorInfo");
     info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
-
-//    info.def(py::init<>());
 
     info.def(
         "set_element_type",
-        [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, const ov::element::Type& type) {
-            me->set_element_type(type);
-            return me;
+        [](ov::preprocess::InputTensorInfo& me, const ov::element::Type& type) {
+            return &me.set_element_type(type);
         },
         py::arg("type"),
         R"(
@@ -264,37 +258,31 @@ static void regclass_graph_InputTensorInfo(py::module m) {
     info.def("set_layout", [](ov::preprocess::InputTensorInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
     });
-    info.def("set_spatial_dynamic_shape", [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me) {
-        me->set_spatial_dynamic_shape();
-        return me;
+    info.def("set_spatial_dynamic_shape", [](ov::preprocess::InputTensorInfo& me) {
+        return &me.set_spatial_dynamic_shape();
     });
-    info.def("set_spatial_static_shape",
-             [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me, size_t height, size_t width) {
-                 me->set_spatial_static_shape(height, width);
-                 return me;
-             });
+    info.def("set_spatial_static_shape", [](ov::preprocess::InputTensorInfo& me, size_t height, size_t width) {
+        return &me.set_spatial_static_shape(height, width);
+        ;
+    });
     info.def("set_color_format",
-             [](const std::shared_ptr<ov::preprocess::InputTensorInfo>& me,
+             [](ov::preprocess::InputTensorInfo& me,
                 const ov::preprocess::ColorFormat& format,
                 const std::vector<std::string>& sub_names = {}) {
-                 me->set_color_format(format, sub_names);
-                 return me;
+                 return &me.set_color_format(format, sub_names);
              });
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
-    py::class_<ov::preprocess::OutputTensorInfo, std::shared_ptr<ov::preprocess::OutputTensorInfo>> info(
+    py::class_<ov::preprocess::OutputTensorInfo, ref_wrapper<ov::preprocess::OutputTensorInfo>> info(
         m,
         "OutputTensorInfo");
     info.doc() = "openvino.impl.preprocess.OutputTensorInfo wraps ov::preprocess::OutputTensorInfo";
 
-    info.def(py::init<>());
-
     info.def(
         "set_element_type",
-        [](const std::shared_ptr<ov::preprocess::OutputTensorInfo>& me, const ov::element::Type& type) {
-            me->set_element_type(type);
-            return me;
+        [](ov::preprocess::OutputTensorInfo& me, const ov::element::Type& type) {
+            return &me.set_element_type(type);
         },
         py::arg("type"),
         R"(
@@ -309,9 +297,8 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
                 tensor : OutputTensorInfo
                     Reference to itself to allow chaining of calls in client's code in a builder-like manner.
               )");
-    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::OutputTensorInfo>& me, const ov::Layout& layout) {
-        me->set_layout(layout);
-        return me;
+    info.def("set_layout", [](ov::preprocess::OutputTensorInfo& me, const ov::Layout& layout) {
+        return &me.set_layout(layout);
     });
 }
 
@@ -319,105 +306,40 @@ static void regclass_graph_InputInfo(py::module m) {
     py::class_<ov::preprocess::InputInfo, ref_wrapper<ov::preprocess::InputInfo>> inp(m, "InputInfo");
     inp.doc() = "openvino.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
 
-//    inp.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one input)");
-//    inp.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
-//    inp.def(py::init<const std::string&>(), R"(Constructor with input tensor name as argument)");
-
-    inp.def(
-        "tensor",
-        [](ov::preprocess::InputInfo& me) {
-            return &me.tensor();
-        },
-        R"(
-                Gets tensor information of client's input.
-                Returns
-                ----------
-                tensor : InputTensorInfo
-                    Tensor information for client's input.
-              )");
-    inp.def(
-        "preprocess",
-        [](ov::preprocess::InputInfo& me) {
-            return &me.preprocess();
-        },
-        R"(
-                Gets preprocessing steps for input parameter.
-                Returns
-                ----------
-                preprocess : Current preprocessing steps
-                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
-              )");
-    inp.def(
-        "network",
-        [](ov::preprocess::InputInfo& me) {
-            return &me.network();
-        });
+    inp.def("tensor", [](ov::preprocess::InputInfo& me) {
+        return &me.tensor();
+    });
+    inp.def("preprocess", [](ov::preprocess::InputInfo& me) {
+        return &me.preprocess();
+    });
+    inp.def("network", [](ov::preprocess::InputInfo& me) {
+        return &me.network();
+    });
 }
 
 static void regclass_graph_OutputInfo(py::module m) {
-    py::class_<ov::preprocess::OutputInfo, std::shared_ptr<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
+    py::class_<ov::preprocess::OutputInfo, ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
     out.doc() = "openvino.impl.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
 
-    out.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one output)");
-    out.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
-    out.def(py::init<const std::string&>(), R"(Constructor with tensor name as argument)");
-
-    out.def(
-        "tensor",
-        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me,
-           const std::shared_ptr<ov::preprocess::OutputTensorInfo>& outputTensorInfo) {
-            me->tensor(std::move(*outputTensorInfo));
-            return me;
-        },
-        py::arg("tensor"),
-        R"(
-                Adds builder for actual tensor information of client's output.
-                Parameters
-                ----------
-                tensor : OutputTensorInfo
-                    Client's output tensor information. It's internal data will be moved to parent OutputInfo object.
-                Returns
-                ----------
-                tensor : OutputInfo
-                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
-              )");
-    out.def(
-        "postprocess",
-        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me) {
-            return &me->postprocess();
-        },
-        R"(
-                Adds builder for actual postprocessing steps for output parameter.
-                Parameters
-                ----------
-                post_process_steps : PostProcessSteps
-                    Postprocessing steps. It's internal data will be moved to parent OutputInfo object.
-                Returns
-                ----------
-                preprocess : OutputInfo
-                    Reference to itself to allow chaining of calls in client's code in a builder-like manner.
-              )");
-    out.def(
-        "network",
-        [](const std::shared_ptr<ov::preprocess::OutputInfo>& me,
-           const std::shared_ptr<ov::preprocess::OutputNetworkInfo>& outputNetworkInfo) {
-            me->network(std::move(*outputNetworkInfo));
-            return me;
-        },
-        py::arg("output_network_info"));
+    out.def("tensor", [](ov::preprocess::OutputInfo& me) {
+        return &me.tensor();
+    });
+    out.def("postprocess", [](ov::preprocess::OutputInfo& me) {
+        return &me.postprocess();
+    });
+    out.def("network", [](ov::preprocess::OutputInfo& me) {
+        return &me.network();
+    });
 }
 
 static void regclass_graph_OutputNetworkInfo(py::module m) {
-    py::class_<ov::preprocess::OutputNetworkInfo, std::shared_ptr<ov::preprocess::OutputNetworkInfo>> info(
+    py::class_<ov::preprocess::OutputNetworkInfo, ref_wrapper<ov::preprocess::OutputNetworkInfo>> info(
         m,
         "OutputNetworkInfo");
     info.doc() = "openvino.impl.preprocess.OutputNetworkInfo wraps ov::preprocess::OutputNetworkInfo";
 
-    info.def(py::init<>());
-
-    info.def("set_layout", [](const std::shared_ptr<ov::preprocess::OutputNetworkInfo>& me, const ov::Layout& layout) {
-        me->set_layout(layout);
-        return me;
+    info.def("set_layout", [](ov::preprocess::OutputNetworkInfo& me, const ov::Layout& layout) {
+        return &me.set_layout(layout);
     });
 }
 
@@ -426,8 +348,6 @@ static void regclass_graph_InputNetworkInfo(py::module m) {
         m,
         "InputNetworkInfo");
     info.doc() = "openvino.impl.preprocess.InputNetworkInfo wraps ov::preprocess::InputNetworkInfo";
-
-    // info.def(py::init<>());
 
     info.def("set_layout", [](ov::preprocess::InputNetworkInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
@@ -439,8 +359,12 @@ static void regenum_graph_ColorFormat(py::module m) {
         .value("UNDEFINED", ov::preprocess::ColorFormat::UNDEFINED)
         .value("NV12_SINGLE_PLANE", ov::preprocess::ColorFormat::NV12_SINGLE_PLANE)
         .value("NV12_TWO_PLANES", ov::preprocess::ColorFormat::NV12_TWO_PLANES)
+        .value("I420_SINGLE_PLANE", ov::preprocess::ColorFormat::I420_SINGLE_PLANE)
+        .value("I420_THREE_PLANES", ov::preprocess::ColorFormat::I420_THREE_PLANES)
         .value("RGB", ov::preprocess::ColorFormat::RGB)
         .value("BGR", ov::preprocess::ColorFormat::BGR)
+        .value("RGBX", ov::preprocess::ColorFormat::RGBX)
+        .value("BGRX", ov::preprocess::ColorFormat::BGRX)
         .export_values();
 }
 
@@ -463,61 +387,42 @@ void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_OutputNetworkInfo(m);
     regenum_graph_ColorFormat(m);
     regenum_graph_ResizeAlgorithm(m);
-    py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
+    py::class_<ov::preprocess::PrePostProcessor, ref_wrapper<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");
     proc.doc() = "openvino.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
 
     proc.def(py::init<const std::shared_ptr<ov::Function>&>());
 
+    proc.def("input", [](ov::preprocess::PrePostProcessor& me) {
+        return &me.input();
+    });
     proc.def(
         "input",
-        [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me) {
-            return &me->input();
+        [](ov::preprocess::PrePostProcessor& me, const std::string& tensor_name) {
+            return &me.input(tensor_name);
         },
-        R"(
-                Gets preprocessing info for input parameter.
-                Returns
-                ----------
-                input : InputInfo
-                    Reference to input info associated with model's input parameter.
-              )");
+        py::arg("tensor_name"));
     proc.def(
-            "input",
-            [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me,
-                    const std::string& tensor_name) {
-                return &me->input(tensor_name);
-            },
-            py::arg("tensor_name"),
-            R"(
-                Gets preprocessing info for input parameter.
-                Parameters
-                ----------
-                tensor_name : string
-                    Tensor name of input parameter
-                Returns
-                ----------
-                input : InputInfo
-                    Reference to input info associated with model's input tensor specified by its name.
-              )");
+        "input",
+        [](ov::preprocess::PrePostProcessor& me, size_t input_index) {
+            return &me.input(input_index);
+        },
+        py::arg("input_index"));
+    proc.def("output", [](ov::preprocess::PrePostProcessor& me) {
+        return &me.output();
+    });
     proc.def(
         "output",
-        [](const std::shared_ptr<ov::preprocess::PrePostProcessor>& me,
-           const std::shared_ptr<ov::preprocess::OutputInfo>& info) {
-            me->output(std::move(*info));
-            return me;
+        [](ov::preprocess::PrePostProcessor& me, const std::string& tensor_name) {
+            return &me.output(tensor_name);
         },
-        py::arg("output_info"),
-        R"(
-                Adds builder for preprocessing info for output parameter.
-                Parameters
-                ----------
-                output_info : OutputInfo
-                    Preprocessing info for output parameter. It's internal data will be moved to PreProcessing object.
-                Returns
-                ----------
-                in : PrePostProcessor
-                    Reference to itself to allow chaining of calls in client's code.
-              )");
+        py::arg("tensor_name"));
+    proc.def(
+        "output",
+        [](ov::preprocess::PrePostProcessor& me, size_t output_index) {
+            return &me.output(output_index);
+        },
+        py::arg("output_index"));
     proc.def("build", &ov::preprocess::PrePostProcessor::build);
 }

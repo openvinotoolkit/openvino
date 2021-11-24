@@ -10,9 +10,7 @@ from openvino.impl import Function, Output, Type
 from openvino.utils.decorators import custom_preprocess_function
 from openvino import Core
 from tests.runtime import get_runtime
-from openvino.preprocess import PrePostProcessor, InputInfo, PreProcessSteps, InputTensorInfo, \
-    OutputTensorInfo, OutputNetworkInfo, InputNetworkInfo, ColorFormat, OutputInfo, \
-    PostProcessSteps, ResizeAlgorithm
+from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 
 
 def test_ngraph_preprocess_mean():
@@ -21,13 +19,11 @@ def test_ngraph_preprocess_mean():
     model = parameter_a
     function = Function(model, [parameter_a], "TestFunction")
 
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .preprocess(PreProcessSteps()
-                           .mean(1.)
-                           )
-               )\
-        .build()
+    p = PrePostProcessor(function)
+    inp = p.input()
+    prep = inp.preprocess()
+    prep.mean(1.0)
+    function = p.build()
 
     input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
     expected_output = np.array([[0, 1], [2, 3]]).astype(np.float32)
@@ -45,14 +41,10 @@ def test_ngraph_preprocess_mean_vector():
     function = Function(model, [parameter_a], "TestFunction")
     layout = ov.Layout("NCHW")
 
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo().set_layout(layout))
-               .preprocess(PreProcessSteps()
-                           .mean([1., 2.])
-                           )
-               )\
-        .build()
+    p = PrePostProcessor(function)
+    p.input().tensor().set_layout(layout)
+    p.input().preprocess().mean([1., 2.])
+    function = p.build()
 
     input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
     expected_output = np.array([[0, 0], [2, 2]]).astype(np.float32)
@@ -70,14 +62,11 @@ def test_ngraph_preprocess_scale_vector():
     function = Function(model, [parameter_a], "TestFunction")
     layout = ov.Layout("NCHW")
 
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo().set_layout(layout))
-               .preprocess(PreProcessSteps()
-                           .scale([0.5, 2.])
-                           )
-               )\
-        .build()
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_layout(layout)
+    inp.preprocess().scale([0.5, 2.0])
+    function = p.build()
 
     input_data = np.array([[1, 2], [3, 4]]).astype(np.float32)
     expected_output = np.array([[2, 1], [6, 2]]).astype(np.float32)
@@ -98,24 +87,43 @@ def test_ngraph_preprocess_mean_scale_convert():
     def custom_preprocess(output: Output):
         return ops.abs(output)
 
-    function = PrePostProcessor(function) \
-        .input(InputInfo(1)
-               .tensor(InputTensorInfo()
-                       .set_element_type(Type.i32))
-               .preprocess(PreProcessSteps()
-                           .convert_element_type(Type.f32)
-                           .mean(1.)
-                           .scale(2.)
-                           )
-               ) \
-        .input(InputInfo(0)
-               .preprocess(PreProcessSteps()
-                           .convert_element_type(Type.f32)
-                           .mean(1.)
-                           .custom(custom_preprocess)
-                           )
-               ) \
-        .build()
+    p = PrePostProcessor(function)
+    inp2 = p.input(1)
+    inp2.tensor().set_element_type(Type.i32)
+    inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
+    inp1 = p.input(0)
+    inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
+    function = p.build()
+
+    input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
+    input_data2 = np.array([[1, 3], [5, 7]]).astype(np.int32)
+    expected_output1 = np.array([[1, 0], [1, 3]]).astype(np.float32)
+    expected_output2 = np.array([[0, 1], [2, 3]]).astype(np.float32)
+
+    runtime = get_runtime()
+    computation = runtime.computation(function)
+    [output1, output2] = computation(input_data1, input_data2)
+    assert np.equal(output1, expected_output1).all()
+    assert np.equal(output2, expected_output2).all()
+
+
+def test_ngraph_preprocess_input_by_tensor_name():
+    shape = [2, 2]
+    param1 = ops.parameter(shape, dtype=np.int32, name="A")
+    param2 = ops.parameter(shape, dtype=np.int32, name="B")
+    function = Function([param1, param2], [param1, param2], "TestFunction")
+
+    @custom_preprocess_function
+    def custom_preprocess(output: Output):
+        return ops.abs(output)
+
+    p = PrePostProcessor(function)
+    inp2 = p.input("B")
+    inp2.tensor().set_element_type(Type.i32)
+    inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
+    inp1 = p.input("A")
+    inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
+    function = p.build()
 
     input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
     input_data2 = np.array([[1, 3], [5, 7]]).astype(np.int32)
@@ -142,20 +150,15 @@ def test_ngraph_preprocess_output_postprocess():
     def custom_postprocess(output: Output):
         return ops.abs(output)
 
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo().set_layout(layout1))
-               .preprocess(PreProcessSteps()
-                           .convert_element_type(Type.f32)
-                           .mean([1., 2.])
-                           )
-               ) \
-        .output(OutputInfo().postprocess(PostProcessSteps()
-                                         .convert_element_type(Type.f32)
-                                         .convert_layout(layout2)
-                                         .convert_layout(layout3)
-                                         .custom(custom_postprocess))) \
-        .build()
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_layout(layout1)
+    inp.preprocess().convert_element_type(Type.f32).mean([1., 2.])
+    out = p.output()
+    out.postprocess().convert_element_type(Type.f32) \
+                     .convert_layout(layout2) \
+                     .convert_layout(layout3).custom(custom_postprocess)
+    function = p.build()
 
     input_data = np.array([[-1, -2], [-3, -4]]).astype(np.int32)
     expected_output = np.array([[2, 4], [4, 6]]).astype(np.float32)
@@ -174,24 +177,16 @@ def test_ngraph_preprocess_spatial_static_shape():
     layout = ov.Layout("CHW")
 
     color_format = ColorFormat.RGB
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo()
-                       .set_layout(layout)
-                       .set_spatial_static_shape(2, 2)
-                       .set_color_format(color_format, []))
-               .preprocess(PreProcessSteps()
-                           .convert_element_type(Type.f32)
-                           .mean([1., 2])
-                           )
-               .network(InputNetworkInfo().set_layout(layout))
-               ) \
-        .output(OutputInfo()
-                .tensor(OutputTensorInfo()
-                        .set_layout(layout)
-                        .set_element_type(Type.f32))
-                .network(OutputNetworkInfo().set_layout(layout))) \
-        .build()
+
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_layout(layout).set_spatial_static_shape(2, 2).set_color_format(color_format, [])
+    inp.preprocess().convert_element_type(Type.f32).mean([1., 2.])
+    inp.network().set_layout(layout)
+    out = p.output()
+    out.tensor().set_layout(layout).set_element_type(Type.f32)
+    out.network().set_layout(layout)
+    function = p.build()
 
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.int32)
     expected_output = np.array([[[0, 1], [2, 3]], [[3, 4], [5, 6]]]).astype(np.float32)
@@ -205,11 +200,20 @@ def test_ngraph_preprocess_spatial_static_shape():
 @pytest.mark.parametrize(
     "algorithm, color_format1, color_format2, is_failing",
     [(ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.BGR, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_SINGLE_PLANE, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.RGB, ColorFormat.I420_THREE_PLANES, True),
      (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_SINGLE_PLANE, True),
+     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.RGBX, True),
+     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.BGRX, True),
      (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.RGB, ColorFormat.NV12_TWO_PLANES, True),
+     (ResizeAlgorithm.RESIZE_LINEAR, ColorFormat.UNDEFINED, ColorFormat.I420_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.UNDEFINED, True),
      (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.RGB, ColorFormat.BGR, False),
      (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGB, False),
+     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.RGBX, True),
+     (ResizeAlgorithm.RESIZE_CUBIC, ColorFormat.BGR, ColorFormat.BGRX, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_SINGLE_PLANE, True),
+     (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.I420_THREE_PLANES, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_SINGLE_PLANE, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.NV12_TWO_PLANES, True),
      (ResizeAlgorithm.RESIZE_NEAREST, ColorFormat.BGR, ColorFormat.UNDEFINED, True)])
@@ -220,16 +224,12 @@ def test_ngraph_preprocess_steps(algorithm, color_format1, color_format2, is_fai
     function = Function(model, [parameter_a], "TestFunction")
     layout1 = ov.Layout("NCWH")
     layout2 = ov.Layout("NCHW")
-    custom_processor = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo()
-                       .set_layout(layout1)
-                       .set_color_format(color_format1, []))
-               .preprocess(PreProcessSteps()
-                           .mean(1.)
-                           .resize(algorithm, 3, 3)
-                           .convert_layout(layout2)
-                           .convert_color(color_format2)))
+
+    custom_processor = PrePostProcessor(function)
+    inp = custom_processor.input()
+    inp.tensor().set_layout(layout1).set_color_format(color_format1, [])
+    inp.preprocess().mean(1.).resize(algorithm, 3, 3).convert_layout(layout2).convert_color(color_format2)
+
     if is_failing:
         with pytest.raises(RuntimeError) as e:
             function = custom_processor.build()
@@ -253,20 +253,13 @@ def test_ngraph_preprocess_postprocess_layout():
     layout1 = ov.Layout("NCWH")
     layout2 = ov.Layout("NCHW")
 
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo()
-                       .set_layout(layout1))
-               .preprocess(PreProcessSteps()
-                           .mean(1.)
-                           .convert_layout(layout2)
-                           .reverse_channels()
-                           )
-               ) \
-        .output(OutputInfo()
-                .postprocess(PostProcessSteps()
-                             .convert_layout([0, 1, 2, 3]))) \
-        .build()
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_layout(layout1)
+    inp.preprocess().mean(1.).convert_layout(layout2).reverse_channels()
+    out = p.output()
+    out.postprocess().convert_layout([0, 1, 2, 3])
+    function = p.build()
 
     input_data = np.array([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]]).astype(np.float32)
     expected_output = np.array([[[[0, 3, 6], [1, 4, 7], [2, 5, 8]]]]).astype(np.float32)
@@ -284,16 +277,11 @@ def test_ngraph_preprocess_reverse_channels():
     function = Function(model, [parameter_a], "TestFunction")
     layout1 = ov.Layout("NCWH")
 
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo()
-                       .set_layout(layout1))
-               .preprocess(PreProcessSteps()
-                           .mean(1.)
-                           .reverse_channels()
-                           )
-               ) \
-        .build()
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_layout(layout1)
+    inp.preprocess().mean(1.).reverse_channels()
+    function = p.build()
 
     input_data = np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]).astype(np.float32)
     expected_output = np.array([[[[4, 5], [6, 7]], [[0, 1], [2, 3]]]]).astype(np.float32)
@@ -312,15 +300,11 @@ def test_ngraph_preprocess_resize_algorithm():
     resize_alg = ResizeAlgorithm.RESIZE_CUBIC
     layout1 = ov.Layout("NCWH")
 
-    function = PrePostProcessor(function)\
-        .input(InputInfo()
-               .tensor(InputTensorInfo()
-                       .set_layout(layout1))
-               .preprocess(PreProcessSteps()
-                           .mean(1.)
-                           .resize(resize_alg, 3, 3))
-               )\
-        .build()
+    p = PrePostProcessor(function)
+    inp = p.input()
+    inp.tensor().set_layout(layout1)
+    inp.preprocess().mean(1.).resize(resize_alg, 3, 3)
+    function = p.build()
 
     input_data = np.array([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]]).astype(np.float32)
     expected_output = np.array([[[[0, 1, 2], [3, 4, 5], [6, 7, 8]]]]).astype(np.float32)
@@ -398,21 +382,11 @@ def test_ngraph_preprocess_model():
     def custom_preprocess(output: Output):
         return ops.abs(output)
 
-    function = PrePostProcessor(function) \
-        .input(InputInfo(1)
-               .preprocess(PreProcessSteps()
-                           .convert_element_type(Type.f32)
-                           .scale(0.5)
-                           )
-               ) \
-        .input(InputInfo(0)
-               .preprocess(PreProcessSteps()
-                           .convert_element_type(Type.f32)
-                           .mean(5.))) \
-        .output(OutputInfo(0)
-                .postprocess(PostProcessSteps()
-                             .custom(custom_preprocess))) \
-        .build()
+    p = PrePostProcessor(function)
+    p.input(1).preprocess().convert_element_type(Type.f32).scale(0.5)
+    p.input(0).preprocess().convert_element_type(Type.f32).mean(5.)
+    p.output(0).postprocess().custom(custom_preprocess)
+    function = p.build()
 
     input_data = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]]).astype(np.float32)
     expected_output = np.array([[[2, 1], [4, 7]], [[10, 13], [16, 19]]]).astype(np.float32)
