@@ -23,13 +23,13 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     auto input_layout = node.input().get_output_layout();
     auto weights_layout = node.weights(0).get_output_layout();  // weights are stored after inputs
 
-    auto input_offset = desc->input_offset;
+    auto pad = desc->pad;
     auto stride = desc->stride;
     auto dilation = desc->dilation;
     auto split = desc->weights.size();
 
     // compute how many outputs in rows and columns will be generate by filter.
-    // outp <= (input_size - (2*input_offset) - kernel_size)/ stride
+    // outp <= (input_size + (2*pad) - kernel_size)/ stride
     auto filter_size = weights_layout.size;
 
     auto input_type = input_layout.data_type;
@@ -73,38 +73,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                                    "value",
                                    0,
                                    "Dilatation spatial Y must be positive (>= 1)");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Input offset spatial X",
-                             2 * input_offset.spatial[0],
-                             "input layout spatial X",
-                             input_layout.size.spatial[0],
-                             "There is no input data to process");
-    CLDNN_ERROR_GREATER_THAN(node.id(),
-                             "Input offset spatial Y",
-                             2 * input_offset.spatial[1],
-                             "input layout spatial Y",
-                             input_layout.size.spatial[1],
-                             "There is no input data to process");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset feature",
-                          input_offset.feature[0],
-                          "",
-                          0,
-                          "Input offset in feature is not supported");
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset batch",
-                          input_offset.batch[0],
-                          "",
-                          0,
-                          "Input offset in batch is not supported");
-
-    // TODO: FCN and SSD used offset larger than convolution size. does it make sense to support it? do we support it on
-    // the ref kernels?
-    //     CLDNN_ERROR_GREATER_THAN(node.id(), "Negate input offset spatial X", -input_offset.spatial[0], "input window
-    //     size spatial X", filter_size.spatial[0], "First convolution is outside of image. please reduce input offset
-    //     X"); CLDNN_ERROR_GREATER_THAN(node.id(), "Negate input offset spatial Y", -input_offset.spatial[1], "input
-    //     window size spatial Y", filter_size.spatial[1], "First convolution is outside of image. please reduce input
-    //     offset Y");
 
     if (input_layout.format.spatial_num() == 3) {
         // convolution 3D
@@ -120,12 +88,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                                        "value",
                                        0,
                                        "Dilatation spatial Z must be positive (>= 1)");
-        CLDNN_ERROR_GREATER_THAN(node.id(),
-                                 "Input offset spatial Z",
-                                 2 * input_offset.spatial[2],
-                                 "input layout spatial Z",
-                                 input_layout.size.spatial[1],
-                                 "There is no input data to process");
     }
 
     if (input_layout.format == format::winograd_2x3_s1_weights ||
@@ -251,7 +213,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     auto output_range = calc_sliding_window_output_range<swor_mode::all>(input_layout.size,
                                                                          filter_size,
-                                                                         input_offset,
+                                                                         pad,
                                                                          stride,
                                                                          dilation,
                                                                          true,
@@ -288,7 +250,7 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
     json_composite conv_info;
     conv_info.add("stride", strd.to_string());
-    conv_info.add("input offset", desc->input_offset.to_string());
+    conv_info.add("pad", desc->pad.to_string());
     conv_info.add("padding above", desc->padding_above.to_string());
     conv_info.add("padding below", desc->padding_below.to_string());
     conv_info.add("split", split);
@@ -373,7 +335,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                                   "Biases isn't 1D vector.");
         }
 
-        auto input_offset = argument.input_offset;
+        auto pad = argument.pad;
 
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Weights number of dimensions",
@@ -388,11 +350,11 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               0.0f,
                               "Unknown padding mode.");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Input offset number of dimensions",
-                              input_offset.raw.size(),
+                              "Pad number of dimensions",
+                              pad.raw.size(),
                               "input number of dimensions",
                               input_inst.size.raw.size(),
-                              "Input offset/ input size mismatch");
+                              "Pad/ input size mismatch");
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output feature size",
                               output_size.feature.size(),
@@ -407,7 +369,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                               "Only one-dimensional batch size are supported");
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "Weights feature maps number",
-                              (input_inst.size.feature[0] - input_offset.feature[0]) / split,
+                              (input_inst.size.feature[0] + pad.feature[0]) / split,
                               "input feature maps number",
                               weights_ifm,
                               "Weights/ifm mismatch");
