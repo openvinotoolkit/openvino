@@ -165,16 +165,13 @@ endif()
 
 add_library(${TARGET_NAME} INTERFACE)
 
-target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
-
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-    FILEDESCRIPTION "Inference Engine Core Inference library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 # if (TBBBIND_2_5_FOUND)
@@ -234,8 +231,7 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES
 
 # LTO
 
-set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # Export for build tree
 

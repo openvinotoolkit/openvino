@@ -113,6 +113,7 @@ add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_transformations_obj>
                        $<TARGET_OBJECTS:inference_engine_obj>)
 add_library(openvino::runtime ALIAS ov_runtime)
 set_target_properties(ov_runtime PROPERTIES EXPORT_NAME runtime)
+ie_add_vs_version_file(NAME ov_runtime FILEDESCRIPTION "OpenVINO runtime library")
 
 target_include_directories(ov_runtime INTERFACE PRIVATE $<TARGET_PROPERTY:ov_runtime_dev,INTERFACE_INCLUDE_DIRECTORIES>
                                                 PUBLIC $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -25,9 +25,6 @@ ie_faster_build(${TARGET_NAME}_obj
     PCH PRIVATE "src/precomp.hpp"
 )
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}_obj
-                       FILEDESCRIPTION "Inference Engine Transformations library")
-
 target_link_libraries(${TARGET_NAME}_obj PUBLIC ngraph
                                      PUBLIC ngraph_reference openvino::itt ngraph::builder)
 
@@ -46,7 +43,7 @@ add_library(${TARGET_NAME} INTERFACE)
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
-target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
 
 # developer package
 
