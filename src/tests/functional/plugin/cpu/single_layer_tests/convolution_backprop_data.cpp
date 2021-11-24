@@ -115,6 +115,10 @@ public:
         if (function->get_parameters().size() == 1) {
             ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
         } else {
+            // WA: output_shape depends on 3rd deconvolution input data
+            // but in reference implementation doesn't implemented shape infence
+            // so we need to build new ngraph function and replace parameter 3rd input -> constant 3rd input
+            // to get valid output shapes
             funcRef = createGraph({targetInputStaticShapes[0]}, ngraph::helpers::InputLayerType::CONSTANT);
         }
     }
@@ -140,8 +144,7 @@ public:
                     continue;
                 }
                 if (inType != ov::element::Type_t::undefined) {
-                    p.input(ov::preprocess::InputInfo(i)
-                            .tensor(ov::preprocess::InputTensorInfo().set_element_type(inType)));
+                    p.input(i).tensor().set_element_type(inType);
                 }
             }
         }
@@ -149,8 +152,7 @@ public:
             auto results = function->get_results();
             for (size_t i = 0; i < results.size(); i++) {
                 if (outType != ov::element::Type_t::undefined) {
-                    p.output(ov::preprocess::OutputInfo(i)
-                                 .tensor(ov::preprocess::OutputTensorInfo().set_element_type(outType)));
+                    p.output(i).tensor().set_element_type(outType);
                 }
             }
         }
@@ -224,8 +226,7 @@ protected:
             inType = outType = prec;
         }
 
-        // TODO: replace with makeSelectedTypeStr
-        selectedType += std::string("_") + InferenceEngine::details::convertPrecision(prec).name();
+        selectedType = makeSelectedTypeStr(selectedType, prec);
 
         std::vector<InputShape> paramsShapes;
         paramsShapes.push_back(inputShape);
@@ -315,13 +316,22 @@ const auto convParams_ExplicitPadding_Planar_2D = ::testing::Combine(
     ::testing::ValuesIn(emptyOutputPadding)
 );
 
-const std::vector<DeconvInputData> Planar_2D_inputs = {
+const std::vector<DeconvInputData> Planar_2D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 12, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
         filterCPUInfoForDevice({conv_gemm_2D})
     },
+    DeconvInputData{
+        InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{15, 15}, {9, 10}, {9, 9}},
+        filterCPUInfoForDevice({conv_gemm_2D})
+    }
+};
+
+const std::vector<DeconvInputData> Planar_2D_inputs_nightly = {
     DeconvInputData{
         InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
@@ -333,19 +343,13 @@ const std::vector<DeconvInputData> Planar_2D_inputs = {
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}},
         filterCPUInfoForDevice({conv_gemm_2D})
-    },
-    DeconvInputData{
-        InputShape{{-1, 12, -1, -1}, {{ 2, 12, 7, 7}, { 2, 12, 5, 7}, { 1, 12, 9, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        {{15, 15}, {9, 10}, {9, 9}},
-        filterCPUInfoForDevice({conv_gemm_2D})
     }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Planar_2D,
-        ::testing::ValuesIn(Planar_2D_inputs),
+        ::testing::ValuesIn(Planar_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
@@ -354,20 +358,47 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Planar_2D,
-        ::testing::ValuesIn(Planar_2D_inputs),
+        ::testing::ValuesIn(Planar_2D_inputs_smoke),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuBF16PluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Planar_FP32, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Planar_2D,
+        ::testing::ValuesIn(Planar_2D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Planar_2D,
+        ::testing::ValuesIn(Planar_2D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Deconvolution (Planar 3D) ============= */
-const std::vector<DeconvInputData> Planar_3D_inputs = {
+const std::vector<DeconvInputData> Planar_3D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 12, 7, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
         filterCPUInfoForDevice({conv_gemm_3D})
     },
+    DeconvInputData{
+        InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{15, 15, 15}, {9, 10, 10}, {9, 9, 9}},
+        filterCPUInfoForDevice({conv_gemm_3D})
+    }
+};
+
+const std::vector<DeconvInputData> Planar_3D_inputs_nightly = {
     DeconvInputData{
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
         ngraph::helpers::InputLayerType::CONSTANT,
@@ -378,12 +409,6 @@ const std::vector<DeconvInputData> Planar_3D_inputs = {
         InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15, 15}},
-        filterCPUInfoForDevice({conv_gemm_3D})
-    },
-    DeconvInputData{
-        InputShape{{-1, 12, -1, -1, -1}, {{ 2, 12, 7, 7, 7}, { 2, 12, 5, 7, 7}, { 1, 12, 9, 4, 9}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        {{15, 15, 15}, {9, 10, 10}, {9, 9, 9}},
         filterCPUInfoForDevice({conv_gemm_3D})
     }
 };
@@ -402,7 +427,7 @@ const auto convParams_ExplicitPadding_Planar_3D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Planar_3D,
-        ::testing::ValuesIn(Planar_3D_inputs),
+        ::testing::ValuesIn(Planar_3D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
@@ -411,15 +436,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Planar_3D,
-        ::testing::ValuesIn(Planar_3D_inputs),
+        ::testing::ValuesIn(Planar_3D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-const auto deconv_blk_ref_2D = CPUSpecificParams{{nChw16c}, {nChw16c}, {"ref_any"}, "ref_any"};
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_FP32, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Planar_3D,
+        ::testing::ValuesIn(Planar_3D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Planar_3D,
+        ::testing::ValuesIn(Planar_3D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuBF16PluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
 /* ============= Deconvolution (Blocked 2D) ============= */
-const std::vector<DeconvInputData> Blocked_2D_inputs = {
+const std::vector<DeconvInputData> Blocked_2D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 67, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
@@ -428,21 +470,24 @@ const std::vector<DeconvInputData> Blocked_2D_inputs = {
     },
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{15, 15}, {9, 10}, {9, 9}},
+        filterCPUInfoForDevice({conv_avx512_2D})
+    }
+};
+
+const std::vector<DeconvInputData> Blocked_2D_inputs_nightly = {
+    DeconvInputData{
+        InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({deconv_blk_ref_2D})
+        filterCPUInfoForDevice({conv_avx512_2D})
     },
     DeconvInputData{
         InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{15, 15}},
-        filterCPUInfoForDevice({deconv_blk_ref_2D})
-    },
-    DeconvInputData{
-        InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        {{15, 15}, {9, 10}, {9, 9}},
-        filterCPUInfoForDevice({deconv_blk_ref_2D})
+        filterCPUInfoForDevice({conv_avx512_2D})
     }
 };
 
@@ -460,7 +505,7 @@ const auto convParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Blocked_2D,
-        ::testing::ValuesIn(Blocked_2D_inputs),
+        ::testing::ValuesIn(Blocked_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
@@ -469,15 +514,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Blocked_2D,
-        ::testing::ValuesIn(Blocked_2D_inputs),
+        ::testing::ValuesIn(Blocked_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
-const auto deconv_blk_ref_3D = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"ref_any"}, "ref_any"};
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_FP32, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Blocked_2D,
+        ::testing::ValuesIn(Blocked_2D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Blocked_2D,
+        ::testing::ValuesIn(Blocked_2D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuBF16PluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
 /* ============= Deconvolution (Blocked 3D) ============= */
-const std::vector<DeconvInputData> Blocked_3D_inputs = {
+const std::vector<DeconvInputData> Blocked_3D_inputs_smoke = {
     DeconvInputData{
         InputShape{{}, {{ 2, 35, 7, 7, 7 }}},
         ngraph::helpers::InputLayerType::CONSTANT,
@@ -486,21 +548,24 @@ const std::vector<DeconvInputData> Blocked_3D_inputs = {
     },
     DeconvInputData{
         InputShape{{-1, 35, -1, -1, -1}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 7, 5}}},
+        ngraph::helpers::InputLayerType::PARAMETER,
+        {{7, 7, 7}, {7, 9, 7}},
+        filterCPUInfoForDevice({conv_avx512_3D})
+    }
+};
+
+const std::vector<DeconvInputData> Blocked_3D_inputs_nightly = {
+    DeconvInputData{
+        InputShape{{-1, 35, -1, -1, -1}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 7, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {},
-        filterCPUInfoForDevice({deconv_blk_ref_3D})
+        filterCPUInfoForDevice({conv_avx512_3D})
     },
     DeconvInputData{
         InputShape{{-1, 35, -1, -1, -1}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 7, 5}}},
         ngraph::helpers::InputLayerType::CONSTANT,
         {{7, 7, 7}},
-        filterCPUInfoForDevice({deconv_blk_ref_3D})
-    },
-    DeconvInputData{
-        InputShape{{-1, 35, -1, -1, -1}, {{ 1, 35, 5, 5, 5}, { 2, 35, 5, 7, 5}}},
-        ngraph::helpers::InputLayerType::PARAMETER,
-        {{7, 7, 7}, {7, 9, 7}},
-        filterCPUInfoForDevice({deconv_blk_ref_3D})
+        filterCPUInfoForDevice({conv_avx512_3D})
     }
 };
 
@@ -518,7 +583,7 @@ const auto convParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Blocked_3D,
-        ::testing::ValuesIn(Blocked_3D_inputs),
+        ::testing::ValuesIn(Blocked_3D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
@@ -527,7 +592,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_Blocked_3D,
-        ::testing::ValuesIn(Blocked_3D_inputs),
+        ::testing::ValuesIn(Blocked_3D_inputs_smoke),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuBF16PluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_FP32, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Blocked_3D,
+        ::testing::ValuesIn(Blocked_3D_inputs_nightly),
+        ::testing::Values(ElementType::f32),
+        ::testing::ValuesIn(fusingParamsSet),
+        ::testing::Values(cpuEmptyPluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(nightly_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        convParams_ExplicitPadding_Blocked_3D,
+        ::testing::ValuesIn(Blocked_3D_inputs_nightly),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
@@ -548,7 +631,7 @@ const auto convParams_ExplicitPadding_1x1_2D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_1x1_2D,
-        ::testing::ValuesIn(Planar_2D_inputs),
+        ::testing::ValuesIn(Planar_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuEmptyPluginConfig)),
@@ -557,10 +640,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_FP32, DeconvolutionLayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
     ::testing::Combine(
         convParams_ExplicitPadding_1x1_2D,
-        ::testing::ValuesIn(Planar_2D_inputs),
+        ::testing::ValuesIn(Planar_2D_inputs_smoke),
         ::testing::Values(ElementType::f32),
         ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
+    DeconvolutionLayerCPUTest::getTestCaseName);
+
+/* ============= Reorder + Deconvolution ============= */
+INSTANTIATE_TEST_SUITE_P(smoke_reorder_Deconv_2D, DeconvolutionLayerCPUTest,
+    ::testing::Combine(
+        ::testing::Combine(::testing::ValuesIn(kernels2d),
+                           ::testing::Values(InferenceEngine::SizeVector{1, 1}),
+                           ::testing::ValuesIn(padBegins2d),
+                           ::testing::ValuesIn(padEnds2d),
+                           ::testing::ValuesIn(dilations2d),
+                           ::testing::ValuesIn(numOutChannels_Blocked),
+                           ::testing::Values(ngraph::op::PadType::EXPLICIT),
+                           ::testing::ValuesIn(emptyOutputPadding)),
+        ::testing::Values(DeconvInputData{InputShape{{-1, 67, -1, -1}, {{ 2, 67, 7, 7}, { 2, 67, 5, 7}, { 1, 67, 9, 4}}},
+                                                     ngraph::helpers::InputLayerType::PARAMETER,
+                                                     {{15, 15}, {9, 10}, {9, 9}},
+                                                     filterCPUInfoForDevice({conv_avx512_2D})}),
+        ::testing::Values(ElementType::f32),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(cpuEmptyPluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
 } // namespace

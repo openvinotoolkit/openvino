@@ -13,6 +13,10 @@
 namespace MKLDNNPlugin {
 
 class MKLDNNDeconvolutionNode : public MKLDNNNode {
+    using DefaultDeconvDescs = std::pair<std::shared_ptr<mkldnn::convolution_backward_data::desc>,
+                                         std::shared_ptr<mkldnn::convolution_forward::primitive_desc>>;
+    using Int8DeconvDesc = std::shared_ptr<mkldnn::deconvolution_forward::desc>;
+
 public:
     MKLDNNDeconvolutionNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
@@ -34,76 +38,123 @@ public:
     std::shared_ptr<MemoryDesc> getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
-    const mkldnn::memory& getWeights() const;
-
     InferenceEngine::Precision getRuntimePrecision() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
-    const InferenceEngine::SizeVector& getWeightDims() { return weightDims; }
+    const VectorDims& getWeightDims() { return getInputShapeAtPort(1).getStaticDims(); }
     const std::vector<ptrdiff_t>& getStride() { return stride; }
 
     void prepareParams() override;
-    void executeDynamicImpl(mkldnn::stream strm) override;
+    void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool needShapeInfer() const override;
     std::vector<VectorDims> shapeInfer() const override;
-    VectorDims deconvShapeInfer(const VectorDims &inDims) const;
-    void initPadding(const std::shared_ptr<ngraph::Node> op);
 
 private:
+    class DeconvExecutor {
+        protected:
+            class IntermReorder {
+                public:
+                    IntermReorder(MKLDNNMemoryPtr memFrom_, const mkldnn::memory::desc& descTo, const mkldnn::engine& engine);
+                    IntermReorder(const mkldnn::memory::desc& descFrom, MKLDNNMemoryPtr memTo_, const mkldnn::engine& engine);
+                    MKLDNNMemoryPtr getFromMem() const { return memFrom; }
+                    MKLDNNMemoryPtr getToMem() const { return memTo; }
+                    void exec(mkldnn::stream strm);
+
+                private:
+                    MKLDNNMemoryPtr memFrom;
+                    MKLDNNMemoryPtr memTo;
+                    mkldnn::reorder reorder;
+            };
+
+        public:
+            void exec(mkldnn::stream strm);
+            virtual ~DeconvExecutor() = default;
+
+        protected:
+            DeconvExecutor() = default;
+            std::vector<IntermReorder> inputReorders;
+            MKLDNNPrimitive execPrim;
+            std::vector<IntermReorder> outputReorders;
+            std::unordered_map<int, mkldnn::memory> primArgs;
+    };
+
+    using executorPtr = std::shared_ptr<DeconvExecutor>;
+    executorPtr execPtr = nullptr;
+
+    class DeconvExecutorDefault : public DeconvExecutor {
+        public:
+            DeconvExecutorDefault(const mkldnn::convolution_backward_data::primitive_desc& pd,
+                                  MKLDNNMemoryPtr inMem,
+                                  MKLDNNMemoryPtr weightMem,
+                                  MKLDNNMemoryPtr outMem,
+                                  const mkldnn::engine& engine);
+    };
+
+    class DeconvExecutorInt8 : public DeconvExecutor {
+        public:
+            DeconvExecutorInt8(const mkldnn::deconvolution_forward::primitive_desc& pd,
+                               MKLDNNMemoryPtr inMem,
+                               MKLDNNMemoryPtr weightMem,
+                               MKLDNNMemoryPtr outMem,
+                               const mkldnn::engine& engine);
+    };
+
     bool withGroups = false;
     bool isDW = false;
     bool isInt8 = false;
     bool autoPad = false;
-    bool extOutShape = false;
+    bool externOutShape = false;
     size_t groupNum = 1;
     size_t IC;
     size_t OC;
     std::vector<ptrdiff_t> kernel;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
-    std::vector<ptrdiff_t> paddingL;
-    std::vector<ptrdiff_t> paddingR;
-    mutable std::vector<int32_t> outSpatialDims;
-    VectorDims weightDims;
+    ov::CoordinateDiff paddingL;
+    ov::CoordinateDiff paddingR;
+    ov::CoordinateDiff outputPadding;
+    std::vector<int32_t> currentOutSpatialDims;
+    VectorDims int8WeightDims;
+
+    Shape inShape;
 
     AttrPtr pAttr;
-
-    mkldnn::reorder reorderSrc;
-    mkldnn::reorder reorderWgh;
-    mkldnn::reorder reorderDst;
-    MKLDNNMemoryPtr srcPlanarMemPtr;
-    MKLDNNMemoryPtr wghPlanarMemPtr;
-    MKLDNNMemoryPtr dstPlanarMemPtr;
 
     mkldnn::primitive_attr attr;
     void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &dims);
 
+    VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;
+    void initPadding(std::shared_ptr<ngraph::Node> op, const Shape &inShape, const std::vector<int32_t>& outSpDims);
     void initPaddingR(const Shape &inShape, const Shape &outShape);
+    std::vector<int32_t> get3rdInputData() const;
+    VectorDims computeInShapeByOutShape(const std::vector<int32_t>& outSpDims,
+                                        const ov::CoordinateDiff& pb,
+                                        const ov::CoordinateDiff& pe) const;
 
-    using DefaultDeconvDescs = std::pair<std::shared_ptr<mkldnn::convolution_backward_data::desc>,
-                                         std::shared_ptr<mkldnn::convolution_forward::primitive_desc>>;
     DefaultDeconvDescs createDescriptorInternalDefault(const mkldnn::memory::desc& in_candidate,
                                                        const mkldnn::memory::desc& wgh_candidate,
                                                        const mkldnn::memory::desc& out_candidate,
                                                        mkldnn::algorithm alg) const;
-    std::shared_ptr<mkldnn::deconvolution_forward::desc> createDescriptorInternalInt8(const mkldnn::memory::desc& in_candidate,
-                                                                                      const mkldnn::memory::desc& wgh_candidate,
-                                                                                      const mkldnn::memory::desc& out_candidate,
-                                                                                      mkldnn::algorithm alg) const;
-    std::shared_ptr<MKLDNNDescriptor> createMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
-                                                             const mkldnn::memory::desc& wghDesc,
-                                                             const mkldnn::memory::desc& dstDesc,
-                                                             bool isWinograd) const;
+    Int8DeconvDesc createDescriptorInternalInt8(const mkldnn::memory::desc& in_candidate,
+                                                const mkldnn::memory::desc& wgh_candidate,
+                                                const mkldnn::memory::desc& out_candidate) const;
+    std::shared_ptr<MKLDNNDescriptor> createDefaultMkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+                                                                    const mkldnn::memory::desc& wghDesc,
+                                                                    const mkldnn::memory::desc& dstDesc,
+                                                                    bool isWinograd) const;
+    std::shared_ptr<MKLDNNDescriptor> createInt8MkldnnDeconvDesc(const mkldnn::memory::desc& srcDesc,
+                                                                 const mkldnn::memory::desc& wghDesc,
+                                                                 const mkldnn::memory::desc& dstDesc) const;
 
     void createDeconvPrim(std::shared_ptr<MKLDNNDescriptor> desc,
                           MKLDNNMemoryPtr srcMemPtr,
                           MKLDNNMemoryPtr wghMemPtr,
                           MKLDNNMemoryPtr dstMemPtr,
                           AttrPtr attr,
-                          impl_desc_type selectedImpl,
-                          bool forceGemm = false);
+                          impl_desc_type selectedImpl);
 
     std::string errorPrefix;
 
