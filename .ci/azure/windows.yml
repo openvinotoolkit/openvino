@@ -162,7 +162,7 @@ jobs:
     displayName: 'Install Samples Tests'
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
-  - script: $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(REPO_DIR)\inference-engine\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
+  - script: $(WORK_DIR)\cmake-3.17.0-win64-x64\cmake-3.17.0-win64-x64\bin\cmake.exe -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P cmake_install.cmake && xcopy $(BUILD_DIR)\temp\opencv_4.5.2\opencv\* $(INSTALL_DIR)\opencv\ /e /h /y
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install tests'
 
