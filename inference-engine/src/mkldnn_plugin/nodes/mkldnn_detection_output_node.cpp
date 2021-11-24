@@ -33,10 +33,6 @@ bool SortScorePairDescend<std::pair<int, int>>(const std::pair<float, std::pair<
 
 bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto doOp = ngraph::as_type_ptr<const ngraph::op::v0::DetectionOutput>(op);
         if (!doOp) {
             errorMessage = "Node is not an instance of the DetectionOutput from the operations set v0.";
@@ -51,6 +47,14 @@ bool MKLDNNDetectionOutputNode::isSupportedOperation(const std::shared_ptr<const
         return false;
     }
     return true;
+}
+
+void MKLDNNDetectionOutputNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
 }
 
 MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
@@ -94,22 +98,27 @@ MKLDNNDetectionOutputNode::MKLDNNDetectionOutputNode(const std::shared_ptr<ngrap
 
     codeType = (details::CaselessEq<std::string>()(attributes.code_type, "caffe.PriorBoxParameter.CENTER_SIZE") ?
                   CodeType::CENTER_SIZE : CodeType::CORNER);
+}
 
-    priorsNum = static_cast<int>(op->get_input_shape(ID_PRIOR).back() / priorSize);
-    isPriorsPerImg = op->get_input_shape(ID_PRIOR).front() != 1;
+void MKLDNNDetectionOutputNode::prepareParams() {
+    const auto& idPriorDims = getParentEdgeAt(ID_PRIOR)->getMemory().GetShape().getStaticDims();
+    priorsNum = static_cast<int>(idPriorDims.back() / priorSize);
+    isPriorsPerImg = idPriorDims.front() != 1;
 
-    if (priorsNum * locNumForClasses * 4 != static_cast<int>(op->get_input_shape(ID_LOC)[1]))
+    const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().GetShape().getStaticDims();
+    if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1]))
         IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of location predictions ("
-                   << priorsNum * locNumForClasses * 4 << " vs "
-                   << op->get_input_shape(ID_LOC)[1] << ")";
+        << priorsNum * locNumForClasses * 4 << " vs "
+        << idLocDims[1] << ")";
 
-    if (priorsNum * classesNum != static_cast<int>(op->get_input_shape(ID_CONF).back()))
+    const auto& idConfDims = getParentEdgeAt(ID_CONF)->getMemory().GetShape().getStaticDims();
+    if (priorsNum * classesNum != static_cast<int>(idConfDims.back()))
         IE_THROW() << errorPrefix << "has incorrect number of priors, which must match number of confidence predictions.";
 
     if (decreaseClassId && backgroundClassId != 0)
         IE_THROW() << errorPrefix << "cannot use decrease_label_id and background_label_id parameter simultaneously.";
 
-    imgNum = static_cast<int>(op->get_input_shape(ID_CONF)[0]);
+    imgNum = static_cast<int>(idConfDims[0]);
 
     decodedBboxes.resize(imgNum * classesNum * priorsNum * 4);
     bboxSizes.resize(imgNum * classesNum * priorsNum);
@@ -823,7 +832,7 @@ inline void MKLDNNDetectionOutputNode::NMSMX(int* indicesIn,
 
 inline void MKLDNNDetectionOutputNode::generateOutput(float* reorderedConfData, int* indicesData, int* detectionsData, float* decodedBboxesData,
     float* dstData) {
-    const auto outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
     if (DETECTION_SIZE != 7) {

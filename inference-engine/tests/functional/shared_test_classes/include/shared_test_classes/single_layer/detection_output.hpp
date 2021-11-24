@@ -14,6 +14,8 @@
 
 namespace LayerTestsDefinitions {
 
+std::ostream& operator <<(std::ostream& os, const ngraph::op::DetectionOutputAttrs& inputShape);
+
 enum {
     idxLocation,
     idxConfidence,
