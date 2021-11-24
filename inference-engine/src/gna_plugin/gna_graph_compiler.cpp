@@ -2312,6 +2312,14 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
             return;
         }
     }
+
+    auto nextLayer = CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true,
+        [](CNNLayerPtr l) { return LayerInfo(l).isNonFunctional(); }).first;
+    // Check that layer will be an output
+    if (LayerInfo(layer).isOutput() || !nextLayer) {
+        // set the latest execution order
+        layer->userValue.v_int = UINT16_MAX;
+    }
     gnamem->reserve_ptr(layer, ptr, ALIGN64(num_data_bytes_out), 64);
 }
 
