@@ -6,7 +6,7 @@ import logging as log
 from typing import List
 
 from mo.moc_frontend.extractor import fe_user_data_repack
-from mo.moc_frontend.preprocessing import apply_preprocessing
+from mo.back.preprocessing import apply_preprocessing
 from mo.middle.passes.infer import validate_batch_in_shape
 
 from ngraph import Dimension, PartialShape        # pylint: disable=no-name-in-module,import-error
@@ -98,7 +98,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ngraph_function = moc_front_end.convert(input_model)
 
-    # Apply preprocessing (mean/scale/convert layout/etc)
+    # Apply preprocessing (mean/scale/reverse_channels/convert_layout/etc)
     apply_preprocessing(ov_function=ngraph_function, argv=argv)
 
     return ngraph_function
