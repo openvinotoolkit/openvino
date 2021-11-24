@@ -22,6 +22,9 @@ public:
         execute(strm);
     }
     void prepareParams() override;
+    std::vector<VectorDims> shapeInfer() const override {
+        return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

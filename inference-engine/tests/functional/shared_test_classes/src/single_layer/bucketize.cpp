@@ -24,14 +24,14 @@ std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<buc
     std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = obj.param;
 
     std::ostringstream result;
-    result << "DS=" << CommonTestUtils::partialShape2str({dataShape.first}) << "_";
-    for (const auto& item : dataShape.second) {
-        result << CommonTestUtils::vec2str(item) << "_";
-    }
+    result << "IS=" << CommonTestUtils::partialShape2str({dataShape.first}) << "_"
+           << CommonTestUtils::partialShape2str({bucketsShape.first}) << "_";
 
-    result << "BS=" << CommonTestUtils::partialShape2str({bucketsShape.first}) << "_";
+    for (const auto& item : dataShape.second) {
+        result << "TS=" << CommonTestUtils::vec2str(item) << "_";
+    }
     for (const auto& item : bucketsShape.second) {
-        result << CommonTestUtils::vec2str(item) << "_";
+        result << "BS=" << CommonTestUtils::vec2str(item) << "_";
     }
 
     if (with_right_bound)

@@ -179,6 +179,8 @@ void inline fill_random_unique_sequence(T* rawBlobDataPtr,
         value /= static_cast<float>(k);
         if (std::is_same<ngraph::float16, T>::value) {
             elems.insert(static_cast<T>(ngraph::float16(value).to_bits()));
+        } else if (std::is_same<ngraph::bfloat16, T>::value) {
+            elems.insert(static_cast<T>(ngraph::bfloat16(value).to_bits()));
         } else {
             elems.insert(static_cast<T>(value));
         }
