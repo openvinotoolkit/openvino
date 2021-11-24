@@ -218,6 +218,32 @@ class TestPreprocessingMOC(unittest.TestCase):
             apply_preprocessing(ov_function=function,
                                 argv=argv)
 
+    def test_error_dimension_not_clear(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.]), 'mean': None}},
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 3, 3]) # Not clear to which dimension should scale be applied
+        with self.assertRaises(Exception):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)
+
+    def test_error_dimension_mismatch_with_scale(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3., 4.]),
+                                                       'mean': np.array([1., 2., 3.])}},
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 4, 224])
+        with self.assertRaises(Exception):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)
+
+    def test_error_guess_layout_dynamic_shape(self):
+        argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2.]),
+                                                       'mean': None}},
+                         scale=None)
+        function = create_function2(shape1=PartialShape.dynamic())
+        with self.assertRaises(Exception):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)
+
     def test_reverse_input_channels(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 224, 224])
@@ -233,3 +259,34 @@ class TestPreprocessingMOC(unittest.TestCase):
         # Verify that guessed layouts are not appeared in input1,input2
         self.assertEqual(function.get_parameters()[0].layout, Layout())
         self.assertEqual(function.get_parameters()[1].layout, Layout())
+
+    def test_reverse_input_channels_2_channels(self):
+        argv = Namespace(reverse_input_channels=True,
+                         mean_scale_values={'input1': {'scale': np.array([1., 2.]), 'mean': None}},
+                         scale=None)
+        function = create_function2(shape1=[1, 224, 224, 2], shape2=[1, 3, 224, 224])
+        apply_preprocessing(ov_function=function,
+                            argv=argv)
+        # Verify that some operations are inserted.
+        op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node0.get_type_name() != 'Relu')
+        op_node1 = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node1.get_type_name() != 'Relu')
+
+        # Verify that guessed layouts are not appeared in input1,input2
+        self.assertEqual(function.get_parameters()[0].layout, Layout())
+        self.assertEqual(function.get_parameters()[1].layout, Layout())
+
+    def test_error_guess_layout_reverse_channels(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 4, 224, 224])
+        with self.assertRaises(Exception):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)
+
+    def test_error_guess_layout_reverse_channels_multi_3(self):
+        argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
+        function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 3, 224])
+        with self.assertRaises(Exception):
+            apply_preprocessing(ov_function=function,
+                                argv=argv)

@@ -92,7 +92,7 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_items, mean
         num_channels_mean = len(mean_scale['mean']) if mean_scale['mean'] is not None else 0
         num_channels_scale = len(mean_scale['scale']) if hasattr(mean_scale['scale'], '__len__') else 0
         if num_channels_mean > 1 and num_channels_scale > 1 and num_channels_mean != num_channels_scale:
-            raise Error('Mean/Scale values for {} have different sizes: {} {}'.format(num_channels_mean, num_channels_scale))
+            raise Error('Mean/Scale values for {} have different sizes: {} {}'.format(ms_name, num_channels_mean, num_channels_scale))
 
         need_channels = True if num_channels_mean > 1 or num_channels_scale > 1 else False
         if need_channels: # Mean/scale is complex and needs 'channels' specified in layout
