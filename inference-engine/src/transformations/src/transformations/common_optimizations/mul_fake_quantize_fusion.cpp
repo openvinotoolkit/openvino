@@ -93,8 +93,11 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         if (!new_input_high)
             new_input_high = input_high_div;
 
-        auto new_fq = register_new_node<opset5::FakeQuantize>(input, new_input_low, new_input_high,
-                fq->input_value(3), fq->input_value(4), fq->get_levels());
+        auto new_fq = fq->clone_with_new_inputs({input, new_input_low, new_input_high,
+                fq->input_value(3), fq->input_value(4)});
+        if (transformation_callback(new_fq))
+            return false;
+        register_new_node(new_fq);
         copy_runtime_info({pattern_value_map.at(mul_pattern).get_node_shared_ptr(), fq},
                           {new_const, new_input_low, new_input_high, new_fq});
         new_fq->set_friendly_name(fq->get_friendly_name());
