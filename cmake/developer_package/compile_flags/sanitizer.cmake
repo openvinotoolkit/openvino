@@ -18,8 +18,10 @@ if (ENABLE_UB_SANITIZER)
     # TODO: Remove -fno-sanitize=null as thirdparty/ocl/clhpp_headers UBSAN compatibility resolved:
     # https://github.com/KhronosGroup/OpenCL-CLHPP/issues/17
     set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=undefined -fno-sanitize=null")
-    # TODO: Remove -Wno-maybe-uninitialized after CVS-61143 fix
-    set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -Wno-maybe-uninitialized")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # TODO: Remove -Wno-maybe-uninitialized after CVS-61143 fix
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -Wno-maybe-uninitialized")
+    endif()
     check_cxx_compiler_flag("-fsanitize-recover=undefined" SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
     if (SANITIZE_RECOVER_UNDEFINED_SUPPORTED)
         set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=undefined")

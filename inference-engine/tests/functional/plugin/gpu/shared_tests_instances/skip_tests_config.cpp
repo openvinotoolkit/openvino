@@ -74,7 +74,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canExport.*)",
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNet.*)",
             R"(.*OVExecutableNetworkBaseTest.*CanSetConfigToExecNetAndCheckConfigAndCheck.*)",
-            R"(.*OVExecutableNetworkBaseTest.*canLoadCorrectNetworkToGetExecutableWithIncorrectConfig.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*CompareWithRefs.*)",
             R"(.*EltwiseLayerTest.*OpType=FloorMod.*NetType=i64.*)",
