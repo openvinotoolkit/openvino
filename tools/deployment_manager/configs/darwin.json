@@ -16,8 +16,7 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/lib/intel64/libinference_engine.dylib",
-        "runtime/lib/intel64/libinference_engine_transformations.dylib",
+        "runtime/lib/intel64/libov_runtime.dylib",
         "runtime/lib/intel64/libinference_engine_preproc.so",
         "runtime/lib/intel64/libinference_engine_c_api.dylib",
         "runtime/lib/intel64/libHeteroPlugin.so",

@@ -177,9 +177,9 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
     FILEDESCRIPTION "Inference Engine Core Inference library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
-if (TBBBIND_2_5_FOUND)
-    target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
-endif()
+# if (TBBBIND_2_5_FOUND)
+#     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
+# endif()
 
 # target_link_libraries(${TARGET_NAME} INTERFACE PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
 #                                              frontend_manager::static inference_engine_transformations

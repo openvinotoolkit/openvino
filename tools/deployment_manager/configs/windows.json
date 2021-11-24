@@ -16,8 +16,7 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
-        "runtime/bin/intel64/Release/inference_engine.dll",
-        "runtime/bin/intel64/Release/inference_engine_transformations.dll",
+        "runtime/bin/intel64/Release/ov_runtime.dll",
         "runtime/bin/intel64/Release/inference_engine_preproc.dll",
         "runtime/bin/intel64/Release/inference_engine_c_api.dll",
         "runtime/bin/intel64/Release/HeteroPlugin.dll",
