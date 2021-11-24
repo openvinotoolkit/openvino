@@ -995,7 +995,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
-    gnamem->commit(gnaFlags->compact_mode);
+    bool is_compact = true;
+    gnamem->commit(is_compact);
 
     dnn->Init(gnamem->getBasePtr(),
              gnamem->getTotalBytes(),
