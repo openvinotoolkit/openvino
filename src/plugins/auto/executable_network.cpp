@@ -181,12 +181,10 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         if (CPUIter != metaDevices.end()) {
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
-<<<<<<< 541c8721c74b900e1fa0c97fdbef914c6f09fbfa
-            LOG_INFO("[AUTOPLUGIN]:will load CPU for accelerator");
-=======
             _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
                 InferenceEngine::PluginConfigParams::LATENCY;
->>>>>>> hard code for num request and lantency for cpu
+            _loadContext[CPU].workName = "CPU_HELP";
+            LOG_INFO("[AUTOPLUGIN]:will load CPU for accelerator");
         } else {
             _loadContext[CPU].isEnabled = false;
         }
@@ -200,7 +198,10 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
              _loadContext[i].task = [this, contextPtr, modelPath, network]() mutable {
                       TryToLoadNetWork(*contextPtr, modelPath, network);
                       if (contextPtr->isLoadSuccess) {
-                          GenerateWorkers(contextPtr->deviceInfo.deviceName, contextPtr->executableNetwork);
+                          if (contextPtr->workName.empty()) {
+                                contextPtr->workName = contextPtr->deviceInfo.deviceName;
+                          }
+                          GenerateWorkers(contextPtr->workName, contextPtr->executableNetwork);
                           //need lock
                           {
                              std::lock_guard<std::mutex> lock(_confMutex);
@@ -250,6 +251,8 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
             _workerRequests[device.deviceName];
             _inferPipelineTasksDeviceSpecific[device.deviceName] = nullptr;
         }
+        _idleWorkerRequests["CPU_HELP"];
+        _workerRequests["CPU_HELP"];
         _executor->run(_loadContext[CPU].task);
         _executor->run(_loadContext[ACTUALDEVICE].task);
     } else {
@@ -348,6 +351,7 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                if (_loadContext[ACTUALDEVICE].future.valid()) {
                    _loadContext[ACTUALDEVICE].future.get();
                }
+
                // if _loadContext[ACTUALDEVICE] load failed,  fall back to _loadContext[CPU]
                if (!_loadContext[ACTUALDEVICE].isAlready) {
                    _loadContext[ACTUALDEVICE].executableNetwork = _loadContext[CPU].executableNetwork;
@@ -374,7 +378,11 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
             if (_loadContext[ACTUALDEVICE].isAlready) {
                 devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
             } else {
-                devices.push_back(_loadContext[CPU].deviceInfo);
+                // replace deviceName with workName, so schedule can select correct
+                // idleWorkerQueue
+                auto deviceInfo =  _loadContext[CPU].deviceInfo;
+                deviceInfo.deviceName = _loadContext[CPU].workName;
+                devices.push_back(std::move(deviceInfo));
             }
         }
     } else {
@@ -606,14 +614,16 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
+        if (_loadContext[ACTUALDEVICE].isAlready) {
+            return _loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+        }
+
+        // if Actual Device is not ready, use hard code value
         if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
             unsigned int res = 4u;
             IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
         }
-        // fixme: should we wait actual device? meanwhile it will block inference, how to fix?
-        if (_loadContext[ACTUALDEVICE].isAlready) {
-            return _loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
-        }
+
         return _loadContext[CPU].executableNetwork->GetMetric(name);
     }
 
