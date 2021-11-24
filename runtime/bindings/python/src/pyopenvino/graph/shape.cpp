@@ -25,13 +25,13 @@ void regclass_graph_Shape(py::module m) {
     shape.def("__len__", [](const ov::Shape& v) {
         return v.size();
     });
-    shape.def("__setitem__", [](ov::Shape& self, int key, uint64_t d) {
+    shape.def("__setitem__", [](ov::Shape& self, size_t key, size_t d) {
         self[key] = d;
     });
-    shape.def("__setitem__", [](ov::Shape& self, int key, ov::Dimension d) {
+    shape.def("__setitem__", [](ov::Shape& self, size_t key, ov::Dimension d) {
         self[key] = d.get_length();
     });
-    shape.def("__getitem__", [](const ov::Shape& v, int key) {
+    shape.def("__getitem__", [](const ov::Shape& v, size_t key) {
         return v[key];
     });
 
