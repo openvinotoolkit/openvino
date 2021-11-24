@@ -79,6 +79,7 @@
 #include "transformations/op_conversions/gather_normalize_negative_indices.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 
 #include <ngraph/pass/manager.hpp>
@@ -172,6 +173,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertGather7ToGather8, false>();
     manager.register_pass<ngraph::pass::ConvertDeformableConv8To1>();
     manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
+    manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8, false>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
