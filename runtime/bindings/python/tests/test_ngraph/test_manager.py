@@ -184,7 +184,7 @@ def test_serialize_pass_tuple():
     model = ov.floor(ov.minimum(ov.abs(parameter_a), ov.multiply(parameter_b, parameter_c)))
     func = Function(model, [parameter_a, parameter_b, parameter_c], "Function")
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", output_file=(xml_path, bin_path))
+    pass_manager.register_pass("Serialize", output_files=(xml_path, bin_path))
     pass_manager.run_passes(func)
 
     res_func = core.read_model(model=xml_path, weights=bin_path)

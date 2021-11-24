@@ -42,7 +42,7 @@ public:
                                                                   : py::cast<std::string>(args[1]);
                 push_pass<ov::pass::Serialize>(xml_path, bin_path, Version::UNSPECIFIED);
             } else if (num_of_args == 1) {
-                const auto file_paths = kwargs.contains("output_file") ? py::cast<FilePaths>(kwargs["output_file"])
+                const auto file_paths = kwargs.contains("output_files") ? py::cast<FilePaths>(kwargs["output_files"])
                                                                        : py::cast<FilePaths>(args[0]);
                 push_pass<ov::pass::Serialize>(file_paths.first, file_paths.second, Version::UNSPECIFIED);
             } else {
@@ -76,15 +76,15 @@ void regclass_graph_passes_Manager(py::module m) {
 
         Kwargs:
             Paths where generated files will be saved
-            can be provided via two seperate arguments,
+            can be provided either via two seperate arguments,
             namely xml_path and bin path, or as a single tuple
-            output_file.
+            output_files.
 
             xml_path : str
                 path where .xml file will be saved
             bin_path : str
                 path where .bin file will be saved
-            output_file : Tuple[str, str]
+            output_files : Tuple[str, str]
                 tuple which contains paths where .xml and .bin files will be saved
 
         Examples:
@@ -95,6 +95,6 @@ void regclass_graph_passes_Manager(py::module m) {
 
         2. Tuple containing paths:
             pass_manager = Manager()
-            pass_manager.register_pass("Serialize", output_file=("exmaple.xml", "example.bin"))
+            pass_manager.register_pass("Serialize", output_files=("example.xml", "example.bin"))
     // )");
 }
