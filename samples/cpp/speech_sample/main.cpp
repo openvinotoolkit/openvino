@@ -687,7 +687,7 @@ int main(int argc, char* argv[]) {
         gnaPluginConfig[GNAConfigParams::KEY_GNA_COMPILE_TARGET] = FLAGS_compile_target;
         gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] =
             std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
-        gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(YES);
+        gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
         gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         // -----------------------------------------------------------------------------------------------------
 
