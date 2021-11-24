@@ -65,10 +65,8 @@ protected:
         bool mergeRepeated;
         InputShapeParams shapes;
         std::tie(shapes, inType, mergeRepeated) = GetParam();
-
+        selectedType = "ref_any_FP32";
         targetDevice = CommonTestUtils::DEVICE_CPU;
-        static int count = 0;
-        std::cout << "Cut count " << count++ << std::endl;
         // construct input shapes
         ASSERT_EQ(shapes.first.size(), 3);
         const auto& in_dyn_T = shapes.first[0];
@@ -134,8 +132,7 @@ protected:
 TEST_P(CTCGreedyDecoderLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoder");
+    CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoder");
 }
 
 namespace {

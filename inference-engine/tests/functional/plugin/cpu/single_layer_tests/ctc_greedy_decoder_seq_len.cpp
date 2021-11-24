@@ -83,7 +83,7 @@ protected:
         InputShapeParams shapes;
         ElementType indexType;
         std::tie(shapes, inType, indexType, mergeRepeated) = GetParam();
-
+        selectedType = "ref_any_FP32";
         targetDevice = CommonTestUtils::DEVICE_CPU;
         ASSERT_EQ(shapes.first.size(), 4);
         const auto& in_dyn_N = shapes.first[0];
@@ -172,8 +172,7 @@ protected:
 TEST_P(CTCGreedyDecoderSeqLenLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoderSeqLen");
+    CheckPluginRelatedResults(executableNetwork, "CTCGreedyDecoderSeqLen");
 }
 
 namespace {
