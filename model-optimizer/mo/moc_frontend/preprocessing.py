@@ -9,8 +9,8 @@ from mo.utils.utils import refer_to_faq_msg
 
 import numpy as np
 
-from openvino import Function, Layout, PartialShape
-from openvino.preprocess import PrePostProcessor
+from openvino import Function, Layout, PartialShape     # pylint: disable=no-name-in-module,import-error
+from openvino.preprocess import PrePostProcessor        # pylint: disable=no-name-in-module,import-error
 
 
 def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
