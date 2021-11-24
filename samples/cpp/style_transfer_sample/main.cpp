@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
         // ------------------------------ Get Available Devices
         // ------------------------------------------------------
         slog::info << "Device info: " << slog::endl;
-        std::cout << ie.GetVersions(FLAGS_d) << std::endl;
+        slog::info << ie.GetVersions(FLAGS_d) << slog::endl;
 
         if (!FLAGS_l.empty()) {
             IExtensionPtr extension_ptr = std::make_shared<Extension>(FLAGS_l);

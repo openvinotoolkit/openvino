@@ -17,6 +17,7 @@
 #  include "win_synchapi.h"
 # else
 #  include <pthread.h>
+#  include <unistd.h>
 #  ifdef __APPLE__
 #   include "pthread_semaphore.h"
 #  else
@@ -58,6 +59,7 @@ int XLink_sem_destroy(XLink_sem_t* sem);
 int XLink_sem_post(XLink_sem_t* sem);
 int XLink_sem_wait(XLink_sem_t* sem);
 int XLink_sem_timedwait(XLink_sem_t* sem, const struct timespec* abstime);
+int XLink_sem_trywait(XLink_sem_t* sem);
 
 //
 // Helper functions for XLink semaphore wrappers.
