@@ -13,11 +13,11 @@ namespace frontend {
 namespace tf {
 namespace op {
 
-OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
+OutputVector translate_arg_min_max(const NodeContext& node, std::string mode) {
     Output<Node> ng_input = node.get_input(0);
 
     std::vector<int64_t> tf_dim;
-    get_static_input_vec(node, 1, &tf_dim);
+    get_const_input(node, 1, &tf_dim);
 
     Shape input_shape = ng_input.get_shape();
     size_t input_rank = input_shape.size();
@@ -26,10 +26,10 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
 
     // If input dimension is negative, make it positive
     if (tf_dim[0] < 0) {
-        NGRAPH_DEBUG << "Input dimension is negative, make it positive " << tf_dim[0];
+        OPENVINO_DEBUG << "Input dimension is negative, make it positive " << tf_dim[0];
         tf_dim[0] = (int64_t)input_rank + tf_dim[0];
     }
-    NGRAPH_DEBUG << "Axis along which to compute " << tf_dim[0];
+    OPENVINO_DEBUG << "Axis along which to compute " << tf_dim[0];
     size_t k_axis = tf_dim[0];
 
     auto ng_et = node.get_attribute<element::Type>("output_type");
@@ -47,11 +47,11 @@ OutputVector TranslateArgMinMax(const NodeContext& node, std::string mode) {
 }
 
 OutputVector translate_arg_max_op(const NodeContext& node) {
-    return (TranslateArgMinMax(node, "max"));
+    return (translate_arg_min_max(node, "max"));
 }
 
 OutputVector translate_arg_min_op(const NodeContext& node) {
-    return (TranslateArgMinMax(node, "min"));
+    return (translate_arg_min_max(node, "min"));
 }
 }  // namespace op
 }  // namespace tf
