@@ -145,7 +145,7 @@ void program::init_primitives() {
 }
 
 void program::compile() {
-    _kernels_cache->build_all();
+    _kernels_cache->build_all(prog_id);
 }
 
 void program::init_kernels() {

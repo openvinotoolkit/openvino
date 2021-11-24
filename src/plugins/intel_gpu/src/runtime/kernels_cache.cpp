@@ -162,7 +162,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
     for (const auto& code : kernels_source_code) {
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
-        const source_code org_source_code = { full_code };
         std::string entry_point = code.kernel_strings->entry_point;
         std::string options = code.kernel_strings->options;
         bool batch_compilation = code.kernel_strings->batch_compilation;
@@ -202,9 +201,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         current_batch.dump_custom_program = dump_custom_program;
         current_batch.entry_point_to_id[entry_point] = code.id;
 
-        assert(org_source_code.size() == 1);
-
-        current_batch.source.push_back(std::move(org_source_code.front()));
+        current_batch.source.push_back(std::move(full_code));
         current_batch.kernels_counter++;
     }
 
@@ -262,7 +259,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 }
 
 // TODO: This build_batch method should be backend specific
-void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch) {
+void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch, uint32_t prog_id) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::build_batch");
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
@@ -283,7 +280,8 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
             current_dump_file_name += '/';
 
-        current_dump_file_name += "clDNN_program_" + std::to_string(batch.bucket_id) + "_part_" + std::to_string(batch.batch_id) + ".cl";
+        current_dump_file_name += "clDNN_program_" + std::to_string(prog_id) + "_bucket_" + std::to_string(batch.bucket_id)
+                               + "_part_" + std::to_string(batch.batch_id) + ".cl";
     }
 
     std::ofstream dump_file;
@@ -404,7 +402,7 @@ kernel::ptr kernels_cache::get_kernel(kernel_id id) const {
     return res->second;
 }
 
-void kernels_cache::build_all() {
+void kernels_cache::build_all(uint32_t prog_id) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
     if (!_pending_compilation)
         return;
@@ -425,9 +423,9 @@ void kernels_cache::build_all() {
     std::vector<InferenceEngine::Task> tasks;
     for (int idx = 0; idx < batches.size(); idx++) {
         auto& batch = batches[idx];
-        tasks.push_back([this, &_build_engine, batch, &exception] {
+        tasks.push_back([this, &_build_engine, batch, &exception, &prog_id] {
             try {
-                build_batch(*_build_engine, batch);
+                build_batch(*_build_engine, batch, prog_id);
             } catch(...) {
                 exception = std::current_exception();
             }

@@ -79,7 +79,7 @@ private:
     std::vector<std::string> batch_header_str;
 
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
-    void build_batch(const engine& build_engine, const batch_program& batch);
+    void build_batch(const engine& build_engine, const batch_program& batch, uint32_t prog_id = 0);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
@@ -94,7 +94,7 @@ public:
         batch_header_str = std::move(batch_headers);
     }
     // forces compilation of all pending kernels/programs
-    void build_all();
+    void build_all(uint32_t prog_id = 0);
     void reset();
 };
 
