@@ -218,7 +218,7 @@ private:
     void run(program& p) override;
     virtual void run(program& p, reorder_factory& rf);
     template <typename T>
-    void optimize_bias(T& node, reorder_factory& rf, program& p);
+    bool optimize_bias(T& node, reorder_factory& rf, program& p);
     reorder_factory& _rf;
 };
 
