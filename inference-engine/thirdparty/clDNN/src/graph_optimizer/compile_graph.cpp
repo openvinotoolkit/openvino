@@ -54,5 +54,9 @@ void compile_graph::run(program& p) {
 
         task_executor->runAndWait(tasks);
         tasks.clear();
+
+        if (exception) {
+            std::rethrow_exception(exception);
+        }
     }
 }
