@@ -329,13 +329,13 @@ def get_command_line_arguments(argv):
             arg_value = ''
         else:
           if arg[0] == '-':
-              if arg_name is not '':
+              if arg_name != '':
                 parameters.append((arg_name, arg_value))
                 arg_value = ''
               arg_name = arg
           else:
               arg_value = arg
-    if arg_name is not '':
+    if arg_name != '':
         parameters.append((arg_name, arg_value))
     return parameters
 
