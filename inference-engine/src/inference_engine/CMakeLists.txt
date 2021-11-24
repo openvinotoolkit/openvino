@@ -127,6 +127,8 @@ add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api
 # Create object library
 
 add_library(${TARGET_NAME}_obj OBJECT
+            ${IE_STATIC_DEPENDENT_FILES}
+            ${LEGACY_LIBRARY_SHARED_SRCS}
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
@@ -161,13 +163,9 @@ endif()
 
 # Create library file from object library
 
-add_library(${TARGET_NAME}
-            ${IE_STATIC_DEPENDENT_FILES}
-            ${LEGACY_LIBRARY_SHARED_SRCS}
-            ${vs_version_file}
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
+add_library(${TARGET_NAME} INTERFACE)
 
-add_library(openvino::runtime ALIAS ${TARGET_NAME})
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
@@ -176,31 +174,31 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine Core Runtime library")
+    FILEDESCRIPTION "Inference Engine Core Inference library")
 
 set_ie_threading_interface_for(${TARGET_NAME})
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
-                                             frontend_manager::static inference_engine_transformations
-                                     PUBLIC ngraph)
+# target_link_libraries(${TARGET_NAME} INTERFACE PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
+#                                              frontend_manager::static inference_engine_transformations
+#                                      INTERFACE PUBLIC ngraph)
 
-target_include_directories(${TARGET_NAME} INTERFACE
-            $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-            $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
-    PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
+target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
+# target_include_directories(${TARGET_NAME}
+#             INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+#             INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
+#             INTERFACE PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+#             INTERFACE $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+# target_compile_definitions(${TARGET_NAME} INTERFACE PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
-ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -315,7 +313,7 @@ ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
 
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME inference)
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
@@ -325,16 +323,16 @@ install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
                              runtime/include/ie)
 
 if(BUILD_SHARED_LIBS)
-    install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+    install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
             DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT core)
 
     # for InferenceEngineUnitTest
     if(WIN32)
-        install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
                 DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     else()
-        install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
+        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
                 DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
 endif()
@@ -343,17 +341,9 @@ endif()
 
 ov_install_static_lib(${TARGET_NAME}_plugin_api core)
 
-# Install cmake scripts
-
-install(EXPORT OpenVINOTargets
-        FILE OpenVINOTargets.cmake
-        NAMESPACE openvino::
-        DESTINATION runtime/cmake
-        COMPONENT core_dev)
-
 set(IE_NGRAPH_DIR "${CMAKE_BINARY_DIR}/ngraph")
 set(IE_INCLUDE_DIR "${PUBLIC_HEADERS_DIR}/ie")
-set(IE_PARALLEL_CMAKE "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake")
+set(IE_PARALLEL_CMAKE "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake")
 
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/InferenceEngineConfig.cmake"
@@ -388,7 +378,7 @@ configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cm
 
 install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-              "${InferenceEngine_SOURCE_DIR}/cmake/ie_parallel.cmake"
+              "${OpenVINO_SOURCE_DIR}/cmake/ie_parallel.cmake"
         DESTINATION runtime/cmake
         COMPONENT core_dev)
 

@@ -89,11 +89,80 @@ ie_cpack_add_component(ngraph_dev REQUIRED DEPENDS ngraph)
 # add target with processed tests model zoo
 include(cmake/test_model_zoo.cmake)
 
+if(ENABLE_TBBBIND_2_5)
+    # try to find prebuilt version of tbbbind_2_5
+    find_package(TBBBIND_2_5 QUIET)
+    if(TBBBIND_2_5_FOUND)
+        message(STATUS "Static tbbbind_2_5 package is found")
+        set_target_properties(${TBBBIND_2_5_IMPORTED_TARGETS} PROPERTIES
+            INTERFACE_COMPILE_DEFINITIONS TBBBIND_2_5_AVAILABLE)
+        if(NOT BUILD_SHARED_LIBS)
+            set(install_tbbbind ON)
+        endif()
+    endif()
+endif()
+
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
 add_subdirectory(ngraph)
 add_subdirectory(inference-engine)
 add_subdirectory(runtime)
+
+# ----------------- OpenVINO runtime library --------------------------------
+add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_transformations_obj>
+                       $<TARGET_OBJECTS:inference_engine_obj>)
+add_library(openvino::runtime ALIAS ov_runtime)
+set_target_properties(ov_runtime PROPERTIES EXPORT_NAME runtime)
+
+target_include_directories(ov_runtime INTERFACE PRIVATE $<TARGET_PROPERTY:ov_runtime_dev,INTERFACE_INCLUDE_DIRECTORIES>
+                                                PUBLIC $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
+
+ie_register_plugins(MAIN_TARGET ov_runtime
+                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+if(WIN32)
+    set_target_properties(ov_runtime PROPERTIES COMPILE_PDB_NAME ov_runtime)
+endif()
+
+target_compile_definitions(ov_runtime PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+
+target_link_libraries(ov_runtime PUBLIC ngraph
+   PRIVATE ngraph ngraph_reference openvino::itt ngraph::builder pugixml::static openvino::util ${CMAKE_DL_LIBS} Threads::Threads  frontend_manager::static)
+if (TBBBIND_2_5_FOUND)
+    target_link_libraries(ov_runtime PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
+endif()
+set_ie_threading_interface_for(ov_runtime)
+ie_mark_target_as_cc(ov_runtime)
+
+# LTO
+set_target_properties(ov_runtime PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+
+
+export(TARGETS ov_runtime NAMESPACE openvino::
+       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+# ----------------- OpenVINO runtime library --------------------------------
+
+# --------------- OpenVINO runtime library dev ------------------------------
+add_library(ov_runtime_dev INTERFACE)
+target_link_libraries(ov_runtime_dev INTERFACE PUBLIC INTERFACE inference_engine_plugin_api)
+add_library(openvino::runtime::dev ALIAS ov_runtime_dev)
+set_ie_threading_interface_for(ov_runtime_dev)
+# --------------- OpenVINO runtime library dev ------------------------------
+
+install(TARGETS ov_runtime EXPORT OpenVINOTargets
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        INCLUDES DESTINATION runtime/include)
+
+# Install cmake scripts
+install(EXPORT OpenVINOTargets
+        FILE OpenVINOTargets.cmake
+        NAMESPACE openvino::
+        DESTINATION runtime/cmake
+        COMPONENT core_dev)
+
 add_subdirectory(samples)
 include(cmake/extra_modules.cmake)
 add_subdirectory(model-optimizer)
