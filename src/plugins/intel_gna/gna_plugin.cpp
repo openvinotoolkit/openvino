@@ -83,11 +83,9 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 
-#include "transformations/utils/transformation_helper.hpp"
-#include "transformations/transpose_nchw.hpp"
-
 #include <ngraph/opsets/opset7.hpp>
 
+#if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
