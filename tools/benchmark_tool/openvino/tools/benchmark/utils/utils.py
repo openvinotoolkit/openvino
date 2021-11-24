@@ -561,13 +561,16 @@ def get_inputs_info(shape_string, tensor_shape_string, layout_string, batch_size
         if batch_size != 0:
             if batch_size.is_static and tensor_shape_map:
                  logger.warning(f"Batch size will be ignored. Provide batch deminsion in tensor_shape parameter.")
-            elif 'N' in info.layout:
-                batch_index = info.layout.index('N')
+            else:
+                batch_index = 0
+                if 'N' in info.layout:
+                    batch_index = info.layout.index('N')
+                else:
+                    logger.warning(f"Batch dimension is not provided in layout. "
+                                    "The first dimension will be interpreted as batch size.")
                 if info.partial_shape[batch_index] != batch_size:
                     info.partial_shape[batch_index] = batch_size
                     reshape = True
-            else:
-                raise Exception("Can't identify batch dimension, provide layout defining 'N' deminsion.")
 
         # Tensor shape
         if info.name in tensor_shape_map.keys() and info.is_dynamic:
