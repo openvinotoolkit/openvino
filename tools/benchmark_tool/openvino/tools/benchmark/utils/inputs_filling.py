@@ -242,7 +242,9 @@ def get_image_tensors(image_paths, info, batch_sizes):
             image_filename = image_paths[image_index]
             logger.info(f'Prepare image {image_filename}')
             image = cv2.imread(image_filename)
-            if not process_with_original_shapes:
+            if process_with_original_shapes:
+                logger.info(f'Image will be processed with original shape - {image.shape[:-1]}')
+            else:
                 new_im_size = (widthes[i % num_shapes], heights[i % num_shapes])
                 if image.shape[:-1] != new_im_size:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
