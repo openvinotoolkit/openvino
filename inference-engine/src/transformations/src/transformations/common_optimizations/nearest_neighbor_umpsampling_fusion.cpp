@@ -71,49 +71,6 @@ bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& 
     return true;
 }
 
-//std::shared_ptr<opset8::Unsqueeze> get_input_unsqueeze_for_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& shape) {
-//    size_t rank = shape.size();
-//
-//    const auto inputs = concat->input_values();
-//    size_t num_of_input_values = inputs.size();
-//
-//    if (num_of_input_values != 2 + 2 * (rank - 2)) return nullptr;
-//
-//    const auto input0 = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[0].get_node_shared_ptr());
-//    if (!input0) return nullptr;
-//
-//    const auto input0_axis = std::dynamic_pointer_cast<opset8::Constant>(input0->input_value(1).get_node_shared_ptr());
-//    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return nullptr;
-//
-//    std::vector<int64_t> input_constants(num_of_input_values, 1);
-//
-//    for (size_t i = 1; i < num_of_input_values; ++i) {
-//        const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
-//        if (!current_input) return nullptr;
-//
-//        const auto current_input_axis = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
-//        if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return nullptr;
-//
-//        const auto unsqueezed_const = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(0).get_node_shared_ptr());
-//        if (!unsqueezed_const) return nullptr;
-//
-//        const auto unsqueezed_const_value = unsqueezed_const->cast_vector<int64_t>();
-//        if (unsqueezed_const_value.size() != 1) return nullptr;
-//
-//        input_constants[i] = unsqueezed_const_value[0];
-//    }
-//
-//    std::vector<int64_t> expected_input_constants(num_of_input_values, 1);
-//    for (size_t i = 1; i <= rank - 2; ++i) {
-//        expected_input_constants[2 * (i - 1) + 1] = static_cast<int64_t>(shape[i]);
-//    }
-//    expected_input_constants.back() = static_cast<int64_t>(shape.back());
-//
-//    if (input_constants != expected_input_constants) return nullptr;
-//
-//    return input0;
-//}
-
 std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<opset8::Concat>& concat, const Shape& input_shape) {
     size_t rank = input_shape.size();
 
@@ -146,47 +103,6 @@ std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<o
 
     return input_constants;
 }
-
-//std::pair<std::shared_ptr<opset8::Unsqueeze>, std::vector<int64_t>> get_input_unsqueeze_for_concat_2(const std::shared_ptr<opset8::Concat>& concat,
-//                                                                                                     const Shape& shape) {
-//    size_t rank = shape.size();
-//
-//    const auto inputs = concat->input_values();
-//    size_t num_of_input_values = inputs.size();
-//
-//    if (num_of_input_values != rank) return {};
-//
-//    const auto input0 = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[0].get_node_shared_ptr());
-//    if (!input0) return {};
-//
-//    const auto input0_axis = std::dynamic_pointer_cast<opset8::Constant>(input0->input_value(1).get_node_shared_ptr());
-//    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return {};
-//
-//    std::vector<int64_t> input_constants(num_of_input_values - 1, 0);
-//
-//    for (size_t i = 1; i < num_of_input_values; ++i) {
-//        const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
-//        if (!current_input) return {};
-//
-//        const auto current_input_axis = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
-//        if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return {};
-//
-//        const auto unsqueezed_const = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(0).get_node_shared_ptr());
-//        if (!unsqueezed_const) return {};
-//
-//        const auto unsqueezed_const_value = unsqueezed_const->cast_vector<int64_t>();
-//        if (unsqueezed_const_value.size() != 1) return {};
-//
-//        input_constants[i - 1] = unsqueezed_const_value[0];
-//    }
-//
-//    if (input_constants.back() != static_cast<int64_t>(shape.back())) return {};
-//
-//    input_constants.pop_back();
-//
-//    return {input0, input_constants};
-//}
-
 } // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NearestNeighborUpsamplingFusion, "NearestNeighborUpsamplingFusion", 0);
