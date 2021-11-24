@@ -6,9 +6,9 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/opsets/opset8.hpp"
 #include "onnx_import/core/node.hpp"
 #include "onnx_import/core/null_node.hpp"
+#include "openvino/opsets/opset8.hpp"
 
 namespace ngraph {
 namespace onnx_import {
@@ -21,13 +21,15 @@ OutputVector aten(const Node& node) {
     std::string operator_name = node.get_attribute_value<std::string>("operator", "");
     CHECK_VALID_NODE(node,
                      operator_name == "embedding_bag",
-                     "Only `embedding_bag` is supported as ATen `operator` attribute.");
+                     "Only `embedding_bag` is supported as ATen `operator` attribute. Got: ",
+                     operator_name);
 
     const int64_t mode = node.get_attribute_value<int64_t>("mode");
     CHECK_VALID_NODE(node,
                      mode == 0,
-                     "Unsupported mode, only `sum` is supported as ATen embedding_bag `mode` attribute.");
-    CHECK_VALID_NODE(node, inputs.size() >= 2, "Minimum 2 inputs are required, Got: ", inputs.size());
+                     "Unsupported mode, only `0` (sum) is supported as ATen embedding_bag `mode` attribute. Got: ",
+                     mode);
+    CHECK_VALID_NODE(node, inputs.size() >= 2, "Minimum 2 inputs are required. Got: ", inputs.size());
 
     std::shared_ptr<ov::Node> embedding_bag;
     const bool is_packed_two_inputs =
@@ -61,7 +63,7 @@ OutputVector aten(const Node& node) {
         const auto weights_shape_node = std::make_shared<default_opset::ShapeOf>(emb_tbl_in, ind_type);
         const auto weights_last_dim_idx = std::make_shared<default_opset::Constant>(element::i32, Shape{1}, -1);
         const auto weights_last_dim =
-            std::make_shared<opset8::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
+            std::make_shared<ov::opset8::Gather>(weights_shape_node, weights_last_dim_idx, zero_const);
         const auto zero_col_node =
             std::make_shared<default_opset::Broadcast>(zero_of_data_type_const, weights_last_dim);
         const auto default_embeddings_node = std::make_shared<default_opset::Unsqueeze>(zero_col_node, zero_const);

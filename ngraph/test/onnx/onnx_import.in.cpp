@@ -4509,3 +4509,33 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_many_node_outputs) {
     test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, 0, 0, -0.2, 0.8});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_embedding_mode) {
+    try {
+        const auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_embedding_mode.onnx"));
+        FAIL() << "Expected exception was not thrown.";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Unsupported mode, only `0` (sum) is supported as ATen embedding_bag `mode` attribute. Got: 1"));
+    } catch (...) {
+        FAIL() << "Other exception than expected was thrown.";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_unsupported_operator) {
+    try {
+        const auto function =
+            onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/aten_unsupported_operator.onnx"));
+        FAIL() << "Expected exception was not thrown.";
+    } catch (const ngraph::ngraph_error& e) {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string(
+                "Only `embedding_bag` is supported as ATen `operator` attribute. Got: test_unsupported_operator"));
+    } catch (...) {
+        FAIL() << "Other exception than expected was thrown.";
+    }
+}
