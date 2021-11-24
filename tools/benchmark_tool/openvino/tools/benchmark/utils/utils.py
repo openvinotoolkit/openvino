@@ -6,6 +6,7 @@ from logging import exception, log
 from openvino import Core, Function, PartialShape, Dimension, Layout
 from openvino.impl import Type
 from openvino.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
+from openvino.offline_transformations_pybind import serialize
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
@@ -290,8 +291,11 @@ def process_help_inference_string(benchmark_app, device_number_streams):
     return output_string
 
 
-def dump_exec_graph(exe_network, exec_graph_path):
-    pass # TODO: add when serializer will be represented in python
+def dump_exec_graph(exe_network, model_path, weight_path = None):
+    if not weight_path:
+        weight_path = model_path[:model_path.find(".xml")] + ".bin"
+    serialize(exe_network.get_runtime_function(), model_path, weight_path)
+
 
 
 def print_perf_counters(perf_counts_list):
