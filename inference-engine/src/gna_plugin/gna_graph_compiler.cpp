@@ -2339,6 +2339,8 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // real input not a memory input
     if (LayerInfo(prevLayer).isInput()) {
+        // set the latest execution order
+        layer->userValue.v_int = UINT16_MAX;
         if (0 == inputDesc->bytes_allocated_for_input[prevLayer->name]) {
             // if request for allocation less that realTensorInput - we need to extend request
             auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
