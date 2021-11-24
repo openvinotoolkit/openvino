@@ -103,7 +103,6 @@ target_link_libraries(ngraph PRIVATE INTERFACE openvino::runtime)
 add_library(ngraph::ngraph ALIAS ngraph)
 add_library(openvino::core ALIAS ngraph)
 
-target_link_libraries(ngraph PRIVATE ${CMAKE_DL_LIBS})
 target_include_directories(ngraph PUBLIC INTERFACE $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
 
 #-----------------------------------------------------------------------------------------------
