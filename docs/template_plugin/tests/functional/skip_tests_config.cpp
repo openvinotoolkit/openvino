@@ -98,6 +98,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReferenceTopKTest.*aType=u16.*)",
         R"(.*ReferenceTopKTest.*aType=bf16.*)",
         R"(.*ReferenceTopKTest.*aType=f64.*)",
+        // CVS-63947
+        R"(.*ReferenceConcatTest.*concat_zero_.*)",
     };
 
 #ifdef _WIN32
