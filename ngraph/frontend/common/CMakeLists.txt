@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "frontend_manager")
+set(TARGET_NAME "frontend_common")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wmissing-declarations)
@@ -52,7 +52,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME}_obj)
 #     target_include_directories(${TARGET_NAME}_static PUBLIC
 #         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
 #     target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-#     target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_MANAGER)
+#     target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_COMMON)
 #     ov_install_static_lib(${TARGET_NAME}_static ngraph)
 # else()
 #     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
@@ -64,19 +64,25 @@ add_library(${TARGET_NAME} INTERFACE)
 target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
-add_library(openvino::frontend::manager ALIAS ${TARGET_NAME})
-add_library(frontend_manager::static ALIAS ${TARGET_NAME})
+add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
+add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::manager)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME frontend::common)
+
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph)
 
-install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/frontend_manager
+install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/common
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev
         FILES_MATCHING PATTERN "*.hpp")
+        
+install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/
+        DESTINATION ${FRONTEND_INSTALL_INCLUDE}
+        COMPONENT ngraph_dev
+        FILES_MATCHING PATTERN "manager.hpp")
 
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
