@@ -32,8 +32,6 @@ static void regclass_graph_PreProcessSteps(py::module m) {
                                                                                                     "PreProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
 
-    steps.def(py::init<>());
-
     steps.def(
         "mean",
         [](ov::preprocess::PreProcessSteps& me, float value) {
@@ -186,8 +184,6 @@ static void regclass_graph_PostProcessSteps(py::module m) {
         "PostProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
 
-    steps.def(py::init<>());
-
     steps.def(
         "convert_element_type",
         [](ov::preprocess::PostProcessSteps& me, ov::element::Type type) {
@@ -241,8 +237,6 @@ static void regclass_graph_InputTensorInfo(py::module m) {
                                                                                                    "InputTensorInfo");
     info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
 
-    info.def(py::init<>());
-
     info.def(
         "set_element_type",
         [](ov::preprocess::InputTensorInfo& me, const ov::element::Type& type) {
@@ -285,8 +279,6 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         "OutputTensorInfo");
     info.doc() = "openvino.impl.preprocess.OutputTensorInfo wraps ov::preprocess::OutputTensorInfo";
 
-    info.def(py::init<>());
-
     info.def(
         "set_element_type",
         [](ov::preprocess::OutputTensorInfo& me, const ov::element::Type& type) {
@@ -314,10 +306,6 @@ static void regclass_graph_InputInfo(py::module m) {
     py::class_<ov::preprocess::InputInfo, ref_wrapper<ov::preprocess::InputInfo>> inp(m, "InputInfo");
     inp.doc() = "openvino.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
 
-    inp.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one input)");
-    inp.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
-    inp.def(py::init<const std::string&>(), R"(Constructor with input tensor name as argument)");
-
     inp.def("tensor", [](ov::preprocess::InputInfo& me) {
         return &me.tensor();
     });
@@ -332,10 +320,6 @@ static void regclass_graph_InputInfo(py::module m) {
 static void regclass_graph_OutputInfo(py::module m) {
     py::class_<ov::preprocess::OutputInfo, ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
     out.doc() = "openvino.impl.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
-
-    out.def(py::init<>(), R"(Default constructor, can be used only for networks with exactly one output)");
-    out.def(py::init<size_t>(), R"(Constructor with parameter index as argument)");
-    out.def(py::init<const std::string&>(), R"(Constructor with tensor name as argument)");
 
     out.def("tensor", [](ov::preprocess::OutputInfo& me) {
         return &me.tensor();
@@ -354,8 +338,6 @@ static void regclass_graph_OutputNetworkInfo(py::module m) {
         "OutputNetworkInfo");
     info.doc() = "openvino.impl.preprocess.OutputNetworkInfo wraps ov::preprocess::OutputNetworkInfo";
 
-    info.def(py::init<>());
-
     info.def("set_layout", [](ov::preprocess::OutputNetworkInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
     });
@@ -366,8 +348,6 @@ static void regclass_graph_InputNetworkInfo(py::module m) {
         m,
         "InputNetworkInfo");
     info.doc() = "openvino.impl.preprocess.InputNetworkInfo wraps ov::preprocess::InputNetworkInfo";
-
-    info.def(py::init<>());
 
     info.def("set_layout", [](ov::preprocess::InputNetworkInfo& me, const ov::Layout& layout) {
         return &me.set_layout(layout);
@@ -383,6 +363,8 @@ static void regenum_graph_ColorFormat(py::module m) {
         .value("I420_THREE_PLANES", ov::preprocess::ColorFormat::I420_THREE_PLANES)
         .value("RGB", ov::preprocess::ColorFormat::RGB)
         .value("BGR", ov::preprocess::ColorFormat::BGR)
+        .value("RGBX", ov::preprocess::ColorFormat::RGBX)
+        .value("BGRX", ov::preprocess::ColorFormat::BGRX)
         .export_values();
 }
 
