@@ -7,8 +7,8 @@
 #include <istream>
 #include <memory>
 
-#include "frontend_manager/frontend_manager.hpp"
 #include "ir_frontend/utility.hpp"
+#include "manager.hpp"
 
 namespace ov {
 namespace frontend {

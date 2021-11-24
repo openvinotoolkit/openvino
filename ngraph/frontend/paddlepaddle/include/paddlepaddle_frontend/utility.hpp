@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 
 // Defined if we are building the plugin DLL (instead of using it)
 #ifdef paddlepaddle_ov_frontend_EXPORTS
