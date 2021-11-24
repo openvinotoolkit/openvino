@@ -85,22 +85,22 @@ TEST(pre_post_process, convert_element_type_implicit_several_time) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i32);
     EXPECT_EQ(f->get_results().front()->get_element_type(), element::i32);
-    PrePostProcessor preprocessor;
-    InputInfo input;
-    input.tensor(InputTensorInfo().set_element_type(element::f16));
-    input.tensor(InputTensorInfo().set_element_type(element::i32));
-    input.tensor(InputTensorInfo().set_element_type(element::u32));
-    input.tensor(InputTensorInfo().set_element_type(element::f32));
-    preprocessor.input(std::move(input));
+    PrePostProcessor preprocessor(f);
+    preprocessor.input().tensor().set_layout(ov::Layout("NHWC"));
+    preprocessor.input().network().set_layout(ov::Layout("NCHW"));
+    preprocessor.input().tensor().set_element_type(element::f16);
+    preprocessor.input().tensor().set_element_type(element::i32);
+    preprocessor.input().tensor().set_element_type(element::u32);
+    preprocessor.input().tensor().set_element_type(element::f32);
     OutputInfo output;
-    output.tensor(OutputTensorInfo().set_element_type(element::f16));
-    output.tensor(OutputTensorInfo().set_element_type(element::i32));
-    output.tensor(OutputTensorInfo().set_element_type(element::u32));
-    output.tensor(OutputTensorInfo().set_element_type(element::f32));
-    output.tensor(OutputTensorInfo().set_element_type(element::u64));
-    preprocessor.output(std::move(output));
-    f = preprocessor.build(f);
+    preprocessor.output().tensor().set_element_type(element::f16);
+    preprocessor.output().tensor().set_element_type(element::i32);
+    preprocessor.output().tensor().set_element_type(element::u32);
+    preprocessor.output().tensor().set_element_type(element::f32);
+    preprocessor.output().tensor().set_element_type(element::u64);
+    f = preprocessor.build();
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::f32);
+    EXPECT_EQ(f->get_parameters().front()->get_layout().to_string(), "[N,H,W,C]");
     EXPECT_EQ(f->get_results().front()->get_element_type(), element::u64);
 }
 
@@ -518,23 +518,19 @@ TEST(pre_post_process, convert_layout_implicit_several_time) {
     auto f = create_simple_function(element::i32, Shape{1, 3, 224, 224});
     EXPECT_EQ(f->get_parameters().front()->get_element_type(), element::i32);
     EXPECT_EQ(f->get_results().front()->get_element_type(), element::i32);
-    PrePostProcessor preprocessor;
-    InputInfo input;
-    input.tensor(InputTensorInfo().set_layout("NHCW"));
-    input.tensor(InputTensorInfo().set_layout("NCHW"));
-    input.tensor(InputTensorInfo().set_layout("NHWC"));
-    input.network(InputNetworkInfo().set_layout("HWCN"));
-    input.network(InputNetworkInfo().set_layout("NCHW"));
-    preprocessor.input(std::move(input));
-    OutputInfo output;
-    output.tensor(OutputTensorInfo().set_layout("NHWC"));
-    output.tensor(OutputTensorInfo().set_layout("CNWH"));
-    output.network(OutputNetworkInfo().set_layout("HWCN"));
-    output.network(OutputNetworkInfo().set_layout("NCHW"));
-    preprocessor.output(std::move(output));
-    f = preprocessor.build(f);
+    PrePostProcessor preprocessor(f);
+    preprocessor.input().tensor().set_layout("NWHC");
+    preprocessor.input().tensor().set_layout("CHWN");
+    preprocessor.input().tensor().set_layout("NHCW");
+    preprocessor.input().tensor().set_layout("NCHW");
+    preprocessor.input().tensor().set_layout("NHWC");
+    preprocessor.output().tensor().set_layout("NWHC");
+    preprocessor.output().tensor().set_layout("CHWN");
+    preprocessor.output().tensor().set_layout("NHCW");
+    preprocessor.output().tensor().set_layout("NCHW");
+    f = preprocessor.build();
     EXPECT_EQ(f->get_parameters().front()->get_layout().to_string(), "[N,H,W,C]");
-    EXPECT_EQ(f->get_results().front()->get_layout().to_string(), "[C,N,W,H]");
+    EXPECT_EQ(f->get_results().front()->get_layout().to_string(), "[N,C,H,W]");
 }
 
 TEST(pre_post_process, unsupported_network_color_format) {
