@@ -127,6 +127,10 @@ When specifying key values as raw strings (that is, when using Python API), omit
 
 @snippet snippets/GPU_Metric0.cpp part0
 
+* MAX_BATCH_SIZE : Returns maximum batch size for a given network which is not only executable but also does not lose performance due to the memory swap impact. Note that the returned value may not aligned to power of 2. Also, MODEL_PTR is the required option for this metric since the available max batch size depends on the model size. If the MODEL_PTR is not given, it will return 1. The example code to set the required and optional configs for this metic is available in the following snippet:
+
+@snippet snippets/GPU_Metric1.cpp part1
+
 ## GPU Context and Video Memory Sharing RemoteBlob API
 
 See [RemoteBlob API of GPU Plugin](GPU_RemoteBlob_API.md)
