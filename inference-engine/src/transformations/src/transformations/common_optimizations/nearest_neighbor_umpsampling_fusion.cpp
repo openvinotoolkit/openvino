@@ -35,34 +35,27 @@ std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t inpu
     return scales;
 }
 
-std::shared_ptr<opset8::Unsqueeze> get_input_unsqueeze_for_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& shape) {
+bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& shape) {
     size_t rank = shape.size();
 
     const auto inputs = concat->input_values();
     size_t num_of_input_values = inputs.size();
 
-    if (num_of_input_values != 2 + 2 * (rank - 2)) return nullptr;
-
-    const auto input0 = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[0].get_node_shared_ptr());
-    if (!input0) return nullptr;
-
-    const auto input0_axis = std::dynamic_pointer_cast<opset8::Constant>(input0->input_value(1).get_node_shared_ptr());
-    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return nullptr;
+    if (num_of_input_values != 2 + 2 * (rank - 2)) return false;
 
     std::vector<int64_t> input_constants(num_of_input_values, 1);
-
     for (size_t i = 1; i < num_of_input_values; ++i) {
         const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
-        if (!current_input) return nullptr;
+        if (!current_input) return false;
 
         const auto current_input_axis = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
-        if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return nullptr;
+        if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return false;
 
         const auto unsqueezed_const = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(0).get_node_shared_ptr());
-        if (!unsqueezed_const) return nullptr;
+        if (!unsqueezed_const) return false;
 
         const auto unsqueezed_const_value = unsqueezed_const->cast_vector<int64_t>();
-        if (unsqueezed_const_value.size() != 1) return nullptr;
+        if (unsqueezed_const_value.size() != 1) return false;
 
         input_constants[i] = unsqueezed_const_value[0];
     }
@@ -73,25 +66,61 @@ std::shared_ptr<opset8::Unsqueeze> get_input_unsqueeze_for_concat_1(const std::s
     }
     expected_input_constants.back() = static_cast<int64_t>(shape.back());
 
-    if (input_constants != expected_input_constants) return nullptr;
+    if (input_constants != expected_input_constants) return false;
 
-    return input0;
+    return true;
 }
 
-std::pair<std::shared_ptr<opset8::Unsqueeze>, std::vector<int64_t>> get_input_unsqueeze_for_concat_2(const std::shared_ptr<opset8::Concat>& concat,
-                                                                                                     const Shape& shape) {
-    size_t rank = shape.size();
+//std::shared_ptr<opset8::Unsqueeze> get_input_unsqueeze_for_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& shape) {
+//    size_t rank = shape.size();
+//
+//    const auto inputs = concat->input_values();
+//    size_t num_of_input_values = inputs.size();
+//
+//    if (num_of_input_values != 2 + 2 * (rank - 2)) return nullptr;
+//
+//    const auto input0 = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[0].get_node_shared_ptr());
+//    if (!input0) return nullptr;
+//
+//    const auto input0_axis = std::dynamic_pointer_cast<opset8::Constant>(input0->input_value(1).get_node_shared_ptr());
+//    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return nullptr;
+//
+//    std::vector<int64_t> input_constants(num_of_input_values, 1);
+//
+//    for (size_t i = 1; i < num_of_input_values; ++i) {
+//        const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
+//        if (!current_input) return nullptr;
+//
+//        const auto current_input_axis = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
+//        if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return nullptr;
+//
+//        const auto unsqueezed_const = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(0).get_node_shared_ptr());
+//        if (!unsqueezed_const) return nullptr;
+//
+//        const auto unsqueezed_const_value = unsqueezed_const->cast_vector<int64_t>();
+//        if (unsqueezed_const_value.size() != 1) return nullptr;
+//
+//        input_constants[i] = unsqueezed_const_value[0];
+//    }
+//
+//    std::vector<int64_t> expected_input_constants(num_of_input_values, 1);
+//    for (size_t i = 1; i <= rank - 2; ++i) {
+//        expected_input_constants[2 * (i - 1) + 1] = static_cast<int64_t>(shape[i]);
+//    }
+//    expected_input_constants.back() = static_cast<int64_t>(shape.back());
+//
+//    if (input_constants != expected_input_constants) return nullptr;
+//
+//    return input0;
+//}
+
+std::vector<int64_t> get_new_spatial_shape_from_concat_2(const std::shared_ptr<opset8::Concat>& concat, const Shape& input_shape) {
+    size_t rank = input_shape.size();
 
     const auto inputs = concat->input_values();
     size_t num_of_input_values = inputs.size();
 
     if (num_of_input_values != rank) return {};
-
-    const auto input0 = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[0].get_node_shared_ptr());
-    if (!input0) return {};
-
-    const auto input0_axis = std::dynamic_pointer_cast<opset8::Constant>(input0->input_value(1).get_node_shared_ptr());
-    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return {};
 
     std::vector<int64_t> input_constants(num_of_input_values - 1, 0);
 
@@ -111,12 +140,52 @@ std::pair<std::shared_ptr<opset8::Unsqueeze>, std::vector<int64_t>> get_input_un
         input_constants[i - 1] = unsqueezed_const_value[0];
     }
 
-    if (input_constants.back() != static_cast<int64_t>(shape.back())) return {};
+    if (input_constants.back() != static_cast<int64_t>(input_shape.back())) return {};
 
     input_constants.pop_back();
 
-    return {input0, input_constants};
+    return input_constants;
 }
+
+//std::pair<std::shared_ptr<opset8::Unsqueeze>, std::vector<int64_t>> get_input_unsqueeze_for_concat_2(const std::shared_ptr<opset8::Concat>& concat,
+//                                                                                                     const Shape& shape) {
+//    size_t rank = shape.size();
+//
+//    const auto inputs = concat->input_values();
+//    size_t num_of_input_values = inputs.size();
+//
+//    if (num_of_input_values != rank) return {};
+//
+//    const auto input0 = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[0].get_node_shared_ptr());
+//    if (!input0) return {};
+//
+//    const auto input0_axis = std::dynamic_pointer_cast<opset8::Constant>(input0->input_value(1).get_node_shared_ptr());
+//    if (!input0_axis || input0_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return {};
+//
+//    std::vector<int64_t> input_constants(num_of_input_values - 1, 0);
+//
+//    for (size_t i = 1; i < num_of_input_values; ++i) {
+//        const auto& current_input = std::dynamic_pointer_cast<opset8::Unsqueeze>(inputs[i].get_node_shared_ptr());
+//        if (!current_input) return {};
+//
+//        const auto current_input_axis = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(1).get_node_shared_ptr());
+//        if (!current_input_axis || current_input_axis->cast_vector<int64_t>() != std::vector<int64_t>{0}) return {};
+//
+//        const auto unsqueezed_const = std::dynamic_pointer_cast<opset8::Constant>(current_input->input_value(0).get_node_shared_ptr());
+//        if (!unsqueezed_const) return {};
+//
+//        const auto unsqueezed_const_value = unsqueezed_const->cast_vector<int64_t>();
+//        if (unsqueezed_const_value.size() != 1) return {};
+//
+//        input_constants[i - 1] = unsqueezed_const_value[0];
+//    }
+//
+//    if (input_constants.back() != static_cast<int64_t>(shape.back())) return {};
+//
+//    input_constants.pop_back();
+//
+//    return {input0, input_constants};
+//}
 
 } // namespace
 
@@ -158,22 +227,19 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         if (!concat_1_node) return false;
 
         const auto input_shape = reshape_1_node->get_input_shape(0);
-        const auto unsqueeze_1 = get_input_unsqueeze_for_concat_1(concat_1_node, input_shape);
-        if (!unsqueeze_1) return false;
+        if (!check_concat_1(concat_1_node, input_shape)) return false;
 
         const auto concat_2_node = std::dynamic_pointer_cast<opset8::Concat>(pattern_to_output.at(concat_2).get_node_shared_ptr());
         if (!concat_2_node) return false;
 
-        std::shared_ptr<opset8::Unsqueeze> unsqueeze_2;
-        std::vector<int64_t> new_spatial_shape;
-        std::tie(unsqueeze_2, new_spatial_shape) = get_input_unsqueeze_for_concat_2(concat_2_node, input_shape);
-        if (!unsqueeze_2 || new_spatial_shape.empty()) return false;
+        const auto new_spatial_shape = get_new_spatial_shape_from_concat_2(concat_2_node, input_shape);
+        if (new_spatial_shape.empty()) return false;
 
-        const auto ss_before_unsqueeze_1 = std::dynamic_pointer_cast<opset8::StridedSlice>(unsqueeze_1->input_value(0).get_node_shared_ptr());
-        const auto ss_before_unsqueeze_2 = std::dynamic_pointer_cast<opset8::StridedSlice>(unsqueeze_2->input_value(0).get_node_shared_ptr());
-        if (!ss_before_unsqueeze_1 || !ss_before_unsqueeze_2 || ss_before_unsqueeze_1.get() != ss_before_unsqueeze_2.get()) return false;
+        const auto ss_before_concat_1 = std::dynamic_pointer_cast<opset8::StridedSlice>(concat_1_node->input_value(0).get_node_shared_ptr());
+        const auto ss_before_concat_2 = std::dynamic_pointer_cast<opset8::StridedSlice>(concat_2_node->input_value(0).get_node_shared_ptr());
+        if (!ss_before_concat_1 || !ss_before_concat_2 || ss_before_concat_1.get() != ss_before_concat_2.get()) return false;
 
-        const auto shapeof_node = std::dynamic_pointer_cast<opset8::ShapeOf>(ss_before_unsqueeze_1->input_value(0).get_node_shared_ptr());
+        const auto shapeof_node = std::dynamic_pointer_cast<opset8::ShapeOf>(ss_before_concat_1->input_value(0).get_node_shared_ptr());
         if (!shapeof_node) return false;
 
         const auto node_before_shapeof = shapeof_node->input_value(0).get_node_shared_ptr();
@@ -200,7 +266,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         auto interpolate = register_new_node<opset8::Interpolate>(node_before_shapeof, sizes_node, scales_node, axes_node, attrs);
 
         interpolate->set_friendly_name(reshape_2_node->get_friendly_name());
-        copy_runtime_info({reshape_2_node, mul_node, mul_const_node, concat_1_node, unsqueeze_1, concat_2_node, unsqueeze_2, ss_before_unsqueeze_1,
+        copy_runtime_info({reshape_2_node, mul_node, mul_const_node, concat_1_node, concat_2_node, ss_before_concat_1,
                            shapeof_node, node_before_shapeof},
                           {scales_node, sizes_node, axes_node, interpolate});
         replace_node(reshape_2_node, interpolate);

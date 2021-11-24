@@ -36,9 +36,7 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
         auto strided_slice_node = std::make_shared<ngraph::opset8::StridedSlice>(shape_node, sslice_begin, sslice_end, begin_mask, end_mask);
 
         ngraph::OutputVector concat_1_inputs_vec(2 + 2 * (input_rank - 2));
-        auto unsqueeze_before_concat_1_axes = ngraph::opset8::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
-        auto unsqueeze_before_concat_1 = std::make_shared<ngraph::opset8::Unsqueeze>(strided_slice_node, unsqueeze_before_concat_1_axes);
-        concat_1_inputs_vec[0] = unsqueeze_before_concat_1;
+        concat_1_inputs_vec[0] = strided_slice_node;
         std::vector<int64_t> constants_for_concat_1(2 + 2 * (input_rank - 2), 1);
         for (size_t i = 1; i <= input_rank - 2; ++i) {
             constants_for_concat_1[2 * (i - 1) + 1] = static_cast<int64_t>(input_shape[i]);
@@ -55,9 +53,7 @@ TEST_F(TransformationTestsF, NearestNeighborUpsamplingFusionSpatial2D1) {
         auto reshape_1 = std::make_shared<ngraph::opset8::Reshape>(input, concat_1, true);
 
         ngraph::OutputVector concat_2_inputs_vec(input_rank);
-        auto unsqueeze_before_concat_2_axes = ngraph::opset8::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
-        auto unsqueeze_before_concat_2 = std::make_shared<ngraph::opset8::Unsqueeze>(strided_slice_node, unsqueeze_before_concat_2_axes);
-        concat_2_inputs_vec[0] = unsqueeze_before_concat_2;
+        concat_2_inputs_vec[0] = strided_slice_node;
         std::vector<int64_t> constants_for_concat_2(input_rank);
         for (size_t i = 1; i <= input_rank - 2; ++i) {
             constants_for_concat_2[i] = new_spatial_shape[i];
