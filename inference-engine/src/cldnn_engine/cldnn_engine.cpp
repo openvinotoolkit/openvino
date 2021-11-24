@@ -757,7 +757,10 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         int64_t max_batch_size = 0;
 
         if (options.find("MODEL_PTR") == options.end()) {
-            IE_THROW() << "[GPU] MODEL_PTR option is not given!";
+            GPU_DEBUG_IF(debug_config->verbose >= 1) {
+                GPU_DEBUG_COUT << "[GPU_MAX_BATCH_SIZE] MODELS_PTR is not set: return 1" << std::endl;
+            }
+            IE_SET_METRIC_RETURN(GPU_MAX_BATCH_SIZE, static_cast<int32_t>(1));
         }
         if (options.find("GPU_THROUGHPUT_STREAMS") != options.end()) {
             try {
