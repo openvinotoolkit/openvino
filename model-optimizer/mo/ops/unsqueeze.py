@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
-
-from mo.front.common.partial_infer.utils import int64_array, shape_array, is_fully_defined, shape_insert
+from mo.front.common.partial_infer.utils import int64_array, is_fully_defined, shape_insert, undefined_shape_of_rank
+from mo.graph.graph import Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -26,7 +25,8 @@ class Unsqueeze(Op):
             'reinterp_shape': True,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': self.infer
+            'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
         }, attrs)
 
     @staticmethod
@@ -61,3 +61,13 @@ class Unsqueeze(Op):
             node.out_port(0).data.set_shape(output_shape)
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        output_shape = node.out_port(0).data.get_shape()
+        unsqueeze_dims = node.in_port(1).data.get_value()
+        if input_shape is None and output_shape is not None and unsqueeze_dims is not None:
+            num_unsqueeze_dims = 1 if int64_array(unsqueeze_dims).ndim == 0 else len(unsqueeze_dims)
+            shape = undefined_shape_of_rank(len(output_shape) - num_unsqueeze_dims)
+            node.in_port(0).data.set_shape(shape)

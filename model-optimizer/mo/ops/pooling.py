@@ -4,7 +4,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, shape_array, \
-    dynamic_dimension_value, dynamic_dimension
+    dynamic_dimension_value, dynamic_dimension, undefined_shape_of_rank
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
@@ -28,6 +28,7 @@ class PoolingV2(Op):
             'op': self.op,
             'version': None,
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'in_ports_count': 3,
             'out_ports_count': 1,
         }, attrs)
@@ -46,6 +47,12 @@ class PoolingV2(Op):
 
         Pooling.pool_infer(node)
 
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        # use the value of the 'window' input to determine input tensor rank
+        if input_shape is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(node.in_port(1).data.get_shape()[0]))
 
 poolings_map = {
     'max': {'version': 'opset8', 'out_ports_count': 2},
@@ -62,6 +69,7 @@ class Pooling(Op):
             'op': self.op,
             'version': poolings_map[attrs.get('pool_method')]['version'],
             'infer': self.infer,
+            'reverse_infer': self.reverse_infer,
             'in_ports_count': 1,
             'out_ports_count': 1 if attrs.get('version') == 'opset1' else poolings_map[attrs.get('pool_method')]['out_ports_count']
         }, attrs)
@@ -184,3 +192,9 @@ class Pooling(Op):
                                                        ('window', 'input:0'),
                                                        ('spatial_dims', 'input:0'),
                                                        ('dilation', 'input:0')])
+
+    @staticmethod
+    def reverse_infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
+        if input_shape is None:
+            node.in_port(0).data.set_shape(undefined_shape_of_rank(len(node.soft_get('window'))))
