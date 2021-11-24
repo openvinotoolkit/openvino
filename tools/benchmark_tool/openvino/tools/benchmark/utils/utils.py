@@ -73,7 +73,6 @@ def get_element_type(precision):
 
 
 def process_precision(function: Function, app_inputs_info, input_precision: str, output_precision: str, input_output_precision: str):
-    # TODO: raise python exception if precion in input_output_precision rewrite input_precision/output_precision
     pre_post_processor = PrePostProcessor(function)
     if input_precision:
         element_type = get_element_type(input_precision)
@@ -342,7 +341,7 @@ def get_command_line_arguments(argv):
 
 
 def get_input_output_names(nodes):
-    return [node.get_friendly_name() for node in nodes] # get_friendly_name() or get_name() ?
+    return [node.friendly_name for node in nodes] # get_friendly_name() or get_name() ?
 
 
 def get_tensor_shapes_map(tensor_shape_string, input_names):
