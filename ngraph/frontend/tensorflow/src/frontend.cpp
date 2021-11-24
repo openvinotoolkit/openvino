@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tensorflow_frontend/frontend.hpp>
-#include <tensorflow_frontend/graph_iterator.hpp>
+#include "tensorflow_frontend/frontend.hpp"
 
 #include "model.hpp"
 #include "op_table.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pass/transpose_sinking.hpp"
+#include "tensorflow_frontend/graph_iterator.hpp"
 #include "tf_framework_node.hpp"
 #include "utils.hpp"
 
@@ -52,13 +53,13 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
                                  bool fail_fast,
                                  bool no_conversion,
                                  std::shared_ptr<ov::Function>& ng_function) const {
-    // a map from operation names to generated nGraph Output<TFNodeDecoder>
+    // a map from operation names to generated OV Output<TFNodeDecoder>
     tf::OpMap ng_op_map;
 
     ov::ParameterVector params;
     ov::ResultVector results;
     const auto& model_tf = std::dynamic_pointer_cast<InputModelTF>(model);
-    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into nGraph function");
+    FRONT_END_GENERAL_CHECK(model_tf, "nullptr for InputModel is given for translation into OV function");
     const auto& operation_places = model_tf->get_op_places();
     const auto& model_inputs = model_tf->get_inputs();
     const auto& model_outputs = model_tf->get_outputs();
@@ -101,7 +102,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
         ng_op_map[input_name] = {param};
     }
 
-    // create the nGraph ops from TensorFlow ops
+    // create the OV ops from TensorFlow ops
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
@@ -110,7 +111,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             continue;
         }
 
-        // prepare a list of nGraph node inputs for each node
+        // prepare a list of OV node inputs for each node
         ov::OutputVector ng_inputs;
         ::ov::frontend::tf::NamedInputs named_inputs;
         for (size_t input_port_idx = 0; input_port_idx < operation_decoder->get_input_size(); ++input_port_idx) {
@@ -157,7 +158,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             }
         }
 
-        // generate nGraph node output vector for the current operation node
+        // generate OV node output vector for the current operation node
         ov::OutputVector ng_outputs;
         try {
             FRONT_END_OP_CONVERSION_CHECK(translate_map.count(operation_decoder->get_op_type()),
@@ -166,7 +167,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             // NodeContext node_context(ng_inputs, operation_decoder, model_inputs);
             // TODO: Check why NodeContextNew doesn't have ngOutputVector ng_inputs input in constructor
             ::ov::frontend::tf::NodeContext node_context(*operation_decoder, named_inputs);
-            // generate nGraph node output vector using translator for given operation type
+            // generate OV node output vector using translator for given operation type
             ng_outputs = (*op_fun)(node_context);
         } catch (...) {
             if (fail_fast) {
@@ -181,7 +182,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             }
         }
 
-        // register nGraph node outputs in the map for new operation node
+        // register OV node outputs in the map for new operation node
         for (const auto& output : ng_outputs) {
             if (auto result = std::dynamic_pointer_cast<ov::opset8::Result>(output.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
@@ -247,7 +248,7 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
             results.push_back(std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]));
         }
     }
-    // find all terminal nodes in ngraph graph to complete list of results
+    // find all terminal nodes in OV graph to complete list of results
     if (results.empty()) {
         for (const auto& node_output_vector : ng_op_map) {
             for (const auto& output : node_output_vector.second) {
@@ -261,9 +262,9 @@ void FrontEndTF::translate_graph(const ov::frontend::InputModel::Ptr& model,
 
     // TODO: reorder results and params according to indices given in RT info (if any)
 
-    // create the nGraph function
+    // create the OV function
     ng_function = std::make_shared<ov::Function>(results, params, model_name);
-    NGRAPH_DEBUG << "Done with translations";
+    OPENVINO_DEBUG << "Done with translations";
 }
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
@@ -309,7 +310,7 @@ std::shared_ptr<ov::Function> FrontEndTF::convert(ov::frontend::InputModel::Ptr 
     std::shared_ptr<ov::Function> f;
     translate_graph(model_tf, "here_should_be_a_graph_name", true, false, f);
     normalize(f);
-    // TODO: check that nGraph function does not contain operations which are not in the opset
+    // TODO: check that OV function does not contain operations which are not in the opset
 
     return f;
 }

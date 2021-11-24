@@ -368,7 +368,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
-        auto& cand = candidates.top();
+        auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
         if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
@@ -823,6 +823,10 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->verbose >= 2) {
+            GPU_DEBUG_COUT << "[" << node.id() << ": constant]" << std::endl;
+        }
         _memory_pool->release_memory(&inst_mem, node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
