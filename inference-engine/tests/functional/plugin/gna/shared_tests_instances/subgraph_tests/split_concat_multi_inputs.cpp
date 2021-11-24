@@ -8,7 +8,6 @@
 #include "common_test_utils/test_constants.hpp"
 #include "gna/gna_config.hpp"
 
-
 using namespace SubgraphTestsDefinitions;
 
 namespace {
