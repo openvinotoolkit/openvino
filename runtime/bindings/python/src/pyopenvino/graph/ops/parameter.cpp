@@ -34,5 +34,23 @@ void regclass_graph_op_Parameter(py::module m) {
         (const ov::PartialShape& (ov::op::v0::Parameter::*)() const) & ov::op::v0::Parameter::get_partial_shape);
     parameter.def("get_partial_shape",
                   (ov::PartialShape & (ov::op::v0::Parameter::*)()) & ov::op::v0::Parameter::get_partial_shape);
-    parameter.def("set_partial_shape", &ov::op::v0::Parameter::set_partial_shape);
+    parameter.def("set_partial_shape", &ov::op::v0::Parameter::set_partial_shape, py::arg("partial_shape"));
+
+    parameter.def("get_element_type", &ov::op::v0::Parameter::get_element_type);
+
+    parameter.def("set_element_type", &ov::op::v0::Parameter::set_element_type, py::arg("element_type"));
+
+    parameter.def("get_layout", &ov::op::v0::Parameter::get_layout);
+
+    parameter.def("set_layout", &ov::op::v0::Parameter::set_layout, py::arg("layout"));
+
+    parameter.def_property("partial_shape",
+                           (ov::PartialShape & (ov::op::v0::Parameter::*)()) & ov::op::v0::Parameter::get_partial_shape,
+                           &ov::op::v0::Parameter::set_partial_shape);
+
+    parameter.def_property("element_type",
+                           &ov::op::v0::Parameter::get_element_type,
+                           &ov::op::v0::Parameter::set_element_type);
+
+    parameter.def_property("layout", &ov::op::v0::Parameter::get_layout, &ov::op::v0::Parameter::set_layout);
 }
