@@ -126,33 +126,33 @@ std::pair<std::string, std::vector<std::string>> parseInputFiles(const std::stri
 
 std::map<std::string, std::vector<std::string>> parseInputArguments() {
     std::vector<std::string> args = gflags::GetArgvs();
+    std::map<std::string, std::vector<std::string>> mapped_files = {};
+    auto args_it = begin(args);
     const auto is_image_arg = [](const std::string& s) {
         return s == "-i";
     };
     const auto is_arg = [](const std::string& s) {
         return s.front() == '-';
     };
-    const auto files_start = std::find_if(begin(args), end(args), is_image_arg);
-    if (files_start == end(args)) {
-        return {};
-    }
-    const auto files_begin = std::next(files_start);
-    const auto files_end = std::find_if(files_begin, end(args), is_arg);
-
-    std::map<std::string, std::vector<std::string>> mapped_files;
-    for (auto f = files_begin; f != files_end; ++f) {
-        auto files = parseInputFiles(*f);
-        if (mapped_files.find(files.first) == mapped_files.end()) {
-            mapped_files[files.first] = {};
-        } else if (!files.first.empty()) {
-            throw std::logic_error("Input " + files.first + " was specified twice!");
+    while (args_it != args.end()) {
+        const auto files_start = std::find_if(args_it, end(args), is_image_arg);
+        if (files_start == end(args)) {
+            break;
         }
+        const auto files_begin = std::next(files_start);
+        const auto files_end = std::find_if(files_begin, end(args), is_arg);
+        for (auto f = files_begin; f != files_end; ++f) {
+            auto files = parseInputFiles(*f);
+            if (mapped_files.find(files.first) == mapped_files.end()) {
+                mapped_files[files.first] = {};
+            }
 
-        for (auto& file : files.second) {
-            readInputFilesArguments(mapped_files[files.first], file);
+            for (auto& file : files.second) {
+                readInputFilesArguments(mapped_files[files.first], file);
+            }
         }
+        args_it = files_end;
     }
-
     size_t max_files = 20;
     for (auto& files : mapped_files) {
         if (files.second.size() <= max_files) {
@@ -164,6 +164,7 @@ std::map<std::string, std::vector<std::string>> parseInputArguments() {
             files.second.resize(20);
         }
     }
+
     return mapped_files;
 }
 

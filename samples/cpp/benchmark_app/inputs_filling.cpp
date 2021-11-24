@@ -333,18 +333,6 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
         throw std::logic_error("Number of inputs specified in -i must be equal number of network inputs!");
     }
 
-    auto inputFilesIt = inputFiles.begin();
-    auto inputInfoIt = app_inputs_info[0].begin();
-    for (size_t i = 0; i < inputFiles.size(); ++i) {
-        if (inputFilesIt->first != inputInfoIt->first) {
-            throw std::logic_error("Input name " + inputFilesIt->first +
-                                   " provided with -i doesn't correspond network input name " + inputInfoIt->first +
-                                   ".");
-        }
-        inputFilesIt++;
-        inputInfoIt++;
-    }
-
     // count image type inputs of network
     std::vector<std::pair<size_t, size_t>> net_input_im_sizes;
     for (auto& inputs_info : app_inputs_info) {
@@ -357,8 +345,8 @@ std::map<std::string, std::vector<InferenceEngine::Blob::Ptr>> getBlobs(
 
     for (auto& files : inputFiles) {
         if (!files.first.empty() && app_inputs_info[0].find(files.first) == app_inputs_info[0].end()) {
-            throw std::logic_error("Input name" + files.first +
-                                   " used in -i parameter doesn't correspond any network's input");
+            throw std::logic_error("Input name \"" + files.first +
+                                   "\" used in -i parameter doesn't match any network's input");
         }
 
         std::string input_name = files.first.empty() ? app_inputs_info[0].begin()->first : files.first;
