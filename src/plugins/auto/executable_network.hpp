@@ -185,6 +185,7 @@ public:
 
 private:
     void GenerateWorkers(const std::string& device, const InferenceEngine::SoExecutableNetworkInternal& executableNetwork);
+    void IncreaseWorkers(AutoLoadContext& loadcontext, InferenceEngine::SoIInferRequestInternal& request_to_share);
     void WaitActualNetworkReady() const;
     void WaitFirstNetworkReady();
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
