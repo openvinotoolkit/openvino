@@ -112,7 +112,7 @@ add_subdirectory(runtime)
 # ----------------- OpenVINO runtime library --------------------------------
 add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_transformations_obj>
                        $<TARGET_OBJECTS:inference_engine_obj>
-                       $<TARGET_OBJECTS:frontend_manager_obj>
+                       $<TARGET_OBJECTS:frontend_common_obj>
                        $<TARGET_OBJECTS:ngraph_obj>)
 add_library(openvino::runtime ALIAS ov_runtime)
 set_target_properties(ov_runtime PROPERTIES EXPORT_NAME runtime)
@@ -120,7 +120,7 @@ ie_add_vs_version_file(NAME ov_runtime FILEDESCRIPTION "OpenVINO runtime library
 
 target_include_directories(ov_runtime INTERFACE PRIVATE $<TARGET_PROPERTY:ov_runtime_dev,INTERFACE_INCLUDE_DIRECTORIES>
                                                 PUBLIC $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-                                                $<TARGET_PROPERTY:frontend_manager,INTERFACE_INCLUDE_DIRECTORIES>
+                                                $<TARGET_PROPERTY:frontend_common,INTERFACE_INCLUDE_DIRECTORIES>
                                                 $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ie_register_plugins(MAIN_TARGET ov_runtime
@@ -140,7 +140,7 @@ target_link_libraries(ov_runtime PRIVATE ngraph
                                          openvino::util
                                          ${CMAKE_DL_LIBS}
                                          Threads::Threads
-                                         frontend_manager::static)
+                                         frontend_common::static)
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(ov_runtime PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()
