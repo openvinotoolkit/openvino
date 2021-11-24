@@ -138,82 +138,54 @@ if(ENABLE_ONEDNN_FOR_GPU)
     function(build_onednn_gpu)
         include(ExternalProject)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build/")
-        set(ONEDNN_INSTALL_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-
-        if(OV_GENERATOR_MULTI_CONFIG)
-            set(lib_prefix "$<CONFIG>/${CMAKE_STATIC_LIBRARY_PREFIX}")
-        else()
-            set(lib_prefix "${CMAKE_STATIC_LIBRARY_PREFIX}")
-        endif()
-
-        set(ONEDNN_LIBRARY "${ONEDNN_BUILD_DIR}/src/${lib_prefix}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
-        set(ONEDNN_OUTPUT_LIBRARY "${ONEDNN_INSTALL_DIR}/${lib_prefix}onednn_gpu${CMAKE_STATIC_LIBRARY_SUFFIX}")
-
+        set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install/")
+        set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
         if(CMAKE_COMPILER_IS_GNUCXX)
             ie_add_compiler_flags(-Wno-undef)
-        endif()
-
-        # Get processors count to limit number of threads spawned by make
-        include(ProcessorCount)
-        ProcessorCount(CORES_COUNT)
-        if(CORES_COUNT EQUAL 0)
-            set(CORES_COUNT "")
         endif()
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
             INSTALL_DIR "${ONEDNN_INSTALL_DIR}"
-            PREFIX onednn_gpu_build
+            PREFIX "${ONEDNN_PREFIX_DIR}"
             EXCLUDE_FROM_ALL ON
-            CMAKE_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-                       "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
-                       "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
-                       "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-                       "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
-                       "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
-                       "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
-                       "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
-                       "-DDNNL_CPU_RUNTIME=NONE"
-                       "-DDNNL_GPU_RUNTIME=OCL"
-                       "-DDNNL_LIBRARY_NAME=onednn_gpu"
-                       "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
-                       "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-                       "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
-                       "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
-                       "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
-                       "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
-                       "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
-                       "-DDNNL_BUILD_TESTS=OFF"
-                       "-DDNNL_BUILD_EXAMPLES=OFF"
-                       "-DDNNL_BLAS_VENDOR=NONE"
-                       "-DDNNL_LIBRARY_TYPE=STATIC"
-                       "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
-                       "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
-                       "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
-            BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target onednn_gpu --parallel ${CORES_COUNT}
-            INSTALL_COMMAND ${CMAKE_COMMAND} -E copy ${ONEDNN_LIBRARY} ${ONEDNN_OUTPUT_LIBRARY}
-            COMMAND ${CMAKE_COMMAND} -E echo "OneDNN $<CONFIG> build for GPU complete"
-            BUILD_BYPRODUCTS ${ONEDNN_OUTPUT_LIBRARY}
+            CMAKE_ARGS
+                "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+                "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+                "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
+                "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
+                "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+                "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+                "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
+                "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
+                "-DDNNL_CPU_RUNTIME=NONE"
+                "-DDNNL_GPU_RUNTIME=OCL"
+                "-DDNNL_LIBRARY_NAME=onednn_gpu"
+                "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
+                "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
+                "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+                "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
+                "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
+                "-DDNNL_ENABLE_JIT_PROFILING=${BUILD_SHARED_LIBS}"
+                "-DDNNL_ENABLE_ITT_TASKS=${BUILD_SHARED_LIBS}"
+                "-DDNNL_BUILD_TESTS=OFF"
+                "-DDNNL_BUILD_EXAMPLES=OFF"
+                "-DDNNL_BLAS_VENDOR=NONE"
+                "-DDNNL_LIBRARY_TYPE=STATIC"
+                "-DOpenCL_LIBRARY=${OpenCL_LIBRARY}"
+                "-DOpenCL_INCLUDE_DIR=${OpenCL_INCLUDE_DIR}"
+                "-DOPENCL_VERSION_2_2=${OPENCL_VERSION_2_2}"
         )
-
-        ExternalProject_Get_property(onednn_gpu_build SOURCE_DIR)
-        ExternalProject_Get_property(onednn_gpu_build BINARY_DIR)
-
-        # WA: create temp 'include' directory
-        file(MAKE_DIRECTORY "${BINARY_DIR}/include")
-
-        add_library(onednn_gpu INTERFACE IMPORTED GLOBAL)
-        set_target_properties(onednn_gpu PROPERTIES
-            INTERFACE_LINK_LIBRARIES ${ONEDNN_OUTPUT_LIBRARY}
-            INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BINARY_DIR}/include>;$<BUILD_INTERFACE:${SOURCE_DIR}/include>"
-            INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
-        add_dependencies(onednn_gpu onednn_gpu_build)
-
-        # TODO: does not work for imported targets; need to import this target in
-        # OpenVINOConfig.cmake explicitly
-        # ov_install_static_lib(onednn_gpu gpu)
+        add_library(onednn_gpu_tgt INTERFACE)
+        set_target_properties(onednn_gpu_tgt PROPERTIES
+            INTERFACE_LINK_DIRECTORIES "${ONEDNN_INSTALL_DIR}/lib/$<CONFIG>"
+            INTERFACE_LINK_LIBRARIES "onednn_gpu"
+            INTERFACE_INCLUDE_DIRECTORIES "${ONEDNN_INSTALL_DIR}/include"
+            INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
+        )
+        add_dependencies(onednn_gpu_tgt onednn_gpu_build)
+        # TODO: install onednn_gpu in static builds
     endfunction()
-
     build_onednn_gpu()
 endif()
 
