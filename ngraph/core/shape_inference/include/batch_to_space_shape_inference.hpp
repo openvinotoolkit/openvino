@@ -103,8 +103,10 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                 output_shape[0] = data_shape[0].get_length() / block_prod;
 
             } else {
-                // Set the output batch dimension to be same with input[0] batch dimesion for the dynamic.
-                output_shape[0] = data_shape[0];
+                if (data_shape[0] == ov::Dimension::dynamic())
+                    output_shape[0] = ov::Dimension::dynamic();
+                else
+                    output_shape[0] = ov::Dimension{data_shape[0].get_min_length() / block_prod , data_shape[0].get_max_length() / block_prod };
             }
 
             for (size_t idx = 1; idx < data_shape.size(); idx++) {

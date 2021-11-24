@@ -60,8 +60,13 @@ void shape_infer(const ov::op::v1::SpaceToBatch* op,
                     output_shape[idx] =
                         (pads_begin_val[idx] + data_shape[idx].get_length() + pads_end_val[idx]) / block_val[idx];
                 } else {
-                    // Set the output space dimension to be same with input[0] space dimensions for the partial shape.
-                    output_shape[idx] = data_shape[idx];
+                    if (data_shape[idx] == ov::Dimension::dynamic())
+                        output_shape[idx] = ov::Dimension::dynamic();
+                    else {
+                        const auto min_val = (pads_begin_val[idx] + data_shape[idx].get_min_length() + pads_end_val[idx]) / block_val[idx];
+                        const auto max_val = (pads_begin_val[idx] + data_shape[idx].get_max_length() + pads_end_val[idx]) / block_val[idx];
+                        output_shape[idx] = ov::Dimension{min_val, max_val};
+                    }
                 }
             }
         }

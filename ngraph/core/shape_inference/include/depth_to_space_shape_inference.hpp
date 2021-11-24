@@ -44,12 +44,14 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
                                   !(data_shape[1].get_length() % divider),
                                   "DepthToSpace: The input data's 'channels' axis size: ",
                                   data_shape[1],
-                                  " must be a equivalent to 'block_size'^'spatial_dims': ",
+                                  " must be a multiple to divider: ",
                                   divider);
             output_shape[1] = data_shape[1].get_length() / divider;
         } else {
-            // Just set the output depth dimension to be input depth dimension when not static.
-            output_shape[1] = data_shape[1];
+            if (data_shape[1] == ov::Dimension::dynamic())
+                output_shape[1] = ov::Dimension::dynamic();
+            else
+                output_shape[1] = ov::Dimension{data_shape[1].get_min_length() / static_cast<int64_t>(divider), data_shape[1].get_max_length() / static_cast<int64_t>(divider)};
         }
         for (size_t i = 2; i < output_shape.size(); i++) {
             output_shape[i] = data_shape[i] * DimType{static_cast<int64_t>(block_size)};

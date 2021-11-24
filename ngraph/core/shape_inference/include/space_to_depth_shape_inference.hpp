@@ -52,8 +52,11 @@ void shape_infer(const ov::op::v0::SpaceToDepth* op,
 
                 out_shape[i] = data_shape[i].get_length() / block_size;
             } else {
-                // Just set the output space dimension to be input space dimension when not static.
-                out_shape[i] = data_shape[i];
+                if (data_shape[i] == ov::Dimension::dynamic())
+                    out_shape[i] = ov::Dimension::dynamic();
+                else
+                    out_shape[i] = ov::Dimension{data_shape[i].get_min_length() / static_cast<int64_t>(block_size) , 
+                                                data_shape[i].get_max_length() / static_cast<int64_t>(block_size)};
             }
         }
     } else {
