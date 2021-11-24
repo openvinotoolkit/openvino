@@ -54,16 +54,24 @@ struct jit_uni_eltwise_kernel {
         ker_(const_args, indexes);
     }
 
-    explicit jit_uni_eltwise_kernel(const jit_eltwise_params& jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
+    explicit jit_uni_eltwise_kernel(jit_eltwise_params jep) : ker_(nullptr), jep_(std::move(jep)) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_eltwise_params jep_;
-    MKLDNNEltwiseNode& eltwiseNode;
 };
 
 class MKLDNNEltwiseNode : public MKLDNNNode {
+public:
+    struct EltwiseData {
+        Algorithm algo;
+        mkldnn::algorithm mkldnnAlgorithm;
+        float alpha;
+        float beta;
+        float gamma;
+    };
+
 public:
     MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
@@ -120,7 +128,13 @@ private:
     executorPtr execPtr = nullptr;
 
     struct EltwiseJitExecutor : public EltwiseExecutor {
-        EltwiseJitExecutor(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch);
+        EltwiseJitExecutor(const jit_eltwise_params &_jep,
+                           const std::vector<EltwiseData>& eltwise_data,
+                           const std::vector<Type>& ops_list,
+                           const mkldnn::post_ops& post_ops,
+                           const size_t schedWA,
+                           const size_t batch);
+
         void exec(const MKLDNNEltwiseNode& node, const jit_eltwise_call_args_ptrs &args_ptrs, const VectorDims &dims_out) override;
         const jit_eltwise_params& getJep() const override;
 

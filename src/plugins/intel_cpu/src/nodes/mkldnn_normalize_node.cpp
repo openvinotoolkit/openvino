@@ -189,7 +189,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         }
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
 
         this->preamble();
 

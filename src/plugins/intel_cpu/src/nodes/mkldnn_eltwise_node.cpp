@@ -64,14 +64,31 @@ struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
     jit_generator *host;
     cpu_isa_t host_isa;
-    const MKLDNNNode *node;
+    const MKLDNNEltwiseNode::EltwiseData& opData;
     InferenceEngine::Precision exec_prc;
 };
 
 template<typename T>
 struct EltwiseEmitter {
     void operator()(EltwiseEmitterContext & ctx) {
-        ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.node, ctx.exec_prc);
+        ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.exec_prc);
+    }
+};
+
+template<>
+struct EltwiseEmitter<jit_mkldnn_aux_emitter> {
+    void operator()(EltwiseEmitterContext & ctx) {
+        auto algKind = static_cast<mkldnn_alg_kind_t>(ctx.opData.mkldnnAlgorithm);
+        ctx.emitter = std::make_shared<jit_mkldnn_aux_emitter>(ctx.host, ctx.host_isa, algKind,
+                                                               ctx.opData.alpha, ctx.opData.beta, ctx.exec_prc);
+    }
+};
+
+template<>
+struct EltwiseEmitter<jit_power_static_emitter> {
+    void operator()(EltwiseEmitterContext & ctx) {
+        ctx.emitter = std::make_shared<jit_power_static_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha,
+                                                                 ctx.opData.beta, ctx.opData.gamma, ctx.exec_prc);
     }
 };
 
@@ -81,8 +98,11 @@ template <cpu_isa_t isa>
 struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    explicit jit_uni_eltwise_generic(const jit_eltwise_params& jep, MKLDNNEltwiseNode& eltwiseNode) :
-        jit_uni_eltwise_kernel(jep, eltwiseNode), jit_generator() {}
+    explicit jit_uni_eltwise_generic(jit_eltwise_params jep,
+                                     const std::vector<MKLDNNEltwiseNode::EltwiseData>& eltwise_data,
+                                     const std::vector<MKLDNNPlugin::Type>& ops_list,
+                                     const mkldnn::post_ops& post_ops)
+    : jit_uni_eltwise_kernel(std::move(jep)), jit_generator(), eltwise_data_(eltwise_data), ops_list_(ops_list), post_ops_(post_ops) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -92,18 +112,26 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
     void generate() override {
         Precision exec_prc = Precision::UNSPECIFIED;
 
-        std::set<Precision> supported_precision_intersection = get_supported_precisions(eltwiseNode);
-        for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
-            if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
-                std::set<Precision> prcs = get_supported_precisions(*eltwiseNode.getFusedWith()[i].get());
-                std::set<Precision> prcs_intersect = {};
+        std::set<Precision> supported_precision_intersection = get_supported_precisions(eltwise_data_.front().algo);
+        for (size_t i = 1; i < eltwise_data_.size(); ++i) {
+            std::set<Precision> prcs = get_supported_precisions(eltwise_data_[i].algo);
+            std::set<Precision> prcs_intersect = {};
 
-                std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
-                                      prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
+            std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
+                                  prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
 
-                supported_precision_intersection = prcs_intersect;
-            }
+            supported_precision_intersection = prcs_intersect;
         }
+
+        static const Precision exec_precisions_priority[] = {
+                Precision::U8,
+                Precision::I8,
+                Precision::U16,
+                Precision::I16,
+                Precision::BF16,
+                Precision::I32,
+                Precision::FP32
+        };
 
         for (auto prc : exec_precisions_priority) {
             if (std::find(supported_precision_intersection.begin(), supported_precision_intersection.end(), prc) != supported_precision_intersection.end()) {
@@ -120,29 +148,25 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
         }
 
         if (exec_prc == Precision::UNSPECIFIED) {
-            IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node with name `" << eltwiseNode.getName() << "`";
+            IE_THROW() << "Eltwise jitter failed to specify execution precision for Eltwise node";
         }
 
-        eltwise_emitter = create_eltwise_emitter(eltwiseNode, exec_prc);
+        eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
+        for (size_t i = 1; i < eltwise_data_.size(); ++i) {
+            post_op_emitters.push_back(create_eltwise_emitter(eltwise_data_[i], exec_prc));
+        }
 
-        mkldnn::post_ops post_ops;
-        for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
-            if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
-                post_op_emitters.push_back(create_eltwise_emitter(*eltwiseNode.getFusedWith()[i].get(), exec_prc));
-            } else if (eltwiseNode.getFusedWith()[i].get()->getType() == FakeQuantize) {
-               auto fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
-               if (!fakeQuantizeNode) {
-                   IE_THROW() << "Cannot cast " << eltwiseNode.getFusedWith()[i]->getName() << " to MKLDNNFakeQuantizeNode";
-               }
-               fakeQuantizeNode->appendPostOps(post_ops);
-
-               quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
-                       this, post_ops.get()->entry_[post_ops.len() - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
+        const auto& p = post_ops_.get();
+        for (int i = 0; i < post_ops_.len(); ++i) {
+            if (!p->entry_[i].is_quantization()) {
+                IE_THROW() << "Eltwise jitter error. Unsupported post op detected";
             }
+            quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
+                    this, p->entry_[i], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
         }
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa));
 
         const auto &jep = jep_;
 
@@ -211,7 +235,7 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
                 is_valid_configuration = false;
 
             if (!is_valid_configuration)
-                IE_THROW() << "Eltwise jitter has invalid configuration for Eltwise node with name `" << eltwiseNode.getName() << "`";
+                IE_THROW() << "Eltwise jitter has invalid configuration for Eltwise node";
 
             L(unroll_loop_label);
             {
@@ -387,20 +411,14 @@ private:
 
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors = {};
 
-    std::vector<Precision> exec_precisions_priority = {
-        Precision::U8,
-        Precision::I8,
-        Precision::U16,
-        Precision::I16,
-        Precision::BF16,
-        Precision::I32,
-        Precision::FP32
-    };
+    const std::vector<MKLDNNEltwiseNode::EltwiseData>& eltwise_data_;
+    const std::vector<MKLDNNPlugin::Type>& ops_list_;
+    const mkldnn::post_ops& post_ops_;
 
-    std::set<Precision> get_supported_precisions(MKLDNNNode& node) {
+    std::set<Precision> get_supported_precisions(Algorithm algo) {
         std::set<Precision> precisions;
 
-        OV_SWITCH(MKLDNNPlugin, SupportedPrecisions, precisions, node.getAlgorithm(),
+        OV_SWITCH(MKLDNNPlugin, SupportedPrecisions, precisions, algo,
         OV_CASE(EltwiseRelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseGelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),
@@ -448,18 +466,16 @@ private:
         return precisions;
     }
 
-    std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
-        const auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
-
+    std::shared_ptr<jit_emitter> create_eltwise_emitter(const MKLDNNEltwiseNode::EltwiseData& data, Precision exec_prec) {
         EltwiseEmitterContext ctx = {
             nullptr,
             this,
             isa,
-            &node,
+            data,
             exec_prec
         };
 
-        OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, eltwiseNode.getAlgorithm(),
+        OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, data.algo,
         OV_CASE(EltwiseRelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseGelu, jit_mkldnn_aux_emitter),
         OV_CASE(EltwiseElu, jit_mkldnn_aux_emitter),
@@ -525,8 +541,8 @@ private:
         int input_idx = eltwise_emitter->get_inputs_num();
         int eltwise_post_op_idx = 0;
         int quantization_post_op_idx = 0;
-        for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
-            if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
+        for (int i = 1; i < ops_list_.size(); i++) {
+            if (ops_list_[i] == Eltwise) {
                 std::vector<size_t> in_idxs;
                 std::vector<size_t> aux_idxs;
                 in_idxs.push_back(vmm_dst.getIdx());
@@ -541,9 +557,9 @@ private:
                 post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_idxs);
 
                 eltwise_post_op_idx++;
-            } else {
-                bool do_dequantization = eltwiseNode.getFusedWith()[i]->getAlgorithm() == FQCommon;
-                bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwiseNode.getFusedWith().size() - 1;
+            } else if (ops_list_[i] == FakeQuantize) {
+                bool do_dequantization = eltwise_data_[i].algo == FQCommon;
+                bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwise_data_.size() - 1;
                 int s_idx = vmm_dst.getIdx();
 
                 quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(reg_oc_off);
@@ -557,6 +573,8 @@ private:
                 quantization_injectors[quantization_post_op_idx]->compute_output_scale_shift(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
 
                 quantization_post_op_idx++;
+            } else {
+                IE_THROW(Unexpected) << "Eltwise jit kernel: unexpected operation type";
             }
         }
     }
@@ -1513,7 +1531,21 @@ void MKLDNNEltwiseNode::prepareParams() {
                    [](size_t& offset) { return offset * sizeof(float);});
 
     if (canUseOptimizedImpl) {
-        execPtr = std::make_shared<EltwiseJitExecutor>(jep, *this, schedulerWorkAmount, batchDimIdx);
+        std::vector<EltwiseData> eltwise_data{{getAlgorithm(), getMKLDNNAlgorithm(), getAlpha(), getBeta(), getGamma()}};
+        std::vector<Type> ops_list{getType()};
+        mkldnn::post_ops post_ops;
+        for (const auto& node : fusedWith) {
+            ops_list.push_back(node->getType());
+            if (node->getType() == Eltwise) {
+                if (auto eltwise = std::dynamic_pointer_cast<MKLDNNEltwiseNode>(node)) {
+                    eltwise_data.push_back({eltwise->getAlgorithm(), eltwise->getMKLDNNAlgorithm(), eltwise->getAlpha(),
+                                            eltwise->getBeta(), eltwise->getGamma()});
+                }
+            } else if (node->getType() == FakeQuantize) {
+                node->appendPostOps(post_ops, {});
+            }
+        }
+        execPtr = std::make_shared<EltwiseJitExecutor>(jep, eltwise_data, ops_list, post_ops, schedulerWorkAmount, batchDimIdx);
     } else {
         execPtr = std::make_shared<EltwiseRefExecutor>(jep, fullWorkAmount, batchDimIdx);
     }
@@ -1933,14 +1965,19 @@ InferenceEngine::Precision MKLDNNEltwiseNode::getRuntimePrecision() const {
     return getMaxPrecision(inputPrecisions);
 }
 
-MKLDNNEltwiseNode::EltwiseJitExecutor::EltwiseJitExecutor(const jit_eltwise_params &_jep, MKLDNNEltwiseNode& node, const size_t schedWA, const size_t batch)
-                                                    : schedulerWorkAmount(schedWA), EltwiseExecutor(batch) {
+MKLDNNEltwiseNode::EltwiseJitExecutor::EltwiseJitExecutor(const jit_eltwise_params &_jep,
+                                                          const std::vector<EltwiseData>& eltwise_data,
+                                                          const std::vector<Type>& ops_list,
+                                                          const mkldnn::post_ops& post_ops,
+                                                          const size_t schedWA,
+                                                          const size_t batch)
+: schedulerWorkAmount(schedWA), EltwiseExecutor(batch) {
     if (mayiuse(x64::avx512_common)) {
-        pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_common>(_jep, node));
+        pKernel.reset(new jit_uni_eltwise_generic<x64::avx512_common>(_jep, eltwise_data, ops_list, post_ops));
     } else if (mayiuse(x64::avx2)) {
-        pKernel.reset(new jit_uni_eltwise_generic<x64::avx2>(_jep, node));
+        pKernel.reset(new jit_uni_eltwise_generic<x64::avx2>(_jep, eltwise_data, ops_list, post_ops));
     } else if (mayiuse(x64::sse41)) {
-        pKernel.reset(new jit_uni_eltwise_generic<x64::sse41>(_jep, node));
+        pKernel.reset(new jit_uni_eltwise_generic<x64::sse41>(_jep, eltwise_data, ops_list, post_ops));
     } else {
         IE_THROW() << "Can't create jit eltwise kernel";
     }
