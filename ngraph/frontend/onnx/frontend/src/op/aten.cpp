@@ -73,6 +73,7 @@ OutputVector aten(const Node& node) {
     } else {
         OPENVINO_UNREACHABLE("Unsupported inputs configuration for ATen `embedding_bag` operation.");
     }
+    // Enable import onnx Node with duplicated outputs
     return OutputVector(node.get_outputs_size(), embedding_bag->output(0));
 }
 
