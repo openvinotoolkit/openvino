@@ -53,8 +53,6 @@
 #include "legacy/net_pass.h"
 #include "ie_legacy_itt.hpp"
 
-#define DEBUG_VALUE(x) std::cout << "EMUTEX DEBUG " << __FILE__ << ":" << __LINE__ << " " << #x << " = " << x << std::endl;
-
 namespace Builder {
 
 template <class T>
@@ -1996,7 +1994,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
 
             auto outName = ngraph::op::util::get_ie_output_name(layer->output(i));
-            DEBUG_VALUE(outName);
+
 
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
             IE_ASSERT(layer->get_output_partial_shape(i).is_static()) << " nGraph "

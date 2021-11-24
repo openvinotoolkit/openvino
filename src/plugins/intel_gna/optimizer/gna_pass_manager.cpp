@@ -1306,16 +1306,12 @@ void InsertSplitAligningFilterPass::run() {
     const int bytesPerSplitElement = 2;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
-    DEBUG_CHECKPOINT;
-
     int numOfFilterLayers = 0;
     for (auto &l : *pLayers) {
         auto info = LayerInfo(l);
         if (!info.isSplit() && !info.isSlice()) {
             continue;
         }
-
-        DEBUG_CHECKPOINT;
 
         auto outFunctionalLayers = CNNNetGetAllNextLayersSkipCertain(l, -1, [](CNNLayerPtr next_layer) {
             return GNAPluginNS::LayerInfo(next_layer).isNonFunctional();
@@ -1329,8 +1325,6 @@ void InsertSplitAligningFilterPass::run() {
         int splitOutIndex = 0;
         for (auto &&splitOutput  : l->outData) {
             auto outputSize = product(begin(splitOutput->getDims()), end(splitOutput->getDims()));
-
-            DEBUG_CHECKPOINT;
 
             if ((currentOffset != ALIGN64(currentOffset)) || (padding != 0)) {
                 // check that this split output actually connected to further layers
@@ -1394,10 +1388,6 @@ void InsertSplitAligningFilterPass::run() {
                         filterWeights[f * filterSize + f + offsetOfUnalignment] = 1;
                     }
 
-                    DEBUG_CHECKPOINT;
-
-                    DEBUG_VALUE(filterLayer->_out_depth);
-
                     filterLayer->_out_depth = numberOfFilters;
                     filterLayer->_stride_x = numberOfFilters;
                     filterLayer->_stride_y = 1;
@@ -1405,9 +1395,6 @@ void InsertSplitAligningFilterPass::run() {
                     filterLayer->_kernel_y = 1;
                     filterLayer->_padding_x = 0;
                     filterLayer->_padding_y = 0;
-
-                    DEBUG_VALUE(filterLayer->_out_depth);
-                    DEBUG_VALUE(filterLayer->_kernel_x);
 
                     filterLayer->_weights = make_shared_blob<float>(TensorDesc(
                             inputData->getTensorDesc().getPrecision(),
