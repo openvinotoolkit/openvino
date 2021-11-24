@@ -39,7 +39,7 @@ target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE
 target_include_directories(${TARGET_NAME}_obj PRIVATE
     ${PUBLIC_HEADERS_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src # For CNNNetworkNGraphImpl
+    $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
