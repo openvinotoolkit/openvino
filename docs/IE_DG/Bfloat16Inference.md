@@ -60,7 +60,7 @@ Low-Precision 8-bit integer models cannot be converted to BF16, even if bfloat16
 
 Bfloat16 simulation mode is available on CPU and Intel® AVX-512 platforms that do not support the native `avx512_bf16` instruction. The simulator does not guarantee an adequate performance.
 To enable Bfloat16 simulator:
-* In [Benchmark App](../../inference-engine/samples/benchmark_app/README.md), add the `-enforcebf16=true` option
+* In [Benchmark App](../../samples/cpp/benchmark_app/README.md), add the `-enforcebf16=true` option
 * In C++ API, set `KEY_ENFORCE_BF16` to `YES`
 * In C API:
 ```
