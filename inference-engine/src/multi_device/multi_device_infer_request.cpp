@@ -62,8 +62,7 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
 }
 
 void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) {
-    auto exeNetwork = _exeNetwork.get();
-    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->EligibleForDynamicShape() && _requestToShareBlobsWith) {
+    if ((_requestToShareBlobsWith)) {
         _requestToShareBlobsWith->SetBlob(name, blob);
         InputInfo::Ptr foundInput;
         DataPtr foundOutput;
@@ -78,8 +77,7 @@ void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEn
 }
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
-    auto exeNetwork = _exeNetwork.get();
-    if (dynamic_cast<MultiDeviceExecutableNetwork*>(exeNetwork)->EligibleForDynamicShape() && _requestToShareBlobsWith)
+    if (_requestToShareBlobsWith)
         return _requestToShareBlobsWith->GetBlob(name);
     else
         return IInferRequestInternal::GetBlob(name);

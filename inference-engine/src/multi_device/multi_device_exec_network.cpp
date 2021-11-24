@@ -137,6 +137,39 @@ void MultiDeviceExecutableNetwork::GenerateWorkers(const std::string& device, co
     }
 }
 
+void MultiDeviceExecutableNetwork::IncreaseWorkers(AutoLoadContext& loadcontext, InferenceEngine::SoIInferRequestInternal& request_to_share) {
+    auto devicename = loadcontext.deviceInfo.deviceName;
+     auto& executableNetwork =  loadcontext.executableNetwork;
+    auto& idleWorkerRequests = _idleWorkerRequests[devicename];
+    //_inferPipelineTasksDeviceSpecific[devicename] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
+    auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
+    idleWorkerRequests.set_capacity(idleWorkerRequests.capacity() + 1);
+    auto* workerRequestPtr =  new WorkerInferRequest;
+    auto& workerRequest = *workerRequestPtr;
+    workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
+    IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
+    workerRequest._inferRequest->SetCallback(
+            [workerRequestPtr, this, devicename, idleWorkerRequestsPtr] (std::exception_ptr exceptionPtr) mutable {
+                IdleGuard idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
+                workerRequestPtr->_exceptionPtr = exceptionPtr;
+                {
+                    auto capturedTask = std::move(workerRequestPtr->_task);
+                    capturedTask();
+                }
+                // try to return the request to the idle list (fails if the overall object destruction has began)
+                if (idleGuard.Release()->try_push(workerRequestPtr)) {
+                    // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
+                    // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
+                    Task t;
+                    if (_inferPipelineTasks.try_pop(t))
+                        ScheduleToWorkerInferRequest(std::move(t));
+                    else if (_inferPipelineTasksDeviceSpecific[devicename]->try_pop(t))
+                        ScheduleToWorkerInferRequest(std::move(t), devicename);
+                }
+            });
+    request_to_share = workerRequest._inferRequest;
+}
+
 MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&                         modelPath,
                                                            const InferenceEngine::CNNNetwork&         network,
                                                            const std::vector<DeviceInformation>&      metaDevices,
@@ -456,9 +489,17 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
             auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            } else {
+                IncreaseWorkers(_loadContext[ACTUALDEVICE], request_to_share_blobs_with);
+            }
+        } else {
+            auto& dev_requests = _workerRequests[_loadContext[CPU].deviceInfo.deviceName];
+            if (num < dev_requests.size()) {
+                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            } else {
+                IncreaseWorkers(_loadContext[CPU], request_to_share_blobs_with);
             }
         }
-        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(inputs, outputs, request_to_share_blobs_with);
     }
 
@@ -486,9 +527,17 @@ InferenceEngine::IInferRequestInternal::Ptr MultiDeviceExecutableNetwork::Create
             auto& dev_requests = _workerRequests[_loadContext[ACTUALDEVICE].deviceInfo.deviceName];
             if (num < dev_requests.size()) {
                 request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            } else {
+                IncreaseWorkers(_loadContext[ACTUALDEVICE], request_to_share_blobs_with);
+            }
+        } else {
+            auto& dev_requests = _workerRequests[_loadContext[CPU].deviceInfo.deviceName];
+            if (num < dev_requests.size()) {
+                request_to_share_blobs_with = dev_requests.at(num)._inferRequest;
+            } else {
+                IncreaseWorkers(_loadContext[CPU], request_to_share_blobs_with);
             }
         }
-        // if user creates more infer request than the device optimal value, fall back to default memory
         return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
     }
 
