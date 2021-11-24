@@ -27,7 +27,7 @@ from . import node_utils as nu
 from .pattern_utils import get_fq_result_pattern
 from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
-from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input
+from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
 from ..utils.logger import get_logger
 
@@ -683,8 +683,12 @@ def create_bias_node(graph: Graph, src_node):
     bias_shape = src_node.out_port(0).data.get_shape()
     add_bias_shape = [1] * len(bias_shape)
     add_bias_shape[1] = bias_shape[1]
+    weights = get_weights_for_node(src_node)
+    bias_dtype = np.float32
+    if weights and weights.out_port(0).is_data_type_defined():
+        bias_dtype = weights.out_port(0).get_data_type()
     add_bias = Const(graph,
-                     {'value': np.zeros(add_bias_shape, dtype=np.float32),
+                     {'value': np.zeros(add_bias_shape, dtype=bias_dtype),
                       'shape': add_bias_shape,
                       'need_shape_inference': True
                       }).create_node()
@@ -706,10 +710,10 @@ def create_fake_quantize_node(graph: Graph, name):
     fq = FakeQuantize(graph, {'name': name, 'levels': 0,
                               'stop_value_propagation': True}).create_node()
 
-    input_low = Const(graph, {'value': 0.0}).create_node()
-    input_height = Const(graph, {'value': 0.0}).create_node()
-    output_low = Const(graph, {'value': 0.0}).create_node()
-    output_height = Const(graph, {'value': 0.0}).create_node()
+    input_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    input_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    output_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    output_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
 
     input_low.out_port(0).connect(fq.in_port(1))
     input_height.out_port(0).connect(fq.in_port(2))

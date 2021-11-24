@@ -60,6 +60,31 @@ public:
 
     std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(const InferenceEngine::ParamMap& params) override;
+
+    struct clDNNEngineParams {
+        cldnn::queue_types queue_type;
+        cldnn::engine_types engine_type;
+        cldnn::runtime_types runtime_type;
+        bool use_unified_shared_memory;
+        InferenceEngine::ITaskExecutor::Ptr task_executor;
+    };
+
+    static clDNNEngineParams GetEngineParams(const Config& config, const cldnn::device::ptr& dev,
+                                                InferenceEngine::gpu_handle_param external_queue = nullptr) {
+        clDNNEngineParams params;
+        params.engine_type = cldnn::engine_types::ocl;
+        params.runtime_type = cldnn::runtime_types::ocl;
+        if (external_queue) {
+            params.queue_type = cldnn::stream::detect_queue_type(params.engine_type, external_queue);
+        } else if (dev->get_info().supports_immad) {
+            params.queue_type = cldnn::queue_types::in_order;
+        } else {
+            params.queue_type = cldnn::queue_types::out_of_order;
+        }
+        params.use_unified_shared_memory = true;
+        params.task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(config.task_exec_config);
+        return params;
+    }
 };
 
 };  // namespace CLDNNPlugin

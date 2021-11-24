@@ -28,6 +28,5 @@ private:
     FrontEndTF::CreatorFunction m_converter;
 };
 
-
 }
 }
