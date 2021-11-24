@@ -352,8 +352,7 @@ TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_static) {
                             {2 * 6 - 2 - 2, 20 * 6 - 2 - 2},
                             {12 * 5 - 1, 14 * 5 - 1},
                             {100, 150},
-                            {10 * 16, 20 * 16}
-                }));
+                            {10 * 16, 20 * 16}}));
 }
 
 TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_dynamic) {
@@ -368,8 +367,7 @@ TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_dynamic) {
                             {2 * 6 - 2 - 2, 34 * 6 - 2 - 2},
                             {9 * 5 - 1, 21 * 5 - 1},
                             {100, 162},
-                            {1 * 16, 1999 * 16}
-                }));
+                            {1 * 16, 1999 * 16}}));
 }
 
 TEST(type_prop, batch_to_space_and_space_to_batch) {
