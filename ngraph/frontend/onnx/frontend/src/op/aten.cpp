@@ -31,7 +31,7 @@ OutputVector aten(const Node& node) {
                      mode);
     CHECK_VALID_NODE(node, inputs.size() >= 2, "Minimum 2 inputs are required. Got: ", inputs.size());
 
-    std::shared_ptr<ov::Node> embedding_bag;
+    Output<ov::Node> embedding_bag;
     const bool is_packed_two_inputs =
         inputs.size() == 2 || (inputs.size() == 3 && ngraph::op::is_null(inputs[2])) ||
         (inputs.size() == 4 && ngraph::op::is_null(inputs[2]) && ngraph::op::is_null(inputs[3]));
@@ -85,7 +85,7 @@ OutputVector aten(const Node& node) {
         OPENVINO_UNREACHABLE("Unsupported inputs configuration for ATen `embedding_bag` operation.");
     }
     // Enable import onnx Node with duplicated outputs
-    return OutputVector(node.get_outputs_size(), embedding_bag->output(0));
+    return OutputVector(node.get_outputs_size(), embedding_bag);
 }
 
 }  // namespace set_1
