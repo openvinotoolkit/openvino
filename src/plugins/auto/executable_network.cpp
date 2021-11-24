@@ -181,12 +181,16 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
         if (CPUIter != metaDevices.end()) {
             _loadContext[CPU].isEnabled = true;
             _loadContext[CPU].deviceInfo = *CPUIter;
+<<<<<<< 541c8721c74b900e1fa0c97fdbef914c6f09fbfa
             LOG_INFO("[AUTOPLUGIN]:will load CPU for accelerator");
+=======
+            _loadContext[CPU].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+                InferenceEngine::PluginConfigParams::LATENCY;
+>>>>>>> hard code for num request and lantency for cpu
         } else {
             _loadContext[CPU].isEnabled = false;
         }
     }
-
 
     // initialize the rest members of load context
     for (int i = 0; i < CONTEXTNUM; i++) {
@@ -294,12 +298,6 @@ void MultiDeviceExecutableNetwork::TryToLoadNetWork(AutoLoadContext& context,
         context.deviceInfo = _multiPlugin->SelectDevice(deviceList, context.networkPrecision);
     }
     catch (const std::exception& e) {
-        return;
-    }
-
-    // if selec device is CPU, do not need to load CPU again, context[CPU] must have loaded CPU
-    curDevIsCPU = (context.deviceInfo.deviceName.find("CPU") != std::string::npos);
-    if (curDevIsCPU) {
         return;
     }
 
@@ -608,6 +606,10 @@ InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetConfig(const std::st
 
 InferenceEngine::Parameter MultiDeviceExecutableNetwork::GetMetric(const std::string &name) const {
     if (_workModeIsAUTO) {
+        if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+            unsigned int res = 4u;
+            IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, res);
+        }
         // fixme: should we wait actual device? meanwhile it will block inference, how to fix?
         if (_loadContext[ACTUALDEVICE].isAlready) {
             return _loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
