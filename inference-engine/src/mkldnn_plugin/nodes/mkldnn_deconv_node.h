@@ -39,12 +39,14 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     bool canFuse(const MKLDNNNodePtr& node) const override;
 
+    const InferenceEngine::SizeVector& getWeightDims() { return weightDims; }
+    const std::vector<ptrdiff_t>& getStride() { return stride; }
+
 private:
     bool withGroups = false;
     bool isDW = false;
     bool isInt8 = false;
     size_t groupNum = 1;
-    size_t outDepth;
     size_t IC;
     size_t OC;
     std::vector<ptrdiff_t> kernel;

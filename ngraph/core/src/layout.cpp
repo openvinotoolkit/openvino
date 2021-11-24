@@ -280,6 +280,9 @@ std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank
     if (src_layout == dst) {
         return {};  // No permutation is needed
     }
+    if (src_layout.empty() || dst.empty()) {
+        return {};
+    }
     OPENVINO_ASSERT(!src_layout.m_dynamic && !dst.m_dynamic, "Conversion is not supported for dynamic layouts");
     OPENVINO_ASSERT(src_layout.m_left_size == src_layout.m_left_size,
                     "Conversion is not supported for layouts with different sizes");
@@ -300,28 +303,48 @@ std::vector<int64_t> find_permutation(const Layout& src_layout, const Rank& rank
     return res;
 }
 
+// Helper functions
+bool has_batch(const Layout& layout) {
+    return layout.has_name(BATCH);
+}
+
+std::int64_t batch_idx(const Layout& layout) {
+    return layout.get_index_by_name(BATCH);
+}
+
+bool has_depth(const Layout& layout) {
+    return layout.has_name(DEPTH);
+}
+
+std::int64_t depth_idx(const Layout& layout) {
+    return layout.get_index_by_name(DEPTH);
+}
+
+bool has_channels(const Layout& layout) {
+    return layout.has_name(CHANNELS);
+}
+
+std::int64_t channels_idx(const Layout& layout) {
+    return layout.get_index_by_name(CHANNELS);
+}
+
+bool has_height(const Layout& layout) {
+    return layout.has_name(HEIGHT);
+}
+
+std::int64_t height_idx(const Layout& layout) {
+    return layout.get_index_by_name(HEIGHT);
+}
+
+bool has_width(const Layout& layout) {
+    return layout.has_name(WIDTH);
+}
+
+std::int64_t width_idx(const Layout& layout) {
+    return layout.get_index_by_name(WIDTH);
+}
+
 }  // namespace layout
-
-#define DEFINE_NAMED_DIMENSION(NAME, name)            \
-    bool layout::has_##name(const Layout& layout) {   \
-        return layout.has_name(NAME);                 \
-    }                                                 \
-                                                      \
-    std::int64_t layout::name(const Layout& layout) { \
-        return layout.get_index_by_name(NAME);        \
-    }
-
-DEFINE_NAMED_DIMENSION(BATCH, batch)
-
-DEFINE_NAMED_DIMENSION(CHANNELS, channels)
-
-DEFINE_NAMED_DIMENSION(DEPTH, depth)
-
-DEFINE_NAMED_DIMENSION(HEIGHT, height)
-
-DEFINE_NAMED_DIMENSION(WIDTH, width)
-
-constexpr DiscreteTypeInfo AttributeAdapter<ov::Layout>::type_info;
 
 const std::string& AttributeAdapter<ov::Layout>::get() {
     m_dump = m_ref.to_string();
@@ -332,6 +355,11 @@ void AttributeAdapter<ov::Layout>::set(const std::string& value) {
     m_ref = Layout(value);
 }
 
-constexpr VariantTypeInfo VariantWrapper<ov::Layout>::type_info;
+bool LayoutAttribute::visit_attributes(AttributeVisitor& visitor) {
+    std::string layout_str = m_value.to_string();
+    visitor.on_attribute("layout", layout_str);
+    m_value = Layout(layout_str);
+    return true;
+}
 
 }  // namespace ov

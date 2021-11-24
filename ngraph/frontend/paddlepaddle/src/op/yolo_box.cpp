@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <limits>  // std::numeric_limits
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 #include <numeric>
+#include <openvino/opsets/opset6.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -325,4 +325,4 @@ NamedOutputs yolo_box(const NodeContext& node_context) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

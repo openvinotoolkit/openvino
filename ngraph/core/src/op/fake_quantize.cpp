@@ -77,6 +77,7 @@ shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new
 }
 
 namespace fakequantizeop {
+namespace {
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,
               const HostTensorPtr& arg1,
@@ -124,6 +125,7 @@ bool evaluate_fakequantize(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace fakequantizeop
 
 bool ngraph::op::FakeQuantize::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

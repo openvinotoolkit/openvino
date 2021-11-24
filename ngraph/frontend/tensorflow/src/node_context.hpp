@@ -3,15 +3,15 @@
 //
 
 #pragma once
-#include <openvino/core/variant.hpp>
-#include <tensorflow_frontend/utility.hpp>
 
 #include "exceptions.hpp"
+#include "openvino/core/variant.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
+#include "tensorflow_frontend/utility.hpp"
 #include "types.pb.h"
 
-#define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
+#define OPENVINO_VARIANT_DECLARATION(TYPE, info)                                          \
     template <>                                                                           \
     class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
     public:                                                                               \
@@ -20,18 +20,18 @@
     }
 
 namespace ov {
-NGRAPH_VARIANT_DECLARATION(int32_t, "Variant::int32");
-NGRAPH_VARIANT_DECLARATION(uint64_t, "Variant::uint64_t");
-NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
-NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
-NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
-NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
-NGRAPH_VARIANT_DECLARATION(ov::element::Type, "Variant::ov_element_type");
-NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
-NGRAPH_VARIANT_DECLARATION(ov::PartialShape, "Variant::ngraph_PartialShape");
-NGRAPH_VARIANT_DECLARATION(std::vector<std::string>, "Variant::string_vector");
-NGRAPH_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
-NGRAPH_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
+OPENVINO_VARIANT_DECLARATION(int32_t, "Variant::int32");
+OPENVINO_VARIANT_DECLARATION(uint64_t, "Variant::uint64_t");
+OPENVINO_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
+OPENVINO_VARIANT_DECLARATION(float, "Variant::float");
+OPENVINO_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
+OPENVINO_VARIANT_DECLARATION(bool, "Variant::bool");
+OPENVINO_VARIANT_DECLARATION(ov::element::Type, "Variant::ov_element_type");
+OPENVINO_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
+OPENVINO_VARIANT_DECLARATION(ov::PartialShape, "Variant:ov_PartialShape");
+OPENVINO_VARIANT_DECLARATION(std::vector<std::string>, "Variant::string_vector");
+OPENVINO_VARIANT_DECLARATION(::tensorflow::DataType, "Variant::DataType");
+OPENVINO_VARIANT_DECLARATION(::tensorflow::TensorProto, "Variant::TensorProto");
 }  // namespace ov
 
 namespace ov {
@@ -80,7 +80,7 @@ public:
     }
 
     /// Detects if there is at least one input attached with a given name
-    bool has_ng_input(const size_t& port_index) const {
+    bool has_input(const size_t& port_index) const {
         auto found = m_name_map.find(port_index);
         if (found != m_name_map.end())
             return !found->second.empty();
@@ -89,19 +89,19 @@ public:
 
     /// Returns exactly one input with a given name; throws if there is no inputs or
     /// there are more than one input
-    Output<Node> get_ng_input(const size_t& port_index) const {
+    Output<Node> get_input(const size_t& port_index) const {
         FRONT_END_GENERAL_CHECK(m_name_map.at(port_index).size() == 1);
         return m_name_map.at(port_index).at(0);
     }
 
     /// Returns all inputs with a given name
-    OutputVector get_ng_inputs(const size_t& port_index) const {
+    OutputVector get_inputs(const size_t& port_index) const {
         return m_name_map.at(port_index);
     }
 
     /// Returns all inputs in order they appear in map. This is used for FrameworkNode
     /// creation
-    OutputVector get_all_ng_inputs() const {
+    OutputVector get_all_inputs() const {
         OutputVector res;
         for (const auto& entry : m_name_map) {
             res.insert(res.end(), entry.second.begin(), entry.second.end());
@@ -110,7 +110,7 @@ public:
     }
 
     /// Get a number of inputs
-    size_t get_ng_input_size() const {
+    size_t get_input_size() const {
         return m_name_map.size();
     }
 

@@ -5,7 +5,13 @@
 #include "shared_test_classes/read_ir/read_ir.hpp"
 
 namespace LayerTestsDefinitions {
+
 TEST_P(ReadIRTest, ReadIR) {
     Run();
 }
+
+TEST_P(ReadIRTest, QueryNetwork) {
+    QueryNetwork();
+}
+
 } // namespace LayerTestsDefinitions

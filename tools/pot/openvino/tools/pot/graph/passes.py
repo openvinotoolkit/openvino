@@ -27,7 +27,7 @@ from . import node_utils as nu
 from .pattern_utils import get_fq_result_pattern
 from .special_operations import OPERATIONS_WITH_WEIGHTS, DETECTION_OUTPUT_FINAL_TYPES, SPLIT_OPERATIONS
 from .utils import find_operation_matches, is_ignored, get_hw_aware_ignored_patterns
-from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input
+from ..graph.node_utils import get_all_node_outputs, get_node_inputs, get_node_input, get_weights_for_node
 from ..graph.special_patterns import get_ignored_patterns
 from ..utils.logger import get_logger
 
@@ -216,7 +216,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
         jump_split_concat_ops: jump_over_split_concat
     }
 
-    def find_nodes_fq_int(self, graph):
+    def delete_fq_non_quantizable_node_precision(self, graph):
         type_infer(graph)
         fq_removal = RemoveFakeQuantize()
         fq_removal.quantize_agnostic_operations = self.quantize_agnostic_operations
@@ -227,7 +227,7 @@ class FakeQuantizePropagation(BackReplacementPattern):
             fq = fq_queue.popleft()
             if fq.in_port(0).get_source() is not None and fq.in_port(0).get_source().is_data_type_defined():
                 type_node = fq.in_port(0).get_source().get_data_type()
-                if type_node in (np.int32, np.int64):
+                if type_node in (np.int32, np.int64, bool):
                     node_int_fq.append(fq.name)
                     fq_removal.find_and_remove_node(graph, fq.name)
 
@@ -649,12 +649,20 @@ class FakeQuantizeNameSwapper(BackReplacementPattern):
         def change_names(_, match):
             fq_node = match['fq']
             input_node = get_node_input(fq_node, 0)
+            new_fq_name = copy(input_node.name)
+            if 'orig_node_name' in input_node:
+                new_fq_name = copy(input_node['orig_node_name'])
+
+            input_node_outputs = get_all_node_outputs(input_node)
+            if all([op.type == 'FakeQuantize' for op in input_node_outputs]):
+                new_fq_name += '.{}'.format(fq_node.in_port(0).get_source().idx)
 
             fq_node['orig_fq_name'] = copy(fq_node.name)
-            fq_node.name = copy(input_node.name)
+            fq_node.name = copy(new_fq_name)
 
-            input_node['orig_node_name'] = copy(input_node.name)
-            input_node.name = '{original_name}/pre_fq_input'.format(original_name=input_node.name)
+            if 'orig_node_name' not in input_node:
+                input_node['orig_node_name'] = copy(input_node.name)
+                input_node.name = '{original_name}/pre_fq_input'.format(original_name=input_node.name)
 
         pattern = get_fq_result_pattern()
         apply_pattern(
@@ -675,8 +683,12 @@ def create_bias_node(graph: Graph, src_node):
     bias_shape = src_node.out_port(0).data.get_shape()
     add_bias_shape = [1] * len(bias_shape)
     add_bias_shape[1] = bias_shape[1]
+    weights = get_weights_for_node(src_node)
+    bias_dtype = np.float32
+    if weights and weights.out_port(0).is_data_type_defined():
+        bias_dtype = weights.out_port(0).get_data_type()
     add_bias = Const(graph,
-                     {'value': np.zeros(add_bias_shape, dtype=np.float32),
+                     {'value': np.zeros(add_bias_shape, dtype=bias_dtype),
                       'shape': add_bias_shape,
                       'need_shape_inference': True
                       }).create_node()
@@ -698,10 +710,10 @@ def create_fake_quantize_node(graph: Graph, name):
     fq = FakeQuantize(graph, {'name': name, 'levels': 0,
                               'stop_value_propagation': True}).create_node()
 
-    input_low = Const(graph, {'value': 0.0}).create_node()
-    input_height = Const(graph, {'value': 0.0}).create_node()
-    output_low = Const(graph, {'value': 0.0}).create_node()
-    output_height = Const(graph, {'value': 0.0}).create_node()
+    input_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    input_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    output_low = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
+    output_height = Const(graph, {'value': np.array(0.0).astype(np.float32)}).create_node()
 
     input_low.out_port(0).connect(fq.in_port(1))
     input_height.out_port(0).connect(fq.in_port(2))

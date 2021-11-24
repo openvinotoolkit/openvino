@@ -12,9 +12,10 @@
 #include "ie_core.hpp"
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
+#include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <transformations/rt_info/attributes.hpp>
-#include "frontend_manager/frontend_manager.hpp"
+#include "manager.hpp"
 
 using namespace ngraph;
 
@@ -30,8 +31,8 @@ protected:
 
     std::shared_ptr<ngraph::Function> getWithIRFrontend(const std::string& model_path,
                                                         const std::string& weights_path) {
-        ngraph::frontend::FrontEnd::Ptr FE;
-        ngraph::frontend::InputModel::Ptr inputModel;
+        ov::frontend::FrontEnd::Ptr FE;
+        ov::frontend::InputModel::Ptr inputModel;
 
         ov::VariantVector params{ov::make_variant(model_path), ov::make_variant(weights_path)};
 
@@ -46,28 +47,34 @@ protected:
     }
 
 private:
-    ngraph::frontend::FrontEndManager manager;
+    ov::frontend::FrontEndManager manager;
 };
 
 TEST_F(RTInfoSerializationTest, all_attributes_latest) {
-    auto init_info = [](RTMap & info) {
+    auto init_info = [](RTMap& info) {
         info[VariantWrapper<ngraph::FusedNames>::get_type_info_static()] =
                 std::make_shared<VariantWrapper<ngraph::FusedNames>>(ngraph::FusedNames("add"));
         info[ov::PrimitivesPriority::get_type_info_static()] =
                 std::make_shared<ov::PrimitivesPriority>("priority");
-        info[ov::OldApiMap::get_type_info_static()] = std::make_shared<ov::OldApiMap>(
-                ov::OldApiMapAttr(std::vector<uint64_t>{0, 2, 3, 1}, ngraph::element::Type_t::f32));
+        info[ov::OldApiMapOrder::get_type_info_static()] =
+                std::make_shared<ov::OldApiMapOrder>(std::vector<uint64_t>{0, 2, 3, 1});
+        info[ov::OldApiMapElementType::get_type_info_static()] = std::make_shared<ov::OldApiMapElementType>(
+                ngraph::element::Type_t::f32);
+        info[ov::Decompression::get_type_info_static()] = std::make_shared<ov::Decompression>();
     };
 
     std::shared_ptr<ngraph::Function> function;
     {
         auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        data->set_layout("NCHW");
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
         init_info(add->output(0).get_rt_info());
-        function = std::make_shared<ngraph::Function>(OutputVector{add}, ParameterVector{data});
+        auto result = std::make_shared<ov::opset8::Result>(add);
+        result->set_layout("????");
+        function = std::make_shared<ngraph::Function>(ResultVector{result}, ParameterVector{data});
     }
 
     pass::Manager m;
@@ -90,16 +97,29 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
         ASSERT_TRUE(primitives_priority_attr);
         ASSERT_EQ(primitives_priority_attr->get(), "priority");
 
-        const std::string & old_api_map_key = ov::OldApiMap::get_type_info_static();
-        ASSERT_TRUE(info.count(old_api_map_key));
-        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMap>(info.at(old_api_map_key));
+        const std::string & old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key_order));
+        auto old_api_map_attr = std::dynamic_pointer_cast<ov::OldApiMapOrder>(info.at(old_api_map_key_order));
         ASSERT_TRUE(old_api_map_attr);
         auto old_api_map_attr_val = old_api_map_attr->get();
-        ASSERT_EQ(old_api_map_attr_val.get_order(), std::vector<uint64_t>({0, 2, 3, 1}));
-        ASSERT_EQ(old_api_map_attr_val.get_type(), ngraph::element::Type_t::f32);
+        ASSERT_EQ(old_api_map_attr_val, std::vector<uint64_t>({0, 2, 3, 1}));
+
+        const std::string & old_api_map_key = ov::OldApiMapElementType::get_type_info_static();
+        ASSERT_TRUE(info.count(old_api_map_key));
+        auto old_api_map_type = std::dynamic_pointer_cast<ov::OldApiMapElementType>(info.at(old_api_map_key));
+        ASSERT_TRUE(old_api_map_type);
+        auto old_api_map_type_val = old_api_map_type->get();
+        ASSERT_EQ(old_api_map_type_val, ngraph::element::Type_t::f32);
+
+        const std::string& dkey = ov::Decompression::get_type_info_static();
+        ASSERT_TRUE(info.count(dkey));
+        auto decompression_attr = std::dynamic_pointer_cast<ov::Decompression>(info.at(dkey));
+        ASSERT_TRUE(decompression_attr);
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NCHW");
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "????");
     check_info(add->get_rt_info());
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());
@@ -117,6 +137,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     std::shared_ptr<ngraph::Function> function;
     {
         auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        data->set_layout("NCHW");
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
@@ -142,6 +163,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());
     check_info(add->output(0).get_rt_info());
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), "");
 }
 
 TEST_F(RTInfoSerializationTest, all_attributes_v11) {
@@ -155,12 +177,18 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     std::shared_ptr<ngraph::Function> function;
     {
         auto data = std::make_shared<ov::opset8::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});
+        data->set_layout("NCHW");
         auto add = std::make_shared<ov::opset8::Add>(data, data);
         init_info(add->get_rt_info());
         init_info(add->input(0).get_rt_info());
         init_info(add->input(1).get_rt_info());
         init_info(add->output(0).get_rt_info());
-        function = std::make_shared<ngraph::Function>(OutputVector{add}, ParameterVector{data});
+        auto result = std::make_shared<ov::opset8::Result>(add);
+        result->set_layout("????");
+        function = std::make_shared<ngraph::Function>(ResultVector{result}, ParameterVector{data});
+        auto p = ov::preprocess::PrePostProcessor(function);
+        p.input().tensor().set_memory_type("test_memory_type");
+        function = p.build();
     }
 
     pass::Manager m;
@@ -185,6 +213,11 @@ TEST_F(RTInfoSerializationTest, all_attributes_v11) {
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);
+    EXPECT_EQ(f->get_parameters()[0]->get_layout(), "NCHW");
+    auto var0 = std::dynamic_pointer_cast<ov::preprocess::TensorInfoMemoryType>(
+            f->input(0).get_rt_info()[ov::preprocess::TensorInfoMemoryType::get_type_info_static()]);
+    EXPECT_EQ(var0->get(), "test_memory_type");
+    EXPECT_EQ(f->get_results()[0]->get_layout(), "????");
     check_info(add->get_rt_info());
     check_info(add->input(0).get_rt_info());
     check_info(add->input(1).get_rt_info());

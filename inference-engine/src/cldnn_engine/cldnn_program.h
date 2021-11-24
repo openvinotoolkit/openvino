@@ -29,12 +29,13 @@ enum class eltwise_mode : int32_t;
 }  // namespace cldnn
 
 #define REGISTER_FACTORY_IMPL(op_version, op_name)                                                \
+void __register ## _ ## op_name ## _ ## op_version();                                             \
 void __register ## _ ## op_name ## _ ## op_version() {                                            \
     Program::RegisterFactory<ngraph::op::op_version::op_name>(                                    \
     [](Program& p, const std::shared_ptr<ngraph::Node>& op) {                                     \
         auto op_casted = std::dynamic_pointer_cast<ngraph::op::op_version::op_name>(op);          \
         if (!op_casted)                                                                           \
-            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__; \
+            IE_THROW() << "Invalid ngraph Node type passed into " << __PRETTY_FUNCTION__;         \
         Create##op_name##Op(p, op_casted);                                                        \
        });                                                                                        \
 }
@@ -65,7 +66,8 @@ public:
 
 class Program {
 public:
-    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config, bool createTopologyOnly = false);
+    Program(InferenceEngine::CNNNetwork& network, std::shared_ptr<cldnn::engine> engine, const Config& config,
+            bool createTopologyOnly = false, bool partialBuild = false);
     Program(std::shared_ptr<cldnn::engine> engine, const Config& config) : m_config(config), m_engine(engine),
             m_curBatch(-1), queryMode(false), m_max_batch(1) {}
     Program() : m_config(), m_engine(nullptr), m_curBatch(-1), queryMode(false), m_max_batch(1) {}
@@ -163,7 +165,7 @@ private:
     std::shared_ptr<cldnn::program> BuildProgram(const std::vector<std::shared_ptr<ngraph::Node>>& ops,
                                                  InferenceEngine::InputsDataMap networkInputs,
                                                  InferenceEngine::OutputsDataMap networkOutputs,
-                                                 bool createTopologyOnly = false);
+                                                 bool createTopologyOnly = false, bool partialBuild = false);
 
     void CreateSingleLayerPrimitive(cldnn::topology& topology, const std::shared_ptr<ngraph::Node>& op);
     bool CanProcessDynBatch(std::vector<std::shared_ptr<ngraph::Node>> ops, InferenceEngine::InputsDataMap networkInputs) const;

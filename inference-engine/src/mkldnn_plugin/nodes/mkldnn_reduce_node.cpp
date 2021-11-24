@@ -1329,7 +1329,7 @@ private:
     }
 };
 
-std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNReduceNode&)>> MKLDNNReduceNode::initializers = {
+const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNReduceNode&)>> MKLDNNReduceNode::initializers = {
     {ngraph::opset4::ReduceL1::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, MKLDNNReduceNode& node) {
         node.algorithm = ReduceL1;
     }},
@@ -1389,7 +1389,7 @@ MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, cons
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
-        initializers[op->get_type_info()](op, *this);
+        initializers.at(op->get_type_info())(op, *this);
         if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
         } else if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(op)) {
@@ -1825,7 +1825,8 @@ inline void MKLDNNReduceNode::reduce_kernel_process(const uint8_t *in_p, uint8_t
 }
 
 inline void MKLDNNReduceNode::reduce_kernel_post_process(uint8_t *out_ptr) {
-    const float divisor = static_cast<float>(IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW));
+    const size_t integerDivisor = IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
+    const float divisor = static_cast<float>(integerDivisor);
     if (planar_layout) {
         size_t parallel_amount = OB * OC * OD;
         parallel_for(parallel_amount, [&](size_t i) {

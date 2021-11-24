@@ -35,11 +35,12 @@ using enableIfSupportedChar =
     typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
 
 /**
+ * @deprecated This is internal stuff. Use Inference Engine Plugin API
  * @brief This class instantiate object using shared library
  * @tparam T An type of object SOPointer can hold
  */
 template <class T>
-class SOPointer {
+class INFERENCE_ENGINE_DEPRECATED("This is internal stuff. Use Inference Engine Plugin API") SOPointer {
     template <class U>
     friend class SOPointer;
 
@@ -77,8 +78,8 @@ public:
 
     /**
      * @brief Constructs an object with existing reference
-     * @brief Constructs an object with existing loader
-     * @param soLoader Existing pointer to a library loader
+     * @param so Existing pointer to a library loader
+     * @param ptr Existing reference to an object
      */
     SOPointer(const SharedObjectLoader& so, const std::shared_ptr<T>& ptr) : _so{so}, _ptr{ptr} {}
 
@@ -165,8 +166,6 @@ protected:
                 using CreateF = void(std::shared_ptr<T>&);
                 reinterpret_cast<CreateF*>(create)(_ptr);
             }
-        } catch (const std::runtime_error& ex) {
-            IE_THROW() << ex.what();
         } catch (...) {
             details::Rethrow();
         }
@@ -179,8 +178,6 @@ protected:
         try {
             using CreateF = void(std::shared_ptr<T>&);
             reinterpret_cast<CreateF*>(_so.get_symbol(SOCreatorTrait<T>::name))(_ptr);
-        } catch (const std::runtime_error& ex) {
-            IE_THROW() << ex.what();
         } catch (...) {
             details::Rethrow();
         }

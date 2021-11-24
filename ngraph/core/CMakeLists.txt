@@ -4,6 +4,10 @@
 
 add_definitions(-DIN_NGRAPH_LIBRARY)
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wmissing-declarations)
+endif()
+
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -13,7 +17,6 @@ add_subdirectory(reference)
 add_subdirectory(shape_inference)
 
 # WA for Tensor implementation via ie::Blob::Ptr
-set(IE_SRC_ROOT "${IE_MAIN_SOURCE_DIR}/src/inference_engine/src")
 set(IE_SHARED_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/blob_factory.cpp"
                    "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_blob_common.cpp"
                    "${CMAKE_CURRENT_SOURCE_DIR}/src/ie_legacy/ie_layouts.cpp"
@@ -24,7 +27,7 @@ set(MIXED_SRC ${IE_SHARED_SRCS}
 
 set_property(SOURCE ${MIXED_SRC}
     APPEND PROPERTY INCLUDE_DIRECTORIES
-        ${IE_SRC_ROOT}
+        $<TARGET_PROPERTY:inference_engine,SOURCE_DIR>/src
         $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -41,21 +44,14 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(ngraph ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${IE_SHARED_SRCS})
 
 
-if(COMMAND ie_faster_build)
-    ie_faster_build(ngraph
-        UNITY
-        PCH PRIVATE "src/precomp.hpp"
-    )
-endif()
+ie_faster_build(ngraph
+    UNITY
+    PCH PRIVATE "src/precomp.hpp")
 
-if(COMMAND ie_add_api_validator_post_build_step)
-    ie_add_api_validator_post_build_step(TARGET ngraph)
-endif()
+ie_add_api_validator_post_build_step(TARGET ngraph)
 
-if(COMMAND ie_add_vs_version_file)
-    ie_add_vs_version_file(NAME ngraph
-                           FILEDESCRIPTION "nGraph library")
-endif()
+ie_add_vs_version_file(NAME ngraph
+                       FILEDESCRIPTION "nGraph library")
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
@@ -73,7 +69,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # ngraph is linked against ngraph_builders, ngraph_reference static libraries
+    # ngraph is linked against ngraph_builders, ngraph_reference, ov_shape_inference static libraries
     # which include ngraph headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
     # multiple defitions for ngraph symbols.
@@ -81,7 +77,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # The possible way is to use object libraries for ngraph_builders, ngraph_reference
     # but it's not convinient since these libraries are exported from build tree
     # and it's better to use them as static libraries in 3rd party projects
-    set_target_properties(ngraph PROPERTIES LINK_FLAGS "/IGNORE:4217,4286")
+    if(BUILD_SHARED_LIBS)
+        set(link_type PRIVATE)
+    else()
+        set(link_type PUBLIC)
+    endif()
+
+    target_link_options(ngraph ${link_type} "/IGNORE:4217,4286")
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations
@@ -90,6 +92,7 @@ file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cp
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_fp32_to_fp16.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/init_node_info.cpp"
+                            "${CMAKE_CURRENT_SOURCE_DIR}/src/pass/serialize.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/op/type_relaxed.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/function.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}

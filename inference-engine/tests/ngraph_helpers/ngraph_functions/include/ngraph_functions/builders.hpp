@@ -76,6 +76,9 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
 std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
                                              const std::vector<size_t>& shape);
 
+std::shared_ptr<ngraph::Node> makeDynamicInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
+                                                    const ov::PartialShape& shape);
+
 std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
                                             const ngraph::Output<Node> &target_shape,
                                             const ngraph::op::BroadcastType& mode,
@@ -523,6 +526,12 @@ std::shared_ptr<ngraph::Node> makeGatherElements(
                                       const int axis);
 
 std::shared_ptr<ngraph::Node> makeGatherND(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const std::size_t batchDims);
+
+std::shared_ptr<ngraph::Node> makeGatherND8(
                                       const ngraph::Output<Node>& dataNode,
                                       const ngraph::Shape& indicesShape,
                                       const element::Type& indicesType,
