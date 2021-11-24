@@ -62,6 +62,34 @@ TEST(type_prop, space_to_batch_and_batch_to_space) {
     ASSERT_EQ(batch_to_space->get_shape(), (Shape{2, 100, 1024, 3}));
 }
 
+TEST(type_prop, space_to_batch_when_space_is_static) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{2, 5}, 100, 1024, 3});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 12, 100, 2});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 38, 1});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 5, 38, 0});
+
+    auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+
+    ASSERT_EQ(
+        space_to_batch->get_output_partial_shape(0),
+        (PartialShape{{2 * 12 * 100 * 2, 5 * 12 * 100 * 2}, (100 + 3 + 5) / 12, (1024 + 38 + 38) / 100, (3 + 1) / 2}));
+}
+
+TEST(type_prop, space_to_batch_when_space_is_dynamic) {
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{2, 5}, {5, 100}, {100, 1024}, {3, 10}});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 12, 100, 2});
+    auto pads_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 38, 1});
+    auto pads_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 5, 38, 0});
+
+    auto space_to_batch = make_shared<op::v1::SpaceToBatch>(data, block_shape, pads_begin, pads_end);
+
+    ASSERT_EQ(space_to_batch->get_output_partial_shape(0),
+              (PartialShape{{2 * 12 * 100 * 2, 5 * 12 * 100 * 2},
+                            {(5 + 5 + 3) / 12, (100 + 5 + 3) / 12},
+                            {(100 + 38 + 38) / 100, (1024 + 38 + 38) / 100},
+                            {(3 + 1) / 2, (10 + 1) / 2}}));
+}
+
 TEST(type_prop, space_to_batch_dynamic_shape_static_rank) {
     auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
     auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
