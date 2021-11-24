@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <tuple>
 #include <vector>
 
 #include "openvino/core/attribute_adapter.hpp"
@@ -187,6 +188,28 @@ public:
               nearest_mode(nearest_mode),
               antialias(antialias),
               cube_coeff(cube_coeff) {}
+
+        bool operator==(const InterpolateAttrs& other) const {
+            return std::tie(mode,
+                            shape_calculation_mode,
+                            pads_begin,
+                            pads_end,
+                            coordinate_transformation_mode,
+                            nearest_mode,
+                            antialias,
+                            cube_coeff) == std::tie(other.mode,
+                                                    other.shape_calculation_mode,
+                                                    other.pads_begin,
+                                                    other.pads_end,
+                                                    other.coordinate_transformation_mode,
+                                                    other.nearest_mode,
+                                                    other.antialias,
+                                                    other.cube_coeff);
+        }
+
+        bool operator!=(const InterpolateAttrs& other) const {
+            return !operator==(other);
+        }
     };
 
     Interpolate() = default;
