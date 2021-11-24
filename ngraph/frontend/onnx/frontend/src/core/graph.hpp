@@ -45,6 +45,10 @@ public:
     const OpsetImports& get_opset_imports() const;
     virtual ~Graph() = default;
 
+    const std::shared_ptr<ov::frontend::TelemetryExtension>& get_telemetry() const {
+        return m_telemetry;
+    }
+
 protected:
     Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model,
           std::unique_ptr<GraphCache>&& cache,
@@ -64,6 +68,7 @@ protected:
 
 private:
     std::vector<Node> m_nodes;
+    std::shared_ptr<ov::frontend::TelemetryExtension> m_telemetry;
 };
 
 /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.

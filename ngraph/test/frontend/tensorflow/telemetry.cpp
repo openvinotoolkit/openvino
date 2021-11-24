@@ -16,6 +16,13 @@ static TelemetryFEParam getTestData_relu() {
     res.m_frontEndName = TF_FE;
     res.m_modelsPath = std::string(TEST_TENSORFLOW_MODELS_DIRNAME);
     res.m_modelName = "2in_2out/2in_2out.pb";
+
+    res.m_expected_events = {{"mo", "op_count", "tf_Add", 2},
+                             {"mo", "op_count", "tf_Const", 2},
+                             {"mo", "op_count", "tf_Conv2D", 2},
+                             {"mo", "op_count", "tf_NoOp", 1},
+                             {"mo", "op_count", "tf_Placeholder", 2},
+                             {"mo", "op_count", "tf_Relu", 4}};
     return res;
 }
 

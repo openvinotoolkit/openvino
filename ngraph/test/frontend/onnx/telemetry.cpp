@@ -15,7 +15,12 @@ static TelemetryFEParam getTestData_relu() {
     TelemetryFEParam res;
     res.m_frontEndName = ONNX_FE;
     res.m_modelsPath = std::string(TEST_ONNX_MODELS_DIRNAME);
-    res.m_modelName = "external_data/external_data.onnx";
+    res.m_modelName = "controlflow/loop_2d_add.onnx";
+    res.m_expected_events = {
+        {"mo", "op_count", "onnx_Loop", 1},
+        {"mo", "op_count", "onnx_Add", 1},
+        {"mo", "op_count", "onnx_Identity", 2},
+    };
     return res;
 }
 

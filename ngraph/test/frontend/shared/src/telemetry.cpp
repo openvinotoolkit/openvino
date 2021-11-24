@@ -36,7 +36,7 @@ TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
         ov::frontend::FrontEnd::Ptr m_frontEnd;
         ov::frontend::InputModel::Ptr m_inputModel;
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
-        std::string category = "test_category";
+        std::string category = "mo";
         auto telemetry_extension = std::make_shared<TelemetryExtension>(
             category,
             std::bind(&TelemetryMock::send_event, &m_test_telemetry, _1, _2, _3, _4),
@@ -54,21 +54,30 @@ TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 1);
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 1);
 
-        EXPECT_EQ(m_test_telemetry.m_last_event, std::make_tuple(category, action, msg, version));
+        auto expected_res =
+            std::set<std::tuple<std::string, std::string, std::string, int>>{{category, action, msg, version}};
+        EXPECT_EQ(m_test_telemetry.m_received_events, expected_res);
         EXPECT_EQ(m_test_telemetry.m_last_error, std::make_tuple(category, msg));
         EXPECT_EQ(m_test_telemetry.m_last_trace, std::make_tuple(category, msg));
 
-        // reset counters
-        m_test_telemetry.m_event_cnt = 0;
-        m_test_telemetry.m_error_cnt = 0;
-        m_test_telemetry.m_trace_cnt = 0;
+        m_test_telemetry.clear();
 
         EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
         m_inputModel = m_frontEnd->load(m_param.m_modelName);
         function = m_frontEnd->convert(m_inputModel);
-        EXPECT_GT(m_test_telemetry.m_event_cnt, 0);
-    }
+        EXPECT_EQ(m_test_telemetry.m_event_cnt, m_param.m_expected_events.size());
+        EXPECT_EQ(m_test_telemetry.m_received_events, m_param.m_expected_events);
+        EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
+        EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
 
-    EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
-    EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
+        m_test_telemetry.clear();
+
+        EXPECT_NO_THROW(m_frontEnd->add_extension(telemetry_extension));
+        m_inputModel = m_frontEnd->load(m_param.m_modelName);
+        function = m_frontEnd->decode(m_inputModel);
+        EXPECT_EQ(m_test_telemetry.m_event_cnt, m_param.m_expected_events.size());
+        EXPECT_EQ(m_test_telemetry.m_received_events, m_param.m_expected_events);
+        EXPECT_EQ(m_test_telemetry.m_trace_cnt, 0);
+        EXPECT_EQ(m_test_telemetry.m_error_cnt, 0);
+    }
 }

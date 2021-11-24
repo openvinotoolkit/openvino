@@ -155,10 +155,10 @@ void regclass_pyngraph_TelemetryExtension(py::module m) {
                                                                                                "TelemetryExtension",
                                                                                                py::dynamic_attr());
 
-        ext.def(py::init([](std::string event_category,
-                            TelemetryExtension::event_callback& send_event,
-                            TelemetryExtension::error_callback& send_error,
-                            TelemetryExtension::error_callback& send_stack_trace) {
+        ext.def(py::init([](const std::string& event_category,
+                            const TelemetryExtension::event_callback& send_event,
+                            const TelemetryExtension::error_callback& send_error,
+                            const TelemetryExtension::error_callback& send_stack_trace) {
             return std::make_shared<TelemetryExtension>(event_category, send_event, send_error, send_stack_trace);
         }));
 
