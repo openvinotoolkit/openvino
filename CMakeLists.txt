@@ -46,6 +46,9 @@ message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
 
+# Install catkin package.xml
+install(FILES package.xml DESTINATION share/openvino)
+
 function(build_ngraph)
     function(ngraph_set option value)
         if(NOT DEFINED ${option})
