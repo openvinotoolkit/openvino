@@ -8,20 +8,20 @@
 
 
 template <class OpType, class T>
-bool copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void copy_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1,
                           "Incorrect number of input/output shapes");
     output_shapes[0] = input_shapes[0];
 }
 
 template <class OpType, class T>
-bool first_input_passthrough_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void first_input_passthrough_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, output_shapes.size() == 1, "Incorrect number of output shapes");
     output_shapes[0] = input_shapes[0];
 }
 
 template <class OpType, class T>
-bool eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
+void eltwise_shape_infer(const OpType* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 && output_shapes.size() == 1,
                           "Incorrect number of input/output shapes");
     T output_shape = input_shapes[0];
