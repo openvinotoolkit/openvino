@@ -15,6 +15,15 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Relu.*netPRC=FP32.*",
+        // Not supported dynamic shapes without upper bound
+        ".*InferDynamicNetworkWithGetTensor2times.function.*",
+        ".*InferFullyDynamicNetworkWithGetTensor.function.*",
+        ".*InferDynamicNetworkWithGetTensor.function.*",
+        ".*InferDynamicNetworkWithoutSetShape.function.*",
+        ".*InferFullyDynamicNetworkWithSetTensor/function.*",
+        ".*InferDynamicNetworkWithSetTensor2times.*",
+        ".*InferRequestDynamicTests.GetSameTensor2times.*",
+        ".*InferRequestDynamicTests.InferDynamicNetworkWithSetTensor.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
