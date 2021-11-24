@@ -613,7 +613,14 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
     switch (dt) {
     case cldnn::data_types::u8:
     case cldnn::data_types::i8: {
-        if (info.supports_imad) {
+        if (info.supports_immad) {
+            if (info.gfx_ver.major == 12) {
+                if (info.gfx_ver.minor == 5)
+                    opsPerComputeBlock = 512;
+                else if (info.gfx_ver.minor == 7)
+                    opsPerComputeBlock = 256;
+            }
+        } else if (info.supports_imad) {
             // fma * simd size
             opsPerComputeBlock = 2 * 32;
         } else {
@@ -625,8 +632,17 @@ static float GetGOPS(cldnn::device_info info, cldnn::data_types dt) {
         break;
     }
     case cldnn::data_types::f16: {
-        // fma * simd size
-        opsPerComputeBlock = 2 * 16;
+        if (info.supports_immad) {
+            if (info.gfx_ver.major == 12) {
+                if (info.gfx_ver.minor == 5)
+                    opsPerComputeBlock = 256;
+                else if (info.gfx_ver.minor == 7)
+                    opsPerComputeBlock = 128;
+            }
+        } else {
+            // fma * simd size
+            opsPerComputeBlock = 2 * 16;
+        }
         break;
     }
     case cldnn::data_types::f32: {
