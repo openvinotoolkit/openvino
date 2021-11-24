@@ -8,10 +8,10 @@
 #include <sstream>
 #include <string>
 
-#include "frontend.hpp"
-#include "frontend_manager_defs.hpp"
+#include "common/frontend.hpp"
+#include "common/frontend_defs.hpp"
+#include "common/parameters.hpp"
 #include "openvino/core/variant.hpp"
-#include "parameters.hpp"
 
 namespace ov {
 namespace frontend {

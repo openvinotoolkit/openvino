@@ -5,7 +5,7 @@
 #include "transpose_sinking.hpp"
 
 #include <frontend/shared/include/utils.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/manager.hpp>

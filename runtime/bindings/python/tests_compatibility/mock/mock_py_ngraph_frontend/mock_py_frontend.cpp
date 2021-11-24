@@ -4,8 +4,8 @@
 
 #include "mock_py_frontend.hpp"
 
-#include "frontend_manager/frontend_manager.hpp"
-#include "frontend_manager/frontend_manager_defs.hpp"
+#include "manager.hpp"
+#include "common/frontend_defs.hpp"
 
 using namespace ngraph;
 using namespace ngraph::frontend;

@@ -3,8 +3,8 @@
 //
 
 #include "mock_mo_frontend.hpp"
-#include "frontend_manager/frontend_manager.hpp"
-#include "frontend_manager/frontend_manager_defs.hpp"
+#include "common/frontend_defs.hpp"
+#include "manager.hpp"
 #include "ngraph/visibility.hpp"
 
 using namespace ngraph;

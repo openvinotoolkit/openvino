@@ -4,7 +4,7 @@
 
 #include "place.hpp"
 
-#include <frontend_manager/frontend_exceptions.hpp>
+#include <common/frontend_exceptions.hpp>
 
 using namespace ov;
 using namespace ov::frontend;

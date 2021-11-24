@@ -7,7 +7,7 @@
 #include <fstream>
 #include <queue>
 
-#include "frontend_manager/frontend_exceptions.hpp"
+#include "common/frontend_exceptions.hpp"
 #include "node_context.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "place.hpp"

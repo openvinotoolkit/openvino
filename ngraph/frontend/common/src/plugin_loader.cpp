@@ -57,7 +57,7 @@ static std::vector<std::string> list_files(const std::string& path) {
             },
             // ilavreno: this is current solution for static runtime
             // since frontends are still dynamic libraries and they are located in
-            // a different folder with compare to frontend_manager one (in ./lib)
+            // a different folder with compare to frontend_common one (in ./lib)
             // we are trying to use recursive search. Can be reverted back in future
             // once the frontends are static too.
             true,

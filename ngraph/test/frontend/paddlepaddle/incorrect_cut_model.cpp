@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <frontend_manager/frontend_exceptions.hpp>
-#include <frontend_manager/frontend_manager.hpp>
+#include <common/frontend_exceptions.hpp>
+#include <manager.hpp>
 
 #include "paddle_utils.hpp"
 #include "utils.hpp"

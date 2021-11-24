@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "frontend_manager/frontend_manager_defs.hpp"
+#include "common/frontend_defs.hpp"
 
 namespace ov {
 namespace frontend {

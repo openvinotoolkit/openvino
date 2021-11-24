@@ -6,8 +6,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "frontend_manager/frontend_exceptions.hpp"
-#include "frontend_manager/frontend_manager.hpp"
+#include "common/frontend_exceptions.hpp"
+#include "manager.hpp"
 
 namespace py = pybind11;
 

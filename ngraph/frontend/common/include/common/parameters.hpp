@@ -8,7 +8,7 @@
 #include <sstream>
 #include <string>
 
-#include "frontend_manager_defs.hpp"
+#include "frontend_defs.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/variant.hpp"

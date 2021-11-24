@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "frontend_manager/frontend.hpp"
+#include "common/frontend.hpp"
 #include "openvino/core/variant.hpp"
 #include "utility.hpp"
 

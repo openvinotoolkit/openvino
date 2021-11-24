@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 
 struct LoadFromFEParam {
     std::string m_frontEndName;

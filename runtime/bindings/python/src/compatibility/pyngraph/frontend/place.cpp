@@ -6,9 +6,9 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include "common/frontend_exceptions.hpp"
 #include "frontend_manager.hpp"
-#include "frontend_manager/frontend_exceptions.hpp"
-#include "frontend_manager/frontend_manager.hpp"
+#include "manager.hpp"
 #include "pyngraph/function.hpp"
 
 namespace py = pybind11;

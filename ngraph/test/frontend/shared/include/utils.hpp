@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
 #include <fstream>
+#include <manager.hpp>
 #include <string>
 
 #include "backend.hpp"

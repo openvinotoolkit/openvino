@@ -4,7 +4,7 @@
 
 #include "input_model.hpp"
 
-#include <frontend_manager/frontend_exceptions.hpp>
+#include <common/frontend_exceptions.hpp>
 #include <openvino/util/file_util.hpp>
 
 #include "place.hpp"

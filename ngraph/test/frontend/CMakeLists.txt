@@ -23,7 +23,7 @@ target_compile_definitions(${MOCK1_FE_NAME} PRIVATE "-DMOCK_VARIANT=\"1\"")
 
 target_include_directories(${MOCK1_FE_NAME} PRIVATE ".")
 
-target_link_libraries(${MOCK1_FE_NAME} PRIVATE frontend_manager)
+target_link_libraries(${MOCK1_FE_NAME} PRIVATE frontend_common)
 add_dependencies(unit-test ${MOCK1_FE_NAME})
 
 add_clang_format_target(${MOCK1_FE_NAME}_clang FOR_TARGETS ${MOCK1_FE_NAME})
