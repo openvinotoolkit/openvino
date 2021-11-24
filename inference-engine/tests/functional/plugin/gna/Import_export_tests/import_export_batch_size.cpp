@@ -51,6 +51,10 @@ public:
         return result.str();
     }
 
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
+        return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 0.2f, -0.1f);
+    }
+
     void Run() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         functionRefs = ngraph::clone_function(*function);
@@ -84,23 +88,17 @@ protected:
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
         auto mul_const_1 = ngraph::builder::makeConstant<float>(ngPrc, { inputShape[1], 2048 },
-            CommonTestUtils::generate_float_numbers(2048 * inputShape[1], -0.2f, 0.2f), false);
+            CommonTestUtils::generate_float_numbers(2048 * inputShape[1], -0.1f, 0.1f), false);
 
         auto matmul_1 = std::make_shared<ngraph::op::MatMul>(params[0], mul_const_1);
         auto sigmoid_1 = std::make_shared<ngraph::op::Sigmoid>(matmul_1);
 
-        auto mul_const_2 = ngraph::builder::makeConstant<float>(ngPrc, { 2048, 2048 },
-            CommonTestUtils::generate_float_numbers(2048 * 2048, -0.2f, 0.2f), false);
+        auto mul_const_2 = ngraph::builder::makeConstant<float>(ngPrc, { 2048, 3425 },
+            CommonTestUtils::generate_float_numbers(2048 * 3425, -0.1f, 0.1f), false);
 
         auto matmul_2 = std::make_shared<ngraph::op::MatMul>(sigmoid_1, mul_const_2);
-        auto sigmoid_2 = std::make_shared<ngraph::op::Sigmoid>(matmul_2);
 
-        auto mul_const_7 = ngraph::builder::makeConstant<float>(ngPrc, { 2048, 3425 },
-            CommonTestUtils::generate_float_numbers(3425 * 2048, -0.2f, 0.2f), false);
-
-        auto matmul_7 = std::make_shared<ngraph::op::MatMul>(sigmoid_2, mul_const_7);
-
-        function = std::make_shared<ngraph::Function>(matmul_7, params, "ExportImportNetwork");
+        function = std::make_shared<ngraph::Function>(matmul_2, params, "ExportImportNetwork");
     }
 
 private:
