@@ -1496,7 +1496,7 @@ TEST_P(CachingTest, LoadHetero_MultiArchs_TargetFallback_FromCore) {
 // Test that it is safe to load multiple devices sharing same cache
 // In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMulti_race) {
-    const auto TEST_DURATION_MS = 2000;
+    const auto TEST_DURATION_MS = 200000;
     const auto TEST_DEVICE_MAX_COUNT = 10;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
@@ -1534,7 +1534,7 @@ TEST_P(CachingTest, LoadMulti_race) {
 
 // In case of sporadic failures - increase 'TEST_DURATION_MS' 100x times for better reproducibility
 TEST_P(CachingTest, Load_threads) {
-    const auto TEST_DURATION_MS = 2000;
+    const auto TEST_DURATION_MS = 200000;
     const auto THREADS_COUNT = 4;
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
@@ -1573,7 +1573,7 @@ TEST_P(CachingTest, Load_threads) {
 // Test loading of devices with different architectures
 // In case of sporadic failures - increase 'TEST_DEVICE_MAX_COUNT' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMulti_Archs) {
-    const auto TEST_DEVICE_MAX_COUNT = 30; // Shall be >= 2
+    const auto TEST_DEVICE_MAX_COUNT = 3000; // Shall be >= 2
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, QueryNetwork(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).Times(AnyNumber())
@@ -1618,7 +1618,7 @@ TEST_P(CachingTest, LoadMulti_Archs) {
 // Test loading of devices which don't support caching
 // In case of sporadic failures - increase 'TEST_DEVICE_MAX_COUNT' 100x times for better reproducibility
 TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
-    const auto TEST_DEVICE_MAX_COUNT = 100; // Looks enough to catch potential race conditions
+    const auto TEST_DEVICE_MAX_COUNT = 10000; // Looks enough to catch potential race conditions
     EXPECT_CALL(*mockPlugin, GetMetric(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(IMPORT_EXPORT_SUPPORT), _))
             .Times(AnyNumber()).WillRepeatedly(Return(Parameter{false}));
