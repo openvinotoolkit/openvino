@@ -88,7 +88,7 @@ void regmodule_offline_transformations(py::module m) {
     m_offline_transformations.def(
         "compress_model_transformation",
         [](std::shared_ptr<ov::Function> function) {
-            ngraph::pass::Manager manager;
+            ov::pass::Manager manager;
             manager.register_pass<ov::pass::MarkPrecisionSensitiveSubgraphs>();
             manager.register_pass<ov::pass::CompressFloatConstants>();
             manager.run_passes(function);
@@ -99,8 +99,8 @@ void regmodule_offline_transformations(py::module m) {
     m_offline_transformations.def(
         "serialize",
         [](std::shared_ptr<ov::Function> function, const std::string& path_to_xml, const std::string& path_to_bin) {
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::Serialize>(path_to_xml, path_to_bin);
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::Serialize>(path_to_xml, path_to_bin);
             manager.run_passes(function);
         },
         py::arg("function"),
