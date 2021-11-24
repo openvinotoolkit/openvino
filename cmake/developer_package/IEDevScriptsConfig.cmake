@@ -50,7 +50,10 @@ endif()
 #
 
 function(set_temp_directory temp_variable source_tree_dir)
-    if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
+    if(DEFINED OV_TEMP)
+        message(STATUS "OV_TEMP cmake variable is set : ${OV_TEMP}")
+        file(TO_CMAKE_PATH ${OV_TEMP} temp)
+    elseif (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
         message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
         file(TO_CMAKE_PATH $ENV{DL_SDK_TEMP} temp)
     else ()
