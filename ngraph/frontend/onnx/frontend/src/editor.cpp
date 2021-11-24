@@ -162,11 +162,9 @@ void modify_initializer(TensorProto& initializer,
     const auto data_size_in_bytes =
         shape_size(values->get_shape()) * ngraph::onnx_common::get_onnx_data_size(initializer.data_type());
     initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
-    std::cout << "data written: " << name << std::endl;
 
     // update input with type and shape of initializer
     if (input) {
-        std::cout << "if (input): " << name << std::endl;
         auto tensor_type = input->mutable_type()->mutable_tensor_type();
         TensorShapeProto shape;
         for (int i = 0; i < initializer.dims_size(); ++i) {
@@ -442,8 +440,6 @@ void onnx_editor::ONNXModelEditor::set_input_values(
         auto& name = input.first;
         auto& values = input.second;
 
-        std::cout << "set_input_values: " << name << std::endl;
-
         auto onnx_input = find_graph_input(*onnx_graph, name);
         auto onnx_initializer = find_graph_initializer(*onnx_graph, name);
 
@@ -453,10 +449,8 @@ void onnx_editor::ONNXModelEditor::set_input_values(
         }
 
         if (!onnx_initializer) {
-            std::cout << "add_initializer: " << name << std::endl;
             onnx_initializer = onnx_graph->add_initializer();
         }
-
         modify_initializer(*onnx_initializer, name, values, onnx_input);
     }
 }

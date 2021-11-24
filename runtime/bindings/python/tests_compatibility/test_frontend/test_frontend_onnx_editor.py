@@ -1239,40 +1239,24 @@ def test_set_tensor_value():
     model = fe.load("input_model.onnx")
     assert model
 
-    shape = (2, 2)
-    ones_arr = np.ones(shape, np.float32)
-    #ones_arr = np.array()
-
-    model_func1 = fe.convert(model)
-
-    print(model_func1.get_results()[0])
-    print(model_func1.get_parameters())
+    new_values = np.array([[1, 2], [3, 4]], dtype=np.float32)
 
     place1 = model.get_place_by_tensor_name(tensorName="in1")
+    model.set_tensor_value(place1, new_values)
 
-    model.set_tensor_value(place1, ones_arr)
     model_func = fe.convert(model)
 
-    node = None
-
+    iter = None
     current_ops = model_func.get_ordered_ops()
 
     for i in range(len(current_ops)):
-        if (current_ops[i].get_type_name() == "Constant"):
-            print(current_ops[i].get_friendly_name())
-            node = current_ops[i]
+        if (current_ops[i].get_friendly_name() == "in1"):
+            iter = i
 
-    #node = model_func.input().get_source_output().get_node()
-    #print(model.input())
-    #node = ov.impl.util.get_constant_from_source(reshape.input(1).get_source_output())
-    #node = model_func.get_results()[0].input(0).get_source_output().get_node()
-    node = model_func.get_results()[0].input(0).get_source_output().get_node()
-    print(model_func.get_parameters())
+    assert current_ops[iter] is not None
 
-    assert node is not None
-
-    retrieved_data = node.get_data()
-    assert np.allclose(ones_arr, retrieved_data)
+    retrieved_data = current_ops[iter].get_data()
+    assert np.allclose(new_values, retrieved_data)
 
 
 def test_not_supported_methods():

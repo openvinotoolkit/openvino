@@ -259,23 +259,14 @@ void InputModelONNX::set_tensor_value(Place::Ptr place, const void* value) {
 
     if (const auto var_place = std::dynamic_pointer_cast<PlaceTensorONNX>(place)) {
         auto name = place->get_names().at(0);
-        std::cout << "setting tensor value: " << name << std::endl;
         auto p_shape = m_editor->get_tensor_shape(name);
         auto el_type = m_editor->get_element_type(name);
 
-        std::cout << "el_type: " << el_type << std::endl;
-        float *ptr3 = static_cast<float *>(const_cast<void*>(value));
-        std::cout << ptr3[0] << ", " << ptr3[1] << ", " << ptr3[2] << ", " << ptr3[3] << std::endl;
-
         std::shared_ptr<ngraph::op::Constant> constant = ngraph::op::Constant::create(el_type, p_shape.to_shape(), value);
 
-        m_editor->serialize("set_tensor_value1.onnx");
         constant->set_friendly_name(name);
-        map[name] = constant;
+        map.emplace(name, constant);
         m_editor->set_input_values(map);
-        m_editor->serialize("set_tensor_value3.onnx");
-
-        std::cout << "friendly_name: " << el_type << std::endl;
     }
 }
 
