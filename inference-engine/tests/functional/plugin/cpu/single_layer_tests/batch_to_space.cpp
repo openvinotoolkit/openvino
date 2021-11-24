@@ -87,8 +87,7 @@ TEST_P(BatchToSpaceCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    // CheckPluginRelatedResults(executableNetwork, "BatchToSpace");
+    CheckPluginRelatedResults(executableNetwork, "BatchToSpace");
 };
 
 namespace {
@@ -98,8 +97,7 @@ const std::vector<Precision> netPrecision = {
         Precision::I8,
         Precision::I32,
         Precision::FP32,
-        // TODO: Should be uncommented after PR #8339 merge
-        // Precision::BF16
+        Precision::BF16
 };
 
 const std::vector<std::vector<int64_t>> blockShape4D1  = {{1, 1, 1, 2}, {1, 2, 2, 1}};
@@ -254,7 +252,16 @@ std::vector<std::vector<ov::Shape>> staticInputShapes5D2 = {
 std::vector<std::vector<InputShape>> dynamicInputShapes5D2 = {
         {
                 {{{-1, -1, -1, -1, -1}, {{48, 4, 3, 3, 3}, {24, 16, 5, 3, 5}, {24, 8, 7, 5, 5}}}},
-                {{{24, {8, 16}, {3, 5}, -1, -1}, {{24, 16, 3, 4, 3}, {24, 12, 5, 3, 5}, {24, 8, 4, 5, 5}}}}
+                {{{24, {8, 16}, {3, 5}, -1, -1}, {{24, 16, 3, 4, 3}, {24, 12, 5, 3, 5}, {24, 8, 4, 5, 5}}}},
+                // special case
+                {
+                    {{{1, 24}, {1, 16}, {1, 10}, {1, 10}, {1, 10}},
+                    {
+                        {24, 16, 5, 3, 5},
+                        {24, 16, 5, 3, 5},
+                        {24, 16, 7, 5, 5}
+                    }}
+                }
         }
 };
 

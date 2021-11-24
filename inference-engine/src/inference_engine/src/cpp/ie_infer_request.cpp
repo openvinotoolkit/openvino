@@ -58,7 +58,7 @@ namespace InferenceEngine {
         OPENVINO_ASSERT(false, "Unexpected exception");                     \
     }
 
-InferRequest::InferRequest(const details::SharedObjectLoader& so, const IInferRequestInternal::Ptr& impl)
+InferRequest::InferRequest(const std::shared_ptr<void>& so, const IInferRequestInternal::Ptr& impl)
     : _so(so),
       _impl(impl) {
     IE_ASSERT(_impl != nullptr);

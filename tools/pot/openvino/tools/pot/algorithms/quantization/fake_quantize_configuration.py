@@ -7,10 +7,10 @@ from copy import deepcopy
 from .range_estimator import get_range_estimator_config
 from .utils import get_hardware_config_operation_type, load_hardware_config
 from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS, CONCAT_UNIFY_INPUTS
-from ...graph.utils import find_operation_matches, get_operation_list
+from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
-    get_node_input, get_node_inputs
+    get_node_input, get_node_inputs, get_node_data_type
 from ...utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -372,13 +372,15 @@ def find_fqs_to_unify(model, config):
         # traverse down
         if node_.type == 'FakeQuantize' or _is_quantize_agnostic_op(node_):
             for child in get_all_node_outputs(node_):
-                if not visited_[child.name] and \
+                node_data_type = get_node_data_type(child)
+                if not visited_[child.name] and is_data_type_quantizable(node_data_type) and \
                         (_is_quantize_agnostic_op(child) or _is_unified_scales_op(child)):
                     stack_.append(child)
         # traverse up
         if node_.type != 'FakeQuantize':
             for parent in get_node_inputs(node_):
-                if parent and not visited_[parent.name] and \
+                node_data_type = get_node_data_type(parent)
+                if parent and not visited_[parent.name] and is_data_type_quantizable(node_data_type) and \
                         (parent.type == 'FakeQuantize' or _is_quantize_agnostic_op(parent)):
                     stack_.append(parent)
 

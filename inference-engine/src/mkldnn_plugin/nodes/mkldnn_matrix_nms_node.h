@@ -88,9 +88,9 @@ private:
     std::vector<std::vector<int64_t>> m_numPerBatchClass;
     std::vector<BoxInfo> m_filteredBoxes;
     std::vector<int> m_classOffset;
-    size_t m_realNumClasses;
-    size_t m_realNumBoxes;
-    float (*m_decay_fn)(float, float, float);
+    size_t m_realNumClasses = 0;
+    size_t m_realNumBoxes = 0;
+    float (*m_decay_fn)(float, float, float) = nullptr;
     void checkPrecision(const InferenceEngine::Precision prec, const std::vector<InferenceEngine::Precision> precList, const std::string name,
                         const std::string type);
 
