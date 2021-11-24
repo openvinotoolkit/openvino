@@ -704,9 +704,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<SubstituteSoftsign>();
 
 #ifdef DEBUG_USE_NEW_PASS
-        manager.register_pass<ngraph::pass::Serialize>("/home/ekotov/ngraph_debug/before.xml", "/home/ekotov/ngraph_debug/before.bin"); // DEBUG
         manager.register_pass<TransposeNCHW>();
-        manager.register_pass<ngraph::pass::Serialize>("/home/ekotov/ngraph_debug/after.xml", "/home/ekotov/ngraph_debug/after.bin"); // DEBUG
 #endif
 
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
