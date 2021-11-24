@@ -356,7 +356,8 @@ TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_static) {
 }
 
 TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_dynamic) {
-    auto data = make_shared<op::Parameter>(element::f32, PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}});
+    auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}});
     auto block_shape = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{1, 6, 5, 1, 16});
     auto crops_begin = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 0, 0, 0});
     auto crops_end = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 1, 0, 0});
