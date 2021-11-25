@@ -8,7 +8,7 @@ add_library(${TARGET_NAME} INTERFACE)
 
 add_library(openvino::conditional_compilation ALIAS ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} INTERFACE openvino::itt)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::util)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
