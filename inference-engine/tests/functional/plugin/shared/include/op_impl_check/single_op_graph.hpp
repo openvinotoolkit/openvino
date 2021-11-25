@@ -12,7 +12,8 @@ namespace test {
 namespace subgraph {
 
 
-using OpGenerator = std::map<ngraph::NodeTypeInfo, std::function<std::shared_ptr<ov::Function>(const ov::DiscreteTypeInfo& typeInfo)>>;
+using OpGenerator = std::map<ngraph::NodeTypeInfo, std::function<std::shared_ptr<ov::Node>(const std::vector<ov::op::v0::Parameter>& params,
+                                                                                           const ov::DiscreteTypeInfo& typeInfo)>>;
 
 OpGenerator getOpGeneratorMap();
 

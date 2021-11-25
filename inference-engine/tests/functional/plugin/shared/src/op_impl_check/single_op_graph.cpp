@@ -3,6 +3,7 @@
 //
 
 #include <op_impl_check/op_impl_check.hpp>
+#include <op_impl_check/single_op_graph.hpp>
 
 namespace ov {
 namespace test {
@@ -13,16 +14,20 @@ namespace subgraph {
 
 //OpGenerator getOpGeneratorMap();
 
+std::shared_ptr<ov::Function> generate(const &ngraph::opset1::Add::get_type_info_static() node) {
+    return nullptr;
+}
+
+std::function<std::shared_ptr<ov::Node>(const std::vector<ov::op::v0::Parameter>& params,
+                                        const ov::DiscreteTypeInfo& typeInfo)>>;
+
 template<typename T>
-InferenceEngine::Blob::Ptr generateInput(const std::shared_ptr<ngraph::Node> node,
-                                         const InferenceEngine::InputInfo& info,
-                                         size_t port) {
+std::shared_ptr<ov::Node> generateInput(const std::vector<ov::op::v0::Parameter>& params, const ov::DiscreteTypeInfo& typeInfo) {
     return generate(ngraph::as_type_ptr<T>(node), info, port);
 }
-} // namespace
 
 OpGenerator getOpGeneratorMap() {
-    static OpGenerator inputsMap{
+    static OpGenerator a{
 #define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::get_type_info_static(), generateInput<NAMESPACE::NAME>},
 #include "ngraph/opsets/opset1_tbl.hpp"
 #include "ngraph/opsets/opset2_tbl.hpp"
@@ -34,7 +39,7 @@ OpGenerator getOpGeneratorMap() {
 #include "ngraph/opsets/opset8_tbl.hpp"
 #undef NGRAPH_OP
     };
-    return inputsMap;
+    return a;
 }
 
 }  // namespace subgraph
