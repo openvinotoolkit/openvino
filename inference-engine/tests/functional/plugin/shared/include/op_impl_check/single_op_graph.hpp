@@ -11,15 +11,22 @@ namespace ov {
 namespace test {
 namespace subgraph {
 
-static std::vector<std::shared_ptr<ov::Function>> createFunctions() {
+
+using OpGenerator = std::map<ngraph::NodeTypeInfo, std::function<std::shared_ptr<ov::Function>(const ov::DiscreteTypeInfo& typeInfo)>>;
+
+OpGenerator getOpGeneratorMap();
+
+static const std::vector<std::shared_ptr<ov::Function>> createFunctions() {
     auto opsets = LayerTestsUtils::Summary::getInstance().getOpSets();
+    std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto& opset : opsets) {
-        std::cout << opset.size();
+        const auto &type_info_set = opset.get_type_info_set();
+        opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
+
     const std::vector<std::shared_ptr<ov::Function>> a = {
             ngraph::builder::subgraph::makeConvPoolRelu(),
             ngraph::builder::subgraph::makeConvPoolReluNonZero(),
-            nullptr
     };
     return a;
 }

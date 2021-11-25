@@ -62,11 +62,18 @@ public:
         std::ostringstream result;
         result << "Function=" << function->get_friendly_name() << "_";
         result << "Device=" << targetDevice << "_";
-        using namespace CommonTestUtils;
-//        result << "Config=" << config;
+        result << "Config=(";
+        for (const auto& configItem : config) {
+            result << configItem.first << "=" << configItem.second << "_";
+        }
+        result << ")";
         return result.str();
     }
 };
+
+TEST_P(OpImplCheckTest, ) {
+    run();
+}
 
 }   // namespace subgraph
 }   // namespace test
