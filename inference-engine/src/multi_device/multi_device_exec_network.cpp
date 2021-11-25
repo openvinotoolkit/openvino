@@ -204,6 +204,19 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                             contextPtr->deviceInfo.config.end());
                           }
                           contextPtr->isAlready = true;
+                          auto& deviceName = contextPtr->deviceInfo.deviceName;
+                          LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
+                                  deviceName.c_str());
+                          std::vector<std::string> supported_config_keys =
+                              _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                          std::lock_guard<std::mutex> lock(_logMutex);
+                          for (const auto& cfg : supported_config_keys) {
+                              try {
+                                  LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", deviceName.c_str(),
+                                          cfg.c_str(), contextPtr->executableNetwork->GetConfig(cfg).as<std::string>().c_str());
+                              } catch (...) {
+                              }
+                          }
                       }
                       contextPtr->promise.set_value();
                       // the first load network process finished
@@ -342,18 +355,6 @@ void MultiDeviceExecutableNetwork::WaitActualNetworkReady() const {
                    _loadContext[ACTUALDEVICE].deviceInfo = _loadContext[CPU].deviceInfo;
                    _loadContext[ACTUALDEVICE].isAlready = true;
                }
-               LOG_INFO("[AUTOPLUGIN]:device:%s loading Network finished",
-                       _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str());
-               std::vector<std::string> supported_config_keys =
-                    _core->GetMetric(_loadContext[ACTUALDEVICE].deviceInfo.deviceName,
-                            METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-               for (const auto& cfg : supported_config_keys) {
-                    try {
-                        LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", _loadContext[ACTUALDEVICE].deviceInfo.deviceName.c_str(),
-                                cfg.c_str(), _loadContext[ACTUALDEVICE].executableNetwork->GetConfig(cfg).as<std::string>().c_str());
-                    } catch (...) {
-                    }
-               }
                });
 }
 
@@ -372,9 +373,6 @@ void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest(Task inferPipeli
         } else {
             // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
             if (_loadContext[ACTUALDEVICE].isAlready) {
-                // ActualNetwork is ok, do not need to WaitActualNetworkReady(),
-                // but want to print ActualNetwork configure here if it haven't been printed
-                WaitActualNetworkReady();
                 devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
             } else {
                 devices.push_back(_loadContext[CPU].deviceInfo);
