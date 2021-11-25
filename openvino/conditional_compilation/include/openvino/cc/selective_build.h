@@ -55,7 +55,7 @@
     *
 */
 
-#include <openvino/util/pp.hpp>
+#include <openvino/pp.hpp>
 #include <openvino/itt.hpp>
 
 #define OV_CC_EXPAND OV_PP_EXPAND
