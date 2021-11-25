@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <functional_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -73,26 +74,85 @@ protected:
         CPULayerTestsDefinitions::AdaPoolSpecificParams adaPoolParams;
         ElementType netPrecision;
         std::tie(adaPoolParams, mode,  netPrecision, targetDevice) = basicParamsSet;
-        std::tie(pooledSpatialShape, inputShape) = adaPoolParams;
+        std::tie(pooledVector, inputShape) = adaPoolParams;
 
-        ngraph::Shape coordsShape = {pooledSpatialShape.size() };
-        auto pooledParam = ngraph::builder::makeConstant<int32_t>(ngraph::element::i32, coordsShape, pooledSpatialShape);
         init_input_shapes(inputShape);
-        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, { inputDynamicShapes[0] });
-
-        // we cannot create abstract Op to use polymorphism
-        auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], pooledParam, ngraph::element::i32);
-        adapoolMax->get_rt_info() = getCPUInfo();
-        auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], pooledParam);
-        adapoolAvg->get_rt_info() = getCPUInfo();
+        for (auto &target : targetStaticShapes) {
+            target.push_back({pooledVector.size()});
+        }
 
         selectedType = std::string("unknown_FP32");
         if (netPrecision == ElementType::bf16) {
             rel_threshold = 1e-2;
         }
-        function = (mode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
-                    std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
+        function = createFunction(false);
+        const auto& funcInputs = function->inputs();
     }
+
+    std::shared_ptr<ngraph::Function> createFunction(bool seconeInputConst) {
+        auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, { inputDynamicShapes[0] });
+        params.front()->set_friendly_name("ParamsInput");
+        std::shared_ptr<ov::Node> secondInput;
+        if (seconeInputConst) {
+            secondInput = ngraph::op::Constant::create(ngraph::element::i32, ngraph::Shape{pooledVector.size()}, pooledVector);
+        } else {
+            auto pooledParam = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{pooledVector.size()});
+            pooledParam->set_friendly_name("ParamSecondInput");
+            params.push_back(pooledParam);
+            secondInput = pooledParam;
+        }
+
+        auto adapoolMax = std::make_shared<ngraph::opset8::AdaptiveMaxPool>(params[0], secondInput, ngraph::element::i32);
+        adapoolMax->get_rt_info() = getCPUInfo();
+        auto adapoolAvg = std::make_shared<ngraph::opset8::AdaptiveAvgPool>(params[0], secondInput);
+        adapoolAvg->get_rt_info() = getCPUInfo();
+
+        auto function = (mode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
+                    std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
+        return function;
+    }
+
+    void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        if (function->get_parameters().size() == 2) {
+            funcRef = createFunction(true);
+        }
+        ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
+    }
+
+    void validate() override {
+        if (function->get_parameters().size() == 2) {
+            auto pos = std::find_if(inputs.begin(), inputs.end(),
+                                    [](const std::pair<std::shared_ptr<ov::Node>, ov::runtime::Tensor> &params) {
+                                        return params.first->get_friendly_name() == "ParamSecondInput";
+                                    });
+            IE_ASSERT(pos != inputs.end());
+            inputs.erase(pos);
+        }
+        SubgraphBaseTest::validate();
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (int i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            ov::runtime::Tensor tensor;
+
+            if (i == 1) {
+                tensor = ov::runtime::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
+                auto *dataPtr = tensor.data<int32_t>();
+                for (size_t i = 0; i < pooledVector.size(); i++) {
+                    dataPtr[i] = pooledVector[i];
+                }
+            } else {
+                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], 2560, 0, 256);
+            }
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
+
+private:
+    std::vector<int> pooledVector;
 };
 
 TEST_P(AdaPoolLayerCPUTest, CompareWithRefs) {

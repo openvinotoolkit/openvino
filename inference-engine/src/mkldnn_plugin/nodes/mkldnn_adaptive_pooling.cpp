@@ -101,7 +101,7 @@ std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
     const auto inputRank = input.size();
     const auto spatialDimsSize = spatialDims[0];
 
-    std::vector<Dim> output(inputRank);
+    VectorDims output(inputRank);
     output[0] = input[0];
     output[1] = input[1];
     auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
@@ -111,14 +111,7 @@ std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
     }
 
     std::vector<VectorDims> result = {};
-    if (algorithm == Algorithm::AdaptivePoolingAvg) {
-        result.resize(1);
-        result[0] = output;
-    } else {
-        result.resize(2);
-        result[0] = output;
-        result[1] = output;
-    }
+    result.resize(outputShapes.size(), output);
     return result;
 }
 
