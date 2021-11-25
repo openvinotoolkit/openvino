@@ -12,11 +12,6 @@
 #include <ie_core.hpp>
 #include <ie_layouts.h>
 
-// #include "shared_test_classes/base/layer_test_utils.hpp"
-// #include "functional_test_utils/blob_utils.hpp"
-// #include "ngraph_functions/utils/ngraph_helpers.hpp"
-// #include "ngraph_functions/builders.hpp"
-
 #include "ngraph_functions/builders.hpp"
 #include "base/import_export_base/import_export_base.hpp"
 
