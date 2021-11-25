@@ -189,15 +189,14 @@ protected:
         InferenceEngine::Precision netPrecision;
         std::tie(inputShapes, poolShape, spatial_scale, pool_method, netPrecision, targetDevice) = basicParamsSet;
 
+        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
+            netPrecision = Precision::BF16;
+        configuration.insert(additionalConfig.begin(), additionalConfig.end());
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
         selectedType += netPrecision.name();
-
-        if (additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES)
-            netPrecision = Precision::BF16;
-        configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         if (netPrecision == Precision::BF16) {
             rel_threshold = 1e-2;
@@ -221,8 +220,7 @@ protected:
 TEST_P(ROIPoolingCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    // TODO: Should be uncommented after updating the CheckPluginRelatedResults() method
-    //CheckPluginRelatedResults(executableNetwork, "ROIPooling");
+    CheckPluginRelatedResults(executableNetwork, "ROIPooling");
 }
 
 namespace {

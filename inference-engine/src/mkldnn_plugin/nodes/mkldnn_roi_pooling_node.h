@@ -92,19 +92,51 @@ private:
 
     std::string errorPrefix;
 
-    struct ROIPoolingExecutor {
-        ROIPoolingExecutor(const jit_roi_pooling_params& _jpp);
+    class ROIPoolingExecutor {
+    public:
+        ROIPoolingExecutor() = default;
+        virtual void exec(
+            void* srcData,
+            void* srcRoi,
+            void* dst,
+            const VectorDims& src_strides,
+            const VectorDims& dst_strides,
+            const size_t src_roi_step) = 0;
+        virtual ~ROIPoolingExecutor() = default;
 
-        void exec(const jit_roi_pooling_call_args& arg);
-        const jit_roi_pooling_params& getJpp() const;
+        static std::shared_ptr<ROIPoolingExecutor> createROIPoolingNewExecutor(const InferenceEngine::Precision& prc,
+                                                                               const jit_roi_pooling_params& jpp);
 
-        ~ROIPoolingExecutor() = default;
+    protected:
+        std::tuple<int, int, int, int> getBordersForMaxMode(
+            const int roi_start_h, const int roi_end_h, const int roi_start_w, const int roi_end_w,
+            const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w);
+        std::pair<float, float> getXYForBilinearMode(
+            const float roi_start_h, const float roi_end_h, const float roi_start_w, const float roi_end_w,
+            const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w);
 
     private:
-        std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel;
+        template <typename T>
+        static std::shared_ptr<ROIPoolingExecutor> makeExecutor(const jit_roi_pooling_params& jpp);
+
+        struct ROIPoolingContext {
+            std::shared_ptr<ROIPoolingExecutor> executor;
+            jit_roi_pooling_params jpp;
+            InferenceEngine::Precision prc;
+        };
+
+        template<typename T>
+        struct ROIPoolingExecutorCreation {
+            void operator()(ROIPoolingContext& ctx) {
+                ctx.executor = ROIPoolingExecutor::makeExecutor<T>(ctx.jpp);
+            }
+        };
     };
+
+    template <typename T> struct ROIPoolingJitExecutor;
+    template <typename T> struct ROIPoolingRefExecutor;
+
     using executorPtr = std::shared_ptr<ROIPoolingExecutor>;
     executorPtr execPtr = nullptr;
 };
-
 }  // namespace MKLDNNPlugin

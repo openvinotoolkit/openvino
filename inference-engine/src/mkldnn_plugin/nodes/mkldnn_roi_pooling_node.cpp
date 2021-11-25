@@ -425,234 +425,20 @@ void MKLDNNROIPoolingNode::createPrimitive() {
     }
 }
 
-template<typename T>
-void MKLDNNROIPoolingNode::execute() {
-    const auto& jpp = execPtr == nullptr ? refParams : execPtr->getJpp();
-    auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &dstMemory  = getChildEdgeAt(0)->getMemory();
+void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
+    if (execPtr) {
+        auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
+        auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
+        auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    const auto *src_data = reinterpret_cast<const T*>(srcMemory0.GetPtr());
-    const auto *src_roi  = reinterpret_cast<const T*>(srcMemory1.GetPtr());
-    auto       *dst      = reinterpret_cast<T*>(dstMemory.GetPtr());
+        auto src_strides = srcMemory0.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        auto dst_strides = dstMemory.GetDescWithType<BlockedMemoryDesc>()->getStrides();
+        size_t src_roi_step = srcMemory1.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
 
-    auto selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor)
-        IE_THROW() << "CPU ROI Pooling node with name '" << getName() << "' doesn't have primitive descriptors.";
-    auto config = selectedPrimitiveDescriptor->getConfig();
-
-    auto src_strides = srcMemory0.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    auto dst_strides = dstMemory.GetDescWithType<BlockedMemoryDesc>()->getStrides();
-    size_t src_roi_step = srcMemory1.GetDescWithType<BlockedMemoryDesc>()->getStrides()[0];
-
-    int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
-    int MB = jpp.mb;
-
-    int real_rois = 0;
-    for (; real_rois < MB; real_rois++) {
-        size_t roi_off = real_rois * src_roi_step;
-
-        const auto *src_roi_ptr = &src_roi[roi_off];
-        int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
-        if (roi_batch_ind == -1) {
-            break;
-        }
+        execPtr->exec(srcMemory0.GetPtr(), srcMemory1.GetPtr(), dstMemory.GetPtr(), src_strides, dst_strides, src_roi_step);
+    } else {
+        IE_THROW() << "Can't execute ROI Pooling node. Primitive wasn't created";
     }
-
-    parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
-        auto arg = jit_roi_pooling_call_args();
-
-        int cb = cbb * jpp.nb_c_blocking;
-        int cb_num = jpp.nb_c_blocking;
-        int c_block = jpp.c_block;
-
-        arg.c_blocks = std::min(cb + cb_num, jpp.nb_c) - cb;
-
-        if (n >= real_rois) {
-            if (execPtr) {
-                arg.bin_area = 0;
-                arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
-                execPtr->exec(arg);
-            } else {
-                for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                    int ch_blk_cur = cbb * cb_num + cbb_cur;
-                    if (ch_blk_cur >= jpp.nb_c) {
-                        break;  // current block work is done
-                    }
-                    for (int c = 0; c < c_block; c++) {
-                        dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
-                    }
-                }
-            }
-        } else {
-            size_t roi_off = n * src_roi_step;
-            const auto *src_roi_ptr = &src_roi[roi_off];
-
-            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
-
-            if (jpp.alg == Algorithm::ROIPoolingMax) {
-                int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
-                int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
-                int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
-                int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
-
-                int roi_height = std::max(roi_end_h - roi_start_h + 1, 1);
-                int roi_width = std::max(roi_end_w - roi_start_w + 1, 1);
-
-
-                int hstart = (oh * roi_height) / jpp.pooled_h;
-                if ((hstart * jpp.pooled_h) > (oh * roi_height)) {
-                    --hstart;
-                }
-
-                int wstart = (ow * roi_width) / jpp.pooled_w;
-                if ((wstart * jpp.pooled_w) > (ow * roi_width)) {
-                    --wstart;
-                }
-
-                int hend = ((oh + 1) * roi_height) / jpp.pooled_h;
-                if ((hend * jpp.pooled_h) < ((oh + 1) * roi_height)) {
-                    ++hend;
-                }
-
-                int wend = ((ow + 1) * roi_width) / jpp.pooled_w;
-                if ((wend * jpp.pooled_w) < ((ow + 1) * roi_width)) {
-                    ++wend;
-                }
-
-                hstart = std::min(std::max(hstart + roi_start_h, 0), jpp.ih);
-                hend = std::min(std::max(hend + roi_start_h, 0), jpp.ih);
-                wstart = std::min(std::max(wstart + roi_start_w, 0), jpp.iw);
-                wend = std::min(std::max(wend + roi_start_w, 0), jpp.iw);
-
-                if (execPtr) {
-                    arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] + hstart * src_strides[2] + wstart * src_strides[3]];
-                    arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
-
-                    arg.bin_area = (hend - hstart) * (wend - wstart);
-                    arg.kh = hend - hstart;
-                    arg.kw = wend - wstart;
-                } else {
-                    for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                        int ch_blk_cur = cbb * cb_num + cbb_cur;
-                        if (ch_blk_cur >= jpp.nb_c) {
-                            break;  // current block work is done
-                        }
-                        for (int c = 0; c < c_block; c++) {
-                            const size_t pool_index = n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c;
-                            if ((hend <= hstart) || (wend <= wstart)) {
-                                dst[pool_index] = 0;
-                            } else {
-                                dst[pool_index] =  src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                            hstart * src_strides[2] + wstart * src_strides[3] + c];
-                                for (int h = hstart; h < hend; ++h) {
-                                    for (int w = wstart; w < wend; ++w) {
-                                        float batch_data = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    h * src_strides[2] + w * src_strides[3] + c];
-                                        dst[pool_index] = std::fmax(batch_data, dst[pool_index]);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                float roi_start_w_ = src_roi_ptr[1];
-                float roi_start_h_ = src_roi_ptr[2];
-                float roi_end_w_   = src_roi_ptr[3];
-                float roi_end_h_   = src_roi_ptr[4];
-
-                float height_scale = (jpp.pooled_h > 1 ? ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1) : 0);
-                float width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
-
-                float in_y, in_x;
-                // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
-                // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
-                // and as result excess of right limit for proposal value,
-                // if the border case (current_h == pooled_h - 1) will not be handled explicitly
-                if (jpp.pooled_h > 1) {
-                    in_y = (oh == jpp.pooled_h - 1 ? roi_end_h_ * (jpp.ih - 1) : (oh * height_scale + roi_start_h_ * (jpp.ih - 1)));
-                } else {
-                    in_y = 0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1);
-                }
-                if (jpp.pooled_w > 1) {
-                    in_x = (ow == jpp.pooled_w - 1 ? roi_end_w_ * (jpp.iw - 1) : (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)));
-                } else {
-                    in_x = 0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1);
-                }
-
-                if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
-                    if (execPtr) {
-                        arg.bin_area = 0;
-                        arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
-                    } else {
-                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                            int ch_blk_cur = cbb * cb_num + cbb_cur;
-                            if (ch_blk_cur >= jpp.nb_c) {
-                                break;  // current block work is done
-                            }
-                            for (int c = 0; c < c_block; c++) {
-                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
-                            }
-                        }
-                    }
-                } else {
-                    int top_y_index    = static_cast<int>(floorf(in_y));
-                    int bottom_y_index = static_cast<int>(ceilf(in_y));
-                    int left_x_index   = static_cast<int>(floorf(in_x));
-                    int right_x_index  = static_cast<int>(ceilf(in_x));
-
-                    if (right_x_index > jpp.iw - 1)
-                        right_x_index = jpp.iw - 1;
-
-                    if (bottom_y_index > jpp.ih - 1)
-                        bottom_y_index = jpp.ih - 1;
-
-                    if (execPtr) {
-                        arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
-
-                        arg.xf = in_x - left_x_index;
-                        arg.yf = in_y - top_y_index;
-
-                        arg.xoff = sizeof(T) * (right_x_index - left_x_index) * jpp.c_block;
-                        arg.yoff = sizeof(T) * (bottom_y_index - top_y_index) * jpp.iw * jpp.c_block;
-
-                        arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
-                                            top_y_index * src_strides[2] + left_x_index * src_strides[3]];
-
-                        arg.bin_area = 1;
-                    } else {
-                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
-                            int ch_blk_cur = cbb * cb_num + cbb_cur;
-                            if (ch_blk_cur >= jpp.nb_c) {
-                                break;  // current block work is done
-                            }
-                            for (int c = 0; c < c_block; c++) {
-                                const float top_left     = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                                const float top_right    = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
-                                const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
-                                const float bottom_right = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
-                                                                    bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
-
-                                const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
-                                const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
-
-                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
-                                        top + (bottom - top) * (in_y - top_y_index);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (execPtr) {
-                execPtr->exec(arg);
-            }
-        }
-    });
 }
 
 void MKLDNNROIPoolingNode::executeDynamicImpl(mkldnn::stream strm) {
@@ -683,60 +469,377 @@ void MKLDNNROIPoolingNode::prepareParams() {
     refParams.oh = outDims[2];
     refParams.ow = outDims[3];
 
-    if (mayiuse(cpu::x64::sse41)) {
-        execPtr = std::make_shared<ROIPoolingExecutor>(refParams);
+    execPtr = ROIPoolingExecutor::createROIPoolingNewExecutor(runtimePrecision, refParams);
+}
+
+template <typename T>
+class MKLDNNROIPoolingNode::ROIPoolingJitExecutor : public MKLDNNROIPoolingNode::ROIPoolingExecutor {
+public:
+    ROIPoolingJitExecutor(const jit_roi_pooling_params &jpp) {
+        if (mayiuse(cpu::x64::avx512_common)) {
+            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
+        } else if (mayiuse(cpu::x64::sse41)) {
+            roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
+        } else {
+            IE_THROW() << "Can't create jit RoiPooling kernel";
+        }
+
+        if (roi_pooling_kernel)
+            roi_pooling_kernel->create_ker();
     }
-}
 
-MKLDNNROIPoolingNode::ROIPoolingExecutor::ROIPoolingExecutor(const jit_roi_pooling_params& jpp) {
-    if (mayiuse(cpu::x64::avx512_common)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_common>(jpp));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>(jpp));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        roi_pooling_kernel.reset(new jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>(jpp));
-    } else {
-        IE_THROW() << "Can't create jit RoiPooling kernel";
+    void exec(
+        void* srcData,
+        void* srcRoi,
+        void* dst,
+        const VectorDims& src_strides,
+        const VectorDims& dst_strides,
+        const size_t src_roi_step) override {
+        if (!roi_pooling_kernel)
+            IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
+
+        const auto src_ptr = reinterpret_cast<const T*>(srcData);
+        const auto roi_ptr = reinterpret_cast<const T*>(srcRoi);
+        auto dst_ptr = reinterpret_cast<T*>(dst);
+        executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
-    if (roi_pooling_kernel)
-        roi_pooling_kernel->create_ker();
-}
+private:
+    void executeOptimizedGeneric(
+        const T* src_data,
+        const T* src_roi,
+        T* dst,
+        const VectorDims& src_strides,
+        const VectorDims& dst_strides,
+        const size_t src_roi_step) {
+        const auto& jpp = roi_pooling_kernel->jpp_;
+        int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
+        int MB = jpp.mb;
 
-void MKLDNNROIPoolingNode::ROIPoolingExecutor::exec(const jit_roi_pooling_call_args& arg) {
-    if (!roi_pooling_kernel)
-        IE_THROW() << "Could not execute. Kernel for RoiPooling node was not compiled.";
+        int real_rois = 0;
+        for (; real_rois < MB; real_rois++) {
+            size_t roi_off = real_rois * src_roi_step;
 
-    (*roi_pooling_kernel)(&arg);
-}
+            const auto *src_roi_ptr = &src_roi[roi_off];
+            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            if (roi_batch_ind == -1) {
+                break;
+            }
+        }
 
-const jit_roi_pooling_params& MKLDNNROIPoolingNode::ROIPoolingExecutor::getJpp() const {
-    if (!roi_pooling_kernel)
-        IE_THROW() << "Can't get jit roi pooling params, kernel for ROI Pooling node is not compiled.";
-    return roi_pooling_kernel->jpp_;
-}
+        parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
+            auto arg = jit_roi_pooling_call_args();
+            int cb = cbb * jpp.nb_c_blocking;
+            int cb_num = jpp.nb_c_blocking;
+            arg.c_blocks = std::min(cb + cb_num, jpp.nb_c) - cb;
 
-namespace {
-struct ROIPoolingContext {
-    MKLDNNROIPoolingNode &node;
+            if (n >= real_rois) {
+                arg.bin_area = 0;
+                arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                (*roi_pooling_kernel)(&arg);
+            } else {
+                size_t roi_off = n * src_roi_step;
+                const auto *src_roi_ptr = &src_roi[roi_off];
+
+                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+
+                if (jpp.alg == Algorithm::ROIPoolingMax) {
+                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+
+                    int hstart, hend, wstart, wend;
+                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(
+                        roi_start_h, roi_end_h, roi_start_w, roi_end_w, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+
+                    arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] + hstart * src_strides[2] + wstart * src_strides[3]];
+                    arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+
+                    arg.bin_area = (hend - hstart) * (wend - wstart);
+                    arg.kh = hend - hstart;
+                    arg.kw = wend - wstart;
+                } else {
+                    float roi_start_w_ = src_roi_ptr[1];
+                    float roi_start_h_ = src_roi_ptr[2];
+                    float roi_end_w_   = src_roi_ptr[3];
+                    float roi_end_h_   = src_roi_ptr[4];
+
+                    float in_x, in_y;
+                    std::tie(in_x, in_y) = getXYForBilinearMode(
+                        roi_start_h_, roi_end_h_, roi_start_w_, roi_end_w_, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+
+                    if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
+                        arg.bin_area = 0;
+                        arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+                    } else {
+                        int top_y_index    = static_cast<int>(floorf(in_y));
+                        int bottom_y_index = static_cast<int>(ceilf(in_y));
+                        int left_x_index   = static_cast<int>(floorf(in_x));
+                        int right_x_index  = static_cast<int>(ceilf(in_x));
+
+                        if (right_x_index > jpp.iw - 1)
+                            right_x_index = jpp.iw - 1;
+
+                        if (bottom_y_index > jpp.ih - 1)
+                            bottom_y_index = jpp.ih - 1;
+
+                        arg.dst = &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
+
+                        arg.xf = in_x - left_x_index;
+                        arg.yf = in_y - top_y_index;
+
+                        arg.xoff = sizeof(T) * (right_x_index - left_x_index) * jpp.c_block;
+                        arg.yoff = sizeof(T) * (bottom_y_index - top_y_index) * jpp.iw * jpp.c_block;
+
+                        arg.src = &src_data[roi_batch_ind * src_strides[0] + cb * src_strides[1] +
+                                            top_y_index * src_strides[2] + left_x_index * src_strides[3]];
+
+                        arg.bin_area = 1;
+                    }
+                }
+
+                (*roi_pooling_kernel)(&arg);
+            }
+        });
+    }
+
+    std::shared_ptr<jit_uni_roi_pooling_kernel> roi_pooling_kernel;
 };
-}
 
-template<typename T>
-struct MKLDNNROIPoolingNode::ROIPoolingExecute {
-    void operator()(ROIPoolingContext & ctx) {
-        ctx.node.execute<T>();
+template <typename T>
+class MKLDNNROIPoolingNode::ROIPoolingRefExecutor : public MKLDNNROIPoolingNode::ROIPoolingExecutor {
+public:
+    ROIPoolingRefExecutor(const jit_roi_pooling_params &_jpp) : jpp(_jpp) {}
+    void exec(
+    void* srcData,
+    void* srcRoi,
+    void* dst,
+    const VectorDims& srcstrides,
+    const VectorDims& dststrides,
+    const size_t roiStep) override {
+        const auto *src_ptr = reinterpret_cast<const T*>(srcData);
+        const auto *roi_ptr = reinterpret_cast<const T*>(srcRoi);
+        auto *dst_ptr = reinterpret_cast<T*>(dst);
+        executeReference(src_ptr, roi_ptr, dst_ptr, srcstrides, dststrides, roiStep);
     }
+
+    void executeReference(
+        const T* src_data,
+        const T* src_roi,
+        T* dst,
+        const VectorDims& src_strides,
+        const VectorDims& dst_strides,
+        const size_t src_roi_step) {
+        int cb_work = impl::utils::div_up(jpp.nb_c, jpp.nb_c_blocking);
+        int MB = jpp.mb;
+
+        int real_rois = 0;
+        for (; real_rois < MB; real_rois++) {
+            size_t roi_off = real_rois * src_roi_step;
+
+            const auto *src_roi_ptr = &src_roi[roi_off];
+            int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+            if (roi_batch_ind == -1) {
+                break;
+            }
+        }
+
+        parallel_for4d(MB, cb_work, jpp.oh, jpp.ow, [&](int n, int cbb, int oh, int ow) {
+            int cb_num = jpp.nb_c_blocking;
+            int c_block = jpp.c_block;
+
+            if (n >= real_rois) {
+                for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                    int ch_blk_cur = cbb * cb_num + cbb_cur;
+                    if (ch_blk_cur >= jpp.nb_c) {
+                        break; // current block work is done
+                    }
+                    for (int c = 0; c < c_block; c++) {
+                        dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                    }
+                }
+            } else {
+                size_t roi_off = n * src_roi_step;
+                const auto *src_roi_ptr = &src_roi[roi_off];
+
+                int roi_batch_ind = static_cast<int>(src_roi_ptr[0]);
+
+                if (jpp.alg == Algorithm::ROIPoolingMax) {
+                    int roi_start_w = static_cast<int>(round(src_roi_ptr[1] * jpp.spatial_scale));
+                    int roi_start_h = static_cast<int>(round(src_roi_ptr[2] * jpp.spatial_scale));
+                    int roi_end_w = static_cast<int>(round(src_roi_ptr[3] * jpp.spatial_scale));
+                    int roi_end_h = static_cast<int>(round(src_roi_ptr[4] * jpp.spatial_scale));
+
+                    int hstart, hend, wstart, wend;
+                    std::tie(hstart, hend, wstart, wend) = getBordersForMaxMode(
+                        roi_start_h, roi_end_h, roi_start_w, roi_end_w, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+
+                    for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                        int ch_blk_cur = cbb * cb_num + cbb_cur;
+                        if (ch_blk_cur >= jpp.nb_c) {
+                            break;  // current block work is done
+                        }
+                        for (int c = 0; c < c_block; c++) {
+                            const size_t pool_index = n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c;
+                            if ((hend <= hstart) || (wend <= wstart)) {
+                                dst[pool_index] = 0;
+                            } else {
+                                dst[pool_index] =  src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                            hstart * src_strides[2] + wstart * src_strides[3] + c];
+                                for (int h = hstart; h < hend; ++h) {
+                                    for (int w = wstart; w < wend; ++w) {
+                                        float batch_data = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    h * src_strides[2] + w * src_strides[3] + c];
+                                        dst[pool_index] = std::fmax(batch_data, dst[pool_index]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    float roi_start_w_ = src_roi_ptr[1];
+                    float roi_start_h_ = src_roi_ptr[2];
+                    float roi_end_w_   = src_roi_ptr[3];
+                    float roi_end_h_   = src_roi_ptr[4];
+
+                    float in_x, in_y;
+                    std::tie(in_x, in_y) = getXYForBilinearMode(
+                        roi_start_h_, roi_end_h_, roi_start_w_, roi_end_w_, jpp.ih, oh, jpp.iw, ow, jpp.pooled_h, jpp.pooled_w);
+
+                    if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
+                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            if (ch_blk_cur >= jpp.nb_c) {
+                                break;  // current block work is done
+                            }
+                            for (int c = 0; c < c_block; c++) {
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] = 0;
+                            }
+                        }
+                    } else {
+                        int top_y_index    = static_cast<int>(floorf(in_y));
+                        int bottom_y_index = static_cast<int>(ceilf(in_y));
+                        int left_x_index   = static_cast<int>(floorf(in_x));
+                        int right_x_index  = static_cast<int>(ceilf(in_x));
+
+                        if (right_x_index > jpp.iw - 1)
+                            right_x_index = jpp.iw - 1;
+
+                        if (bottom_y_index > jpp.ih - 1)
+                            bottom_y_index = jpp.ih - 1;
+
+                        for (int cbb_cur = 0; cbb_cur < cb_num; cbb_cur++) {
+                            int ch_blk_cur = cbb * cb_num + cbb_cur;
+                            if (ch_blk_cur >= jpp.nb_c) {
+                                break;  // current block work is done
+                            }
+                            for (int c = 0; c < c_block; c++) {
+                                const float top_left     = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float top_right    = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    top_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+                                const float bottom_left  = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + left_x_index * src_strides[3] + c];
+                                const float bottom_right = src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
+                                                                    bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
+
+                                const float top    = top_left + (top_right - top_left) * (in_x - left_x_index);
+                                const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
+
+                                dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3] + c] =
+                                        top + (bottom - top) * (in_y - top_y_index);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+private:
+    jit_roi_pooling_params jpp;
 };
 
-void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
-    ROIPoolingContext ctx = {
-            *this
-    };
-    // enable conditional compilation
-    OV_SWITCH(MKLDNNPlugin, ROIPoolingExecute, ctx, runtimePrecision,
+std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::ROIPoolingExecutor::createROIPoolingNewExecutor(
+    const InferenceEngine::Precision& prc,
+    const jit_roi_pooling_params& jpp) {
+    ROIPoolingContext ctx = { nullptr, jpp, prc };
+
+    OV_SWITCH(MKLDNNPlugin, ROIPoolingExecutorCreation, ctx, prc,
               OV_CASE(Precision::FP32, float),
               OV_CASE(Precision::BF16, bfloat16_t))
+
+    return ctx.executor;
+}
+
+std::tuple<int, int, int, int> MKLDNNROIPoolingNode::ROIPoolingExecutor::getBordersForMaxMode(
+    const int roi_start_h, const int roi_end_h, const int roi_start_w, const int roi_end_w,
+    const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w) {
+    int roi_height = std::max(roi_end_h - roi_start_h + 1, 1);
+    int roi_width = std::max(roi_end_w - roi_start_w + 1, 1);
+
+    int hstart = (oh * roi_height) / pooled_h;
+    if ((hstart * pooled_h) > (oh * roi_height)) {
+        --hstart;
+    }
+
+    int wstart = (ow * roi_width) / pooled_w;
+    if ((wstart * pooled_w) > (ow * roi_width)) {
+        --wstart;
+    }
+
+    int hend = ((oh + 1) * roi_height) / pooled_h;
+    if ((hend * pooled_h) < ((oh + 1) * roi_height)) {
+        ++hend;
+    }
+
+    int wend = ((ow + 1) * roi_width) / pooled_w;
+    if ((wend * pooled_w) < ((ow + 1) * roi_width)) {
+        ++wend;
+    }
+
+    hstart = std::min(std::max(hstart + roi_start_h, 0), ih);
+    hend = std::min(std::max(hend + roi_start_h, 0), ih);
+    wstart = std::min(std::max(wstart + roi_start_w, 0), iw);
+    wend = std::min(std::max(wend + roi_start_w, 0), iw);
+    return { hstart, hend, wstart, wend };
+}
+
+std::pair<float, float> MKLDNNROIPoolingNode::ROIPoolingExecutor::getXYForBilinearMode(
+    const float roi_start_h, const float roi_end_h, const float roi_start_w, const float roi_end_w,
+    const int ih, const int oh, const int iw, const int ow, const int pooled_h, const int pooled_w) {
+    float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
+    float width_scale  = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
+
+    float in_y, in_x;
+    // because of nonalgebraic character of floating point operation, some proposals can cause violation of inequality:
+    // ((end_h - start_h) * (input_h - 1) / (pooled_h - 1)) * (pooled_h - 1) <= (end_h - start_h) * (input_h - 1),
+    // and as result excess of right limit for proposal value,
+    // if the border case (current_h == pooled_h - 1) will not be handled explicitly
+    if (pooled_h > 1) {
+        in_y = (oh == pooled_h - 1 ? roi_end_h * (ih - 1) : (oh * height_scale + roi_start_h * (ih - 1)));
+    } else {
+        in_y = 0.5 * (roi_start_h + roi_end_h) * (ih - 1);
+    }
+    if (pooled_w > 1) {
+        in_x = (ow == pooled_w - 1 ? roi_end_w * (iw - 1) : (ow * width_scale  + roi_start_w * (iw - 1)));
+    } else {
+        in_x = 0.5 * (roi_start_w + roi_end_w) * (iw - 1);
+    }
+
+    return { in_x, in_y };
+}
+
+template <typename T>
+std::shared_ptr<MKLDNNROIPoolingNode::ROIPoolingExecutor> MKLDNNROIPoolingNode::ROIPoolingExecutor::makeExecutor(
+    const jit_roi_pooling_params& jpp) {
+    if (mayiuse(cpu::x64::sse41))
+        return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
+    else
+        return std::make_shared<ROIPoolingRefExecutor<T>>(jpp);
 }
 
 bool MKLDNNROIPoolingNode::created() const {
