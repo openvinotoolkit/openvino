@@ -28,17 +28,26 @@ def create_function2(shape1=[2, 2], shape2=[2, 2]):
     input1.get_output_tensor(0).set_names({'input1', 'input1a'})
     relu1 = ops.relu(input1)
     res1 = ops.result(relu1, "res1")
+    res1.get_output_tensor(0).set_names({'res1', 'res1a'})
     input2 = ops.parameter(shape2, dtype=np.float32, name="input2")
     input2.get_output_tensor(0).set_names({'input2', 'input2a'})
     relu2 = ops.relu(input2)
     res2 = ops.result(relu2, "res2")
+    res2.get_output_tensor(0).set_names({'res2', 'res2a'})
     function = Function(results=[res1, res2], parameters=[input1, input2], name="TestFunction")
     return function
 
+def create_function1(shape1=[2, 2]):
+    input1 = ops.parameter(shape1, dtype=np.float32, name="input1")
+    input1.get_output_tensor(0).set_names({'input1', 'input1a'})
+    relu1 = ops.relu(input1)
+    res1 = ops.result(relu1, "res1")
+    res1.get_output_tensor(0).set_names({'res1', 'res1a'})
+    function = Function(results=[res1], parameters=[input1], name="TestFunction")
+    return function
 
 def process_function(ov_function: Function, argv: Namespace):
-    apply_preprocessing(ov_function=ov_function,
-                        argv=argv)
+    apply_preprocessing(ov_function=ov_function, argv=argv)
 
 
 class TestPreprocessingMOC(unittest.TestCase):
@@ -105,7 +114,7 @@ class TestPreprocessingMOC(unittest.TestCase):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([2., 4., 8.]), 'mean': None}},
                          layout_values={'input1': {'source_layout': 'nhwc'}},
                          scale=None)
-        function = create_function2(shape1=[1, 3, 3, 3])  # Not clear to which 3 should scale be applied
+        function = create_function2(shape1=[1, 3, 3, 3])  # Use layout to determine channels dim
 
         process_function(ov_function=function, argv=argv)
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
@@ -122,8 +131,7 @@ class TestPreprocessingMOC(unittest.TestCase):
     def test_mean_single(self):
         argv = Namespace(mean_scale_values={'input1': {'mean': np.array([4.]), 'scale': None}}, scale=None)
         function = create_function2()
-        apply_preprocessing(ov_function=function,
-                            argv=argv)
+        process_function(ov_function=function, argv=argv)
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
         self.check_mean_constant(op_node, [4.0], shape=None)
@@ -134,8 +142,7 @@ class TestPreprocessingMOC(unittest.TestCase):
     def test_mean_vector3(self):
         argv = Namespace(mean_scale_values={'input2': {'mean': np.array([2., 4., 8.]), 'scale': None}}, scale=None)
         function = create_function2(shape2=[1, 3, 224, 224])
-        apply_preprocessing(ov_function=function,
-                            argv=argv)
+        process_function(ov_function=function, argv=argv)
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
         self.check_mean_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
@@ -152,8 +159,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                                                         'scale': np.array([2., 4., 8.])}},
                          scale=None)
         function = create_function2(shape2=[1, 3, 224, 224])
-        apply_preprocessing(ov_function=function,
-                            argv=argv)
+        process_function(ov_function=function, argv=argv)
         # Verify that first is 'subtract mean', then 'scale'
         op_node = list(function.get_parameters()[1].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
@@ -175,8 +181,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                                                           (np.array([7., 8.]), None)],
                                                          dtype='object')), scale=None)
         function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
-        apply_preprocessing(ov_function=function,
-                            argv=argv)
+        process_function(ov_function=function, argv=argv)
 
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
@@ -199,8 +204,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                                                           (np.array([2., 3.]), np.array([4.]))],
                                                          dtype='object')), scale=None)
         function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
-        apply_preprocessing(ov_function=function,
-                            argv=argv)
+        process_function(ov_function=function, argv=argv)
 
         op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node.get_type_name() == 'Subtract' or op_node.get_type_name() == 'Add')
@@ -219,40 +223,35 @@ class TestPreprocessingMOC(unittest.TestCase):
         argv = Namespace(mean_scale_values=[(np.array([2., 3.]), np.array([4.]))], scale=None)
         function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
         with self.assertRaisesRegex(Error, '.*question.*61.*'):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_mean_scale_error_no_node_name_found(self):
         argv = Namespace(mean_scale_values={'not_found': {'scale': np.array([1.]), 'mean': np.array([1.])}},
                          scale=None)
         function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
         with self.assertRaisesRegex(Error, '.*question.*83.*'):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_layout_error_no_node_name_found(self):
         argv = Namespace(layout_values={'not_found': {'source_layout': 'nhwc'}},
                          scale=None)
         function = create_function2(shape1=[1, 3, 224, 224], shape2=[1, 2, 224, 224])
         with self.assertRaisesRegex(Error, '.*question.*83.*'):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_error_dimension_mismatch(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3., 4.]), 'mean': None}},
                          scale=None)
         function = create_function2(shape1=[1, 3, 224, 224])
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_error_dimension_not_clear(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.]), 'mean': None}},
                          scale=None)
         function = create_function2(shape1=[1, 3, 3, 3])  # Not clear to which 3 should scale be applied
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_error_dimension_mismatch_with_scale(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3., 4.]),
@@ -260,8 +259,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                          scale=None)
         function = create_function2(shape1=[1, 3, 4, 224])
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_error_2_names_to_same_input(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2., 3.])},
@@ -269,8 +267,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                          scale=None)
         function = create_function2(shape1=[1, 3, 224, 224])
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_error_2_names_to_same_input_single_value(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([2.])},
@@ -278,8 +275,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                          scale=None)
         function = create_function2(shape1=[1, 3, 224, 224])
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_error_guess_layout_dynamic_shape(self):
         argv = Namespace(mean_scale_values={'input1': {'scale': np.array([1., 2.]),
@@ -287,13 +283,12 @@ class TestPreprocessingMOC(unittest.TestCase):
                          scale=None)
         function = create_function2(shape1=PartialShape.dynamic())
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_reverse_input_channels(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 224, 224])
-        apply_preprocessing(ov_function=function,
+        process_function(ov_function=function,
                             argv=argv)
         # Verify that some operations are inserted.
         # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was called
@@ -312,8 +307,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                                         'input2a': { 'source_layout': 'nchw' }
                                         })
         function = create_function2(shape1=[1, 224, 224, 4], shape2=[1, 4, 224, 224])
-        apply_preprocessing(ov_function=function,
-                            argv=argv)
+        process_function(ov_function=function, argv=argv)
         # Verify that some operations are inserted.
         # In future, consider using mock PrePostProcessor to verify that 'reverse_channels' was called
         op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
@@ -326,8 +320,7 @@ class TestPreprocessingMOC(unittest.TestCase):
                          mean_scale_values={'input1': {'scale': np.array([1., 2.]), 'mean': None}},
                          scale=None)
         function = create_function2(shape1=[1, 224, 224, 2], shape2=[1, 3, 224, 224])
-        apply_preprocessing(ov_function=function,
-                            argv=argv)
+        process_function(ov_function=function, argv=argv)
         # Verify that some operations are inserted.
         op_node0 = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
         self.assertTrue(op_node0.get_type_name() != 'Relu')
@@ -338,16 +331,61 @@ class TestPreprocessingMOC(unittest.TestCase):
         self.assertEqual(function.get_parameters()[0].layout, Layout())
         self.assertEqual(function.get_parameters()[1].layout, Layout())
 
+    # When input name for layout is empty for model with one input - it is applied to this input
+    def test_scale_vector3_layout_empty_input_name(self):
+        argv = Namespace(mean_scale_values=list(np.array([(None, np.array([2., 4., 8.]))],
+                                                         dtype='object')),
+                         layout_values={'': {'source_layout': 'nchw'}},
+                         scale=None)
+        function = create_function1(shape1=[1, 3, 3, 3])  # Use layout to determine channels dim
+
+        process_function(ov_function=function, argv=argv)
+        op_node = list(function.get_parameters()[0].output(0).get_target_inputs())[0].get_node()
+        self.assertTrue(op_node.get_type_name() == 'Divide' or op_node.get_type_name() == 'Multiply')
+        self.check_scale_constant(op_node, expected=[2., 4., 8.], shape=[1, 3, 1, 1])
+
+        # Verify that layout (nchw) is appeared in input1
+        self.assertEqual(function.get_parameters()[0].layout, Layout('nchw'))
+
+    def test_layout_output(self):
+        argv = Namespace(mean_scale_values=None,
+                         layout_values={
+                             'res1': {
+                                 'source_layout': 'nchw',
+                                 'target_layout': 'nhwc'
+                             },
+                             'res2a': {
+                                 'source_layout': 'ndchw'
+                             }
+                         },
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 3, 3], shape2=[1, 3, 3, 3, 3])
+
+        process_function(ov_function=function, argv=argv)
+        op_node = function.get_results()[0].input(0).get_source_output().get_node()
+        self.assertEqual(op_node.get_type_name(), 'Transpose')
+
+        self.assertEqual(function.get_results()[0].layout, Layout('nhwc'))
+        self.assertEqual(function.get_results()[1].layout, Layout('ndchw'))
+
+    def test_error_layout_empty_input_name_2_inputs(self):
+        argv = Namespace(mean_scale_values=None,
+                         layout_values={'': {'source_layout': 'nchw'}},
+                         scale=None)
+        function = create_function2(shape1=[1, 3, 3, 3])
+
+        # Verify user friendly error message contains number of inputs and their names
+        with self.assertRaisesRegex(Error, '.*2.*inputs.*input1.*input2.*'):
+            process_function(ov_function=function, argv=argv)
+
     def test_error_guess_layout_reverse_channels(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 4, 224, 224])
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)
 
     def test_error_guess_layout_reverse_channels_multi_3(self):
         argv = Namespace(reverse_input_channels=True, mean_scale_values=None, scale=None)
         function = create_function2(shape1=[1, 224, 224, 3], shape2=[1, 3, 3, 224])
         with self.assertRaises(Exception):
-            apply_preprocessing(ov_function=function,
-                                argv=argv)
+            process_function(ov_function=function, argv=argv)

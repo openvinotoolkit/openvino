@@ -58,21 +58,42 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
     return mean_scale_val
 
 
-def check_keys_valid(ov_function: Function, keys: list):
-    inputs_used = {}
+def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
+    nodes_used = {}
     for name in keys:
-        input_found = False
+        node_found = False
+        nodes = ov_function.inputs
+
+        if search_outputs:
+            nodes += ov_function.outputs
+
+        for ov_node in nodes:
+            if name in ov_node.get_tensor().get_names():
+                if ov_node in nodes_used:
+                    raise Error('Key for {} and {} point to same model input/output.'
+                                .format(name, nodes_used[ov_node]))
+                nodes_used[ov_node] = name
+                node_found = True
+                break
+
+        if not node_found:
+            if not search_outputs:
+                raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
+            else:
+                raise Error('Input/Output with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
+
+
+def update_layout_is_input_flag(ov_function: Function, layout_values: dict):
+    """
+    Internal function: updates layout_values with flag whether each layout belongs to input or to output
+    """
+    for name, layout_value in layout_values.items():
+        layout_value['is_input'] = False
         for ov_input in ov_function.inputs:
             if name in ov_input.get_tensor().get_names():
-                if ov_input in inputs_used:
-                    raise Error('Key for {} and {} point to same model input.'
-                                .format(name, inputs_used[ov_input]))
-                inputs_used[ov_input] = name
-                input_found = True
+                layout_value['is_input'] = True
                 break
-        if not input_found:
-            raise Error('Input with name {} wasn\'t found! {}'.format(name, refer_to_faq_msg(83)))
-
+    return layout_values
 
 def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, layout_values):
     """
@@ -107,7 +128,8 @@ def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, l
     layout_values[name] = {
         'source_layout': layout_str,
         'target_layout': None,
-        'source_guessed': True
+        'source_guessed': True,
+        'is_input': True
     }
     return layout_values
 
@@ -120,6 +142,7 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
     :param: mean_scale_values Dictionary with mean/scale values defined for each argument
     :return: updated layout items with guessed layouts
     """
+    log.debug('Layout items before guess: {}'.format(layout_values))
     for ms_name, mean_scale in mean_scale_values.items():
         num_channels_mean = len(mean_scale['mean']) if mean_scale['mean'] is not None else 0
         num_channels_scale = len(mean_scale['scale']) if hasattr(mean_scale['scale'], '__len__') else 0
@@ -207,17 +230,33 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     else:
         mean_scale_values = {}
 
+    log.debug('Original MS: {}'.format(mean_scale_values))
     mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
                                                   scale=argv.scale)
 
     layout_values = {}
+    # layout_values = {'inputX1': {'source_layout': 'nchw'}}
     if 'layout_values' in argv and argv.layout_values:
         layout_values = argv.layout_values
 
-    check_keys_valid(ov_function=ov_function, keys=mean_scale_values.keys())
-    check_keys_valid(ov_function=ov_function, keys=layout_values.keys())
+    if '' in layout_values:
+        if len(ov_function.inputs) > 1:
+            input_names = [list(ov_input.get_tensor().get_names())[0] for ov_input in ov_function.inputs]
+            raise Error('Layout without name can be specified for models with only one input, '
+                        'but provided model has {} inputs: \'{}\'. '
+                        'Please specify explicitly input/output name for --layout option'
+                        .format(len(input_names), input_names))
+        layout_values = {
+            list(ov_function.input().get_tensor().get_names())[0]: {
+                'source_layout': layout_values[''].get('source_layout'),
+                'target_layout': layout_values[''].get('target_layout')
+            }
+        }
+    check_keys_valid(ov_function=ov_function, keys=mean_scale_values.keys(), search_outputs=False)
+    check_keys_valid(ov_function=ov_function, keys=layout_values.keys(), search_outputs=True)
 
+    layout_values = update_layout_is_input_flag(ov_function, layout_values)
     layout_values = guess_source_layouts_by_mean_scale(ov_function, layout_values, mean_scale_values)
     need_reverse = 'reverse_input_channels' in argv and argv.reverse_input_channels
     if need_reverse:
@@ -226,9 +265,15 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
 
     for node_name, layout_value in layout_values.items():
         if layout_value.get('source_layout'):
-            prep.input(node_name).network().set_layout(Layout(layout_value['source_layout']))
+            if layout_value.get('is_input'):
+                prep.input(node_name).network().set_layout(Layout(layout_value['source_layout']))
+            else:
+                prep.output(node_name).network().set_layout(Layout(layout_value['source_layout']))
         if layout_value.get('target_layout'):
-            prep.input(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
+            if layout_value.get('is_input'):
+                prep.input(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
+            else:
+                prep.output(node_name).tensor().set_layout(Layout(layout_value['target_layout']))
 
     for node_name, node_mean_scale_values in mean_scale_values.items():
         # Apply mean first, then scale
