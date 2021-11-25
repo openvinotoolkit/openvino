@@ -60,6 +60,8 @@ public:
     StaticDimension& operator+=(const StaticDimension& dim);
     StaticDimension& operator*=(const StaticDimension& dim);
     StaticDimension& operator&=(const StaticDimension& dim);
+    StaticDimension operator/(const value_type divisor) const;
+    StaticDimension &operator/=(const value_type divisor);
 
 private:
     value_type m_dimension = 0;

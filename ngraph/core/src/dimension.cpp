@@ -35,6 +35,21 @@ Dimension Dimension::operator-(const Dimension& dim) const {
     return Dimension(m_dimension - dim.m_dimension);
 }
 
+Dimension Dimension::operator/(const value_type divisor) const {
+    OPENVINO_ASSERT(divisor != 0, "divisor can't be 0");
+
+    if (m_dimension.get_max_val() == Interval::s_max && m_dimension.get_min_val() == 0)
+        return Dimension::dynamic();
+
+    else if (is_static() && m_dimension.get_max_val() % divisor)
+        OPENVINO_ASSERT(false,
+                        "Dimension value: ",
+                        m_dimension.get_max_val(),
+                        " must be a multiple of divisor: ",
+                        divisor);
+    return Dimension(m_dimension.get_min_val() / divisor, m_dimension.get_max_val() / divisor);
+}
+
 Dimension Dimension::operator*(const Dimension& dim) const {
     return Dimension(m_dimension * dim.m_dimension);
 }
