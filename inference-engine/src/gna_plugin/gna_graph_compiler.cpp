@@ -2316,11 +2316,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer,
     auto nextLayer = CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true,
         [](CNNLayerPtr l) { return LayerInfo(l).isNonFunctional(); }).first;
     // Check that layer will be an output
-    if (LayerInfo(layer).isOutput() || !nextLayer) {
-        // set the latest execution order
-        layer->userValue.v_int = UINT16_MAX;
-    }
-    gnamem->reserve_ptr(layer, ptr, ALIGN64(num_data_bytes_out), 64);
+    gnamem->reserve_ptr((LayerInfo(layer).isOutput() || !nextLayer) ? nullptr : layer, ptr, ALIGN64(num_data_bytes_out), 64);
 }
 
 GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
@@ -2339,8 +2335,6 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // real input not a memory input
     if (LayerInfo(prevLayer).isInput()) {
-        // set the latest execution order
-        layer->userValue.v_int = UINT16_MAX;
         if (0 == inputDesc->bytes_allocated_for_input[prevLayer->name]) {
             // if request for allocation less that realTensorInput - we need to extend request
             auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
@@ -2353,12 +2347,12 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
             // real allocation pointer will be kept in ptr not in ptr_inputs_global
             if (!connectTo) {
-                gnamem->push_value(layer, ptr,
+                gnamem->push_value(nullptr, ptr,
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
                                    64);
             } else {
-                gnamem->push_value(layer, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(),
+                gnamem->push_value(nullptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(),
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
                                    64);
@@ -2374,9 +2368,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         }
 
         if (connectTo) {
-            gnamem->bind_ptr(layer, ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->bind_ptr(nullptr, ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset, ALIGN(num_data_bytes_in, 64));
         } else {
-            gnamem->bind_ptr(layer, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
+            gnamem->bind_ptr(nullptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, offset, ALIGN(num_data_bytes_in, 64));
         }
 
         return prevLayer;
