@@ -26,6 +26,7 @@ using AdaPoolSpecificParams = std::tuple<
 using AdaPoolLayerTestParams = std::tuple<
         AdaPoolSpecificParams,
         std::string,                        // mode
+        bool,
         ElementType,         // Net precision
         TargetDevice>;       // Device name
 
@@ -42,8 +43,9 @@ public:
         std::tie(basicParamsSet, cpuParams) = obj.param;
         std::string td;
         ElementType netPr;
+        bool isStatic;
         AdaPoolSpecificParams adaPar;
-        std::tie(adaPar, mode, netPr, td) = basicParamsSet;
+        std::tie(adaPar, mode, isStatic, netPr, td) = basicParamsSet;
         std::tie(pooledSpatialShape, inputShape) = adaPar;
         std::ostringstream result;
         result << "AdaPoolTest_";
@@ -73,20 +75,22 @@ protected:
 
         CPULayerTestsDefinitions::AdaPoolSpecificParams adaPoolParams;
         ElementType netPrecision;
-        std::tie(adaPoolParams, mode,  netPrecision, targetDevice) = basicParamsSet;
+        bool isStatic;
+        std::tie(adaPoolParams, mode, isStatic, netPrecision, targetDevice) = basicParamsSet;
         std::tie(pooledVector, inputShape) = adaPoolParams;
 
         init_input_shapes(inputShape);
-        for (auto &target : targetStaticShapes) {
-            target.push_back({pooledVector.size()});
+        if (!isStatic) {
+            for (auto &target : targetStaticShapes) {
+                target.push_back({pooledVector.size()});
+            }
         }
 
         selectedType = std::string("unknown_FP32");
         if (netPrecision == ElementType::bf16) {
             rel_threshold = 1e-2;
         }
-        function = createFunction(false);
-        const auto& funcInputs = function->inputs();
+        function = createFunction(isStatic);
     }
 
     std::shared_ptr<ngraph::Function> createFunction(bool seconeInputConst) {
@@ -306,6 +310,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg3DLayoutTest, AdaPoolLayerCPUTest,
                                  ::testing::Combine(
                                          adaPool3DParams,
                                          ::testing::Values("avg"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("3D", "avg"))),
@@ -316,6 +321,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg4DLayoutTest, AdaPoolLayerCPUTest,
                                  ::testing::Combine(
                                          adaPool4DParams,
                                          ::testing::Values("avg"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("4D", "avg"))),
@@ -326,6 +332,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolAvg5DLayoutTest, AdaPoolLayerCPUTest,
                                  ::testing::Combine(
                                          adaPool5DParams,
                                          ::testing::Values("avg"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("5D", "avg"))),
@@ -336,6 +343,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax3DLayoutTest, AdaPoolLayerCPUTest,
                                  ::testing::Combine(
                                          adaPool3DParams,
                                          ::testing::Values("max"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("3D", "max"))),
@@ -346,6 +354,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax4DLayoutTest, AdaPoolLayerCPUTest,
                                  ::testing::Combine(
                                          adaPool4DParams,
                                          ::testing::Values("max"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("4D", "max"))),
@@ -356,6 +365,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPoolMax5DLayoutTest, AdaPoolLayerCPUTest,
                                  ::testing::Combine(
                                          adaPool5DParams,
                                          ::testing::Values("max"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("5D", "max"))),
@@ -366,6 +376,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolAvg3DLayoutTest, AdaPoolLayerCPUTest
                                  ::testing::Combine(
                                          staticAdaPool3DParams,
                                          ::testing::Values("avg"),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("3D", "avg"))),
@@ -376,6 +387,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolAvg4DLayoutTest, AdaPoolLayerCPUTest
                                  ::testing::Combine(
                                          staticAdaPool4DParams,
                                          ::testing::Values("avg"),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("4D", "avg"))),
@@ -386,6 +398,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolAvg5DLayoutTest, AdaPoolLayerCPUTest
                                  ::testing::Combine(
                                          staticAdaPool5DParams,
                                          ::testing::Values("avg"),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("5D", "avg"))),
@@ -396,6 +409,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolMax3DLayoutTest, AdaPoolLayerCPUTest
                                  ::testing::Combine(
                                          staticAdaPool3DParams,
                                          ::testing::Values("max"),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("3D", "max"))),
@@ -406,6 +420,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolMax4DLayoutTest, AdaPoolLayerCPUTest
                                  ::testing::Combine(
                                          staticAdaPool4DParams,
                                          ::testing::Values("max"),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("4D", "max"))),
@@ -416,13 +431,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolMax5DLayoutTest, AdaPoolLayerCPUTest
                                  ::testing::Combine(
                                          staticAdaPool5DParams,
                                          ::testing::Values("max"),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::ValuesIn(filterCPUInfoForDevice("5D", "max"))),
                          AdaPoolLayerCPUTest::getTestCaseName);
 
 
-// in 1-channel cases  {..., 1, 1, 1} shape cannot be correctly resolved on oneDnn level, so it was removed from instances
+// // in 1-channel cases  {..., 1, 1, 1} shape cannot be correctly resolved on oneDnn level, so it was removed from instances
 
 const std::vector<std::vector<InputShape>> input3DShape1Channel = {
      {{{-1, -1, -1},
@@ -447,6 +463,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg3DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1}, {2}}),
                                                  ::testing::ValuesIn(input3DShape1Channel)),
                                          ::testing::Values("avg"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}})),
@@ -462,6 +479,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg4DLayoutTest, AdaPoolLayerCPUTest,
                                                  }),
                                                  ::testing::ValuesIn(input4DShape1Channel)),
                                          ::testing::Values("avg"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}})),
@@ -475,6 +493,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg5DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1, 1, 1}, {2, 2, 2}}),
                                                  ::testing::ValuesIn(input5DShape1Channel)),
                                          ::testing::Values("avg"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}})),
@@ -489,6 +508,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max3DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1}, {2}}),
                                                  ::testing::ValuesIn(input3DShape1Channel)),
                                          ::testing::Values("max"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}})),
@@ -502,6 +522,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max4DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1, 1}, {2, 2}}),
                                                  ::testing::ValuesIn(input4DShape1Channel)),
                                          ::testing::Values("max"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}})),
@@ -517,6 +538,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max5DLayoutTest, AdaPoolLayerCPUTest,
                                                  }),
                                                  ::testing::ValuesIn(input5DShape1Channel)),
                                          ::testing::Values("max"),
+                                         ::testing::Values(false),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}})),
