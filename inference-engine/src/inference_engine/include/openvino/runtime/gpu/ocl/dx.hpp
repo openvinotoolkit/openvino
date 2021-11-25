@@ -102,9 +102,10 @@ public:
  * @note User can also obtain OpenCL context handle from this class.
  */
 class D3DContext : public ClContext {
-    using RemoteContext::create_tensor;
-
 public:
+    // Needed to make create_tensor overloads from base class visible for user
+    using ClContext::create_tensor;
+
     /**
      * @brief Checks that type defined runtime paramters are presented in remote object
      * @param remote_context remote context to check
