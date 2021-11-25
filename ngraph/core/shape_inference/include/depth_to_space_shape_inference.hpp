@@ -40,7 +40,7 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
         output_shape.resize(data_shape.size());
 
         output_shape[0] = data_shape[0];
-        if (data_shape[1] == ov::Dimension::dynamic())
+        if (data_shape[1].is_dynamic() && data_shape[1] == ov::Dimension::dynamic())
             output_shape[1] = ov::Dimension::dynamic();
         else
             output_shape[1] = data_shape[1] / static_cast<ValType>(divider);
