@@ -46,13 +46,13 @@ find_dependency(OpenVINO
                 NO_DEFAULT_PATH)
 
 # create targets with old names for compatibility
-if(TARGET openvino::core AND NOT TARGET ngraph::ngraph)
+if(TARGET openvino::runtime AND NOT TARGET ngraph::ngraph)
     add_library(ngraph::ngraph INTERFACE IMPORTED)
     set_target_properties(ngraph::ngraph PROPERTIES
         INTERFACE_LINK_LIBRARIES openvino::core)
 endif()
 
-if(TARGET openvino::frontend::common AND NOT TARGET ngraph::frontend_common)
+if(TARGET openvino::runtime AND NOT TARGET ngraph::frontend_common)
     add_library(ngraph::frontend_common INTERFACE IMPORTED)
     set_target_properties(ngraph::frontend_common PROPERTIES
         INTERFACE_LINK_LIBRARIES openvino::frontend::common)

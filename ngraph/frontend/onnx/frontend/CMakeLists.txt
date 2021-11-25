@@ -44,7 +44,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PUBLIC ngraph PRIVATE frontend_common ngraph::builder openvino::util onnx_common inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE ngraph::builder onnx_common inference_engine_transformations openvino::runtime::dev)
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${ONNX_FRONTEND_INCLUDE_DIR}>
                                                 $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)

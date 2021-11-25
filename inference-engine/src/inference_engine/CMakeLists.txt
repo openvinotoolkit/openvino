@@ -165,7 +165,8 @@ endif()
 
 add_library(${TARGET_NAME} INTERFACE)
 
-target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
+set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME inference)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
@@ -174,28 +175,9 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME})
-# if (TBBBIND_2_5_FOUND)
-#     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
-# endif()
-
-# target_link_libraries(${TARGET_NAME} INTERFACE PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
-#                                              frontend_manager::static inference_engine_transformations
-#                                      INTERFACE PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
-# target_include_directories(${TARGET_NAME}
-#             INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
-#             INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
-#             INTERFACE PRIVATE $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-#             INTERFACE $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
-
-if(WIN32)
-    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-endif()
-
-# target_compile_definitions(${TARGET_NAME} INTERFACE PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
-
 
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -308,15 +290,6 @@ ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
-
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME inference)
-install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION runtime/include
-                             # TODO: remove later once samples are updated
-                             runtime/include/ie)
 
 if(BUILD_SHARED_LIBS)
     install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml

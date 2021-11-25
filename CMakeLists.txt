@@ -119,11 +119,11 @@ add_library(openvino::runtime ALIAS ov_runtime)
 set_target_properties(ov_runtime PROPERTIES EXPORT_NAME runtime)
 ie_add_vs_version_file(NAME ov_runtime FILEDESCRIPTION "OpenVINO runtime library")
 
-target_include_directories(ov_runtime INTERFACE PRIVATE $<TARGET_PROPERTY:ov_runtime_dev,INTERFACE_INCLUDE_DIRECTORIES>
-                                                        $<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>
-                                                PUBLIC $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-                                                       $<TARGET_PROPERTY:frontend_common,INTERFACE_INCLUDE_DIRECTORIES>
-                                                       $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(ov_runtime PRIVATE $<TARGET_PROPERTY:ov_runtime_dev,INTERFACE_INCLUDE_DIRECTORIES>
+                                              $<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>
+                                      PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:frontend_common,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 ie_register_plugins(MAIN_TARGET ov_runtime
                     POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
@@ -161,7 +161,7 @@ export(TARGETS ov_runtime NAMESPACE openvino::
 # --------------- OpenVINO runtime library dev ------------------------------
 add_library(ov_runtime_dev INTERFACE)
 target_link_libraries(ov_runtime_dev INTERFACE PUBLIC INTERFACE inference_engine_plugin_api)
-target_include_directories(ov_runtime_dev INTERFACE PUBLIC INTERFACE $<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(ov_runtime_dev INTERFACE PUBLIC INTERFACE $<BUILD_INTERFACE:$<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>>)
 add_library(openvino::runtime::dev ALIAS ov_runtime_dev)
 set_ie_threading_interface_for(ov_runtime_dev)
 # --------------- OpenVINO runtime library dev ------------------------------
@@ -170,7 +170,8 @@ install(TARGETS ov_runtime EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        INCLUDES DESTINATION runtime/include)
+        INCLUDES DESTINATION runtime/include
+                             runtime/include/ie)
 
 # Install cmake scripts
 install(EXPORT OpenVINOTargets

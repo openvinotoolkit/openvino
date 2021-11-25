@@ -116,12 +116,6 @@ export(TARGETS ngraph NAMESPACE openvino::
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 
-install(TARGETS ngraph EXPORT OpenVINOTargets
-        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ngraph
-        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ngraph
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ngraph
-        INCLUDES DESTINATION runtime/include)
-
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION "runtime/include"
         COMPONENT ngraph_dev
