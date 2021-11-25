@@ -3,9 +3,9 @@
 
 import pickle
 
-from ngraph import PartialShape
-from ngraph.frontend import FrontEndManager, InitializationFailure
-from ngraph.utils.types import get_element_type
+from openvino import PartialShape
+from openvino.frontend import FrontEndManager, InitializationFailure
+from openvino.utils.types import get_element_type
 
 import numpy as np
 
@@ -21,6 +21,8 @@ except Exception:
 # FrontEndManager shall be initialized and destroyed after all tests finished
 # This is because destroy of FrontEndManager will unload all plugins, no objects shall exist after this
 fem = FrontEndManager()
+
+print(fem.get_available_front_ends())
 
 mock_needed = pytest.mark.skipif(not mock_available,
                                  reason="mock fe is not available")
