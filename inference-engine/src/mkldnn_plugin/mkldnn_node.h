@@ -748,6 +748,8 @@ protected:
     std::vector<VectorDims> lastInputDims = {};
     std::shared_ptr<ngraph::Node> opToShapeInfer;
 
+    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
+
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;
     std::vector<MKLDNNEdgeWeakPtr> childEdges;
@@ -788,7 +790,6 @@ private:
         return PD(*selected_desc_ptr, engine);
     }
 
-    void prepareMemory(const NodeDesc *selected_pd, mkldnn::primitive_desc_iterator& itpd);
     enum LOOK { LOOK_UP = 1, LOOK_DOWN = 2 };
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 

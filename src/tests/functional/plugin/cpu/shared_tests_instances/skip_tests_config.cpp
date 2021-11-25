@@ -71,6 +71,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*NonZeroLayerTest.*)",
         // TODO: 69084 Not constant Axis input produces dynamic output shape.
         R"(.*GatherLayerTestCPU.*constAx=False.*)",
+        // TODO: Reference returns zero blob.
+        R"(.*smoke_dynamic_BatchSizeOne.*Sequence.*)",
         // Not expected behavior
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
         R"(.*Behavior.*InferRequestIOBBlobSetLayoutTest.*layout=(95|OIHW).*)",
