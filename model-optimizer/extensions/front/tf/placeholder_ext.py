@@ -5,6 +5,8 @@ from extensions.ops.parameter import Parameter
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape
 from mo.ops.op import PermuteAttrs
+import logging as log
+from mo.front.common.partial_infer.utils import shape_array
 
 
 class PlaceholderFrontExtractor(FrontExtractorOp):
@@ -13,9 +15,21 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
+        extracted_shape = tf_tensor_shape(node.pb.attr["shape"].shape)
+        extracted_output_shapes = tf_tensor_shape(node.pb.attr["_output_shapes"].list.shape[0])
+
+        shape = shape_array([])
+        if len(extracted_shape) != len(extracted_output_shapes):
+            log.warning('Extracted shapes for Placeholder operation {} have different lengths: '
+                        '`shape` {} and `_output_shapes` {}. Please, check if model is consistent'.format(node.pb.name, extracted_shape, extracted_output_shapes))
+            if len(extracted_shape) != 0 and node.pb.attr["shape"].shape.unknown_rank:
+                shape = extracted_shape
+            if len(extracted_output_shapes) != 0 and not node.pb.attr["shape"].shape.unknown_rank:
+                shape = extracted_output_shapes
+
         attrs = {
             'data_type': tf_dtype_extractor(node.pb.attr["dtype"].type),
-            'shape': tf_tensor_shape(node.pb.attr["shape"].shape),
+            'shape': shape,
             'permute_attrs': PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])
         }
         Parameter.update_node_stat(node, attrs)
