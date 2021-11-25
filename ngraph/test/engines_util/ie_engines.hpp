@@ -70,7 +70,7 @@ public:
     template <typename T>
     void add_expected_output(const ngraph::Shape& expected_shape, const std::vector<T>& values) {
         const auto& function_output = m_function->get_results()[m_allocated_expected_outputs];
-        std::string network_out_name = get_output_name(function_output);
+        const auto& network_out_name = get_output_name(function_output);
         InferenceEngine::DataPtr network_output = m_network_outputs[network_out_name];
 
         auto blob = std::make_shared<InferenceEngine::TBlob<T>>(network_output->getTensorDesc());

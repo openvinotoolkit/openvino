@@ -42,24 +42,4 @@ void regmodule_pyngraph_util(py::module m) {
         return get_ngraph_version_string();
         NGRAPH_SUPPRESS_DEPRECATED_END
     });
-
-    mod.def(
-        "get_tensor_name",
-        [](const std::shared_ptr<ngraph::op::Result> result) {
-            const auto prev_node_output = result->input_value(0);
-            return prev_node_output.get_tensor().get_name();
-        },
-        py::arg("result"),
-        R"(
-                Returns the name of a tensor associated with a given Result object (Function output).
-                Parameters
-                ----------
-                result : Result
-                    result node
-                Returns
-                ----------
-                get_tensor_name : string
-                    Returns the tensor name if it's set.
-                    Otherwise returns an empty string.
-            )");
 }
