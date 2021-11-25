@@ -5,12 +5,14 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+
 #include "pyopenvino/graph/ops/util/arithmetic_reduction.hpp"
 #include "pyopenvino/graph/ops/util/binary_elementwise_arithmetic.hpp"
 #include "pyopenvino/graph/ops/util/binary_elementwise_comparison.hpp"
 #include "pyopenvino/graph/ops/util/binary_elementwise_logical.hpp"
 #include "pyopenvino/graph/ops/util/index_reduction.hpp"
 #include "pyopenvino/graph/ops/util/unary_elementwise_arithmetic.hpp"
+#include "pyopenvino/graph/ops/util/variable.hpp"
 
 namespace py = pybind11;
 
