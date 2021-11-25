@@ -26,8 +26,11 @@ const std::vector<std::string> appHeaders = {
         "APPLICATION_HEADER"
 };
 
+std::vector<size_t> _ = {};
+
 INSTANTIATE_TEST_SUITE_P(smoke_ImportNetworkCase, ImportNonZero,
                         ::testing::Combine(
+                            ::testing::Values(_),
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                             ::testing::ValuesIn(exportConfigs),
