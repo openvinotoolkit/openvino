@@ -211,6 +211,10 @@ void MKLDNNBucketizeNode::createPrimitive() {
     }
 }
 
+std::vector<VectorDims> MKLDNNBucketizeNode::shapeInfer() const {
+    return {getParentEdgesAtPort(0)[0]->getMemory().getStaticDims()};
+}
+
 template <typename T, typename T_BOUNDARIES, typename T_IND>
 void MKLDNNBucketizeNode::bucketize() {
     const auto *input_data = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
