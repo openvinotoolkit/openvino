@@ -14,10 +14,6 @@ using namespace InferenceEngine;
 
 bool MKLDNNCTCGreedyDecoderSeqLenNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         const auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
         if (!greedyDecOp) {
             errorMessage = "Node is not an instance of the CTCGreedyDecoderSeqLen operation from operation set v6.";
@@ -42,7 +38,9 @@ MKLDNNCTCGreedyDecoderSeqLenNode::MKLDNNCTCGreedyDecoderSeqLenNode(const std::sh
     if (getOriginalOutputsNumber() != 2)
         IE_THROW() << errorPrefix << "has invalid number of outputs edges: " << getOriginalOutputsNumber();
 
-    if (op->get_input_shape(DATA_INDEX)[0] != op->get_input_shape(SEQUENCE_LENGTH_INDEX)[0])
+    const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
+    const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
+    if (!dimsEqualWeak(dataDims[0], seqDims[0]))
         IE_THROW() << errorPrefix << "has invalid input shapes.";
 
     auto greedyDecOp = ngraph::as_type_ptr<const ngraph::op::v6::CTCGreedyDecoderSeqLen>(op);
@@ -168,6 +166,20 @@ void MKLDNNCTCGreedyDecoderSeqLenNode::execute(mkldnn::stream strm) {
 
 bool MKLDNNCTCGreedyDecoderSeqLenNode::created() const {
     return getType() == CTCGreedyDecoderSeqLen;
+}
+
+void MKLDNNCTCGreedyDecoderSeqLenNode::createPrimitive() {
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+}
+
+void MKLDNNCTCGreedyDecoderSeqLenNode::executeDynamicImpl(dnnl::stream strm) {
+    MKLDNNCTCGreedyDecoderSeqLenNode::execute(strm);
+}
+
+bool MKLDNNCTCGreedyDecoderSeqLenNode::needPrepareParams() const {
+    return false;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNCTCGreedyDecoderSeqLenNode, CTCGreedyDecoderSeqLen)

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
+#include <manager.hpp>
 
 #ifdef _WIN32
 static const char FileSeparator[] = "\\";
