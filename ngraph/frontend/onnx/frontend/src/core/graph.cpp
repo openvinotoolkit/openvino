@@ -280,9 +280,6 @@ OutputVector Graph::make_ng_nodes(const Node& onnx_node) const {
 void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_subgraph_outputs) const {
     if (onnx_node.op_type() == "Identity") {
         for (size_t i = 0; i < ng_subgraph_outputs.size(); ++i) {
-            NGRAPH_SUPPRESS_DEPRECATED_START
-            ng_subgraph_outputs[i].get_tensor().set_name(onnx_node.output(i));
-            NGRAPH_SUPPRESS_DEPRECATED_END
             ng_subgraph_outputs[i].get_tensor().add_names({onnx_node.output(i)});
         }
         return;
