@@ -13,6 +13,7 @@ import numpy as np
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision
 from extensions.back.compress_quantized_weights import CompressQuantizeWeights
 from extensions.ops.elementwise import Add
+from extensions.ops.Cast import Cast
 from extensions.ops.fakequantize import FakeQuantize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.replacement import FrontReplacementSubgraph
@@ -20,6 +21,7 @@ from mo.graph.graph import Graph, Node
 from mo.graph.port import Port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
+from mo.middle.passes.convert_data_type import convert_blob
 from mo.middle.passes.infer import type_infer
 
 from . import editor as ge
@@ -704,6 +706,7 @@ def create_bias_node(graph: Graph, src_node):
 
     for destination_port in destination_ports:
         add_op.out_port(0).connect(destination_port)
+    add_bias.out_node(0)['Insert_Convert_operation_after'] = True
 
 
 def create_fake_quantize_node(graph: Graph, name):
@@ -878,3 +881,39 @@ def find_shape_subgraph_endpoints(out_ports: List[Port], visited: set = None) ->
             visited_nodes.add(in_port.node)
         visited.add(in_port)
     return visited_nodes
+
+
+def remove_converts(graph: Graph):
+    for op in graph.get_op_nodes(type='Convert'):
+        source_op = op.in_port(0).get_source().node
+        if source_op.type == 'Const' and source_op.data_type == np.float16:
+            # Get access to data node after Convert operation and set Insert_Convert_operation_after
+            # to restore Convert operation later
+            op.out_node(0)['Insert_Convert_operation_after'] = True
+            # Mark Const and Convert operation to fold them
+            source_op['need_shape_inference'] = True
+            op['stop_value_propagation'] = False
+            op['need_shape_inference'] = True
+    graph.clean_up()
+
+
+def add_removed_converts(graph: Graph):
+    for data_node_name in graph.get_nodes_with_attributes(Insert_Convert_operation_after=True):
+        data_node = Node(graph, data_node_name)
+        # Get access to Const node connected to data node
+        const_op = data_node.in_node(0)
+        assert const_op.data_type == np.float32, "Error when try to insert Convert operation after Const: {}".\
+            format(const_op.soft_get('name'))
+
+        convert_op = Cast(graph, {'dst_type': np.float32,
+                                  'name': const_op.name + '/restored_convert',
+                                  'stop_value_propagation': True}).create_node()
+
+        # Insert Convert operation after Const operation
+        consumer_port = const_op.out_port(0).get_connection().get_destination()
+        const_op.out_port(0).get_connection().set_destination(convert_op.in_port(0))
+        convert_op.out_port(0).connect(consumer_port)
+
+        # Convert Const value to FP32 to make types in graph consistent
+        const_op.value, _, _ = convert_blob(const_op.value, np.float16)
+        const_op.infer(const_op)
