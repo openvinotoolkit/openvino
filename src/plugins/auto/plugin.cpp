@@ -60,7 +60,7 @@ namespace {
                     res.push_back(CONFIG_KEY_INTERNAL(MULTI_WORK_MODE_AS_AUTO));
                     res.push_back(PluginConfigParams::KEY_PERF_COUNT);
                     res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
-                    res.push_back(MultiDeviceConfigParams::KEY_NETWORK_PRIORITY);
+                    res.push_back(MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY);
                     return res;
                 }();
 }  // namespace
@@ -576,7 +576,7 @@ void MultiDeviceInferencePlugin::CheckConfig(const std::map<std::string, std::st
                    IE_THROW() << "Unsupported config value: " << kvp.second
                               << " for key: " << kvp.first;
                }
-        } else if (kvp.first == MultiDeviceConfigParams::KEY_NETWORK_PRIORITY) {
+        } else if (kvp.first == MultiDeviceConfigParams::KEY_AUTO_NETWORK_PRIORITY) {
             try {
                 int priority = std::stoi(kvp.second);
                 if (priority < 0) {

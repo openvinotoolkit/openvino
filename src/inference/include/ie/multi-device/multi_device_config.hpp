@@ -41,6 +41,6 @@ DECLARE_MULTI_CONFIG_KEY(DEVICE_PRIORITIES);
  * according to priority value. when all devices are free, even if the priority value
  * is not 0, the network will be dispatched to the strongest device.
  */
-DECLARE_CONFIG_KEY(NETWORK_PRIORITY);
+DECLARE_CONFIG_KEY(AUTO_NETWORK_PRIORITY);
 }  // namespace MultiDeviceConfigParams
 }  // namespace InferenceEngine
