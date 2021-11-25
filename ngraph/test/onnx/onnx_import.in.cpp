@@ -4500,12 +4500,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_many_node_outputs) {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/aten_embedding_sum_many_outputs.onnx"));
 
+    // 4 outputs in onnx Node (1 connected and 3 not connected)
+    EXPECT_EQ(function->outputs().size(), 1);
+    EXPECT_EQ(function->get_results().size(), 1);
+
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
     test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
     test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
 
-    // 4 outputs from Node (1 connected and 3 not connected)
     test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, 0, 0, -0.2, 0.8});
     test_case.run();
 }
