@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <shared_test_classes/single_layer/strided_slice.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 
 using namespace CPUTestUtils;
-using namespace LayerTestsDefinitions;
 using namespace ov::test;
 
 namespace CPULayerTestsDefinitions {
+
+struct Slice8SpecificParams {
+        std::vector<int64_t> start;
+        std::vector<int64_t> stop;
+        std::vector<int64_t> step;
+        std::vector<int64_t> axes;
+};
 
 typedef std::tuple<
     std::vector<InputShape>,         // Parameters shapes
@@ -26,7 +31,8 @@ class Slice8LayerCPUTest : public testing::WithParamInterface<Slice8LayerTestCPU
 public:
     static std::string getTestCaseName(testing::TestParamInfo<Slice8LayerTestCPUParam> obj) {
         std::vector<InputShape> shapes;
-        Slice8SpecificParams params;
+        Slice8SpecificParams
+        params;
         ElementType netPrecision;
         CPUSpecificParams cpuParams;
         std::tie(shapes, params, netPrecision, cpuParams) = obj.param;
@@ -42,10 +48,10 @@ public:
                 result << CommonTestUtils::vec2str(item) << "_";
             }
         }
-        result << "begin=" << CommonTestUtils::vec2str(params.begin) << "_";
-        result << "end=" << CommonTestUtils::vec2str(params.end) << "_";
-        result << "stride=" << CommonTestUtils::vec2str(params.strides) << "_";
-        result << "axes=" << CommonTestUtils::vec2str(params.axes) << "_";
+        result << "start="  << CommonTestUtils::vec2str(params.start) << "_";
+        result << "stop="   << CommonTestUtils::vec2str(params.stop) << "_";
+        result << "step="   << CommonTestUtils::vec2str(params.step) << "_";
+        result << "axes="   << CommonTestUtils::vec2str(params.axes) << "_";
         result << "netPRC=" << netPrecision << "_";
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -61,12 +67,12 @@ protected:
         std::tie(shapes, sliceParams, netPrecision, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
-        selectedType = selectedType + "_" + InferenceEngine::details::convertPrecision(netPrecision).name();
+        selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(shapes);
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, inputDynamicShapes);
-        auto sliceOp = ngraph::builder::makeSlice(params[0], sliceParams.begin, sliceParams.end, sliceParams.strides, sliceParams.axes, netPrecision);
+        auto sliceOp = ngraph::builder::makeSlice(params[0], sliceParams.start, sliceParams.stop, sliceParams.step, sliceParams.axes, netPrecision);
 
         function = makeNgraphFunction(netPrecision, params, sliceOp, "Slice8");
     }
@@ -128,9 +134,9 @@ const std::vector<std::vector<InputShape>> inputShapesDynamic2D = {
 
 const std::vector<Slice8SpecificParams> paramsPlain2D = {
         Slice8SpecificParams{ { 0, 10 }, { 16, 16 }, { 1, 1 }, { 0, 1 } },
-        Slice8SpecificParams{ { 2, 5 }, { 16, 8 }, { 1, 1 }, { 0, 1 } },
+        Slice8SpecificParams{ { 2, 5 }, { 16, 8 }, { 1, 1 }, { } },
         Slice8SpecificParams{ { 2, 5 }, { 16, 16 }, { 1, 2 }, { 0, 1 } },
-        Slice8SpecificParams{ { 0, 0 }, { 16, 16 }, { 2, 1 }, { 0, 1 } },
+        Slice8SpecificParams{ { 0, 0 }, { 16, 16 }, { 1, 2 }, { 1, 0} },
         Slice8SpecificParams{ { 0 }, { 16 }, { 2 }, { 0 } },
         Slice8SpecificParams{ { 0 }, { 16 }, { 1 }, { 1 } }
 };
@@ -153,15 +159,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_2D, Slice8LayerCPUT
 
 
 const std::vector<Slice8SpecificParams> testCasesCommon4D = {
-        Slice8SpecificParams{ { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 1, 0, 0 }, { 1, 3, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 0, 10, 0 }, { 1, 3, 20, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 0, 20, 20 }, { 1, 5, 25, 26 }, { 1, 1, 1, 2 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 0, 0, 20 }, { 1, 2, 30, 30 }, { 1, 1, 2, 1 }, { 0, 1, 2, 3 } },
+        Slice8SpecificParams{ { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 1, 0, 0 }, { 20, 3, 32, 1 }, { 1, 1, 1, 1 }, { 3, 1, 2, 0 } },
+        Slice8SpecificParams{ { 0, 0, 10, 0 }, { 1, 3, 20, 20 }, { 1, 1, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 0, 20, 20 }, { 1, 5, 26, 25 }, { 1, 1, 2, 1 }, { 0, 1, 3, 2 } },
+        Slice8SpecificParams{ { 0, 0, 0, 20 }, { 1, 2, 30, 30 }, { 1, 1, 2, 1 }, { } },
         Slice8SpecificParams{ { 0, 0, 2, 10 }, { 1, 3, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 1, 0, 10 }, { 1, 5, 32, 30 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
+        Slice8SpecificParams{ { 0, 1, 0, 10 }, { 1, 5, 32, 30 }, { 1, 1, 1, 1 }, { } },
         Slice8SpecificParams{ { 0, 1, 2, 10 }, { 1, 5, 32, 18 }, { 1, 1, 1, 2 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 0, 2, 10 }, { 1, 8, 32, 18 }, { 1, 2, 1, 2 },  { 0, 1, 2, 3 } },
+        Slice8SpecificParams{ { 0, 0, 2, 10 }, { 1, 8, 32, 18 }, { 1, 2, 1, 2 },  { } },
         Slice8SpecificParams{ { 0, 0, 10 }, { 2, 32, 18 }, { 1, 1, 1 }, { 1, 2, 3 } },
         Slice8SpecificParams{ { 0, 10 }, { 2, 32 }, { 1, 1 }, { 1, 3 } }
 };
@@ -220,25 +226,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D, Slice8LayerCPU
 
 
 const std::vector<Slice8SpecificParams> testCasesBlocked4DSubset1 = {
-        Slice8SpecificParams{ { 0, 0, 0, 0 }, { 1, 32, 32, 32 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 0, 16, 0 }, { 1, 32, 32, 32 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 0, 0, 0 }, { 1, 32, 32, 16 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-        Slice8SpecificParams{ { 0, 0, 0, 0 }, { 1, 16, 32, 32 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
+        Slice8SpecificParams{ { 0, 0, 0, 0 }, { 1, 32, 32, 32 }, { 1, 1, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 0, 16, 0 }, { 1, 32, 32, 32 }, { 1, 1, 1, 1 }, { 0, 3, 2, 1 } },
+        Slice8SpecificParams{ { 0, 0, 0 }, { 32, 32, 16 }, { 1, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 0, 0 }, { 16, 32, 32 }, { 1, 1, 1 }, { 1, 3, 2 } },
 };
 
 const std::vector<Slice8SpecificParams> testCasesBlocked4DSubset2 = {
        Slice8SpecificParams{ { 0, 0, 5, 4 }, { 1, 16, 28, 27 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, 16, 0, 0 }, { 1, 32, 10, 10 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, 0, 10, 0 }, { 1, 16, 20, 10 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, 0, 20, 20 }, { 1, 32, 25, 25 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, 16, 0, 20 }, { 1, 32, 32, 30 }, { 1, 1, 1, 2 }, { 0, 1, 2, 3 } },
+       Slice8SpecificParams{ { 0, 16, 0, 0 }, { 1, 32, 10, 10 }, { 1, 1, 1, 1 }, { } },
+       Slice8SpecificParams{ { 0, 0, 10, 0 }, { 16, 1, 20, 10 }, { 1, 1, 1, 1 }, { 1, 0, 2, 3 } },
+       Slice8SpecificParams{ { 0, 0, 20, 20 }, { 1, 32, 25, 25 }, { 1, 1, 1, 1 }, { 0, 1, 3, 2 } },
+       Slice8SpecificParams{ { 0, 16, 0, 20 }, { 32, 32, 1, 30 }, { 1, 1, 1, 2 }, { 2, 1, 0, 3 } },
        Slice8SpecificParams{ { 0, 16, 2, 10 }, { 1, 32, 32, 20 }, { 1, 1, 2, 1 }, { 0, 1, 2, 3 } },
        Slice8SpecificParams{ { 0, 16, 0, 0 }, { 2, 64, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, 32, 0, 0 }, { 2, 50, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, 0, 0, 0 }, { 2, 12, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, -16, 0, 10 }, { 2, 100, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, -16, 0, 0 }, { 2, -4, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } },
-       Slice8SpecificParams{ { 0, -32, 0, 0 }, { 2, -12, 32, 20 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } }
+       Slice8SpecificParams{ { 0, 32, 0, 0 }, { 2, 50, 32, 20 }, { 1, 1, 1, 1 }, { } },
+       Slice8SpecificParams{ { 0, 0, 0, 0 }, { 32, 12, 2, 20 }, { 1, 1, 1, 1 }, { 0, 3, 2, 1 } },
+       Slice8SpecificParams{ { 0, -16, 0, 10 }, { 2, 100, 32, 20 }, { 1, 1, 1, 1 }, { } },
+       Slice8SpecificParams{ { 0, -16, 0, 0 }, { 2, -4, 32, 20 }, { 1, 1, 1, 1 }, { } },
+       Slice8SpecificParams{ { 0, -32, 0, 0 }, { 2, -12, 32, 20 }, { 1, 1, 1, 1 }, { } }
 };
 
 const std::vector<std::vector<ov::Shape>> inputShapesBlockedStatic4DSubset1 = {
@@ -327,12 +333,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset2, Slice8
 
 const std::vector<Slice8SpecificParams> testCasesCommon5D = {
         Slice8SpecificParams{ { 0, 2, 0, 5, 4 }, { 1, 4, 5, 28, 27 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 10, 0, 0 }, { 1, 5, 20, 32, 20 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 1, 10, 0, 0 }, { 1, 3, 20, 32, 20 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 0, 20, 20 }, { 1, 5, 20, 30, 26 }, { 1, 1, 1, 2, 2 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 10, 0, 20 }, { 1, 2, 20, 30, 30 }, { 1, 1, 2, 1, 1 }, { 0, 1, 2, 3, 4 } },
+        Slice8SpecificParams{ { 0, 0, 10, 0, 0 }, { 1, 5, 20, 32, 20 }, { 1, 1, 1, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 1, 10, 0, 0 }, { 20, 3, 20, 32, 1 }, { 1, 1, 1, 1, 1 }, { 4, 1, 2, 3, 0 } },
+        Slice8SpecificParams{ { 0, 20, 0, 0, 20 }, { 1, 30, 20, 5, 26 }, { 1, 1, 1, 2, 2 }, { 0, 3, 2, 1, 4 } },
+        Slice8SpecificParams{ { 0, 0, 10, 0, 20 }, { 1, 2, 20, 30, 30 }, { 1, 1, 2, 1, 1 }, { } },
         Slice8SpecificParams{ { 0, 0, 2, 10, 0 }, { 1, 5, 10, 32, 20 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 1, 0, 10, 0 }, { 1, 5, 20, 32, 32 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
+        Slice8SpecificParams{ { 0, 1, 0, 10, 0 }, { 1, 5, 20, 32, 32 }, { 1, 1, 1, 1, 1 }, { } },
         Slice8SpecificParams{ { 0, 0, 0, 0, 0 }, { 1, 5, 10, 16, 16 }, { 1, 1, 2, 1, 1 }, { 0, 1, 2, 3, 4 } }
 };
 
@@ -390,11 +396,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D, Slice8LayerCPU
 
 const std::vector<Slice8SpecificParams> testCasesBlocked5DSubset1 = {
         Slice8SpecificParams{ { 0, 0, 0, 5, 4 }, { 1, 16, 5, 28, 27 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 10, 0, 0 }, { 1, 16, 20, 32, 20 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 0, 20, 20 }, { 1, 16, 20, 30, 26 }, { 1, 1, 1, 2, 2 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 10, 0, 20 }, { 1, 16, 20, 30, 30 }, { 1, 1, 2, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 2, 10, 0 }, { 1, 16, 10, 32, 20 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 0, 10, 0 }, { 1, 8, 20, 32, 32 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
+        Slice8SpecificParams{ { 0, 0, 10, 0, 0 }, { 1, 16, 20, 32, 20 }, { 1, 1, 1, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 0, 0, 20, 20 }, { 16, 1, 20, 26, 30 }, { 1, 1, 1, 2, 2 }, { 1, 0, 2, 4, 3 } },
+        Slice8SpecificParams{ { 0, 0, 10, 0, 20 }, { 1, 16, 20, 30, 30 }, { 1, 1, 2, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 0, 2, 10, 0 }, { 1, 16, 10, 32, 20 }, { 1, 1, 1, 1, 1 }, { } },
+        Slice8SpecificParams{ { 0, 0, 0, 10, 0 }, { 1, 8, 20, 32, 32 }, { 1, 1, 1, 1, 1 }, { } },
         Slice8SpecificParams{ { 0, 0, 0, 0, 0 }, { 1, 16, 10, 16, 16 }, { 1, 1, 2, 1, 1 }, { 0, 1, 2, 3, 4 } },
 };
 
@@ -402,12 +408,12 @@ const std::vector<Slice8SpecificParams> testCasesBlocked5DSubset2 = {
         Slice8SpecificParams{ { 0, 0, 0, 5, 4 }, { 1, 16, 5, 28, 27 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
         Slice8SpecificParams{ { 0, 0, 5, 4 }, { 16, 5, 28, 27 }, { 1, 1, 1, 1 }, { 1, 2, 3, 4 } },
         Slice8SpecificParams{ { 0, 0, 10, 0, 0 }, { 1, 16, 20, 32, 20 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 0, 20, 20 }, { 1, 16, 20, 30, 26 }, { 1, 1, 1, 2, 2 }, { 0, 1, 2, 3, 4 } },
+        Slice8SpecificParams{ { 0, 0, 0, 20, 20 }, { 1, 20, 16, 30, 26 }, { 1, 1, 1, 2, 2 }, { 0, 2, 1, 3, 4 } },
         Slice8SpecificParams{ { 0, 0, 10, 0, 20 }, { 1, 16, 20, 30, 30 }, { 1, 1, 2, 1, 1 }, { 0, 1, 2, 3, 4 } },
         Slice8SpecificParams{ { 0, 0, 2, 10, 0 }, { 1, 16, 10, 32, 20 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
         Slice8SpecificParams{ { 0, 0, 0, 10, 0 }, { 1, 8, 20, 32, 32 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 0, 0, 0 }, { 1, 16, 10, 16, 16 }, { 1, 1, 2, 1, 1 }, { 0, 1, 2, 3, 4 } },
-        Slice8SpecificParams{ { 0, 0, 0, 0, 0 }, { 1, 25, 20, 10, 10 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
+        Slice8SpecificParams{ { 0, 0, 0, 0, 0 }, { 10, 16, 1, 16, 16 }, { 2, 1, 1, 1, 1 }, { 2, 1, 0, 3, 4 } },
+        Slice8SpecificParams{ { 0, 0, 0, 0, 0 }, { 1, 25, 20, 10, 10 }, { 1, 1, 1, 1, 1 }, { } },
         Slice8SpecificParams{ { 0, 16, 0, 0, 0 }, { 1, 25, 20, 10, 10 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
         Slice8SpecificParams{ { 0, 16, 0, 0, 0 }, { 1, 64, 20, 10, 10 }, { 1, 1, 1, 1, 1 }, { 0, 1, 2, 3, 4 } },
 };
@@ -503,7 +509,6 @@ TEST_P(Slice8LayerDescriptorCPUTest, DescriptorsCheck) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ASSERT_THROW(compile_model(), ov::Exception);
-//    CheckPluginRelatedResults(executableNetwork, "Slice8");
 }
 
 const std::vector<Slice8SpecificParams> testCasesDescriptors = {

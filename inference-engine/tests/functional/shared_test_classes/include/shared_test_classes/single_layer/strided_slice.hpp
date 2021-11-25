@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -45,29 +44,4 @@ public:
 protected:
     void SetUp() override;
 };
-
-struct Slice8SpecificParams {
-        std::vector<int64_t> begin;
-        std::vector<int64_t> end;
-        std::vector<int64_t> strides;
-        std::vector<int64_t> axes;
-};
-
-using Slice8Params = std::tuple<
-        std::vector<ov::test::InputShape>,               // Parameters shapes
-        Slice8SpecificParams,                            // Slice-8 specific parameters
-        ov::test::ElementType,                           // Net precision
-        std::string,                                     // Device name
-        std::map<std::string, std::string>               // Additional network configuration
->;
-
-class Slice8LayerTest : public testing::WithParamInterface<Slice8Params>,
-                        virtual public ov::test::SubgraphBaseTest {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<Slice8Params> &obj);
-
-protected:
-    void SetUp() override;
-};
-
 }  // namespace LayerTestsDefinitions

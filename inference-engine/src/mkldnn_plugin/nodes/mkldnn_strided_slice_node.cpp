@@ -11,7 +11,7 @@
 
 #include <string>
 
-#define THROW_ERROR IE_THROW() << "StridedSlice layer with name '" << getName() << "' "
+#define THROW_ERROR IE_THROW() << NameFromType(getType()) << " node with name '" << getName() << "' "
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -36,8 +36,8 @@ bool MKLDNNStridedSliceNode::isSupportedOperation(const std::shared_ptr<const ov
 
         if (!ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(BEGIN_ID)) ||
                 !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(END_ID)) ||
-                op->get_input_size() > STRIDE_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(STRIDE_ID)) ||
-                op->get_input_size() > AXES_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_ID))) {
+                (op->get_input_size() > STRIDE_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(STRIDE_ID))) ||
+                (op->get_input_size() > AXES_ID && !ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(AXES_ID)))) {
             // TODO: Support begin, end, stride, axis inputs for dynamic shapes.
             errorMessage = "Only Constant 'begin', 'end', 'stride' and 'axis' inputs are supported.";
             return false;
@@ -54,7 +54,14 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
-    if (inputShapes.size() < 3 && inputShapes.size() > 5) {
+
+    if (ov::is_type<ov::op::v1::StridedSlice>(op))
+        isStridedSliceOp = true;
+    else
+        isStridedSliceOp = false;
+
+    if (isStridedSliceOp && inputShapes.size() < 3 && inputShapes.size() > 4 ||
+            inputShapes.size() < 4 && inputShapes.size() > 5) {
         THROW_ERROR << "has incorrect number of input edges";
     }
     if (outputShapes.size() != 1) {
@@ -91,8 +98,7 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
             THROW_ERROR << "should have axes vector with size equal to begin vector size.";
     }
 
-    if (ov::is_type<ov::op::v1::StridedSlice>(op)) {
-        isStridedSliceOp = true;
+    if (isStridedSliceOp) {
         auto ss = ov::as_type_ptr<const ov::op::v1::StridedSlice>(op);
 
         const size_t inputRank = getInputShapeAtPort(DATA_ID).getRank();
@@ -123,10 +129,14 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
             for (size_t i = attrs.ellipsisMask.size(); i < nDims; ++i) attrs.ellipsisMask.push_back(0);
         }
     } else {
-        isStridedSliceOp = false;
         const size_t length = outputShapes[0].getRank();
-        attrs.beginMask = std::vector<int>(length, 1);
-        attrs.endMask = std::vector<int>(length, 1);
+        if (inputShapes.size() > AXES_ID) {
+            attrs.beginMask = std::vector<int>(length, 0);
+            attrs.endMask = std::vector<int>(length, 0);
+        } else {
+            attrs.beginMask = std::vector<int>(length, 1);
+            attrs.endMask = std::vector<int>(length, 1);
+        }
         attrs.newAxisMask = std::vector<int>(length, 0);
         attrs.shrinkAxisMask = std::vector<int>(length, 0);
         attrs.ellipsisMask = std::vector<int>(length, 0);
@@ -166,7 +176,7 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
         const int *ptr = static_cast<const int*>(blob->GetPtr());
         parameter.assign(ptr, ptr + size);
 
-        if (isStridedSliceOp && ellipsisMaskCounter == 0 && size < nDims) {
+        if (type != AXES_ID && ellipsisMaskCounter == 0 && size < nDims) {
             for (size_t i = size; i < nDims; i++) parameter.push_back(value);
         }
     };
@@ -180,16 +190,19 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
     if (attrs.axesDims.size()) {
         fillingInParameters(attrs.axes, AXES_ID, attrs.axesDims[0], 0);
         std::vector<int> beginTmp(outputRank, 0);
-        std::vector<int> endTmp(outputRank, 0);
-        int i = 0;
+        std::vector<int> endTmp(outputRank, -1);
+        std::vector<int> strideTmp(outputRank, 1);
+        size_t i = 0lu;
         for (auto a : attrs.axes) {
-            beginTmp[a] = attrs.begin[i++];
-            endTmp[a] = attrs.end[i++];
-            attrs.beginMask[a] = 0;
-            attrs.endMask[a] = 0;
+            beginTmp[a] = attrs.begin[i];
+            endTmp[a] = attrs.end[i];
+            strideTmp[a] = attrs.stride[i++];
+            attrs.beginMask[a] = 1;
+            attrs.endMask[a] = 1;
         }
         attrs.begin = beginTmp;
         attrs.end = endTmp;
+        attrs.stride = strideTmp;
     }
 
     if (inputRank > 3 && attrs.equalDims && ellipsisMaskCounter == 1)
@@ -342,9 +355,9 @@ void MKLDNNStridedSliceNode::orderParametersByLayouts(const MKLDNNMemoryPtr& src
         sortByOrder(attrs.begin);
         sortByOrder(attrs.end);
         sortByOrder(attrs.stride);
+        sortByOrder(attrs.beginMask);
+        sortByOrder(attrs.endMask);
         if (isStridedSliceOp) {
-            sortByOrder(attrs.beginMask);
-            sortByOrder(attrs.endMask);
             sortByOrder(attrs.ellipsisMask);
             sortByOrder(attrs.newAxisMask);
             sortByOrder(attrs.shrinkAxisMask);

@@ -35,9 +35,12 @@ std::shared_ptr<ov::Node> makeSlice(const ov::Output<Node> &in,
     auto beginNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, begin.data());
     auto endNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, end.data());
     auto strideNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, stride.data());
-    auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, axes.data());
-    auto sliceNode = std::make_shared<ov::op::v8::Slice>(in, beginNode, endNode, strideNode, axesNode);
-    return sliceNode;
+    if (!axes.empty()) {
+        auto axesNode = std::make_shared<ov::op::v0::Constant>(ov::element::i64, constShape, axes.data());
+        return std::make_shared<ov::op::v8::Slice>(in, beginNode, endNode, strideNode, axesNode);
+    } else {
+        return std::make_shared<ov::op::v8::Slice>(in, beginNode, endNode, strideNode);
+    }
 }
 
 }  // namespace builder
