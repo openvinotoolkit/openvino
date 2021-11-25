@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "common/extension.hpp"
 #include "common/input_model.hpp"
 #include "common/place.hpp"
+#include "common/telemetry_extension.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
 
 namespace ov {

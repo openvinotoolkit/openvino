@@ -7,9 +7,9 @@
 #include <functional>
 #include <map>
 
-#include "common/extension.hpp"
 #include "common/frontend.hpp"
 #include "common/input_model.hpp"
+#include "common/telemetry_extension.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/variant.hpp"
 #include "tensorflow_frontend/utility.hpp"

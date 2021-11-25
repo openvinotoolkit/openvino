@@ -47,11 +47,11 @@ static std::string get_op_domain_and_name(const ONNX_NAMESPACE::NodeProto& node_
 }
 }  // namespace detail
 
-Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
     : Graph(model_proto, common::make_unique<GraphCache>(), telemetry) {}
 
-Graph::Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto,
+Graph::Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto,
              std::unique_ptr<GraphCache>&& cache,
              const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry)
     : m_model{common::make_unique<Model>(model_proto)},

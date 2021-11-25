@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "common/extension.hpp"
+#include "common/telemetry_extension.hpp"
 #include "core/graph_cache.hpp"
 #include "core/model.hpp"
 #include "ngraph/function.hpp"
@@ -21,7 +21,7 @@ namespace ngraph {
 namespace onnx_import {
 class Graph : public std::enable_shared_from_this<Graph> {
 public:
-    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto2,
+    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto2,
           const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
     Graph() = delete;
 
@@ -50,7 +50,7 @@ public:
     }
 
 protected:
-    Graph(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model,
+    Graph(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model,
           std::unique_ptr<GraphCache>&& cache,
           const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = {});
 

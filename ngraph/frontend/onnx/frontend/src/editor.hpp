@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <common/extension.hpp>
+#include <common/telemetry_extension.hpp>
 #include <istream>
 #include <map>
 #include <memory>

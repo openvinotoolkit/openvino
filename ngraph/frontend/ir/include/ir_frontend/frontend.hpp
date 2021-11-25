@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "common/extension.hpp"
 #include "common/frontend.hpp"
+#include "common/telemetry_extension.hpp"
 #include "openvino/core/variant.hpp"
 #include "utility.hpp"
 

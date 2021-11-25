@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common/extension.hpp>
 #include <common/frontend_exceptions.hpp>
+#include <common/telemetry_extension.hpp>
 #include <fstream>
 #include <input_model.hpp>
 #include <manager.hpp>

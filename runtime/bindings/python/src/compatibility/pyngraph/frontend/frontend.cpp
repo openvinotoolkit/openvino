@@ -7,8 +7,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
-#include "common/extension.hpp"
 #include "common/frontend_exceptions.hpp"
+#include "common/telemetry_extension.hpp"
 #include "manager.hpp"
 
 namespace py = pybind11;

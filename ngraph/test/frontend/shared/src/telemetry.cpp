@@ -4,7 +4,7 @@
 
 #include "telemetry.hpp"
 
-#include <common/extension.hpp>
+#include <common/telemetry_extension.hpp>
 
 #include "utils.hpp"
 
@@ -54,8 +54,8 @@ TEST_P(FrontEndTelemetryTest, TestTelemetryMock) {
         EXPECT_EQ(m_test_telemetry.m_error_cnt, 1);
         EXPECT_EQ(m_test_telemetry.m_trace_cnt, 1);
 
-        auto expected_res =
-            std::set<std::tuple<std::string, std::string, std::string, int>>{{category, action, msg, version}};
+        auto expected_res = std::set<std::tuple<std::string, std::string, std::string, int>>{
+            std::make_tuple(category, action, msg, version)};
         EXPECT_EQ(m_test_telemetry.m_received_events, expected_res);
         EXPECT_EQ(m_test_telemetry.m_last_error, std::make_tuple(category, msg));
         EXPECT_EQ(m_test_telemetry.m_last_trace, std::make_tuple(category, msg));
