@@ -44,7 +44,8 @@ namespace Common
 
     uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
 
-    // Use only with classes that are not creatable by users on Python's side, because Objects created in Python that are wrapped with such wrapper will cause memory leaks.
+    // Use only with classes that are not creatable by users on Python's side, because
+    // Objects created in Python that are wrapped with such wrapper will cause memory leaks.
     template <typename T>
     class ref_wrapper {
         std::reference_wrapper<T> impl;
