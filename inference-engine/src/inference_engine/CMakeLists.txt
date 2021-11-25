@@ -137,12 +137,12 @@ ie_faster_build(${TARGET_NAME}_obj
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
                                                       $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
-                                                      $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_COMPILE_DEFINITIONS>
+                                                      $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:pugixml::static,INTERFACE_INCLUDE_DIRECTORIES>
-                                                             $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>
+                                                             $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
@@ -184,7 +184,7 @@ if (TBBBIND_2_5_FOUND)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml::static openvino::itt openvino::util ${CMAKE_DL_LIBS} Threads::Threads
-                                             frontend_manager::static inference_engine_transformations
+                                             frontend_common::static inference_engine_transformations
                                      PUBLIC ngraph)
 
 target_include_directories(${TARGET_NAME} INTERFACE
@@ -226,7 +226,7 @@ if(WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
-    frontend_manager::static inference_engine_preproc_s inference_engine_transformations pugixml::static)
+    frontend_common::static inference_engine_preproc_s inference_engine_transformations pugixml::static)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
