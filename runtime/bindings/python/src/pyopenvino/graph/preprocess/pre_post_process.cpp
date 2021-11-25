@@ -10,26 +10,17 @@
 #include "openvino/core/function.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "pyopenvino/core/common.hpp"
 
 namespace py = pybind11;
 
 // Custom holder wrapping returned references to preprocessing objects
-template <typename T>
-class ref_wrapper {
-    std::reference_wrapper<T> impl;
-
-public:
-    explicit ref_wrapper(T* p) : impl(*p) {}
-    T* get() const {
-        return &impl.get();
-    }
-};
-
-PYBIND11_DECLARE_HOLDER_TYPE(T, ref_wrapper<T>)
+PYBIND11_DECLARE_HOLDER_TYPE(T, Common::ref_wrapper<T>)
 
 static void regclass_graph_PreProcessSteps(py::module m) {
-    py::class_<ov::preprocess::PreProcessSteps, ref_wrapper<ov::preprocess::PreProcessSteps>> steps(m,
-                                                                                                    "PreProcessSteps");
+    py::class_<ov::preprocess::PreProcessSteps, Common::ref_wrapper<ov::preprocess::PreProcessSteps>> steps(
+        m,
+        "PreProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PreProcessSteps wraps ov::preprocess::PreProcessSteps";
 
     steps.def(
@@ -179,7 +170,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
 }
 
 static void regclass_graph_PostProcessSteps(py::module m) {
-    py::class_<ov::preprocess::PostProcessSteps, ref_wrapper<ov::preprocess::PostProcessSteps>> steps(
+    py::class_<ov::preprocess::PostProcessSteps, Common::ref_wrapper<ov::preprocess::PostProcessSteps>> steps(
         m,
         "PostProcessSteps");
     steps.doc() = "openvino.impl.preprocess.PostprocessSteps wraps ov::preprocess::PostProcessSteps";
@@ -233,8 +224,9 @@ static void regclass_graph_PostProcessSteps(py::module m) {
 }
 
 static void regclass_graph_InputTensorInfo(py::module m) {
-    py::class_<ov::preprocess::InputTensorInfo, ref_wrapper<ov::preprocess::InputTensorInfo>> info(m,
-                                                                                                   "InputTensorInfo");
+    py::class_<ov::preprocess::InputTensorInfo, Common::ref_wrapper<ov::preprocess::InputTensorInfo>> info(
+        m,
+        "InputTensorInfo");
     info.doc() = "openvino.impl.preprocess.InputTensorInfo wraps ov::preprocess::InputTensorInfo";
 
     info.def(
@@ -274,7 +266,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
 }
 
 static void regclass_graph_OutputTensorInfo(py::module m) {
-    py::class_<ov::preprocess::OutputTensorInfo, ref_wrapper<ov::preprocess::OutputTensorInfo>> info(
+    py::class_<ov::preprocess::OutputTensorInfo, Common::ref_wrapper<ov::preprocess::OutputTensorInfo>> info(
         m,
         "OutputTensorInfo");
     info.doc() = "openvino.impl.preprocess.OutputTensorInfo wraps ov::preprocess::OutputTensorInfo";
@@ -303,7 +295,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
 }
 
 static void regclass_graph_InputInfo(py::module m) {
-    py::class_<ov::preprocess::InputInfo, ref_wrapper<ov::preprocess::InputInfo>> inp(m, "InputInfo");
+    py::class_<ov::preprocess::InputInfo, Common::ref_wrapper<ov::preprocess::InputInfo>> inp(m, "InputInfo");
     inp.doc() = "openvino.impl.preprocess.InputInfo wraps ov::preprocess::InputInfo";
 
     inp.def("tensor", [](ov::preprocess::InputInfo& me) {
@@ -318,7 +310,7 @@ static void regclass_graph_InputInfo(py::module m) {
 }
 
 static void regclass_graph_OutputInfo(py::module m) {
-    py::class_<ov::preprocess::OutputInfo, ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
+    py::class_<ov::preprocess::OutputInfo, Common::ref_wrapper<ov::preprocess::OutputInfo>> out(m, "OutputInfo");
     out.doc() = "openvino.impl.preprocess.OutputInfo wraps ov::preprocess::OutputInfo";
 
     out.def("tensor", [](ov::preprocess::OutputInfo& me) {
@@ -333,7 +325,7 @@ static void regclass_graph_OutputInfo(py::module m) {
 }
 
 static void regclass_graph_OutputNetworkInfo(py::module m) {
-    py::class_<ov::preprocess::OutputNetworkInfo, ref_wrapper<ov::preprocess::OutputNetworkInfo>> info(
+    py::class_<ov::preprocess::OutputNetworkInfo, Common::ref_wrapper<ov::preprocess::OutputNetworkInfo>> info(
         m,
         "OutputNetworkInfo");
     info.doc() = "openvino.impl.preprocess.OutputNetworkInfo wraps ov::preprocess::OutputNetworkInfo";
@@ -344,7 +336,7 @@ static void regclass_graph_OutputNetworkInfo(py::module m) {
 }
 
 static void regclass_graph_InputNetworkInfo(py::module m) {
-    py::class_<ov::preprocess::InputNetworkInfo, ref_wrapper<ov::preprocess::InputNetworkInfo>> info(
+    py::class_<ov::preprocess::InputNetworkInfo, Common::ref_wrapper<ov::preprocess::InputNetworkInfo>> info(
         m,
         "InputNetworkInfo");
     info.doc() = "openvino.impl.preprocess.InputNetworkInfo wraps ov::preprocess::InputNetworkInfo";
@@ -387,7 +379,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_OutputNetworkInfo(m);
     regenum_graph_ColorFormat(m);
     regenum_graph_ResizeAlgorithm(m);
-    py::class_<ov::preprocess::PrePostProcessor, ref_wrapper<ov::preprocess::PrePostProcessor>> proc(
+    py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");
     proc.doc() = "openvino.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
