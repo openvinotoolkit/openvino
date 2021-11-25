@@ -436,6 +436,10 @@ int64_t ov::Function::get_parameter_index(const std::shared_ptr<ngraph::op::Para
 }
 
 int64_t ov::Function::get_result_index(const Output<Node>& value) const {
+    return get_result_index(Output<const Node>(value.get_node(), value.get_index()));
+}
+
+int64_t ov::Function::get_result_index(const Output<const Node>& value) const {
     int64_t pos = 0;
     if (is_type<ngraph::op::Result>(value.get_node_shared_ptr())) {
         auto result = value.get_node_shared_ptr();
@@ -447,7 +451,9 @@ int64_t ov::Function::get_result_index(const Output<Node>& value) const {
         }
     } else {
         for (auto r : get_results()) {
-            if (r->input_value(0) == value) {
+            const auto& input_value = r->input_value(0);
+            const auto result_input = Output<const Node>(input_value.get_node(), input_value.get_index());
+            if (result_input == value) {
                 return pos;
             }
             pos++;

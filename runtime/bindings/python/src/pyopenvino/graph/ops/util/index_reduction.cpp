@@ -15,7 +15,7 @@ namespace py = pybind11;
 void regclass_graph_op_util_IndexReduction(py::module m) {
     py::class_<ov::op::util::IndexReduction, std::shared_ptr<ov::op::util::IndexReduction>> indexReduction(
         m,
-        "IndexRedection");
+        "IndexReduction");
 
     indexReduction.def("get_reduction_axis", &ov::op::util::IndexReduction::get_reduction_axis);
     indexReduction.def("set_reduction_axis", &ov::op::util::IndexReduction::set_reduction_axis);

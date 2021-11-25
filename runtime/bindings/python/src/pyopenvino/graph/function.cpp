@@ -10,11 +10,19 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"  // ov::op::v0::Parameter
 #include "openvino/op/sink.hpp"
+#include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/graph/function.hpp"
+#include "pyopenvino/graph/ops/result.hpp"
+#include "pyopenvino/graph/ops/util/variable.hpp"
+#include "pyopenvino/graph/rt_map.hpp"
 
 namespace py = pybind11;
 
 static const char* CAPSULE_NAME = "openvino_function";
+
+using PyRTMap = std::map<std::string, std::shared_ptr<ov::Variant>>;
+
+PYBIND11_MAKE_OPAQUE(PyRTMap);
 
 void set_tensor_names(const ov::ParameterVector& parameters) {
     for (const auto& param : parameters) {
@@ -26,6 +34,16 @@ void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
+ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+    ov::SinkVector sinks;
+    for (const auto& node : nodes) {
+        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
+        NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
+        sinks.push_back(sink);
+    }
+    return sinks;
+}
+
 void regclass_graph_Function(py::module m) {
     py::class_<ov::Function, std::shared_ptr<ov::Function>> function(m, "Function", py::module_local());
     function.doc() = "openvino.impl.Function wraps ov::Function";
@@ -34,12 +52,8 @@ void regclass_graph_Function(py::module m) {
                              const std::vector<std::shared_ptr<ov::Node>>& nodes,
                              const ov::ParameterVector& params,
                              const std::string& name) {
-                     ov::SinkVector sinks;
-                     for (const auto& node : nodes) {
-                         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
-                         NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
-                         sinks.push_back(sink);
-                     }
+                     set_tensor_names(params);
+                     const auto sinks = cast_to_sink_vector(nodes);
                      return std::make_shared<ov::Function>(res, sinks, params, name);
                  }),
                  py::arg("results"),
@@ -88,11 +102,11 @@ void regclass_graph_Function(py::module m) {
                         String to set as function's friendly name.
                  )");
 
-    function.def(py::init([](const std::shared_ptr<ov::Node>& results,
+    function.def(py::init([](const std::shared_ptr<ov::Node>& result,
                              const ov::ParameterVector& parameters,
                              const std::string& name) {
                      set_tensor_names(parameters);
-                     return std::make_shared<ov::Function>(results, parameters, name);
+                     return std::make_shared<ov::Function>(result, parameters, name);
                  }),
                  py::arg("result"),
                  py::arg("parameters"),
@@ -102,7 +116,7 @@ void regclass_graph_Function(py::module m) {
 
                     Parameters
                     ----------
-                    results : Node
+                    result : Node
                         Node to be used as result.
 
                     parameters : List[op.Parameter]
@@ -111,6 +125,188 @@ void regclass_graph_Function(py::module m) {
                     name : str
                         String to set as function's friendly name.
                  )");
+
+    function.def(
+        py::init([](const ov::OutputVector& results, const ov::ParameterVector& parameters, const std::string& name) {
+            set_tensor_names(parameters);
+            return std::make_shared<ov::Function>(results, parameters, name);
+        }),
+        py::arg("results"),
+        py::arg("parameters"),
+        py::arg("name") = ""),
+        R"(
+            Create user-defined Function which is a representation of a model
+
+            Parameters
+            ----------
+            results : List[Output]
+                List of outputs.
+
+            parameters : List[op.Parameter]
+                List of parameters.
+
+            name : str
+                String to set as function's friendly name.
+        )";
+
+    function.def(py::init([](const ov::OutputVector& results,
+                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                             const ov::ParameterVector& parameters,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     const auto sinks = cast_to_sink_vector(nodes);
+                     return std::make_shared<ov::Function>(results, sinks, parameters, name);
+                 }),
+                 py::arg("results"),
+                 py::arg("sinks"),
+                 py::arg("parameters"),
+                 py::arg("name") = ""),
+        R"(
+            Create user-defined Function which is a representation of a model
+
+            Parameters
+            ----------
+            results : List[Output]
+                List of outputs.
+
+            sinks : List[Node]
+                List of Nodes to be used as Sinks (e.g. Assign ops).
+
+            parameters : List[op.Parameter]
+                List of parameters.
+
+            name : str
+                String to set as function's friendly name.
+            )";
+    function.def(py::init([](const ov::ResultVector& results,
+                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                             const ov::ParameterVector& parameters,
+                             const ov::op::util::VariableVector& variables,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     const auto sinks = cast_to_sink_vector(nodes);
+                     return std::make_shared<ov::Function>(results, sinks, parameters, variables, name);
+                 }),
+                 py::arg("results"),
+                 py::arg("sinks"),
+                 py::arg("parameters"),
+                 py::arg("variables"),
+                 py::arg("name") = ""),
+        R"(
+            Create user-defined Function which is a representation of a model
+
+            Parameters
+            ----------
+            results : List[op.Result]
+                List of results.
+
+            sinks : List[Node]
+                List of Nodes to be used as Sinks (e.g. Assign ops).
+
+            parameters : List[op.Parameter]
+                List of parameters.
+
+            variables : List[op.util.Variable]
+                List of variables.
+
+            name : str
+                String to set as function's friendly name.
+            )";
+
+    function.def(py::init([](const ov::OutputVector& results,
+                             const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                             const ov::ParameterVector& parameters,
+                             const ov::op::util::VariableVector& variables,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     const auto sinks = cast_to_sink_vector(nodes);
+                     return std::make_shared<ov::Function>(results, sinks, parameters, variables, name);
+                 }),
+                 py::arg("results"),
+                 py::arg("sinks"),
+                 py::arg("parameters"),
+                 py::arg("variables"),
+                 py::arg("name") = ""),
+        R"(
+            Create user-defined Function which is a representation of a model
+
+            Parameters
+            ----------
+            results : List[Output]
+                List of results.
+
+            sinks : List[Node]
+                List of Nodes to be used as Sinks (e.g. Assign ops).
+
+            parameters : List[op.Parameter]
+                List of parameters.
+
+            variables : List[op.util.Variable]
+                List of variables.
+
+            name : str
+                String to set as function's friendly name.
+        )";
+
+    function.def(py::init([](const ov::ResultVector& results,
+                             const ov::ParameterVector& parameters,
+                             const ov::op::util::VariableVector& variables,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     return std::make_shared<ov::Function>(results, parameters, variables, name);
+                 }),
+                 py::arg("results"),
+                 py::arg("parameters"),
+                 py::arg("variables"),
+                 py::arg("name") = ""),
+        R"(
+            Create user-defined Function which is a representation of a model
+
+            Parameters
+            ----------
+            results : List[op.Result]
+                List of results.
+
+            parameters : List[op.Parameter]
+                List of parameters.
+
+            variables : List[op.util.Variable]
+                List of variables.
+
+            name : str
+                String to set as function's friendly name.
+        )";
+
+    function.def(py::init([](const ov::OutputVector& results,
+                             const ov::ParameterVector& parameters,
+                             const ov::op::util::VariableVector& variables,
+                             const std::string& name) {
+                     set_tensor_names(parameters);
+                     return std::make_shared<ov::Function>(results, parameters, variables, name);
+                 }),
+                 py::arg("results"),
+                 py::arg("parameters"),
+                 py::arg("variables"),
+                 py::arg("name") = ""),
+        R"(
+            Create user-defined Function which is a representation of a model
+
+            Parameters
+            ----------
+            results : List[Output]
+                List of results.
+
+            parameters : List[op.Parameter]
+                List of parameters.
+
+            variables : List[op.util.Variable]
+                List of variables.
+
+            name : str
+                String to set as function's friendly name.
+        )";
+
+    function.def("validate_nodes_and_infer_types", &ov::Function::validate_nodes_and_infer_types);
 
     function.def(
         "reshape",
@@ -270,6 +466,43 @@ void regclass_graph_Function(py::module m) {
                     get_result : Node
                         Node object representing result.
                  )");
+    function.def("get_result_index",
+                 (int64_t(ov::Function::*)(const ov::Output<ov::Node>&) const) & ov::Function::get_result_index,
+                 py::arg("value"),
+                 R"(
+                    Return index of result.
+
+                    Return -1 if `value` not matched.
+
+                    Parameters
+                    ----------
+                    value : Output
+                        Output containing Node
+                    
+                    Returns
+                    ----------
+                    get_result_index : int
+                        Index for value referencing it. 
+                 )");
+    function.def("get_result_index",
+                 (int64_t(ov::Function::*)(const ov::Output<const ov::Node>&) const) & ov::Function::get_result_index,
+                 py::arg("value"),
+                 R"(
+                    Return index of result.
+
+                    Return -1 if `value` not matched.
+
+                    Parameters
+                    ----------
+                    value : Output
+                        Output containing Node
+                    
+                    Returns
+                    ----------
+                    get_result_index : int
+                        Index for value referencing it.
+                 )");
+
     function.def("get_name",
                  &ov::Function::get_name,
                  R"(
@@ -388,6 +621,72 @@ void regclass_graph_Function(py::module m) {
         },
         py::arg("outputs"));
 
+    function.def("replace_parameter",
+                 &ov::Function::replace_parameter,
+                 py::arg("parameter_index"),
+                 py::arg("parameter"),
+                 R"(
+                    Replace the `parameter_index`th parameter of the function with `parameter`.
+    
+                    All users of the `parameter_index`th parameter are redirected to `parameter`, and the
+                    `parameter_index`th entry in the function parameter list is replaced with `parameter`.
+
+                    Parameters
+                    ----------
+                    parameter_index : int
+                        The index of the parameter to replace.
+                    parameter: op.Parameter
+                        The parameter to substitute for the `parameter_index`th parameter.
+        )");
+
+    function.def("get_parameter_index",
+                 (int64_t(ov::Function::*)(const std::shared_ptr<ov::op::v0::Parameter>&) const) &
+                     ov::Function::get_parameter_index,
+                 py::arg("parameter"),
+                 R"(
+                    Return the index position of `parameter`.
+
+                    Return -1 if parameter not matched.
+
+                    Parameters
+                    ----------
+                    parameter : op.Parameter
+
+                    Returns
+                    ----------
+                    get_parameter_index : int
+                        Index for parameter
+                 )");
+
+    function.def(
+        "evaluate",
+        [](ov::Function& self,
+           ov::runtime::TensorVector& output_tensors,
+           const ov::runtime::TensorVector& input_tensors,
+           PyRTMap evaluation_context) -> bool {
+            return self.evaluate(output_tensors, input_tensors, evaluation_context);
+        },
+        py::arg("output_tensors"),
+        py::arg("input_tensors"),
+        py::arg("evaluation_context") = PyRTMap(),
+        R"(
+            Evaluate the function on inputs, putting results in outputs
+
+            Parameters
+            ----------
+            output_tensors : List[op.Tensor]
+                Tensors for the outputs to compute. One for each result
+            input_tensors : List[op.Tensor]
+                Tensors for the inputs. One for each inputs.
+            evaluation_context: PyRTMap
+                Storage of additional settings and attributes that can be used
+                when evaluating the function. This additional information can be shared across nodes.
+
+            Returns
+            ----------
+            evaluate : bool
+
+        )");
     function.def("__repr__", [](const ov::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::stringstream shapes_ss;
