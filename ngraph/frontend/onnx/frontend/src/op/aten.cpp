@@ -18,20 +18,19 @@ namespace set_1 {
 OutputVector aten(const Node& node) {
     OutputVector inputs{node.get_ng_inputs()};
 
-    std::string operator_name = node.get_attribute_value<std::string>("operator", "");
+    const auto operator_name = node.get_attribute_value<std::string>("operator", "");
     CHECK_VALID_NODE(node,
                      operator_name == "embedding_bag",
                      "Only `embedding_bag` is supported as ATen `operator` attribute. Got: ",
                      operator_name);
 
-    const int64_t mode = node.get_attribute_value<int64_t>("mode");
+    const auto mode = node.get_attribute_value<int64_t>("mode");
     CHECK_VALID_NODE(node,
                      mode == 0,
                      "Unsupported mode, only `0` (sum) is supported as ATen embedding_bag `mode` attribute. Got: ",
                      mode);
     CHECK_VALID_NODE(node, inputs.size() >= 2, "Minimum 2 inputs are required. Got: ", inputs.size());
 
-    Output<ov::Node> embedding_bag;
     const bool is_packed_two_inputs =
         inputs.size() == 2 || (inputs.size() == 3 && ngraph::op::is_null(inputs[2])) ||
         (inputs.size() == 4 && ngraph::op::is_null(inputs[2]) && ngraph::op::is_null(inputs[3]));
@@ -39,6 +38,7 @@ OutputVector aten(const Node& node) {
         inputs.size() == 4 && ngraph::op::is_null(inputs[2]) && !ngraph::op::is_null(inputs[3]);
     const bool is_offsets_three_inputs = inputs.size() == 3 && !ngraph::op::is_null(inputs[2]);
 
+    Output<ov::Node> embedding_bag;
     if (is_packed_two_inputs) {
         embedding_bag = std::make_shared<default_opset::EmbeddingBagPackedSum>(inputs[0], inputs[1]);
     } else if (is_packed_three_inputs) {
