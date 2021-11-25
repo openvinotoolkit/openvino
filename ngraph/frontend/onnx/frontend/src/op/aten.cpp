@@ -56,7 +56,6 @@ OutputVector aten(const Node& node) {
         const auto ind_type = indices_in.get_element_type();
 
         const auto zero_const = std::make_shared<default_opset::Constant>(ind_type, Shape{}, 0);
-        const auto one_const = std::make_shared<default_opset::Constant>(ind_type, Shape{1}, 1);
 
         // Shape aligned node, filled with zeros
         const auto zero_of_data_type_const = std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
