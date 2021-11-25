@@ -157,48 +157,4 @@ void DetectionOutputLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
     function = std::make_shared<ngraph::Function>(results, params, "DetectionOutput");
 }
-
-std::string DetectionOutputLayerTestWithAutoBatching::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
-    return DetectionOutputLayerTest::getTestCaseName(obj) + "_WITH_AUTO_BATCH";
-}
-
-void DetectionOutputLayerTestWithAutoBatching::SetUp() {
-    DetectionOutputAttributes commonAttrs;
-    ParamsWhichSizeDepends specificAttrs;
-    size_t batch;
-    std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = this->GetParam();
-    //creating the Auto-batching device with the specific batch size
-    targetDevice = std::string(CommonTestUtils::DEVICE_BATCH) + ":" + targetDevice + "(" + std::to_string(batch) + ")";
-
-    std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
-             attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
-
-    inShapes.resize(numInputs);
-    std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
-             inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
-
-    if (inShapes[idxArmConfidence].empty()) {
-        inShapes.resize(3);
-    }
-
-    for (size_t i = 0; i < inShapes.size(); i++) {
-        inShapes[i][0] = 1; //auto-batching will do the batching transparently
-    }
-
-    // adding Eltwise so that we can tests Auto-Batching's HETERO code-path that splits the DetectionOutput and the rest of the network
-    auto params = ngraph::builder::makeParams(ngraph::element::f32, inShapes);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-    ngraph::OutputVector outs;
-    for (int i = 0; i < inShapes.size(); i++) {
-        auto shape = inShapes[i];
-        auto  p = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{shape});
-        auto add = ngraph::builder::makeEltwise(paramOuts[i], p , ngraph::helpers::EltwiseTypes::ADD);
-        params.push_back(p);
-        outs.push_back(add->output(0));
-    }
-    auto detOut = ngraph::builder::makeDetectionOutput(outs, attrs);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(detOut)};
-    function = std::make_shared<ngraph::Function>(results, params, "EltWiseWithDetectionOutput");
-}
-
 }  // namespace LayerTestsDefinitions

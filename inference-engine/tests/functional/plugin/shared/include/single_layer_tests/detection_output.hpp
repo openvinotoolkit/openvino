@@ -11,8 +11,4 @@ namespace LayerTestsDefinitions {
 TEST_P(DetectionOutputLayerTest, CompareWithRefs) {
     Run();
 };
-
-TEST_P(DetectionOutputLayerTestWithAutoBatching, CompareWithRefs) {
-    Run();
-};
 }  // namespace LayerTestsDefinitions
