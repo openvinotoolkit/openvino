@@ -105,14 +105,6 @@ add_library(openvino::core ALIAS ngraph)
 target_include_directories(ngraph PUBLIC INTERFACE $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
 
 #-----------------------------------------------------------------------------------------------
-# Export for build tree
-#-----------------------------------------------------------------------------------------------
-
-set_target_properties(ngraph PROPERTIES EXPORT_NAME core)
-export(TARGETS ngraph NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
-
-#-----------------------------------------------------------------------------------------------
 # Installation logic...
 #-----------------------------------------------------------------------------------------------
 

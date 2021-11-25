@@ -166,7 +166,6 @@ endif()
 add_library(${TARGET_NAME} INTERFACE)
 
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
-set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME inference)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
@@ -176,8 +175,9 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
-target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
+target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+                                                    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>
+                                                    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -214,11 +214,6 @@ set_target_properties(${TARGET_NAME}_s PROPERTIES
 # LTO
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-# Export for build tree
-
-export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # Export for developer package
 

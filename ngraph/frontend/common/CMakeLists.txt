@@ -27,6 +27,7 @@ source_group("public include" FILES ${LIBRARY_PUBLIC_HEADERS})
 add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                                      $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
                                                       $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp APPEND PROPERTY COMPILE_DEFINITIONS
@@ -41,26 +42,11 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
-# create static library if needed
-
-# if(BUILD_SHARED_LIBS)
-#     add_library(${TARGET_NAME}_static STATIC ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS})
-#     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME}_static)
-#     target_link_libraries(${TARGET_NAME}_static PRIVATE ${CMAKE_DL_LIBS} openvino::util PUBLIC ngraph)
-#     target_include_directories(${TARGET_NAME}_static PUBLIC
-#         $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>)
-#     target_include_directories(${TARGET_NAME}_static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-#     target_compile_definitions(${TARGET_NAME}_static PUBLIC USE_STATIC_FRONTEND_COMMON)
-#     ov_install_static_lib(${TARGET_NAME}_static ngraph)
-# else()
-#     add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
-# endif()
-
 # Installation rules for shared version only
 
 add_library(${TARGET_NAME} INTERFACE)
-target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-        $<INSTALL_INTERFACE:${FRONTEND_INSTALL_INCLUDE}>)
+target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 add_library(ngraph::${TARGET_NAME} ALIAS ${TARGET_NAME})
 add_library(openvino::frontend::common ALIAS ${TARGET_NAME})
 add_library(${TARGET_NAME}::static ALIAS ${TARGET_NAME})
@@ -71,11 +57,8 @@ install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/common
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev
         FILES_MATCHING PATTERN "*.hpp")
-        
+
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/
         DESTINATION ${FRONTEND_INSTALL_INCLUDE}
         COMPONENT ngraph_dev
         FILES_MATCHING PATTERN "manager.hpp")
-
-export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
-       APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")

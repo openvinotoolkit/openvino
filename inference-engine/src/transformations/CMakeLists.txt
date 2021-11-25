@@ -38,7 +38,8 @@ ie_mark_target_as_cc(${TARGET_NAME}_obj)
 add_library(${TARGET_NAME} INTERFACE)
 
 target_include_directories(${TARGET_NAME} INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
 
