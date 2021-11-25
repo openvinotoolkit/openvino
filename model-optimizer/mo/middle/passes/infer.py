@@ -136,7 +136,7 @@ def infer_nodes(graph: Graph, nodes: List[Node], constant_subgraph_only: bool = 
         node = Node(graph, n)
         node_name = node.soft_get('name', node.id)
         try:
-            if not node.soft_get('is_partial_inferred', False):
+            if node.has('is_partial_inferred') and not node.is_partial_inferred:
                 if node.has('infer') and not node.infer is None:
                     # we consider that operation will produce value if all inputs are constants or it is
                     # 'ShapeOf' operation
