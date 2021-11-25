@@ -56,6 +56,7 @@ void MKLDNNCTCLossNode::initSupportedPrimitiveDescriptors() {
                          {{LayoutType::ncsp, Precision::FP32}},
                          impl_desc_type::ref_any);
 }
+
 void MKLDNNCTCLossNode::createPrimitive() {
     if (inputShapesDefined()) {
         if (needPrepareParams())

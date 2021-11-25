@@ -26,6 +26,8 @@ ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<
 
 ngraph::ParameterVector makeDynamicParams(const element::Type &type, const std::vector<ov::PartialShape> &shapes);
 
+ngraph::ParameterVector makeDynamicParams(const std::vector<element::Type>& types, const std::vector<ov::PartialShape>& shapes);
+
 ngraph::ParameterVector
 makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
 
