@@ -283,7 +283,7 @@ class Convolution(Op):
             # TODO FIXME this is ugly solution based on various attributes which may not be set in some cases
             for attr in ['dilation', 'stride', 'pad']:
                 if node.has_valid(attr):
-                    shape = undefined_shape_of_rank(len(node.soft_get(attr)) // 2 + 2)
+                    shape = undefined_shape_of_rank(len(node.soft_get(attr)))
                     break
             if shape is not None:
                 node.in_port(0).data.set_shape(shape)
