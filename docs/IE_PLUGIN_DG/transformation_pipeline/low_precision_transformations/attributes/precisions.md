@@ -8,4 +8,4 @@ The attribute defines precision which is required for input/output port or an op
 |---------------|----------------------------------------------|
 | Required      | Yes                                          |
 | Defined       | Operation, input port, output port           |
-| Properties    | value (boolean)                              |
+| Properties    | precisions                                   |
