@@ -44,7 +44,6 @@ void ReshapeTransformation::SetUp() {
         param.reshapeConstValues,
         netPrecision,
         param.fakeQuantize);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ReshapeTransformation::Run() {

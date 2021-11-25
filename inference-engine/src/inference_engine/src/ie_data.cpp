@@ -9,6 +9,7 @@
 #include "blob_factory.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "ie_api.h"
+#include "ie_common.h"
 
 using namespace InferenceEngine;
 
@@ -88,10 +89,11 @@ Data::Data(const std::string& name, const TensorDesc& desc) : name(name), userOb
 Data::Data(const std::string& name, Precision _precision, const ngraph::PartialShape& shape, Layout layout)
     : name(name),
       userObject({0}),
-      tensorDesc(_precision, layout) {
-    if (shape.is_static()) {
-        tensorDesc.reshape(shape.to_shape(), tensorDesc.getLayout());
-    }
+      tensorDesc(_precision,
+                 shape.is_static()
+                     ? shape.to_shape()
+                     : shape.rank().is_static() ? SizeVector(shape.rank().get_length(), 0) : SizeVector(1, 0),
+                 layout) {
     _impl = std::make_shared<Impl>();
     _impl->pShape = shape;
 }
@@ -116,7 +118,7 @@ void Data::setDims(const SizeVector& a_dims) {
 IE_SUPPRESS_DEPRECATED_START
 
 bool Data::isDynamic() const {
-    return tensorDesc.getDims().empty() && tensorDesc.getLayout() != SCALAR && _impl->pShape.is_dynamic();
+    return isInitialized() && _impl->pShape.is_dynamic();
 }
 
 const ngraph::PartialShape& Data::getPartialShape() const {
@@ -131,7 +133,13 @@ void Data::reshape(const ngraph::PartialShape& dims, Layout layout) {
     if (dims.is_static()) {
         reshape(SizeVector(dims.to_shape()), layout);
     } else {
-        tensorDesc = TensorDesc(tensorDesc.getPrecision(), layout);
+        SizeVector d;
+        if (dims.rank().is_static()) {
+            d = SizeVector(dims.rank().get_length(), 0);
+        } else {
+            d = SizeVector{0};
+        }
+        tensorDesc = TensorDesc(tensorDesc.getPrecision(), d, layout);
         _impl->pShape = dims;
     }
 }
@@ -203,15 +211,19 @@ const SizeVector& Data::getDims() const {
 
 namespace InferenceEngine {
 
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data) {
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr& data);
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data);
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data);
+
+CNNLayerWeakPtr& getCreatorLayer(const DataPtr& data) {
     return data->_impl->creatorLayer;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr& data) {
+std::map<std::string, CNNLayerPtr>& getInputTo(const DataPtr& data) {
     return data->_impl->inputTo;
 }
 
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data* data) {
+std::map<std::string, CNNLayerPtr>& getInputTo(Data* data) {
     return data->_impl->inputTo;
 }
 

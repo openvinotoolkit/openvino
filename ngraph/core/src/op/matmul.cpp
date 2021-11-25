@@ -38,6 +38,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
 }
 
 namespace matmul {
+namespace {
 ov::PartialShape validate_matmul_output_shape(const ov::PartialShape& arg0_shape,
                                               const ov::PartialShape& arg1_shape,
                                               bool transpose_a,
@@ -222,6 +223,7 @@ bool evaluate_matmul(const HostTensorPtr& arg0,
     }
     return rc;
 }
+}  // namespace
 }  // namespace matmul
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {

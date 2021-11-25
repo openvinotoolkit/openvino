@@ -16,13 +16,15 @@ std::string ExecGraphKeepAssignNode::getTestCaseName(testing::TestParamInfo<std:
     return "Dev=" + targetDevice;
 }
 
+void ExecGraphKeepAssignNode::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+}
+
 /**
  * Assign/MemoryOutput operation node may hanging in air (leaf, has no consumer).
  * So exec graph may lose it. Will check that it's present in dumped exec graph.
  */
 TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     auto device_name = this->GetParam();
     ngraph::Shape shape = {3, 2};
     ngraph::element::Type type = ngraph::element::f32;
@@ -32,10 +34,10 @@ TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
 
     // Some simple graph with Memory(Assign) node                     //    in   read     //
     auto input = make_shared<Parameter>(type, shape);                 //    | \  /        //
-    auto mem_i = make_shared<Constant>(type, shape, 0);               //    |  mul        //
-    auto mem_r = make_shared<ReadValue>(mem_i, "id");                 //    | /  \        //
+    auto mem_i = make_shared<Constant>(type, shape, 0);          //    |  mul        //
+    auto mem_r = make_shared<ReadValue>(mem_i, "id");       //    | /  \        //
     auto mul   = make_shared<ngraph::op::v1::Multiply>(mem_r, input); //    sum  assign   //
-    auto mem_w = make_shared<Assign>(mul, "id");                      //     |            //
+    auto mem_w = make_shared<Assign>(mul, "id");            //     |            //
     auto sum   = make_shared<ngraph::op::v1::Add>(mul, input);        //    out           //
 
     mem_w->add_control_dependency(mem_r);

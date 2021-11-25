@@ -22,10 +22,11 @@ try:
 except ImportError:
     import mo.utils.telemetry_stub as tm
 from mo.utils.error import classify_error_type
+from telemetry_utils import get_tid
 
 
 def send_telemetry(mo_version: str, message: str, event_type: str):
-    t = tm.Telemetry(app_name='Version Checker', app_version=mo_version)
+    t = tm.Telemetry(tid=get_tid(), app_name='Version Checker', app_version=mo_version)
     # do not trigger new session if we are executing from the check from within the MO because it is actually not model
     # conversion run which we want to send
     if execution_type != 'mo':
@@ -47,14 +48,17 @@ def import_core_modules(silent: bool, path_to_module: str):
     :return: True if all imports were successful and False otherwise
     """
     try:
-        from openvino.inference_engine import get_version, read_network  # pylint: disable=import-error,no-name-in-module
-        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation, \
-            GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+        from openvino.inference_engine import get_version, IENetwork  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import ApplyMakeStatefulTransformation, GenerateMappingFile  # pylint: disable=import-error,no-name-in-module
+        from openvino.offline_transformations import GenerateMappingFile, ApplyMakeStatefulTransformation, Serialize  # pylint: disable=import-error,no-name-in-module
 
         # TODO: it is temporary import to check that nGraph python API is available. But in future
         # we need to replace it with Frontend imports
+        from ngraph.impl import Function  # pylint: disable=import-error,no-name-in-module
         from ngraph.impl.op import Parameter  # pylint: disable=import-error,no-name-in-module
         from _pyngraph import PartialShape, Dimension  # pylint: disable=import-error,no-name-in-module
+        from ngraph.frontend import FrontEndManager, FrontEnd  # pylint: disable=no-name-in-module,import-error
 
         import openvino  # pylint: disable=import-error,no-name-in-module
         import ngraph  # pylint: disable=import-error,no-name-in-module
@@ -98,7 +102,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         return True
     except Exception as e:
         # Do not print a warning if module wasn't found or silent mode is on
-        if "No module named 'openvino'" not in str(e) and not silent:
+        if "No module named 'openvino'" not in str(e):
             print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(path_to_module))
             print("[ WARNING ] {}".format(e))
 

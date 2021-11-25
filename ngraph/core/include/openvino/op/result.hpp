@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/layout.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -36,9 +37,19 @@ public:
         return false;
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
+    OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
     bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override;
+
+    /// \brief Returns current layout, or empty Layout if it is not set
+    Layout get_layout() const;
+
+    /// \brief Sets layout runtime information to tensor.
+    ///
+    /// \param layout Layout to set. If empty (default constructed), layout runtime information is erased.
+    void set_layout(const Layout& layout);
 };
 }  // namespace v0
 }  // namespace op

@@ -58,8 +58,9 @@ protected:
             pooling = builder::makePooling(conv, strides, padBegin, padEnd, kernelSize, roundingType, paddingType, false, poolType);
         }
 
+        selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);
+
         function = makeNgraphFunction(element::f32, inputParams, pooling, "ConvPoolActiv");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 
@@ -67,7 +68,7 @@ TEST_P(ConvPoolActivTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckFusingResults(executableNetwork, "Convolution");
+    CheckPluginRelatedResults(executableNetwork, "Convolution");
 }
 
 namespace {

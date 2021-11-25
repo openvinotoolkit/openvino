@@ -23,6 +23,11 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+xfail_accuracy = xfail_test(reason="Accuracy")
+xfail_issue_FLOAT_LIKE = xfail_test(reason="Use of bfloat16 or float16")
+xfail_issue_69444 = xfail_test(reason="failed with accuracy issue")
+skip_issue_67415 = pytest.mark.skip(reason="RuntimeError: Unsupported data type for when filling blob!")
+xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -42,7 +47,6 @@ xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "TfIdfVectorizer")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "GatherElements")
-xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
@@ -65,9 +69,6 @@ xfail_issue_38713 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Momentum")
 xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop "
                                       "Not constant termination condition body output is not supported")
-xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger "
-                                      "and QLinearMatMul "
-                                      "Input0 scale and input0 zero point shape must be same and 1")
 xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Resize): Y>': "
                                       "tf_crop_and_resize - this type of coordinate transformation mode "
                                       "is not supported. Choose one of the following modes: "
@@ -75,17 +76,12 @@ xfail_issue_38724 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "half_pixel")
 xfail_issue_38725 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop): "
                                       "value info has no element type specified")
-xfail_issue_38726 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
-                                      "LessOrEqual")
-xfail_issue_38732 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
-                                      "ConvInteger")
 xfail_issue_38734 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Adam")
 xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
-xfail_issue_44848 = xfail_test(reason="Expected: Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="Expected: Unsupported dynamic op: Broadcast")
 xfail_issue_44854 = xfail_test(reason="Expected: Unsupported dynamic op: VariadicSplit")
 xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsqueeze")
@@ -96,8 +92,6 @@ xfail_issue_44965 = xfail_test(reason="Expected: RuntimeError: value info has no
 xfail_issue_44968 = xfail_test(reason="Expected: Unsupported dynamic op: Squeeze")
 xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
-xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
-xfail_issue_55760 = xfail_test(reason="RuntimeError: Reversed axis have axes above the source space shape")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
@@ -109,12 +103,8 @@ xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
-xfail_issue_39656 = xfail_test(reason="RuntimeError: Reshape reshaped has dynamic second input!")
 xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form that is not supported."
                                       " z should be converted to TileIE operation.")
-xfail_issue_39659 = xfail_test(reason="RuntimeError: Broadcast operation has a form that is not supported."
-                                      " y should be converted to Tile operation.")
-xfail_issue_45344 = xfail_test(reason="Unsupported dynamic ops: v3::NonMaxSuppressionIE3")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 
@@ -143,10 +133,11 @@ xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
-xfail_issue_63045 = xfail_test(reason="Maxpool with strides, padding and dilations fail")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63136 = xfail_test(reason="Unsupported operation: CastLike")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
 xfail_issue_63138 = xfail_test(reason="Missing ONNX Shape-15 support")
 xfail_issue_63643 = xfail_test(reason="RuntimeError: Unsupported operation of type: Convolution name")
+xfail_issue_54663 = xfail_test(reason="Disabled until MaxPool-8 is supported on CPU")
+xfail_issue_68212 = xfail_test(reason="Unsupported reading model with bytes streams")

@@ -61,7 +61,6 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type, c
         }
     }
     function = std::make_shared<Function>(results, params, "ConstResult");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConstantResultSubgraphTest::SetUp() {

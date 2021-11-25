@@ -55,6 +55,5 @@ void MVNMultiplyAdd::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
     function = std::make_shared<ngraph::Function>(results, param, "MVNMultiplyAdd");
-    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace SubgraphTestsDefinitions

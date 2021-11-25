@@ -1,7 +1,8 @@
 # build/artifact dirs
 _*
-# but ensure we don't skip __init__.py
+# but ensure we don't skip __init__.py and __main__.py
 !__init__.py
+!__main__.py
 
 # developer tools
 *.idea
@@ -19,12 +20,13 @@ doc/
 !ngraph/doc
 docs/build_documentation/work_dir/
 inference-engine/plugins/
-inference-engine/temp
 inference-engine/report
+temp/
 .repo/
 docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
+inference-engine/ie_bridges/python/wheel/.env
 
 *.project
 *.cproject
@@ -57,15 +59,3 @@ __pycache__
 /model-optimizer/*.mapping
 /model-optimizer/*.dat
 /model-optimizer/*.svg
-
-# ngraph
-ngraph/src/CPackConfig.cmake
-ngraph/src/CPackSourceConfig.cmake
-ngraph/src/VERSION
-ngraph/src/gtest/
-ngraph/src/json/
-ngraph/src/ngraphConfig.cmake
-ngraph/src/ngraphConfigVersion.cmake
-ngraph/src/protobuf/
-ngraph/src/src/
-ngraph/src/test/

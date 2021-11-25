@@ -99,8 +99,8 @@ public:
                        const HostTensorPtr& arg1,
                        const element::Type& element_type);
 
-private:
-    void allocate_buffer();
+protected:
+    virtual void allocate_buffer();
     HostTensor(const HostTensor&) = delete;
     HostTensor(HostTensor&&) = delete;
     HostTensor& operator=(const HostTensor&) = delete;

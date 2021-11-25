@@ -4,24 +4,27 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_manager.hpp>
-#include <ir_frontend/utility.hpp>
 #include <istream>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 
-namespace ngraph {
+#include "ir_frontend/utility.hpp"
+#include "manager.hpp"
+
+namespace ov {
 namespace frontend {
+
 class IR_API InputModelIR : public InputModel {
     friend class FrontEndIR;
     class InputModelIRImpl;
     std::shared_ptr<InputModelIRImpl> _impl;
 
 public:
-    InputModelIR(std::istream& stream, const ov::Weights& weights, const ov::Extensions& extensions);
+    InputModelIR(std::istream& stream,
+                 const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                 const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
 
     std::shared_ptr<Function> convert();
 };
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -30,6 +30,7 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+        inputShape.rank().get_length() << "D_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -50,7 +51,6 @@ void ConvolutionTransformation::SetUp() {
         // TODO: pass from test parameters
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConvolutionTransformation::Run() {

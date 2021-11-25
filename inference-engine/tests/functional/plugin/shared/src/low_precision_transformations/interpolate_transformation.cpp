@@ -64,7 +64,6 @@ void InterpolateTransformation::SetUp() {
     interpAttrs.pads_end = attributes.pads_end;
 
     function = ngraph::builder::subgraph::InterpolateFunction::getOriginal(precision, shapes.first, shapes.second, interpAttrs);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(InterpolateTransformation, CompareWithRefImpl) {

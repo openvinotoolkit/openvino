@@ -67,6 +67,28 @@ bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& 
     return false;
 }
 
+ov::Layout op::Result::get_layout() const {
+    auto it = input(0).get_rt_info().find(ov::LayoutAttribute::get_type_info_static());
+    if (it == input(0).get_rt_info().end()) {
+        return {};
+    }
+    auto layout = std::dynamic_pointer_cast<ov::LayoutAttribute>(it->second);
+    OPENVINO_ASSERT(layout,
+                    "'",
+                    ov::LayoutAttribute::get_type_info_static(),
+                    "' runtime info for result is invalid, use set_layout API");
+    return layout->get();
+}
+
+void op::Result::set_layout(const ov::Layout& layout) {
+    if (layout.empty()) {
+        input(0).get_rt_info().erase(ov::LayoutAttribute::get_type_info_static());
+    } else {
+        input(0).get_rt_info()[ov::LayoutAttribute::get_type_info_static()] =
+            std::make_shared<ov::LayoutAttribute>(layout);
+    }
+}
+
 BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ResultVector>);
 
 ov::AttributeAdapter<ResultVector>::AttributeAdapter(ResultVector& ref) : m_ref(ref) {}

@@ -196,6 +196,7 @@ private:
     void fuse_activations(program& p);
     void fuse_simple_primitives(program &p);
     void optimize_fused_ops(program &p);
+    void remove_redundant_reshape(program &p);
     layout_optimizer& _lo;
 };
 
@@ -217,7 +218,7 @@ private:
     void run(program& p) override;
     virtual void run(program& p, reorder_factory& rf);
     template <typename T>
-    void optimize_bias(T& node, reorder_factory& rf, program& p);
+    bool optimize_bias(T& node, reorder_factory& rf, program& p);
     reorder_factory& _rf;
 };
 
@@ -389,6 +390,12 @@ public:
     update_loop_primitive_map() : base_pass("update_loop_primitive_map") {}
 
 private:
+    void run(program& p) override;
+};
+
+class add_onednn_optimization_attributes : public base_pass {
+public:
+    add_onednn_optimization_attributes() : base_pass("add_onednn_optimization_attributes") {}
     void run(program& p) override;
 };
 

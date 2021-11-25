@@ -80,7 +80,6 @@ protected:
             results.push_back(std::make_shared<ngraph::opset1::Result>(relu));
         }
         function = std::make_shared<ngraph::Function>(results, params, "InsertCopyBeforeSelfConcat");
-        functionRefs = ngraph::clone_function(*function);
     }
 };
 

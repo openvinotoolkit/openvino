@@ -82,7 +82,6 @@ void MemoryEltwiseReshapeConcatTest::initTestModel() {
     auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(concat, final_reshape_pattern, false);
 
     function = std::make_shared<ngraph::Function>(final_reshape, input_parameter, "memory_multiply_reshape_concat");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
@@ -111,7 +110,6 @@ void MemoryEltwiseReshapeConcatTest::initNgraphFriendlyModel() {
     auto concat = ngraph::builder::makeConcat({concat_constant, squeeze}, 0);
 
     function = std::make_shared<ngraph::Function>(concat, input_parameter, "memory_multiply_reshape_concat");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void MemoryEltwiseReshapeConcatTest::Run() {
@@ -124,7 +122,7 @@ void MemoryEltwiseReshapeConcatTest::Run() {
                                                   InferenceEngine::Layout::NC);
 
     IE_SUPPRESS_DEPRECATED_START
-    auto states = executableNetwork.QueryState();
+    auto states = inferRequest.QueryState();
     auto state_values_blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
                                                                             memory_init.data(), memory_init.size());
     states[0].SetState(state_values_blob);

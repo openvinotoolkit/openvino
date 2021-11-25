@@ -72,7 +72,6 @@ void OutputBeforeActivation::SetUp() {
     auto act = ngraph::builder::makeActivation(midLayer, ngPrc, ngraph::helpers::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
     function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr OutputBeforeActivation::GenerateInput(const InferenceEngine::InputInfo &info) const {

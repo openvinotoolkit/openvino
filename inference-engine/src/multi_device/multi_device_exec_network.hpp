@@ -23,6 +23,12 @@
 # include <tbb/concurrent_queue.h>
 #endif
 
+#ifdef  MULTIUNITTEST
+#define MOCKTESTMACRO virtual
+#define MultiDevicePlugin MockMultiDevicePlugin
+#else
+#define MOCKTESTMACRO
+#endif
 
 namespace MultiDevicePlugin {
 
@@ -37,6 +43,26 @@ struct DeviceInformation {
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
     std::string defaultDeviceID;
+};
+
+struct AutoLoadContext {
+    std::atomic<bool> isEnabled = {false};
+    std::atomic<bool> isAlready = {false};
+    std::atomic<bool> isLoadSuccess = {false};
+    std::future<void> future;
+    std::promise<void> promise;
+    InferenceEngine::SoExecutableNetworkInternal executableNetwork;
+    DeviceInformation  deviceInfo;
+    std::vector<DeviceInformation> metaDevices;
+    std::string networkPrecision;
+    std::string errMessage;
+    InferenceEngine::Task task;
+};
+
+enum AutoLoadContextIndex {
+     CPU = 0,
+     ACTUALDEVICE = 1,
+     CONTEXTNUM = 2
 };
 
 template<typename T>
@@ -131,6 +157,8 @@ public:
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                        InferenceEngine::OutputsDataMap networkOutputs) override;
+    InferenceEngine::IInferRequestInternal::Ptr CreateInferRequestImpl(const std::vector<std::shared_ptr<const ov::Node>>& inputs,
+                                                                       const std::vector<std::shared_ptr<const ov::Node>>& outputs) override;
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override;
     std::shared_ptr<InferenceEngine::ICore> GetCore() const;
     ~MultiDeviceExecutableNetwork() override;
@@ -161,22 +189,21 @@ private:
     static bool RunPipelineTask(InferenceEngine::Task& inferPipelineTask,
                                 NotBusyWorkerRequests& idleWorkerRequests,
                                 const DeviceName& preferred_device);
+    void TryToLoadNetWork(AutoLoadContext& context,
+                          const std::string& modelPath,
+                          const InferenceEngine::CNNNetwork& network);
 
 private:
     std::shared_ptr<InferenceEngine::ICore>                             _core;
     InferenceEngine::IStreamsExecutor::Ptr                              _executor;
     MultiDeviceInferencePlugin*                                         _multiPlugin;
-    InferenceEngine::SoExecutableNetworkInternal                        _networkFirstReady;
-    mutable InferenceEngine::SoExecutableNetworkInternal                _networkActualNeeded;
-    NetworkFuture                                                       _cpuFuture;
-    NetworkPromise                                                      _cpuPromise;
-    mutable NetworkFuture                                               _acceleratorFuture;
-    mutable NetworkPromise                                              _acceleratorPromise;
-    mutable std::atomic<bool>                                           _alreadyActualNetwork = {false};
     bool                                                                _workModeIsAUTO = {false};
-    DeviceInformation                                                   _cpuDevice;
-    DeviceInformation                                                   _acceleratorDevice;
     mutable std::once_flag                                              _oc;
+    std::once_flag                                                      _firstLoadOC;
+    std::future<void>                                                   _firstLoadFuture;
+    std::promise<void>                                                  _firstLoadPromise;
+    mutable AutoLoadContext                                             _loadContext[CONTEXTNUM];
+    mutable std::mutex                                                  _confMutex;
 };
 
 }  // namespace MultiDevicePlugin

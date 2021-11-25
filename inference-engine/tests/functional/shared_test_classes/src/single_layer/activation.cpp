@@ -51,7 +51,6 @@ void ActivationLayerTest::SetUp() {
     auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
 
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -138,17 +137,7 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
         data_range = 15;
         data_start_from = 0;
     }
-    if (activationType == ngraph::helpers::ActivationTypes::Exp && targetDevice == CommonTestUtils::DEVICE_GNA) {
-        const double max_result_on_GNA = 15.9;
-        const double exp_inverse = std::round(std::log(max_result_on_GNA));
-        if (inPrcSigned) {
-            data_range = exp_inverse * 2.0;
-            data_start_from = -exp_inverse;
-        } else {
-            data_range = exp_inverse;
-            data_start_from = 0;
-        }
-    }
+
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
                                             data_start_from,
                                             resolution);
@@ -223,7 +212,6 @@ void ActivationParamLayerTest::SetUp() {
     auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(activation)};
     function = std::make_shared<ngraph::Function>(results, params);
-    functionRefs = ngraph::clone_function(*function);
 }
 
 void ActivationDynamicLayerTest::Run() {

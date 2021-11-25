@@ -4,10 +4,9 @@
 import numpy as np
 import onnx
 from onnx.mapping import NP_TYPE_TO_TENSOR_TYPE
-from openvino.inference_engine import IECore
 
-import ngraph as ng
-from ngraph.impl import Function
+from openvino import Core, Tensor
+from openvino.impl import Function
 
 
 def np_dtype_to_tensor_type(data_type: np.dtype) -> int:
@@ -22,9 +21,7 @@ def np_dtype_to_tensor_type(data_type: np.dtype) -> int:
 def import_onnx_model(model: onnx.ModelProto) -> Function:
     onnx.checker.check_model(model)
     model_byte_string = model.SerializeToString()
+    ie = Core()
+    func = ie.read_model(bytes(model_byte_string), Tensor(type=np.uint8, shape=[]))
 
-    ie = IECore()
-    ie_network = ie.read_network(model=model_byte_string, weights=b"", init_from_buffer=True)
-
-    ng_function = ng.function_from_cnn(ie_network)
-    return ng_function
+    return func

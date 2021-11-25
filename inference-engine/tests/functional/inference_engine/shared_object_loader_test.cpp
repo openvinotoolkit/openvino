@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <file_utils.h>
-#include "details/ie_so_loader.h"
+#include "openvino/util/shared_object.hpp"
 #include <cpp/ie_plugin.hpp>
 
 using namespace std;
@@ -15,19 +15,20 @@ using namespace InferenceEngine::details;
 class SharedObjectLoaderTests: public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
-        return FileUtils::makePluginLibraryName<char>(getIELibraryPath(),
+        return FileUtils::makePluginLibraryName<char>({},
             std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 
     void loadDll(const string &libraryName) {
-        sharedObjectLoader.reset(new details::SharedObjectLoader(libraryName.c_str()));
+        sharedObjectLoader = ov::util::load_shared_object(libraryName.c_str());
     }
-    unique_ptr<SharedObjectLoader> sharedObjectLoader;
+    std::shared_ptr<void> sharedObjectLoader;
 
     using CreateF = void(std::shared_ptr<IInferencePlugin>&);
 
     std::function<CreateF> make_std_function(const std::string& functionName) {
-        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(sharedObjectLoader->get_symbol(functionName.c_str())));
+        std::function<CreateF> ptr(reinterpret_cast<CreateF*>(
+            ov::util::get_symbol(sharedObjectLoader, functionName.c_str())));
         return ptr;
     }
 };
@@ -41,7 +42,7 @@ TEST_F(SharedObjectLoaderTests, canLoadExistedPlugin) {
 }
 
 TEST_F(SharedObjectLoaderTests, loaderThrowsIfNoPlugin) {
-    EXPECT_THROW(loadDll("wrong_name"), InferenceEngine::Exception);
+    EXPECT_THROW(loadDll("wrong_name"), std::runtime_error);
 }
 
 TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
@@ -53,7 +54,7 @@ TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
 
 TEST_F(SharedObjectLoaderTests, throwIfMethodNofFoundInLibrary) {
     loadDll(get_mock_engine_name());
-    EXPECT_THROW(make_std_function("wrong_function"), InferenceEngine::Exception);
+    EXPECT_THROW(make_std_function("wrong_function"), std::runtime_error);
 }
 
 TEST_F(SharedObjectLoaderTests, canCallExistedMethod) {

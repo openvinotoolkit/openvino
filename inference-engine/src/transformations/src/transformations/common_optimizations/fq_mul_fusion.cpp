@@ -116,6 +116,8 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             fq_node->input_value(2),
             get_adjusted_output_range(original_output_low),
             get_adjusted_output_range(original_output_high)});
+        if (transformation_callback(new_fq_node))
+            return false;
 
         const auto mul_node = pattern_map.at(mul_node_p).get_node_shared_ptr();
 
@@ -140,7 +142,7 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
         replace_node(mul_node, new_fq_node);
 
-        new_fq_node->set_friendly_name(fq_node->get_friendly_name());
+        new_fq_node->set_friendly_name(mul_node->get_friendly_name());
         copy_runtime_info({fq_node, mul_node}, new_fq_node);
 
         return true;

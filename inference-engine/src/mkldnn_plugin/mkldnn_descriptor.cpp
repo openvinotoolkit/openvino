@@ -177,3 +177,15 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::eltwise_forward::desc>() {
     }
     return typeDesc->getPtr();
 }
+
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::matmul::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::matmul::desc>(desc));
+}
+
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::matmul::desc>() {
+    auto typeDesc = std::dynamic_pointer_cast<DescFwdImpl<mkldnn::matmul::desc>>(desc);
+    if (typeDesc == nullptr) {
+        IE_THROW() << "Cannot cast descriptor!";
+    }
+    return typeDesc->getPtr();
+}

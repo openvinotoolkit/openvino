@@ -50,7 +50,7 @@ public:
         return m_attrs.end();
     }
 
-    std::string operator[](const std::string& key) {
+    std::string& operator[](const std::string& key) {
         return m_attrs[key];
     }
 
@@ -59,7 +59,7 @@ public:
     }
 
     bool operator==(const FrameworkNodeAttrs& other) const {
-        return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == m_attrs;
+        return m_type_name == other.m_type_name && m_opset_name == other.m_opset_name && m_attrs == other.m_attrs;
     }
 
 private:
@@ -98,8 +98,8 @@ public:
     void cache_output_descriptor();
 
 private:
-    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_inputs_desc;
-    std::vector<std::tuple<ngraph::PartialShape, ngraph::element::Type>> m_output_desc;
+    std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_inputs_desc;
+    std::vector<std::tuple<ov::PartialShape, ov::element::Type>> m_output_desc;
 
     FrameworkNodeAttrs m_attrs;
 };

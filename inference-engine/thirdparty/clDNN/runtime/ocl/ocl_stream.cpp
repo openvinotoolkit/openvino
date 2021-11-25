@@ -253,18 +253,24 @@ void set_arguments_impl(ocl_kernel_type& kernel,
         }
     }
 }
+
+sync_methods get_expected_sync_method(const engine_configuration &config) {
+    return config.enable_profiling ? sync_methods::events : config.queue_type == queue_types::out_of_order ? sync_methods::barriers
+                                                                                                           : sync_methods::none;
+}
+
 }  // namespace
 
-ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration().queue_type), _engine(engine) {
+ocl_stream::ocl_stream(const ocl_engine &engine)
+    : stream(engine.configuration().queue_type)
+    , _engine(engine)
+    , sync_method(get_expected_sync_method(engine.configuration())) {
     auto context = engine.get_cl_context();
     auto device = engine.get_cl_device();
     auto config = engine.configuration();
     ocl::command_queues_builder queue_builder;
     queue_builder.set_profiling(config.enable_profiling);
     queue_builder.set_out_of_order((config.queue_type == queue_types::out_of_order));
-
-    sync_method = _engine.configuration().enable_profiling ? sync_methods::events :
-                  config.queue_type == queue_types::out_of_order ? sync_methods::barriers : sync_methods::none;
 
     if (sync_method == sync_methods::none && config.queue_type == queue_types::out_of_order) {
         throw std::runtime_error("[CLDNN] Unexpected sync method (none) is specified for out_of_order queue");
@@ -288,6 +294,25 @@ ocl_stream::ocl_stream(const ocl_engine& engine) : stream(engine.configuration()
 #endif
 }
 
+ocl_stream::ocl_stream(const ocl_engine &engine, void *handle)
+    : stream(engine.configuration().queue_type)
+    , _engine(engine)
+    , sync_method(get_expected_sync_method(engine.configuration())) {
+    auto casted_handle = static_cast<cl_command_queue>(handle);
+    _command_queue = ocl_queue_type(casted_handle, true);
+
+    if (ocl_stream::detect_queue_type(handle) != engine.configuration().queue_type)
+        throw std::runtime_error("Inconsistent engine config and external user queue are passed to ocl_stream");
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto config = engine.configuration();
+    if (config.queue_type == queue_types::in_order) {
+        auto onednn_engine = engine.get_onednn_engine();
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
+    }
+#endif
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& ocl_stream::get_onednn_stream() {
     if (!_onednn_stream)
@@ -295,6 +320,17 @@ dnnl::stream& ocl_stream::get_onednn_stream() {
     return *_onednn_stream;
 }
 #endif
+
+queue_types ocl_stream::detect_queue_type(void *queue_handle) {
+    cl_command_queue queue = static_cast<cl_command_queue>(queue_handle);
+    cl_command_queue_properties properties;
+    auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
+    if (status != CL_SUCCESS) {
+        throw std::runtime_error("Can't get queue properties for user handle\n");
+    }
+
+    return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? queue_types::out_of_order : queue_types::in_order;
+}
 
 void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
     static std::mutex m;
@@ -405,7 +441,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 
     std::vector<cl::Event> clevents;
     for (auto& ev : events) {
-        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get()))
+        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get()))
             clevents.push_back(ocl_base_ev->get());
     }
 
@@ -419,7 +455,7 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
     bool needs_barrier = false;
     for (auto& dep : deps) {
-        auto* ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get());
+        auto* ocl_base_ev = downcast<ocl_base_event>(dep.get());
         if (ocl_base_ev->get_queue_stamp() > _last_barrier) {
             needs_barrier = true;
         }

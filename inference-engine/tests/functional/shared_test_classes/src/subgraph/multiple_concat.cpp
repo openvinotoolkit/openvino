@@ -20,6 +20,9 @@ std::string MultipleConcatTest::getTestCaseName(const testing::TestParamInfo<mul
     result << "IS=" << inputSize << "_";
     result << "CS=" << constantSize << "_";
     result << "targetDevice=" << targetDevice;
+    for (auto const& configItem : config) {
+        result << "_configItem=" << configItem.second;
+    }
     return result.str();
 }
 
@@ -49,6 +52,5 @@ void MultipleConcatTest::SetUp() {
     auto act = ngraph::builder::makeActivation(concat_2, ngPrc, ngraph::helpers::ActivationTypes::Relu);
 
     function = std::make_shared<ngraph::Function>(act, input_parameter, "multiple_concat");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

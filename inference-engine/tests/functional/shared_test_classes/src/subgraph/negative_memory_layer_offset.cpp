@@ -50,7 +50,6 @@ namespace SubgraphTestsDefinitions {
         sigm->add_control_dependency(mem_w);
 
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_memory");
-        functionRefs = ngraph::clone_function(*function);
     }
 
     void NegativeMemoryOffsetTest::switchToNgraphFriendlyModel() {
@@ -67,16 +66,13 @@ namespace SubgraphTestsDefinitions {
         auto sigm = std::make_shared<ngraph::opset1::Sigmoid>(split->output(1));
 
         function = std::make_shared<ngraph::Function>(sigm, input, "negative_memory_layer_offset_nonmemory");
-        functionRefs = ngraph::clone_function(*function);
-        functionRefs->set_friendly_name("negative_memory_layer_offset_nonmemory_refs");
     }
 
     void NegativeMemoryOffsetTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
         LoadNetwork();
-        IE_SUPPRESS_DEPRECATED_START
-        auto states = executableNetwork.QueryState();
+        auto states = inferRequest.QueryState();
         for (auto& state : states) {
             auto name = state.GetName();
             if (name == "memory") {
@@ -87,7 +83,6 @@ namespace SubgraphTestsDefinitions {
                 GTEST_FAIL() << "unknown memory state";
             }
         }
-        IE_SUPPRESS_DEPRECATED_END
         GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();

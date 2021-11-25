@@ -1,0 +1,37 @@
+models:
+  - name:  faster_rcnn_resnet50_coco
+    launchers:
+      - framework: dlsdk
+        device: CPU
+        adapter: ssd
+        inputs:
+          - name: image_info
+            type: CONST_INPUT
+            value: [[600, 1024, 1]]
+    datasets:
+      - name: ms_coco_detection_91_classes
+        annotation_conversion:
+          converter: mscoco_detection
+          annotation_file: <ANNOTATION_PATH>/instances_val2017.json
+          has_background: True
+          sort_annotations: True
+          use_full_label_map: True
+        data_source: <DATA_PATH>/val2017
+        preprocessing:
+          - type: resize
+            aspect_ratio_scale: fit_to_window
+            dst_height: 600
+            dst_width: 1024
+          - type: padding
+            dst_height: 600
+            dst_width: 1024
+            pad_type: right_bottom
+
+        postprocessing:
+          - type: faster_rcnn_postprocessing_resize
+            dst_height: 600
+            dst_width: 1024
+
+        metrics:
+          - type: coco_precision
+            max_detections: 100

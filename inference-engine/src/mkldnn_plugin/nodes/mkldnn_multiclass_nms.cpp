@@ -146,7 +146,7 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
 
     int* selected_indices = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr()->GetPtr());
 
-    float* selected_outputs = selected_outputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
+    float* selected_outputs = reinterpret_cast<float*>(getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr()->GetPtr());
 
     int* selected_num = reinterpret_cast<int*>(getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr()->GetPtr());
 
@@ -214,20 +214,20 @@ void MKLDNNMultiClassNmsNode::execute(mkldnn::stream strm) {
     }
 
     if (sort_result_across_batch) {
-        if (sort_result_type == SCORE) {
+        if (sort_result_type == MulticlassNmsSortResultType::SCORE) {
             parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.score > r.score) || (l.score == r.score && l.batch_index < r.batch_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index < r.class_index) ||
                        (l.score == r.score && l.batch_index == r.batch_index && l.class_index == r.class_index && l.box_index < r.box_index);
             });
-        } else if (sort_result_type == CLASSID) {
+        } else if (sort_result_type == MulticlassNmsSortResultType::CLASSID) {
             parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
                 return (l.class_index < r.class_index) || (l.class_index == r.class_index && l.batch_index < r.batch_index) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score > r.score) ||
                        (l.class_index == r.class_index && l.batch_index == r.batch_index && l.score == r.score && l.box_index < r.box_index);
             });
         }
-    } else if (sort_result_type == CLASSID) {
+    } else if (sort_result_type == MulticlassNmsSortResultType::CLASSID) {
         parallel_sort(filtBoxes.begin(), filtBoxes.begin() + startOffset, [](const filteredBoxes& l, const filteredBoxes& r) {
             return ((l.batch_index < r.batch_index) ||
                     ((l.batch_index == r.batch_index) &&

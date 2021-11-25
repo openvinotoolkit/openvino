@@ -23,7 +23,7 @@ public:
         // not
         bool sort_result_across_batch = false;
         // specifies the output tensor type
-        ngraph::element::Type output_type = ngraph::element::i64;
+        ov::element::Type output_type = ov::element::i64;
         // specifies intersection over union threshold
         float iou_threshold = 0.0f;
         // specifies minimum score to consider box for the processing

@@ -39,7 +39,6 @@ void TileLayerTest::SetUp() {
     auto tile = ngraph::builder::makeTile(paramOuts[0], tileParams);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(tile)};
     function = std::make_shared<ngraph::Function>(results, params, "tile");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

@@ -87,7 +87,6 @@ void OutputLayersHandlingInTransformations::SetUp() {
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");
-    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(OutputLayersHandlingInTransformations, CompareWithRefImpl) {

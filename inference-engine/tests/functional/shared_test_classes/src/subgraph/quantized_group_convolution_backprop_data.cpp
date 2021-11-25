@@ -83,6 +83,5 @@ void QuantGroupConvBackpropDataLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "QuantGroupConvolutionBackpropData");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions

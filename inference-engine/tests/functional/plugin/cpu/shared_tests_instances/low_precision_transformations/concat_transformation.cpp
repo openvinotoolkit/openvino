@@ -39,8 +39,18 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
     // FQ with unexpected quantizationLevels
     {
+        { 14ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 14ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} }
+    },
+    // FQ with INT4 quantizationLevels
+    {
         { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
         { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} }
+    },
+    // FQ with INT4+INT8 quantizationLevels
+    {
+        { 16ul, ngraph::Shape({}), {0.f}, {15.f}, {0.f}, {1.5f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
     },
 };
 

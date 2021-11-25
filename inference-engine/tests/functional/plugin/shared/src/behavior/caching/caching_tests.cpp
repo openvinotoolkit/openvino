@@ -109,6 +109,9 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
     res.push_back(nGraphFunctionWithName {
         inputShapeWrapper(ngraph::builder::subgraph::makeReadConcatSplitAssign, {1, 1, 2, 4}),
         "ReadConcatSplitAssign"});
+    res.push_back(nGraphFunctionWithName{
+        inputShapeWrapper(ngraph::builder::subgraph::makeMatMulBias, {1, 3, 24, 24}),
+        "MatMulBias" });
 
     return res;
 }
@@ -141,7 +144,6 @@ void LoadNetworkCacheTestBase::SetUp() {
     } catch (...) {
         GTEST_SKIP();
     }
-    functionRefs = ngraph::clone_function(*function);
 
     std::stringstream ss;
     auto hash = std::hash<std::string>()(GetTestName());

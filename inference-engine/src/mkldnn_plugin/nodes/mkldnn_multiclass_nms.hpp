@@ -11,7 +11,7 @@
 
 namespace MKLDNNPlugin {
 
-enum MulticlassNmsSortResultType {
+enum class MulticlassNmsSortResultType {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
     SCORE,    // sort selected boxes by score (descending) in each batch element
     NONE      // do not guarantee the order in each batch element
@@ -40,11 +40,11 @@ private:
     const size_t NMS_SELECTEDNUM = 2;
 
     bool sort_result_across_batch = false;
-    MulticlassNmsSortResultType sort_result_type = NONE;
+    MulticlassNmsSortResultType sort_result_type = MulticlassNmsSortResultType::NONE;
 
-    size_t num_batches;
-    size_t num_boxes;
-    size_t num_classes;
+    size_t num_batches = 0;
+    size_t num_boxes = 0;
+    size_t num_classes = 0;
 
     int max_output_boxes_per_class = 0;
     float iou_threshold = 0.0f;

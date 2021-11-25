@@ -18,7 +18,9 @@ std::string ConcatFirstInputTest::getTestCaseName(const testing::TestParamInfo<c
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
-
+    for (auto const& configItem : additional_config) {
+        result << "_configItem=" << configItem.first << "_" << configItem.second;
+    }
     return result.str();
 }
 
@@ -36,6 +38,5 @@ void ConcatFirstInputTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(relu)};
 
     function = std::make_shared<ngraph::Function>(results, params, "ConcatMultiInput");
-    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace SubgraphTestsDefinitions
