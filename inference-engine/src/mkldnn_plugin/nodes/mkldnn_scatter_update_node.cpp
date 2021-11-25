@@ -21,14 +21,10 @@ using namespace InferenceEngine;
 
 bool MKLDNNScatterUpdateNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
-        const auto scatterElemUpd = std::dynamic_pointer_cast<const ngraph::opset3::ScatterElementsUpdate>(op);
-        const auto scatterUpd = std::dynamic_pointer_cast<const ngraph::opset3::ScatterUpdate>(op);
-        const auto scatterNdUpd = std::dynamic_pointer_cast<const ngraph::opset4::ScatterNDUpdate>(op);
-        if (scatterElemUpd == nullptr && scatterUpd == nullptr && scatterNdUpd == nullptr) {
+        auto scatterElemUpd = ngraph::as_type_ptr<const ngraph::opset3::ScatterElementsUpdate>(op);
+        auto scatterUpd = ngraph::as_type_ptr<const ngraph::opset3::ScatterUpdate>(op);
+        auto scatterNdUpd = ngraph::as_type_ptr<const ngraph::opset4::ScatterNDUpdate>(op);
+        if (!scatterElemUpd && !scatterUpd && !scatterNdUpd) {
             const std::string opType = op->get_type_name();
             errorMessage = "Only opset" + opType == "ScatterNDUpdate" ? "4 " : "3 " + opType + " operation is supported";
             return false;
@@ -81,10 +77,10 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto srcDataDim = getInputShapeAtPort(DATA_ID).getStaticDims();
-    auto indicesDim = getInputShapeAtPort(INDICES_ID).getStaticDims();
-    auto updateDim =  getInputShapeAtPort(UPDATE_ID).getStaticDims();
-    auto dstDataDim = getOutputShapeAtPort(0).getStaticDims();
+    const auto& srcDataDim = getInputShapeAtPort(DATA_ID).getDims();
+    const auto& indicesDim = getInputShapeAtPort(INDICES_ID).getDims();
+    const auto& updateDim =  getInputShapeAtPort(UPDATE_ID).getDims();
+    const auto& dstDataDim = getOutputShapeAtPort(0).getDims();
 
     size_t srcRank = srcDataDim.size();
     size_t indicesRank = indicesDim.size();
@@ -96,9 +92,9 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << " should have same rank for input and output tensor";
     } else {
         for (size_t r = 0; r < srcRank; r++) {
-            if (srcDataDim[r] != dstDataDim[r]) {
+            if (!dimsEqualWeak(srcDataDim[r], dstDataDim[r])) {
                 IE_THROW() << errorPrefix << " should have same shape for input and output tensor. The input shape is "
-                                   << srcDataDim[r] << ", while output shape is " << dstDataDim[r] << " for " << r << "th dimension";
+                           << srcDataDim[r] << ", while output shape is " << dstDataDim[r] << " for " << r << "th dimension";
             }
         }
     }
@@ -111,26 +107,28 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
             break;
         }
         case ScatterUpdateMode::ScatterNDUpdate: {
-            size_t k = indicesDim[indicesRank - 1];
-            if (k > srcRank) {
-                IE_THROW() << errorPrefix << "' do not have an correct indices' last dimension value, "
-                                   << "which should be smaller than or equal to input tensor rank";
-            }
+            if (indicesDim[indicesRank - 1] != Shape::UNDEFINED_DIM) {
+                size_t k = indicesDim[indicesRank - 1];
+                if (k > srcRank) {
+                    IE_THROW() << errorPrefix << "' do not have an correct indices' last dimension value, "
+                        << "which should be smaller than or equal to input tensor rank";
+                }
 
-            SizeVector expectUpdateShape = {};
-            size_t tupleRank = indicesRank - 1;
-            for (size_t ri = 0; ri < tupleRank; ri++) {
-                expectUpdateShape.push_back(indicesDim[ri]);
-            }
-            for (size_t rd = k; rd < srcRank; rd++) {
-                expectUpdateShape.push_back(srcDataDim[rd]);
-            }
-            if (expectUpdateShape.size() != updateRank) {
-                IE_THROW() << errorPrefix << " do not have matched tensor rank relationship for input, indices and update";
-            }
-            for (size_t ru = 0; ru < updateRank; ru++) {
-                if (updateDim[ru] != expectUpdateShape[ru]) {
-                    IE_THROW() << errorPrefix << " do not have matched tensor shape relationship for input, indices and update";
+                SizeVector expectUpdateShape = {};
+                size_t tupleRank = indicesRank - 1;
+                for (size_t ri = 0; ri < tupleRank; ri++) {
+                    expectUpdateShape.push_back(indicesDim[ri]);
+                }
+                for (size_t rd = k; rd < srcRank; rd++) {
+                    expectUpdateShape.push_back(srcDataDim[rd]);
+                }
+                if (expectUpdateShape.size() != updateRank) {
+                    IE_THROW() << errorPrefix << " do not have matched tensor rank relationship for input, indices and update";
+                }
+                for (size_t ru = 0; ru < updateRank; ru++) {
+                    if (!dimsEqualWeak(updateDim[ru], expectUpdateShape[ru])) {
+                        IE_THROW() << errorPrefix << " do not have matched tensor shape relationship for input, indices and update";
+                    }
                 }
             }
             break;
@@ -140,7 +138,7 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
                 IE_THROW() << errorPrefix << " do not have the same tensor rank for input, indices and update";
             }
             for (size_t ri = 0; ri < indicesRank; ri++) {
-                if (indicesDim[ri] != updateDim[ri]) {
+                if (!dimsEqualWeak(indicesDim[ri], updateDim[ri])) {
                     IE_THROW() << errorPrefix << " do not have the same tensor shape for indices and update";
                 }
             }
@@ -178,8 +176,8 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
     dataSize = dataPrec.size();
 
-    bool canBeInplace = getParentEdgeAt(DATA_ID)->getParent()->getChildEdges().size() == 1 &&
-            !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
+    bool canBeInplace = !isDynamicNode() && getParentEdgeAt(DATA_ID)->getParent()->getChildEdges().size() == 1 &&
+                        !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
     NodeConfig config;
     config.dynBatchSupport = false;
@@ -226,6 +224,18 @@ void MKLDNNScatterUpdateNode::createPrimitive() {
         IE_THROW() << errorPrefix << " did not allocate update memory";
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " did not set preferable primitive descriptor";
+
+    if (inputShapesDefined()) {
+        updateLastInputDims();
+    }
+}
+
+bool MKLDNNScatterUpdateNode::needPrepareParams() const {
+    return false;
+}
+
+void MKLDNNScatterUpdateNode::executeDynamicImpl(mkldnn::stream strm) {
+    return execute(strm);
 }
 
 int64_t MKLDNNScatterUpdateNode::getIndicesValue(uint8_t *indices, size_t offset) {
@@ -245,7 +255,7 @@ int64_t MKLDNNScatterUpdateNode::getIndicesValue(uint8_t *indices, size_t offset
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
 // index  : 0      1    2     3    4    5
-static std::vector<size_t> getBlockND(const SizeVector& shape) {
+static std::vector<size_t> getBlockND(const VectorDims& shape) {
     size_t shapeRank = shape.size();
     std::vector<size_t> blockND(shapeRank + 1, 1);
     for (int i = shapeRank - 1; i >= 0; i--) {
@@ -265,8 +275,8 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
     uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->GetPtr());
     uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->GetPtr());
 
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t srcRank = srcDataDim.size();
     int axis = 0;
     if (axisRelaxed) {
@@ -362,9 +372,9 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
 // and indices tensor of shape [i_0, i_1, ..., i_k].
 // Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
 void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
@@ -395,8 +405,8 @@ void MKLDNNScatterUpdateNode::scatterUpdate(uint8_t *indices, uint8_t *update, i
 // k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
 // updates is a (q-1)-dimension tensor of replacement-slice-values
 void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
@@ -425,9 +435,8 @@ void MKLDNNScatterUpdateNode::scatterNDUpdate(uint8_t *indices, uint8_t *update,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
 void MKLDNNScatterUpdateNode::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    SizeVector updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
-    SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
     size_t updateRank = updateDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
