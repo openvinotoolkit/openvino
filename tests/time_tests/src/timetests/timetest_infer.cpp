@@ -76,13 +76,8 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
           {
             SCOPED_TIMER(fill_inputs)
             const InferenceEngine::ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
-            if (isCacheEnabled) {
-                 fillBlobs(inferRequest, inputsInfo, 1);
-            }
-            else {
-                batchSize = batchSize != 0 ? batchSize : 1;
-                fillBlobs(inferRequest, inputsInfo, batchSize);
-            }
+            batchSize = batchSize != 0 ? batchSize : 1;
+            fillBlobs(inferRequest, inputsInfo, batchSize);
           }
 
           inferRequest.Infer();
