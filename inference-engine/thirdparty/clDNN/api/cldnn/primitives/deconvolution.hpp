@@ -26,8 +26,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -36,11 +35,11 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   tensor stride = {1, 1, 1, 1},
-                  tensor input_offset = {0, 0, 0, 0},
+                  tensor pad = {0, 0, 0, 0},
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           with_output_size(false),
           groups(1),
@@ -53,8 +52,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param groups Number of filter groups.
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -64,11 +62,11 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& bias,
                   uint32_t groups,
                   tensor stride = {1, 1, 1, 1},
-                  tensor input_offset = {0, 0, 0, 0},
+                  tensor pad = {0, 0, 0, 0},
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           with_output_size(false),
           groups(groups),
@@ -80,8 +78,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -89,11 +86,11 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const primitive_id& input,
                   const std::vector<primitive_id>& weights,
                   tensor stride = {1, 1, 1, 1},
-                  tensor input_offset = {0, 0, 0, 0},
+                  tensor pad = {0, 0, 0, 0},
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           with_output_size(false),
           groups(1),
@@ -106,21 +103,20 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param groups Number of filter groups.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
     deconvolution(const primitive_id& id,
                   const primitive_id& input,
-                  const std::vector<primitive_id>& weights,
+                  const std::vector<primitive_id> &weights,
                   uint32_t groups,
                   tensor stride = {1, 1, 1, 1},
-                  tensor input_offset = {0, 0, 0, 0},
+                  tensor pad = {0, 0, 0, 0},
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           with_output_size(false),
           groups(groups),
@@ -133,8 +129,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -144,12 +139,12 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& weights,
                   const std::vector<primitive_id>& bias,
                   tensor stride,
-                  tensor input_offset,
+                  tensor pad,
                   tensor output_size,
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           with_output_size(true),
           output_size(output_size),
@@ -164,8 +159,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
     /// @param groups Number of filter groups.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -176,13 +170,13 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& bias,
                   uint32_t groups,
                   tensor stride,
-                  tensor input_offset,
+                  tensor pad,
                   tensor output_size,
                   bool grouped_weights_shape,
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           with_output_size(true),
           output_size(output_size),
@@ -195,8 +189,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -205,12 +198,12 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const primitive_id& input,
                   const std::vector<primitive_id>& weights,
                   tensor stride,
-                  tensor input_offset,
+                  tensor pad,
                   tensor output_size,
                   const primitive_id& ext_prim_id = "",
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, ext_prim_id, output_padding),
-          input_offset(input_offset),
+          pad(pad),
           stride(stride),
           with_output_size(true),
           output_size(output_size),
@@ -224,8 +217,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -237,7 +229,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  const std::vector<primitive_id>& bias,
                                                  tensor output_size,
                                                  tensor stride = {1, 1, 1, 1},
-                                                 tensor input_offset = {0, 0, 0, 0},
+                                                 tensor pad = {0, 0, 0, 0},
                                                  const primitive_id& ext_prim_id = "",
                                                  const padding& output_padding = padding()) {
         return deconvolution(id,
@@ -245,7 +237,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                              weights,
                              bias,
                              stride,
-                             input_offset,
+                             pad,
                              output_size,
                              ext_prim_id,
                              output_padding);
@@ -255,8 +247,7 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the deconvolution window should start calculations.
+    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
     /// @param with_activation Enables Relu activation.
     /// @param activation_slp Relu activation slope.
@@ -267,21 +258,21 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  const std::vector<primitive_id>& weights,
                                                  tensor output_size,
                                                  tensor stride = {1, 1, 1, 1},
-                                                 tensor input_offset = {0, 0, 0, 0},
+                                                 tensor pad = {0, 0, 0, 0},
                                                  const primitive_id& ext_prim_id = "",
-                                                 const padding& output_padding = padding()) {
+                                                 const padding& output_padding = padding())     {
         return deconvolution(id,
                              input,
                              weights,
                              stride,
-                             input_offset,
+                             pad,
                              output_size,
                              ext_prim_id,
                              output_padding);
     }
 
-    /// @brief Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the deconvolution window should start calculations.
-    tensor input_offset;
+    /// @brief Defines logical pad value added to input tensor.
+    tensor pad;
     /// @brief Defines shift in input buffer between adjacent calculations of output values.
     tensor stride;
     /// @brief Indicates that the primitive has user-defined output size (non-zero value).

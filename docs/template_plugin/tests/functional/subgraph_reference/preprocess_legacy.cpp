@@ -107,6 +107,66 @@ TEST_F(ReferencePreprocessLegacyTest, resize) {
     Exec();
 }
 
+TEST_F(ReferencePreprocessLegacyTest, bgrx_to_bgr) {
+    const int h = 160;
+    const int w = 160;
+    auto rgbx_input = std::vector<uint8_t>(h * w * 4, 0);
+    for (auto i = 0; i < h * w * 4; i++) {
+        rgbx_input[i] = i % 256;
+    }
+    function = create_simple_function(element::f32, Shape{1, 3, h, w});
+    auto f2 = create_simple_function(element::f32, Shape{1, 3, h, w});
+    legacy_network = InferenceEngine::CNNNetwork(f2);
+
+    auto p = PrePostProcessor(function);
+    auto& input = p.input();
+    input.tensor().set_color_format(ColorFormat::BGRX).set_element_type(element::u8);
+    input.preprocess().convert_color(ColorFormat::BGR);
+    input.network().set_layout("NCHW");
+    function = p.build();
+    inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
+
+    InferenceEngine::TensorDesc rgbx_plane_desc(InferenceEngine::Precision::U8,
+                                                {1, 4, h, w},
+                                                InferenceEngine::Layout::NHWC);
+    legacy_network.getInputsInfo().begin()->second->setLayout(InferenceEngine::NHWC);
+    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setColorFormat(InferenceEngine::ColorFormat::BGRX);
+    legacy_input_blobs["input1"] = InferenceEngine::make_shared_blob<uint8_t>(rgbx_plane_desc, rgbx_input.data());
+
+    Exec();
+}
+
+TEST_F(ReferencePreprocessLegacyTest, rgbx_to_bgr) {
+    const int h = 160;
+    const int w = 160;
+    auto rgbx_input = std::vector<uint8_t>(h * w * 4, 0);
+    for (auto i = 0; i < h * w * 4; i++) {
+        rgbx_input[i] = i % 256;
+    }
+    function = create_simple_function(element::f32, Shape{1, 3, h, w});
+    auto f2 = create_simple_function(element::f32, Shape{1, 3, h, w});
+    legacy_network = InferenceEngine::CNNNetwork(f2);
+
+    auto p = PrePostProcessor(function);
+    auto& input = p.input();
+    input.tensor().set_color_format(ColorFormat::RGBX).set_element_type(element::u8);
+    input.preprocess().convert_color(ColorFormat::BGR);
+    input.network().set_layout("NCHW");
+    function = p.build();
+    inputData.emplace_back(element::u8, Shape{1, h, w, 4}, rgbx_input.data());
+
+    InferenceEngine::TensorDesc rgbx_plane_desc(InferenceEngine::Precision::U8,
+                                                {1, 4, h, w},
+                                                InferenceEngine::Layout::NHWC);
+    legacy_network.getInputsInfo().begin()->second->setLayout(InferenceEngine::NHWC);
+    auto &preProcess = legacy_network.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setColorFormat(InferenceEngine::ColorFormat::RGBX);
+    legacy_input_blobs["input1"] = InferenceEngine::make_shared_blob<uint8_t>(rgbx_plane_desc, rgbx_input.data());
+
+    Exec();
+}
+
 class ConvertNV12WithLegacyTest: public ReferencePreprocessLegacyTest {
 public:
     // Create OV20 function with pre-processing +  legacy network + reference NV12 inputs

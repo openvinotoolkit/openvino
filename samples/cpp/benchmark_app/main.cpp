@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
 
         slog::info << "InferenceEngine: " << GetInferenceEngineVersion() << slog::endl;
         slog::info << "Device info: " << slog::endl;
-        std::cout << ie.GetVersions(device_name) << std::endl;
+        slog::info << ie.GetVersions(device_name) << slog::endl;
 
         // ----------------- 3. Setting device configuration
         // -----------------------------------------------------------
