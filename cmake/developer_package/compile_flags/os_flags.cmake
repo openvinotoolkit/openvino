@@ -44,7 +44,7 @@ macro(ie_deprecated_no_errors)
             set(ie_c_cxx_deprecated_no_errors "/Qdiag-warning:1478,1786")
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             # show 4996 only for /w4
-            set(ie_c_cxx_deprecated_no_errors "/w44996")
+            set(ie_c_cxx_deprecated_no_errors "/wd4146 /wd4996")
         endif()
     else()
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
