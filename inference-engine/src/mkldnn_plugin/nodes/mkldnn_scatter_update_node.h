@@ -31,6 +31,9 @@ public:
         return false;
     }
 
+    bool needPrepareParams() const override;
+    void executeDynamicImpl(mkldnn::stream strm) override;
+
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
@@ -40,10 +43,7 @@ private:
     inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
-    const size_t DATA_ID = 0;
-    const size_t INDICES_ID = 1;
-    const size_t UPDATE_ID = 2;
-    const size_t AXIS_ID = 3;
+    enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
 
     // if axis can be set other than default 0.
     bool axisRelaxed = false;
