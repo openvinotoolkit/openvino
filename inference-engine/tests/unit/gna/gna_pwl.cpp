@@ -104,7 +104,7 @@ TEST_F(PwlTest, sigmoid) {
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActSigmoid), -SIGMOID_DOMAIN, SIGMOID_DOMAIN, 1, pwl));
     ASSERT_TRUE(Check(DnnActivation::fromType(kActSigmoid), 100, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, 1, pwl));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActSigmoid), -SIGMOID_DOMAIN, SIGMOID_DOMAIN, 0, pwl));
-    double err_pct = 0.0046;
+    double err_pct = 0.0047;
     ASSERT_TRUE(Check(DnnActivation::fromType(kActSigmoid), 100, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, err_pct, pwl));
     EXPECT_FALSE(GetPwl(DnnActivation::fromType(kActSigmoid), -SIGMOID_DOMAIN, SIGMOID_DOMAIN, err_pct, pwl, PWL_MAX_ITERATIONS_DEFAULT));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActSigmoid), -SIGMOID_DOMAIN, SIGMOID_DOMAIN, err_pct, pwl));
@@ -121,7 +121,7 @@ TEST_F(PwlTest, tanh) {
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActTanh), -TANH_DOMAIN, TANH_DOMAIN, 1, pwl));
     ASSERT_TRUE(Check(DnnActivation::fromType(kActTanh), 100, -TANH_DOMAIN, TANH_DOMAIN, 1, pwl));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActTanh), -TANH_DOMAIN, TANH_DOMAIN, 0, pwl));
-    double err_pct = 0.0046;
+    double err_pct = 0.0047;
     ASSERT_TRUE(Check(DnnActivation::fromType(kActTanh), 100, -TANH_DOMAIN, TANH_DOMAIN, err_pct, pwl));
     EXPECT_FALSE(GetPwl(DnnActivation::fromType(kActTanh), -TANH_DOMAIN, TANH_DOMAIN, err_pct, pwl, PWL_MAX_ITERATIONS_DEFAULT));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActTanh), -TANH_DOMAIN, TANH_DOMAIN, err_pct, pwl));
@@ -138,7 +138,7 @@ TEST_F(PwlTest, softsign) {
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActSoftSign), -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, 1, pwl));
     ASSERT_TRUE(Check(DnnActivation::fromType(kActSoftSign), 100, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, 1, pwl));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActSoftSign), -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, 0, pwl));
-    double err_pct = 0.0071;
+    double err_pct = 0.0073;
     ASSERT_TRUE(Check(DnnActivation::fromType(kActSoftSign), 100, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, err_pct, pwl));
     EXPECT_FALSE(GetPwl(DnnActivation::fromType(kActSoftSign), -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, err_pct, pwl, PWL_MAX_ITERATIONS_DEFAULT));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActSoftSign), -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, err_pct, pwl));
@@ -172,7 +172,7 @@ TEST_F(PwlTest, log) {
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActLog), 1e-10, LOG_DOMAIN, 1, pwl));
     ASSERT_TRUE(Check(DnnActivation::fromType(kActLog), 100, 1e-10, LOG_DOMAIN, 1, pwl));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActLog), 1e-10, LOG_DOMAIN, 0, pwl));
-    double err_pct = 0.013;
+    double err_pct = 0.0305;
     ASSERT_TRUE(Check(DnnActivation::fromType(kActLog), 100, 1e-10, LOG_DOMAIN, err_pct, pwl));
     EXPECT_FALSE(GetPwl(DnnActivation::fromType(kActLog), 1e-10, LOG_DOMAIN, err_pct, pwl, PWL_MAX_ITERATIONS_DEFAULT));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActLog), 1e-10, LOG_DOMAIN, err_pct, pwl));
@@ -189,7 +189,7 @@ TEST_F(PwlTest, neglog) {
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActNegLog), 1e-10, LOG_DOMAIN, 1, pwl));
     ASSERT_TRUE(Check(DnnActivation::fromType(kActNegLog), 100, 1e-10, LOG_DOMAIN, 1, pwl));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActNegLog), 1e-10, LOG_DOMAIN, 0, pwl));
-    double err_pct = 0.013;
+    double err_pct = 0.0305;
     ASSERT_TRUE(Check(DnnActivation::fromType(kActNegLog), 100, 1e-10, LOG_DOMAIN, err_pct, pwl));
     EXPECT_FALSE(GetPwl(DnnActivation::fromType(kActNegLog), 1e-10, LOG_DOMAIN, err_pct, pwl, PWL_MAX_ITERATIONS_DEFAULT));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActNegLog), 1e-10, LOG_DOMAIN, err_pct, pwl));
@@ -206,7 +206,7 @@ TEST_F(PwlTest, neghalflog) {
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActNegHalfLog), 1e-10, LOG_DOMAIN, 1, pwl));
     ASSERT_TRUE(Check(DnnActivation::fromType(kActNegHalfLog), 100, 1e-10, LOG_DOMAIN, 1, pwl));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActNegHalfLog), 1e-10, LOG_DOMAIN, 0, pwl));
-    double err_pct = 0.013;
+    double err_pct = 0.0305;
     ASSERT_TRUE(Check(DnnActivation::fromType(kActNegHalfLog), 100, 1e-10, LOG_DOMAIN, err_pct, pwl));
     EXPECT_FALSE(GetPwl(DnnActivation::fromType(kActNegHalfLog), 1e-10, LOG_DOMAIN, err_pct, pwl, PWL_MAX_ITERATIONS_DEFAULT));
     ASSERT_TRUE(GetPwl(DnnActivation::fromType(kActNegHalfLog), 1e-10, LOG_DOMAIN, err_pct, pwl));
