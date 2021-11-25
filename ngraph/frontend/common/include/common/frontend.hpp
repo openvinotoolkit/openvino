@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "frontend_manager_defs.hpp"
+#include "frontend_defs.hpp"
 #include "input_model.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/function.hpp"
