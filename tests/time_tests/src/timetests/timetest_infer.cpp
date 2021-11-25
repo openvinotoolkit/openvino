@@ -38,7 +38,7 @@ int runPipeline(const std::string &model, const std::string &device, const bool 
         }
       }
       {
-        if (not isCacheEnabled) {
+        if (!isCacheEnabled) {
             SCOPED_TIMER(create_exenetwork);
 
             if (TimeTest::fileExt(model) == "blob") {
