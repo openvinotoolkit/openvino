@@ -21,6 +21,7 @@ using namespace ngraph::pass;
 
 class IsAsymmetricOnWeightsFakeQuantizeTestValues {
 public:
+    TestTransformationParams params;
     ngraph::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ngraph::opset1::Constant> weights;
@@ -106,6 +107,7 @@ const std::vector<ngraph::PartialShape> suitablePartialShapes = {
 
 const std::vector<IsAsymmetricOnWeightsFakeQuantizeTestValues> testValues = {
     {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         ngraph::element::u8,
         {{ngraph::element::f32}, { 128.f }, { 0.02f }},
         op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),

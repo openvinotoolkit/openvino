@@ -540,3 +540,15 @@ TEST(cloneWithParamsChange, UndefinedAndDefaultParams) {
         cloneWithParamsChangeCpu(tc);
     }
 }
+
+TEST(makeDummyDesc, LowerBoundMoreThenDummyValie) {
+    Shape shape(ngraph::PartialShape{1, 3, 85, {144, 1444}});
+    auto desc = std::make_shared<DnnlBlockedMemoryDesc>(shape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nchw);
+    ASSERT_FALSE(desc->isDefined());
+
+    MemoryDescPtr definedDesc;
+    ASSERT_NO_THROW(definedDesc = MemoryDescUtils::makeDummyDesc(*desc));
+
+    ASSERT_TRUE(definedDesc->isDefined());
+    ASSERT_EQ((VectorDims{1, 3, 85, 144}), definedDesc->getShape().getStaticDims());
+}
