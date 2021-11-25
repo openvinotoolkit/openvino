@@ -27,7 +27,7 @@ add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PU
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -43,7 +43,7 @@ ie_add_vs_version_file(NAME ${TARGET_NAME}
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_common::static
         ngraph::builder inference_engine_transformations
         inference_engine pugixml::static inference_engine_plugin_api)
 

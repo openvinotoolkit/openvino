@@ -856,7 +856,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     bool non_grouped = prim->groups == 1;
     bool is_2d = input_layout.format.spatial_num() == 2;
     bool onednn_valid_post_ops = get_post_ops_count(node) <= 32;
-    bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
+    bool use_onednn_impls = _optimization_attributes.use_onednn_impls && input_layout.data_type != data_types::f32;
     bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
 
     if (use_onednn_impls && onednn_valid_post_ops) {
