@@ -18,8 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, RemoveConcatZeroDimInputStaticShape) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RemoveConcatZeroDimInputStaticShape) {
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     int64_t axis = 1;
@@ -27,27 +26,18 @@ TEST(TransformationTests, RemoveConcatZeroDimInputStaticShape) {
         auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 0, 3});
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
 
-        f = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        function = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
 
-        ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input3}, axis);
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3});
+        function_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3});
     }
-
-    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const auto res = fc.compare(f, f_ref);
-    ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RemoveConcatZeroDimInputSubgraph) {
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     int64_t axis = 1;
@@ -56,27 +46,18 @@ TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph) {
         auto abs = std::make_shared<ov::opset8::Abs>(in_abs);
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, abs, input3}, axis);
 
-        f = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3, in_abs});
+        function = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3, in_abs});
 
-        ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input3}, axis);
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3});
+        function_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3});
     }
-
-    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const auto res = fc.compare(f, f_ref);
-    ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph2) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RemoveConcatZeroDimInputSubgraph2) {
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, ov::Dimension::dynamic(), 3});
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 3});
     auto abs = std::make_shared<ov::opset8::Abs>(input1);
@@ -86,23 +67,15 @@ TEST(TransformationTests, RemoveConcatZeroDimInputSubgraph2) {
         auto mul = std::make_shared<ov::opset8::Multiply>(in_mul, abs);
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{mul, input3}, axis);
 
-        f = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3, in_mul});
+        function = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input3, in_mul});
 
-        ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input3}, axis);
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input3});
+        function_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input3});
     }
-
-    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const auto res = fc.compare(f, f_ref);
-    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, RemoveConcatZeroDimInputPartiallyKnowShape) {
@@ -135,8 +108,7 @@ TEST(TransformationTests, RemoveConcatZeroDimInputPartiallyKnowShape) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
-TEST(TransformationTests, RemoveConcatZeroDimInputDynamicRank) {
-    std::shared_ptr<ov::Function> f(nullptr), f_ref(nullptr);
+TEST_F(TransformationTestsF, RemoveConcatZeroDimInputDynamicRank) {
     auto input1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     auto input2 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
     auto input3 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape::dynamic());
@@ -144,23 +116,15 @@ TEST(TransformationTests, RemoveConcatZeroDimInputDynamicRank) {
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
 
-        f = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        function = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
 
-        ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
-        manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
         auto concat = std::make_shared<ov::opset8::Concat>(ov::OutputVector{input1, input2, input3}, axis);
-        f_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
+        function_ref = std::make_shared<ov::Function>(ov::NodeVector{concat}, ov::ParameterVector{input1, input2, input3});
     }
-    // the pass should be not applied
-    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const auto res = fc.compare(f, f_ref);
-    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, RemoveConcatZeroDimTwoInputs) {

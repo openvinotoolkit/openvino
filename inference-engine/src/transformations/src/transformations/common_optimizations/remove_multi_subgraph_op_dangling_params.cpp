@@ -19,8 +19,7 @@ NGRAPH_RTTI_DEFINITION(ov::pass::RemoveMultiSubGraphOpDanglingParams, "RemoveMul
 
 ov::pass::RemoveMultiSubGraphOpDanglingParams::RemoveMultiSubGraphOpDanglingParams() {
     MATCHER_SCOPE(RemoveMultiSubGraphOpDanglingParams);
-    auto multi_subgraph_op_pattern = pattern::wrap_type<
-        op::util::MultiSubGraphOp, opset8::Loop, opset8::TensorIterator, opset8::If>();
+    auto multi_subgraph_op_pattern = pattern::wrap_type<op::util::MultiSubGraphOp>();
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(m.get_match_root());
         if (multi_subgraph_op == nullptr) {
