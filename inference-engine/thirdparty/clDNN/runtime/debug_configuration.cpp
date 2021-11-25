@@ -109,7 +109,8 @@ debug_configuration::debug_configuration()
         , dump_layers(std::string())
         , dump_layers_dst_only(0)
         , dry_run_path(std::string())
-        , disable_onednn(0) {
+        , disable_onednn(0)
+        , base_batch_for_memory_estimation(-1) {
 #ifdef GPU_DEBUG_CONFIG
     get_common_debug_env_var("Verbose", verbose);
     get_gpu_debug_env_var("PrintMultiKernelPerf", print_multi_kernel_perf);
@@ -121,6 +122,7 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DumpLayersDstOnly", dump_layers_dst_only);
     get_gpu_debug_env_var("DisableOnednn", disable_onednn);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
+    get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
 
     if (dump_layers_path.length() > 0 && !disable_usm) {
         disable_usm = 1;
