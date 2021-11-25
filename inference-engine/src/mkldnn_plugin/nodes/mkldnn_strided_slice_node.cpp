@@ -55,13 +55,10 @@ MKLDNNStridedSliceNode::MKLDNNStridedSliceNode(const std::shared_ptr<ov::Node>& 
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    if (ov::is_type<ov::op::v1::StridedSlice>(op))
-        isStridedSliceOp = true;
-    else
-        isStridedSliceOp = false;
+    isStridedSliceOp = ov::is_type<ov::op::v1::StridedSlice>(op);
 
-    if (isStridedSliceOp && inputShapes.size() < 3 && inputShapes.size() > 4 ||
-            inputShapes.size() < 4 && inputShapes.size() > 5) {
+    if ((isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) ||
+            (!isStridedSliceOp && (inputShapes.size() < 4 || inputShapes.size() > 5))) {
         THROW_ERROR << "has incorrect number of input edges";
     }
     if (outputShapes.size() != 1) {
@@ -193,7 +190,9 @@ void MKLDNNStridedSliceNode::getSupportedDescriptors() {
         std::vector<int> endTmp(outputRank, -1);
         std::vector<int> strideTmp(outputRank, 1);
         size_t i = 0lu;
-        for (auto a : attrs.axes) {
+        for (auto& a : attrs.axes) {
+            if (a < 0)
+                a += outputRank;
             beginTmp[a] = attrs.begin[i];
             endTmp[a] = attrs.end[i];
             strideTmp[a] = attrs.stride[i++];
