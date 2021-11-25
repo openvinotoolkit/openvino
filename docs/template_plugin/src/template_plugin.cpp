@@ -152,14 +152,26 @@ InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::
     // So we need store as supported either unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
-    auto opset = ngraph::get_opset4();
-    for (auto&& node : transformedFunction->get_ops()) {
+    std::vector<ngraph::OpSet> opsets{ ngraph::get_opset1(),
+                                       ngraph::get_opset2(),
+                                       ngraph::get_opset3(),
+                                       ngraph::get_opset4(),
+                                       ngraph::get_opset5(),
+                                       ngraph::get_opset6(),
+                                       ngraph::get_opset7(),
+                                       ngraph::get_opset8() };
+    std::set<ngraph::NodeTypeInfo> op_super_set;
+    for (const auto &opset : opsets) {
+        const auto &type_info_set = opset.get_type_info_set();
+        op_super_set.insert(type_info_set.begin(), type_info_set.end());
+    }
+    for (auto &&node: transformedFunction->get_ops()) {
         // Extract transformation history from transformed node as list of nodes
-        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
+        for (auto &&fusedLayerName: ngraph::getFusedNamesVector(node)) {
             // Filter just nodes from original operation set
             // TODO: fill with actual decision rules based on whether kernel is supported by backend
             if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
-                if (opset.contains_type(friendlyNameToType[fusedLayerName])) {
+                if (op_super_set.find(friendlyNameToType[fusedLayerName]) != op_super_set.end()) {
                     supported.emplace(fusedLayerName);
                 } else {
                     unsupported.emplace(fusedLayerName);
