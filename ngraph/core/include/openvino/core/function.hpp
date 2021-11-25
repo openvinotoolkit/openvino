@@ -115,9 +115,9 @@ public:
     ov::Output<const ov::Node> input(size_t i) const;
     ov::Output<const ov::Node> input(const std::string& tensor_name) const;
 
-    void add_output(const std::string& tensor_name);
-    void add_output(const std::string& op_name, size_t output_idx);
-    void add_output(const ov::Output<ov::Node>& port);
+    ov::Output<ov::Node> add_output(const std::string& tensor_name);
+    ov::Output<ov::Node> add_output(const std::string& op_name, size_t output_idx);
+    ov::Output<ov::Node> add_output(const ov::Output<ov::Node>& port);
 
     void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
     void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
