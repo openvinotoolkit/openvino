@@ -24,6 +24,10 @@ ngraph::pass::SoftmaxDecomposition::SoftmaxDecomposition() {
         Output<Node> input;
         int64_t softmax_axis;
 
+        if (transformation_callback(m_softmax)) {
+            return false;
+        }
+
         if (auto m_softmax_v1 = std::dynamic_pointer_cast<ngraph::opset1::Softmax>(m_softmax)) {
             input = m_softmax_v1->input_value(0);
             softmax_axis = static_cast<int64_t>(m_softmax_v1->get_axis());
