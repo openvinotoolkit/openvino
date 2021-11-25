@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <frontend_manager/frontend_exceptions.hpp>
+#include <common/frontend_exceptions.hpp>
 
 namespace ov {
 namespace frontend {

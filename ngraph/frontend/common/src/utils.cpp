@@ -4,7 +4,7 @@
 
 #include "utils.hpp"
 
-#include "frontend_manager/frontend_exceptions.hpp"
+#include "common/frontend_exceptions.hpp"
 #include "plugin_loader.hpp"
 
 #ifndef _WIN32

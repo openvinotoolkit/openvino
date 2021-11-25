@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "frontend_manager/parameters.hpp"
+#include "common/parameters.hpp"
 
 BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<ov::Weights>);
 BWDCMP_RTTI_DEFINITION(ov::VariantWrapper<ov::Extensions>);

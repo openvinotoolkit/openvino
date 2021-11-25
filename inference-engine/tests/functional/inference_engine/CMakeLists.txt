@@ -19,7 +19,7 @@ set(LINK_LIBRARIES
     inference_engine_snippets
     offline_transformations
     inference_engine
-    frontend_manager
+    frontend_common
     pugixml::static
 )
 
