@@ -75,12 +75,12 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
     if input_precision:
         element_type = get_element_type(input_precision)
         for i in range(len(function.inputs)):
-            pre_post_processor.input(InputInfo(i).tensor(InputTensorInfo().set_element_type(element_type)))
+            pre_post_processor.input(i).tensor().set_element_type(element_type)
             app_inputs_info[i].element_type = element_type
     if output_precision:
         element_type = get_element_type(output_precision)
         for i in range(len(function.outputs)):
-            pre_post_processor.output(OutputInfo(i).tensor(OutputTensorInfo().set_element_type(element_type)))
+            pre_post_processor.output(i).tensor().set_element_type(element_type)
     user_precision_map = {}
     if input_output_precision:
         user_precision_map = _parse_arg_map(input_output_precision)
@@ -91,10 +91,10 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
         for name, element_type in user_precision_map.items():
             if name in input_names:
                 port = input_names.index(name)
-                pre_post_processor.input(InputInfo(port).tensor(InputTensorInfo().set_element_type(element_type)))
+                pre_post_processor.input(port).tensor().set_element_type(element_type)
             elif name in output_names:
                 port = output_names.index(name)
-                pre_post_processor.output(OutputInfo(port).tensor(OutputTensorInfo().set_element_type(element_type)))
+                pre_post_processor.output(port).tensor().set_element_type(element_type)
             else:
                 raise Exception(f"Node '{name}' does not exist in network")
 
