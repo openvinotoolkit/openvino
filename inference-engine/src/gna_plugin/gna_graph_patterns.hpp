@@ -12,6 +12,10 @@
 
 namespace GNAPluginNS {
 
+/**
+ * @brief checks if it's a reshape from 4d to 3d tensor inserted after convolution
+ * @param layer Non-functional layer
+ */
 inline bool IsReshapeFrom4dTo3d(InferenceEngine::CNNLayerPtr layer) {
     if (!LayerInfo(layer).isNonFunctional()) {
         return false;
@@ -19,8 +23,9 @@ inline bool IsReshapeFrom4dTo3d(InferenceEngine::CNNLayerPtr layer) {
 
     auto input_dims = layer->insData[0].lock()->getDims();
     auto output_dims = layer->outData[0]->getDims();
-    if (input_dims.size() != 4 || output_dims.size() != 3 ||
-        input_dims[2] != 1) {
+    // If H input dimension is not 1, it can't be just skipped during reshape to 3d
+    size_t h_dim = input_dims[2];
+    if (input_dims.size() != 4 || output_dims.size() != 3 || h_dim != 1) {
         return false;
     }
 
@@ -32,6 +37,10 @@ inline bool IsReshapeFrom4dTo3d(InferenceEngine::CNNLayerPtr layer) {
     return true;
 }
 
+/**
+ * @brief checks if it's a reshape from 3d to 4d tensor inserted before convolution
+ * @param layer Non-functional layer
+ */
 inline bool IsReshapeFrom3dTo4d(InferenceEngine::CNNLayerPtr layer) {
     if (!LayerInfo(layer).isNonFunctional()) {
         return false;
@@ -52,8 +61,14 @@ inline bool IsReshapeFrom3dTo4d(InferenceEngine::CNNLayerPtr layer) {
 }
 
 /**
- * @brief searchs for a pattern: Permute(0,3,1,2) -> ... -> Convolution -> ... -> Permute(0,2,3,1) or
- *        Reshape -> ... -> Convolution -> ... -> Permute(0,2,3,1) if Convolution has only one input dimension not equal to 1
+ * @brief searchs for a pattern: Permute(NHWC->NCHW) -> ... -> Convolution -> ... -> Permute(NCHW->NHWC) or
+ * Reshape(NHWC->NCHW) -> ... -> Convolution -> ... -> Reshape(NCHW->NHWC) if Convolution has only one input/output
+ * dimension not equal to 1,
+ * if the original convolution layout is 3d, 3d->4d/4d->3d reshapes will be inserted before/after the convolution,
+ * so the possible patterns will be:
+ * Permute(NWC->NCW) -> ... -> Reshape(NCW ->NCHW) -> Convolution -> Reshape(NCHW->NCW) ... -> Permute(NCW->NWC) or
+ * Reshape(NWC->NCW) -> ... -> Reshape(NCW ->NCHW) -> Convolution -> Reshape(NCHW->NCW) ... -> Reshape(NCW->NWC)
+ * if Convolution has only one input/output dimension not equal to 1.
  * @param layer convolution layer
  * @return the found permutations before and after convolution
  */
