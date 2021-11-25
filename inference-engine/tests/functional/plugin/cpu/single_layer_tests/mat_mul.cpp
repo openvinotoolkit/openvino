@@ -35,7 +35,8 @@ typedef std::tuple<
 
 using MatMulLayerCPUTestParamSet = std::tuple<MatMulLayerTestParamsSet,
                                               MatMulNodeType,
-                                              fusingSpecificParams>;
+                                              fusingSpecificParams,
+                                              CPUSpecificParams>;
 
 class MatMulLayerCPUTest : public testing::WithParamInterface<MatMulLayerCPUTestParamSet>,
                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -44,8 +45,9 @@ public:
         MatMulLayerTestParamsSet basicParamsSet;
         MatMulNodeType nodeType;
         fusingSpecificParams fusingParams;
+        CPUSpecificParams cpuParams;
 
-        std::tie(basicParamsSet, nodeType, fusingParams) = obj.param;
+        std::tie(basicParamsSet, nodeType, fusingParams, cpuParams) = obj.param;
 
         ElementType netType;
         ElementType inType, outType;
@@ -86,6 +88,7 @@ public:
         }
         result << ")";
         result << CpuTestWithFusing::getTestCaseName(fusingParams);
+        result << CPUTestsBase::getTestCaseName(cpuParams);
 
         return result.str();
     }
@@ -103,8 +106,10 @@ protected:
         MatMulLayerTestParamsSet basicParamsSet;
         MatMulNodeType nodeType;
         fusingSpecificParams fusingParams;
+        CPUSpecificParams cpuParams;
 
-        std::tie(basicParamsSet, nodeType, fusingParams) = this->GetParam();
+        std::tie(basicParamsSet, nodeType, fusingParams, cpuParams) = this->GetParam();
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         ShapeRelatedParams shapeRelatedParams;
         ElementType netType;
@@ -149,7 +154,7 @@ protected:
             inType = outType = netType;
 
         cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
-        selectedType = makeSelectedTypeStr("jit_gemm", outType);
+        selectedType = makeSelectedTypeStr(selectedType, outType);
 
         auto params = builder::makeDynamicParams(netType, {inShapeA});
 
@@ -183,6 +188,13 @@ const std::vector<ElementType> netPRCs {
     ElementType::f32,
     ElementType::bf16
 };
+
+std::vector<CPUSpecificParams> filterSpecificParams() {
+    std::vector<CPUSpecificParams> specificParams;
+    specificParams.push_back(CPUSpecificParams{{}, {}, {"jit_gemm"}, "jit_gemm"});
+
+    return specificParams;
+}
 
 /* ============= FullyConnected ============= */
 namespace fullyConnected {
@@ -233,7 +245,8 @@ const auto fullyConnectedParams2D = ::testing::Combine(::testing::ValuesIn(IS2D)
 
 const auto testParams2D = ::testing::Combine(fullyConnectedParams2D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet2D));
+                                             ::testing::ValuesIn(fusingParamsSet2D),
+                                             ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D, MatMulLayerCPUTest::getTestCaseName);
 
@@ -266,9 +279,57 @@ const auto fullyConnectedParams3D = ::testing::Combine(::testing::ValuesIn(IS3D)
 
 const auto testParams3D = ::testing::Combine(fullyConnectedParams3D,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::ValuesIn(fusingParamsSet3D));
+                                             ::testing::ValuesIn(fusingParamsSet3D),
+                                             ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D, MatMulLayerCPUTest, testParams3D, MatMulLayerCPUTest::getTestCaseName);
+
+std::vector<std::map<std::string, std::string>> filterAdditionalConfig_Brgemm() {
+    std::vector<std::map<std::string, std::string>> additionalConfig = {
+        std::map<std::string, std::string>{/* empty config */}
+    };
+    if (with_cpu_x86_bfloat16()) {
+        additionalConfig.push_back({{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}});
+    }
+
+    return additionalConfig;
+}
+
+const std::vector<ShapeRelatedParams> IS2D_Brgemm = {
+    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {false, false}},
+    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
+    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {false, true}},
+    {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
+
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, false}},
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+    {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, true}},
+};
+
+std::vector<CPUSpecificParams> filterSpecificParams_Brgemm() {
+    std::vector<CPUSpecificParams> specificParams;
+    if (with_cpu_x86_avx512_core()) {
+        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
+    }
+
+    return specificParams;
+}
+
+const auto fullyConnectedParams2D_Brgemm = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm),
+                                                       ::testing::Values(ElementType::f32),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(ElementType::undefined),
+                                                       ::testing::Values(helpers::InputLayerType::CONSTANT),
+                                                       ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                                       ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+
+const auto testParams2D_Brgemm = ::testing::Combine(fullyConnectedParams2D_Brgemm,
+                                             ::testing::Values(MatMulNodeType::FullyConnected),
+                                             ::testing::ValuesIn(fusingParamsSet2D),
+                                             ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+
+INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm, MatMulLayerCPUTest::getTestCaseName);
 
 } // namespace fullyConnected
 
@@ -459,7 +520,8 @@ const auto matMulParams = ::testing::Combine(::testing::ValuesIn(IS),
 
 const auto testParams = ::testing::Combine(matMulParams,
                                            ::testing::Values(MatMulNodeType::MatMul),
-                                           ::testing::ValuesIn(matmulFusingParams));
+                                           ::testing::ValuesIn(matmulFusingParams),
+                                           ::testing::ValuesIn(filterSpecificParams()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM, MatMulLayerCPUTest, testParams, MatMulLayerCPUTest::getTestCaseName);
 
