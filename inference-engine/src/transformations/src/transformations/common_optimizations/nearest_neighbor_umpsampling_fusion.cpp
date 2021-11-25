@@ -21,9 +21,9 @@ namespace {
 using namespace ngraph;
 
 std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t input_rank) {
-    if (input_rank < 4 || static_cast<uint64_t>(s.size()) != 2 + 2 * (input_rank - 2)) return {};
+    if (input_rank < 4 || s.size() != 2 + 2 * (input_rank - 2)) return {};
 
-    ngraph::Shape expected_shape(2 + 2 * (input_rank - 2), static_cast<size_t>(1));
+    ngraph::Shape expected_shape(2 + 2 * (input_rank - 2), 1);
     std::vector<float> scales(input_rank - 2);
     for (uint64_t i = 1; i <= input_rank - 2; ++i) {
         expected_shape[2 * i] = s[2 * i];
@@ -62,7 +62,7 @@ bool check_concat_1(const std::shared_ptr<opset8::Concat>& concat, const Shape& 
 
     std::vector<int64_t> expected_input_constants(num_of_input_values, 1);
     for (size_t i = 1; i <= rank - 2; ++i) {
-        expected_input_constants[2 * (i - 1) + 1] = static_cast<int64_t>(shape[i]);
+        expected_input_constants[2 * i - 1] = static_cast<int64_t>(shape[i]);
     }
     expected_input_constants.back() = static_cast<int64_t>(shape.back());
 
