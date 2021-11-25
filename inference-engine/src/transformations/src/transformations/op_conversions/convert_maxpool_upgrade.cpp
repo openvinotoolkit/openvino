@@ -15,7 +15,7 @@ ngraph::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
 
     auto maxpool_v1_pattern = ngraph::pattern::wrap_type<ngraph::opset1::MaxPool>();
 
-    matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto maxpool_v1_node = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(m.get_match_root());
 
         if (!maxpool_v1_node)
@@ -36,8 +36,6 @@ ngraph::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
                                                                          maxpool_v1_node->get_auto_pad(),
                                                                          ov::element::i64,
                                                                          0);
-        auto fake_convert = std::make_shared<ngraph::opset1::Convert>(maxpool_v8_node->output(1),
-                                                                      maxpool_v8_node->get_index_element_type());
 
         maxpool_v8_node->set_friendly_name(maxpool_v1_node->get_friendly_name());
         maxpool_v1_node->output(0).replace(maxpool_v8_node->output(0));
@@ -46,4 +44,7 @@ ngraph::pass::ConvertMaxPool1ToMaxPool8::ConvertMaxPool1ToMaxPool8() {
 
         return true;
     };
+
+    auto m = std::make_shared<pattern::Matcher>(maxpool_v1_pattern, matcher_name);
+    register_matcher(m, callback);
 }
