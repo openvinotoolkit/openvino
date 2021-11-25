@@ -11,4 +11,5 @@ namespace LayerTestsDefinitions {
 TEST_P(DetectionOutputLayerTest, CompareWithRefs) {
     Run();
 };
+
 }  // namespace LayerTestsDefinitions
