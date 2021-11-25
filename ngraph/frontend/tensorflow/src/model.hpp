@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "frontend_manager/input_model.hpp"
-#include "frontend_manager/place.hpp"
+#include "common/input_model.hpp"
+#include "common/place.hpp"
 #include "tensorflow_frontend/graph_iterator.hpp"
 
 namespace ov {
