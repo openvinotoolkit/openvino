@@ -113,7 +113,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_39658,
         "OnnxBackendNodeModelTest.test_tile_cpu",
-        "OnnxBackendNodeModelTest.test_tile_precomputed_cpu",
     ),
     (
         xfail_issue_39662,
