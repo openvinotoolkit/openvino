@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <format_reader_ptr.h>
+
+#include <inference_engine.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -31,8 +34,8 @@ int main(int argc, char* argv[]) {
             std::cout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device>" << std::endl;
             return EXIT_FAILURE;
         }
-        const std::string model_path{argv[1]};
-        const std::string image_path{argv[2]};
+        const std::string input_model{argv[1]};
+        const std::string input_image_path{argv[2]};
         const std::string device_name{argv[3]};
         // -------------------------------------------------------------------
 
@@ -65,7 +68,7 @@ int main(int argc, char* argv[]) {
         // Read input image without resize
         FormatReader::ReaderPtr reader(image_path.c_str());
         if (reader.get() == nullptr) {
-            std::cout << "Image " + image_path + " cannot be read!" << std::endl;
+            std::cout << "Image " + input_image_path + " cannot be read!" << std::endl;
             return 1;
         }
 
@@ -202,6 +205,9 @@ int main(int argc, char* argv[]) {
         std::cerr << ex.what() << std::endl;
         return EXIT_FAILURE;
     }
-
+    std::cout << std::endl
+              << "This sample is an API example, for any performance measurements "
+                 "please use the dedicated benchmark_app tool"
+              << std::endl;
     return EXIT_SUCCESS;
 }
