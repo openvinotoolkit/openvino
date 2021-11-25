@@ -27,7 +27,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
                            "Conv2DBackpropInput data format is neither NHWC nor NCHW");
 
     std::vector<int64_t> tf_input_sizes;
-    get_static_input_vec(node, 0, &tf_input_sizes);
+    get_const_input(node, 0, &tf_input_sizes);
 
     if (std::any_of(tf_input_sizes.begin(), tf_input_sizes.end(), [](int32_t size) {
             return size <= 0;
@@ -62,7 +62,7 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     auto& ng_filter_shape = ng_filter.get_shape();
     ng_kernel_shape[0] = ng_filter_shape[0];
     ng_kernel_shape[1] = ng_filter_shape[1];
-    Transpose<3, 2, 0, 1>(ng_filter);
+    transpose<3, 2, 0, 1>(ng_filter);
 
     CoordinateDiff ng_padding_below;
     CoordinateDiff ng_padding_above;

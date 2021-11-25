@@ -26,9 +26,12 @@
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
+#include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/mul_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
-#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
@@ -341,6 +344,13 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     pass_config->enable<ngraph::pass::ConvertGather8ToGather7>();
 
     if (useLpt) {
+        pass_config->set_callback<ngraph::pass::AddFakeQuantizeFusion,
+                                  ngraph::pass::MulFakeQuantizeFusion,
+                                  ngraph::pass::FakeQuantizeMulFusion>([](const_node_ptr &node) -> bool {
+            std::string errMsg;
+            return !MKLDNNFakeQuantizeNode::isSupportedOperation(node, errMsg);
+        });
+
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
             return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
         });
