@@ -275,10 +275,8 @@ TEST(type_prop, batch_to_space_incompatible_block_shape_input_values_with_data_s
     try {
         auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
         FAIL() << "Incompatible data shape and block_shape input values not detected";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(
-            error.what(),
-            "The input data's 'batch' axis size: 80 must be a multiple of product of block_shape values: 50");
+    } catch (const ov::Exception& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), "80 must be a multiple of divisor: 50");
     } catch (...) {
         FAIL() << "Data shape and block_shape input values check failed for unexpected reason";
     }

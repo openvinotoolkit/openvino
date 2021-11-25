@@ -20,8 +20,7 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes,
                  const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data = {}) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
-
+    using ValType = typename std::iterator_traits<typename T::iterator>::value_type::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4 && output_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
     const auto& block_shape = input_shapes[1];
@@ -83,34 +82,8 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
             NODE_VALIDATION_CHECK(op,
                                   crops_begin_vals_valid && crops_end_vals_valid,
                                   "Elements of crops_begin and crops_end inputs must be greater or equal to zero.");
-
-            int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
-
-            if (data_shape[0].is_static()) {
-                NODE_VALIDATION_CHECK(op,
-                                      data_shape[0].get_length() % block_prod == 0,
-                                      "The input data's 'batch' axis size: ",
-                                      data_shape[0],
-                                      " must be a multiple of",
-                                      " product of block_shape values: ",
-                                      block_prod);
-                const bool is_valid_crops_and_shape =
-                    crops_begin_val[0] + crops_end_val[0] <= block_val[0] * data_shape[0].get_length();
-                NODE_VALIDATION_CHECK(op,
-                                      is_valid_crops_and_shape,
-                                      "crops_begin[0] + crops_end[0] must be less or equal to "
-                                      "block_shape[0] * input_shape[0]");
-                output_shape[0] = data_shape[0].get_length() / block_prod;
-
-            } else {
-                if (data_shape[0] == ov::Dimension::dynamic())
-                    output_shape[0] = ov::Dimension::dynamic();
-                else
-                    output_shape[0] = ov::Dimension{data_shape[0].get_min_length() / block_prod , data_shape[0].get_max_length() / block_prod };
-            }
-
-            for (size_t idx = 1; idx < data_shape.size(); idx++) {
-                if (data_shape[idx].is_static()) {
+            if (data_shape.is_static()) {
+                for (size_t idx = 0; idx < data_shape.size(); idx++) {
                     const bool is_valid_crops_and_shape =
                         crops_begin_val[idx] + crops_end_val[idx] <= block_val[idx] * data_shape[idx].get_length();
                     NODE_VALIDATION_CHECK(op,
@@ -118,8 +91,18 @@ void shape_infer(const ov::op::v1::BatchToSpace* op,
                                           "crops_begin[i] + crops_end[i] must be less or equal to "
                                           "block_shape[i] * input_shape[i]");
                 }
-                output_shape[idx] = data_shape[idx] * DimType{block_val[idx]} - DimType{crops_begin_val[idx]} -
-                                    DimType{crops_end_val[idx]};
+            }
+
+            int64_t block_prod = std::accumulate(begin(block_val), end(block_val), 1, std::multiplies<int64_t>());
+            if (data_shape[0] == ov::Dimension::dynamic())
+                output_shape[0] = ov::Dimension::dynamic();
+            else
+                output_shape[0] = data_shape[0] / static_cast<ValType>(block_prod);
+
+            for (size_t idx = 1; idx < data_shape.size(); idx++) {
+                output_shape[idx] = data_shape[idx] * static_cast<ValType>(block_val[idx]) -
+                                    static_cast<ValType>(crops_begin_val[idx]) -
+                                    static_cast<ValType>(crops_end_val[idx]);
             }
         }
     } else {

@@ -18,7 +18,8 @@ template <class T>
 void shape_infer(const ov::op::v0::DepthToSpace* op,
                  const std::vector<T>& input_shapes,
                  std::vector<T>& output_shapes) {
-    using DimType = typename std::iterator_traits<typename T::iterator>::value_type;
+    using ValType = typename std::iterator_traits<typename T::iterator>::value_type::value_type;
+
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
 
     const auto& data_shape = input_shapes[0];
@@ -39,22 +40,12 @@ void shape_infer(const ov::op::v0::DepthToSpace* op,
         output_shape.resize(data_shape.size());
 
         output_shape[0] = data_shape[0];
-        if (data_shape[1].is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  !(data_shape[1].get_length() % divider),
-                                  "DepthToSpace: The input data's 'channels' axis size: ",
-                                  data_shape[1],
-                                  " must be a multiple to divider: ",
-                                  divider);
-            output_shape[1] = data_shape[1].get_length() / divider;
-        } else {
-            if (data_shape[1] == ov::Dimension::dynamic())
-                output_shape[1] = ov::Dimension::dynamic();
-            else
-                output_shape[1] = ov::Dimension{data_shape[1].get_min_length() / static_cast<int64_t>(divider), data_shape[1].get_max_length() / static_cast<int64_t>(divider)};
-        }
+        if (data_shape[1] == ov::Dimension::dynamic())
+            output_shape[1] = ov::Dimension::dynamic();
+        else
+            output_shape[1] = data_shape[1] / static_cast<ValType>(divider);
         for (size_t i = 2; i < output_shape.size(); i++) {
-            output_shape[i] = data_shape[i] * DimType{static_cast<int64_t>(block_size)};
+            output_shape[i] = data_shape[i] * static_cast<ValType>(block_size);
         }
 
     } else {
