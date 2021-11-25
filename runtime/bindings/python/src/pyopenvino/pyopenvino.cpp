@@ -32,6 +32,10 @@
 #include "pyopenvino/core/version.hpp"
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
+#include "pyopenvino/graph/frontend/frontend.hpp"
+#include "pyopenvino/graph/frontend/frontend_manager.hpp"
+#include "pyopenvino/graph/frontend/inputmodel.hpp"
+#include "pyopenvino/graph/frontend/place.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/layout_helpers.hpp"
 #include "pyopenvino/graph/ops/constant.hpp"
@@ -89,6 +93,18 @@ PYBIND11_MODULE(pyopenvino, m) {
     py::module m_preprocess =
         m.def_submodule("preprocess", "Package openvino.impl.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
+    py::module m_frontend =
+            m.def_submodule("frontend", "Package openvino.impl.frontend that wraps ov::frontend");
+    regclass_graph_InitializationFailureFrontEnd(m_frontend);
+    regclass_graph_GeneralFailureFrontEnd(m_frontend);
+    regclass_graph_OpConversionFailureFrontEnd(m_frontend);
+    regclass_graph_OpValidationFailureFrontEnd(m_frontend);
+    regclass_graph_NotImplementedFailureFrontEnd(m_frontend);
+    regclass_graph_FrontEndManager(m_frontend);
+    regclass_graph_FrontEnd(m_frontend);
+    regclass_graph_InputModel(m_frontend);
+    regclass_graph_Place(m_frontend);
+
     regclass_graph_Function(m);
     regmodule_graph_passes(m);
     regmodule_graph_util(m);
