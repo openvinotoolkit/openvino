@@ -49,6 +49,7 @@ double first_deriv_softsign(const double x) { return(1.0 / ((1.0 + fabs(x)) * (1
 double relu(const double x) { if (x < 0) { return(0.0); } else { return(x); } }
 double leaky_relu(const double x) { if (x < 0.0) { return(LEAKYRELU_SLOPE*x); } else { return(x); } }
 double clipping(const double x, const double lbound, const double ubound) { return((x < lbound)?lbound:((x > ubound)?ubound:x)); }
+double F(const DnnActivation& activation_type, double x);
 
 inline double first_deriv_power(const double x, const std::tuple<double, double, double>& args) {
     //scale * exponent * (offset + scale * x)^(exponent - 1)
@@ -97,26 +98,29 @@ bool pivot_search(std::vector<pwl_t>& result,
     double delta = 1.0;
 
     for (int i = 0; i < N; i++) {
-        t[i].push_back(alpha_0 + (static_cast<double>((i + 1)) / static_cast<double>((N + 1))) * (alpha_N - alpha_0));
+        t[i].resize(2);
+        t[i][1] = alpha_0 + (static_cast<double>((i + 1)) / static_cast<double>((N + 1))) * (alpha_N - alpha_0);
+    }
+
+    for (int i = 0; i <= N; i++) {
+        alpha[i].resize(2);
+        epsilon[i].resize(2);
+        d[i].resize(2);
     }
 
     while (true) {
         // Figure 4:  Box #2
-        alpha[0].resize(j + 1);
-        alpha[0][j] = alpha_0;
+        alpha[0][1] = alpha_0;
         for (int i = 1; i < N; i++) {
-            alpha[i].resize(j + 1);
-            alpha[i][j] = (f(t[i - 1][j]) - f(t[i][j]) + first_deriv_f(t[i][j]) * t[i][j] - first_deriv_f(t[i - 1][j]) * t[i - 1][j])
-                / (first_deriv_f(t[i][j]) - first_deriv_f(t[i - 1][j]));
+            alpha[i][1] = (f(t[i - 1][1]) - f(t[i][1]) + first_deriv_f(t[i][1]) * t[i][1] - first_deriv_f(t[i - 1][1]) * t[i - 1][1])
+                / (first_deriv_f(t[i][1]) - first_deriv_f(t[i - 1][1]));
         }
-        alpha[N].resize(j + 1);
-        alpha[N][j] = alpha_N;
+        alpha[N][1] = alpha_N;
 
         // Figure 4:  Box #3
         for (int i = 0; i < N; i++) {
-            epsilon[i].resize(j + 1);
-            epsilon[i][j] = sgn * (first_deriv_f(t[i][j]) * (alpha[i][j] - t[i][j]) + f(t[i][j]) - f(alpha[i][j]));
-            if (std::isnan(epsilon[i][j])) {
+            epsilon[i][1] = sgn * (first_deriv_f(t[i][1]) * (alpha[i][1] - t[i][1]) + f(t[i][1]) - f(alpha[i][1]));
+            if (std::isnan(epsilon[i][1])) {
                 gnalog() << "Failed to converge in pivot_search!\n";
 #ifdef GNA_DEBUG
                 auto end = std::chrono::high_resolution_clock::now();
@@ -126,9 +130,9 @@ bool pivot_search(std::vector<pwl_t>& result,
                 return false;
             }
         }
-        epsilon[N].resize(j + 1);
-        epsilon[N][j] = sgn * (first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + f(t[N - 1][j]) - f(alpha[N][j]));
-        if (std::isnan(epsilon[N][j])) {
+
+        epsilon[N][1] = sgn * (first_deriv_f(t[N - 1][1]) * (alpha[N][1] - t[N - 1][1]) + f(t[N - 1][1]) - f(alpha[N][1]));
+        if (std::isnan(epsilon[N][1])) {
             gnalog() << "Failed to converge in pivot_search!\n";
 #ifdef GNA_DEBUG
             auto end = std::chrono::high_resolution_clock::now();
@@ -140,30 +144,31 @@ bool pivot_search(std::vector<pwl_t>& result,
 
         // Figure 4:  Test for completion
         max_epsilon_prev = max_epsilon;
-        max_epsilon = std::abs(epsilon[0][j]);
-        min_epsilon = std::abs(epsilon[0][j]);
+        max_epsilon = std::abs(epsilon[0][1]);
+        min_epsilon = std::abs(epsilon[0][1]);
         for (int i = 1; i < N + 1; i++) {
-            if (std::abs(epsilon[i][j]) > max_epsilon) max_epsilon = std::abs(epsilon[i][j]);
-            if (std::abs(epsilon[i][j]) < min_epsilon) min_epsilon = std::abs(epsilon[i][j]);
+            if (std::abs(epsilon[i][1]) > max_epsilon) max_epsilon = std::abs(epsilon[i][1]);
+            if (std::abs(epsilon[i][1]) < min_epsilon) min_epsilon = std::abs(epsilon[i][1]);
         }
+
         if (max_iteration_number != 0 && j > max_iteration_number || max_epsilon - min_epsilon < threshold * min_epsilon) {
             pwl_t value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
             for (int i = 0; i < N; i++) {
                 double val, val_next;
-                value.t = t[i][j];
-                value.alpha = alpha[i][j];
+                value.t = t[i][1];
+                value.alpha = alpha[i][1];
                 val = sgn * first_deriv_f(value.t) * (value.alpha - value.t) + sgn * f(value.t) - epsilon_final;
-                val_next = sgn * first_deriv_f(value.t) * (alpha[i + 1][j] - value.t) + sgn * f(value.t) - epsilon_final;
+                val_next = sgn * first_deriv_f(value.t) * (alpha[i + 1][1] - value.t) + sgn * f(value.t) - epsilon_final;
                 value.beta = val;
-                value.m = (val_next - val) / (alpha[i + 1][j] - value.alpha);
+                value.m = (val_next - val) / (alpha[i + 1][1] - value.alpha);
                 value.b = (val - value.m * value.alpha);
                 result.push_back(value);
             }
             value.t = value.m = value.b = 0.0;
-            value.alpha = alpha[N][j];
-            value.beta = sgn * first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + sgn * f(t[N - 1][j]) - epsilon_final;
+            value.alpha = alpha[N][1];
+            value.beta = sgn * first_deriv_f(t[N - 1][1]) * (alpha[N][1] - t[N - 1][1]) + sgn * f(t[N - 1][1]) - epsilon_final;
             result.push_back(value);
             if (max_iteration_number != 0 && j > max_iteration_number) {
                 gnalog() << "The maximum number (" << max_iteration_number << ") of iterations has been exceeded.\n";
@@ -184,15 +189,18 @@ bool pivot_search(std::vector<pwl_t>& result,
             return true;
         }
 
+        int jj = 1;
         if (j > 0) {
             if (max_epsilon > max_epsilon_prev) {
                 j--;
+                jj--;
                 delta /= 2;
             } else if (max_epsilon == max_epsilon_prev) {
                 if (!same_epsilon) {
                     same_epsilon = true;
                 } else {
                     j--;
+                    jj--;
                     delta /= 2;
                     same_epsilon = false;
                 }
@@ -201,19 +209,26 @@ bool pivot_search(std::vector<pwl_t>& result,
 
         // Figure 4:  Box #4
         for (int i = 0; i < N; i++) {
-            d[i].resize(j + 1);
-            d[i][j] = delta * (epsilon[i + 1][j] - epsilon[i][j]) /
-                ((epsilon[i + 1][j] / (alpha[i + 1][j] - t[i][j])) + (epsilon[i][j] / (t[i][j] - alpha[i][j])));
+            d[i][jj] = delta * (epsilon[i + 1][jj] - epsilon[i][jj]) /
+                ((epsilon[i + 1][jj] / (alpha[i + 1][jj] - t[i][jj])) + (epsilon[i][jj] / (t[i][jj] - alpha[i][jj])));
         }
 
         // Figure 4:  Box #5
         for (int i = 0; i < N; i++) {
-            t[i].resize(j + 2);
-            t[i][j + 1] = t[i][j] + d[i][j];
+            double tmp = t[i][jj];
+            t[i][1] = t[i][jj] + d[i][jj];
+            t[i][0] = tmp;
         }
-        t[N].resize(j + 2);
 
         j++;
+
+        if (jj == 1) {
+            for (int i = 0; i <= N; i++) {
+                alpha[i][0] = alpha[i][1];
+                epsilon[i][0] = epsilon[i][1];
+                d[i][0] = d[i][1];
+            }
+        }
     }
 }
 
@@ -368,6 +383,29 @@ double calculate_error_pct(const DnnActivation& activation_type,
     return(100.0 * std::abs(offset) / (max_val - min_val));
 }
 
+double F(const DnnActivation& activation_type, double x) {
+    switch (activation_type) {
+        case kActSigmoid:
+            return sigmoid(x);
+        case kActTanh:
+            return tanh(x);
+        case kActExp:
+            return exp(x);
+        case kActLog:
+            return log(x);
+        case kActNegLog:
+            return neglog(x);
+        case kActNegHalfLog:
+            return neghalflog(x);
+        case kActSoftSign:
+            return softsign(x);
+        case kActPow:
+            return pow(activation_type.args.pow.offset + activation_type.args.pow.scale * x, activation_type.args.pow.exponent);
+    }
+
+    IE_ASSERT(false);
+}
+
 inline double get_break_bound(const DnnActivation& activation_type) {
     double break_bound = 0.0;
     switch (activation_type) {
@@ -418,7 +456,7 @@ bool pwl_search(const DnnActivation& activation_type,
                 const double allowed_err_pct,
                 const int samples,
                 std::vector<pwl_t>& pwl,
-                const int pwl_max_num_segments,
+                int pwl_max_num_segments,
                 const int max_iteration_number) {
     pwl.resize(0);
     if (l_bound > u_bound ||
@@ -506,6 +544,41 @@ bool pwl_search(const DnnActivation& activation_type,
                 pwl[1].alpha = pwl[1].t = pwl[1].beta = std::numeric_limits<float>::infinity();
                 pwl[1].m = 1.0;
                 pwl[1].b = 0.0;
+        } else if (pwl_max_num_segments > PWL_MAX_NUM_SEGMENTS * 2/3) {
+            double break_bound = l_bound + (u_bound - l_bound) / 2;
+            int segments_number = std::max(static_cast<int>((F(activation_type, break_bound) - F(activation_type, l_bound)) /
+                (F(activation_type, u_bound) - F(activation_type, l_bound)) * pwl_max_num_segments), 16);
+            if (pwl_max_num_segments - segments_number < 16) {
+                segments_number = pwl_max_num_segments - 16;
+            }
+            if (!pwl_search(activation_type,
+                            l_bound,
+                            break_bound,
+                            threshold,
+                            allowed_err_pct,
+                            samples,
+                            pwl,
+                            segments_number,
+                            max_iteration_number)) {
+                return false;
+            }
+
+            std::vector<pwl_t> pwl2;
+            if (!pwl_search(activation_type,
+                            break_bound,
+                            u_bound,
+                            threshold,
+                            allowed_err_pct,
+                            samples,
+                            pwl2,
+                            pwl_max_num_segments - segments_number,
+                            max_iteration_number)) {
+                return false;
+            }
+
+            // merge
+            pwl.pop_back();  // remove final alpha and beta from first half
+            pwl.insert(pwl.end(), pwl2.begin(), pwl2.end());  // concatenate the two halves
         } else {
             using search_data_t = std::tuple<int, double, std::vector<pwl_t>>;
             auto search = [&](search_data_t& search_data) {
@@ -578,7 +651,9 @@ bool pwl_search(const DnnActivation& activation_type,
                     }
                 } else {
                     boundary.first = boundary.second;
-                    std::get<0>(boundary.second) = 2 * std::get<0>(boundary.second);
+                    std::get<0>(boundary.second) =
+                        std::min(2 * std::get<0>(boundary.second),
+                             pwl_max_num_segments > 0 ? pwl_max_num_segments : std::numeric_limits<int>::max());
                     next = &boundary.second;
                 }
             } while (std::get<0>(boundary.first) < std::get<0>(boundary.second));
@@ -625,9 +700,12 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  minInput,
                                  maxInput,
                                  PWL_DESIGN_THRESHOLD,
-                                 pwlMaxErrorPercent,
+                                 //pwlMaxErrorPercent,
+                                 0,
                                  PWL_DESIGN_SAMPLES,
-                                 pwl));
+                                 pwl,
+                                 PWL_MAX_NUM_SEGMENTS,
+                                 0));
             make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -639,9 +717,12 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  minInput,
                                  maxInput,
                                  PWL_DESIGN_THRESHOLD,
-                                 pwlMaxErrorPercent,
+                                 //pwlMaxErrorPercent,
+                                 0,
                                  PWL_DESIGN_SAMPLES,
-                                 pwl));
+                                 pwl,
+                                 PWL_MAX_NUM_SEGMENTS,
+                                 0));
             make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -653,9 +734,12 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  minInput,
                                  maxInput,
                                  PWL_DESIGN_THRESHOLD,
-                                 pwlMaxErrorPercent,
+                                 //pwlMaxErrorPercent,
+                                 0,
                                  PWL_DESIGN_SAMPLES,
-                                 pwl));
+                                 pwl,
+                                 PWL_MAX_NUM_SEGMENTS,
+                                 0));
             make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -680,11 +764,13 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  x_min,
                                  x_max,
                                  PWL_DESIGN_THRESHOLD,
-                                 pwlMaxErrorPercent,
+                                 //pwlMaxErrorPercent,
+                                 0,
                                  PWL_DESIGN_SAMPLES,
                                  pwl,
                                  PWL_MAX_NUM_SEGMENTS,
-                                 PWL_MAX_ITERATIONS_LOG));
+                                 //PWL_MAX_ITERATIONS_LOG
+                                 0));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -695,11 +781,13 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  x_min,
                                  x_max,
                                  PWL_DESIGN_THRESHOLD,
-                                 pwlMaxErrorPercent,
+                                 //pwlMaxErrorPercent,
+                                 0,
                                  PWL_DESIGN_SAMPLES,
                                  pwl,
                                  PWL_MAX_NUM_SEGMENTS,
-                                 PWL_MAX_ITERATIONS_LOG));
+                                 //PWL_MAX_ITERATIONS_LOG
+                                 0));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -710,11 +798,13 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  x_min,
                                  x_max,
                                  PWL_DESIGN_THRESHOLD,
-                                 pwlMaxErrorPercent,
+                                 //pwlMaxErrorPercent,
+                                 0,
                                  PWL_DESIGN_SAMPLES,
                                  pwl,
                                  PWL_MAX_NUM_SEGMENTS,
-                                 PWL_MAX_ITERATIONS_LOG));
+                                 //PWL_MAX_ITERATIONS_LOG
+                                 0));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -725,9 +815,12 @@ void PwlDesignOpt(const DnnActivation activation_type,
                                  x_min,
                                  x_max,
                                  PWL_DESIGN_THRESHOLD,
-                                 pwlMaxErrorPercent,
+                                 //pwlMaxErrorPercent,
+                                 0,
                                  PWL_DESIGN_SAMPLES,
-                                 pwl));
+                                 pwl,
+                                 PWL_MAX_NUM_SEGMENTS,
+                                 0));
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
@@ -752,14 +845,17 @@ void PwlDesignOpt(const DnnActivation activation_type,
             x_max = std::min(x_max, POW_DOMAIN);
 
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
-                auto maxError = pwlMaxErrorPercent > 0.015f ? 0.015f : pwlMaxErrorPercent;
+                //auto maxError = pwlMaxErrorPercent > 0.015f ? 0.015f : pwlMaxErrorPercent;
                 IE_ASSERT(pwl_search(activation_type,
                                      x_min,
                                      x_max,
                                      PWL_DESIGN_THRESHOLD,
-                                     maxError,
+                                     //maxError,
+                                     0,
                                      PWL_DESIGN_SAMPLES,
-                                     pwl));
+                                     pwl,
+                                     PWL_MAX_NUM_SEGMENTS,
+                                     0));
             }
 
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
