@@ -13,15 +13,57 @@
 
 namespace MKLDNNPlugin {
 
+class Interval {
+public:
+    Interval() = default;
+
+    Interval(Dim val) {
+        minValue = val;
+        maxValue = val;
+    }
+
+    Interval(Dim minVal, Dim maxVal) {
+        minValue = minVal;
+        maxValue = maxVal;
+    }
+
+    Interval(const std::initializer_list<Dim>& shape) {
+        auto it = shape.begin();
+        if (shape.size() == 1) {
+            minValue = *it;
+            maxValue = minValue;
+        } else if (shape.size() > 1) {
+            minValue = *it;
+            maxValue = *(++it);
+        }
+    }
+
+    bool isStatic() const {
+        return minValue == maxValue;
+    }
+
+    Dim getMinValue() const {
+        return minValue;
+    }
+
+    Dim getMaxValue() const {
+        return maxValue;
+    }
+
+private:
+    Dim minValue = 0;
+    Dim maxValue = 0;
+};
+
 class Shape {
 public:
     Shape() = default;
 
-    explicit Shape(const ngraph::PartialShape& shape) {
+    explicit Shape(const ov::PartialShape& shape) {
         minDims = shape.get_min_shape();
-        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(minDims.begin(), minDims.end(), minDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
         maxDims = shape.get_max_shape();
-        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ngraph::Interval::s_max == x ? UNDEFINED_DIM : x;});
+        std::transform(maxDims.begin(), maxDims.end(), maxDims.begin(), [](Dim x){ return ov::Interval::s_max == x ? UNDEFINED_DIM : x;});
         type = shape.is_static() ? ShapeType::Static : ShapeType::Dynamic;
 
         initDims();
@@ -31,6 +73,42 @@ public:
         minDims = shape;
         maxDims = shape;
         type = ShapeType::Static;
+
+        initDims();
+    }
+
+    explicit Shape(const std::initializer_list<Dim>& shape) {
+        minDims.assign(shape.begin(), shape.end());
+        maxDims = shape;
+        type = ShapeType::Static;
+
+        initDims();
+    }
+
+    explicit Shape(const std::vector<Interval>& shape) {
+        minDims.reserve(shape.size());
+        maxDims.reserve(shape.size());
+        type = ShapeType::Static;
+        for (auto dim : shape) {
+            minDims.emplace_back(dim.getMinValue());
+            maxDims.emplace_back(dim.getMaxValue());
+            if (!dim.isStatic())
+                type = ShapeType::Dynamic;
+        }
+
+        initDims();
+    }
+
+    explicit Shape(const std::initializer_list<Interval>& shape) {
+        minDims.reserve(shape.size());
+        maxDims.reserve(shape.size());
+        type = ShapeType::Static;
+        for (auto dim : shape) {
+            minDims.push_back(dim.getMinValue());
+            maxDims.push_back(dim.getMaxValue());
+            if (!dim.isStatic())
+                type = ShapeType::Dynamic;
+        }
 
         initDims();
     }
@@ -98,6 +176,13 @@ public:
         return dims;
     }
 
+    const Interval getInterval(size_t i) const {
+        if (i >= minDims.size()) {
+            IE_THROW() << "Shpae index " << i << " is out of bound " << minDims.size();
+        }
+        return Interval(minDims[i], maxDims[i]);
+    }
+
     bool isStatic() const {
         return type == ShapeType::Static;
     }
@@ -124,8 +209,8 @@ public:
         return size;
     }
 
-    ngraph::PartialShape toPartialShape() const {
-        using ngraph::Dimension;
+    ov::PartialShape toPartialShape() const {
+        using ov::Dimension;
         std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
         for (int i = 0; i < minDims.size(); i++) {
@@ -133,7 +218,7 @@ public:
             Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
             nGraphDims.emplace_back(minDim, maxDim);
         }
-        return ngraph::PartialShape(nGraphDims);
+        return ov::PartialShape(nGraphDims);
     }
 
     bool isCompatible(const VectorDims& vecDims) const;

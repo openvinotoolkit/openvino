@@ -637,10 +637,6 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNNode::initDescriptor(const NodeConfig& config) {
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
-        return;
-    }
     std::vector<MemoryDescPtr> inDescs;
     for (const auto& inConf : config.inConfs)
         inDescs.emplace_back(inConf.desc);
@@ -651,6 +647,10 @@ void MKLDNNNode::initDescriptor(const NodeConfig& config) {
 
     AttrPtr attr = initPrimitiveAttr();
 
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    if (!selectedPD) {
+        return;
+    }
     NodeConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
@@ -1335,8 +1335,9 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
 
 bool MKLDNNNode::inputShapesDefined() const {
     for (size_t i = 0; i < getParentEdges().size(); i++) {
-        if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined())
+        if (!getParentEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
             return false;
+        }
     }
     return true;
 }
