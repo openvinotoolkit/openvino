@@ -14,3 +14,5 @@ std::shared_ptr<ngraph::Function> nGraph;
 ...
 ngraph::pass::VisualizeTree("after.png").run_on_function(nGraph);     // Visualize the nGraph function to an image
 ```
+
+> **NOTE**: Graphviz is required for visualization to image.
