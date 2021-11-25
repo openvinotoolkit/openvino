@@ -14,6 +14,8 @@ namespace ov {
 namespace test {
 
 using InputShape = std::pair<ov::PartialShape, std::vector<ov::Shape>>;
+std::ostream& operator <<(std::ostream& os, const InputShape& inputShape);
+
 using ElementType = ov::element::Type_t;
 using Config = std::map<std::string, std::string>;
 using TargetDevice = std::string;
@@ -36,6 +38,7 @@ protected:
 
     virtual void configure_model();
     virtual void compile_model();
+    virtual void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes);
     virtual void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes);
     virtual void infer();
     virtual void validate();

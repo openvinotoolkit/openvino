@@ -16,6 +16,7 @@
 #include <numeric>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeSinking, "TransposeSinking", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeConvert, "TransposeConvert", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeReduction, "TransposeReduction", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFQReduction, "TransposeFQReduction", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeFuse, "TransposeFuse", 0);
@@ -59,6 +60,33 @@ std::shared_ptr<ngraph::opset6::Constant> get_reversed_order_constant(const std:
 }
 
 } // namespace
+
+ngraph::pass::TransposeConvert::TransposeConvert() {
+    MATCHER_SCOPE(TransposeConvert);
+
+    auto transpose_label = pattern::wrap_type<opset6::Transpose>({pattern::any_input(),
+                                                                  pattern::wrap_type<opset6::Constant>()},
+                                                                  pattern::consumers_count(1));
+    auto convert_label = pattern::wrap_type<opset6::Convert>({transpose_label});
+
+    matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher &m) {
+        const auto &pattern_to_output = m.get_pattern_value_map();
+        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
+        auto convert = pattern_to_output.at(convert_label).get_node_shared_ptr();
+
+        auto new_convert = convert->clone_with_new_inputs({transpose->input_value(0)});
+        auto new_transpose = transpose->clone_with_new_inputs({new_convert, transpose->input_value(1)});
+        register_new_node(new_transpose);
+
+        new_transpose->set_friendly_name(convert->get_friendly_name());
+        copy_runtime_info({transpose, convert}, {new_convert, new_transpose});
+        replace_node(convert, new_transpose);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(convert_label, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
 
 ngraph::pass::TransposeReduction::TransposeReduction() {
     MATCHER_SCOPE(TransposeReduction);
@@ -165,7 +193,7 @@ ngraph::pass::TransposeFQReduction::TransposeFQReduction() {
         auto new_fq = fq->clone_with_new_inputs(fq_inputs);
         new_ops.push_back(new_fq);
 
-        auto new_transpose = std::make_shared<ngraph::opset6::Transpose>(new_fq, transpose_order);
+        auto new_transpose = register_new_node<ngraph::opset6::Transpose>(new_fq, transpose_order);
         new_ops.push_back(new_transpose);
         new_transpose->set_friendly_name(fq->get_friendly_name());
 

@@ -23,7 +23,7 @@
         "runtime/lib/intel64/libHeteroPlugin.so",
         "runtime/lib/intel64/libMultiDevicePlugin.so",
         "runtime/lib/intel64/libngraph.dylib",
-        "runtime/lib/intel64/libfrontend_manager.dylib",
+        "runtime/lib/intel64/libfrontend_common.dylib",
         "runtime/lib/intel64/libir_ov_frontend.dylib",
         "runtime/lib/intel64/libonnx_ov_frontend.dylib",
         "runtime/lib/intel64/libpaddlepaddle_ov_frontend.dylib",

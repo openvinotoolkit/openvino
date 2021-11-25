@@ -31,7 +31,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml::static
-                                             inference_engine
                                              inference_engine_transformations
                                              inference_engine_lp_transformations
                                              ngraph)

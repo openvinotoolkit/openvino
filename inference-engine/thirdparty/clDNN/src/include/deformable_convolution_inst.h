@@ -21,6 +21,7 @@ public:
             : parent(prim, prog),
               split(this->get_primitive()->split()),
               depthwise_sep_opt(false),
+              transposed(false),
               groups(this->get_primitive()->groups) {
         support_padding_all(true);
     }
