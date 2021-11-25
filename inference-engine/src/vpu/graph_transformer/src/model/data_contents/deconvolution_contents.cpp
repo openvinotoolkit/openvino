@@ -156,7 +156,7 @@ void deconvolutionRelayout(
 
 DeconvolutionWeightsContent::DeconvolutionWeightsContent(
         const DataContent::Ptr& origContent,
-        DataDesc desc,
+        const DataDesc& desc,
         int KX, int KY,
         int IC, int OC) :
         _origContent(origContent), _desc(desc),
