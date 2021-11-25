@@ -63,7 +63,7 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
     size_t numConstUsers = constUsers.size();
 
     std::unordered_map<std::shared_ptr<ngraph::op::v0::Constant>, ConstProperties> consts = {
-        {op, { .needsBatchInterpretation = false, .swapOI = false, .hasGroupDimension = false}}
+        {op, {false, false, false}}
     };
 
     // handleConvWeights function is executed when one of the constant users is ConvolutionBackpropData or GroupConvolutionBackpropData.
