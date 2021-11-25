@@ -34,40 +34,6 @@ struct DeviceInformation {
     int batchForDevice;
 };
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-template <typename T>
-using ThreadSafeQueue = tbb::concurrent_queue<T>;
-#else
-template <typename T>
-class ThreadSafeQueue {
-public:
-    void push(T value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _queue.push(std::move(value));
-    }
-
-    bool try_pop(T& value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (!_queue.empty()) {
-            value = std::move(_queue.front());
-            _queue.pop();
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    bool empty() {
-        std::lock_guard<std::mutex> lock(_mutex);
-        return _queue.empty();
-    }
-
-protected:
-    std::queue<T>   _queue;
-    std::mutex      _mutex;
-};
-#endif
-
 class AutoBatchAsyncInferRequest;
 class AutoBatchExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
@@ -77,13 +43,13 @@ public:
         InferenceEngine::SoIInferRequestInternal   _inferRequest;
         InferenceEngine::StatusCode     _status = InferenceEngine::StatusCode::OK;
         int                             _batchSize;
-        ThreadSafeQueue<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
+        InferenceEngine::ThreadSafeQueue<std::pair<AutoBatchAsyncInferRequest*, InferenceEngine::Task>> _tasks;
         std::vector<InferenceEngine::Task> _completionTasks;
         std::thread                     _thread;
         std::condition_variable         _cond;
         std::mutex                      _mutex;
     };
-    using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
+    using NotBusyWorkerRequests = InferenceEngine::ThreadSafeQueue<WorkerInferRequest*>;
 
     explicit AutoBatchExecutableNetwork(const InferenceEngine::SoExecutableNetworkInternal& networkForDevice,
                                         const InferenceEngine::SoExecutableNetworkInternal& networkForDeviceWithoutBatch,

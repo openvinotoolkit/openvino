@@ -7,7 +7,6 @@
 
 #include <atomic>
 #include <mutex>
-#include <queue>
 #include <unordered_map>
 #include <map>
 #include <vector>
@@ -18,10 +17,6 @@
 #include <threading/ie_itask_executor.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "ie_icore.hpp"
-
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-# include <tbb/concurrent_queue.h>
-#endif
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -68,66 +63,6 @@ enum AutoLoadContextIndex {
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-template <typename T>
-using ThreadSafeQueue = tbb::concurrent_queue<T>;
-template <typename T>
-using ThreadSafeBoundedQueue = tbb::concurrent_bounded_queue<T>;
-#else
-template <typename T>
-class ThreadSafeQueue {
-public:
-    void push(T value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _queue.push(std::move(value));
-    }
-    bool try_pop(T& value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (!_queue.empty()) {
-            value = std::move(_queue.front());
-            _queue.pop();
-            return true;
-        } else {
-            return false;
-        }
-    }
-protected:
-    std::queue<T>   _queue;
-    std::mutex      _mutex;
-};
-template <typename T>
-class ThreadSafeBoundedQueue {
-public:
-    ThreadSafeBoundedQueue() = default;
-    bool try_push(T value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_capacity) {
-            _queue.push(std::move(value));
-        }
-        return _capacity;
-    }
-    bool try_pop(T& value) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        if (_capacity && !_queue.empty()) {
-            value = std::move(_queue.front());
-            _queue.pop();
-            return true;
-        } else {
-            return false;
-        }
-    }
-    void set_capacity(std::size_t newCapacity) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _capacity = newCapacity;
-    }
-
-protected:
-    std::queue<T>   _queue;
-    std::mutex      _mutex;
-    bool            _capacity = false;
-};
-#endif
-
 class MultiDeviceExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault,
                                      public InferenceEngine::ITaskExecutor {
 public:
@@ -137,7 +72,7 @@ public:
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
     };
-    using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
+    using NotBusyWorkerRequests = InferenceEngine::ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
     explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::SoExecutableNetworkInternal>&        networksPerDevice,
                                           const std::vector<DeviceInformation>&                                 networkDevices,
@@ -174,8 +109,8 @@ public:
     std::vector<DeviceInformation>                              _devicePriorities;
     const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::SoExecutableNetworkInternal>     _networksPerDevice;
-    ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
-    DeviceMap<std::unique_ptr<ThreadSafeQueue<InferenceEngine::Task>>> _inferPipelineTasksDeviceSpecific;
+    InferenceEngine::ThreadSafeQueue<InferenceEngine::Task>                      _inferPipelineTasks;
+    DeviceMap<std::unique_ptr<InferenceEngine::ThreadSafeQueue<InferenceEngine::Task>>> _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
