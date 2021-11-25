@@ -21,6 +21,7 @@ namespace util {
  * @param path Full or relative path to the plugin library
  * @return Reference to shared object
  */
+OPENVINO_UTIL_API
 std::shared_ptr<void> load_shared_object(const char* path);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -29,6 +30,7 @@ std::shared_ptr<void> load_shared_object(const char* path);
  * @param path Full or relative path to the plugin library
  * @return Reference to shared object
  */
+OPENVINO_UTIL_API
 std::shared_ptr<void> load_shared_object(const wchar_t* path);
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -38,6 +40,7 @@ std::shared_ptr<void> load_shared_object(const wchar_t* path);
  * @return A pointer to the function if found
  * @throws Exception if the function is not found
  */
+OPENVINO_UTIL_API
 void* get_symbol(const std::shared_ptr<void>& shared_object, const char* symbolName);
 
 }  // namespace util

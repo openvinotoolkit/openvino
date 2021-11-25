@@ -6,12 +6,15 @@
 
 #include <string>
 
+#include "openvino/util/util.hpp"
+
 namespace ov {
 namespace util {
 /// \brief Get the names environment variable as a string.
 /// \param env_var The string name of the environment variable to get.
 /// \return Returns string by value or an empty string if the environment
 ///         variable is not set.
+OPENVINO_UTIL_API
 std::string getenv_string(const char* env_var);
 
 /// \brief Get the names environment variable as an integer. If the value is not a
@@ -19,6 +22,7 @@ std::string getenv_string(const char* env_var);
 /// \param env_var The string name of the environment variable to get.
 /// \param default_value The value to return if the environment variable is not set.
 /// \return Returns value or default_value if the environment variable is not set.
+OPENVINO_UTIL_API
 int32_t getenv_int(const char* env_var, int32_t default_value = -1);
 
 /// \brief Get the names environment variable as a boolean. If the value is not a
@@ -29,6 +33,7 @@ int32_t getenv_int(const char* env_var, int32_t default_value = -1);
 /// \param env_var The string name of the environment variable to get.
 /// \param default_value The value to return if the environment variable is not set.
 /// \return Returns the boolean value of the environment variable.
+OPENVINO_UTIL_API
 bool getenv_bool(const char* env_var, bool default_value = false);
 }  // namespace util
 }  // namespace ov

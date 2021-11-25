@@ -51,7 +51,7 @@ ie_add_api_validator_post_build_step(TARGET ngraph_obj)
 
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
-target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference openvino::util pugixml::static ov_shape_inference)
+target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference pugixml::static ov_shape_inference)
 ie_mark_target_as_cc(ngraph_obj)
 
 ov_ncc_naming_style(FOR_TARGET ngraph_obj
@@ -95,7 +95,8 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>
-                                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+                                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                              $<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_library(ngraph INTERFACE)
 target_link_libraries(ngraph PRIVATE INTERFACE openvino::runtime)

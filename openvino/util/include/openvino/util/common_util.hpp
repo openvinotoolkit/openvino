@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "openvino/util/util.hpp"
+
 namespace ov {
 namespace util {
 
@@ -33,10 +35,13 @@ std::string vector_to_string(const T& v) {
     return os.str();
 }
 
+OPENVINO_UTIL_API
 std::string to_lower(const std::string& s);
 
+OPENVINO_UTIL_API
 std::string to_upper(const std::string& s);
 
+OPENVINO_UTIL_API
 size_t hash_combine(const std::vector<size_t>& list);
 
 /**
@@ -93,6 +98,7 @@ inline bool ends_with(const std::string& src, const char* with) {
     return 0 == strncmp(with, &src[so], wl);
 }
 
+OPENVINO_UTIL_API
 std::vector<std::string> split(const std::string& s, char delimiter, bool trim = false);
 
 template <typename T>
