@@ -93,8 +93,7 @@ PYBIND11_MODULE(pyopenvino, m) {
     py::module m_preprocess =
         m.def_submodule("preprocess", "Package openvino.impl.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
-    py::module m_frontend =
-            m.def_submodule("frontend", "Package openvino.impl.frontend that wraps ov::frontend");
+    py::module m_frontend = m.def_submodule("frontend", "Package openvino.impl.frontend that wraps ov::frontend");
     regclass_graph_InitializationFailureFrontEnd(m_frontend);
     regclass_graph_GeneralFailureFrontEnd(m_frontend);
     regclass_graph_OpConversionFailureFrontEnd(m_frontend);
