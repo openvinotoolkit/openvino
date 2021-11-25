@@ -31,3 +31,15 @@ class KaldiLoader(Loader):
 
         send_op_names_info('kaldi', graph)
         send_shapes_info('kaldi', graph)
+
+
+class KaldiExtractor(Loader):
+    id = 'KaldiExtractor'
+    enabled = True
+
+    def run_after(self):
+        return [KaldiLoader]
+
+    def load(self, graph: Graph):
+        update_extractors_with_extensions(kaldi_type_extractors)
+        extract_node_attrs(graph, lambda node: kaldi_extractor(node, kaldi_type_extractors))

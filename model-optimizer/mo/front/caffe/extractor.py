@@ -47,28 +47,20 @@ def caffe_extractor(node: Node, lowered_keys_map: dict) -> (bool, dict):
         return True, {}
     result = common_caffe_fields(node)
     supported = False
-    name = None
 
     layer_type = result['type'].lower()
     if layer_type in lowered_keys_map:
         layer_type = lowered_keys_map[layer_type]
         assert layer_type in caffe_type_extractors
-        name = layer_type
+        if layer_type:  # it is either standard or registered via CustomLayersMapping.xml
+            attrs = caffe_type_extractors[layer_type](node)
+            # intentionally as Python registry if not found returns None
+            if attrs is not None:
+                result.update(attrs)
+                supported = True
 
-    if name:  # it is either standard or registered via CustomLayersMapping.xml
-        attrs = caffe_type_extractors[name](node)
-        # intentionally as Python registry if not found returns None
-        if attrs is not None:
-            result.update(attrs)
-            supported = True
-
-    if not supported:
-        raise Error('Found custom layer "{}". Model Optimizer does not support this layer. '.format(node.id) +
-                    'Please, implement extension. ' +
-                    refer_to_faq_msg(45))
-
-    if 'infer' not in result or not result['infer']:
-        result.update(native_caffe_node_extractor(node))
+        if 'infer' not in result or not result['infer']:
+            result.update(native_caffe_node_extractor(node))
 
     phase_attr = check_phase(node)
     result.update(phase_attr)

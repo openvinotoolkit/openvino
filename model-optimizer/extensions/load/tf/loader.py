@@ -64,7 +64,6 @@ class TFLoader(Loader):
         if argv.tensorboard_logdir:
             tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
-        update_extractors_with_extensions(tf_op_extractors)
 
         try:
             protobuf2nx(graph, graph_def)
@@ -143,3 +142,15 @@ def graph_or_sub_graph_has_nhwc_ops(graph: Graph):
                 NHWC_conv_detected |= graph_or_sub_graph_has_nhwc_ops(node.soft_get(sub_graph_name))
 
     return NHWC_conv_detected
+
+
+class TFExtractor(Loader):
+    id = "TFExtractor"
+    enabled = True
+
+    def run_after(self):
+        return [TFLoader]
+
+    def load(self, graph: Graph):
+        update_extractors_with_extensions(tf_op_extractors)
+        extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))

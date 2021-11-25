@@ -34,7 +34,6 @@ class ONNXLoader(Loader):
         log.debug("Number of initializers in graph_def: {}".format(len(model_graph.initializer)))
         log.debug(
             "Number of real inputs in graph_def: {}".format(len(model_graph.input) - len(model_graph.initializer)))
-        update_extractors_with_extensions(onnx_op_extractors)
 
         try:
             protobuf2nx(graph, model_proto)
@@ -62,3 +61,15 @@ class ONNXLoader(Loader):
         extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
         send_op_names_info('onnx', graph)
         send_shapes_info('onnx', graph)
+
+
+class ONNXExtractor(Loader):
+    id = 'ONNXExtractor'
+    enabled = True
+
+    def run_after(self):
+        return [ONNXLoader]
+
+    def load(self, graph: Graph):
+        update_extractors_with_extensions(onnx_op_extractors)
+        extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
