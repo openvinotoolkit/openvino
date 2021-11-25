@@ -9,10 +9,10 @@ namespace {
 
 using namespace ngraph;
 
-class LSTMTranspose : public testing::WithParamInterface<std::string>, virtual public LayerTestsUtils::LayerTestsCommon {
+class LSTMTranspose : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        targetDevice = GetParam();
+        targetDevice = CommonTestUtils::DEVICE_MYRIAD;
 
         auto X = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 26, 64});
         auto hidden_state = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 1, 32});
@@ -27,11 +27,8 @@ protected:
     }
 };
 
-TEST_P(LSTMTranspose, CompareWithRefs) {
+TEST_F(LSTMTranspose, CompareWithRefs) {
     Run();
 }
-
-INSTANTIATE_TEST_SUITE_P(smoke_LSTMTranspose, LSTMTranspose,
-                         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 }  // namespace
