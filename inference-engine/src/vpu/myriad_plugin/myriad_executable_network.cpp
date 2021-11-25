@@ -99,7 +99,7 @@ ExecutableNetwork::ExecutableNetwork(
         }
         copyNetwork = ie::CNNNetwork(function);
         for (const auto& inputInf : network.getInputsInfo()) {
-            auto& copyInput = copyNetwork.getInputsInfo()[inputInf.first];
+            const auto& copyInput = copyNetwork.getInputsInfo()[inputInf.first];
             copyInput->setPrecision(inputInf.second->getPrecision());
             copyInput->setLayout(inputInf.second->getLayout());
             copyInput->getPreProcess() = inputInf.second->getPreProcess();
