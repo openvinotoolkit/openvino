@@ -93,6 +93,14 @@ protected:
         function = createFunction(isStatic);
     }
 
+    void generatePooledVector() {
+        std::random_device rd;
+        std::uniform_int_distribution<int32_t> distribution(1, 5);
+        for (int i = 0; i < pooledVector.size(); i++) {
+            pooledVector[i] = distribution(rd);
+        }
+    }
+
     std::shared_ptr<ngraph::Function> createFunction(bool seconeInputConst) {
         auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, { inputDynamicShapes[0] });
         params.front()->set_friendly_name("ParamsInput");
@@ -118,6 +126,7 @@ protected:
 
     void init_ref_function(std::shared_ptr<ov::Function> &funcRef, const std::vector<ov::Shape>& targetInputStaticShapes) override {
         if (function->get_parameters().size() == 2) {
+            generatePooledVector();
             funcRef = createFunction(true);
         }
         ngraph::helpers::resize_function(funcRef, targetInputStaticShapes);
@@ -438,7 +447,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolMax5DLayoutTest, AdaPoolLayerCPUTest
                          AdaPoolLayerCPUTest::getTestCaseName);
 
 
-// // in 1-channel cases  {..., 1, 1, 1} shape cannot be correctly resolved on oneDnn level, so it was removed from instances
+// in 1-channel cases  {..., 1, 1, 1} shape cannot be correctly resolved on oneDnn level, so it was removed from instances
 
 const std::vector<std::vector<InputShape>> input3DShape1Channel = {
      {{{-1, -1, -1},
@@ -463,7 +472,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg3DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1}, {2}}),
                                                  ::testing::ValuesIn(input3DShape1Channel)),
                                          ::testing::Values("avg"),
-                                         ::testing::Values(false),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}})),
@@ -479,7 +488,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg4DLayoutTest, AdaPoolLayerCPUTest,
                                                  }),
                                                  ::testing::ValuesIn(input4DShape1Channel)),
                                          ::testing::Values("avg"),
-                                         ::testing::Values(false),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}})),
@@ -493,7 +502,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg5DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1, 1, 1}, {2, 2, 2}}),
                                                  ::testing::ValuesIn(input5DShape1Channel)),
                                          ::testing::Values("avg"),
-                                         ::testing::Values(false),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}})),
@@ -508,7 +517,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max3DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1}, {2}}),
                                                  ::testing::ValuesIn(input3DShape1Channel)),
                                          ::testing::Values("max"),
-                                         ::testing::Values(false),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncw, x}, {ncw}, {}, {}})),
@@ -522,7 +531,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max4DLayoutTest, AdaPoolLayerCPUTest,
                                                          {1, 1}, {2, 2}}),
                                                  ::testing::ValuesIn(input4DShape1Channel)),
                                          ::testing::Values("max"),
-                                         ::testing::Values(false),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{nchw, x}, {nchw}, {}, {}})),
@@ -538,7 +547,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Max5DLayoutTest, AdaPoolLayerCPUTest,
                                                  }),
                                                  ::testing::ValuesIn(input5DShape1Channel)),
                                          ::testing::Values("max"),
-                                         ::testing::Values(false),
+                                         ::testing::Values(true),
                                          ::testing::ValuesIn(netPrecisions),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                  ::testing::Values(CPUSpecificParams{{ncdhw, x}, {ncdhw}, {}, {}})),
