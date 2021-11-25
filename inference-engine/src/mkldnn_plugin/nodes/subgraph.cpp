@@ -144,7 +144,7 @@ void MKLDNNSnippetNode::initSupportedPrimitiveDescriptors() {
 
         size_t offset = std::numeric_limits<size_t>::max();
         NodeConfig config;
-        config.dynBatchSupport = outputShapes[0].getRank() > 1 && inputShapes[0] == outputShapes[0];
+        config.dynBatchSupport = false;
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             PortConfig portConfig;
@@ -236,13 +236,6 @@ void MKLDNNSnippetNode::execute(dnnl::stream strm) {
         auto & child = getChildEdgesAtPort(i);
         auto &mem = child[0]->getMemory();
         outputs[i] = reinterpret_cast<uint8_t*>(mem.GetPtr());
-    }
-
-    if (isDynBatchEnabled) {
-        if ((tileRank > 1) && batchDimIdx == tensorRank - maxTileRank)
-            sch_dims[1] = static_cast<size_t>(batchToProcess());
-        else
-            dims_out[max_rank_out_desc_idx][batchDimIdx] = static_cast<size_t>(batchToProcess());
     }
 
     if (tensorRank == rank6D) {
@@ -393,9 +386,7 @@ void MKLDNNSnippetNode::define_shedule() {
         size_t minimalConcurrency = parallel_get_max_threads();
         size_t minimalJitWorkAmount = 256;
         size_t currentJitWorkAmount = dims_out[max_rank_out_desc_idx].back();
-        while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
-               // we shouldn't collapse batch dimension in case dynamic batch is enabled
-               (!isDynBatchEnabled || (outBlockingDesc_maxRank->getBlockDims().size() - collapsedDims > 2))) {
+        while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount) {
             if (dims_out[max_rank_out_desc_idx].size() - collapsedDims - 2 < 0)
                 break;
 
@@ -469,8 +460,6 @@ void MKLDNNSnippetNode::define_shedule() {
     for (size_t i = 0; i < dims_out[max_rank_out_desc_idx].size(); i++) {
         fullWorkAmount *= dims_out[max_rank_out_desc_idx][i];
     }
-
-    isDynBatchEnabled = config.dynBatchSupport;
 
     const int collapsedDims = find_dims_to_collapse();
     batchDimIdx = tensorRank - outBlockingDesc_maxRank->getBlockDims().size() + collapsedDims;

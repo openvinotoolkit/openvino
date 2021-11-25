@@ -56,6 +56,7 @@ struct Config {
 #endif
     TokenizationMode tokenizationMode = TokenizationMode::Subgraph;
     FusionsMode fusionsMode = FusionsMode::All;
+    std::string cache_dir{};
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();

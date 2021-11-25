@@ -518,6 +518,7 @@ public:
             auto hash = CalculateNetworkHash(network, parsed._deviceName, plugin, parsed._config);
             bool loadedFromCache = false;
             auto lock = cacheGuard.getHashLock(hash);
+            parsed._config[InferenceEngine::PluginConfigParams::KEY_CACHE_DIR] = coreConfig.getCacheConfig()._cacheDir;
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache);
             if (!loadedFromCache) {
                 res = compile_model_impl(network, plugin, parsed._config, nullptr, hash, {}, forceDisableCache);
@@ -540,6 +541,7 @@ public:
             bool loadedFromCache = false;
             auto hash = CalculateFileHash(modelPath, parsed._deviceName, plugin, parsed._config);
             auto lock = cacheGuard.getHashLock(hash);
+            parsed._config[InferenceEngine::PluginConfigParams::KEY_CACHE_DIR] = coreConfig.getCacheConfig()._cacheDir;
             res = LoadNetworkFromCache(cacheManager, hash, plugin, parsed._config, nullptr, loadedFromCache, modelPath);
             if (!loadedFromCache) {
                 auto cnnNetwork = ReadNetwork(modelPath, std::string());

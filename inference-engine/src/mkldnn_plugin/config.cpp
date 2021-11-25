@@ -115,6 +115,8 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
+        } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
+            cache_dir = val;
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -167,6 +169,8 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
         _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
                          std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
+        if (!cache_dir.empty())
+            _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
     }
 }
 

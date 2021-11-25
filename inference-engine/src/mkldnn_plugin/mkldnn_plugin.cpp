@@ -142,7 +142,7 @@ Engine::~Engine() {
 }
 
 static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function> nGraphFunc, const bool _enableLPT,
-                                               const bool _enforceBF16) {
+                                               const bool _enableSnippets) {
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -314,11 +314,6 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
             [](const_node_ptr &node) -> bool {
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
-    bool tokenizeSubgraphs = Config::TokenizationMode::Subgraph;
-    if (!with_cpu_x86_avx2()) {
-        // forse disable subgraph tokenization for SSE4.1 targets since not supported.
-        tokenizeSubgraphs = Config::TokenizationMode::Disabled;
-    }
 
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
     pass_config->set_callback<ngraph::pass::ConvertNMSToNMSIEInternal>(
@@ -502,15 +497,7 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     postLPTPassManager.register_pass<ngraph::pass::ConstantFolding>();
     postLPTPassManager.run_passes(nGraphFunc);
 
-    // todo: implement a more precise check for BF16? Traverse graph and check precisions?
-    const bool enableBF16  = _enforceBF16 && with_cpu_x86_avx512_core();
-
-     if (enableBF16 || useLpt) {
-        // forse disable subgraph tokenization. SS doesn't support bf16 & int8 yet.
-        tokenizeSubgraphs = Config::TokenizationMode::Disabled;
-    }
-
-    if (tokenizeSubgraphs != Config::TokenizationMode::Disabled) {
+    if (!useLpt && _enableSnippets && with_cpu_x86_avx2()) {
         ngraph::pass::Manager tokenization_manager;
         tokenization_manager.register_pass<ngraph::snippets::pass::FilterFused>();
         tokenization_manager.register_pass<ngraph::snippets::pass::TokenizeSnippets>();
@@ -518,9 +505,9 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
     }
 }
 
-static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enforceBF16) {
+static void Transformation(CNNNetwork& clonedNetwork, const bool _enableLPT, const bool _enableSnippets) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enforceBF16);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, _enableLPT, _enableSnippets);
     ConvertToCPUSpecificOpset(nGraphFunc);
 }
 
@@ -556,10 +543,17 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
     const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    const bool enforceBF16 = (BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
-            || engConfig.enforceBF16;
+    const bool enableBF16 = ((BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
+            || engConfig.enforceBF16) && with_cpu_x86_avx512_core();
+    const auto& modelCacheProp = config.find(InferenceEngine::PluginConfigParams::KEY_CACHE_DIR);
+    const bool enableModelCache = (modelCacheProp != config.end() && !modelCacheProp->second.empty())
+            || !engConfig.cache_dir.empty();
+    const auto& dynamicBatchProp = config.find(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED);
+    const bool enableDynamicBatch = (dynamicBatchProp != config.end() && dynamicBatchProp->second == PluginConfigParams::YES)
+            || engConfig.enableDynamicBatch;
+    const bool enableSnippets = !(enableModelCache || enableDynamicBatch || enableBF16);
     auto nGraphFunc = clonedNetwork.getFunction();
-    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enforceBF16);
+    TransformationUpToCPUSpecificOpSet(nGraphFunc, enableLPT, enableSnippets);
 
     // Here the OV perf modes are turned into specific settings (as we need the network for better params selection)
     const auto& mode = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
@@ -768,10 +762,8 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
         const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                                || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-        const auto& BF16Prop = config.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-        const bool enforceBF16 = (BF16Prop != config.end() && BF16Prop->second == PluginConfigParams::YES)
-                                 || engConfig.enforceBF16;
-        Transformation(clonedNetwork, enableLPT, enforceBF16);
+        const bool enableSnippets = !(conf.cache_dir.empty() || conf.enableDynamicBatch || (conf.enforceBF16 && with_cpu_x86_avx512_core()));
+        Transformation(clonedNetwork, enableLPT, enableSnippets);
         auto ops = clonedNetwork.getFunction()->get_ordered_ops();
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;

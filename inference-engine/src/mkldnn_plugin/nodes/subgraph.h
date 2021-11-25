@@ -69,7 +69,6 @@ private:
     size_t max_rank_out_desc_idx = 0;
 
     /// scheduling info
-    bool isDynBatchEnabled = false;
     size_t batchDimIdx = 0;
     size_t tensorRank = 0;
     size_t tileRank = 1;
