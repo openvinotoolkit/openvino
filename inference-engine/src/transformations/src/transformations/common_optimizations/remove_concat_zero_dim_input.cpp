@@ -40,7 +40,7 @@ ov::pass::RemoveConcatZeroDimInput::RemoveConcatZeroDimInput() {
         if (inputs_removed) {
             concat->set_arguments(concat_inputs);
         }
-        return false;
+        return inputs_removed;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(concat_pattern, matcher_name);
     this->register_matcher(m, callback);
