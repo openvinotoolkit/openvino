@@ -150,6 +150,10 @@ void MKLDNNConvertNode::execute(mkldnn::stream strm) {
     if (parentPaddElemCount != childPaddElemCount)
         IE_THROW() << errorPrefix << " has different elements number in input and output buffers";
 
+    if (parentPaddElemCount == 0) {
+        return;
+    }
+
     void* srcPtr = parentMem.GetPtr();
     void* dstPtr = childMem.GetPtr();
 

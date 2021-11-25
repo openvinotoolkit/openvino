@@ -49,7 +49,21 @@ public:
         return result.str();
     }
 
+    void compare(const std::vector<ov::runtime::Tensor> &expected, const std::vector<ov::runtime::Tensor> &actual) override {
+        if (actual.front().get_size() == 0) {
+            ASSERT_EQ(0, expected.front().get_size());
+            for (const auto& shape : targetStaticShapes[inferNum]) {
+                ASSERT_EQ(shape_size(shape), 0);
+            }
+        } else {
+            SubgraphBaseTest::compare(expected, actual);
+        }
+        inferNum++;
+    }
+
 protected:
+    size_t inferNum = 0;
+
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
 
@@ -77,7 +91,7 @@ TEST_P(ConcatLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-//     CheckPluginRelatedresult(executableNetwork, "Concatenation");
+    CheckPluginRelatedResults(executableNetwork, "Concatenation");
 }
 
 namespace {
@@ -150,9 +164,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat4D_CPU_Block_dynamic_axis_1, ConcatLayerCPU
 
 const std::vector<std::vector<InputShape>> inputShapes4D_axis1 = {
         {
-            {{-1, -1, -1, -1}, {{2, 32, 5, 7}, {1, 18, 10, 2}, {3, 8, 1, 8}}},
-            {{-1, -1, -1, -1}, {{2, 16, 5, 7}, {1, 5, 10, 2}, {3, 3, 1, 8}}},
-            {{-1, -1, -1, -1}, {{2, 64, 5, 7}, {1, 45, 10, 2}, {3, 1, 1, 8}}}
+            {{-1, -1, -1, -1}, {{2, 32, 0, 7}, {2, 32, 5, 7}, {2, 32, 5, 7}, {1, 18, 10, 2}, {2, 32, 5, 7}, {3, 8, 1, 8}, {2, 0, 5, 7}}},
+            {{-1, -1, -1, -1}, {{2, 16, 0, 7}, {2, 16, 5, 7}, {2, 16, 5, 7}, {1, 5, 10, 2}, {2, 0, 5, 7}, {3, 3, 1, 8}, {2, 16, 5, 7}}},
+            {{-1, -1, -1, -1}, {{2, 64, 0, 7}, {2, 64, 5, 7}, {2, 0, 5, 7}, {1, 45, 10, 2}, {2, 64, 5, 7}, {3, 1, 1, 8}, {2, 64, 5, 7}}}
         },
         {
             {{{1, 3}, {8, 32}, {1, 10}, {2, 8}}, {{2, 32, 5, 7}, {1, 18, 10, 2}, {3, 8, 1, 8}}},

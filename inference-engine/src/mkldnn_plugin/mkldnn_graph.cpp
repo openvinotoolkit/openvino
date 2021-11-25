@@ -764,7 +764,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             IE_THROW(Unexpected) << "The network outputs do not contain mkldnn graph output node name: \"" << name << "\"";
         }
 
-        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc());
+        const auto actualDesc = MemoryDescUtils::convertToTensorDesc(intr_blob.getDesc(), true);
         auto &expectedDesc = ext_blob->getTensorDesc();
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
@@ -854,7 +854,6 @@ void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
 
         if (request)
             request->ThrowIfCanceled();
-
         ExecuteNode(node, stream);
     }
 
@@ -996,7 +995,7 @@ Config MKLDNNGraph::getProperty() const {
 Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
     auto itr = inputNodesMap.find(name);
     if (itr != inputNodesMap.end()) {
-        return MemoryDescUtils::interpretAsBlob(itr->second->getChildEdgeAt(0)->getMemory());
+        return MemoryDescUtils::interpretAsBlob(itr->second->getChildEdgeAt(0)->getMemory(), true);
     }
     return nullptr;
 }
@@ -1004,7 +1003,7 @@ Blob::Ptr MKLDNNGraph::getInputBlob(const std::string& name) {
 Blob::Ptr MKLDNNGraph::getOutputBlob(const std::string& name) {
     auto itr = outputNodesMap.find(name);
     if (itr != outputNodesMap.end()) {
-        return MemoryDescUtils::interpretAsBlob(itr->second->getParentEdgeAt(0)->getMemory());
+        return MemoryDescUtils::interpretAsBlob(itr->second->getParentEdgeAt(0)->getMemory(), true);
     }
     return nullptr;
 }

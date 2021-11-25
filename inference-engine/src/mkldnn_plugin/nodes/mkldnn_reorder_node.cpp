@@ -348,6 +348,10 @@ void MKLDNNReorderNode::reorderData(const MKLDNNMemory &input, const MKLDNNMemor
     if (!input.getDesc().isDefined() || !output.getDesc().isDefined())
         IE_THROW() << "Can't reorder data with dynamic shapes";
 
+    if (input.GetShape().hasZeroDims() || output.GetShape().hasZeroDims()) {
+        return;
+    }
+
     if (size != 0)
         IE_ASSERT(size <= output.GetSize());
     if (input.getDesc().isCompatible(output.getDesc())) {

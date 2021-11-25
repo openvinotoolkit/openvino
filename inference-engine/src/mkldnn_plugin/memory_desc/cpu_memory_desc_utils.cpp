@@ -48,17 +48,33 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
 CpuBlockedMemoryDesc MemoryDescUtils::convertToCpuBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to CpuBlockedMemoryDesc";
+
     const auto &blkDesc = desc.getBlockingDesc();
-    return CpuBlockedMemoryDesc(desc.getPrecision(), Shape(desc.getDims()), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
-                                blkDesc.getOffsetPaddingToData(), blkDesc.getStrides());
+    const auto& dims = desc.getDims();
+
+    auto strides = blkDesc.getStrides();
+    if (std::any_of(dims.begin(), dims.end(), [](size_t dim){ return dim == 0; })) {
+        std::fill(strides.begin(), strides.end(), 0);
+    }
+    
+    return CpuBlockedMemoryDesc(desc.getPrecision(), Shape(dims), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
+                                blkDesc.getOffsetPaddingToData(), strides);
 }
 
 DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
-    const auto &blkDesc = desc.getBlockingDesc();
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         IE_THROW() << "Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc";
+
+    const auto &blkDesc = desc.getBlockingDesc();
+    const auto& dims = desc.getDims();
+
+    auto strides = blkDesc.getStrides();
+    if (std::any_of(dims.begin(), dims.end(), [](size_t dim){ return dim == 0; })) {
+        std::fill(strides.begin(), strides.end(), 0);
+    }
+
     return DnnlBlockedMemoryDesc(desc.getPrecision(), Shape(desc.getDims()), blkDesc.getBlockDims(), blkDesc.getOrder(), blkDesc.getOffsetPadding(),
-                                 blkDesc.getOffsetPaddingToData(), blkDesc.getStrides());
+                                 blkDesc.getOffsetPaddingToData(), strides);
 }
 
 BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDescPtr &desc) {
@@ -69,20 +85,27 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     }
 }
 
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem) {
+InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const MKLDNNMemory &mem, bool withDefaulStrides) {
     // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
     auto& memDesc = mem.getDesc();
-    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
+    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc, withDefaulStrides);
 
     desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
     return make_blob_with_precision(desc, mem.GetData());
 }
 
-InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDesc& desc) {
+InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDesc& desc, bool withDefaulStrides) {
     if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(&desc)) {
-        return InferenceEngine::TensorDesc(blockingDesc->getPrecision(), blockingDesc->getShape().getStaticDims(),
-                                           {blockingDesc->getBlockDims(), blockingDesc->getOrder(), blockingDesc->getOffsetPadding(),
-                                            blockingDesc->getOffsetPaddingToData(), blockingDesc->getStrides()});
+        InferenceEngine::BlockingDesc blkDesc = withDefaulStrides ? InferenceEngine::BlockingDesc(blockingDesc->getBlockDims(),
+                                                                                                      blockingDesc->getOrder(),
+                                                                                                      blockingDesc->getOffsetPadding(),
+                                                                                                      blockingDesc->getOffsetPaddingToData()) :
+                                                                        InferenceEngine::BlockingDesc(blockingDesc->getBlockDims(),
+                                                                                                      blockingDesc->getOrder(),
+                                                                                                      blockingDesc->getOffsetPadding(),
+                                                                                                      blockingDesc->getOffsetPaddingToData(),
+                                                                                                      blockingDesc->getStrides());
+        return InferenceEngine::TensorDesc(blockingDesc->getPrecision(), blockingDesc->getShape().getStaticDims(), blkDesc);
     } else {
         IE_THROW() << "Cannot convert MemoryDesc to InferenceEngine::TensorDesc";
     }

@@ -65,7 +65,53 @@ protected:
     InferenceEngine::Precision fusedEltwisePrecision(const MKLDNNNodePtr& fusingNode) const;
 
 private:
+    class DnnlExecutor {
+        protected:
+            class IntermReorder {
+                public:
+                    static IntermReorder createFromReorder(MKLDNNMemoryPtr mem, const mkldnn::memory::desc& desc, const mkldnn::engine& engine);
+                    static IntermReorder createToReorder(MKLDNNMemoryPtr mem, const mkldnn::memory::desc& desc, const mkldnn::engine& engine);
+                    MKLDNNMemoryPtr getFromMem() const { return memFrom; }
+                    MKLDNNMemoryPtr getToMem() const { return memTo; }
+                    void exec(mkldnn::stream strm);
+
+                private:
+                    MKLDNNMemoryPtr memFrom;
+                    MKLDNNMemoryPtr memTo;
+                    mkldnn::reorder reorder;
+            };
+
+        public:
+            void exec(mkldnn::stream strm);
+            virtual ~DnnlExecutor() = 0;
+
+        protected:
+            std::vector<IntermReorder> inputReorders;
+            MKLDNNPrimitive execPrim;
+            std::vector<IntermReorder> outputReorders;
+            std::unordered_map<int, mkldnn::memory> primArgs;
+    };
+
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
+
+    class ConvolutionExecutor : public DnnlExecutor {
+        public:
+            ConvolutionExecutor(const mkldnn::convolution_forward::primitive_desc& pd,
+                                MKLDNNMemoryPtr inMem,
+                                MKLDNNMemoryPtr weightMem,
+                                MKLDNNMemoryPtr outMem,
+                                const mkldnn::engine& engine,
+                                MKLDNNMemoryPtr biasMem = nullptr);
+    };
+
+    std::shared_ptr<MKLDNNDescriptor> createMkldnnConvDesc(const mkldnn::memory::desc& srcDesc,
+                                                           const mkldnn::memory::desc& wghDesc,
+                                                           const mkldnn::memory::desc& dstDesc,
+                                                           const mkldnn::memory::desc& biasDesc);
+
     void prepareParams() override;
+    void execute(mkldnn::stream strm) override;
     void executeDynamicImpl(mkldnn::stream strm) override;
 
     void addZeroPoints(mkldnn::primitive_attr& attr) const;

@@ -168,8 +168,14 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
 
     max_output_boxes_per_class = std::min(max_output_boxes_per_class, num_boxes);
 
-    if (max_output_boxes_per_class == 0)
+    auto indicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
+    auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
+    if (max_output_boxes_per_class == 0) {
+        VectorDims newDims{max_output_boxes_per_class, 3};
+        indicesMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDINDICES)->cloneWithNewDims(newDims));
+        scoresMemPtr->redefineDesc(getBaseMemDescAtOutputPort(NMS_SELECTEDSCORES)->cloneWithNewDims(newDims));
         return;
+    }
 
     if (inputShapes.size() > NMS_IOUTHRESHOLD)
         iou_threshold = reinterpret_cast<float *>(getParentEdgeAt(NMS_IOUTHRESHOLD)->getMemoryPtr()->GetPtr())[0];
@@ -221,8 +227,6 @@ void MKLDNNNonMaxSuppressionNode::execute(mkldnn::stream strm) {
                       });
     }
 
-    auto indicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
-    auto scoresMemPtr =  getChildEdgesAtPort(NMS_SELECTEDSCORES)[0]->getMemoryPtr();
     const size_t validOutputs = std::min(filtBoxes.size(), maxNumberOfBoxes);
 
     // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS

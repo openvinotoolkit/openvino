@@ -104,6 +104,7 @@ void MKLDNNNonZeroNode::executeSpecified() {
     Shape inShape = getParentEdgeAt(0)->getMemory().GetShape();
     size_t inRank = inShape.getRank();
     size_t nonZeroCount = getNonZeroElementsCount(src, inShape);
+    // nonZeroCount = inShape.getElementsCount();
     if (isDynamicNode()) {
         VectorDims newDims{inRank, nonZeroCount};
         dstMemPtr->redefineDesc(getBaseMemDescAtOutputPort(0)->cloneWithNewDims(newDims));

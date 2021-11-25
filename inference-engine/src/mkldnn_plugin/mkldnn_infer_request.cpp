@@ -190,8 +190,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::redefineMemoryForInputNodes() {
         const auto inputNode = cpuInputNodes.find(blob.first);
         if (inputNode == cpuInputNodes.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << blob.first;
-        if (inputNode->second->isDynamicNode())
+        if (inputNode->second->isDynamicNode()) {
             inputNode->second->redefineOutputMemory({blob.second->getTensorDesc().getDims()});
+        }
     }
 }
 
@@ -264,7 +265,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                 _inputs[name]->allocate();
 
                 if (!isDynamic &&
-                    desc == MemoryDescUtils::convertToTensorDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc()) &&
+                    desc == MemoryDescUtils::convertToTensorDesc(graph->getInputNodeByName(name)->getChildEdgesAtPort(0)[0]->getMemory().getDesc(), true) &&
                         graph->_normalizePreprocMap.find(name) == graph->_normalizePreprocMap.end() && !graph->getProperty().batchLimit) {
                     externalPtr[name] = _inputs[name]->buffer();
                 }
@@ -311,7 +312,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                         const auto &expectedTensorDesc = isDynamic ? InferenceEngine::TensorDesc(desc.getPrecision(),
                                                                                                  InferenceEngine::TensorDesc::getLayoutByRank(
                                                                                                          desc.getShape().getRank()))
-                                                                   : MemoryDescUtils::convertToTensorDesc(desc);
+                                                                   : MemoryDescUtils::convertToTensorDesc(desc, true);
                         const auto &tensorDesc = data->getTensorDesc();
                         if (expectedTensorDesc.getPrecision() != normalizeToSupportedPrecision(tensorDesc.getPrecision())) {
                             IE_THROW(ParameterMismatch)
@@ -341,7 +342,7 @@ InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::
                     }
 
                     _outputs[name] = data;
-                    if (!isDynamic && !externalPtr.count(name) && data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(desc) &&
+                    if (!isDynamic && !externalPtr.count(name) && data->getTensorDesc() == MemoryDescUtils::convertToTensorDesc(desc, true) &&
                         !graph->getProperty().batchLimit) {
                         externalPtr[name] = data->buffer();
                     }
@@ -490,7 +491,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const In
         }
 
         const auto &desc = graph->getOutputNodeByName(name)->getParentEdgesAtPort(0)[0]->getMemory().getDesc();
-        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc) && !graph->getProperty().batchLimit) {
+        if (!isDynamic && blobDesc == MemoryDescUtils::convertToTensorDesc(desc, true) && !graph->getProperty().batchLimit) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);

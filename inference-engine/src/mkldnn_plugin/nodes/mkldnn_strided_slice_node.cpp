@@ -671,8 +671,14 @@ void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
     if (!execPtr)
         THROW_ERROR << "doesn't have compiled executor!";
 
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto& srcMem = getParentEdgeAt(0)->getMemory();
+    const auto& dstMem = getChildEdgeAt(0)->getMemory();
+    if (srcMem.getDesc().getShape().hasZeroDims() || dstMem.getDesc().getShape().hasZeroDims()) {
+        return;
+    }
+
+    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMem.GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMem.GetPtr());
     execPtr->exec(srcData, dstData);
 }
 

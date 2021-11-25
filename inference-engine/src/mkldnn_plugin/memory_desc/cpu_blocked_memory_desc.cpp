@@ -16,7 +16,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
     offsetPadding = 0;
     offsetPaddingToData.resize(dims.size(), 0);
     strides.resize(order.size());
-    strides[strides.size() - 1] = 1;
+    strides[strides.size() - 1] = shape.hasZeroDims() ? 0 : 1;
     for (size_t i = 2; i <= order.size(); i++) {
         strides[strides.size() - i] = strides[strides.size() - (i - 1)] * blockedDims[blockedDims.size() - (i - 1)];
     }
@@ -33,6 +33,15 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
         IE_THROW() << "CpuBlockedMemoryDesc doesn't support undefined blockedDims.";
     }
 
+    if (shape.hasZeroDims()) {
+        const auto& dims = shape.getDims();
+        for (size_t i = 0; i < shape.getRank(); i++) {
+            if (dims[order[i]] == 0 && !dimsEqualWeak(blockedDims[i], 0)) {
+                IE_THROW() << "Can't create CpuBlockedMemoryDesc. Mistmatch zero dims in dims and blocked dims";
+            }
+        }
+    }
+    
     this->order = order;
     this->blockedDims = blockedDims;
     this->offsetPadding = offsetPadding;
@@ -44,7 +53,9 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
     }
 
     if (strides.empty() && !order.empty()) {
-        if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
+        if (shape.hasZeroDims()) {
+            this->strides.resize(order.size(), 0);
+        } else if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
             this->strides.resize(order.size(), Shape::UNDEFINED_DIM);
         } else {
             this->strides.resize(order.size());
@@ -54,6 +65,9 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
             }
         }
     } else {
+        if (shape.hasZeroDims() && std::any_of(strides.begin(), strides.end(), [](size_t stride) { return stride != 0 && stride != Shape::UNDEFINED_DIM; } )) {
+            IE_THROW() << "Can't create CpuBlockedMemoryDesc with zero dim, but with non zero strides";
+        }
         this->strides = strides;
     }
 
@@ -111,7 +125,7 @@ size_t CpuBlockedMemoryDesc::getMaxMemSize() const {
     auto& maxDims = shape.getMaxDims();
     if (std::any_of(maxDims.begin(), maxDims.end(), [](size_t x){ return Shape::UNDEFINED_DIM == x ||
                                                                          // WA: for some nodes ngraph compute upper bound depending on precision max value
-                                                                         std::numeric_limits<int32_t>::max() == x; })) {
+                                                                         x >= std::numeric_limits<int32_t>::max(); })) {
         return UNDEFINED_SIZE;
     }
 

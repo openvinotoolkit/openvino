@@ -84,7 +84,8 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
     for (size_t i = 0; i < op->get_input_size(); i++) {
         const auto &shape = op->get_input_partial_shape(i);
         if (shape.rank().is_dynamic()) {
-            IE_THROW(Unexpected) << "CPU plug-in doesn't support operation with dynamic rank";
+            IE_THROW(Unexpected) << "CPU plug-in doesn't support operation with dynamic rank. Type: " << getTypeStr()
+                                 << " Name: " << getName();
         }
 
         bool isScalar = shape.rank().get_length() == 0;
@@ -99,7 +100,8 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
         for (size_t i = 0; i < op->get_output_size(); i++) {
             const auto &shape = op->get_output_partial_shape(i);
             if (shape.rank().is_dynamic()) {
-                IE_THROW(Unexpected) << "CPU plug-in doesn't support operation with dynamic rank";
+                IE_THROW(Unexpected) << "CPU plug-in doesn't support operation with dynamic rank. Type: " << getTypeStr()
+                                     << " Name: " << getName();
             }
 
             bool isScalar = shape.rank().get_length() == 0;
@@ -1406,8 +1408,11 @@ std::vector<VectorDims> MKLDNNNode::shapeInferGeneric(const std::vector<Shape>& 
     std::vector<VectorDims> newOutputShapes(opToShapeInfer->get_output_size());
     for (size_t i = 0; i < newOutputShapes.size(); i++) {
         const auto &partShape = opToShapeInfer->get_output_partial_shape(i);
-        if (partShape.is_dynamic())
-            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+        if (partShape.is_dynamic()) {
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism. "
+                                     << "Type: " << getTypeStr() << " Name: " << getName();
+        }
+            
         newOutputShapes[i] = partShape.get_shape();
     }
     return newOutputShapes;

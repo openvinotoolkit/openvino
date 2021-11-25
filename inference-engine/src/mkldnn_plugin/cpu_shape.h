@@ -106,6 +106,10 @@ public:
         return type == ShapeType::Dynamic;
     }
 
+    bool hasZeroDims() const {
+        return std::any_of(dims.begin(), dims.end(), [](size_t dim) { return dim == 0; } );
+    }
+
     size_t getRank() const {
         return minDims.size();
     }
