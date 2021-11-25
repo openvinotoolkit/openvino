@@ -390,7 +390,7 @@ def if_op(
     @param      output_desc:           Two lists (for then_body and else_body) which contain rules how If
                                        outputs are connected with body results.
     @param      name:                  The optional name for the created output node.
-    
+
     @return: The new node which performs If operation.
     """
     attributes = {
@@ -403,8 +403,8 @@ def if_op(
     }
     return _get_node_factory_opset8().create("If", as_nodes(condition, *inputs),
                                              attributes)
-                                             
-                                             
+
+
 @nameable_op
 def slice(
         data: NodeInput,
