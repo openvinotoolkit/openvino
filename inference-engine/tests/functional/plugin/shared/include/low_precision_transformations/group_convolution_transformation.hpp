@@ -15,8 +15,6 @@ namespace LayerTestsDefinitions {
 
 class GroupConvolutionTransformationParam {
 public:
-    ngraph::PartialShape inputShape;
-    ngraph::Shape outputShape;
     size_t group;
     int groupCalculationDimention;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
@@ -29,6 +27,7 @@ typedef std::tuple<
     ngraph::element::Type,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
+    std::pair<ngraph::PartialShape, ngraph::Shape>,
     GroupConvolutionTransformationParam,
     bool // add precision preserved operation
 > GroupConvolutionTransformationParams;

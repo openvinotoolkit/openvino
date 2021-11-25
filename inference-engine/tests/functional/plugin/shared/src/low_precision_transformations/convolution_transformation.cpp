@@ -30,6 +30,7 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+        inputShape.rank().get_length() << "D_" <<
         param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights;
     return result.str();
