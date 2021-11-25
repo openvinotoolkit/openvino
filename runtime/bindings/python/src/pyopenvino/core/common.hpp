@@ -43,4 +43,16 @@ namespace Common
     PyObject* parse_parameter(const InferenceEngine::Parameter& param);
 
     uint32_t get_optimal_number_of_requests(const ov::runtime::ExecutableNetwork& actual);
+
+    // Use only with classes that are not creatable by users on Python's side, because Objects created in Python that are wrapped with such wrapper will cause memory leaks.
+    template <typename T>
+    class ref_wrapper {
+        std::reference_wrapper<T> impl;
+
+    public:
+        explicit ref_wrapper(T* p) : impl(*p) {}
+        T* get() const {
+            return &impl.get();
+    }
+};
 }; // namespace Common
