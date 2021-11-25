@@ -6,10 +6,11 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
 
+#include <openvino/core/function.hpp>
+
 #include "common/frontend_exceptions.hpp"
 #include "frontend_manager.hpp"
 #include "manager.hpp"
-#include "pyngraph/function.hpp"
 
 namespace py = pybind11;
 
@@ -93,14 +94,14 @@ void regclass_graph_Place(py::module m) {
     place.def(
         "get_consuming_operations",
         [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
-            if (outputName == py::none()) {
-                if (outputPortIndex == py::none()) {
+            if (outputName.is_none()) {
+                if (outputPortIndex.is_none()) {
                     return self.get_consuming_operations();
                 } else {
                     return self.get_consuming_operations(py::cast<int>(outputPortIndex));
                 }
             } else {
-                if (outputPortIndex == py::none()) {
+                if (outputPortIndex.is_none()) {
                     return self.get_consuming_operations(py::cast<std::string>(outputName));
                 } else {
                     return self.get_consuming_operations(py::cast<std::string>(outputName),
@@ -131,14 +132,14 @@ void regclass_graph_Place(py::module m) {
     place.def(
         "get_target_tensor",
         [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
-            if (outputName == py::none()) {
-                if (outputPortIndex == py::none()) {
+            if (outputName.is_none()) {
+                if (outputPortIndex.is_none()) {
                     return self.get_target_tensor();
                 } else {
                     return self.get_target_tensor(py::cast<int>(outputPortIndex));
                 }
             } else {
-                if (outputPortIndex == py::none()) {
+                if (outputPortIndex.is_none()) {
                     return self.get_target_tensor(py::cast<std::string>(outputName));
                 } else {
                     return self.get_target_tensor(py::cast<std::string>(outputName), py::cast<int>(outputPortIndex));
@@ -168,14 +169,14 @@ void regclass_graph_Place(py::module m) {
     place.def(
         "get_producing_operation",
         [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
-            if (inputName == py::none()) {
-                if (inputPortIndex == py::none()) {
+            if (inputName.is_none()) {
+                if (inputPortIndex.is_none()) {
                     return self.get_producing_operation();
                 } else {
                     return self.get_producing_operation(py::cast<int>(inputPortIndex));
                 }
             } else {
-                if (inputPortIndex == py::none()) {
+                if (inputPortIndex.is_none()) {
                     return self.get_producing_operation(py::cast<std::string>(inputName));
                 } else {
                     return self.get_producing_operation(py::cast<std::string>(inputName),
@@ -216,14 +217,14 @@ void regclass_graph_Place(py::module m) {
     place.def(
         "get_input_port",
         [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
-            if (inputName == py::none()) {
-                if (inputPortIndex == py::none()) {
+            if (inputName.is_none()) {
+                if (inputPortIndex.is_none()) {
                     return self.get_input_port();
                 } else {
                     return self.get_input_port(py::cast<int>(inputPortIndex));
                 }
             } else {
-                if (inputPortIndex == py::none()) {
+                if (inputPortIndex.is_none()) {
                     return self.get_input_port(py::cast<std::string>(inputName));
                 } else {
                     return self.get_input_port(py::cast<std::string>(inputName), py::cast<int>(inputPortIndex));
@@ -252,14 +253,14 @@ void regclass_graph_Place(py::module m) {
     place.def(
         "get_output_port",
         [](const ov::frontend::Place& self, py::object outputName, py::object outputPortIndex) {
-            if (outputName == py::none()) {
-                if (outputPortIndex == py::none()) {
+            if (outputName.is_none()) {
+                if (outputPortIndex.is_none()) {
                     return self.get_output_port();
                 } else {
                     return self.get_output_port(py::cast<int>(outputPortIndex));
                 }
             } else {
-                if (outputPortIndex == py::none()) {
+                if (outputPortIndex.is_none()) {
                     return self.get_output_port(py::cast<std::string>(outputName));
                 } else {
                     return self.get_output_port(py::cast<std::string>(outputName), py::cast<int>(outputPortIndex));
@@ -299,14 +300,14 @@ void regclass_graph_Place(py::module m) {
     place.def(
         "get_source_tensor",
         [](const ov::frontend::Place& self, py::object inputName, py::object inputPortIndex) {
-            if (inputName == py::none()) {
-                if (inputPortIndex == py::none()) {
+            if (inputName.is_none()) {
+                if (inputPortIndex.is_none()) {
                     return self.get_source_tensor();
                 } else {
                     return self.get_source_tensor(py::cast<int>(inputPortIndex));
                 }
             } else {
-                if (inputPortIndex == py::none()) {
+                if (inputPortIndex.is_none()) {
                     return self.get_source_tensor(py::cast<std::string>(inputName));
                 } else {
                     return self.get_source_tensor(py::cast<std::string>(inputName), py::cast<int>(inputPortIndex));

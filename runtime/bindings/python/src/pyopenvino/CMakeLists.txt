@@ -37,7 +37,7 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime openvino::frontend::common ${OFFLINE_TRANSFORMATIONS_LIB})
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)
