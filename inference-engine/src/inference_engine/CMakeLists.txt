@@ -286,21 +286,6 @@ ie_cpack_add_component(core_dev REQUIRED core ngraph_dev)
 install(DIRECTORY "${PUBLIC_HEADERS_DIR}/" DESTINATION runtime/include
         COMPONENT core_dev)
 
-if(BUILD_SHARED_LIBS)
-    install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
-            DESTINATION ${IE_CPACK_RUNTIME_PATH}
-            COMPONENT core)
-
-    # for InferenceEngineUnitTest
-    if(WIN32)
-        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
-                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
-    else()
-        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
-                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 
 ov_install_static_lib(${TARGET_NAME}_plugin_api core)

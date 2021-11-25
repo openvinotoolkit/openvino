@@ -125,8 +125,6 @@ target_include_directories(ov_runtime PRIVATE $<TARGET_PROPERTY:ov_runtime_dev,I
                                              $<BUILD_INTERFACE:$<TARGET_PROPERTY:frontend_common,INTERFACE_INCLUDE_DIRECTORIES>>
                                              $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
 
-ie_register_plugins(MAIN_TARGET ov_runtime
-                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 if(WIN32)
     set_target_properties(ov_runtime PROPERTIES COMPILE_PDB_NAME ov_runtime)
 endif()
@@ -151,10 +149,26 @@ ie_mark_target_as_cc(ov_runtime)
 # LTO
 set_target_properties(ov_runtime PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-
-
 export(TARGETS ov_runtime NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+ie_register_plugins(MAIN_TARGET ov_runtime
+                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+
+if(BUILD_SHARED_LIBS)
+    install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
+            DESTINATION ${IE_CPACK_RUNTIME_PATH}
+            COMPONENT core)
+
+    # for InferenceEngineUnitTest
+    if(WIN32)
+        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
+                DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
+    else()
+        install(FILES $<TARGET_FILE_DIR:ov_runtime>/plugins.xml
+                DESTINATION tests/lib COMPONENT tests EXCLUDE_FROM_ALL)
+    endif()
+endif()
 
 # ----------------- OpenVINO runtime library --------------------------------
 
