@@ -41,8 +41,6 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME}_obj)
-
 # create static library if needed
 
 # if(BUILD_SHARED_LIBS)

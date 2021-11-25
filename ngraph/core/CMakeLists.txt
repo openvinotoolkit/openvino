@@ -47,8 +47,6 @@ ie_faster_build(ngraph_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-ie_add_api_validator_post_build_step(TARGET ngraph_obj)
-
 addVersionDefines(src/version.cpp CI_BUILD_NUMBER)
 
 target_link_libraries(ngraph_obj PRIVATE ngraph::builder ngraph::reference pugixml::static ov_shape_inference)
@@ -78,7 +76,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(link_type PUBLIC)
     endif()
 
-    target_link_options(ngraph ${link_type} "/IGNORE:4217,4286")
+    target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations
