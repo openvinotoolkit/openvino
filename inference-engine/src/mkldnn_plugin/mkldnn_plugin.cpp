@@ -28,7 +28,6 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
-#include <transformations/common_optimizations/transpose_reshape_elimination_for_matmul.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
