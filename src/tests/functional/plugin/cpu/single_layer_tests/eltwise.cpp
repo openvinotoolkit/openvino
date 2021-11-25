@@ -5,7 +5,7 @@
 #include <shared_test_classes/single_layer/eltwise.hpp>
 #include <ngraph_functions/builders.hpp>
 #include "functional_test_utils/ov_tensor_utils.hpp"
-#include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -15,20 +15,23 @@ namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
         subgraph::EltwiseTestParams,
-        CPUSpecificParams> EltwiseLayerCPUTestParamsSet;
+        CPUSpecificParams,
+        fusingSpecificParams> EltwiseLayerCPUTestParamsSet;
 
 class EltwiseLayerCPUTest : public testing::WithParamInterface<EltwiseLayerCPUTestParamsSet>,
-                            virtual public SubgraphBaseTest, public CPUTestsBase {
+                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj) {
         subgraph::EltwiseTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
 
         std::ostringstream result;
         result << subgraph::EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<subgraph::EltwiseTestParams>(
                 basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
+        result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
     }
@@ -73,7 +76,8 @@ protected:
     void SetUp() override {
         subgraph::EltwiseTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
 
         std::vector<InputShape> shapes;
         ElementType netType;
@@ -87,6 +91,7 @@ protected:
         }
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         selectedType = makeSelectedTypeStr(getPrimitiveType(), netType);
 
@@ -207,6 +212,18 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
 };
 
+const std::vector<fusingSpecificParams> fusingParamsSet{
+    emptyFusingSpec,
+    // eltwise
+    fusingSigmoid,
+    fusingPRelu1D,
+    // depthwise
+    fusingReluScaleShift,
+    // fake quantize
+    fusingFakeQuantizePerTensorRelu,
+    fusingFakeQuantizePerChannelRelu,
+};
+
 std::vector<std::vector<ov::Shape>> inShapes_4D = {
         {{2, 4, 4, 1}},
         {{2, 17, 5, 4}},
@@ -225,9 +242,26 @@ const auto params_4D = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder, EltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
+
+const auto params_4D_fusing = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D)),
+                ::testing::ValuesIn(eltwiseOpTypesBinInp),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::Values(emptyCPUSpec),
+        ::testing::ValuesIn(fusingParamsSet));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Fusing, EltwiseLayerCPUTest, params_4D_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_emptyCPUSpec = ::testing::Combine(
         ::testing::Combine(
@@ -240,7 +274,8 @@ const auto params_4D_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::Values(emptyCPUSpec));
+        ::testing::Values(emptyCPUSpec),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_emptyCPUSpec, EltwiseLayerCPUTest, params_4D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -262,7 +297,8 @@ const auto params_5D = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder, EltwiseLayerCPUTest, params_5D, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -277,7 +313,8 @@ const auto params_5D_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::Values(emptyCPUSpec));
+        ::testing::Values(emptyCPUSpec),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D, EltwiseLayerCPUTest, params_5D_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -301,7 +338,8 @@ const auto params_4D_Blocked_Planar = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Blocked_Planar, EltwiseLayerCPUTest, params_4D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -326,7 +364,8 @@ const auto params_4D_Planar_Blocked = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Planar_Blocked)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Planar_Blocked)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Planar_Blocked, EltwiseLayerCPUTest, params_4D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -351,7 +390,8 @@ const auto params_5D_Blocked_Planar = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Planar)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Planar)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_Blocked_Planar, EltwiseLayerCPUTest, params_5D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -376,7 +416,8 @@ const auto params_5D_Planar_Blocked = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Planar_Blocked)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Planar_Blocked)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_Planar_Blocked, EltwiseLayerCPUTest, params_5D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -403,7 +444,8 @@ const auto params_4D_1D = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_1D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_1D, EltwiseLayerCPUTest, params_4D_1D, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -429,7 +471,8 @@ const auto params_5D_1D = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_1D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_1D, EltwiseLayerCPUTest, params_5D_1D, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -467,7 +510,8 @@ const auto params_4D_dyn_const = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_const, EltwiseLayerCPUTest, params_4D_dyn_const, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -505,10 +549,49 @@ const auto params_4D_dyn_param = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_4D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
+std::vector<InputShape> inShapes_4D_dyn_param_fusing = {
+    {
+        // dynamic
+        {-1, 7, -1, -1},
+        // target
+        {
+            {3, 7, 1, 1},
+            {1, 7, 5, 1},
+            {3, 7, 4, 11},
+        }
+    },
+    {
+        // dynamic
+        {-1, 7, -1, -1},
+        // target
+        {
+            {1, 7, 5, 1},
+            {3, 7, 1, 10},
+            {3, 7, 4, 11}
+        }
+    }
+};
+
+const auto params_4D_dyn_param_fusing = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::Values(inShapes_4D_dyn_param_fusing),
+                ::testing::ValuesIn(eltwiseOpTypesBinDyn),
+                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                ::testing::ValuesIn(opTypes),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(ElementType::f32),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
+        ::testing::Values(emptyCPUSpec),
+        ::testing::ValuesIn(fusingParamsSet));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_dyn_param_fusing, EltwiseLayerCPUTest, params_4D_dyn_param_fusing, EltwiseLayerCPUTest::getTestCaseName);
 
 //// ============================================ 5D ============================================
 std::vector<InputShape> inShapes_5D_dyn_const = {
@@ -536,7 +619,8 @@ const auto params_5D_dyn_const = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_const, EltwiseLayerCPUTest, params_5D_dyn_const, EltwiseLayerCPUTest::getTestCaseName);
 
@@ -574,7 +658,8 @@ const auto params_5D_dyn_param = ::testing::Combine(
                 ::testing::Values(ElementType::f32),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+        ::testing::Values(emptyFusingSpec));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_5D_MemOrder_dyn_param, EltwiseLayerCPUTest, params_5D_dyn_param, EltwiseLayerCPUTest::getTestCaseName);
 
