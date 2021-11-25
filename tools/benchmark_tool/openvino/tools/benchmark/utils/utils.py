@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import datetime
-from logging import exception, log
 from openvino import Core, Function, PartialShape, Dimension, Layout
 from openvino.impl import Type
 from openvino.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
@@ -11,7 +10,6 @@ from openvino.offline_transformations_pybind import serialize
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
 from .logging import logger
-from .inputs_filling import check_number_of_parameters_for_each_input
 
 import json
 import re
@@ -429,12 +427,12 @@ class AppInputInfo:
 
     def getDimentionByLayout(self, character):
         if character not in self.layout:
-            raise Exception(f"Error: Can't get {character} from layout {self.layout}")
+            return Dimension(0)
         return self.partial_shape[self.layout.index(character)]
 
     def getDimentionsByLayout(self, character):
         if character not in self.layout:
-            raise Exception(f"Error: Can't get {character} from layout {self.layout}")
+            return [0] * len(self.data_shapes)
         d_index = self.layout.index(character)
         dims = []
         for shape in self.data_shapes:
@@ -450,7 +448,7 @@ class AppInputInfo:
 
     @property
     def width(self):
-        return self.getDimentionByLayout("W")
+        return len(self.getDimentionByLayout("W"))
 
     @property
     def widthes(self):
@@ -458,7 +456,7 @@ class AppInputInfo:
 
     @property
     def height(self):
-        return self.getDimentionByLayout("H")
+        return len(self.getDimentionByLayout("H"))
 
     @property
     def heights(self):
@@ -520,7 +518,6 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     input_names = get_input_output_names(parameters)
     shape_map = parse_input_parameters(shape_string, input_names)
     data_shape_map = get_data_shapes_map(data_shape_string, input_names)
-    check_number_of_parameters_for_each_input(data_shape_map)
     layout_map = parse_input_parameters(layout_string, input_names)
     batch_size = parse_batch_size(batch_size)
     reshape = False
@@ -595,14 +592,10 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
     mean_map = parse_scale_or_mean(mean_string, input_info)
 
     for input in input_info:
-        if input.is_image:
-            input.scale = np.ones(3)
-            input.mean = np.zeros(3)
-
-            if input.name in scale_map:
+        if input.name in scale_map:
                 input.scale = scale_map[input.name]
-            if input.name in mean_map:
-                input.mean = mean_map[input.name]
+        if input.name in mean_map:
+            input.mean = mean_map[input.name]
 
     return input_info, reshape
 

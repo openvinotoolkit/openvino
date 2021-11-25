@@ -5,7 +5,6 @@ import os
 import cv2
 import re
 import numpy as np
-from glob import glob
 from collections import defaultdict
 from pathlib import Path
 
@@ -38,191 +37,98 @@ class DataQueue:
         return self.batch_sizes[self.current_group_id]
 
 
-def get_batch_sizes(app_input_info):
+def get_group_batch_sizes(app_input_info):
     batch_sizes = []
     niter = max(len(info.shapes) for info in app_input_info)
     for i in range(niter):
         batch_size = 0
         for info in app_input_info:
             batch_index = info.layout.index('N') if 'N' in info.layout else -1
-            if info.shapes:
+            if batch_index != -1:
                 shape = info.shapes[i % len(info.shapes)]
-                if batch_index != -1 and len(shape) == len(info.layout):
-                    if batch_size == 0:
-                        batch_size = shape[batch_index]
-                    elif batch_size != shape[batch_index]:
-                        raise Exception("Can't deterimine batch size: batch is different for different inputs!")
+                if batch_size == 0:
+                    batch_size = shape[batch_index]
+                elif batch_size != shape[batch_index]:
+                    raise Exception("Can't deterimine batch size: batch is different for different inputs!")
         if batch_size == 0:
             batch_size = 1
         batch_sizes.append(batch_size)
     return batch_sizes
 
 
+def get_batch_sizes_per_input_map(app_input_info):
+    batch_sizes_map = {}
+    for info in app_input_info:
+        if 'N' in info.layout:
+            if info.is_dynamic:
+                batch_sizes_map[info.name] = info.getDimentionsByLayout('N')
+            else:
+                batch_sizes_map[info.name] = [len(info.getDimentionByLayout('N'))]
+        else:
+            batch_sizes_map[info.name] = [1] * len(info.shapes)
+    return batch_sizes_map
+
+
 def get_input_data(paths_to_input, app_input_info):
-    input_file_mapping = parse_paths_to_input(paths_to_input)
-    check_input_file_mapping(input_file_mapping, app_input_info)
+    image_mapping, binary_mapping = get_input_file_mappings(paths_to_input, app_input_info)
 
     image_sizes = get_image_sizes(app_input_info)
-    batch_sizes = get_batch_sizes(app_input_info)
-    images_count = 0
-    binaries_count = 0
-    image_info_count = 0
+    batch_sizes_map = get_batch_sizes_per_input_map(app_input_info)
+
+    images_to_be_used_map = {input_name: len(images) for input_name, images in image_mapping.items()}
+    binaries_to_be_used_map = {input_name: len(binaries) for input_name, binaries in binary_mapping.items()}
+
     for info in app_input_info:
-        if info.is_image:
-            images_count += 1
-        elif info.is_image_info:
-            image_info_count += 1
-    if images_count == 1 and image_info_count:
-        binaries_count = len(app_input_info) - images_count - image_info_count
-    else:
-         binaries_count = len(app_input_info) - images_count
-
-    image_files = list()
-    binary_files = list()
-
-    if paths_to_input and not input_file_mapping:
-        image_files = get_files_by_extensions(paths_to_input, IMAGE_EXTENSIONS)
-        binary_files = get_files_by_extensions(paths_to_input, BINARY_EXTENSIONS)
-
-    files_to_be_used = max(list(len(files) for files in input_file_mapping.values())) if input_file_mapping \
-                                                                                      else len(image_files) + len(binary_files)
-
-    if input_file_mapping:
-        for info in app_input_info:
-            num_shapes = len(info.shapes)
-            if info.name in input_file_mapping and num_shapes != 0:
-                num_files = len(input_file_mapping[info.name])
-                if num_files > num_shapes and num_files % num_shapes != 0:
-                    files_to_be_used = num_files - num_files % num_shapes
-                    logger.warning(f"Number of provided files for input '{info.name}' is not a multiple of the number of "
-                                f"provided data shapes. Only {files_to_be_used} files will be used for each input")
-    else:
-        if binaries_count + images_count > 1:
-            raise Exception("Number of inputs more than one, provide input names for each file/folder")
+        if info.shapes:
+            total_frames = np.sum(batch_sizes_map[info.name])
+            if info.name in image_mapping:
+                if images_to_be_used_map[info.name] > total_frames and images_to_be_used_map[info.name] % total_frames != 0:
+                    images_to_be_used_map[info.name] = images_to_be_used_map[info.name] - images_to_be_used_map[info.name] % total_frames
+                    logger.warning(f"Number of provided images for input '{info.name}' is not a multiple of the number of "
+                                   f"provided data shapes. Only {images_to_be_used_map[info.name]} images will be processed for this input.")
+                elif images_to_be_used_map[info.name] < total_frames:
+                    logger.warning(f"Some images will be dublicated: {total_frames} is required, "
+                                   f"but only {images_to_be_used_map[info.name]} were provided.")
+            elif info.name in binary_mapping:
+                if binaries_to_be_used_map[info.name] > total_frames and binaries_to_be_used_map[info.name] % total_frames != 0:
+                    binaries_to_be_used_map[info.name] = binaries_to_be_used_map - binaries_to_be_used_map % total_frames
+                    logger.warning(f"Number of provided binaries for input '{info.name}' is not a multiple of the number of "
+                                   f"provided data shapes. Only {binaries_to_be_used_map[info.name]} binaries will be processed for this input.")
+                elif binaries_to_be_used_map[info.name] < total_frames:
+                    logger.warning(f"Some binaries will be dublicated: {total_frames} is required, "
+                                   f"but only {images_to_be_used_map[info.name]} were provided.")
+            else:
+                logger.warning(f"No input files were given for input '{info.name}'!. This input will be filled with random values!")
         else:
-            num_shapes = len(app_input_info[0].shapes)
-            if num_shapes != 0:
-                num_files = len(image_files) + len(binary_files)
-                if num_files > num_shapes and num_files % num_shapes != 0:
-                    files_to_be_used = num_files - num_files % num_shapes
-                    logger.warning(f"Number of provided files for input '{app_input_info[0].name}' is not a multiple of the number of "
-                                f"provided data shapes. Only {files_to_be_used} files will be used for each input")
-
-    total_frames = np.prod(batch_sizes)
-
-    if input_file_mapping and len(input_file_mapping) < len(app_input_info):
-        not_provided_inputs_info = [info for info in app_input_info if info.name not in input_file_mapping]
-        for info in not_provided_inputs_info:
-            if len(info.shapes == 0): # if input is dynamic and no data shapes were provided
-                error_message = ""
-                if info.is_image:
-                    error_message = f"Provide data shapes to fill input '{info.name} " \
-                                     "with random values or images to process them with original shapes'"
-                else:
-                    error_message = f"Input {info.name} is dynamic. Provide data shapes."
-                raise Exception(error_message)
-        logger.warning("No input files were given for the inputs: "
-                       f"{', '.join(list(info.name for info in not_provided_inputs_info))}. This inputs will be filled with random values!")
-    elif len(image_files) == 0 and len(binary_files) == 0:
-        for info in app_input_info:
-            if len(info.shapes) == 0:
-                raise Exception("No input images were given, provide data_shape.")
-        logger.warning("No input files were given: all inputs will be filled with random values!")
-    else:
-        max_binary_can_be_used = 0
-        if total_frames: # if data shapes are defined already
-            max_binary_can_be_used = binaries_count * total_frames
-        if max_binary_can_be_used > 0 and len(binary_files) == 0:
-            logger.warning(f"No supported binary inputs found! "
-                                        f"Please check your file extensions: {','.join(BINARY_EXTENSIONS)}")
-        elif max_binary_can_be_used > len(binary_files):
-            logger.warning(
-                f"Some binary input files will be duplicated: "
-                                        f"{max_binary_can_be_used} files are required, "
-                                        f"but only {len(binary_files)} were provided")
-
-        max_images_can_be_used = 0
-        if total_frames: # if data shapes are defined already
-            max_images_can_be_used = images_count * total_frames
-        if max_images_can_be_used > 0 and len(image_files) == 0:
-            logger.warning(f"No supported image inputs found! Please check your "
-                                        f"file extensions: {','.join(IMAGE_EXTENSIONS)}")
-        elif max_images_can_be_used > len(image_files):
-            logger.warning(
-                f"Some image input files will be duplicated: {max_images_can_be_used} "
-                            f"files are required, but only {len(image_files)} were provided")
+            if info.name in image_mapping:
+                logger.info(f"Images given for input '{info.name}' will be processed with original shapes.")
+            else:
+                raise Exception(f"Input {info.name} is dynamic. Provide data shapes!")
 
     data = {}
     for info in app_input_info:
-        if info.is_image:
-            # input is image
-            if info.name in input_file_mapping:
-                data[info.name] = get_image_tensors(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
-                continue
+        if info.name in image_mapping:
+            data[info.name] = get_image_tensors(image_mapping[info.name][:images_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
-            if len(image_files) > 0:
-                data[info.name] = get_image_tensors(image_files[:files_to_be_used], info, batch_sizes)
-                continue
+        elif info.name in binary_mapping:
+            data[info.name] = get_binary_tensors(binary_mapping[info.name][:binaries_to_be_used_map[info.name]], info, batch_sizes_map[info.name])
 
-        if len(binary_files) or info.name in input_file_mapping:
-            if info.name in input_file_mapping:
-                data[info.name] = get_binary_tensors(input_file_mapping[info.name][:files_to_be_used], info, batch_sizes)
-                continue
+        elif info.is_image_info and len(image_sizes) == 1:
+            image_size = image_sizes[0]
+            logger.info(f"Create input tensors for input '{info.name}' with image sizes: {image_size}")
+            data[info.name] = get_image_info_tensors(image_size, info)
 
-            data[info.name] = get_binary_tensors(binary_files[:files_to_be_used], info, batch_sizes)
-            continue
-
-        if info.is_image_info and len(image_sizes) == 1:
-                image_size = image_sizes[0]
-                logger.info(f"Create input tensors for input '{info.name}' with image sizes: {image_size}")
-                data[info.name] = get_image_info_tensors(image_size, info)
-                continue
-
-        # fill with random data
-        logger.info(f"Fill input '{info.name}' with random values "
-                                f"({'image' if info.is_image else 'some binary data'} is expected)")
-        data[info.name] = fill_tensors_with_random(info)
-    if len(batch_sizes) == 0:
-        batch_sizes = get_batch_sizes(app_input_info) # update batch sizes in case getting data shapes from images
-    return DataQueue(data, batch_sizes)
-
-
-def get_files_by_extensions(paths_to_input, extensions):
-    if len(paths_to_input) == 1:
-        files = [file for file in paths_to_input[0].split(",") if file]
-
-        if all(get_extension(file) in extensions for file in files):
-            check_files_exist(files)
-            return files
-
-    return get_files_by_extensions_for_directory_or_list_of_files(paths_to_input, extensions)
-
-
-def get_files_by_extensions_for_directory_or_list_of_files(paths_to_input, extensions):
-    input_files = list()
-
-    for path_to_input in paths_to_input:
-        if os.path.isfile(path_to_input):
-            files = [os.path.normpath(path_to_input)]
         else:
-            path = os.path.join(path_to_input, '*')
-            files = glob(path, recursive=True)
-        for file in files:
-            file_extension = get_extension(file)
-            if file_extension in extensions:
-                input_files.append(file)
-    input_files.sort()
-    return input_files
+            logger.info(f"Fill input '{info.name}' with random values ")
+            data[info.name] = fill_tensors_with_random(info)
 
-
-def get_extension(file_path):
-    return file_path.split(".")[-1].upper()
+    return DataQueue(data, get_group_batch_sizes(app_input_info))
 
 
 def get_image_tensors(image_paths, info, batch_sizes):
     processed_frames = 0
-    widthes = info.widthes if info.is_dynamic else [len(info.width)]
-    heights = info.heights if info.is_dynamic else [len(info.height)]
+    widthes = info.widthes if info.is_dynamic else [info.width]
+    heights = info.heights if info.is_dynamic else [info.height]
     tensors = []
     process_with_original_shapes = False
     num_shapes = len(info.shapes)
@@ -234,8 +140,6 @@ def get_image_tensors(image_paths, info, batch_sizes):
         shape = list(info.shapes[i % num_shapes]) if num_shapes else []
         images = np.ndarray(shape=shape, dtype=np.uint8)
         image_index = processed_frames
-        scale_mean = (not np.array_equal(info.scale, (1.0, 1.0, 1.0)) or not np.array_equal(info.mean, (0.0, 0.0, 0.0)))
-
         current_batch_size = 1 if process_with_original_shapes else batch_sizes[i % num_shapes]
         for b in range(current_batch_size):
             image_index %= num_images
@@ -244,20 +148,22 @@ def get_image_tensors(image_paths, info, batch_sizes):
             image = cv2.imread(image_filename)
             if process_with_original_shapes:
                 logger.info(f'Image will be processed with original shape - {image.shape[:-1]}')
-            else:
+            elif 'H' in info.layout and 'W' in info.layout:
                 new_im_size = (widthes[i % num_shapes], heights[i % num_shapes])
                 if image.shape[:-1] != new_im_size:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
                     image = cv2.resize(image, new_im_size)
 
-            if scale_mean:
+            if info.scale or info.mean:
                 blue, green, red = cv2.split(image)
-                blue = np.subtract(blue, info.mean[0])
-                blue = np.divide(blue, info.scale[0])
-                green = np.subtract(green, info.mean[1])
-                green = np.divide(green, info.scale[1])
-                red = np.subtract(red, info.mean[2])
-                red = np.divide(red, info.scale[2])
+                if info.mean:
+                    blue = np.subtract(blue, info.mean[0])
+                    green = np.subtract(green, info.mean[1])
+                    red = np.subtract(red, info.mean[2])
+                if info.scale:
+                    blue = np.divide(blue, info.scale[0])
+                    green = np.divide(green, info.scale[1])
+                    red = np.divide(red, info.scale[2])
                 image = cv2.merge([blue, green, red])
 
             if info.layout in ['NCHW', 'CHW']:
@@ -273,7 +179,11 @@ def get_image_tensors(image_paths, info, batch_sizes):
                                     f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
                 tensors.append(Tensor(expanded))
             else:
-                images[b] = image
+                try:
+                    images[b] = image
+                except ValueError:
+                    raise Exception(f"Image shape {image.shape} is not compatible with input shape {shape}. "
+                                    f"Try to provide layout for input '{info.name}'.")
             image_index += 1
         processed_frames += current_batch_size
         if not process_with_original_shapes:
@@ -300,8 +210,6 @@ def get_dtype(precision):
 
 def get_binary_tensors(binary_paths, info, batch_sizes):
     num_shapes = len(info.shapes)
-    if info.is_dynamic and num_shapes == 0:
-        raise Exception("Data shapes must be specified for binary inputs and dynamic model")
     num_binaries = len(binary_paths)
     niter = max(num_shapes, num_binaries)
     processed_frames = 0
@@ -373,88 +281,90 @@ def fill_tensors_with_random(layer):
     return input_tensors
 
 
-def parse_paths_to_input(paths_to_inputs):
-    input_dicts_list = [parse_path(path) for path in paths_to_inputs]
-    inputs = defaultdict(list)
-    for input_dict in input_dicts_list:
-        for input_name, input_files in input_dict.items():
-            inputs[input_name] += input_files
-    return {input_: files for input_, files in inputs.items() if files}
+def get_input_file_mappings(paths_to_inputs, app_input_info):
+    image_dicts_list = []
+    binary_dicts_list = []
+    for path in paths_to_inputs:
+        image_dict, binary_dict = parse_path(path, app_input_info)
+        image_dicts_list.append(image_dict)
+        binary_dicts_list.append(binary_dict)
+
+    def merge_dicts(dicts_list):
+        merged = defaultdict(list)
+        for dict in dicts_list:
+            for k,v in dict.items():
+                merged[k] += v
+        return merged
+
+    def remove_empty_items(dict):
+        return {k: v for k,v in dict.items() if v}
+
+    return remove_empty_items(merge_dicts(image_dicts_list)), remove_empty_items(merge_dicts(binary_dicts_list))
 
 
-def parse_path(path):
+def parse_path(path, app_input_info):
     """
-    Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3" into a dict and extract files if provided path is directory
+    Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into two dicts - with binary files and with images
     """
-    input_names = re.findall(r"([^,]\w+):", path)
+    input_names = list(info.name for info in app_input_info)
+    parsed_names = re.findall(r"([^,]\w+):", path)
+    wrong_names = list(name for name in parsed_names if name not in input_names)
+    if wrong_names:
+        raise Exception(
+            f"Wrong input mapping! Cannot find inputs: {wrong_names}. "
+            f"Available inputs: {input_names}. "
+            "Please check `-i` input data"
+        )
     input_pathes = [path for path in re.split(r"[^,]\w+:", path) if path]
-    input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(input_names, input_pathes)}
-    input_file_mapping = defaultdict(list)
-    for input_name, _input_pathes in input_path_mapping.items():
+    input_path_mapping = defaultdict(list)
+    # input mapping is used
+    if parsed_names:
+        input_path_mapping = {input_: files.strip(",").split(",") for input_, files in zip(parsed_names, input_pathes)}
+    else:
+        input_files = list()
+        _input_pathes = input_pathes[0].strip(",").split(",")
         for _input_path in _input_pathes:
             input_path = Path(_input_path)
             if input_path.exists():
                 if input_path.is_dir():
-                    input_file_mapping[input_name] += list(str(input_file) for input_file in input_path.iterdir())
+                    input_files += list(str(file_path) for file_path in input_path.iterdir())
                 elif input_path.is_file:
-                    input_file_mapping[input_name].append(str(input_path))
+                    input_files.append(str(input_path))
+            else:
+                raise Exception(f"Path '{str(input_path)}' doesn't exist \n {str(input_path)}")
+        num_files, num_inputs = len(input_files), len(app_input_info)
+        if num_inputs > 1:
+            logger.warning(f"Model has {num_inputs} inputs. It's recommended to use name mapping to specify parameters for each input.")
+        if num_files > num_inputs and num_files % num_inputs != 0:
+            input_files = input_files[:num_files - num_files % num_inputs]
+            logger.warning(f"Number of provided input files '{num_files}' is not a multiple of the number of "
+                                   f"model inputs. Only {len(input_files)} files fill be used.")
+        num_files = len(input_files)
+        for i in range(num_files):
+            input_path_mapping[input_names[i % num_inputs]].append(input_files[i])
+
+    images_mapping = defaultdict(list)
+    binary_mapping = defaultdict(list)
+    unsupported_files = list()
+    for input_name, _input_pathes in input_path_mapping.items():
+        for _input_path in _input_pathes:
+            input_path = Path(_input_path)
+            if input_path.exists():
+                files = list()
+                if input_path.is_dir():
+                    files = input_path.iterdir()
+                elif input_path.is_file:
+                    files = [input_path]
+                for file in files:
+                        if file.suffix in IMAGE_EXTENSIONS:
+                            images_mapping[input_name].append(str(file))
+                        elif file.suffix in BINARY_EXTENSIONS:
+                            binary_mapping[input_name].append(str(file))
+                        else:
+                            unsupported_files.append(str(file))
             else:
                 raise Exception(f"Path for input '{input_name}' doesn't exist \n {str(input_path)}")
-    return dict(input_file_mapping)
-
-
-def check_input_file_mapping(input_file_mapping, app_input_info):
-    check_inputs(app_input_info, input_file_mapping)
-    check_files_extensions(app_input_info, input_file_mapping)
-    check_number_of_parameters_for_each_input(input_file_mapping)
-
-
-def check_number_of_parameters_for_each_input(input_parameters_mapping):
-    num_parameters_for_each_input = list(len(input_parameters) for input_parameters in input_parameters_mapping.values() if len(input_parameters) != 1)
-    if len(num_parameters_for_each_input) > 1:
-        if num_parameters_for_each_input.count(num_parameters_for_each_input[0]) != len(num_parameters_for_each_input):
-            raise Exception(
-                "Files number for every input should be either 1 or should be equal to files number of other inputs"
-            )
-
-
-def check_inputs(app_input_info, input_file_mapping):
-    input_names = [info.name for info in app_input_info]
-    wrong_inputs = [
-        input_ for input_ in input_file_mapping if input_ not in input_names
-    ]
-    if wrong_inputs:
-        raise Exception(
-            f"Wrong input mapping! Cannot find inputs: {wrong_inputs}. "
-            f"Available inputs: {list(input_names)}. "
-            "Please check `-i` input data"
-        )
-
-
-def check_files_exist(input_files_list):
-    not_files = [
-        file for file in input_files_list if not Path(file).is_file()
-    ]
-    if not_files:
-        not_files = ",\n".join(not_files)
-        raise Exception(
-            f"Inputs are not files or does not exist!\n {not_files}"
-        )
-
-
-def check_files_extensions(app_input_info, input_file_mapping):
-    unsupported_files = []
-    for input_, files in input_file_mapping.items():
-        info = [info for info in app_input_info if info.name == input_][0]
-        proper_extentions = IMAGE_EXTENSIONS if info.is_image else BINARY_EXTENSIONS
-        unsupported = "\n".join(
-                [file for file in files if Path(file).suffix.upper().strip(".") not in proper_extentions]
-            )
-        if unsupported:
-            unsupported_files.append(unsupported)
     if unsupported_files:
-        unsupported_files = "\n".join(unsupported_files)
-        raise Exception(
-            f"This files has unsupported extensions: {unsupported_files}.\n"
-            f"Supported extentions:\nImages: {IMAGE_EXTENSIONS}\nBinary: {BINARY_EXTENSIONS}"
-        )
+        logger.warning(f"This files has unsupported extensions and will be ignored: {unsupported_files}.\n"
+            f"Supported extentions:\nImages: {IMAGE_EXTENSIONS}\nBinary: {BINARY_EXTENSIONS}")
+    return images_mapping, binary_mapping
