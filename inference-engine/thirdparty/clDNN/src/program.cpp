@@ -84,6 +84,7 @@
 #include <utility>
 #include <vector>
 #include <stdexcept>
+#include <unordered_set>
 
 program::program(engine& engine_ref,
                  topology const& topology,
@@ -434,6 +435,11 @@ void program::build_program(bool is_internal) {
     {
 #endif
         prepare_memory_dependencies();
+
+        if (options.get<build_option_type::partial_build_program>()->enabled()) {
+            return;
+        }
+
         compile();
         init_kernels();
     }
@@ -551,7 +557,7 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
-    if (!is_internal) {
+    if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }
@@ -623,6 +629,9 @@ void program::transfer_memory_to_device() {
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
+                GPU_DEBUG_IF(debug_config->verbose >= 2) {
+                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
+                }
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -1390,4 +1399,45 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     if (engine.get_device_info().supports_immad && engine.configuration().queue_type == queue_types::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
+}
+
+std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
+    auto max_alloc_size = get_engine().get_device_info().max_alloc_mem_size;
+    memory_pool pool(get_engine());
+    int64_t const_sum = 0;
+
+    std::vector<program_node*> nodes_to_allocate{};
+    for (auto node : processing_order) {
+        nodes_to_allocate.push_back(node);
+    }
+
+    std::sort(nodes_to_allocate.begin(),
+              nodes_to_allocate.end(),
+              [](program_node* const& lhs, program_node* const& rhs) {
+                  return (lhs->get_output_layout().bytes_count() > rhs->get_output_layout().bytes_count());
+              });
+
+    // just to prevent the memories from being freed during allocation
+    std::unordered_set<memory::ptr> allocated_mem_ptrs;
+    for (const auto& node : nodes_to_allocate) {
+        auto out_size = node->get_output_layout().bytes_count();
+        if (out_size > max_alloc_size) {
+            // to consider: if the base batch size is > 1, should we allow this single output allocation to host?
+            continue; // to be allocated to host
+        }
+        if (node->can_be_optimized())
+            continue;
+        if (node->is_type<data>() && node->get_users().size() == 1 && node->have_user_with_type<generic_layer>())  {
+            continue;
+        }
+        if (node->is_type<data>() || (node->is_type<generic_layer>() && node->get_dependency(0).is_type<data>())) {
+            const_sum += out_size;
+        } else if (node->have_user_with_type<concatenation>() && node->get_users().size() == 1 && node->get_users().front()->can_be_optimized()) {
+            continue;
+        } else {
+            allocated_mem_ptrs.insert(primitive_inst::allocate_output(get_engine(), pool, *node, false));
+        }
+    }
+
+    return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
 }

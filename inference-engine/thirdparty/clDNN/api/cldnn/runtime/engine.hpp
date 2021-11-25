@@ -62,6 +62,9 @@ public:
     /// Create shared memory object using user-supplied memory buffer @p buf using specified @p layout
     memory_ptr share_buffer(const layout& layout, shared_handle buf);
 
+    /// Create shared memory object using user-supplied USM pointer @p usm_ptr using specified @p layout
+    memory_ptr share_usm(const layout& layout, shared_handle usm_ptr);
+
     /// Create shared memory object using user-supplied 2D image @p img using specified @p layout
     memory_ptr share_image(const layout& layout, shared_handle img);
 
