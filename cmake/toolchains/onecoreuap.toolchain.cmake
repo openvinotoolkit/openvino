@@ -32,7 +32,7 @@ if(CMAKE_GENERATOR_PLATFORM)
 endif()
 
 if(_onecoreuap_arch STREQUAL "x64")
-    # Forcefull make VS search for C++ libreries in these folders prior to other c++ standard libraries localizations.
+    # Forcefull make VS search for C++ libraries in these folders prior to other c++ standard libraries localizations.
     add_link_options("/LIBPATH:\"\$\(VC_LibraryPath_VC_x64_OneCore\)\"")
 
     set(CMAKE_C_STANDARD_LIBRARIES "\$\(UCRTContentRoot\)lib/\$\(TargetUniversalCRTVersion\)/um/\$\(Platform\)/OneCoreUap.lib" CACHE STRING "" FORCE)

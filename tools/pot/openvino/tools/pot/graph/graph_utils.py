@@ -10,7 +10,7 @@ from mo.utils.logger import init_logger
 from openvino.inference_engine import IECore  # pylint: disable=E0611
 from openvino.offline_transformations import ApplyPOTTransformations  # pylint: disable=import-error,no-name-in-module
 
-from ..graph.passes import ModelPreprocessor
+from ..graph.passes import ModelPreprocessor, remove_converts, add_removed_converts
 from ..utils.logger import stdout_redirect
 
 init_logger('ERROR', False)
@@ -47,6 +47,7 @@ def load_graph(model_config, target_device='ANY'):
     graph_from_ir.meta_data = meta_data
     graph_from_ir.ir_v10 = True
     graph_from_ir.graph['cmd_params'] = orig_graph_from_ir.graph['cmd_params']
+    remove_converts(graph_from_ir)
     model_preprocessing(graph_from_ir)
     if os.path.exists(serialized_xml_path):
         os.remove(serialized_xml_path)
@@ -71,8 +72,9 @@ def save_graph(graph: Graph, save_path, model_name=None):
         if not os.access(save_path, os.W_OK):
             raise PermissionError(
                 'Output directory {} is not writable for the current user. '.format(save_path))
-
-    save_restored_graph(graph=deepcopy(graph), path=save_path, meta_data=graph.meta_data,
+    graph_copy = deepcopy(graph)
+    add_removed_converts(graph_copy)
+    save_restored_graph(graph=graph_copy, path=save_path, meta_data=graph.meta_data,
                         name=model_name)
 
 
