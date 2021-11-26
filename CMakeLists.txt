@@ -111,6 +111,7 @@ add_subdirectory(runtime)
 
 # ----------------- OpenVINO runtime library --------------------------------
 add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_transformations_obj>
+                       $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>
                        $<TARGET_OBJECTS:inference_engine_obj>
                        $<TARGET_OBJECTS:frontend_common_obj>
                        $<TARGET_OBJECTS:ov_util_obj>
@@ -174,8 +175,10 @@ endif()
 
 # --------------- OpenVINO runtime library dev ------------------------------
 add_library(ov_runtime_dev INTERFACE)
-target_link_libraries(ov_runtime_dev INTERFACE PUBLIC INTERFACE inference_engine_plugin_api)
-target_include_directories(ov_runtime_dev INTERFACE PUBLIC INTERFACE $<BUILD_INTERFACE:$<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>>)
+target_link_libraries(ov_runtime_dev INTERFACE inference_engine_plugin_api)
+target_include_directories(ov_runtime_dev INTERFACE $<BUILD_INTERFACE:$<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>>
+                                             $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>>)
 add_library(openvino::runtime::dev ALIAS ov_runtime_dev)
 set_ie_threading_interface_for(ov_runtime_dev)
 # --------------- OpenVINO runtime library dev ------------------------------

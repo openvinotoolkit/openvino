@@ -29,7 +29,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-                                          PRIVATE $<BUILD_INTERFACE:$<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>>)
+                                          $<BUILD_INTERFACE:$<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 ov_install_static_lib(${TARGET_NAME} openvino_common)
 

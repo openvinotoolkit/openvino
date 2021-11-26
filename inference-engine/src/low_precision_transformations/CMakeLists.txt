@@ -17,39 +17,27 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create library
 
-add_library(${TARGET_NAME} EXCLUDE_FROM_ALL
+add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
-ie_faster_build(${TARGET_NAME} UNITY)
+ie_faster_build(${TARGET_NAME}_obj UNITY)
 
-ie_add_vs_version_file(NAME ${TARGET_NAME}
-                       FILEDESCRIPTION "Inference Engine LP transformations library")
+target_include_directories(${TARGET_NAME}_obj PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
+    PRIVATE $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>
+            $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>>)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::itt)
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations
-                                     PRIVATE openvino::itt)
+add_library(${TARGET_NAME} INTERFACE)
+target_include_directories(${TARGET_NAME} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>>)
 
-target_include_directories(${TARGET_NAME} PUBLIC
-    $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
+target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
-# LTO
-
-set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
 # developer package
 
 openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${TARGET_NAME})
-
-# install
-
-if(BUILD_SHARED_LIBS)
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
-else()
-    ov_install_static_lib(${TARGET_NAME} core)
-endif()
