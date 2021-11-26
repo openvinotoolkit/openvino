@@ -292,9 +292,9 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         const auto shapeof_node = std::dynamic_pointer_cast<opset8::ShapeOf>(ss_before_concat_1->input_value(0).get_node_shared_ptr());
         if (!shapeof_node) return false;
 
-        const auto node_before_shapeof = shapeof_node->input_value(0).get_node_shared_ptr();
-        const auto node_before_reshape_1 = reshape_1_node->input_value(0).get_node_shared_ptr();
-        if (node_before_shapeof.get() != node_before_reshape_1.get()) return false;
+        const auto before_shapeof = shapeof_node->input_value(0);
+        const auto before_reshape_1 = reshape_1_node->input_value(0);
+        if (before_shapeof.get_node() != before_reshape_1.get_node()) return false;
 
         opset8::Interpolate::InterpolateAttrs attrs;
         attrs.mode = opset8::Interpolate::InterpolateMode::NEAREST;
@@ -313,11 +313,10 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         std::iota(axes.begin(), axes.end(), static_cast<int64_t>(1));
         const auto axes_node = opset8::Constant::create(element::i64, {axes.size()}, axes);
 
-        auto interpolate = register_new_node<opset8::Interpolate>(node_before_shapeof, sizes_node, scales_node, axes_node, attrs);
+        auto interpolate = register_new_node<opset8::Interpolate>(before_shapeof, sizes_node, scales_node, axes_node, attrs);
 
         interpolate->set_friendly_name(reshape_2_node->get_friendly_name());
-        copy_runtime_info({reshape_2_node, mul_node, mul_const_node, concat_1_node, concat_2_node, ss_before_concat_1,
-                           shapeof_node, node_before_shapeof},
+        copy_runtime_info({reshape_2_node, mul_node, mul_const_node, concat_1_node, concat_2_node, ss_before_concat_1, shapeof_node},
                           {scales_node, sizes_node, axes_node, interpolate});
         replace_node(reshape_2_node, interpolate);
 
