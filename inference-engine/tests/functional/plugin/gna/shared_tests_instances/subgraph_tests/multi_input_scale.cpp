@@ -22,7 +22,7 @@ std::vector<std::map<std::string, std::string>> additional_config = {
     },
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_SCALE_FACTOR_0", "1638.4"},
+        {"GNA_SCALE_FACTOR_0", "2"},
         {"GNA_SCALE_FACTOR_1", "1638.4"}
     }
 };
