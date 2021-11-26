@@ -243,7 +243,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
     //      4) 'axes' input as a constant with the value [1, 2, ..., r - 2].
     //
     // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
-    auto input = ngraph::pattern::any_input();
+    auto input = ngraph::pattern::any_input(pattern::has_static_shape());
     auto concat_1 = pattern::wrap_type<opset8::Concat>();
     auto concat_2 = pattern::wrap_type<opset8::Concat>();
     auto reshape_1 = pattern::wrap_type<opset8::Reshape>({input, concat_1});
@@ -263,7 +263,7 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         if (!mul_const_node) return false;
 
         const auto reshape_1_node = std::dynamic_pointer_cast<opset8::Reshape>(pattern_to_output.at(reshape_1).get_node_shared_ptr());
-        if (!reshape_1_node || reshape_1_node->get_input_partial_shape(0).is_dynamic()) return false;
+        if (!reshape_1_node) return false;
 
         uint64_t input_rank = static_cast<uint64_t>(reshape_1_node->get_input_partial_shape(0).rank().get_length());
         const auto mul_const_shape = mul_const_node->get_output_shape(0);
