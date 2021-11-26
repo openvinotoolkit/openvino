@@ -224,6 +224,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         IE_THROW() << GetName() << " device supports just ngraph network representation";
     }
 
+    bool needPerfCounters = false;
+    std::map<std::string, std::string> filterConfig;
+    CheckConfig(config, needPerfCounters, filterConfig);
+
     auto fullConfig = mergeConfigs(_config, config);
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
@@ -237,9 +241,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // check the configure and check if need to set PerfCounters configure to device
         // and set filter configure
         OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl::AutoMode");
-        bool needPerfCounters = false;
-        std::map<std::string, std::string> filterConfig;
-        CheckConfig(fullConfig, needPerfCounters, filterConfig);
         // filter the device that supports filter configure
         auto strDevices = GetDeviceList(fullConfig);
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);

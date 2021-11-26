@@ -202,7 +202,7 @@ std::map<std::string, std::string> clDNNEngine::ConvertPerfHintsToConfig(
     // the mode may have just arrived to the LoadNetwork, or was set with the plugins' SetConfig
     if (mode != config.end() || !plugin_config.perfHintsConfig.ovPerfHint.empty()) {
         const auto mode_name = (mode != config.end())
-                               ? PerfHintsConfig::CheckPerformanceHintValue(mode->second)
+                               ? PerfHintsConfig::StrictlyCheckPerformanceHintValue(mode->second)
                                : plugin_config.perfHintsConfig.ovPerfHint;
         //checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
         const auto streams = config.find(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS);

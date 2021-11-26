@@ -23,9 +23,11 @@ struct PerfHintsConfig {
      */
     void SetConfig(const std::string& key, const std::string& value) {
         if (PluginConfigParams::KEY_PERFORMANCE_HINT == key) {
-            ovPerfHint = CheckPerformanceHintValue(value);
+            ovPerfHint = StrictlyCheckPerformanceHintValue(value);
         } else if (PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS == key) {
-            ovPerfHintNumRequests = CheckPerformanceHintRequestValue(value);
+            ovPerfHintNumRequests = StrictlyCheckPerformanceHintRequestValue(value);
+        } else {
+            IE_THROW() << "Unsupported Performance Hint config: " << key << std::endl;
         }
     }
 
@@ -59,9 +61,9 @@ struct PerfHintsConfig {
      */
     static void CheckConfigAndValue(std::pair<const std::string, const std::string&> kvp) {
         if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT)
-            CheckPerformanceHintValue(kvp.second);
+            StrictlyCheckPerformanceHintValue(kvp.second);
         else if (kvp.first == PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS)
-            CheckPerformanceHintRequestValue(kvp.second);
+            StrictlyCheckPerformanceHintRequestValue(kvp.second);
         else
             IE_THROW() << "Unsupported Performance Hint config: " << kvp.first << std::endl;
     }
@@ -71,8 +73,8 @@ struct PerfHintsConfig {
      * @param configuration value
      * @return configuration value
      */
-    static std::string CheckPerformanceHintValue(const std::string& val) {
-        if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT || val == "")
+    static std::string StrictlyCheckPerformanceHintValue(const std::string& val) {
+        if (val == PluginConfigParams::LATENCY || val == PluginConfigParams::THROUGHPUT)
             return val;
         else
             IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERFORMANCE_HINT
@@ -85,18 +87,30 @@ struct PerfHintsConfig {
      * @return configuration value as number
      */
     static int CheckPerformanceHintRequestValue(const std::string& val) {
-        int val_i = -1;
         try {
-            val_i = std::stoi(val);
-            if (val_i >= 0)
+            int val_i = std::stoul(val);
+            if (val_i >= 0) {
                 return val_i;
-            else
-                throw std::logic_error("wrong val");
-        } catch (const std::exception&) {
+            }
+        } catch(const std::logic_error&) {}
+        IE_THROW() << "Wrong value of " << val << " for property key "
+                    << PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS
+                    << ". Expected only positive integer numbers";
+    }
+
+    /**
+     * @brief Returns configuration value if it can be set, otherwise throws
+     * @param configuration value as string
+     * @return configuration value as number
+     */
+    static int StrictlyCheckPerformanceHintRequestValue(const std::string& val) {
+        int val_i = CheckPerformanceHintRequestValue(val);
+        if (val_i == 0) {
             IE_THROW() << "Wrong value of " << val << " for property key "
                        << PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS
                        << ". Expected only positive integer numbers";
         }
+        return val_i;
     }
 };
 }  // namespace InferenceEngine
