@@ -8,7 +8,7 @@
 #include "paddlepaddle_frontend/exceptions.hpp"
 #include "paddlepaddle_frontend/utility.hpp"
 
-#define NGRAPH_VARIANT_DECLARATION(TYPE, info)                                            \
+#define OPENVINO_VARIANT_DECLARATION(TYPE, info)                                          \
     template <>                                                                           \
     class VariantWrapper<TYPE> : public VariantImpl<TYPE> {                               \
     public:                                                                               \
@@ -17,13 +17,13 @@
     }
 
 namespace ov {
-NGRAPH_VARIANT_DECLARATION(int32_t, "Variant::int32");
-NGRAPH_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
-NGRAPH_VARIANT_DECLARATION(float, "Variant::float");
-NGRAPH_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
-NGRAPH_VARIANT_DECLARATION(bool, "Variant::bool");
-NGRAPH_VARIANT_DECLARATION(ngraph::element::Type, "Variant::element_type");
-NGRAPH_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
+OPENVINO_VARIANT_DECLARATION(int32_t, "Variant::int32");
+OPENVINO_VARIANT_DECLARATION(std::vector<int32_t>, "Variant::int32_vector");
+OPENVINO_VARIANT_DECLARATION(float, "Variant::float");
+OPENVINO_VARIANT_DECLARATION(std::vector<float>, "Variant::float_vector");
+OPENVINO_VARIANT_DECLARATION(bool, "Variant::bool");
+OPENVINO_VARIANT_DECLARATION(ov::element::Type, "Variant::element_type");
+OPENVINO_VARIANT_DECLARATION(std::vector<int64_t>, "Variant::int64_vector");
 namespace frontend {
 namespace pdpd {
 using InPortName = std::string;
@@ -54,7 +54,7 @@ public:
     /// \param port_name Port name for the node
     ///
     /// \return Type of specified output port
-    virtual ngraph::element::Type get_out_port_type(const std::string& port_name) const = 0;
+    virtual ov::element::Type get_out_port_type(const std::string& port_name) const = 0;
 
     virtual std::string get_op_type() const = 0;
 };
@@ -170,7 +170,7 @@ public:
         return decoder.get_output_names();
     }
 
-    ngraph::element::Type get_out_port_type(const std::string& port_name) const {
+    ov::element::Type get_out_port_type(const std::string& port_name) const {
         return decoder.get_out_port_type(port_name);
     }
 
@@ -178,21 +178,21 @@ public:
         return decoder.get_op_type();
     }
 
-    NamedOutputs default_single_output_mapping(const std::shared_ptr<Node>& ngraph_node,
+    NamedOutputs default_single_output_mapping(const std::shared_ptr<Node>& node,
                                                const std::vector<OutPortName>& required_pdpd_out_names) const;
 };
 
 inline NamedOutputs NodeContext::default_single_output_mapping(
-    const std::shared_ptr<Node>& ngraph_node,
+    const std::shared_ptr<Node>& node,
     const std::vector<OutPortName>& required_pdpd_out_names) const {
     NamedOutputs named_outputs;
-    const auto& ngraph_outputs = ngraph_node->outputs();
+    const auto& outputs = node->outputs();
     const auto& pdpd_op_output_names = this->get_output_names();
-    FRONT_END_GENERAL_CHECK(ngraph_outputs.size() == 1, "nGraph node must have exactly one output");
+    FRONT_END_GENERAL_CHECK(outputs.size() == 1, "OV node must have exactly one output");
     for (const auto& pdpd_name : pdpd_op_output_names) {
         if (std::find(required_pdpd_out_names.begin(), required_pdpd_out_names.end(), pdpd_name) !=
             required_pdpd_out_names.end())
-            named_outputs[pdpd_name] = {ngraph_outputs[0]};
+            named_outputs[pdpd_name] = {outputs[0]};
     }
     return named_outputs;
 }
