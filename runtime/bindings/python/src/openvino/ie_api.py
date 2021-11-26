@@ -67,7 +67,7 @@ class ExecutableNetwork(ExecutableNetworkBase):
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: dict = None) -> OrderedDict():
+    def infer_new_request(self, inputs: dict = None) -> OrderedDict:
         """Infer wrapper for ExecutableNetwork."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         res = super().infer_new_request(inputs)
