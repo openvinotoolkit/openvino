@@ -204,10 +204,7 @@ namespace {
     };
 
     const std::vector<bool> preprocessCollapseRepeated = {true, false};
-    // TODO: [ticket:71088] there are some inconsistency between cpu plugin and ng ref
-    // for ctcMergeRepeated is true when randomed inputs value. Failure happened on win and macos for current seeds.
-    // const std::vector<bool> ctcMergeRepeated = {true, false};
-    const std::vector<bool> ctcMergeRepeated = {false};
+    const std::vector<bool> ctcMergeRepeated = {true, false};
     const std::vector<bool> unique = {true, false};
 
     const std::vector<CTCLossShapeParams> shapes = {
