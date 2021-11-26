@@ -1296,16 +1296,17 @@ bool MKLDNNNode::inputShapesDefined() const {
     return true;
 }
 
-bool MKLDNNNode::shapesDefined() const {
-    if (!inputShapesDefined()) {
-        return false;
-    }
+bool MKLDNNNode::outputShapesDefined() const {
     for (size_t i = 0; i < outputShapes.size(); i++) {
         if (!getChildEdgesAtPort(i)[0]->getMemory().getDesc().isDefined()) {
             return false;
         }
     }
     return true;
+}
+
+bool MKLDNNNode::shapesDefined() const {
+    return inputShapesDefined() && outputShapesDefined();
 }
 
 bool MKLDNNNode::needPrepareParams() const {

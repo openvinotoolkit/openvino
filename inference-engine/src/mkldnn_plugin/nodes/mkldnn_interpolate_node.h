@@ -97,7 +97,7 @@ public:
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
-    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
+    void executeDynamicImpl(mkldnn::stream strm) override;
     bool canBeInPlace() const override {
         return false;
     }
@@ -131,7 +131,7 @@ private:
                                 const VectorDims &dstDims,
                                 const std::vector<float> &dataScales);
 
-            virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) = 0;
+            virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) = 0;
             virtual ~InterpolateExecutor() = default;
             VectorDims getSrcDimPad5d() const { return srcDimPad5d; }
 
@@ -171,7 +171,7 @@ private:
                                    const std::vector<float> &dataScales,
                                    const mkldnn::primitive_attr &attr);
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
 
         private:
             // nearest neighbor
@@ -198,7 +198,7 @@ private:
                                    const std::vector<float> &_dataScales) : dataScales(_dataScales), antialias(interpAttrs.antialias),
                 InterpolateExecutor(interpAttrs, srcDims, dstDims, _dataScales) {}
 
-            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, int N, int C, int ID, int IH, int IW, int OD, int OH, int OW) override;
+            void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_) override;
 
         private:
             void NNRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int ID, int IH, int IW, int OD, int OH, int OW);
@@ -236,8 +236,8 @@ private:
 
     mkldnn::primitive_attr attr;
 
-    mutable std::vector<float> scalesShapeInfer;
-    mutable std::vector<int32_t> sizesShapeInfer;
+    std::vector<float> lastScales;
+    std::vector<int32_t> lastSizes;
 
     VectorDims lastOutputDims;
 
