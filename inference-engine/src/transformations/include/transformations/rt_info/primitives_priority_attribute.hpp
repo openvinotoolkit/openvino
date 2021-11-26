@@ -32,11 +32,13 @@ public:
 
     PrimitivesPriority() = default;
 
+    ~PrimitivesPriority() override = default;
+
     PrimitivesPriority(const value_type &value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<ov::Variant> merge(const ngraph::NodeVector & nodes) override;
+    Any merge(const ngraph::NodeVector & nodes) override;
 
-    std::shared_ptr<ov::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
+    Any init(const std::shared_ptr<ngraph::Node> & node) override;
 
     bool visit_attributes(AttributeVisitor & visitor) override;
 };
