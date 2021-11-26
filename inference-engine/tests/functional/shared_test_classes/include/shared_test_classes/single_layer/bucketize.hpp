@@ -4,30 +4,32 @@
 
 #pragma once
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include <tuple>
+#include <string>
 
-namespace ov {
-namespace test {
-namespace subgraph {
+#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-using bucketizeParamsTuple = std::tuple<InputShape,    // Data shape
-                                        InputShape,    // Buckets shape
-                                        bool,          // Right edge of interval
-                                        ElementType,   // Data input precision
-                                        ElementType,   // Buckets input precision
-                                        ElementType,   // Output precision
-                                        TargetDevice>;  // Device name
+#include "shared_test_classes/base/layer_test_utils.hpp"
+
+namespace LayerTestsDefinitions {
+
+using bucketizeParamsTuple = std::tuple<
+    InferenceEngine::SizeVector,    // Data shape
+    InferenceEngine::SizeVector,    // Buckets shape
+    bool,                           // Right edge of interval
+    InferenceEngine::Precision,     // Data input precision
+    InferenceEngine::Precision,     // Buckets input precision
+    InferenceEngine::Precision,     // Output precision
+    std::string>;                   // Device name
 
 class BucketizeLayerTest : public testing::WithParamInterface<bucketizeParamsTuple>,
-                           virtual public ov::test::SubgraphBaseTest {
+                           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj);
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
-
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 protected:
     void SetUp() override;
 };
 
-}  // namespace subgraph
-}  // namespace test
-}  // namespace ov
+} // namespace LayerTestsDefinitions

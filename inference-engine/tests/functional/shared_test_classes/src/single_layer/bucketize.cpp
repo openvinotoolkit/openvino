@@ -4,91 +4,64 @@
 
 #include "shared_test_classes/single_layer/bucketize.hpp"
 
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/ov_tensor_utils.hpp"
-#include "ngraph_functions/builders.hpp"
+namespace LayerTestsDefinitions {
 
-namespace ov {
-namespace test {
-namespace subgraph {
+    std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
+        InferenceEngine::SizeVector dataShape;
+        InferenceEngine::SizeVector bucketsShape;
+        bool with_right_bound;
+        InferenceEngine::Precision inDataPrc;
+        InferenceEngine::Precision inBucketsPrc;
+        InferenceEngine::Precision netPrc;
+        std::string targetDevice;
 
-std::string BucketizeLayerTest::getTestCaseName(const testing::TestParamInfo<bucketizeParamsTuple>& obj) {
-    InputShape dataShape;
-    InputShape bucketsShape;
-    bool with_right_bound;
-    ElementType inDataPrc;
-    ElementType inBucketsPrc;
-    ElementType netPrc;
-    TargetDevice targetDevice;
+        std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = obj.param;
 
-    std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = obj.param;
-
-    std::ostringstream result;
-    result << "IS=" << CommonTestUtils::partialShape2str({dataShape.first}) << "_"
-           << CommonTestUtils::partialShape2str({bucketsShape.first}) << "_";
-
-    for (const auto& item : dataShape.second) {
-        result << "TS=" << CommonTestUtils::vec2str(item) << "_";
-    }
-    for (const auto& item : bucketsShape.second) {
-        result << "BS=" << CommonTestUtils::vec2str(item) << "_";
+        std::ostringstream result;
+        result << "DS=" << CommonTestUtils::vec2str(dataShape) << "_";
+        result << "BS=" << CommonTestUtils::vec2str(bucketsShape) << "_";
+        if (with_right_bound)
+            result << "rightIntervalEdge_";
+        else
+            result << "leftIntervalEdge_";
+        result << "inDataPrc=" << inDataPrc.name() << "_";
+        result << "inBucketsPrc=" << inBucketsPrc.name() << "_";
+        result << "netPrc=" << netPrc.name() << "_";
+        result << "trgDev=" << targetDevice;
+        return result.str();
     }
 
-    if (with_right_bound)
-        result << "rightIntervalEdge_";
-    else
-        result << "leftIntervalEdge_";
-    result << "inDataPrc=" << inDataPrc << "_";
-    result << "inBucketsPrc=" << inBucketsPrc << "_";
-    result << "netPrc=" << netPrc << "_";
-    result << "trgDev=" << targetDevice;
-    return result.str();
-}
+    InferenceEngine::Blob::Ptr BucketizeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+        InferenceEngine::Blob::Ptr blobPtr;
+        const std::string name = info.name();
+        if (name == "a_data") {
+            auto data_shape = info.getTensorDesc().getDims();
+            auto data_size = std::accumulate(begin(data_shape), end(data_shape), 1, std::multiplies<uint64_t>());
+            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_size * 5, 0, 10, 7235346);
+        } else if (name == "b_buckets") {
+            blobPtr = FuncTestUtils::createAndFillBlobUniqueSequence(info.getTensorDesc(), 0, 10, 8234231);
+        }
+        return blobPtr;
+    }
 
-void BucketizeLayerTest::generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) {
-    inputs.clear();
-    const auto& funcInputs = function->inputs();
+    void BucketizeLayerTest::SetUp() {
+        InferenceEngine::SizeVector dataShape;
+        InferenceEngine::SizeVector bucketsShape;
+        bool with_right_bound;
+        InferenceEngine::Precision inDataPrc;
+        InferenceEngine::Precision inBucketsPrc;
+        InferenceEngine::Precision netPrc;
 
-    auto data_size = shape_size(targetInputStaticShapes[0]);
-    ov::runtime::Tensor tensorData = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(),
-                                                                             targetInputStaticShapes[0],
-                                                                             data_size * 5,
-                                                                             0,
-                                                                             10,
-                                                                             7235346);
+        std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) = this->GetParam();
 
-    ov::runtime::Tensor tensorBucket =
-        ov::test::utils::create_and_fill_tensor_unique_sequence(funcInputs[1].get_element_type(),
-                                                                targetInputStaticShapes[1],
-                                                                0,
-                                                                10,
-                                                                8234231);
-
-    inputs.insert({funcInputs[0].get_node_shared_ptr(), tensorData});
-    inputs.insert({funcInputs[1].get_node_shared_ptr(), tensorBucket});
-}
-
-void BucketizeLayerTest::SetUp() {
-    InputShape dataShape;
-    InputShape bucketsShape;
-    bool with_right_bound;
-    ElementType inDataPrc;
-    ElementType inBucketsPrc;
-    ElementType netPrc;
-
-    std::tie(dataShape, bucketsShape, with_right_bound, inDataPrc, inBucketsPrc, netPrc, targetDevice) =
-        this->GetParam();
-    init_input_shapes({dataShape, bucketsShape});
-
-    auto data = std::make_shared<ngraph::op::Parameter>(inDataPrc, inputDynamicShapes[0]);
-    data->set_friendly_name("a_data");
-    auto buckets = std::make_shared<ngraph::op::Parameter>(inBucketsPrc, inputDynamicShapes[1]);
-    buckets->set_friendly_name("b_buckets");
-    auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, netPrc, with_right_bound);
-    function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize),
-                                                  ngraph::ParameterVector{data, buckets},
-                                                  "Bucketize");
-}
-}  // namespace subgraph
-}  // namespace test
-}  // namespace ov
+        auto ngInDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inDataPrc);
+        auto ngInBucketsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inBucketsPrc);
+        auto ngNetPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrc);
+        auto data = std::make_shared<ngraph::op::Parameter>(ngInDataPrc, ngraph::Shape(dataShape));
+        data->set_friendly_name("a_data");
+        auto buckets = std::make_shared<ngraph::op::Parameter>(ngInBucketsPrc, ngraph::Shape(bucketsShape));
+        buckets->set_friendly_name("b_buckets");
+        auto bucketize = std::make_shared<ngraph::op::v3::Bucketize>(data, buckets, ngNetPrc, with_right_bound);
+        function = std::make_shared<ngraph::Function>(std::make_shared<ngraph::opset1::Result>(bucketize), ngraph::ParameterVector{data, buckets}, "Bucketize");
+    }
+} // namespace LayerTestsDefinitions
