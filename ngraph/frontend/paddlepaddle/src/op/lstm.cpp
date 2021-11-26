@@ -3,10 +3,10 @@
 //
 
 #include <node_context.hpp>
-#include <openvino/opsets/opset6.hpp>
 
-#include "ngraph/builder/reshape.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "paddlepaddle_frontend/utility.hpp"
+#include "pdpd_utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -28,7 +28,7 @@ enum class LSTMInput {
 
 struct LSTMNgInputMap {
     explicit LSTMNgInputMap(const NodeContext& node, Output<Node>& prev_output, int layer) {
-        auto input_x = ngraph::builder::opset1::reorder_axes(prev_output, {1, 0, 2});
+        auto input_x = reorder_axes(prev_output, {1, 0, 2});
         //[begin. end)
         auto weight_list = node.get_ng_inputs("WeightList");
         auto weight_begin = weight_list.begin();
@@ -115,39 +115,39 @@ struct LSTMNgInputMap {
         auto c_end = opset6::Constant::create(element::i64, {1}, {layer * bidirect_len + bidirect_len});
 
         m_input_map[LSTMInput::LSTM_INPUT_INIT_H] =
-            ngraph::builder::opset1::reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[0],
-                                                                                         h_begin,
-                                                                                         h_end,
-                                                                                         std::vector<int64_t>{0},
-                                                                                         std::vector<int64_t>{0}),
-                                                  {1, 0, 2});
+            reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[0],
+                                                                h_begin,
+                                                                h_end,
+                                                                std::vector<int64_t>{0},
+                                                                std::vector<int64_t>{0}),
+                         {1, 0, 2});
         m_input_map[LSTMInput::LSTM_INPUT_INIT_C] =
-            ngraph::builder::opset1::reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[1],
-                                                                                         c_begin,
-                                                                                         c_end,
-                                                                                         std::vector<int64_t>{0},
-                                                                                         std::vector<int64_t>{0}),
-                                                  {1, 0, 2});
+            reorder_axes(std::make_shared<opset6::StridedSlice>(init_states[1],
+                                                                c_begin,
+                                                                c_end,
+                                                                std::vector<int64_t>{0},
+                                                                std::vector<int64_t>{0}),
+                         {1, 0, 2});
     }
 
-    Output<ngraph::Node>& at(const LSTMInput& key) {
+    Output<ov::Node>& at(const LSTMInput& key) {
         return m_input_map.at(key);
     }
 
-    std::map<LSTMInput, Output<ngraph::Node>> m_input_map;
+    std::map<LSTMInput, Output<ov::Node>> m_input_map;
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 struct LSTMAttributes {
     explicit LSTMAttributes(const NodeContext& node)
-        : m_direction(node.get_attribute<bool>("is_bidirec") ? ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL
-                                                             : ngraph::op::RecurrentSequenceDirection::FORWARD),
+        : m_direction(node.get_attribute<bool>("is_bidirec") ? ov::op::RecurrentSequenceDirection::BIDIRECTIONAL
+                                                             : ov::op::RecurrentSequenceDirection::FORWARD),
           m_hidden_size(node.get_attribute<int32_t>("hidden_size")),
           m_layers(node.get_attribute<int32_t>("num_layers"))
 
               {};
 
-    ngraph::op::RecurrentSequenceDirection m_direction;
+    ov::op::RecurrentSequenceDirection m_direction;
     int32_t m_hidden_size;
     int32_t m_layers;
 };
@@ -172,12 +172,12 @@ NamedOutputs lstm(const NodeContext& node) {
                                                                     input_map.at(LSTMInput::LSTM_INPUT_B),
                                                                     attrs.m_hidden_size,
                                                                     attrs.m_direction);
-        prev_output = ngraph::builder::opset1::reorder_axes(lstm_sequence->output(0), {2, 0, 1, 3});
+        prev_output = reorder_axes(lstm_sequence->output(0), {2, 0, 1, 3});
         auto out_shape = opset6::Constant::create(element::i64, Shape{3}, {0, 0, -1});
         prev_output = std::make_shared<opset6::Reshape>(prev_output, out_shape, true);
 
-        final_h.push_back(ngraph::builder::opset1::reorder_axes(lstm_sequence->output(1), {1, 0, 2}));
-        final_c.push_back(ngraph::builder::opset1::reorder_axes(lstm_sequence->output(2), {1, 0, 2}));
+        final_h.push_back(reorder_axes(lstm_sequence->output(1), {1, 0, 2}));
+        final_c.push_back(reorder_axes(lstm_sequence->output(2), {1, 0, 2}));
     }
 
     NamedOutputs named_outputs;

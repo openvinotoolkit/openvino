@@ -74,8 +74,10 @@ static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
     if (fp) {
         fseek(fp, 0, SEEK_END);
         auto sz = ftell(fp);
-        if (sz < 0)
+        if (sz < 0) {
+            fclose(fp);
             return {};
+        }
         auto nsize = static_cast<size_t>(sz);
 
         fseek(fp, 0, SEEK_SET);

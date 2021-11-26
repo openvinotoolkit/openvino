@@ -281,7 +281,7 @@ public:
      * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
-    Parameter get_config(const std::string& deviceName, const std::string& name) const;
+    Any get_config(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Gets general runtime metric for dedicated hardware.
@@ -293,7 +293,7 @@ public:
      * @param name - metric name to request.
      * @return Metric value corresponding to metric key.
      */
-    Parameter get_metric(const std::string& deviceName, const std::string& name) const;
+    Any get_metric(const std::string& deviceName, const std::string& name) const;
 
     /**
      * @brief Returns devices available for neural networks inference

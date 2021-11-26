@@ -31,7 +31,7 @@ public:
 
 namespace py = pybind11;
 
-using PyRTMap = std::map<std::string, std::shared_ptr<ngraph::Variant>>;
+using PyRTMap = ngraph::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 

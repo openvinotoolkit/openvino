@@ -23,7 +23,8 @@ def get_node_input_ports(node: Node):
     :return: list of node inputs
     """
     sources_ports = [parent.get_source() for parent in node.in_ports().values()]
-    return [port if port is not None else None for port in sources_ports]
+    return [port for port in sources_ports if port is not None]
+
 
 def get_node_input(node: Node, in_port: int):
     """
@@ -84,7 +85,10 @@ def set_node_value(node: Node, value: np.ndarray):
       """
     if node.type != 'Const':
         raise Exception('Can\'t set value for non-constant node {}'.format(node.name))
-    node.out_port(0).data.set_value(value)
+    data_type = np.float32
+    if node.out_port(0).is_data_type_defined():
+        data_type = node.out_port(0).get_data_type()
+    node.out_port(0).data.set_value(np.array(value).astype(data_type))
 
 
 def get_node_value(node: Node):
@@ -188,10 +192,10 @@ def get_quantized_input_key(quantized_node):
     Otherwise, key is tuple (fq_input name, output port number)
     """
     quantized_input = get_node_input(quantized_node, 0)
-    key = quantized_input.name
+    key = quantized_input.fullname
     if len(quantized_input.out_ports()) > 1:
         port_number = quantized_node.in_port(0).get_source().out
-        key = (quantized_input.name, port_number)
+        key = (quantized_input.fullname, port_number)
     return key
 
 
@@ -268,3 +272,7 @@ def get_node_data_type(node):
             and node.in_port(0).get_source().is_data_type_defined():
         return node.in_port(0).get_source().get_data_type()
     return None
+
+
+def reset_node_fullname(old_fullname, node_name):
+    return '|'.join(old_fullname.split('|')[:-1] + [node_name])

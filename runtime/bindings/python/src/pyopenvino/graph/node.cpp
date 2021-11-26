@@ -32,7 +32,7 @@ public:
 
 namespace py = pybind11;
 
-using PyRTMap = std::map<std::string, std::shared_ptr<ov::Variant>>;
+using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
