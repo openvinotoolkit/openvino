@@ -19,7 +19,7 @@ from distutils.command.build import build as _build
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYTHON_API_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYTHON_API_ROOT_DIR, "../../.."))
-# Change current working directory to runtime/bindings/python
+# Change current working directory to src/bindings/python
 os.chdir(PYTHON_API_ROOT_DIR)
 
 NGRAPH_LIBS = ["ngraph", "openvino"]
