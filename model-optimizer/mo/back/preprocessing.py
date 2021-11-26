@@ -59,6 +59,11 @@ def update_mean_scale_to_dict(input_nodes: list, mean_scale_val, scale):
 
 
 def check_keys_valid(ov_function: Function, keys: list, search_outputs: bool):
+    """
+    Internal function: checks if keys from cmd line arguments correspond to ov_function's inputs/outputs
+    Throws if some key is not found
+    Throws if some different keys point to the same actual input/output
+    """
     nodes_used = {}
     for name in keys:
         node_found = False
@@ -142,7 +147,6 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
     :param: mean_scale_values Dictionary with mean/scale values defined for each argument
     :return: updated layout items with guessed layouts
     """
-    log.debug('Layout items before guess: {}'.format(layout_values))
     for ms_name, mean_scale in mean_scale_values.items():
         num_channels_mean = len(mean_scale['mean']) if mean_scale['mean'] is not None else 0
         num_channels_scale = len(mean_scale['scale']) if hasattr(mean_scale['scale'], '__len__') else 0
@@ -180,7 +184,6 @@ def guess_source_layouts_by_mean_scale(ov_function: Function, layout_values, mea
                                                        num_channels=num_channels,
                                                        name=ms_name,
                                                        layout_values=layout_values)
-    log.debug('Layout items after guess: {}'.format(layout_values))
     return layout_values
 
 
@@ -212,7 +215,6 @@ def guess_source_layouts_for_reverse_channels(ov_function: Function, layout_valu
                                                    name=first_name,
                                                    layout_values=layout_values)
 
-    log.error('Layout items after guess: {}'.format(layout_values))
     return layout_values
 
 
@@ -230,13 +232,11 @@ def apply_preprocessing(ov_function: Function, argv: argparse.Namespace):
     else:
         mean_scale_values = {}
 
-    log.debug('Original MS: {}'.format(mean_scale_values))
     mean_scale_values = update_mean_scale_to_dict(input_nodes=ov_function.inputs,
                                                   mean_scale_val=mean_scale_values,
                                                   scale=argv.scale)
 
     layout_values = {}
-    # layout_values = {'inputX1': {'source_layout': 'nchw'}}
     if 'layout_values' in argv and argv.layout_values:
         layout_values = argv.layout_values
 

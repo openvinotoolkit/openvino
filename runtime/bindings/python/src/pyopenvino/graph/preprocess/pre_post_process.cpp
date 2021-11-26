@@ -379,7 +379,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     regclass_graph_OutputNetworkInfo(m);
     regenum_graph_ColorFormat(m);
     regenum_graph_ResizeAlgorithm(m);
-    py::class_<ov::preprocess::PrePostProcessor, ref_wrapper<ov::preprocess::PrePostProcessor>> proc(
+    py::class_<ov::preprocess::PrePostProcessor, std::shared_ptr<ov::preprocess::PrePostProcessor>> proc(
         m,
         "PrePostProcessor");
     proc.doc() = "openvino.impl.preprocess.PrePostProcessor wraps ov::preprocess::PrePostProcessor";
