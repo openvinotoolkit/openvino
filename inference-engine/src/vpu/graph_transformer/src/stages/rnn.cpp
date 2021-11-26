@@ -198,8 +198,9 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     };
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
-    auto outputData = outputs;
-    if (outputs.size() == 1) {
+    DataVector outputData;
+    std::copy_if(outputs.cbegin(), outputs.cend(), std::back_inserter(outputData), [](const Data& handle) { return !!handle;});
+    if (outputData.size() == 1) {
         outputData.push_back(model->addFakeData());
     }
 
