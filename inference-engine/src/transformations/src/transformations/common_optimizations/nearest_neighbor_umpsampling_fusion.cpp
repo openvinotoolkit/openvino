@@ -21,10 +21,16 @@
 namespace {
 using namespace ngraph;
 
+// In the transformation, a constant for Multiply must have the following shape:
+//      [1, 1, S_1, 1, S_2, ..., 1, S_i, ..., 1, S_{r - 2}, 1], (1)
+// where r is number of spatial axes, and each S_i is a scale for the axis i.
+// This function returns the vector with elements
+//      [S_1, S_2, ..., S_i, ..., S_{r - 2}],
+// when the shape, 's', has the form (1), and the empty vector otherwise.
 std::vector<float> get_scales_from_mul_const_shape(const Shape& s, uint64_t input_rank) {
-    if (input_rank < 4 || s.size() != 2 + 2 * (input_rank - 2)) return {};
+    if (input_rank < 4 || s.size() != 2 * input_rank - 2) return {};
 
-    ngraph::Shape expected_shape(2 + 2 * (input_rank - 2), 1);
+    ngraph::Shape expected_shape(2 * input_rank - 2, 1);
     std::vector<float> scales(input_rank - 2);
     for (uint64_t i = 1; i <= input_rank - 2; ++i) {
         expected_shape[2 * i] = s[2 * i];
