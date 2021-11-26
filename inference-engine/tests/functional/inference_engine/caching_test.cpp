@@ -360,7 +360,9 @@ private:
         }));
 
         ON_CALL(plugin, GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), _)).
-                WillByDefault(Return("mock"));
+                        WillByDefault(Invoke([&](const std::string &, const std::map<std::string, Parameter> &) {
+            return "mock";
+        }));
 
         ON_CALL(plugin, ImportNetwork(_, _, _)).
                 WillByDefault(Invoke([&](std::istream &istr, const RemoteContext::Ptr&,

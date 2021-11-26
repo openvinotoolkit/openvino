@@ -36,6 +36,7 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/variant.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 
 namespace ov {
@@ -63,7 +64,7 @@ using ov::op::v0::Result;
 }
 }  // namespace op
 
-using EvaluationContext = std::map<std::string, std::shared_ptr<Variant>>;
+using EvaluationContext = ov::EvaluationContext;
 using ResultVector = std::vector<std::shared_ptr<ngraph::op::v0::Result>>;
 
 const auto node_validation_failure_loc_string = ov::node_validation_failure_loc_string;
