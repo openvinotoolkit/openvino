@@ -23,7 +23,8 @@ def get_node_input_ports(node: Node):
     :return: list of node inputs
     """
     sources_ports = [parent.get_source() for parent in node.in_ports().values()]
-    return [port if port is not None else None for port in sources_ports]
+    return [port for port in sources_ports if port is not None]
+
 
 def get_node_input(node: Node, in_port: int):
     """
