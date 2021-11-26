@@ -4,6 +4,7 @@
 import json
 
 import numpy as np
+from numpy.core.numeric import _ones_like_dispatcher
 import pytest
 
 import openvino.opset8 as ops
@@ -13,6 +14,7 @@ from openvino.pyopenvino import VariantInt, VariantString
 
 from openvino.exceptions import UserInputError
 from openvino.impl import Function, PartialShape, Shape, Type, layout_helpers
+from openvino import Tensor
 from openvino.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -84,7 +86,6 @@ def test_simple_computation_on_ndarrays(dtype):
     value_c = np.array([[5, 4], [3, 2]], dtype=dtype)
     result = computation(value_a, value_b, value_c)
     assert np.allclose(result, np.array([[110, 96], [78, 56]], dtype=dtype))
-
 
 def test_serialization():
     dtype = np.float32
@@ -318,7 +319,6 @@ def test_node_friendly_name():
 
     assert(dummy_node.get_friendly_name() == "new_name")
 
-
 def test_node_output():
     input_array = np.array([0, 1, 2, 3, 4, 5])
     splits = 3
@@ -351,6 +351,59 @@ def test_node_output():
 
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
 
+def test_node_input_size():
+    node = ops.add([1], [2])
+    assert node.get_input_size() == 2
+
+def test_node_input_values():
+    shapes = [Shape([3]), Shape([3])]
+    data1 = np.array([1, 2, 3])
+    data2 = np.array([3, 2, 1])
+
+    node = ops.add(data1, data2)
+
+    assert node.get_input_size() == 2
+
+    assert np.equal(
+        [input_node.get_shape() for input_node in node.input_values()],
+        shapes
+    ).all()
+
+    assert np.equal(
+        [node.input_value(i).get_shape() for i in range(node.get_input_size())],
+        shapes
+    ).all()
+
+    assert np.allclose(
+        [input_node.get_node().get_vector() for input_node in node.input_values()],
+        [data1, data2]
+    )
+
+    assert np.allclose(
+        [node.input_value(i).get_node().get_vector() for i in range(node.get_input_size())],
+        [data1, data2]
+    )
+
+def test_node_evaluate():
+    data1 = np.array([3, 2, 3])
+    data2 = np.array([4, 2, 3])
+    expected_result = data1 + data2
+
+    data1 = np.ascontiguousarray(data1)
+    data2 = np.ascontiguousarray(data2)
+
+    output = np.array([0, 0, 0])
+    output = np.ascontiguousarray(output)
+
+    node = ops.add(data1, data2)
+
+    inputTensor1 = Tensor(array=data1, shared_memory=True)
+    inputTensor2 = Tensor(array=data2, shared_memory=True)
+    inputsTensorVector = [inputTensor1, inputTensor2]
+
+    outputTensorVector = [Tensor(array=output, shared_memory=True)]
+    assert node.evaluate(outputTensorVector, inputsTensorVector) == True
+    assert np.equal(outputTensorVector[0].data, expected_result).all()
 
 def test_node_input():
     shape = [2, 2]
