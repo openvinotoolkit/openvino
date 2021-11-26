@@ -1390,6 +1390,7 @@ void MKLDNNEltwiseNode::prepareParams() {
         }
     }
 
+    int lastUnchangedAxis = 0;
     size_t oc_size = 0;
     jep.oc_offsets.resize(jep.input_size, 0);
     std::fill(jep.oc_offsets.begin(), jep.oc_offsets.end(), 0);
@@ -1400,10 +1401,15 @@ void MKLDNNEltwiseNode::prepareParams() {
                 int oc_dim_idx = i + (jep.input_size - outOrder.size());
                 jep.oc_offsets[oc_dim_idx] = offset_oc;
                 offset_oc *= jep.dims[oc_dim_idx];
+                if (oc_dim_idx + 1 != jep.input_size) { // since in nspc case we can safely collapse the last axis
+                    lastUnchangedAxis = oc_dim_idx;
+                }
             }
         }
         oc_size = jep.oc_offsets[jep.dims.size() - 1] != 0 ? jep.dims[jep.dims.size() - 1] : 1;
     }
+
+    int maxCollapsedDims = static_cast<int>(jep.dims.size()) - lastUnchangedAxis - 2;
 
     size_t fullWorkAmount = 1;
     for (int i = 0; i < jep.dims.size(); i++) {
@@ -1421,7 +1427,7 @@ void MKLDNNEltwiseNode::prepareParams() {
         while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
                (!isDynBatchEnabled || (currentOutBlkDims.size() - collapsedDims > 2))) {
-            if (static_cast<int>(jep.dims.size()) - collapsedDims - 2 < 0)
+            if (collapsedDims >= maxCollapsedDims)
                 break;
 
             for (int j = 1; j < dims_in.size(); j++) {
