@@ -2,10 +2,10 @@ name: MO
 on:
   push:
     paths:
-      - 'model-optimizer/**'
+      - 'tools/model_optimizer/**'
   pull_request:
     paths:
-      - 'model-optimizer/**'
+      - 'tools/model_optimizer/**'
 
 jobs:
   Pylint-UT:
@@ -24,7 +24,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('model-optimizer/requirements*.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('tools/model_optimizer/requirements*.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
             ${{ runner.os }}-
@@ -43,11 +43,11 @@ jobs:
           # requrements for CMake
           sudo apt update
           sudo apt --assume-yes install libusb-1.0-0-dev
-        working-directory: model-optimizer
+        working-directory: tools/model_optimizer
 
       - name: Pylint
         run: pylint -d C,R,W mo/ mo.py extensions/
-        working-directory: model-optimizer
+        working-directory: tools/model_optimizer
 
       - name: CMake
         run: |
@@ -62,5 +62,5 @@ jobs:
           env
           mkdir ../mo-ut-logs
           python3 -m xmlrunner discover -p *_test.py --output=../mo-ut-logs
-        working-directory: model-optimizer
+        working-directory: tools/model_optimizer
 

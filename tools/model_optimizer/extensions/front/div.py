@@ -10,7 +10,7 @@ from mo.graph.graph import Graph, Node, rename_node
 
 
 class Div(FrontReplacementPattern):
-    # This transformation is called directly from the 'model-optimizer/extensions/middle/fusings.py' transformation
+    # This transformation is called directly from the 'tools/model_optimizer/extensions/middle/fusings.py' transformation
     enabled = False
 
     @staticmethod

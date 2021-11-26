@@ -48,14 +48,14 @@ __pycache__
 *pylint_report_comments.txt
 
 # Artifacts
-/model-optimizer/*.bin
-/model-optimizer/*.xml
-/model-optimizer/*.json
-/model-optimizer/*.so
-/model-optimizer/*.txt
-/model-optimizer/*.pb
-/model-optimizer/*.pbtxt
-/model-optimizer/!CMakeLists.txt
-/model-optimizer/*.mapping
-/model-optimizer/*.dat
-/model-optimizer/*.svg
+/tools/model_optimizer/*.bin
+/tools/model_optimizer/*.xml
+/tools/model_optimizer/*.json
+/tools/model_optimizer/*.so
+/tools/model_optimizer/*.txt
+/tools/model_optimizer/*.pb
+/tools/model_optimizer/*.pbtxt
+/tools/model_optimizer/!CMakeLists.txt
+/tools/model_optimizer/*.mapping
+/tools/model_optimizer/*.dat
+/tools/model_optimizer/*.svg

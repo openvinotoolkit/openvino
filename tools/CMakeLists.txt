@@ -10,6 +10,9 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     set(python_tools_only ON)
 endif()
 
+# Model Optimizer
+add_subdirectory(model_optimizer)
+
 # C++ tools
 
 if(NOT python_tools_only)

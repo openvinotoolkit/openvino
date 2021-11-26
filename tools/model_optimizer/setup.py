@@ -65,7 +65,7 @@ class InstallCmd(install):
             # This is required to fix internal imports
             init_file.write('sys.path.append(os.path.dirname(__file__))\n')
             # We install a package into custom folder "PACKAGE_NAME".
-            # Redirect import to model-optimizer/mo/__init__.py
+            # Redirect import to tools/model_optimizer/mo/__init__.py
             init_file.write('sys.modules["mo"] = mo')
 
 

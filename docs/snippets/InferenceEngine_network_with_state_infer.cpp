@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
         // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         std::cout << "Loading network files" << std::endl;
         CNNNetwork network;
-        network = ie.ReadNetwork(std::string("c:\\work\\git\\github_dldt3\\openvino\\model-optimizer\\summator.xml"));
+        network = ie.ReadNetwork(std::string("c:\\work\\git\\github_dldt3\\openvino\\tools\\model_optimizer\\summator.xml"));
         network.setBatchSize(1);
 
         // 3. Load network to CPU

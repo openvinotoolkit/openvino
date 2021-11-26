@@ -14,7 +14,7 @@
 
 using namespace testing;
 
-// Tests are based on model-optimizer/mo/middle/passes/fusing/resnet_optimization_test.py
+// Tests are based on tools/model_optimizer/mo/middle/passes/fusing/resnet_optimization_test.py
 // In description of unit tests below will be used next syntax: Operation(NxM,XxY), where NxM - kernel size, XxY - stride
 
 // Pl->Conv(1x1,1x1)->Conv(1x1,2x2) => Pl->Conv(1x1,2x2)->Conv(1x1,1x1)
