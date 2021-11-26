@@ -348,8 +348,9 @@ protected:
     static auto getEA(const std::shared_ptr<ngraph::Node>& n) -> size_t {
         auto& rt = n->get_rt_info();
         size_t ea = 0;
-        if (auto rinfo = rt["effectiveAddress"]) {
-            ea = ngraph::as_type_ptr<ngraph::VariantWrapper<int64_t>>(rinfo)->get();
+        auto it = rt.find("effectiveAddress");
+        if (it != rt.end()) {
+            ea = ngraph::as_type_ptr<ngraph::VariantWrapper<int64_t>>(it->second)->get();
         } else {
             throw ngraph::ngraph_error("effective address for Load generation cannot be determined");
         }
