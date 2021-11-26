@@ -40,6 +40,9 @@ def compress_model(net:object):
 def apply_offline_transformations(input_model: str, framework: str, transforms: list, compress_fp16=False):
     # This variable is only needed by GenerateMappingFile transformation
     # to produce correct mapping
+    import faulthandler
+    faulthandler.enable()
+    print("Fault handler enabled")
     extract_names = framework in ['tf', 'mxnet', 'kaldi']
 
     from openvino.offline_transformations import GenerateMappingFile, Serialize  # pylint: disable=import-error,no-name-in-module
@@ -71,6 +74,7 @@ def apply_offline_transformations(input_model: str, framework: str, transforms: 
 
 
 if __name__ == "__main__":
+    print("Offline trans start")
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_model")
     parser.add_argument("--framework")

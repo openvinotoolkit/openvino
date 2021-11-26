@@ -59,7 +59,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::MOCTransformations, "MOCTransformations", 0
 bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // To avoid issues with dynamism we make nGraph Function dynamic and after we apply all
     // transformations we restore original shapes to the nGraph Function back
+    std::cout << "start offline transformations\n";
     std::unordered_map<ngraph::op::Parameter*, PartialShape> input_shapes;
+    try{
     if (!m_use_shapes) {
         for (auto &&param : f->get_parameters()) {
             input_shapes[param.get()] = param->get_partial_shape();
@@ -67,6 +69,12 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
         }
         f->validate_nodes_and_infer_types();
     }
+    }
+    catch (std::exception& e) {
+        std::cout << "Exception: " << e.what() << "\n";
+        return 1;
+    }
+
 
     ngraph::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
@@ -161,8 +169,17 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
+    std::cout << "run passes\n";
+    try{
     manager.run_passes(f);
+    }
+    catch (std::exception& e) {
+        std::cout << "Exception: " << e.what() << "\n";
+        return 1;
+    }
 
+    std::cout << "validate after passes\n";
+    try{
     if (!m_use_shapes) {
         // Restore original shapes to the nGraph Function
         for (auto &&param : f->get_parameters()) {
@@ -170,6 +187,13 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
         }
         f->validate_nodes_and_infer_types();
     }
+    }
+    catch (std::exception& e) {
+        std::cout << "Exception: " << e.what() << "\n";
+        return 1;
+    }
+
+    std::cout << "finished\n";
 
     return false;
 }
