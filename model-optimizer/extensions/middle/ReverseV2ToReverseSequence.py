@@ -63,8 +63,9 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
             new_in.connect(shape_node.in_port(0))
             seq_axis_node = node_to_get_shape_value_of_indices(shape_node, [seq_axis])
             batch_node = node_to_get_shape_value_of_indices(shape_node, [batch_axis])
-            broadcast_node = Broadcast(graph, {'name': reverse_name + "/Broadcast"}).create_node([seq_axis_node,
-                                                                                                  batch_node])
+            broadcast_node = Broadcast(graph, {'name': reverse_name + "/Broadcast"}).create_node()
+            broadcast_node.in_port(0).connect(seq_axis_node.out_port(0))
+            broadcast_node.in_port(1).connect(batch_node.out_port(0))
 
             # 3. Create new ReverseSequence node and reconnect all inputs/outputs to it
             rename_node(reverse, reverse_name + '/to_delete')
