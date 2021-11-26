@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
-#include <paddlepaddle_frontend/utility.hpp>
+
+#include "openvino/opsets/opset6.hpp"
+#include "paddlepaddle_frontend/utility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -24,7 +25,7 @@ NamedOutputs hard_swish(const NodeContext& node) {
         auto offset = node.get_attribute<float>("offset");
         PDPD_ASSERT(std::abs(offset - 3.0) < 0.001, "hard_swish: Only offset = 3.0 is currently supported");
     }
-    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::HSwish>(data)}, {"Out"});
+    return node.default_single_output_mapping({std::make_shared<ov::opset6::HSwish>(data)}, {"Out"});
 }
 
 }  // namespace op

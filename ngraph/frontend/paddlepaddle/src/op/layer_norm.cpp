@@ -37,8 +37,8 @@ NamedOutputs layer_norm(const NodeContext& node) {
                                                                  std::vector<int64_t>{0},
                                                                  std::vector<int64_t>{1});
 
-    const auto mvn = std::make_shared<MVN>(data, axis, true, epsilon, ngraph::op::MVNEpsMode::INSIDE_SQRT);
-    std::shared_ptr<ngraph::Node> result = mvn;
+    const auto mvn = std::make_shared<MVN>(data, axis, true, epsilon, ov::op::MVNEpsMode::INSIDE_SQRT);
+    std::shared_ptr<ov::Node> result = mvn;
     if (node.has_ng_input("Scale")) {
         const auto s = node.get_ng_input("Scale");
         const auto reshaped_s = std::make_shared<Reshape>(s, scale_bias_shape, false);
