@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from copy import deepcopy
-import numpy as np
 
 from mo.graph.graph import Graph
 
@@ -107,7 +106,8 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     """
     input_data_type = get_node_data_type(node, 0)
     nodes, edges = [], []
-    nodes.append((input_name, 'Parameter', {'name': input_name, 'shape': input_shape, 'type': 'Parameter', 'data_type': input_data_type}))
+    nodes.append((input_name, 'Parameter', {'name': input_name, 'shape': input_shape,
+                                            'type': 'Parameter', 'data_type': input_data_type}))
 
     node_attrs = deepcopy(node.attrs())
     if node.has_valid('output') and node.has_valid('get_output_feature_dim'):
@@ -151,5 +151,5 @@ def build_graph_for_node(model, input_name, input_shape, node, remove_bias=False
     src_out_dtype = src_node.out_port(0).get_data_type()
     if weights_out_dtype != src_out_dtype:
         weights_node.out_node(0)['Insert_Convert_operation_after'] = True
-    
+
     return graph
