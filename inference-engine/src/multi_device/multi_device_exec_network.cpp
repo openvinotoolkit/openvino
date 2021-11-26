@@ -141,13 +141,13 @@ void MultiDeviceExecutableNetwork::IncreaseWorkers(AutoLoadContext& loadcontext,
     auto devicename = loadcontext.deviceInfo.deviceName;
      auto& executableNetwork =  loadcontext.executableNetwork;
     auto& idleWorkerRequests = _idleWorkerRequests[devicename];
-    //_inferPipelineTasksDeviceSpecific[devicename] = std::unique_ptr<ThreadSafeQueue<Task>>(new ThreadSafeQueue<Task>);
     auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
     {
         std::lock_guard<std::mutex> lock(_idleWorkerMutex);
         idleWorkerRequests.set_capacity(idleWorkerRequests.capacity() + 1);
     }
     auto* workerRequestPtr =  new WorkerInferRequest;
+    workerRequestPtr->_manualyDestory = true;
     auto& workerRequest = *workerRequestPtr;
     workerRequest._inferRequest = { executableNetwork._so, executableNetwork->CreateInferRequest() };
     IE_ASSERT(idleWorkerRequests.try_push(workerRequestPtr) == true);
@@ -450,6 +450,16 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     for (auto&& idleWorker : _idleWorkerRequests) {
         // stop accepting any idle requests back (for re-scheduling)
         idleWorker.second.set_capacity(0);
+    }
+    if (_workModeIsAUTO) {
+        for (auto&& idleWorker : _idleWorkerRequests) {
+            WorkerInferRequest *workerRequestPtr = nullptr;
+            if (idleWorker.second.try_pop(workerRequestPtr)) {
+                if (workerRequestPtr->_manualyDestory) {
+                    delete workerRequestPtr;
+                }
+            }
+        }
     }
     _workerRequests.clear();
 }
