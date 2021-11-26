@@ -13,6 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
+// ------------------------------ V0 ------------------------------
 std::shared_ptr<op::DetectionOutput> create_detection_output(const PartialShape& box_logits_shape,
                                                              const PartialShape& class_preds_shape,
                                                              const PartialShape& proposals_shape,
@@ -655,4 +656,43 @@ TEST(type_prop_layers, detection_output_invalid_aux_box_preds) {
             FAIL() << "Unknown exception was thrown";
         }
     }
+}
+
+// ------------------------------ V8 ------------------------------
+std::shared_ptr<op::v8::DetectionOutput> create_detection_output(const PartialShape& box_logits_shape,
+                                                                 const PartialShape& class_preds_shape,
+                                                                 const PartialShape& proposals_shape,
+                                                                 const PartialShape& aux_class_preds_shape,
+                                                                 const PartialShape& aux_box_preds_shape,
+                                                                 const op::v8::DetectionOutput::Attributes& attrs,
+                                                                 element::Type input_type,
+                                                                 element::Type proposals_type) {
+    auto box_logits = make_shared<op::Parameter>(input_type, box_logits_shape);
+    auto class_preds = make_shared<op::Parameter>(input_type, class_preds_shape);
+    auto proposals = make_shared<op::Parameter>(proposals_type, proposals_shape);
+    auto aux_class_preds = make_shared<op::Parameter>(input_type, aux_class_preds_shape);
+    auto aux_box_preds = make_shared<op::Parameter>(input_type, aux_box_preds_shape);
+    return make_shared<op::v8::DetectionOutput>(box_logits,
+                                                class_preds,
+                                                proposals,
+                                                aux_class_preds,
+                                                aux_box_preds,
+                                                attrs);
+}
+
+TEST(type_prop_layers, detection_outputv8) {
+    op::v8::DetectionOutput::Attributes attrs;
+    attrs.keep_top_k = {200};
+    attrs.normalized = true;
+    attrs.nms_threshold = 0.1;
+    auto op = create_detection_output(Shape{4, 20},
+                                      Shape{4, 10},
+                                      Shape{4, 2, 20},
+                                      Shape{4, 10},
+                                      Shape{4, 20},
+                                      attrs,
+                                      element::f32,
+                                      element::f32);
+    ASSERT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
+    ASSERT_EQ(op->get_element_type(), element::f32);
 }

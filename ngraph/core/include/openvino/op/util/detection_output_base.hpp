@@ -35,9 +35,11 @@ public:
     DetectionOutputBase() = default;
     DetectionOutputBase(OutputVector args);
 
-    void validate_and_infer_types_base(const AttributesBase& attrs, int num_classes=-1);
+    void validate_and_infer_types_base(const AttributesBase& attrs, Dimension num_classes);
 
     bool visit_attributes_base(AttributeVisitor& visitor, AttributesBase& attrs);
+
+    Dimension compute_num_classes(const AttributesBase& attrs);
 };
 }  // namespace util
 }  // namespace op
