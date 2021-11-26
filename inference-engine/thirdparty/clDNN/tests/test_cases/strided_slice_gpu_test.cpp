@@ -1081,6 +1081,59 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
     }
 }
 
+
+TEST(strided_slice_gpu_i8_i64, test_2x2x2x1x1) {
+    // Input (BFZYX): 2x2x2x1x1
+    // Output (BFZYX): 1x2x2x1x1
+
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::i8, format::bfzyx, { 2, 2, 1, 1, 2 } });
+    auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+    auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+    auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
+
+    set_values<int8_t>(input, {
+            0, 1, 2, 3, 4, 5, 6, 7
+    });
+    set_values<int64_t>(begin, {
+            0, 0, 0
+    });
+    set_values<int64_t>(end, {
+            1, 2, 2
+    });
+    set_values<int64_t>(strides, {
+            1, 1, 1
+    });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("input2", begin));
+    topology.add(data("input3", end));
+    topology.add(data("input4", strides));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{1, 2, 1, 2}));
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "strided_slice");
+
+    auto output = outputs.at("strided_slice").get_memory();
+
+    std::vector<int8_t> answers = {
+            0, 1, 2, 3
+    };
+
+    cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
 TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
     // Input (BFZYX): 2x2x2x1x1
     // Output (BFZYX): 2x1x1x1x1

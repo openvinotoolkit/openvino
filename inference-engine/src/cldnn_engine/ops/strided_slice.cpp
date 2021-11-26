@@ -217,7 +217,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
 
         auto cropPrim = cldnn::crop(layerName, inPrimitive, refSize, offSize, op->get_friendly_name());
         p.AddPrimitive(cropPrim);
-        p.AddPrimitiveToProfiler(layerName, op);
+        auto last_layer_primitive = layerName;
 
         // Reshape in case of deleting of axis
         if (!shrink_axis_mask.empty()) {
@@ -226,7 +226,9 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             auto reshapePrim = cldnn::reshape(reshapeOutName, layerName, targetShape, op->get_friendly_name());
             p.AddPrimitive(reshapePrim);
             p.AddInnerPrimitiveToProfiler(reshapeOutName, layerName, op);
+            last_layer_primitive = reshapeOutName;
         }
+        p.AddPrimitiveToProfiler(op, last_layer_primitive);
         return;
     } while (false);
 

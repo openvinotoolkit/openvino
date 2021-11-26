@@ -44,6 +44,8 @@ std::vector<StridedSliceSpecificParams> ss_only_test_cases_fp32 = {
                             {1, 1, 1, 1}, {1, 1, 1, 1},  {},  {},  {} },
         StridedSliceSpecificParams{ { 2, 2, 2, 2 }, { 1, 1, 1, 1 }, { 2, 2, 2, 2 }, { 1, 1, 1, 1 },
                             {0, 0, 0, 0}, {1, 1, 1, 1},  {},  {},  {} },
+        StridedSliceSpecificParams{ { 1, 2, 128, 2 }, { 0, 0, 0, 1 }, { 0, 1, 0, 2 }, { 1, 1, 1, 1 },
+                            {1, 0, 1, 0}, {1, 0, 1, 0},  {0, 0, 0, 0},  {0, 1, 0, 1},  {0, 0, 0, 0} },
         StridedSliceSpecificParams{ { 2, 2, 2, 2 }, { 1, 1, 1, 1 }, { 2, 2, 2, 2 }, { 1, 1, 1, 1 },
                             {0, 0, 0, 0}, {0, 0, 0, 0},  {},  {},  {} },
         StridedSliceSpecificParams{ { 2, 2, 4, 3 }, { 0, 0, 0, 0 }, { 2, 2, 4, 3 }, { 1, 1, 2, 1 },
