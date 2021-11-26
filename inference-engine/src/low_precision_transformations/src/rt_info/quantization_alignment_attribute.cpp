@@ -24,7 +24,7 @@ template class ngraph::VariantImpl<QuantizationAlignmentAttributePtr>;
 
 constexpr VariantTypeInfo VariantWrapper<QuantizationAlignmentAttributePtr>::type_info;
 
-std::shared_ptr<ngraph::Variant> VariantWrapper<QuantizationAlignmentAttributePtr>::init(const std::shared_ptr<ngraph::Node>& node) {
+ov::Any VariantWrapper<QuantizationAlignmentAttributePtr>::init(const std::shared_ptr<ngraph::Node>& node) {
     return nullptr;
 }
 
