@@ -251,14 +251,16 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         return;
     if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::Type>>(&adapter)) {
         static_cast<ngraph::element::Type&>(*a) = InferenceEngine::details::convertPrecision(val);
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::PartialShape>>(&adapter)) {
-        std::vector<int64_t> shape;
-        std::vector<ngraph::Dimension> dims;
-        if (!getParameters<int64_t>(m_node.child("data"), name, shape))
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<PartialShape>>(&adapter)) {
+        PartialShape shape;
+        if (!getPartialShapeFromAttribute(m_node.child("data"), name, shape))
             return;
-        for (const auto& dim : shape)
-            dims.emplace_back(dim);
-        static_cast<ngraph::PartialShape&>(*a) = ngraph::PartialShape(dims);
+        a->set(shape);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<Dimension>>(&adapter)) {
+        Dimension dim;
+        if (!getDimensionFromAttribute(m_node.child("data"), name, dim))
+            return;
+        a->set(dim);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::Shape>>(&adapter)) {
         std::vector<size_t> shape;
         if (!getParameters<size_t>(m_node.child("data"), name, shape))

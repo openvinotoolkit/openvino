@@ -417,22 +417,11 @@ OPENVINO_API
 std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
 
 template <>
-class OPENVINO_API AttributeAdapter<ov::PartialShape> : public ValueAccessor<std::vector<int64_t>> {
+class OPENVINO_API AttributeAdapter<ov::PartialShape> : public DirectValueAccessor<ov::PartialShape> {
 public:
-    AttributeAdapter(ov::PartialShape& value) : m_ref(value) {}
-
-    const std::vector<int64_t>& get() override;
-    void set(const std::vector<int64_t>& value) override;
-    operator ov::PartialShape&() {
-        return m_ref;
-    }
+    AttributeAdapter(ov::PartialShape& value) : DirectValueAccessor<ov::PartialShape>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<PartialShape>");
     BWDCMP_RTTI_DECLARATION;
-
-protected:
-    ov::PartialShape& m_ref;
-    std::vector<int64_t> m_buffer;
-    bool m_buffer_valid{false};
 };
 }  // namespace ov
