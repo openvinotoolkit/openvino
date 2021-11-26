@@ -24,6 +24,7 @@
 #include "op/asinh.hpp"
 #include "op/atan.hpp"
 #include "op/atanh.hpp"
+#include "op/aten.hpp"
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
@@ -293,6 +294,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Asin", 1, asin);
     REGISTER_OPERATOR("Asinh", 1, asinh);
     REGISTER_OPERATOR("Atan", 1, atan);
+    REGISTER_OPERATOR("ATen", 1, aten);
     REGISTER_OPERATOR("Atanh", 1, atanh);
     REGISTER_OPERATOR("AveragePool", 1, average_pool);
     REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
