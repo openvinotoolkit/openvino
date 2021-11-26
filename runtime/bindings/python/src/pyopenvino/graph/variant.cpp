@@ -2,17 +2,42 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/variant.hpp"  // ov::Variant
+#include "pyopenvino/graph/variant.hpp"
 
 #include <pybind11/pybind11.h>
 
-#include "pyopenvino/graph/variant.hpp"
+#include "openvino/core/any.hpp"
 
 namespace py = pybind11;
 
 void regclass_graph_Variant(py::module m) {
-    py::class_<ov::Variant, std::shared_ptr<ov::Variant>> variant_base(m, "Variant");
-    variant_base.doc() = "openvino.impl.Variant wraps ov::Variant";
+    py::class_<ov::Any> variant_base(m, "Variant", py::module_local());
+    variant_base.doc() = "openvino.impl.Variant wraps ov::Any";
+
+    variant_base.def(
+        "__eq__",
+        [](const ov::Any& a, const ov::Any& b) {
+            return a == b;
+        },
+        py::is_operator());
+    variant_base.def(
+        "__eq__",
+        [](const ov::Any& a, const std::string& b) {
+            return a.as<std::string>() == b;
+        },
+        py::is_operator());
+    variant_base.def(
+        "__eq__",
+        [](const ov::Any& a, const int64_t& b) {
+            return a.as<int64_t>() == b;
+        },
+        py::is_operator());
+
+    variant_base.def("__repr__", [](const ov::Any self) {
+        std::stringstream ret;
+        self.print(ret);
+        return ret.str();
+    });
 }
 
 template void regclass_graph_VariantWrapper<std::string>(py::module m, std::string typestring);

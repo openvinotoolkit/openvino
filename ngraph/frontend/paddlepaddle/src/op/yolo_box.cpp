@@ -4,7 +4,8 @@
 #include <limits>  // std::numeric_limits
 #include <node_context.hpp>
 #include <numeric>
-#include <openvino/opsets/opset6.hpp>
+
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
@@ -109,8 +110,8 @@ NamedOutputs yolo_box(const NodeContext& node_context) {
     auto node_prob = node_split_input->output(5);
 
     // x/y
-    std::shared_ptr<ngraph::Node> node_box_x_sigmoid = std::make_shared<Sigmoid>(node_box_x);
-    std::shared_ptr<ngraph::Node> node_box_y_sigmoid = std::make_shared<Sigmoid>(node_box_y);
+    std::shared_ptr<ov::Node> node_box_x_sigmoid = std::make_shared<Sigmoid>(node_box_x);
+    std::shared_ptr<ov::Node> node_box_y_sigmoid = std::make_shared<Sigmoid>(node_box_y);
 
     if (std::fabs(scale_x_y - default_scale) > 1e-6) {  // float not-equal
         float bias_x_y = -0.5 * (scale_x_y - 1.0);
@@ -270,7 +271,7 @@ NamedOutputs yolo_box(const NodeContext& node_context) {
     auto node_pred_box_x2_squeeze = std::make_shared<Multiply>(node_pred_box_x2_reshape, node_img_width_cast);
     auto node_pred_box_y2_squeeze = std::make_shared<Multiply>(node_pred_box_y2_reshape, node_img_height_cast);
 
-    std::shared_ptr<ngraph::Node> node_pred_box_result;
+    std::shared_ptr<ov::Node> node_pred_box_result;
     if (clip_bbox) {
         auto node_number_one = Constant::create<float>(f32, {1}, {1.0});
         auto node_new_img_height = std::make_shared<Subtract>(node_img_height_cast, node_number_one);

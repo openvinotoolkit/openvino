@@ -12,7 +12,7 @@ using namespace ngraph;
 
 namespace ov {
 template <>
-EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type>::get() {
+NGRAPH_API EnumNames<ngraph::reduction::Type>& EnumNames<ngraph::reduction::Type>::get() {
     static auto enum_names = ov::EnumNames<ngraph::reduction::Type>("reduction::Type",
                                                                     {{"SUM", ngraph::reduction::Type::SUM},
                                                                      {"PROD", ngraph::reduction::Type::PROD},

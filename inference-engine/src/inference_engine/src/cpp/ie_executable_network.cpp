@@ -90,11 +90,11 @@ void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
@@ -203,11 +203,11 @@ void ExecutableNetwork::set_config(const ie::ParamMap& config) {
 }
 
 ie::Parameter ExecutableNetwork::get_config(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
 }
 
 ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
 }
 
 RemoteContext ExecutableNetwork::get_context() const {

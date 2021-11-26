@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/prior_box.hpp"
+#include "openvino/op/prior_box.hpp"
 
 #include <node_context.hpp>
 
@@ -16,7 +16,7 @@ using namespace default_opset;
 using namespace element;
 namespace detail {
 namespace {
-std::shared_ptr<StridedSlice> make_slice(const std::shared_ptr<ngraph::Node>& node, int64_t start, int64_t end) {
+std::shared_ptr<StridedSlice> make_slice(const std::shared_ptr<ov::Node>& node, int64_t start, int64_t end) {
     return std::make_shared<StridedSlice>(node,
                                           Constant::create(i64, Shape{1}, std::vector<int64_t>{start}),
                                           Constant::create(i64, Shape{1}, std::vector<int64_t>{end}),
@@ -33,7 +33,7 @@ NamedOutputs prior_box(const NodeContext& node) {
     const auto output_shape_slice = detail::make_slice(input_shape, 2, 4);
     const auto image_shape_slice = detail::make_slice(Image_shape, 2, 4);
 
-    ngraph::op::PriorBoxAttrs attrs;
+    PriorBox::Attributes attrs;
     attrs.min_size = node.get_attribute<std::vector<float>>("min_sizes", {});
     attrs.max_size = node.get_attribute<std::vector<float>>("max_sizes", {});
     attrs.aspect_ratio = node.get_attribute<std::vector<float>>("aspect_ratios", {1.0});
@@ -48,7 +48,7 @@ NamedOutputs prior_box(const NodeContext& node) {
 
     const auto ov_prior_box_node = std::make_shared<PriorBox>(output_shape_slice, image_shape_slice, attrs);
 
-    const auto split_axis_node = Constant::create(i64, ngraph::Shape{}, {0});
+    const auto split_axis_node = Constant::create(i64, ov::Shape{}, {0});
     const auto node_prior_box_split = std::make_shared<Split>(ov_prior_box_node, split_axis_node, 2);
 
     const auto node_boxes_origin = node_prior_box_split->output(0);
@@ -60,7 +60,7 @@ NamedOutputs prior_box(const NodeContext& node) {
     auto node_boxes_reshape = std::make_shared<Reshape>(node_boxes_origin, out_shape, true);
     const auto node_variances_reshape = std::make_shared<Reshape>(node_variances_origin, out_shape, true);
 
-    int64_t total_aspect_ratios = ngraph::op::PriorBox::normalized_aspect_ratio(attrs.aspect_ratio, attrs.flip).size();
+    int64_t total_aspect_ratios = PriorBox::normalized_aspect_ratio(attrs.aspect_ratio, attrs.flip).size();
     if ((total_aspect_ratios > 1) && !attrs.min_size.empty() && !attrs.max_size.empty() &&
         !min_max_aspect_ratios_order) {
         std::vector<int64_t> mask{1, 1, 1, 0, 1};

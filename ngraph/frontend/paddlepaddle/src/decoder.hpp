@@ -9,18 +9,18 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <paddlepaddle_frontend/frontend.hpp>
-#include <paddlepaddle_frontend/place.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "framework.pb.h"
 #include "node_context.hpp"
+#include "paddlepaddle_frontend/frontend.hpp"
+#include "paddlepaddle_frontend/place.hpp"
 
 namespace ov {
 namespace frontend {
-extern std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP;
+extern std::map<paddle::framework::proto::VarType_Type, ov::element::Type> TYPE_MAP;
 
 class DecoderPDPDProto : public pdpd::DecoderBase {
 public:
@@ -32,11 +32,11 @@ public:
 
     size_t get_output_size() const override;
 
-    ngraph::element::Type get_out_port_type(const std::string& port_name) const override;
+    ov::element::Type get_out_port_type(const std::string& port_name) const override;
 
     std::string get_op_type() const override;
 
-    std::map<std::string, std::vector<ngraph::element::Type>> get_output_type_map() const;
+    std::map<std::string, std::vector<ov::element::Type>> get_output_type_map() const;
 
     std::map<std::string, OutputVector> map_for_each_input(
         const std::function<Output<Node>(const std::string&, size_t)>& func) const;
