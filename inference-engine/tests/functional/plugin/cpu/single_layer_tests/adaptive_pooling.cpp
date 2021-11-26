@@ -25,8 +25,8 @@ using AdaPoolSpecificParams = std::tuple<
 
 using AdaPoolLayerTestParams = std::tuple<
         AdaPoolSpecificParams,
-        std::string,                        // mode
-        bool,
+        std::string,         // mode
+        bool,                // second Input is Constant
         ElementType,         // Net precision
         TargetDevice>;       // Device name
 
@@ -101,11 +101,11 @@ protected:
         }
     }
 
-    std::shared_ptr<ngraph::Function> createFunction(bool seconeInputConst) {
+    std::shared_ptr<ngraph::Function> createFunction(bool secondInputConst) {
         auto params = ngraph::builder::makeDynamicParams(ngraph::element::f32, { inputDynamicShapes[0] });
         params.front()->set_friendly_name("ParamsInput");
         std::shared_ptr<ov::Node> secondInput;
-        if (seconeInputConst) {
+        if (secondInputConst) {
             secondInput = ngraph::op::Constant::create(ngraph::element::i32, ngraph::Shape{pooledVector.size()}, pooledVector);
         } else {
             auto pooledParam = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{pooledVector.size()});
@@ -450,18 +450,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_StaticAdaPoolMax5DLayoutTest, AdaPoolLayerCPUTest
 // in 1-channel cases  {..., 1, 1, 1} shape cannot be correctly resolved on oneDnn level, so it was removed from instances
 
 const std::vector<std::vector<InputShape>> input3DShape1Channel = {
-     {{{-1, -1, -1},
-        {{1, 1, 2}, {2, 1, 2}, {2, 1, 2}}}}
+        {
+                {{{-1, -1, -1}, {{1, 1, 2}, {1, 1, 2}, {1, 1, 2}}}},
+                {{{{1, 10}, {1, 10}, {1, 10}}, {{1, 1, 2}, {2, 1, 2}, {2, 1, 2}}}}
+        }
 };
 
 const std::vector<std::vector<InputShape>> input4DShape1Channel = {
-     {{{-1, -1, -1, -1},
-        {{1, 1, 1, 2}, {2, 1, 2, 1}}}}
+        {
+                {{{-1, -1, -1, -1}, {{1, 1, 1, 2}, {2, 1, 2, 1}, {2, 1, 2, 1}}}},
+                {{{{1, 10}, {1, 10}, {1, 10}, {1, 10}}, {{1, 1, 1, 2}, {1, 1, 1, 2}, {2, 1, 2, 1}}}}
+        }
 };
 
 const std::vector<std::vector<InputShape>> input5DShape1Channel = {
-     {{{-1, -1, -1, -1, -1},
-        {{1, 1, 1, 1, 2}, {2, 1, 1, 2, 1}}}}
+        {
+                {{{-1, -1, -1, -1, -1}, {{1, 1, 1, 1, 2}, {1, 1, 1, 1, 2}, {2, 1, 1, 2, 1}}}},
+                {{{{1, 10}, {1, 10}, {1, 10}, {1, 10}, {1, 10}}, {{1, 1, 1, 1, 2}, {1, 1, 1, 1, 2}, {2, 1, 1, 2, 1}}}}
+        }
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AdaPool_1ch_Avg3DLayoutTest, AdaPoolLayerCPUTest,
