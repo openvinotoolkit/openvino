@@ -10,7 +10,6 @@ using namespace std;
 
 // ------------------------------ V0 ------------------------------
 BWDCMP_RTTI_DEFINITION(ov::op::v0::DetectionOutput);
-
 ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                              const Output<Node>& class_preds,
                                              const Output<Node>& proposals,
@@ -89,7 +88,7 @@ ov::op::v8::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 
 void ov::op::v8::DetectionOutput::validate_and_infer_types() {
     NGRAPH_OP_SCOPE(v0_DetectionOutput_validate_and_infer_types);
-    validate_and_infer_types_base(m_attrs);
+    validate_and_infer_types_base(m_attrs, Dimension::dynamic());
 }
 
 shared_ptr<ov::Node> ov::op::v8::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const {
