@@ -109,6 +109,133 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NearestNeighborUpsamplingFusion, "NearestNe
 
 ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion() {
     MATCHER_SCOPE(NearestNeighborUpsamplingFusion);
+    // This transformation looks for Interpolate layer implemented using simple operations, namely ShapeOf, StridedSlice, Concat,
+    // Reshape, Mul, and replaces found pattern with a sequence of Shape, StridedSlice, Const, Mul, Interpolate.
+    // Found pattern (for 4D case, in a general case the pattern is similar):
+    //
+    //  |---------|
+    //  |   op    |
+    //  |---|-----|
+    //      |  shape: [N, H, W, C]                |-----------|        |----------------|
+    //      |------------------------------------>|0 ShapeOf  |------->|0 StridedSlice  |
+    //      |                                     |-----------|        |-------|--------|
+    //      |                                                                  |
+    //      |                                                                  |
+    //      |                                               |------------------|---------------------------|
+    //      |                                               |                                              |
+    //      |                                               |                                              |
+    //      |                                               |                                              |
+    //      |                                               |                                              |
+    //      |      |---------------|                        |                  |---------------|           |
+    //      |      | Concat        |                        |                  | Concat        |           |
+    //      |      | (concat_1)    |                        |                  | (concat_2)    |           |
+    //      |      |               |                        |                  |               |           |
+    //      |      |              0|<-----------------------|                  |              0|<----------|
+    //      |      |               |                                           |               |
+    //      |      |               |                                           |               |
+    //      |      |               |      |-------------|   |------------|     |               |      |-------------|   |--------------|
+    //      |      |               |      |             |   | Constant   |     |               |      |             |   | Constant     |
+    //      |      |               |      |            0|<--| value: H   |     |               |      |            0|<--| value: new_H |
+    //      |      |               |      |             |   |------------|     |               |      |             |   |--------------|
+    //      |      |               |      |             |                      |               |      |             |
+    //      |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |   |------------|
+    //      |      |               |      |             |   | Constant   |     |               |      |             |   | Constant   |
+    //      |      |              1|<-----|            1|<--| value: 0   |     |              1|<-----|            1|<--| value: 0   |
+    //      |      |               |      |-------------|   |------------|     |               |      |-------------|   |------------|
+    //      |      |               |                                           |               |
+    //      |      |               |      |-------------|   |------------|     |               |      |-------------|   |--------------|
+    //      |      |               |      |             |   | Constant   |     |               |      |             |   | Constant     |
+    //      |      |               |      |            0|<--| value: 1   |     |               |      |            0|<--| value: new_W |
+    //      |      |               |      |             |   |------------|     |               |      |             |   |--------------|
+    //      |      |               |      |             |                      |               |      |             |
+    //      |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |   |------------|
+    //      |      |               |      |             |   | Constant   |     |               |      |             |   | Constant   |
+    //      |      |              2|<-----|            1|<--| value: 0   |     |              2|<-----|            1|<--| value: 0   |
+    //      |      |               |      |-------------|   |------------|     |               |      |-------------|   |------------|
+    //      |      |               |                                           |               |
+    //      |      |               |      |-------------|   |------------|     |               |      |-------------|   |------------|
+    //      |      |               |      |             |   | Constant   |     |               |      |             |   | Constant   |
+    //      |      |               |      |            0|<--| value: W   |     |               |      |            0|<--| value: C   |
+    //      |      |               |      |             |   |------------|     |               |      |             |   |------------|
+    //      |      |               |      |             |                      |               |      |             |
+    //      |      |               |      | Unsqueeze   |   |------------|     |               |      | Unsqueeze   |   |------------|
+    //      |      |               |      |             |   | Constant   |     |               |      |             |   | Constant   |
+    //      |      |              3|<-----|            1|<--| value: 0   |     |              3|<-----|            1|<--| value: 0   |
+    //      |      |               |      |-------------|   |------------|     |------|--------|      |-------------|   |------------|
+    //      |      |               |                                                  |
+    //      |      |               |      |-------------|   |------------|            |
+    //      |      |               |      |             |   | Constant   |            |
+    //      |      |               |      |            0|<--| value: 1   |            |
+    //      |      |               |      |             |   |------------|            |
+    //      |      |               |      |             |                             |
+    //      |      |               |      | Unsqueeze   |   |------------|            |
+    //      |      |               |      |             |   | Constant   |            |
+    //      |      |              4|<-----|            1|<--| value: 0   |            |
+    //      |      |               |      |-------------|   |------------|            |
+    //      |      |               |                                                  |
+    //      |      |               |      |-------------|   |------------|            |
+    //      |      |               |      |             |   | Constant   |            |
+    //      |      |               |      |            0|<--| value: C   |            |
+    //      |      |               |      |             |   |------------|            |
+    //      |      |               |      |             |                             |
+    //      |      |               |      | Unsqueeze   |   |------------|            |
+    //      |      |               |      |             |   | Constant   |            |
+    //      |      |              5|<-----|            1|<--| value: 0   |            |
+    //      |      |------|--------|      |-------------|   |------------|            |
+    //      |             |                                                           |
+    //      |             |                                                           |
+    //      |             |------------|                                              |
+    //      |                          |                                              |
+    //      |     |---------------|    |                                              |
+    //      |     |  Reshape      |    |                                              |
+    //      |---->|0 (reshape_1) 1|<---|                                              |
+    //            |               |                                                   |
+    //            |-----|---------|                                                   |
+    //                  |                                                             |
+    //       |----------|                                                             |
+    //       |    |-------------|     |----------------|                              |
+    //       |--->|0   Mul     1|<----|   Const        |                              |
+    //            |   (mul)     |     |  (mul_const)   |                              |--------|
+    //            |-------------|     |----------------|                                       |
+    //                 |                                                                       |
+    //                 |                                                                       |
+    //                 |                                         |---------------------|       |
+    //                 |                                         |    Reshape          |       |
+    //                 |---------------------------------------->|0   (reshape_2)     1|<------|
+    //                                                           |                     |
+    //                                                           |---------------------|
+    //
+    // Here digits 0, 1, ..., are numbers of input ports of nodes.
+    //
+    // That is, we found the subgraph of the above mentioned form, where
+    //      1) an output rank r of 'op' is greater or equal to 4;
+    //      2) an output shape of 'op' has the form [N, D_1, D_2, ..., D_{r - 2}, C];
+    //      3) unsqueezed constants for 'concat_1' are
+    //          D_1 for the input port 1 of 'concat_1' and 1 for the input port 2 of 'concat_1';
+    //          D_2 for the input port 3 of 'concat_1' and 1 for the input port 4 of 'concat_1';
+    //          ...
+    //          D_i for the input port 2 * (i - 1) + 1 of 'concat_1' and 1 for the input port 2 * i of 'concat_1';
+    //          ...
+    //          D_{r - 2} for the input port 2 * ((r - 2) - 1) + 1 of 'concat_1' and 1 for the input port 2 * (r - 2) of 'concat_1';
+    //          C for the input port 2 * (r - 2) + 1 of 'concat_1';
+    //      4) unsqueezed constants for 'concat_2' are
+    //          newD_1 for the input port 1 of 'concat_1';
+    //          newD_2 for the input port 2 of 'concat_1';
+    //          ...
+    //          newD_i for the input port i of 'concat_1';
+    //          ...
+    //          newD_{r - 2} for the input port (r - 2) of 'concat_1';
+    //          C for the input port (r - 2) + 1 of 'concat_1';
+    //      5) the shape of 'mul_const' is [1, 1, S_1, 1, S_2, ..., 1, S_i, ..., 1, S_{r - 2}, 1] where S_i is a scale for the axis i;
+    //      6) all elements of 'mul_const' are equal to 1.0.
+    //
+    // Such subgraph can be replaced by the Interpolate node with
+    //      1) mode='nearest' and shape_calculation_mode='scales';
+    //      2) 'sizes' input as a constant with the value [newD_1, newD_2, ..., newD_i, ..., newD_{r - 2}];
+    //      3) 'scales' input as a constant with the value [S_1, S_2, ..., S_i, ..., S_{r - 2}];
+    //      4) 'axes' input as a constant with the value [1, 2, ..., r - 2].
+    //
+    // Of course, the replacement shouldn't be done, if all S_i are equal to 1.
     auto input = ngraph::pattern::any_input();
     auto concat_1 = pattern::wrap_type<opset8::Concat>();
     auto concat_2 = pattern::wrap_type<opset8::Concat>();
