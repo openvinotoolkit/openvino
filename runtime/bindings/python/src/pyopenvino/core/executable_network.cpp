@@ -38,7 +38,7 @@ void regclass_ExecutableNetwork(py::module m) {
             request.infer();
 
             Containers::InferVec results;
-            for (auto& out : self.outputs()) {
+            for (const auto& out : self.outputs()) {
                 results.push_back(std::make_pair(out, request.get_tensor(out)));
             }
             return results;
