@@ -92,10 +92,11 @@ struct PerfHintsConfig {
             if (val_i >= 0) {
                 return val_i;
             }
-        } catch(const std::logic_error&) {}
+        } catch (const std::logic_error&) {
+        }
         IE_THROW() << "Wrong value of " << val << " for property key "
-                    << PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS
-                    << ". Expected only positive integer numbers";
+                   << PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS
+                   << ". Expected only positive integer numbers";
     }
 
     /**
