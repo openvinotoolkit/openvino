@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "tensorflow_ngraph_frontend")
+set(TARGET_NAME "tensorflow_ov_frontend")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
@@ -51,12 +51,12 @@ set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIO
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
 add_library(openvino::frontend::tensorflow ALIAS ${TARGET_NAME})
 
-add_dependencies(${TARGET_NAME} tensorflow_ngraph_frontend_proto)
+add_dependencies(${TARGET_NAME} ${TARGET_NAME}_proto)
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include"
                     ADDITIONAL_INCLUDE_DIRECTORIES
-                        $<TARGET_PROPERTY:frontend_manager::static,INTERFACE_INCLUDE_DIRECTORIES>)
+                        $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -76,8 +76,8 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 link_system_libraries(${TARGET_NAME} PRIVATE ${Protobuf_LITE_LIBRARIES})
 
-target_link_libraries(${TARGET_NAME} PRIVATE frontend_manager::static
-                                     PRIVATE ngraph::builder inference_engine_transformations libprotobuf openvino::util)
+target_link_libraries(${TARGET_NAME} PRIVATE frontend_common::static
+                                     PRIVATE inference_engine_transformations libprotobuf openvino::util)
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                         EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
