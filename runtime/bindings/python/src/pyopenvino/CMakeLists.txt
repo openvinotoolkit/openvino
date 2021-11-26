@@ -62,7 +62,7 @@ if(OpenVINO_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
             USE_SOURCE_PERMISSIONS)
 
     install(TARGETS ${PROJECT_NAME}
-            DESTINATION python/${PYTHON_VERSION}/openvino
+            DESTINATION python/${PYTHON_VERSION}
             COMPONENT pyopenvino_${PYTHON_VERSION})
 
     ie_cpack(pyopenvino_${PYTHON_VERSION})
