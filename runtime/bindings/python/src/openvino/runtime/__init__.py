@@ -18,7 +18,7 @@ import sys
 
 def __load_module_as_parent_module(base, name):
     module_name = "{}.{}".format(__name__, name)
-    export_module_name = "{}.{}".format(base, name)
+    export_module_name = "{}".format(base)
     native_module = sys.modules.pop(module_name, None)
     try:
         py_module = importlib.import_module(module_name)
@@ -57,5 +57,6 @@ def __collect_extra_submodules(enable_debug_print=False):
     return filter(modules_filter, os.listdir(_extra_submodules_init_path))
 
 
-for submodule in __collect_extra_submodules():
-    __load_module_as_parent_module("openvino", submodule)
+# for submodule in __collect_extra_submodules():
+#     __load_module_as_parent_module("openvino", submodule)
+__load_module_as_parent_module("openvino", "runtime")
