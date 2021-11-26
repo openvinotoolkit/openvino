@@ -247,7 +247,7 @@ def get_image_sizes(app_input_info):
     for info in app_input_info:
         if info.is_image:
             if info.is_static:
-                image_sizes.append([info.width, info.height])
+                image_sizes.append((info.width, info.height))
             else:
                 info_image_sizes = []
                 for w, h in zip(info.widthes, info.heights):
@@ -259,10 +259,10 @@ def get_image_sizes(app_input_info):
 def get_image_info_tensors(image_sizes, layer):
     im_infos = []
     for shape, image_size in zip(layer.shapes, image_sizes):
-        im_info = np.ndarray(shape)
+        im_info = np.ndarray(shape, dtype=get_dtype(layer.element_type.get_type_name())[0])
         for b in range(shape[0]):
             for i in range(shape[1]):
-                im_info[b][i] = image_size[i] if i in [0, 1] else 1
+                im_info[b][i] = image_size if i in [0, 1] else 1
         im_infos.append(Tensor(im_info))
     return im_infos
 
