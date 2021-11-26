@@ -100,7 +100,7 @@ struct InferencePlugin {
     }
 
     Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetMetric(name, options)});
     }
 
     ov::runtime::SoPtr<RemoteContext> CreateContext(const ParamMap& params) {
@@ -112,7 +112,7 @@ struct InferencePlugin {
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        PLUGIN_CALL_STATEMENT(return _ptr->GetConfig(name, options));
+        PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetConfig(name, options)});
     }
 };
 }  // namespace InferenceEngine
@@ -210,7 +210,7 @@ public:
     }
 
     ie::Parameter get_metric(const std::string& name, const ie::ParamMap& options) const {
-        OV_PLUGIN_CALL_STATEMENT(return _ptr->GetMetric(name, options));
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetMetric(name, options)});
     }
 
     SoPtr<ie::RemoteContext> create_context(const ie::ParamMap& params) {
@@ -222,7 +222,7 @@ public:
     }
 
     ie::Parameter get_config(const std::string& name, const ie::ParamMap& options) const {
-        OV_PLUGIN_CALL_STATEMENT(return _ptr->GetConfig(name, options));
+        OV_PLUGIN_CALL_STATEMENT(return {_so, _ptr->GetConfig(name, options)});
     }
 };
 

@@ -7,6 +7,26 @@
 
 namespace LayerTestsDefinitions {
 
+std::ostream& operator <<(std::ostream& result, const ngraph::op::DetectionOutputAttrs& attrs) {
+    result << "Classes=" << attrs.num_classes << "_";
+    result << "backgrId=" << attrs.background_label_id << "_";
+    result << "topK="  << attrs.top_k << "_";
+    result << "varEnc=" << attrs.variance_encoded_in_target << "_";
+    result << "keepTopK=" << CommonTestUtils::vec2str(attrs.keep_top_k) << "_";
+    result << "codeType=" << attrs.code_type << "_";
+    result << "shareLoc=" << attrs.share_location << "_";
+    result << "nmsThr=" << attrs.nms_threshold << "_";
+    result << "confThr=" << attrs.confidence_threshold << "_";
+    result << "clipAfterNms=" << attrs.clip_after_nms << "_";
+    result << "clipBeforeNms=" << attrs.clip_before_nms << "_";
+    result << "decrId=" << attrs.decrease_label_id << "_";
+    result << "norm=" << attrs.normalized << "_";
+    result << "inH=" << attrs.input_height << "_";
+    result << "inW=" << attrs.input_width << "_";
+    result << "OS=" << attrs.objectness_score << "_";
+    return result;
+}
+
 std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamInfo<DetectionOutputParams>& obj) {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
@@ -44,22 +64,7 @@ std::string DetectionOutputLayerTest::getTestCaseName(const testing::TestParamIn
     result << armConf;
     result << armLoc << " }_";
 
-    result << "Classes=" << attrs.num_classes << "_";
-    result << "backgrId=" << attrs.background_label_id << "_";
-    result << "topK="  << attrs.top_k << "_";
-    result << "varEnc=" << attrs.variance_encoded_in_target << "_";
-    result << "keepTopK=" << CommonTestUtils::vec2str(attrs.keep_top_k) << "_";
-    result << "codeType=" << attrs.code_type << "_";
-    result << "shareLoc=" << attrs.share_location << "_";
-    result << "nmsThr=" << attrs.nms_threshold << "_";
-    result << "confThr=" << attrs.confidence_threshold << "_";
-    result << "clipAfterNms=" << attrs.clip_after_nms << "_";
-    result << "clipBeforeNms=" << attrs.clip_before_nms << "_";
-    result << "decrId=" << attrs.decrease_label_id << "_";
-    result << "norm=" << attrs.normalized << "_";
-    result << "inH=" << attrs.input_height << "_";
-    result << "inW=" << attrs.input_width << "_";
-    result << "OS=" << attrs.objectness_score << "_";
+    result << attrs;
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
