@@ -77,10 +77,13 @@ void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEn
 }
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
-    if (_requestToShareBlobsWith)
-        return _requestToShareBlobsWith->GetBlob(name);
+    InputInfo::Ptr foundInput;
+    DataPtr foundOutput;
+    const bool isInput = findInputAndOutputBlobByName(name, foundInput, foundOutput);
+    if (isInput)
+        return _inputs[name];
     else
-        return IInferRequestInternal::GetBlob(name);
+        return _outputs[name];
 }
 
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
