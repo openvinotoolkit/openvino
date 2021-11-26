@@ -73,13 +73,12 @@ bool MKLDNNMatMulNode::canFuse(const MKLDNNNodePtr& node) const {
                   EltwiseRoundHalfAwayFromZero, EltwiseAbs, EltwiseSqrt, EltwiseSoftRelu);
 }
 
-void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const {
+void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims& dims, bool initWeights = false) const {
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
         if (auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get())) {
-            // TODO [DS]: change to shape from memory
-            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims());
+            eltwiseNode->appendPostOps(ops, dims);
             continue;
         }
 
@@ -90,12 +89,17 @@ void MKLDNNMatMulNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
 }
 
 
-MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() const {
+MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr(const VectorDims &dims) const {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
 
-    setPostOps(*attr, true);
+    setPostOps(*attr, dims, true);
 
     return attr;
+}
+
+MKLDNNNode::AttrPtr MKLDNNMatMulNode::initPrimitiveAttr() const {
+    auto dummyShape = MemoryDescUtils::makeDummyShape(getOutputShapeAtPort(0));
+    return initPrimitiveAttr(dummyShape.getStaticDims());
 }
 
 /* Example MatMul:
@@ -297,7 +301,7 @@ void MKLDNNMatMulNode::prepareParams() {
 
     if (isDynamicNode()) {
         if (!pAttr) {
-            pAttr = initPrimitiveAttr();
+            pAttr = initPrimitiveAttr(src0MemPtr->getStaticDims());
         }
         attr = pAttr;
 
@@ -347,6 +351,43 @@ void MKLDNNMatMulNode::prepareParams() {
 
 void MKLDNNMatMulNode::executeDynamicImpl(dnnl::stream strm) {
     MKLDNNNode::execute(strm);
+}
+
+const std::vector<impl_desc_type>& MKLDNNMatMulNode::getPrimitivesPriority() {
+    std::vector<impl_desc_type> priorities = {
+            impl_desc_type::unknown,
+            impl_desc_type::brgemm_avx512_amx,
+            impl_desc_type::brgemm_avx512,
+            impl_desc_type::gemm_blas,
+            impl_desc_type::gemm_avx512,
+            impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx,
+            impl_desc_type::gemm_sse42,
+            impl_desc_type::gemm_any,
+            impl_desc_type::gemm,
+            impl_desc_type::jit_gemm,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
+            impl_desc_type::jit_avx512_dw,
+            impl_desc_type::jit_avx512_1x1,
+            impl_desc_type::jit_avx512,
+            impl_desc_type::jit_avx2_dw,
+            impl_desc_type::jit_avx2_1x1,
+            impl_desc_type::jit_avx2,
+            impl_desc_type::jit_avx_dw,
+            impl_desc_type::jit_avx_1x1,
+            impl_desc_type::jit_avx,
+            impl_desc_type::jit_sse42_dw,
+            impl_desc_type::jit_sse42_1x1,
+            impl_desc_type::jit_sse42,
+            impl_desc_type::ref,
+    };
+    for (const auto& impl : priorities) {
+        if (std::find(implPriorities.begin(), implPriorities.end(), impl) == implPriorities.end())
+            implPriorities.push_back(impl);
+    }
+    return implPriorities;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMatMulNode, MatMul);

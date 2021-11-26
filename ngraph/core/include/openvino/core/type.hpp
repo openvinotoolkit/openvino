@@ -39,7 +39,8 @@ struct OPENVINO_API DiscreteTypeInfo {
         : name(_name),
           version(_version),
           version_id(nullptr),
-          parent(_parent) {}
+          parent(_parent),
+          hash_value(0) {}
 
     constexpr DiscreteTypeInfo(const char* _name,
                                uint64_t _version,
@@ -48,22 +49,12 @@ struct OPENVINO_API DiscreteTypeInfo {
         : name(_name),
           version(_version),
           version_id(_version_id),
-          parent(_parent) {}
+          parent(_parent),
+          hash_value(0) {}
 
-    bool is_castable(const DiscreteTypeInfo& target_type) const {
-        return *this == target_type || (parent && parent->is_castable(target_type));
-    }
+    bool is_castable(const DiscreteTypeInfo& target_type) const;
 
-    std::string get_version() const {
-        if (version_id) {
-            return std::string(version_id);
-        }
-        return std::to_string(version);
-    }
-
-    operator std::string() const {
-        return std::string(name) + "_" + get_version();
-    }
+    std::string get_version() const;
 
     // For use as a key
     bool operator<(const DiscreteTypeInfo& b) const;
@@ -72,6 +63,14 @@ struct OPENVINO_API DiscreteTypeInfo {
     bool operator>=(const DiscreteTypeInfo& b) const;
     bool operator==(const DiscreteTypeInfo& b) const;
     bool operator!=(const DiscreteTypeInfo& b) const;
+
+    operator std::string() const;
+
+    size_t hash() const;
+    size_t hash();
+
+private:
+    size_t hash_value;
 };
 
 OPENVINO_API
@@ -88,7 +87,6 @@ typename std::enable_if<
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::type_info);
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename Type, typename Value>
 typename std::enable_if<
@@ -99,6 +97,7 @@ typename std::enable_if<
 is_type(Value value) {
     return value->get_type_info().is_castable(Type::get_type_info_static());
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
 template <typename Type, typename Value>
@@ -108,14 +107,25 @@ as_type(Value value) {
     return ov::is_type<Type>(value) ? static_cast<Type*>(value) : nullptr;
 }
 
+namespace util {
+template <typename T>
+struct AsTypePtr;
 /// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
 /// Type, nullptr otherwise
-template <typename Type, typename Value>
-typename std::enable_if<
-    std::is_convertible<decltype(std::static_pointer_cast<Type>(std::declval<Value>())), std::shared_ptr<Type>>::value,
-    std::shared_ptr<Type>>::type
-as_type_ptr(Value value) {
-    return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+template <typename In>
+struct AsTypePtr<std::shared_ptr<In>> {
+    template <typename Type>
+    static std::shared_ptr<Type> call(const std::shared_ptr<In>& value) {
+        return ov::is_type<Type>(value) ? std::static_pointer_cast<Type>(value) : std::shared_ptr<Type>();
+    }
+};
+}  // namespace util
+
+/// Casts a std::shared_ptr<Value> to a std::shared_ptr<Type> if it is of type
+/// Type, nullptr otherwise
+template <typename T, typename U>
+auto as_type_ptr(const U& value) -> decltype(::ov::util::AsTypePtr<U>::template call<T>(value)) {
+    return ::ov::util::AsTypePtr<U>::template call<T>(value);
 }
 }  // namespace ov
 

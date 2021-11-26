@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include "frontend_manager/frontend_exceptions.hpp"
+#include "common/frontend_exceptions.hpp"
+#include "openvino/opsets/opset6.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 #ifdef _WIN32
@@ -38,6 +39,7 @@ bool endsWith(const std::basic_string<T>& str, const std::basic_string<T>& suffi
     return false;
 }
 
+std::shared_ptr<Node> reorder_axes(const Output<Node>& value, std::vector<size_t> axes_order);
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

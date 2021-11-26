@@ -33,7 +33,7 @@ namespace InferenceEngine {
         OPENVINO_ASSERT(false, "Unexpected exception");                          \
     }
 
-ExecutableNetwork::ExecutableNetwork(const details::SharedObjectLoader& so, const IExecutableNetworkInternal::Ptr& impl)
+ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<void>& so, const IExecutableNetworkInternal::Ptr& impl)
     : _so(so),
       _impl(impl) {
     IE_ASSERT(_impl != nullptr);
@@ -65,16 +65,6 @@ ExecutableNetwork::operator IExecutableNetwork::Ptr() {
     return std::make_shared<ExecutableNetworkBase>(_impl);
 }
 
-std::vector<VariableState> ExecutableNetwork::QueryState() {
-    std::vector<VariableState> controller;
-    EXEC_NET_CALL_STATEMENT({
-        for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState{_so, state});
-        }
-    });
-    return controller;
-}
-
 InferRequest ExecutableNetwork::CreateInferRequest() {
     EXEC_NET_CALL_STATEMENT(return {_so, _impl->CreateInferRequest()});
 }
@@ -100,11 +90,11 @@ void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config
 }
 
 Parameter ExecutableNetwork::GetConfig(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
 }
 
 Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+    EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
 }
 
 RemoteContext::Ptr ExecutableNetwork::GetContext() const {
@@ -213,11 +203,11 @@ void ExecutableNetwork::set_config(const ie::ParamMap& config) {
 }
 
 ie::Parameter ExecutableNetwork::get_config(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetConfig(name));
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetConfig(name)});
 }
 
 ie::Parameter ExecutableNetwork::get_metric(const std::string& name) const {
-    OV_EXEC_NET_CALL_STATEMENT(return _impl->GetMetric(name));
+    OV_EXEC_NET_CALL_STATEMENT(return {_so, _impl->GetMetric(name)});
 }
 
 RemoteContext ExecutableNetwork::get_context() const {

@@ -169,7 +169,7 @@ MKLDNNNode::MKLDNNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::en
 
 MKLDNNNode::MKLDNNNode(const std::string& type, const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          weightCache(w_cache), engine(eng), name(name), typeStr(type),
+          weightCache(w_cache), engine(eng), fusingPort(-1), name(name), typeStr(type),
           type(TypeFromName(type)), profiling(name) {
     // TODO [NM]: What about filling inDims and outDims?
 }
@@ -391,9 +391,12 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
     SEARCH_TYPE(reorder);
     SEARCH_TYPE(jit);
     SEARCH_TYPE(gemm);
+    SEARCH_TYPE(brgconv);
+    SEARCH_TYPE(brgemm);
     SEARCH_TYPE(ref);
 
     SEARCH_TYPE(avx512);
+    SEARCH_TYPE(amx);
     SEARCH_TYPE(avx2);
     SEARCH_TYPE(avx);
     SEARCH_TYPE(sse42);
@@ -838,6 +841,14 @@ void MKLDNNNode::cleanup() {
 const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
+            impl_desc_type::brgconv_avx512_amx_1x1,
+            impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
+            // Brgconv kernels disabled in order to prevent perf degradations on non AMX HW
+//            impl_desc_type::brgconv_avx512_1x1,
+//            impl_desc_type::brgconv_avx512,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,
@@ -957,14 +968,14 @@ bool MKLDNNNode::isConfigDefined(const NodeConfig &config) const {
 }
 
 MemoryDescPtr MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getInputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.src_desc(idx), getInputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.src_desc(idx));
 }
 
 MemoryDescPtr MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    if (isDynamicNode()) {
+    if (getOutputShapeAtPort(idx).isDynamic()) {
         return MKLDNNExtensionUtils::makeUndefinedDesc(primitive_desc_it.dst_desc(idx), getOutputShapeAtPort(idx));
     }
     return MKLDNNExtensionUtils::makeDescriptor(primitive_desc_it.dst_desc(idx));
@@ -1219,6 +1230,9 @@ std::pair<std::vector<float>, std::vector<float>> MKLDNNNode::getScalesAndShifts
 
     const auto fillValuesFrom = [&](const MKLDNNNodePtr& constInput, std::vector<float>& buffer) {
         auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(constInput.get());
+        if (!constInputNode) {
+            IE_THROW() << "Cannot cast " << constInput->getName() << " to MKLDNNInputNode";
+        }
         auto constBlob = constInputNode->getMemoryPtr();
         const auto elementsCount = constBlob->GetDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
         buffer.resize(elementsCount);
@@ -1372,7 +1386,7 @@ void MKLDNNNode::createShapeInferSubgraph(const std::shared_ptr<ngraph::Node>& o
     ngraph::OutputVector inputsForShapeInfer;
     for (size_t i = 0; i < inputShapes.size(); i++) {
         if (dynamic_cast<ngraph::opset1::Constant *>(op->get_input_node_ptr(i))) {
-            inputsForShapeInfer.push_back(op->get_input_node_shared_ptr(i));
+            inputsForShapeInfer.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ngraph::OutputVector{}));
         } else {
             inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Parameter>(op->get_input_element_type(i),
                                                                                       op->get_input_partial_shape(i)));

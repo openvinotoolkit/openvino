@@ -8,11 +8,11 @@
 
 #include "decoder.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 class PDPDFrameworkNode : public ov::op::util::FrameworkNode {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("PDPDFrameworkNode", "util", ov::op::util::FrameworkNode);
 
     PDPDFrameworkNode(const DecoderPDPDProto& decoder,
                       const OutputVector& inputs,
@@ -50,4 +50,4 @@ private:
     std::vector<std::string> m_inputs_names;
 };
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

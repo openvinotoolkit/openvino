@@ -29,8 +29,8 @@ using namespace ngraph;
 
 TEST(openvino_version, version) {
     auto version = ov::get_openvino_version();
-    ASSERT_EQ(std::string("OpenVINO Runtime"), version->description);
-    ASSERT_FALSE(std::string(version->buildNumber).empty());
+    ASSERT_EQ(std::string("OpenVINO Runtime"), version.description);
+    ASSERT_FALSE(std::string(version.buildNumber).empty());
 }
 
 TEST(ngraph_version_variable, version) {

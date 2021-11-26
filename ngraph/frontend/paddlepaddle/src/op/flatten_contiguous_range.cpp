@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/builder/reshape.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph {
+#include "openvino/opsets/opset6.hpp"
+
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -44,4 +44,4 @@ NamedOutputs flatten_contiguous_range(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

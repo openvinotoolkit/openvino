@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph {
+#include "openvino/opsets/opset6.hpp"
+
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -17,9 +18,9 @@ NamedOutputs softmax(const NodeContext& node) {
         auto data_rank = data.get_partial_shape().rank().get_length();
         axis = data_rank + axis;
     }
-    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Softmax>(data, axis)}, {"Out"});
+    return node.default_single_output_mapping({std::make_shared<ov::opset6::Softmax>(data, axis)}, {"Out"});
 }
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

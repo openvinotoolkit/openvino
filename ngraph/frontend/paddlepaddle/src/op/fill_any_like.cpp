@@ -6,19 +6,23 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
 NamedOutputs fill_any_like(const NodeContext& node) {
     const auto x = node.get_ng_input("X");
-    auto dtype = node.get_attribute<ngraph::element::Type>("dtype", element::undefined);
+    auto dtype = node.get_attribute<ov::element::Type>("dtype", element::undefined);
     const auto value = node.get_attribute<float>("value");
     if (dtype == element::undefined) {
         // when type does not define, use the input type
         dtype = x.get_element_type();
     }
-    const auto supported_type = {element::i32, element::i64, element::f16, element::f32, element::f64};
+    const std::vector<element::Type> supported_type = {element::i32,
+                                                       element::i64,
+                                                       element::f16,
+                                                       element::f32,
+                                                       element::f64};
     const bool valid_type =
         std::any_of(supported_type.begin(), supported_type.end(), [dtype](const element::Type& type) {
             return dtype == type;
@@ -34,4 +38,4 @@ NamedOutputs fill_any_like(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

@@ -32,7 +32,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<Reshape1DMaxPool>();
     manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
-    manager.register_pass<ConvertBroadcastToTiles>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<FullyConnectedBiasFusion>();
     manager.register_pass<ReshapeFullyConnected>();
@@ -48,6 +47,12 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     }
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+
+    // TODO: remove after dynamic shapes support in FullyConnectedNode
+    manager.get_pass_config()->set_callback<ConvertMatMulToFC>([](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        return node->get_input_partial_shape(0).is_dynamic();
+    });
+
     manager.run_passes(nGraphFunc);
 }
 

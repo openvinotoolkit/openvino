@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/opsets/opset6.hpp>
 #include <node_context.hpp>
 
-namespace ngraph {
+#include "openvino/opsets/opset6.hpp"
+
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
 NamedOutputs fill_constant(const NodeContext& node) {
     auto shape = node.get_attribute<std::vector<int64_t>>("shape");
-    auto dtype = node.get_attribute<ngraph::element::Type>("dtype");
+    auto dtype = node.get_attribute<ov::element::Type>("dtype");
     Output<Node> value_node;
     Output<Node> shape_node;
     if (node.has_ng_input("ValueTensor")) {
@@ -41,11 +42,11 @@ NamedOutputs fill_constant(const NodeContext& node) {
         shape_node = opset6::Constant::create(element::i64, {shape.size()}, shape);
     }
 
-    return node.default_single_output_mapping({std::make_shared<ngraph::opset6::Broadcast>(value_node, shape_node)},
+    return node.default_single_output_mapping({std::make_shared<ov::opset6::Broadcast>(value_node, shape_node)},
                                               {"Out"});
 }
 
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

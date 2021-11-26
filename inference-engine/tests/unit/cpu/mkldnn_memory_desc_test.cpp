@@ -390,8 +390,7 @@ TEST(MakeUndefinedDnnlDesc, checkLayout) {
             payloadArgs{ memory::format_tag::nchw,        {4, 2, 10, 7 }, "abcd" },  // plain
             payloadArgs{ memory::format_tag::NChw16n16c,  {4, 2, 10, 7 }, "ABcd16a16b" },  // blocked for 2 dims
             payloadArgs{ memory::format_tag::Acdb16a,     {96, 1, 7, 7 }, "Acdb16a" },  // same strides but not default order
-            // TODO [DS]: uncomment when serializeFormat() properly handles the permutation
-            //payloadArgs{ memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 }, "BAcd16a16b" },  // blocked and permuted outer dims
+            payloadArgs{ memory::format_tag::BAcd16a16b,  {17, 2, 10, 7 }, "BAcd16a16b" },  // blocked and permuted outer dims
     };
 
     ngraph::PartialShape fullyUndef({{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}});
@@ -540,4 +539,16 @@ TEST(cloneWithParamsChange, UndefinedAndDefaultParams) {
     for (const auto &tc : testCases) {
         cloneWithParamsChangeCpu(tc);
     }
+}
+
+TEST(makeDummyDesc, LowerBoundMoreThenDummyValie) {
+    Shape shape(ngraph::PartialShape{1, 3, 85, {144, 1444}});
+    auto desc = std::make_shared<DnnlBlockedMemoryDesc>(shape, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::nchw);
+    ASSERT_FALSE(desc->isDefined());
+
+    MemoryDescPtr definedDesc;
+    ASSERT_NO_THROW(definedDesc = MemoryDescUtils::makeDummyDesc(*desc));
+
+    ASSERT_TRUE(definedDesc->isDefined());
+    ASSERT_EQ((VectorDims{1, 3, 85, 144}), definedDesc->getShape().getStaticDims());
 }

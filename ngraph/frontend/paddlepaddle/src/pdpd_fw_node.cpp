@@ -4,9 +4,8 @@
 
 #include <pdpd_fw_node.hpp>
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
-NGRAPH_RTTI_DEFINITION(PDPDFrameworkNode, "PDPDFrameworkNode", 1);
 
 void PDPDFrameworkNode::validate_and_infer_types() {
     FrameworkNode::validate_and_infer_types();
@@ -36,4 +35,4 @@ std::map<std::string, OutputVector> PDPDFrameworkNode::return_named_outputs() {
 }
 
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

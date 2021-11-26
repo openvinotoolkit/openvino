@@ -31,7 +31,7 @@ public:
 
 namespace py = pybind11;
 
-using PyRTMap = std::map<std::string, std::shared_ptr<ov::Variant>>;
+using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 
@@ -149,6 +149,23 @@ void regclass_graph_Node(py::module m) {
                 get_output_partial_shape : PartialShape
                     PartialShape of the output i
              )");
+    node.def("get_output_tensor",
+             &ov::Node::get_output_tensor,
+             py::arg("i"),
+             py::return_value_policy::reference_internal,
+             R"(
+                Returns the tensor for output i
+
+                Parameters
+                ----------
+                i : int
+                    Index of the output.
+
+                Returns
+                ----------
+                get_output_tensor : descriptor.Tensor
+                    Tensor of the output i
+             )");
     node.def("get_type_name",
              &ov::Node::get_type_name,
              R"(
@@ -157,7 +174,7 @@ void regclass_graph_Node(py::module m) {
                 Returns
                 ----------
                 get_type_name : str
-                    String repesenting Type's name. 
+                    String repesenting Type's name.
              )");
     node.def("get_name",
              &ov::Node::get_name,
@@ -172,7 +189,7 @@ void regclass_graph_Node(py::module m) {
     node.def("get_friendly_name",
              &ov::Node::get_friendly_name,
              R"(
-                Gets the friendly name for a node. If no friendly name has 
+                Gets the friendly name for a node. If no friendly name has
                 been set via set_friendly_name then the node's unique name
                 is returned.
 
@@ -187,7 +204,7 @@ void regclass_graph_Node(py::module m) {
              py::arg("name"),
              R"(
                 Sets a friendly name for a node. This does not overwrite the unique name
-                of the node and is retrieved via get_friendly_name(). Used mainly for 
+                of the node and is retrieved via get_friendly_name(). Used mainly for
                 debugging. The friendly name may be set exactly once.
 
                 Parameters

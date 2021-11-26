@@ -210,6 +210,11 @@ public:
 
     static bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& node);
 
+    static void insertDequantizationAfter(
+        const std::shared_ptr<Node>& originalNode,
+        const std::shared_ptr<Node>& dequantization,
+        const std::shared_ptr<Node>& newNode);
+
     static void replaceAttributeInNodes(
         std::shared_ptr<ngraph::Function> f,
         const std::string& name,
@@ -241,7 +246,7 @@ public:
                     auto it = rt.find(name);
                     if (it != rt.end()) {
                         const auto currentAttribute = it->second;
-                        if (oldAttribute.get() == currentAttribute.get()) {
+                        if (oldAttribute == as_type_ptr<ngraph::Variant>(currentAttribute)) {
                             rt[name] = newAttribute;
                         }
                         handleConnectedNodes = true;

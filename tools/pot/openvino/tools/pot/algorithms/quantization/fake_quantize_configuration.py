@@ -7,10 +7,10 @@ from copy import deepcopy
 from .range_estimator import get_range_estimator_config
 from .utils import get_hardware_config_operation_type, load_hardware_config
 from ...graph.special_operations import QUANTIZE_AGNOSTIC_OPERATIONS, CONCAT_UNIFY_OUTPUTS, CONCAT_UNIFY_INPUTS
-from ...graph.utils import find_operation_matches, get_operation_list
+from ...graph.utils import find_operation_matches, get_operation_list, is_data_type_quantizable
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_input_shape, get_all_node_outputs,\
-    get_node_input, get_node_inputs
+    get_node_input, get_node_inputs, get_node_data_type
 from ...utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -130,11 +130,11 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
                     if not _is_quantizable(child):
                         queue.append(child)
                     elif child.type not in descendants:
-                        descendants.append((child.name,
+                        descendants.append((child.fullname,
                                             get_hardware_config_operation_type(child, available_types)))
                     if current.type == 'Split' \
                             and child.type == 'Concat' \
-                            and len({child_.name for child_ in children}) == 1:
+                            and len({child_.fullname for child_ in children}) == 1:
                         break
             return descendants
 
@@ -146,7 +146,7 @@ def read_all_fake_quantize_configurations(config, hardware_config, model):
         available_types = [layer['type'] for layer in hardware_config]
         for fq in get_nodes_by_type(model, ['FakeQuantize']):
             node_input = get_node_input(fq, 0)
-            out[fq.name] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
+            out[fq.fullname] = (_get_node_valuable_descendant(fq), node_input.type == 'Const')
 
         return out
 
@@ -320,7 +320,7 @@ def find_fqs_to_unify(model, config):
             'Concat': _is_concat_unify_condition
         }
         if node.type in check_map:
-            logger.debug('Checking {} node with {} type'.format(node.name, node.type))
+            logger.debug('Checking {} node with {} type'.format(node.fullname, node.type))
             return check_map[node.type](node)
         return True
 
@@ -331,7 +331,7 @@ def find_fqs_to_unify(model, config):
             elif input_node.type in [n['type'] for n in CONCAT_UNIFY_OUTPUTS]:
                 concat_stack.clear()
                 logger.debug('Found %s %s as Concat %s output',
-                             input_node.type, input_node.name, node.name)
+                             input_node.type, input_node.fullname, node.fullname)
                 return True
             return False
 
@@ -340,7 +340,7 @@ def find_fqs_to_unify(model, config):
         for concat_input in concat_inputs:
             if concat_input.type not in [n['type'] for n in CONCAT_UNIFY_INPUTS]:
                 logger.debug('Concat %s without FQ or Concat as input will not unified',
-                             node.name)
+                             node.fullname)
                 return res
         concat_stack = [node]
         while concat_stack:
@@ -363,22 +363,24 @@ def find_fqs_to_unify(model, config):
         return 'Const' in [parent.type for parent in get_node_inputs(layer) if parent]
 
     def _process_node(node_, stack_, visited_, to_unify_):
-        visited_[node_.name] = True
+        visited_[node_.fullname] = True
         if _is_unified_scales_op(node_) or _is_agnostic_branching_op(node_):
             if not _has_const_input(node_):
-                to_unify_[0].append(node_.name)
+                to_unify_[0].append(node_.fullname)
         elif node_.type == 'FakeQuantize' and get_node_input(node_, 0).type != 'Const':
-            to_unify_[1].append(node_.name)
+            to_unify_[1].append(node_.fullname)
         # traverse down
         if node_.type == 'FakeQuantize' or _is_quantize_agnostic_op(node_):
             for child in get_all_node_outputs(node_):
-                if not visited_[child.name] and \
+                node_data_type = get_node_data_type(child)
+                if not visited_[child.fullname] and is_data_type_quantizable(node_data_type) and \
                         (_is_quantize_agnostic_op(child) or _is_unified_scales_op(child)):
                     stack_.append(child)
         # traverse up
         if node_.type != 'FakeQuantize':
             for parent in get_node_inputs(node_):
-                if parent and not visited_[parent.name] and \
+                node_data_type = get_node_data_type(parent)
+                if parent and not visited_[parent.fullname] and is_data_type_quantizable(node_data_type) and \
                         (parent.type == 'FakeQuantize' or _is_quantize_agnostic_op(parent)):
                     stack_.append(parent)
 
@@ -394,7 +396,7 @@ def find_fqs_to_unify(model, config):
     if model is None:
         return fqs_to_unify
     for fq in get_nodes_by_type(model, ['FakeQuantize']):
-        if not visited[fq.name] and get_node_input(fq, 0).type != 'Const':
+        if not visited[fq.fullname] and get_node_input(fq, 0).type != 'Const':
             stack = [fq]
             to_unify = [[], []]
             while stack:

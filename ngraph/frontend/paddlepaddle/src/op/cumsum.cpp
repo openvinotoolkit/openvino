@@ -6,7 +6,7 @@
 
 #include "default_opset.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
@@ -17,7 +17,7 @@ NamedOutputs cumsum(const NodeContext& node) {
     const auto reverse = node.get_attribute<bool>("reverse", false);
     const auto exclusive = node.get_attribute<bool>("exclusive", false);
 
-    std::shared_ptr<ngraph::Node> input = x.get_node_shared_ptr();
+    std::shared_ptr<ov::Node> input = x.get_node_shared_ptr();
     if (flatten) {
         // convert to 1-d tensor
         input = std::make_shared<default_opset::Reshape>(x,
@@ -34,4 +34,4 @@ NamedOutputs cumsum(const NodeContext& node) {
 }  // namespace op
 }  // namespace pdpd
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov

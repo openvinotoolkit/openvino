@@ -22,6 +22,13 @@ MKLDNNReferenceNode::MKLDNNReferenceNode(const std::shared_ptr<ngraph::Node>& op
     }
     setType(Reference);
     setTypeStr("Reference");
+
+    // RandomUniform should generate new sequence each run even if all inputs are constants. So that method MKLDNNNode::IsConstant()
+    // doesn't return 'True' for RandomUniform with all constant inputs and the node generates new values for each inference,
+    // we set 'NoConst' value for 'ConstantType' in ctor
+    if (ov::is_type<ngraph::op::v8::RandomUniform>(ngraphOp)) {
+        constant = ConstantType::NoConst;
+    }
 }
 
 void MKLDNNReferenceNode::getSupportedDescriptors() {}
@@ -67,10 +74,38 @@ void MKLDNNReferenceNode::execute(mkldnn::stream strm) {
     }
 }
 
+// TODO [DS]: rewrite after new shape infer will be added
+std::vector<VectorDims> MKLDNNReferenceNode::shapeInfer() const {
+    ngraph::OutputVector inputsForShapeInfer;
+    for (size_t i = 0; i < opToShapeInfer->get_input_size(); i++) {
+        const auto &mem = getParentEdgesAtPort(i)[0]->getMemory();
+        const auto dims = opToShapeInfer->get_input_partial_shape(i).rank().get_length() == 0 ? VectorDims{} : mem.getStaticDims();
+        inputsForShapeInfer.push_back(std::make_shared<ngraph::opset1::Constant>(InferenceEngine::details::convertPrecision(mem.getDesc().getPrecision()),
+                                                                                 dims,
+                                                                                 mem.GetPtr()));
+    }
+
+    const auto localShapeInferOp = opToShapeInfer->clone_with_new_inputs(inputsForShapeInfer);
+    localShapeInferOp->validate_and_infer_types();
+
+    std::vector<VectorDims> newOutputShapes(outputShapes.size());
+    for (size_t i = 0; i < newOutputShapes.size(); i++) {
+        const auto &partShape = localShapeInferOp->get_output_partial_shape(i);
+        if (partShape.is_dynamic())
+            IE_THROW(NotImplemented) << "CPU plug-in doesn't support default shape infer for nodes with internal dynamism";
+        newOutputShapes[i] = partShape.get_shape();
+    }
+    return newOutputShapes;
+}
+
 void MKLDNNReferenceNode::executeDynamicImpl(mkldnn::stream strm) {
     execute(strm);
 }
 
 bool MKLDNNReferenceNode::created() const {
     return getType() == Reference;
+}
+
+bool MKLDNNReferenceNode::needShapeInfer() const {
+    return true;
 }

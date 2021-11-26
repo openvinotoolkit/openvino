@@ -2,15 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "paddlepaddle_frontend/frontend.hpp"
+
 #include <fstream>
 #include <map>
-#include <ngraph/ngraph.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/variant.hpp>
-#include <paddlepaddle_frontend/exceptions.hpp>
-#include <paddlepaddle_frontend/frontend.hpp>
-#include <paddlepaddle_frontend/model.hpp>
-#include <paddlepaddle_frontend/place.hpp>
 #include <string>
 #include <vector>
 
@@ -18,14 +13,19 @@
 #include "framework.pb.h"
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/core/variant.hpp"
+#include "openvino/opsets/opset7.hpp"
+#include "paddlepaddle_frontend/exceptions.hpp"
+#include "paddlepaddle_frontend/model.hpp"
+#include "paddlepaddle_frontend/place.hpp"
 #include "pdpd_fw_node.hpp"
 #include "pdpd_utils.hpp"
 
-using namespace ngraph::opset7;
-using namespace ngraph;
-using namespace ngraph::frontend;
+using namespace ov::opset7;
+using namespace ov;
+using namespace ov::frontend;
 
-namespace ngraph {
+namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace {
@@ -84,7 +84,7 @@ NamedOutputs make_framework_node(const std::map<pdpd::TensorName, Output<Node>>&
     }
 
     auto node =
-        std::make_shared<ngraph::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
+        std::make_shared<ov::frontend::PDPDFrameworkNode>(DecoderPDPDProto(op_place), inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -165,10 +165,11 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
             pdpd::NamedOutputs named_outputs = func(nodes_dict, op_place);
 
             if (!named_outputs.empty()) {
-                // set layer name by the name of first output var
-                const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
-                auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
-                node->set_friendly_name(tensor_name);
+                if (op_desc.outputs().begin()->arguments().size() > 0) {
+                    const auto& tensor_name = op_desc.outputs().begin()->arguments()[0];
+                    auto node = named_outputs.begin()->second[0].get_node_shared_ptr();
+                    node->set_friendly_name(tensor_name);
+                }
 
                 const auto& out_ports = op_desc.outputs();
                 for (const auto& port : out_ports) {
@@ -177,7 +178,7 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
                         const auto& ng_outputs = named_outputs.at(port.parameter());
                         FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == port.arguments_size(),
                                                       "The number of output tensors must be equal to "
-                                                      "the number of outputs of the ngraph node.");
+                                                      "the number of outputs of the OV node.");
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
                             const auto& var_name = port.arguments()[idx];
                             ng_outputs[idx].get_tensor().set_names({var_name});
@@ -201,7 +202,7 @@ std::shared_ptr<Function> FrontEndPDPD::convert_each_node(
         result_nodes.push_back(result);
     }
 
-    return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
+    return std::make_shared<ov::Function>(result_nodes, parameter_nodes);
 }
 
 bool FrontEndPDPD::supported_impl(const std::vector<std::shared_ptr<Variant>>& variants) const {
@@ -275,7 +276,7 @@ InputModel::Ptr FrontEndPDPD::load_impl(const std::vector<std::shared_ptr<Varian
     PDPD_THROW("Model can be loaded either from 1 or 2 files/streams");
 }
 
-std::shared_ptr<ngraph::Function> FrontEndPDPD::convert(InputModel::Ptr model) const {
+std::shared_ptr<ov::Function> FrontEndPDPD::convert(InputModel::Ptr model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
@@ -286,7 +287,7 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert(InputModel::Ptr model) c
     return f;
 }
 
-void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted) const {
+void FrontEndPDPD::convert(std::shared_ptr<ov::Function> partiallyConverted) const {
     for (const auto& node : partiallyConverted->get_ordered_ops()) {
         if (ov::is_type<PDPDFrameworkNode>(node)) {
             pdpd::normalize_framework_node(std::dynamic_pointer_cast<PDPDFrameworkNode>(node),
@@ -298,7 +299,7 @@ void FrontEndPDPD::convert(std::shared_ptr<ngraph::Function> partiallyConverted)
     }
 }
 
-std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
+std::shared_ptr<ov::Function> FrontEndPDPD::convert_partially(InputModel::Ptr model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(
@@ -315,7 +316,7 @@ std::shared_ptr<ngraph::Function> FrontEndPDPD::convert_partially(InputModel::Pt
     return f;
 }
 
-std::shared_ptr<ngraph::Function> FrontEndPDPD::decode(InputModel::Ptr model) const {
+std::shared_ptr<ov::Function> FrontEndPDPD::decode(InputModel::Ptr model) const {
     auto pdpd_model = std::dynamic_pointer_cast<InputModelPDPD>(model);
     std::map<std::string, pdpd::CreatorFunction> CREATORS_MAP = pdpd::get_supported_ops();
     auto f = convert_each_node(pdpd_model, pdpd::make_framework_node);
@@ -326,7 +327,7 @@ std::string FrontEndPDPD::get_name() const {
     return "paddle";
 }
 }  // namespace frontend
-}  // namespace ngraph
+}  // namespace ov
 
 extern "C" PDPD_API FrontEndVersion GetAPIVersion() {
     return OV_FRONTEND_API_VERSION;

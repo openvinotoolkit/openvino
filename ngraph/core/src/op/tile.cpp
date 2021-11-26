@@ -9,6 +9,7 @@
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -16,6 +17,7 @@ using namespace ngraph;
 BWDCMP_RTTI_DEFINITION(op::v0::Tile);
 
 op::v0::Tile::Tile(const Output<Node>& data, const Output<Node>& repeats) : Op({data, repeats}) {
+    ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
@@ -56,7 +58,15 @@ void op::v0::Tile::validate_and_infer_types() {
             output_shape[i] = data_shape[i] * repeats_value[i];
         set_output_type(0, arg_et, output_shape);
     } else {
-        set_output_type(0, arg_et, ov::PartialShape::dynamic());
+        Rank outRank = Rank::dynamic();
+        if (arg_shape.rank().is_static() && repeats_shape.is_static()) {
+            std::vector<Dimension> data_shape(arg_shape);
+            auto data_rank = data_shape.size();
+            auto repeats_rank = repeats_value.size();
+            auto output_rank = std::max(data_rank, repeats_rank);
+            outRank = Rank(output_rank);
+        }
+        set_output_type(0, arg_et, ov::PartialShape::dynamic(outRank));
     }
 
     set_input_is_relevant_to_shape(0);
