@@ -21,8 +21,6 @@ except ImportError:
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.back.ie_ir_ver_2.emitter import append_ir_info
-from mo.moc_frontend.pipeline import moc_pipeline
-from mo.moc_frontend.serialize import moc_emit_ir
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
@@ -321,6 +319,7 @@ def prepare_ir(argv):
     moc_front_end, available_moc_front_ends = get_moc_frontends(argv)
 
     if moc_front_end:
+        from mo.moc_frontend.pipeline import moc_pipeline
         ngraph_function = moc_pipeline(argv, moc_front_end)
     else:
         graph = unified_pipeline(argv)
@@ -417,6 +416,7 @@ def driver(argv: argparse.Namespace):
     if graph is not None:
         ret_res = emit_ir(graph, argv)
     else:
+        from mo.moc_frontend.serialize import moc_emit_ir
         ret_res = moc_emit_ir(ngraph_function, argv)
 
     if ret_res != 0:
