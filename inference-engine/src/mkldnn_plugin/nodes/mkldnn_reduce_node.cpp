@@ -1659,10 +1659,6 @@ const std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::sha
 
 bool MKLDNNReduceNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (isDynamicNgraphNode(op)) {
-            errorMessage = "Doesn't support op with dynamic shapes";
-            return false;
-        }
         if (std::dynamic_pointer_cast<const ngraph::op::util::ArithmeticReductionKeepDims>(op) == nullptr &&
                 std::dynamic_pointer_cast<const ngraph::op::util::LogicalReductionKeepDims>(op) == nullptr) {
             errorMessage = "Reduce node with name " + op->get_friendly_name() + " is not derived from ArithmeticReductionKeepDims or LogicalReductionKeepDims";
@@ -1704,10 +1700,16 @@ MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, cons
         initializers.at(op->get_type_info())(op, *this);
         if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            raw_axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES))->cast_vector<int>();
+            auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            if (!reduceConst)
+                IE_THROW() << errorPrefix << " second tensor is not constant!";
+            raw_axes = reduceConst->cast_vector<int>();
         } else if (const auto reduce = std::dynamic_pointer_cast<ngraph::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
-            raw_axes = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES))->cast_vector<int>();
+            auto reduceConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            if (!reduceConst)
+                IE_THROW() << errorPrefix << " second tensor is not constant!";
+            raw_axes = reduceConst->cast_vector<int>();
         }
         setJITBeyond5D();
     } else {
@@ -1718,8 +1720,6 @@ MKLDNNReduceNode::MKLDNNReduceNode(const std::shared_ptr<ngraph::Node>& op, cons
 void MKLDNNReduceNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
-
-    setPostOps(attr, true);
 
     if (getParentEdges().size() != 2)
         IE_THROW() << errorPrefix << " gets incorrect number of input edges!";
@@ -1803,7 +1803,7 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
 
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_type);
         if ((getInputShapeAtPort(REDUCE_DATA).getRank() == 4 || getInputShapeAtPort(REDUCE_DATA).getRank() == 5) &&
-                getInputShapeAtPort(REDUCE_DATA).getStaticDims()[1] > 1) {
+                getInputShapeAtPort(REDUCE_DATA).getMinDims()[1] > 1) {
             if (keep_dims) {
                 if (mayiuse(cpu::x64::avx512_common)) {
                     pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_type);
@@ -1827,6 +1827,42 @@ void MKLDNNReduceNode::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void MKLDNNReduceNode::prepareParams() {
+    src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
+    std::vector<int> reduce_axes;
+    if (jit_mode && jit_beyond_5D) {
+        reduce_axes = update_src_dims();
+    } else {
+        reduce_axes = raw_axes;
+    }
+
+    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const SizeVector &dst_dims = dstMemPtr->getDesc().getShape().getDims();
+    dst_size = dstMemPtr->GetSize();
+    calc_process_dst_dims(reduce_axes, dst_dims);
+    if (jit_mode) {
+        set_reduce_dim_flags();
+    }
+
+    if (compile_post_kernel) {
+        setPostOps(attr, dst_dims, true);
+        if (mayiuse(cpu::x64::avx512_common)) {
+            reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::avx2)) {
+            reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+        } else if (mayiuse(cpu::x64::sse41)) {
+            reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+        }
+        if (reduce_post_kernel)
+            reduce_post_kernel->create_ker();
+        jit_mode = jit_mode && reduce_post_kernel;
+
+        if (!isDynamicNode() || (isDynamicNode() && attr.get()->post_ops_.len() == 0)) {
+            compile_post_kernel = false;
+        }
+    }
+}
+
 void MKLDNNReduceNode::createPrimitive() {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(REDUCE_DATA)->getMemoryPtr();
@@ -1837,9 +1873,9 @@ void MKLDNNReduceNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         IE_THROW() << errorPrefix << " has nullable preferable primitive descriptor";
 
-    if (getParentEdgeAt(REDUCE_DATA)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp)) {
+    if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = ReduceLayoutType::reduce_ncsp;
-    } else if (getParentEdgeAt(REDUCE_DATA)->getMemory().getDesc().hasLayoutType(LayoutType::nspc)) {
+    } else if (srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc)) {
         layout = ReduceLayoutType::reduce_nspc;
     } else {
         layout = ReduceLayoutType::reduce_blocked;
@@ -1848,22 +1884,11 @@ void MKLDNNReduceNode::createPrimitive() {
     // hybrid layout: nspc/blocked layout for input and ncsp for output
     // !keep_dims is needed to avoid hybrid layout for cases eg. (A, B, C, D) reduce to (A, 1, 1, 1)
     if (!keep_dims && (layout == ReduceLayoutType::reduce_nspc || layout == ReduceLayoutType::reduce_blocked)) {
-        is_hybrid_layout = getChildEdgeAt(REDUCE_DATA)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp);
+        is_hybrid_layout = dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp);
     }
 
-    src_dims = getInputShapeAtPort(REDUCE_DATA).getStaticDims();
-    if (jit_mode && jit_beyond_5D) {
-        update_src_dims();
-    }
-
-    dst_size = dstMemPtr->GetSize();
-    calc_process_dst_dims();
-    if (jit_mode) {
-        set_reduce_dim_flags();
-    }
-
-    auto jcp = jit_reduce_config_params();
     auto selectedPD = getSelectedPrimitiveDescriptor();
+    jcp = jit_reduce_config_params();
     jcp.src_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().inConfs[REDUCE_DATA].desc->getPrecision());
     jcp.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(selectedPD->getConfig().outConfs[0].desc->getPrecision());
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(jcp.src_dt);
@@ -1871,27 +1896,27 @@ void MKLDNNReduceNode::createPrimitive() {
     jcp.layout = layout;
     jcp.reduce_mode = getAlgorithm();
 
+    compile_post_kernel = true;
+
+    if (inputShapesDefined()) {
+        if (needPrepareParams())
+            prepareParams();
+        updateLastInputDims();
+    }
+
     if (mayiuse(cpu::x64::avx512_common)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx512_common>(jcp));
-        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
         blk_size = 16;
     } else if (mayiuse(cpu::x64::avx2)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::avx2>(jcp));
-        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
         blk_size = 8;
     } else if (mayiuse(cpu::x64::sse41)) {
         reduce_kernel.reset(new jit_uni_reduce_kernel_f32<cpu::x64::sse41>(jcp));
-        reduce_post_kernel.reset(new jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
         blk_size = 8;
     }
-
     if (reduce_kernel)
         reduce_kernel->create_ker();
-
-    if (reduce_post_kernel)
-        reduce_post_kernel->create_ker();
-
-    jit_mode = jit_mode && reduce_kernel && reduce_post_kernel;
+    jit_mode = jit_mode && reduce_kernel;
 }
 
 void MKLDNNReduceNode::execute(mkldnn::stream strm) {
@@ -2508,11 +2533,12 @@ inline void MKLDNNReduceNode::create_working_memory() {
     dst_size = desc.get_size();
 }
 
-inline void MKLDNNReduceNode::calc_process_dst_dims() {
+inline void MKLDNNReduceNode::calc_process_dst_dims(std::vector<int> &reduce_axes, const SizeVector &dst_dims) {
     std::set<size_t> axes;
     SizeVector out_dims;
-    SizeVector dst_dims = getOutputShapeAtPort(0).getStaticDims();
-    for (auto &axis : raw_axes) {
+    process_dst_dims.clear();
+    axes_for_reduction.clear();
+    for (auto &axis : reduce_axes) {
         if (axis < 0)
             axis += src_dims.size();
         if (static_cast<size_t>(axis) > src_dims.size())
@@ -2731,7 +2757,7 @@ inline void MKLDNNReduceNode::reduce_ref_map(float *out_ptr, size_t work_amount_
     }
 }
 
-void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
+void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights) {
     mkldnn::post_ops ops;
     for (auto &node : fusedWith) {
         auto* fakeQuantizeNode = dynamic_cast<MKLDNNFakeQuantizeNode *>(node.get());
@@ -2742,9 +2768,8 @@ void MKLDNNReduceNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights
 
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
-            // TODO [DS]: change to shape from memory
             constexpr int align = 16;
-            eltwiseNode->appendPostOps(ops, getOutputShapeAtPort(0).getStaticDims(), align);
+            eltwiseNode->appendPostOps(ops, postOpDims, align);
             continue;
         }
         IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
@@ -2774,15 +2799,17 @@ void MKLDNNReduceNode::setJITBeyond5D() {
     }
 }
 
-void MKLDNNReduceNode::update_src_dims() {
-    if (raw_axes.size() < 1)
-        return;
+std::vector<int> MKLDNNReduceNode::update_src_dims() {
+    std::vector<int> reduce_axes = raw_axes;
+
+    if (reduce_axes.size() < 1)
+        return reduce_axes;
 
     size_t axis_dim = 1;
     size_t outer_dim = 1;
     size_t inner_dim = 1;
-    int outer_end = raw_axes[0];
-    int inner_start = raw_axes[raw_axes.size() - 1];
+    int outer_end = reduce_axes[0];
+    int inner_start = reduce_axes[reduce_axes.size() - 1];
     for (size_t i = 0; i < src_dims.size(); i++) {
         if (i < outer_end) {
             outer_dim *= src_dims[i];
@@ -2793,13 +2820,15 @@ void MKLDNNReduceNode::update_src_dims() {
         }
     }
 
-    raw_axes.clear();
-    raw_axes.push_back(1);
+    reduce_axes.clear();
+    reduce_axes.push_back(1);
 
     src_dims.clear();
     src_dims.push_back(outer_dim);
     src_dims.push_back(axis_dim);
     src_dims.push_back(inner_dim);
+
+    return reduce_axes;
 }
 
 bool MKLDNNReduceNode::canApplyJIT(const Precision &input_prec, const Precision &output_prec) const {

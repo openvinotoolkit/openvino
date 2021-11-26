@@ -1384,6 +1384,8 @@ void MKLDNNGraphOptimizer::FuseReduceAndSimpleOperation(MKLDNNGraph &graph) {
             auto parentEdges = childNode->parentEdges;
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
+                if (p_edge == nullptr)
+                    IE_THROW() << "Cannot get parent edge " << childNode->getName();
                 if (p_edge->getParent()->getType() == Reduce)
                     continue;
 

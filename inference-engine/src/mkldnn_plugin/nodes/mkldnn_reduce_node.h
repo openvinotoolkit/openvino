@@ -86,9 +86,11 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
+    void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
     bool canFuse(const MKLDNNNodePtr& node) const override;
     bool canBeInPlace() const override {
         return false;
@@ -106,16 +108,16 @@ private:
     inline void reduce_kernel_post_process(uint8_t *out_ptr);
     inline void init_dst_data(uint8_t *out_ptr, size_t dst_size);
     inline void create_working_memory();
-    inline void calc_process_dst_dims();
+    inline void calc_process_dst_dims(std::vector<int> &reduce_axes, const InferenceEngine::SizeVector &dst_dim);
     inline void set_reduce_dim_flags();
     inline void reduce_ref(const float *in_ptr, float *out_ptr);
     void reduce_ref_process(const float *in_ptr, float *out_ptr, float init_value, std::function<float(float, float)> func);
     inline void reduce_ref_map(float *out_ptr, size_t work_amount_dst, size_t reduced_dims_work_amount);
     void nspc2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
     void blocked2ncsp(uint8_t *proc_ptr, uint8_t *out_ptr);
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+    void setPostOps(mkldnn::primitive_attr &attr, const VectorDims &postOpDims, bool initWeights = false);
     void setJITBeyond5D();
-    void update_src_dims();
+    std::vector<int> update_src_dims();
     bool canApplyJIT(const InferenceEngine::Precision &input_prec, const InferenceEngine::Precision &output_prec) const;
 
     size_t blk_size;
@@ -126,6 +128,7 @@ private:
     bool jit_mode = true;
     bool keep_dims = true;
     bool is_hybrid_layout = false;
+    bool compile_post_kernel = true;
     bool ReduceN, ReduceC, ReduceD, ReduceH, ReduceW;
     size_t IB, IC, ID, IH, IW;
     size_t OB, OC, OD, OH, OW;
@@ -137,6 +140,8 @@ private:
     InferenceEngine::SizeVector process_dst_dims;
     InferenceEngine::SizeVector axes_for_reduction;
     std::vector<int> raw_axes;
+
+    jit_reduce_config_params jcp;
 
     mkldnn::primitive_attr attr;
 
