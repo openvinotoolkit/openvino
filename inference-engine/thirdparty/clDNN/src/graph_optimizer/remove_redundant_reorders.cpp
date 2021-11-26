@@ -313,12 +313,15 @@ void remove_redundant_reorders::run(program& p) {
             if (!ignore_conditions && node.is_output())
                 continue;
 
+            if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
             if (node.has_mean() || !node.get_primitive()->subtract_per_feature.empty())
                 continue;
 
+            if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
             if (!node.get_fused_activations_funcs().empty())
                 continue;
 
+            if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
             if (!ignore_conditions && (input.get_users().size() != 1 || node.get_users().empty()))
                 continue;
 
@@ -328,18 +331,23 @@ void remove_redundant_reorders::run(program& p) {
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
+            if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
             if (!lo.can_fuse_reorder_to_prev(input, node.get_users().empty() ? nullptr : node.get_users().front(), input.get_output_layout().format, output_layout.format))
                 continue;
 
+            if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
                 node.can_be_optimized(true);
                 p.add_optimized_primitive_info(node.id());
+                if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
                 p.extract_and_remove(node);
+                if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
             } else {
                 input.set_output_layout(old_output_layout_of_input, false);
             }
+            if (ignore_conditions) printf("mingyuki: %s:%d\n", __FILE__, __LINE__);
         }
     }
     // This pass removed reorder if the next node supports reorder's input format and data type doesn't change
