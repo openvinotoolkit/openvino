@@ -177,10 +177,13 @@ void MKLDNNNonMaxSuppressionNode::createJitKernel() {
 
     if (mayiuse(cpu::x64::avx512_common)) {
         nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx512_common>(jcp));
+        eltsInVmm = 16;
     } else if (mayiuse(cpu::x64::avx2)) {
         nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::avx2>(jcp));
+        eltsInVmm = 8;
     } else if (mayiuse(cpu::x64::sse41)) {
         nms_kernel.reset(new jit_uni_nms_kernel_f32<cpu::x64::sse41>(jcp));
+        eltsInVmm = 4;
     }
 
     if (nms_kernel)
@@ -438,7 +441,6 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
     parallel_for2d(numBatches, numClasses, [&](int batch_idx, int class_idx) {
         const float *boxesPtr = boxes + batch_idx * boxesStrides[0];
         const float *scoresPtr = scores + batch_idx * scoresStrides[0] + class_idx * scoresStrides[1];
-        std::vector<float> boxCoord0, boxCoord1, boxCoord2, boxCoord3;
 
         std::vector<std::pair<float, int>> sorted_boxes;  // score, box_idx
         for (int box_idx = 0; box_idx < numBoxes; box_idx++) {
@@ -447,7 +449,8 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
         }
 
         int io_selection_size = 0;
-        if (sorted_boxes.size() > 0) {
+        size_t sortedBoxSize = sorted_boxes.size();
+        if (sortedBoxSize > 0) {
             parallel_sort(sorted_boxes.begin(), sorted_boxes.end(),
                           [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
                               return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
@@ -455,28 +458,57 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
             int offset = batch_idx*numClasses*maxOutputBoxesPerClass + class_idx*maxOutputBoxesPerClass;
             filtBoxes[offset + 0] = filteredBoxes(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
             if (nms_kernel) {
-                boxCoord0.push_back(boxesPtr[sorted_boxes[0].second * 4]);
-                boxCoord1.push_back(boxesPtr[sorted_boxes[0].second * 4 + 1]);
-                boxCoord2.push_back(boxesPtr[sorted_boxes[0].second * 4 + 2]);
-                boxCoord3.push_back(boxesPtr[sorted_boxes[0].second * 4 + 3]);
-            }
-            io_selection_size++;
-            auto arg = jit_nms_args();
-            arg.iou_threshold = static_cast<float*>(&iouThreshold);
-            arg.score_threshold = static_cast<float*>(&scoreThreshold);
-            arg.scale = static_cast<float*>(&scale);
-            for (size_t candidate_idx = 1; (candidate_idx < sorted_boxes.size()) && (io_selection_size < max_out_box); candidate_idx++) {
-                int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected
-                if (nms_kernel) {
-                    arg.selected_boxes_coord[0] = static_cast<float*>(&boxCoord0[0]);
-                    arg.selected_boxes_coord[1] = static_cast<float*>(&boxCoord1[0]);
-                    arg.selected_boxes_coord[2] = static_cast<float*>(&boxCoord2[0]);
-                    arg.selected_boxes_coord[3] = static_cast<float*>(&boxCoord3[0]);
-                    arg.selected_boxes_num = io_selection_size;
-                    arg.candidate_box = static_cast<const float*>(&boxesPtr[sorted_boxes[candidate_idx].second * 4]);
-                    arg.candidate_status = static_cast<int*>(&candidateStatus);
-                    (*nms_kernel)(&arg);
-                } else {
+                std::vector<float> boxCoord0(sortedBoxSize, 0.0f);
+                std::vector<float> boxCoord1(sortedBoxSize, 0.0f);
+                std::vector<float> boxCoord2(sortedBoxSize, 0.0f);
+                std::vector<float> boxCoord3(sortedBoxSize, 0.0f);
+
+                boxCoord0[io_selection_size] = boxesPtr[sorted_boxes[0].second * 4];
+                boxCoord1[io_selection_size] = boxesPtr[sorted_boxes[0].second * 4 + 1];
+                boxCoord2[io_selection_size] = boxesPtr[sorted_boxes[0].second * 4 + 2];
+                boxCoord3[io_selection_size] = boxesPtr[sorted_boxes[0].second * 4 + 3];
+                io_selection_size++;
+
+                auto arg = jit_nms_args();
+                arg.iou_threshold = static_cast<float*>(&iouThreshold);
+                arg.score_threshold = static_cast<float*>(&scoreThreshold);
+                arg.scale = static_cast<float*>(&scale);
+                // box start index do not change for hard supresion
+                arg.selected_boxes_coord[0] = static_cast<float*>(&boxCoord0[0]);
+                arg.selected_boxes_coord[1] = static_cast<float*>(&boxCoord1[0]);
+                arg.selected_boxes_coord[2] = static_cast<float*>(&boxCoord2[0]);
+                arg.selected_boxes_coord[3] = static_cast<float*>(&boxCoord3[0]);
+
+                for (size_t candidate_idx = 1; (candidate_idx < sortedBoxSize) && (io_selection_size < max_out_box); candidate_idx++) {
+                    int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected
+                    if (io_selection_size >= eltsInVmm) {
+                        arg.selected_boxes_num = io_selection_size;
+                        arg.candidate_box = static_cast<const float*>(&boxesPtr[sorted_boxes[candidate_idx].second * 4]);
+                        arg.candidate_status = static_cast<int*>(&candidateStatus);
+                        (*nms_kernel)(&arg);
+                    } else {
+                        for (int selected_idx = io_selection_size - 1; selected_idx >= 0; selected_idx--) {
+                            float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[candidate_idx].second * 4],
+                                &boxesPtr[filtBoxes[offset + selected_idx].box_index * 4]);
+                            if (iou >= iouThreshold) {
+                                candidateStatus = NMSCandidateStatus::SUPPRESSED;
+                                break;
+                            }
+                        }
+                    }
+                    if (candidateStatus == NMSCandidateStatus::SELECTED) {
+                        boxCoord0[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4];
+                        boxCoord1[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4 + 1];
+                        boxCoord2[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4 + 2];
+                        boxCoord3[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * 4 + 3];
+                        filtBoxes[offset + io_selection_size] =
+                            filteredBoxes(sorted_boxes[candidate_idx].first, batch_idx, class_idx, sorted_boxes[candidate_idx].second);
+                        io_selection_size++;
+                    }
+                }
+            } else {
+                for (size_t candidate_idx = 1; (candidate_idx < sortedBoxSize) && (io_selection_size < max_out_box); candidate_idx++) {
+                    int candidateStatus = NMSCandidateStatus::SELECTED; // 0 for suppressed, 1 for selected
                     for (int selected_idx = io_selection_size - 1; selected_idx >= 0; selected_idx--) {
                         float iou = intersectionOverUnion(&boxesPtr[sorted_boxes[candidate_idx].second * 4],
                             &boxesPtr[filtBoxes[offset + selected_idx].box_index * 4]);
@@ -485,21 +517,16 @@ void MKLDNNNonMaxSuppressionNode::nmsWithoutSoftSigma(const float *boxes, const 
                             break;
                         }
                     }
-                }
 
-                if (candidateStatus == NMSCandidateStatus::SELECTED) {
-                    if (nms_kernel) {
-                        boxCoord0.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4]);
-                        boxCoord1.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4 + 1]);
-                        boxCoord2.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4 + 2]);
-                        boxCoord3.push_back(boxesPtr[sorted_boxes[candidate_idx].second * 4 + 3]);
+                    if (candidateStatus == NMSCandidateStatus::SELECTED) {
+                        filtBoxes[offset + io_selection_size] =
+                            filteredBoxes(sorted_boxes[candidate_idx].first, batch_idx, class_idx, sorted_boxes[candidate_idx].second);
+                        io_selection_size++;
                     }
-                    filtBoxes[offset + io_selection_size] =
-                        filteredBoxes(sorted_boxes[candidate_idx].first, batch_idx, class_idx, sorted_boxes[candidate_idx].second);
-                    io_selection_size++;
                 }
             }
         }
+
         numFiltBox[batch_idx][class_idx] = io_selection_size;
     });
 }

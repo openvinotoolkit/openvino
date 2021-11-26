@@ -101,6 +101,7 @@ private:
 
     void createJitKernel();
     std::shared_ptr<jit_uni_nms_kernel> nms_kernel;
+    int eltsInVmm = 0;
 };
 
 }  // namespace MKLDNNPlugin

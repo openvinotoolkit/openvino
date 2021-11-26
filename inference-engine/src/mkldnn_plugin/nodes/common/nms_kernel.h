@@ -521,18 +521,15 @@ private:
     }
 
     inline void iou(int ele_num) {
-        load_emitter->emit_code({static_cast<size_t>(reg_boxes_coord0.getIdx())}, {static_cast<size_t>(vmm_boxes_coord0.getIdx())},
-            std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, ele_num),
-            {}, {load_pool_gpr_idxs});
-        load_emitter->emit_code({static_cast<size_t>(reg_boxes_coord1.getIdx())}, {static_cast<size_t>(vmm_boxes_coord1.getIdx())},
-            std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, ele_num),
-            {}, {load_pool_gpr_idxs});
-        load_emitter->emit_code({static_cast<size_t>(reg_boxes_coord2.getIdx())}, {static_cast<size_t>(vmm_boxes_coord2.getIdx())},
-            std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, ele_num),
-            {}, {load_pool_gpr_idxs});
-        load_emitter->emit_code({static_cast<size_t>(reg_boxes_coord3.getIdx())}, {static_cast<size_t>(vmm_boxes_coord3.getIdx())},
-            std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, ele_num),
-            {}, {load_pool_gpr_idxs});
+        auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_dst) {
+            load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())},
+                std::make_shared<load_emitter_context>(Precision::FP32, Precision::FP32, ele_num),
+                {}, {load_pool_gpr_idxs});
+        };
+        load(reg_boxes_coord0, vmm_boxes_coord0);
+        load(reg_boxes_coord1, vmm_boxes_coord1);
+        load(reg_boxes_coord2, vmm_boxes_coord2);
+        load(reg_boxes_coord3, vmm_boxes_coord3);
 
         if (jcp.box_encode_type == NMSBoxEncodeType::CORNER) {
             // box format: y1, x1, y2, x2
