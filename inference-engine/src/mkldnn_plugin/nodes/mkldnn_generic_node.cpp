@@ -161,18 +161,17 @@ void MKLDNNGenericNode::execLayer() {
         }
     }
 
-    if (isDynBatch) {
-        // TODO: use ngraph-based extension mechnism if needed to recompute shape
-        isDynBatch = false;
-    }
+    // TODO: use ngraph-based extension mechnism if needed to recompute shape
+    isDynBatch = false;
+    // TODO: uncomment after using ngraph-based extension mechnism
+    // if (isDynBatch) {
+    //     for (size_t i = 0; i < inputs.size(); i++) {
+    //         auto td = inputs[i]->getTensorDesc();
+    //         td.setDims(inputDescs[i].getDims());
+    //         inputs[i] = make_blob_with_precision(td, getParentEdgeAt(i)->getMemory().GetData());
+    //     }
+    // }
 
-    if (isDynBatch) {
-        for (size_t i = 0; i < inputs.size(); i++) {
-            auto td = inputs[i]->getTensorDesc();
-            td.setDims(inputDescs[i].getDims());
-            inputs[i] = make_blob_with_precision(td, getParentEdgeAt(i)->getMemory().GetData());
-        }
-    }
     std::vector<InferenceEngine::Blob::Ptr> outputs;
     for (size_t i = 0; i < outputShapes.size(); i++) {
         if (isDynBatch) {

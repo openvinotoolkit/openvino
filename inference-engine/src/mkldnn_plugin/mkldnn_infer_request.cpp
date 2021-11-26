@@ -162,6 +162,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
     for (auto &node : graph->GetNodes()) {
         if (node->getType() == MemoryInput) {
             auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            if (!cur_node) {
+                IE_THROW() << "Cannot cast " << node->getName() << " to MKLDNNMemoryInputNode";
+            }
             auto cur_id = cur_node->getId();
             for (const auto& state : memoryStates) {
                 if (state->GetName() == cur_id) {

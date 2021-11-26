@@ -66,6 +66,8 @@ MKLDNNBroadcastNode::MKLDNNBroadcastNode(const std::shared_ptr<ov::Node>& op, co
         if (op->get_input_size() <= AXES_MAPPING_IDX)
             IE_THROW() << errorPrefix << " and EXPLICIT mode must have tree input edges: " << getParentEdges().size();
         broadcastType = EXPLICIT;
+    } else {
+        IE_THROW() << errorPrefix << "has unexpected broadcast type: " << broadcastOp->get_broadcast_spec().m_type;
     }
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {
