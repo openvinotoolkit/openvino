@@ -45,7 +45,7 @@ def get_input_types(obj: Union[InferRequestBase, ExecutableNetworkBase]) -> dict
 class InferRequest(InferRequestBase):
     """InferRequest wrapper."""
 
-    def infer(self, inputs: dict = None):
+    def infer(self, inputs: dict = None) -> OrderedDict:
         """Infer wrapper for InferRequest."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         res = super().infer(inputs)
@@ -67,7 +67,7 @@ class ExecutableNetwork(ExecutableNetworkBase):
         """Create new InferRequest object."""
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: dict = None) -> List[np.ndarray]:
+    def infer_new_request(self, inputs: dict = None) -> OrderedDict():
         """Infer wrapper for ExecutableNetwork."""
         inputs = {} if inputs is None else normalize_inputs(inputs, get_input_types(self))
         res = super().infer_new_request(inputs)
