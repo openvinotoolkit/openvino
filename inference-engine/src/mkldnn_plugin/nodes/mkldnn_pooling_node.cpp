@@ -20,10 +20,15 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-bool MKLDNNPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool MKLDNNPoolingNode::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(op) && !ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(op)) {
-            errorMessage = "Only opset1 MaxPool and AvgPool operations are supported";
+        if (ov::is_type<const ov::op::v8::MaxPool>(op)) {
+            if (!op->get_output_target_inputs(1).empty()) {
+                errorMessage = "MaxPool from opset8 is supported only with one output";
+                return false;
+            }
+        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op)) {
+            errorMessage = "MaxPool and AvgPool from opset1 and MaxPool from opset8 are supported";
             return false;
         }
     } catch (...) {
@@ -32,48 +37,52 @@ bool MKLDNNPoolingNode::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-MKLDNNPoolingNode::MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+MKLDNNPoolingNode::MKLDNNPoolingNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(op, eng, cache) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
     }
 
-    auto maxPoolOp = ngraph::as_type_ptr<ngraph::op::v1::MaxPool>(op);
-    auto avgPoolOp = ngraph::as_type_ptr<ngraph::op::v1::AvgPool>(op);
-    if (maxPoolOp) {
+    auto get_attributes = [](std::vector<ptrdiff_t>& internal_attribute, const std::vector<size_t> external_attribute) {
+        for (size_t i = 0; i < external_attribute.size(); i++) {
+            internal_attribute.push_back(static_cast<ptrdiff_t>(external_attribute[i]));
+        }
+    };
+
+    if (auto maxPoolOp_v8 = ov::as_type_ptr<const ov::op::v8::MaxPool>(op)) {
+        isMaxPool8 = true;
         algorithm = PoolingMax;
         exclude_pad = false;
 
-        for (int i = 0; i < maxPoolOp->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_strides()[i]));
-        }
-        for (int i = 0; i < maxPoolOp->get_kernel().size(); i++) {
-            kernel.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_kernel()[i]));
-        }
-        for (int i = 0; i < maxPoolOp->get_pads_begin().size(); i++) {
-            data_pad_begin.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_pads_begin()[i]));
-        }
-        for (int i = 0; i < maxPoolOp->get_pads_end().size(); i++) {
-            data_pad_end.push_back(static_cast<ptrdiff_t>(maxPoolOp->get_pads_end()[i]));
-        }
-        auto_pad = (maxPoolOp->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp->get_auto_pad() == ov::op::PadType::SAME_UPPER);
-    } else if (avgPoolOp) {
+        get_attributes(dilation, maxPoolOp_v8->get_dilations());
+        get_attributes(stride, maxPoolOp_v8->get_strides());
+        get_attributes(kernel, maxPoolOp_v8->get_kernel());
+        get_attributes(data_pad_begin, maxPoolOp_v8->get_pads_begin());
+        get_attributes(data_pad_end, maxPoolOp_v8->get_pads_end());
+
+        auto_pad = (maxPoolOp_v8->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp_v8->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+    } else if (auto maxPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::MaxPool>(op)) {
+        algorithm = PoolingMax;
+        exclude_pad = false;
+
+        get_attributes(stride, maxPoolOp_v1->get_strides());
+        get_attributes(kernel, maxPoolOp_v1->get_kernel());
+        get_attributes(data_pad_begin, maxPoolOp_v1->get_pads_begin());
+        get_attributes(data_pad_end, maxPoolOp_v1->get_pads_end());
+        dilation.resize(kernel.size(), 1);
+
+        auto_pad = (maxPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+    } else if (auto avgPoolOp = ov::as_type_ptr<const ov::op::v1::AvgPool>(op)) {
         algorithm = PoolingAvg;
         exclude_pad = avgPoolOp->get_exclude_pad();
 
-        for (int i = 0; i < avgPoolOp->get_strides().size(); i++) {
-            stride.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_strides()[i]));
-        }
-        for (int i = 0; i < avgPoolOp->get_kernel().size(); i++) {
-            kernel.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_kernel()[i]));
-        }
-        for (int i = 0; i < avgPoolOp->get_pads_begin().size(); i++) {
-            data_pad_begin.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_pads_begin()[i]));
-        }
-        for (int i = 0; i < avgPoolOp->get_pads_end().size(); i++) {
-            data_pad_end.push_back(static_cast<ptrdiff_t>(avgPoolOp->get_pads_end()[i]));
-        }
+        get_attributes(stride, avgPoolOp->get_strides());
+        get_attributes(kernel, avgPoolOp->get_kernel());
+        get_attributes(data_pad_begin, avgPoolOp->get_pads_begin());
+        get_attributes(data_pad_end, avgPoolOp->get_pads_end());
+        dilation.resize(kernel.size(), 1);
+
         auto_pad = (avgPoolOp->get_auto_pad() == ov::op::PadType::SAME_LOWER || avgPoolOp->get_auto_pad() == ov::op::PadType::SAME_UPPER);
     }
 }
@@ -94,20 +103,23 @@ std::vector<memory::format_tag> MKLDNNPoolingNode::getAvailableFormatsForDims(co
     return {memory::format_tag::any};
 }
 
-void MKLDNNPoolingNode::initEffectivePad(const Shape &inShape, const Shape &outShape) {
+void MKLDNNPoolingNode::initEffectiveAttributes(const Shape &inShape, const Shape &outShape) {
     effective_pad_begin = data_pad_begin;
     effective_pad_end.resize(data_pad_end.size());
+    effective_dilation.resize(dilation.size(), 0);
 
     const auto &inDims = inShape.getStaticDims();
     const auto &outDims = outShape.getStaticDims();
 
     for (int i = 0; i < effective_pad_end.size(); i++) {
         int krn = kernel[i];
+        int dil = dilation[i];
         int src = inDims[2 + i];
         int dst = outDims[2 + i];
 
-        int calc_dst = (src - krn + data_pad_begin[i]) / stride[i] + 1;
+        int calc_dst = (src - (1 + (krn  - 1) * dil) + data_pad_begin[i]) / stride[i] + 1;
         effective_pad_end[i] = (dst - calc_dst) * stride[i];
+        effective_dilation[i] = dil - 1;
     }
 }
 
@@ -151,8 +163,8 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if ((inputRank < 4) || (inputRank > 5))
         IE_THROW() << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
-    initEffectivePad(MemoryDescUtils::makeDummyShape(parentShape),
-                     MemoryDescUtils::makeDummyShape(childShape));
+    initEffectiveAttributes(MemoryDescUtils::makeDummyShape(parentShape),
+                            MemoryDescUtils::makeDummyShape(childShape));
 
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
@@ -185,7 +197,7 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
 }
 
-std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> MKLDNNPoolingNode::getPaddingFromNode(std::shared_ptr<ngraph::Node> node) const {
+std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> MKLDNNPoolingNode::getPaddingFromNode(std::shared_ptr<ov::Node> node) const {
     const auto convertPadding = [](const VectorDims &newPads) {
         std::vector<ptrdiff_t> pads(newPads.size());
         for (int i = 0; i < newPads.size(); i++) {
@@ -195,12 +207,16 @@ std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> MKLDNNPoolingNode::get
     };
 
     VectorDims padsBegin, padsEnd;
-    if (getAlgorithm() == PoolingMax) {
-        const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::MaxPool>(opToShapeInfer);
+    if (isMaxPool8) {
+        const auto pool = ov::as_type_ptr<const ov::op::v8::MaxPool>(opToShapeInfer);
+        padsBegin = pool->get_pads_begin();
+        padsEnd = pool->get_pads_end();
+    } else if (getAlgorithm() == PoolingMax) {
+        const auto pool = ov::as_type_ptr<const ov::op::v1::MaxPool>(opToShapeInfer);
         padsBegin = pool->get_pads_begin();
         padsEnd = pool->get_pads_end();
     } else if (getAlgorithm() == PoolingAvg) {
-        const auto pool = ngraph::as_type_ptr<const ngraph::op::v1::AvgPool>(opToShapeInfer);
+        const auto pool = ov::as_type_ptr<const ov::op::v1::AvgPool>(opToShapeInfer);
         padsBegin = pool->get_pads_begin();
         padsEnd = pool->get_pads_end();
     }
@@ -231,26 +247,45 @@ void MKLDNNPoolingNode::prepareParams() {
         if (auto_pad) {
             std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
         }
-        initEffectivePad(inDesc->getShape(), outDesc->getShape());
+        initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
 
-    mkldnn::algorithm alg = getPoolingAlgorithm();
-    MKLDNNDescriptor desc{createDescriptorInternal(in_candidate, out_candidate, alg)};
-    pooling_forward::primitive_desc prim_desc;
-    primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
+    if (isMaxPool8) {
+        MKLDNNDescriptor desc{createDescriptorInternalV2(in_candidate, out_candidate)};
+        pooling_v2_forward::primitive_desc prim_desc;
+        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
 
-    while (static_cast<bool>(itpd))  {
-        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        while (static_cast<bool>(itpd)) {
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-        if (impl_type == selected_pd->getImplementationType()) {
-            prim_desc = itpd.get();
-            break;
+            if (impl_type == selected_pd->getImplementationType()) {
+                prim_desc = itpd.get();
+                break;
+            }
+            if (!itpd.next_impl())
+                IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
         }
-        if (!itpd.next_impl())
-            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
-    }
 
-    prim.reset(new pooling_forward(prim_desc));
+        prim.reset(new pooling_v2_forward(prim_desc));
+    } else {
+        mkldnn::algorithm alg = getPoolingAlgorithm();
+        MKLDNNDescriptor desc{createDescriptorInternal(in_candidate, out_candidate, alg)};
+        pooling_forward::primitive_desc prim_desc;
+        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
+
+        while (static_cast<bool>(itpd))  {
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            if (impl_type == selected_pd->getImplementationType()) {
+                prim_desc = itpd.get();
+                break;
+            }
+            if (!itpd.next_impl())
+                IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        }
+
+        prim.reset(new pooling_forward(prim_desc));
+    }
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
@@ -330,6 +365,22 @@ std::shared_ptr<pooling_forward::desc> MKLDNNPoolingNode::createDescriptorIntern
     return desc_ptr;
 }
 
+std::shared_ptr<pooling_v2_forward::desc> MKLDNNPoolingNode::createDescriptorInternalV2(const mkldnn::memory::desc& in_candidate,
+                                                                                        const mkldnn::memory::desc& out_candidate) const {
+    auto convert = [] (std::vector<ptrdiff_t> orig_dims) {
+        return memory::dims(orig_dims.begin(), orig_dims.end());
+    };
+    std::shared_ptr<pooling_v2_forward::desc> desc_ptr(
+            new pooling_v2_forward::desc(prop_kind::forward_scoring, mkldnn::algorithm::pooling_max,
+                                            in_candidate, out_candidate,
+                                            convert(stride),
+                                            convert(kernel),
+                                            convert(effective_dilation),
+                                            convert(effective_pad_begin),
+                                            convert(effective_pad_end)));
+    return desc_ptr;
+}
+
 void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                          const std::vector<MemoryDescPtr> &outputDesc) {
     auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
@@ -343,15 +394,18 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<MemoryDescPtr> &input
         if (auto_pad) {
             std::tie(data_pad_begin, data_pad_end) = getPaddingFromNode(opToShapeInfer);
         }
-        initEffectivePad(inDesc->getShape(), outDesc->getShape());
+        initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
     auto dnnlOutDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outDesc);
     auto out_candidate = dnnlOutDesc.getDnnlDesc();
 
-    mkldnn::algorithm alg = getPoolingAlgorithm();
-    auto desc_ptr = createDescriptorInternal(in_candidate, out_candidate, alg);
-
-    descs.emplace_back(desc_ptr);
+    if (isMaxPool8) {
+        auto desc_ptr = createDescriptorInternalV2(in_candidate, out_candidate);
+        descs.emplace_back(desc_ptr);
+    } else {
+        auto desc_ptr = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
+        descs.emplace_back(desc_ptr);
+    }
 }
 
 void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
@@ -383,6 +437,18 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
 
                 config.outConfs.push_back(dataConfig);
             }
+
+            // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
+            if (isMaxPool8) {
+                auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+                PortConfig dataConfig;
+                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
+                dataConfig.constant = false;
+                dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(config.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
+
+                config.outConfs.push_back(dataConfig);
+            }
+
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_type);
@@ -434,6 +500,18 @@ void MKLDNNPoolingNode::initDescriptor(const NodeConfig& config) {
                 dataConfig.desc = getDstMemDesc(itpd, i);
                 cfg.outConfs.push_back(dataConfig);
             }
+
+            // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
+            if (isMaxPool8) {
+                auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+                PortConfig dataConfig;
+                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
+                dataConfig.constant = false;
+                dataConfig.desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().desc->getPrecision(), getOutputShapeAtPort(1));
+
+                cfg.outConfs.push_back(dataConfig);
+            }
+
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {

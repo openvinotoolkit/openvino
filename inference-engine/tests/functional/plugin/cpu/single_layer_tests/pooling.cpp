@@ -20,6 +20,12 @@ using poolLayerCpuTestParamsSet = std::tuple<LayerTestsDefinitions::poolSpecific
                                              CPUSpecificParams,
                                              fusingSpecificParams>;
 
+using maxPoolV8LayerCpuTestParamsSet = std::tuple<LayerTestsDefinitions::maxPoolV8SpecificParams,
+        InputShape,
+        ElementType,
+        CPUSpecificParams,
+        fusingSpecificParams>;
+
 class PoolingLayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
                             virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
@@ -124,11 +130,98 @@ protected:
     }
 };
 
+class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
+                                 virtual public SubgraphBaseTest, public CpuTestWithFusing {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
+        LayerTestsDefinitions::maxPoolV8SpecificParams basicParamsSet;
+        InputShape inputShapes;
+        ElementType inPrc;
+        CPUSpecificParams cpuParams;
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, fusingParams) = obj.param;
+
+        std::vector<size_t> kernel, stride, dilation;
+        std::vector<size_t> padBegin, padEnd;
+        ngraph::op::PadType padType;
+        ngraph::op::RoundingType roundingType;
+        std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = basicParamsSet;
+
+        std::ostringstream results;
+        results << "IS=(";
+        results << CommonTestUtils::partialShape2str({inputShapes.first}) << ")_";
+        results << "TS=";
+        for (const auto& shape : inputShapes.second) {
+            results << CommonTestUtils::vec2str(shape) << "_";
+        }
+        results << "Prc=" << inPrc << "_";
+        results << "MaxPool_";
+        results << "K" << CommonTestUtils::vec2str(kernel) << "_";
+        results << "S" << CommonTestUtils::vec2str(stride) << "_";
+        results << "D" << CommonTestUtils::vec2str(dilation) << "_";
+        results << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
+        results << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+        results << "Rounding=" << roundingType << "_";
+        results << "AutoPad=" << padType << "_";
+
+        results << CPUTestsBase::getTestCaseName(cpuParams);
+        results << CpuTestWithFusing::getTestCaseName(fusingParams);
+        return results.str();
+    }
+
+protected:
+    void SetUp() override {
+        targetDevice = CommonTestUtils::DEVICE_CPU;
+
+        LayerTestsDefinitions::maxPoolV8SpecificParams basicParamsSet;
+        InputShape inputShapes;
+        ElementType inPrc;
+        CPUSpecificParams cpuParams;
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, fusingParams) = this->GetParam();
+
+        std::vector<size_t> kernel, stride, dilation;
+        std::vector<size_t> padBegin, padEnd;
+        ngraph::op::PadType padType;
+        ngraph::op::RoundingType roundingType;
+        std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType) = basicParamsSet;
+
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
+
+        if (selectedType.empty()) {
+            selectedType = getPrimitiveType();
+        }
+        selectedType = makeSelectedTypeStr(selectedType, inPrc);
+
+        init_input_shapes({inputShapes});
+
+        auto params = ngraph::builder::makeDynamicParams(inPrc, inputDynamicShapes);
+
+        std::shared_ptr<ngraph::Node> poolInput = params[0];
+
+        std::shared_ptr<ngraph::Node> pooling = ngraph::builder::makeMaxPoolingV8(params[0], stride, dilation, padBegin, padEnd,
+                                                                                  kernel, roundingType, padType);
+
+        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(pooling->output(0))};
+        function = std::make_shared<ngraph::Function>(results, params, "MaxPooling");
+    }
+};
+
 TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     run();
-//     CheckPluginRelatedResults(executableNetwork, "Pooling");
+    // TODO: Need to rewrite tests because reference is used for some case
+    // CheckPluginRelatedResults(executableNetwork, "Pooling");
+}
+
+TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    run();
+    // TODO: Need to rewrite tests because reference is used for some case
+    // CheckPluginRelatedResults(executableNetwork, "Pooling");
 }
 
 namespace {
@@ -208,6 +301,17 @@ const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax4D = {
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
 };
 
+const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV84D = {
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 2}, {1, 2}, {0, 0}, {0, 0},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {4, 2}, {2, 1}, {2, 2}, {0, 0}, {0, 0},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
+};
+
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg4D = {
         LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER, true },
@@ -238,6 +342,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV8_CPU_4D, MaxPoolingV8LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV84D),
+                                 ::testing::ValuesIn(inputShapes4D),
+                                 ::testing::ValuesIn(inpOutPrecision),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                 ::testing::Values(emptyFusingSpec)),
+                         MaxPoolingV8LayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_4D, PoolingLayerCPUTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(paramsAvg4D),
@@ -267,6 +380,17 @@ const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsMax5D = {
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
         LayerTestsDefinitions::poolSpecificParams{ ngraph::helpers::PoolingTypes::MAX, {2, 3, 4}, {2, 2, 2}, {1, 1, 1}, {1, 2, 3},
                             ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false },
+};
+
+const std::vector<LayerTestsDefinitions::maxPoolV8SpecificParams> paramsMaxV85D = {
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_LOWER },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
+        LayerTestsDefinitions::maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
+                                                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT },
 };
 
 const std::vector<LayerTestsDefinitions::poolSpecificParams> paramsAvg5D = {
@@ -300,6 +424,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                              ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
                              ::testing::Values(emptyFusingSpec)),
                          PoolingLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, MaxPoolingV8LayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(paramsMaxV85D),
+                                 ::testing::ValuesIn(inputShapes5D),
+                                 ::testing::ValuesIn(inpOutPrecision),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigs)),
+                                 ::testing::Values(emptyFusingSpec)),
+                         MaxPoolingV8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_5D, PoolingLayerCPUTest,
                          ::testing::Combine(

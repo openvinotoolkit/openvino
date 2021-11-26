@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNPoolingNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
+    MKLDNNPoolingNode(const std::shared_ptr<ov::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
 
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
@@ -31,7 +31,7 @@ public:
     void prepareParams() override;;
     void executeDynamicImpl(mkldnn::stream strm) override { execute(strm); }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     AttrPtr initPrimitiveAttr() const override;
@@ -39,17 +39,22 @@ protected:
 private:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) const;
 
-    std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> getPaddingFromNode(std::shared_ptr<ngraph::Node> node) const;
-    void initEffectivePad(const Shape &inDims, const Shape &outDims);
+    std::pair<std::vector<ptrdiff_t>, std::vector<ptrdiff_t>> getPaddingFromNode(std::shared_ptr<ov::Node> node) const;
+    void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
     mkldnn::algorithm getPoolingAlgorithm() const;
     std::shared_ptr<mkldnn::pooling_forward::desc> createDescriptorInternal(const mkldnn::memory::desc& in_candidate,
                                                                             const mkldnn::memory::desc& out_candidate,
                                                                             const mkldnn::algorithm alg) const;
+    std::shared_ptr<mkldnn::pooling_v2_forward::desc> createDescriptorInternalV2(const mkldnn::memory::desc& in_candidate,
+                                                                                 const mkldnn::memory::desc& out_candidate) const;
 
     AttrPtr pAttr;
 
+    bool isMaxPool8 = false;
+
     bool auto_pad = false;
     bool exclude_pad = false;
+    std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> kernel;
 
@@ -58,6 +63,10 @@ private:
     /// should be passed into pooling desc constructor.
     std::vector<ptrdiff_t> effective_pad_begin;
     std::vector<ptrdiff_t> effective_pad_end;
+
+    /// Effective dilation. Used to define correct dilation for OneDNN.
+    /// For OneDNN default dilation is vector of zero
+    std::vector<ptrdiff_t> effective_dilation;
 
     /// Effective pad value. Describe how much zero element added to input
     /// data tensor. May be less than "Effective padding" values.

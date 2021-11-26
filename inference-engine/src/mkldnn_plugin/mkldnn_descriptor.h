@@ -31,6 +31,9 @@ public:
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_forward::desc> desc);
     operator std::shared_ptr<mkldnn::pooling_forward::desc>();
 
+    explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::pooling_v2_forward::desc> desc);
+    operator std::shared_ptr<mkldnn::pooling_v2_forward::desc>();
+
     explicit MKLDNNDescriptor(std::shared_ptr<mkldnn::softmax_forward::desc> desc);
     operator std::shared_ptr<mkldnn::softmax_forward::desc>();
 
