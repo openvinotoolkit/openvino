@@ -95,22 +95,22 @@ bool MKLDNNAdaptivePoolingNode::needShapeInfer() const {
 }
 
 std::vector<VectorDims> MKLDNNAdaptivePoolingNode::shapeInfer() const {
-    const auto input = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims();
+    const auto inputDims = getParentEdgesAtPort(0)[0]->getMemory().GetShape().getStaticDims();
     const auto spatialDims = getParentEdgesAtPort(1)[0]->getMemory().GetShape().getStaticDims();
-    const auto inputRank = input.size();
+    const auto inputRank = inputDims.size();
     const auto spatialDimsSize = spatialDims[0];
 
-    VectorDims output(inputRank);
-    output[0] = input[0];
-    output[1] = input[1];
+    VectorDims outputDims(inputRank);
+    outputDims[0] = inputDims[0];
+    outputDims[1] = inputDims[1];
     auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
     for (size_t i = 0; i < spatialDimsSize; i++) {
-        output[i + 2] = newSpatialDimsPtr[i];
+        outputDims[i + 2] = newSpatialDimsPtr[i];
         spatialDimsValue[i] = newSpatialDimsPtr[i];
     }
 
     std::vector<VectorDims> result = {};
-    result.resize(outputShapes.size(), output);
+    result.resize(outputShapes.size(), outputDims);
     return result;
 }
 
