@@ -547,8 +547,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
                 }
                 auto num_requests = config.find(PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS);
                 if (engConfig.perfHintsConfig.ovPerfHintNumRequests)  // set thru SetConfig to the plugin
-                    num_streams = std::min(engConfig.perfHintsConfig.ovPerfHintNumRequests,
-                            engConfig.perfHintsConfig.ovPerfHintNumRequests);
+                    num_streams = engConfig.perfHintsConfig.ovPerfHintNumRequests;
                 if (num_requests != config.end())   // arrived with config to the LoadNetwork (and thus higher pri)
                     num_streams = std::min(num_streams,
                             PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second));
