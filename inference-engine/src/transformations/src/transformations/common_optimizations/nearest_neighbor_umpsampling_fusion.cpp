@@ -274,7 +274,6 @@ ngraph::pass::NearestNeighborUpsamplingFusion::NearestNeighborUpsamplingFusion()
         if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [](float x){ return x != 1.0f; })) { return false; }
 
         const auto concat_1_node = std::dynamic_pointer_cast<opset8::Concat>(pattern_to_output.at(concat_1).get_node_shared_ptr());
-//        const auto concat_1_node = std::dynamic_pointer_cast<opset8::Concat>(reshape_1_node->input_value(1).get_node_shared_ptr());
         if (!concat_1_node) return false;
 
         const auto input_shape = reshape_1_node->get_input_shape(0);
