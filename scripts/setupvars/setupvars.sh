@@ -8,7 +8,7 @@ INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
 # parse command line options
-while [[ $# -gt 0 ]]
+while [ $# -gt 0 ]
 do
 key="$1"
 case $key in
