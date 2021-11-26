@@ -13,7 +13,7 @@ def create_data_loader(config, model):
     :return: instance of DataLoader descendant class
     """
 
-    inputs = get_nodes_by_type(model, ['Parameter'])
+    inputs = get_nodes_by_type(model, ['Parameter'], recursively=False)
 
     if len(inputs) > 1 and\
             not any([tuple(i.shape) == (1, 3) for i in inputs]):
