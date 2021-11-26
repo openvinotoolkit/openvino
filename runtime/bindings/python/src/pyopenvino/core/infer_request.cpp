@@ -65,9 +65,9 @@ void regclass_InferRequest(py::module m) {
             self._start_time = Time::now();
             self._request.infer();
             self._end_time = Time::now();
-            Containers::InferMap results;
+            Containers::InferVec results;
             for (auto& out : self._outputs) {
-                results.insert({out, self._request.get_tensor(out)});
+                results.push_back(std::make_pair(out, self._request.get_tensor(out)));
             }
             return results;
         },
