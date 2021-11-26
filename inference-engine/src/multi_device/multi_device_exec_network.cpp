@@ -209,7 +209,9 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const std::string&   
                                   deviceName.c_str());
                           std::vector<std::string> supported_config_keys =
                               _core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                          std::lock_guard<std::mutex> lock(_logMutex);
+                          // there is log mutex in LOG_DEBUG, add _configMutex just want to print them all together
+                          // toDo maybe neet to implement LOG_RUN(task, LOG_LEVEL) to run some debug code.
+                          std::lock_guard<std::mutex> lock(_confMutex);
                           for (const auto& cfg : supported_config_keys) {
                               try {
                                   LOG_DEBUG("[AUTOPLUGIN]:device:%s, GetConfig:%s=%s", deviceName.c_str(),
@@ -337,7 +339,6 @@ void MultiDeviceExecutableNetwork::WaitFirstNetworkReady() {
         }
     }
 
-    // ToDo need to print failed error mesage
     IE_THROW() << "[AUTOPLUGIN] load all devices failed";
 }
 
