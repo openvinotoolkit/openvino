@@ -314,7 +314,35 @@ static void TransformationUpToCPUSpecificOpSet(std::shared_ptr<ngraph::Function>
                 for (size_t i = 0; i < node->get_output_size(); i++) {
                     const auto outputs = node->get_output_target_inputs(i);
                     for (const auto &out : outputs) {
-                        if (out.get_node()->get_type_info() != ngraph::op::v0::Result::get_type_info_static()) {
+                        if (!ngraph::op::is_output(out.get_node())) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
+    pass_config->set_callback<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(
+            [](const_node_ptr &node) -> bool {
+                for (size_t i = 0; i < node->get_output_size(); i++) {
+                    const auto outputs = node->get_output_target_inputs(i);
+                    for (const auto &out : outputs) {
+                        if (!ngraph::op::is_output(out.get_node())) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+
+    // TODO [DS NMS]: remove when nodes from models where nms is not last node in model supports DS
+    pass_config->set_callback<ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(
+            [](const_node_ptr &node) -> bool {
+                for (size_t i = 0; i < node->get_output_size(); i++) {
+                    const auto outputs = node->get_output_target_inputs(i);
+                    for (const auto &out : outputs) {
+                        if (!ngraph::op::is_output(out.get_node())) {
                             return false;
                         }
                     }
