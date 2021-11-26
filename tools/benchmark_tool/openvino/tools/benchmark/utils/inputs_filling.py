@@ -298,7 +298,7 @@ def get_input_file_mappings(paths_to_inputs, app_input_info):
         return merged
 
     def remove_empty_items(dict):
-        return {k: v for k,v in dict.items() if v}
+        return {k: sorted(v) for k,v in dict.items() if v}
 
     return remove_empty_items(merge_dicts(image_dicts_list)), remove_empty_items(merge_dicts(binary_dicts_list))
 
@@ -307,7 +307,7 @@ def parse_path(path, app_input_info):
     """
     Parse "input_1:file1/dir1,file2/dir2,input_2:file3/dir3 or file1/dir1,file2/dir2" into two dicts - with binary files and with images
     """
-    input_names = list(info.name for info in app_input_info)
+    input_names = sorted(list(info.name for info in app_input_info))
     parsed_names = re.findall(r"([^,]\w+):", path)
     wrong_names = list(name for name in parsed_names if name not in input_names)
     if wrong_names:
