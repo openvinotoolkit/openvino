@@ -357,9 +357,9 @@ def parse_path(path, app_input_info):
                 elif input_path.is_file:
                     files = [input_path]
                 for file in files:
-                        if file.suffix in IMAGE_EXTENSIONS:
+                        if file.suffix.lower() in IMAGE_EXTENSIONS:
                             images_mapping[input_name].append(str(file))
-                        elif file.suffix in BINARY_EXTENSIONS:
+                        elif file.suffix.lower() in BINARY_EXTENSIONS:
                             binary_mapping[input_name].append(str(file))
                         else:
                             unsupported_files.append(str(file))
