@@ -328,7 +328,7 @@ void remove_redundant_reorders::run(program& p) {
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
-            if (!lo.can_fuse_reorder_to_prev(input, node.get_users().front(), input.get_output_layout().format, output_layout.format))
+            if (!lo.can_fuse_reorder_to_prev(input, node.get_users().empty() ? nullptr : node.get_users().front(), input.get_output_layout().format, output_layout.format))
                 continue;
 
             auto old_output_layout_of_input = input.get_output_layout();
