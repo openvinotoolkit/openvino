@@ -35,6 +35,9 @@
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
+#include <transformations/common_optimizations/transpose_sinking.hpp>
+
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -120,6 +123,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Function> func) {
 
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ngraph::pass::TransposeSinking>();
 
         if (!config.enable_loop_unrolling) {
             manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();

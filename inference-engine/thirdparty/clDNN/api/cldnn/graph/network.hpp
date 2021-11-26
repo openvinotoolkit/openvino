@@ -160,6 +160,7 @@ public:
     // Implementation specific calls
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::string get_primitive_info(const primitive_id& id) const;
+    std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
     std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
