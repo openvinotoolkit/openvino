@@ -84,14 +84,14 @@ public:
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(cpuCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(gpuCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(myriadCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(vpuxCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(cpuCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(gpuCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(myriadCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(vpuxCability));
        ON_CALL(*plugin, SelectDevice).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                    const std::string& netPrecision, unsigned int Priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, Priority);
@@ -107,7 +107,7 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
     std::vector<DeviceInformation> resDevInfo;
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size());
-    EXPECT_CALL(*core, GetMetric(_, _)).Times(AtLeast(PriorityConfigs.size() * 4));
+    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4));
 
     for (auto& item : PriorityConfigs) {
         resDevInfo.push_back(plugin->SelectDevice(metaDevices, netPrecision, std::get<0>(item)));
@@ -127,7 +127,7 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     std::vector<std::future<void>> futureVect;
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size() * 2);
-    EXPECT_CALL(*core, GetMetric(_, _)).Times(AtLeast(PriorityConfigs.size() * 4 * 2));
+    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4 * 2));
     // selectdevice in multi threads, and UnregisterPriority them all, should not affect the
     // Priority Map
     for (auto& item : PriorityConfigs) {

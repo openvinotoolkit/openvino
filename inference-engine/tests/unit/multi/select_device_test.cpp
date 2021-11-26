@@ -168,14 +168,14 @@ public:
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, gpuCability, {"FP32", "FP16", "BATCHED_BLOB", "BIN"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, myriadCability, {"FP16"});
        IE_SET_METRIC(OPTIMIZATION_CAPABILITIES, vpuxCability, {"INT8"});
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(cpuCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(gpuCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(myriadCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES))))
-           .WillByDefault(Return(vpuxCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(cpuCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(gpuCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(myriadCability));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
+                   StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(Return(vpuxCability));
        ON_CALL(*plugin, SelectDevice).WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                    const std::string& netPrecision, unsigned int priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority);
@@ -193,9 +193,9 @@ TEST_P(SelectDeviceTest, SelectDevice) {
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
     if (devices.size() >= 1) {
-        EXPECT_CALL(*core, GetMetric(_, _)).Times(AtLeast(devices.size() - 1));
+        EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(devices.size() - 1));
     } else {
-        EXPECT_CALL(*core, GetMetric(_, _)).Times(0);
+        EXPECT_CALL(*core, GetMetric(_, _, _)).Times(0);
     }
 
     if (throwExcept) {

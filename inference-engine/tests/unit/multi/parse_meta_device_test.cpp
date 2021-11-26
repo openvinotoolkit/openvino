@@ -84,23 +84,23 @@ public:
        plugin->SetCore(core);
 
        IE_SET_METRIC(SUPPORTED_METRICS, metrics, {METRIC_KEY(SUPPORTED_CONFIG_KEYS), METRIC_KEY(FULL_DEVICE_NAME)});
-       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_METRICS))))
+       ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _))
            .WillByDefault(Return(metrics));
 
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU), StrEq(METRIC_KEY(FULL_DEVICE_NAME))))
-           .WillByDefault(Return(cpuFullDeviceName));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU), StrEq(METRIC_KEY(FULL_DEVICE_NAME))))
-           .WillByDefault(Return(igpuFullDeviceName));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD), StrEq(METRIC_KEY(FULL_DEVICE_NAME))))
-           .WillByDefault(Return(myriadFullDeviceName));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY), StrEq(METRIC_KEY(FULL_DEVICE_NAME))))
-           .WillByDefault(Return(vpuxFullDeviceName));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
+                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(cpuFullDeviceName));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
+                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(igpuFullDeviceName));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
+                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(myriadFullDeviceName));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
+                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return(vpuxFullDeviceName));
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, otherConfigKeys, {CONFIG_KEY(DEVICE_ID)});
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, cpuConfigKeys, {});
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU), StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS))))
-           .WillByDefault(Return(cpuConfigKeys));
-       ON_CALL(*core, GetMetric(Not(StrEq(CommonTestUtils::DEVICE_CPU)), StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS))))
-           .WillByDefault(Return(otherConfigKeys));
+       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_CPU),
+                   StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(cpuConfigKeys));
+       ON_CALL(*core, GetMetric(Not(StrEq(CommonTestUtils::DEVICE_CPU)),
+                   StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(otherConfigKeys));
        ON_CALL(*core, GetConfig(_, StrEq(CONFIG_KEY(DEVICE_ID))))
            .WillByDefault(Return("01"));
 
@@ -131,7 +131,7 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevices) {
     std::tie(priorityDevices, metaDevices, throwException) = this->GetParam();
 
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
-    EXPECT_CALL(*core, GetMetric(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, GetConfig(_, _)).Times(AnyNumber());
     if (throwException) {
         ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
