@@ -109,9 +109,9 @@ static void CreateConstantOp(Program& p, const std::shared_ptr<ngraph::op::v0::C
                    ngraph::is_type<ngraph::op::v1::Split>(outOp) ||
                    ngraph::is_type<ngraph::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
-        } else if (dynamic_cast<ngraph::op::v1::ConvolutionBackpropData*>(outOp) && node.get_index() == 1) {
+        } else if (ngraph::is_type<ngraph::op::v1::ConvolutionBackpropData>(outOp) && node.get_index() == 1) {
             handleConvWeights(outOp, consts, numConstUsers, false);
-        } else if (dynamic_cast<ngraph::op::v1::GroupConvolutionBackpropData*>(outOp) && node.get_index() == 1) {
+        } else if (ngraph::is_type<ngraph::op::v1::GroupConvolutionBackpropData>(outOp) && node.get_index() == 1) {
             handleConvWeights(outOp, consts, numConstUsers, true);
         }
     }
