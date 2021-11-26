@@ -74,6 +74,18 @@ class TestTelemetryUtils(unittest.TestCase):
         tm.Telemetry.send_event.assert_any_call('mo', 'partially_defined_shape',
                                                 '{partially_defined_shape:1,fw:framework}')
 
+    def test_send_undefined_shapes(self):
+        graph = build_graph({**regular_op('placeholder1', {'shape': None,
+                                                           'type': 'Parameter'}),
+                             **regular_op('mul', {'shape': int64_array([7, 8]), 'type': 'Multiply'})}, [])
+
+        self.init_telemetry_mocks()
+
+        send_shapes_info('framework', graph)
+        tm.Telemetry.send_event.assert_any_call('mo', 'input_shapes', '{fw:framework,shape:"Undefined"}')
+        tm.Telemetry.send_event.assert_any_call('mo', 'partially_defined_shape',
+                                                '{partially_defined_shape:1,fw:framework}')
+
     def test_send_dynamic_shapes_case2(self):
         graph = build_graph({**regular_op('placeholder1', {'shape': int64_array([2, 3, 20, 20]), 'type': 'Parameter'}),
                              **regular_op('placeholder2', {'shape': int64_array([7, 4, 10]), 'type': 'Parameter'}),

@@ -19,6 +19,6 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
             'permute_attrs': PermuteAttrs().update_attrs(attrs=[('shape', 'output:0')])
         }
         if node.pb.attr["shape"].shape.unknown_rank:
-            del attrs['shape']
+            attrs['shape'] = None
         Parameter.update_node_stat(node, attrs)
         return cls.enabled
