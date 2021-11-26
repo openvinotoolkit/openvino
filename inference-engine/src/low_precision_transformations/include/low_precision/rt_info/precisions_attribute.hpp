@@ -51,7 +51,7 @@ public:
 
     VariantWrapper(const value_type& value) : VariantImpl<value_type>(value) {}
 
-    std::shared_ptr<Variant> init(const std::shared_ptr<ngraph::Node>& node) override;
+    ov::Any init(const std::shared_ptr<ngraph::Node>& node) override;
 
     std::shared_ptr<ngraph::PrecisionsAttribute> get() { return this->m_value; }
 
