@@ -61,14 +61,14 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     // transformations we restore original shapes to the nGraph Function back
     std::cout << "start offline transformations\n";
     std::unordered_map<ngraph::op::Parameter*, PartialShape> input_shapes;
-    try{
-    if (!m_use_shapes) {
-        for (auto &&param : f->get_parameters()) {
-            input_shapes[param.get()] = param->get_partial_shape();
-            param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+    try {
+        if (!m_use_shapes) {
+            for (auto &&param : f->get_parameters()) {
+                input_shapes[param.get()] = param->get_partial_shape();
+                param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+            }
+            f->validate_nodes_and_infer_types();
         }
-        f->validate_nodes_and_infer_types();
-    }
     }
     catch (std::exception& e) {
         std::cout << "Exception: " << e.what() << "\n";
@@ -170,8 +170,8 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     std::cout << "run passes\n";
-    try{
-    manager.run_passes(f);
+    try {
+        manager.run_passes(f);
     }
     catch (std::exception& e) {
         std::cout << "Exception: " << e.what() << "\n";
@@ -179,14 +179,14 @@ bool ngraph::pass::MOCTransformations::run_on_function(std::shared_ptr<ngraph::F
     }
 
     std::cout << "validate after passes\n";
-    try{
-    if (!m_use_shapes) {
-        // Restore original shapes to the nGraph Function
-        for (auto &&param : f->get_parameters()) {
-            param->set_partial_shape(input_shapes.at(param.get()));
+    try {
+        if (!m_use_shapes) {
+            // Restore original shapes to the nGraph Function
+            for (auto &&param : f->get_parameters()) {
+                param->set_partial_shape(input_shapes.at(param.get()));
+            }
+            f->validate_nodes_and_infer_types();
         }
-        f->validate_nodes_and_infer_types();
-    }
     }
     catch (std::exception& e) {
         std::cout << "Exception: " << e.what() << "\n";
