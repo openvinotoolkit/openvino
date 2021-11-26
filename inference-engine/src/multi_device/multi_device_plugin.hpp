@@ -56,8 +56,8 @@ private:
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    void CheckConfig(const std::map<std::string, std::string>& config, bool& needPerfCounters,
-                     std::map<std::string, std::string>& filterConfig);
+    static void CheckConfig(const std::map<std::string, std::string>& config, bool& needPerfCounters,
+                            std::map<std::string, std::string>& filterConfig);
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
 };
