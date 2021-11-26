@@ -107,7 +107,7 @@ def test_ngraph_preprocess_mean_scale_convert():
     assert np.equal(output2, expected_output2).all()
 
 
-def test_ngraph_preprocess_input_by_tensor_name():
+def test_ngraph_preprocess_input_output_by_name():
     shape = [2, 2]
     param1 = ops.parameter(shape, dtype=np.int32, name="A")
     param2 = ops.parameter(shape, dtype=np.int32, name="B")
@@ -122,13 +122,17 @@ def test_ngraph_preprocess_input_by_tensor_name():
     inp2.tensor().set_element_type(Type.i32)
     inp2.preprocess().convert_element_type(Type.f32).mean(1.).scale(2.)
     inp1 = p.input("A")
-    inp1.preprocess().convert_element_type(Type.f32).mean(1.).custom(custom_preprocess)
+    inp1.preprocess().convert_element_type(Type.f32).mean(1.)
+    out1 = p.output("A")
+    out1.postprocess().custom(custom_preprocess)
+    out2 = p.output("B")
+    out2.postprocess().custom(custom_preprocess)
     function = p.build()
 
     input_data1 = np.array([[0, 1], [2, -2]]).astype(np.int32)
-    input_data2 = np.array([[1, 3], [5, 7]]).astype(np.int32)
+    input_data2 = np.array([[-1, 3], [5, 7]]).astype(np.int32)
     expected_output1 = np.array([[1, 0], [1, 3]]).astype(np.float32)
-    expected_output2 = np.array([[0, 1], [2, 3]]).astype(np.float32)
+    expected_output2 = np.array([[1, 1], [2, 3]]).astype(np.float32)
 
     runtime = get_runtime()
     computation = runtime.computation(function)
