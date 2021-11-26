@@ -60,9 +60,10 @@ def test_tensor_setter(device):
     assert np.allclose(tensor.data, t1.data, atol=1e-2, rtol=1e-2)
 
     res = request1.infer({0: tensor})
-    res_1 = np.sort(res[0])
+    k = list(res.keys())[0]
+    res_1 = np.sort(res[k])
     t2 = request1.get_tensor("fc_out")
-    assert np.allclose(t2.data, res[0].data, atol=1e-2, rtol=1e-2)
+    assert np.allclose(t2.data, res[k].data, atol=1e-2, rtol=1e-2)
 
     request = exec_net_2.create_infer_request()
     res = request.infer({"data": tensor})
@@ -186,7 +187,8 @@ def test_infer_mixed_keys(device):
 
     request = model.create_infer_request()
     res = request.infer({0: tensor2, "data": tensor})
-    assert np.argmax(res) == 2
+    k = list(res.keys())[0]
+    assert np.argmax(res[k]) == 2
 
 
 def test_infer_queue(device):
@@ -252,16 +254,18 @@ def test_query_state_write_buffer(device, input_shape, data_type, mode):
             mem_state.state = tensor
 
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
+            k = list(res.keys())[0]
             expected_res = np.full(input_shape, 1 + const_init, dtype=data_type)
         elif mode == "reset_memory_state":
             # reset initial state of ReadValue to zero
             mem_state.reset()
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-
+            k = list(res.keys())[0]
             # always ones
             expected_res = np.full(input_shape, 1, dtype=data_type)
         else:
             res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
+            k = list(res.keys())[0]
             expected_res = np.full(input_shape, i, dtype=data_type)
-        assert np.allclose(res[0], expected_res, atol=1e-6), \
+        assert np.allclose(res[k], expected_res, atol=1e-6), \
             "Expected values: {} \n Actual values: {} \n".format(expected_res, res)

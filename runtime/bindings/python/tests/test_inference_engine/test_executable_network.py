@@ -231,7 +231,8 @@ def test_infer_new_request_numpy(device):
     img = read_image()
     exec_net = ie.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res) == 2
+    k = list(res.keys())[0]
+    assert np.argmax(res[k]) == 2
 
 
 def test_infer_new_request_tensor_numpy_copy(device):
@@ -242,8 +243,10 @@ def test_infer_new_request_tensor_numpy_copy(device):
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor) == 2
-    assert np.argmax(res_tensor) == np.argmax(res_img)
+    k1 = list(res_tensor.keys())[0]
+    k2 = list(res_img.keys())[0]
+    assert np.argmax(res_tensor[k1]) == 2
+    assert np.argmax(res_tensor[k1]) == np.argmax(res_img[k2])
 
 
 def test_infer_tensor_numpy_shared_memory(device):
@@ -255,8 +258,10 @@ def test_infer_tensor_numpy_shared_memory(device):
     exec_net = ie.compile_model(func, device)
     res_tensor = exec_net.infer_new_request({"data": tensor})
     res_img = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res_tensor) == 2
-    assert np.argmax(res_tensor) == np.argmax(res_img)
+    k1 = list(res_tensor.keys())[0]
+    k2 = list(res_img.keys())[0]
+    assert np.argmax(res_tensor[k1]) == 2
+    assert np.argmax(res_tensor[k1]) == np.argmax(res_img[k2])
 
 
 def test_infer_new_request_wrong_port_name(device):
@@ -292,7 +297,8 @@ def test_infer_numpy_model_from_buffer(device):
     img = read_image()
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": img})
-    assert np.argmax(res) == 2
+    k = list(res.keys())[0]
+    assert np.argmax(res[k]) == 2
 
 
 def test_infer_tensor_model_from_buffer(device):
@@ -306,4 +312,5 @@ def test_infer_tensor_model_from_buffer(device):
     tensor = Tensor(img)
     exec_net = core.compile_model(func, device)
     res = exec_net.infer_new_request({"data": tensor})
-    assert np.argmax(res) == 2
+    k = list(res.keys())[0]
+    assert np.argmax(res[k]) == 2
