@@ -14,7 +14,7 @@
 #ifdef OPENVINO_STATIC_LIBRARY
 #define LP_TRANSFORMATIONS_API
 #else
-#ifdef inference_engine_lp_transformations_EXPORTS
+#ifdef ov_runtime_EXPORTS
 #define LP_TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
 #else
 #define LP_TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS

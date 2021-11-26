@@ -33,7 +33,7 @@
 #ifdef OPENVINO_STATIC_LIBRARY
 #define TRANSFORMATIONS_API
 #else
-#ifdef inference_engine_transformations_EXPORTS
+#ifdef ov_runtime_EXPORTS
 #define TRANSFORMATIONS_API OPENVINO_CORE_EXPORTS
 #else
 #define TRANSFORMATIONS_API OPENVINO_CORE_IMPORTS
