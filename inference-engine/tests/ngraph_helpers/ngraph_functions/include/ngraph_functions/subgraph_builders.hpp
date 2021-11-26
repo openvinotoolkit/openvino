@@ -250,7 +250,7 @@ inline std::shared_ptr<ngraph::Function> makeEltwisePlusDetectionOutput(std::vec
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
     ngraph::OutputVector outs;
-    for (int i = 0; i < inShapes.size(); i++) {
+    for (size_t i = 0; i < inShapes.size(); i++) {
         auto shape = inShapes[i];
         auto p = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{shape});
         auto add = ngraph::builder::makeEltwise(paramOuts[i], p, ngraph::helpers::EltwiseTypes::ADD);
