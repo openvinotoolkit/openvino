@@ -5,6 +5,7 @@ import json
 
 import numpy as np
 from numpy.core.numeric import _ones_like_dispatcher
+from numpy.lib.arraysetops import isin
 import pytest
 
 import openvino.opset8 as ops
@@ -15,6 +16,7 @@ from openvino.pyopenvino import VariantInt, VariantString
 from openvino.exceptions import UserInputError
 from openvino.impl import Function, PartialShape, Shape, Type, layout_helpers
 from openvino import Tensor
+from openvino import descriptor
 from openvino.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
@@ -393,6 +395,14 @@ def test_node_input_values():
         [node.input_value(i).get_node().get_vector() for i in range(node.get_input_size())],
         [data1, data2]
     )
+
+def test_node_input_tensor():
+    data1 = np.array([1, 2, 3])
+    data2 = np.array([3, 2, 1])
+
+    node = ops.add(data1, data2)
+
+    assert(isinstance(node.get_input_tensor(0), descriptor.Tensor))
 
 def test_node_evaluate():
     data1 = np.array([3, 2, 3])

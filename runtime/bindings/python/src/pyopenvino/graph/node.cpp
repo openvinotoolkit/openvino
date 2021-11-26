@@ -81,17 +81,18 @@ void regclass_graph_Node(py::module m) {
         }
         return "<" + type_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
-    node.def("evaluate",
-             [](const ov::Node & self,
-                ov::runtime::TensorVector& output_values,
-                const ov::runtime::TensorVector& input_values,
-                const ov::EvaluationContext& evaluationContext) -> bool {
-                    return self.evaluate(output_values, input_values, evaluationContext);
-                },
-             py::arg("output_values"),
-             py::arg("input_values"),
-             py::arg("evaluationContext"),
-             R"(
+    node.def(
+        "evaluate",
+        [](const ov::Node& self,
+           ov::runtime::TensorVector& output_values,
+           const ov::runtime::TensorVector& input_values,
+           const ov::EvaluationContext& evaluationContext) -> bool {
+            return self.evaluate(output_values, input_values, evaluationContext);
+        },
+        py::arg("output_values"),
+        py::arg("input_values"),
+        py::arg("evaluationContext"),
+        R"(
                 Evaluate the node on inputs, putting results in outputs
                 Parameters
                 ----------
@@ -106,15 +107,16 @@ void regclass_graph_Node(py::module m) {
                 ----------
                 evaluate : bool
             )");
-    node.def("evaluate",
-             [](const ov::Node & self,
-                ov::runtime::TensorVector& output_values,
-                const ov::runtime::TensorVector& input_values) -> bool {
-                    return self.evaluate(output_values, input_values);
-                },
-             py::arg("output_values"),
-             py::arg("input_values"),
-             R"(
+    node.def(
+        "evaluate",
+        [](const ov::Node& self,
+           ov::runtime::TensorVector& output_values,
+           const ov::runtime::TensorVector& input_values) -> bool {
+            return self.evaluate(output_values, input_values);
+        },
+        py::arg("output_values"),
+        py::arg("input_values"),
+        R"(
                 Evaluate the function on inputs, putting results in outputs
                 Parameters
                 ----------
@@ -125,6 +127,23 @@ void regclass_graph_Node(py::module m) {
                 Returns
                 ----------
                 evaluate : bool
+             )");
+    node.def("get_input_tensor",
+             &ov::Node::get_input_tensor,
+             py::arg("i"),
+             py::return_value_policy::reference_internal,
+             R"(
+                Returns the tensor for the node input with index i
+
+                Parameters
+                ----------
+                i : int
+                    Index of Input.
+
+                Returns
+                ----------
+                input_tensor : descriptor.Tensor
+                    Tensor of the input i
              )");
     node.def("get_element_type",
              &ov::Node::get_element_type,
