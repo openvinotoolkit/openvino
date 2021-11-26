@@ -65,16 +65,21 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const NodeContext& node) {
     return get_pads(node, data_spatial_dims);
 }
 std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int32_t groups) {
-    const std::vector<size_t> num_indices{0};
-    auto num_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, num_indices);
+    /*  filters' layout is [O,I,W,H].
+     *  Divide O with groups:
+     *      grouped_O = O / groups
+     *  The final grouped filters' layout is [groups, grouped_O, I, W, H]
+     */
+    const std::vector<size_t> o_indices{0};
+    auto filter_o_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, o_indices);
 
-    const std::vector<size_t> hw_indices{1, 2, 3};
-    auto filter_hw_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, hw_indices);
+    const std::vector<size_t> ihw_indices{1, 2, 3};
+    auto filter_ihw_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, ihw_indices);
 
     auto groups_node = opset6::Constant::create(element::i64, Shape{1}, {groups});
-    auto grouped_num_node = std::make_shared<opset6::Divide>(num_node, groups_node);
+    auto grouped_o_node = std::make_shared<opset6::Divide>(filter_o_node, groups_node);
     auto target_filter_shape =
-        std::make_shared<opset6::Concat>(OutputVector{groups_node, grouped_num_node, filter_hw_node}, 0);
+        std::make_shared<opset6::Concat>(OutputVector{groups_node, grouped_o_node, filter_ihw_node}, 0);
     return std::make_shared<opset6::Reshape>(filters, target_filter_shape, false);
 }
 
