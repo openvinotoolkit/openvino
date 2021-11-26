@@ -480,7 +480,7 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
     if (_workModeIsAUTO) {
         for (auto&& idleWorker : _idleWorkerRequests) {
             WorkerInferRequest *workerRequestPtr = nullptr;
-            if (idleWorker.second.try_pop(workerRequestPtr)) {
+            while (idleWorker.second.try_pop(workerRequestPtr)) {
                 if (workerRequestPtr->_manualyDestory) {
                     delete workerRequestPtr;
                 }
