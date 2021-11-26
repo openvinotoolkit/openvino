@@ -43,7 +43,7 @@ def get_group_batch_sizes(app_input_info):
     for i in range(niter):
         batch_size = 0
         for info in app_input_info:
-            batch_index = info.layout.index('N') if 'N' in info.layout else -1
+            batch_index = info.layout.get_index_by_name('N') if info.layout.has_name('N') else -1
             if batch_index != -1:
                 shape = info.shapes[i % len(info.shapes)]
                 if batch_size == 0:
@@ -59,7 +59,7 @@ def get_group_batch_sizes(app_input_info):
 def get_batch_sizes_per_input_map(app_input_info):
     batch_sizes_map = {}
     for info in app_input_info:
-        if 'N' in info.layout:
+        if info.layout.has_name('N'):
             if info.is_dynamic:
                 batch_sizes_map[info.name] = info.getDimentionsByLayout('N')
             else:
@@ -138,7 +138,8 @@ def get_image_tensors(image_paths, info, batch_sizes):
     niter = max(num_shapes, num_images)
     for i in range(niter):
         shape = list(info.shapes[i % num_shapes]) if num_shapes else []
-        images = np.ndarray(shape=shape, dtype=np.uint8)
+        dtype = get_dtype(info.element_type.get_type_name())[0]
+        images = np.ndarray(shape=shape, dtype=dtype)
         image_index = processed_frames
         current_batch_size = 1 if process_with_original_shapes else batch_sizes[i % num_shapes]
         for b in range(current_batch_size):
@@ -148,7 +149,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
             image = cv2.imread(image_filename)
             if process_with_original_shapes:
                 logger.info(f'Image will be processed with original shape - {image.shape[:-1]}')
-            elif 'H' in info.layout and 'W' in info.layout:
+            elif info.layout.has_name('H') and info.layout.has_name('W'):
                 new_im_size = (widthes[i % num_shapes], heights[i % num_shapes])
                 if image.shape[:-1] != new_im_size:
                     logger.warning(f"Image is resized from ({image.shape[:-1]}) to ({new_im_size})")
@@ -166,7 +167,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
                     red = np.divide(red, info.scale[2])
                 image = cv2.merge([blue, green, red])
 
-            if info.layout in ['NCHW', 'CHW']:
+            if str(info.layout) in ['[N,C,H,W]', '[C,H,W]']:
                 image = image.transpose((2, 0, 1))
 
             if process_with_original_shapes:
@@ -177,7 +178,7 @@ def get_image_tensors(image_paths, info, batch_sizes):
                 else:
                     raise Exception(f"Data shape '{str(p_shape)}' provided for input '{info.name}' "
                                     f"is not compatible with partial shape '{str(info.partial_shape)}' for this input.")
-                tensors.append(Tensor(expanded))
+                tensors.append(Tensor(expanded.astype(dtype)))
             else:
                 try:
                     images[b] = image
@@ -219,8 +220,8 @@ def get_binary_tensors(binary_paths, info, batch_sizes):
         dtype = get_dtype(info.element_type.get_type_name())[0]
         shape = list(info.shapes[shape_id])
         binaries = np.ndarray(shape=shape, dtype=dtype)
-        if 'N' in info.layout:
-            shape[info.layout.index('N')] = 1
+        if info.layout.has_name('N'):
+            shape[info.layout.get_index_by_name('N')] = 1
         binary_index = processed_frames
         current_batch_size = batch_sizes[shape_id]
         for b in range(current_batch_size):

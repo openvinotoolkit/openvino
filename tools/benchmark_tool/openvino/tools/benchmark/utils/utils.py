@@ -4,7 +4,7 @@
 import datetime
 from openvino import Core, Function, PartialShape, Dimension, Layout
 from openvino.impl import Type
-from openvino.preprocess import PrePostProcessor, InputInfo, OutputInfo, InputTensorInfo, OutputTensorInfo
+from openvino.preprocess import PrePostProcessor
 from openvino.offline_transformations_pybind import serialize
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
@@ -91,6 +91,7 @@ def process_precision(function: Function, app_inputs_info, input_precision: str,
         for name, element_type in user_precision_map.items():
             if name in input_names:
                 port = input_names.index(name)
+                app_inputs_info[port].element_type = element_type
                 pre_post_processor.input(port).tensor().set_element_type(element_type)
             elif name in output_names:
                 port = output_names.index(name)
@@ -406,7 +407,7 @@ def parse_scale_or_mean(parameter_string, input_info):
 class AppInputInfo:
     def __init__(self):
         self.element_type = None
-        self.layout = ""
+        self.layout = Layout()
         self.partial_shape = None
         self.data_shapes = []
         self.scale = []
@@ -415,29 +416,31 @@ class AppInputInfo:
 
     @property
     def is_image(self):
-        if self.layout not in [ "NCHW", "NHWC", "CHW", "HWC" ]:
+        if str(self.layout) not in [ "[N,C,H,W]", "[N,H,W,C]", "[C,H,W]", "[H,W,C]" ]:
             return False
         return self.channels == 3
 
     @property
     def is_image_info(self):
-        if self.layout != "NC":
+        if str(self.layout) != "[N,C]":
             return False
         return self.channels.relaxes(Dimension(2))
 
     def getDimentionByLayout(self, character):
-        if character not in self.layout:
+        if self.layout.has_name(character):
+            return self.partial_shape[self.layout.get_index_by_name(character)]
+        else:
             return Dimension(0)
-        return self.partial_shape[self.layout.index(character)]
 
     def getDimentionsByLayout(self, character):
-        if character not in self.layout:
+        if self.layout.has_name(character):
+            d_index = self.layout.get_index_by_name(character)
+            dims = []
+            for shape in self.data_shapes:
+                dims.append(shape[d_index])
+            return dims
+        else:
             return [0] * len(self.data_shapes)
-        d_index = self.layout.index(character)
-        dims = []
-        for shape in self.data_shapes:
-            dims.append(shape[d_index])
-        return dims
 
     @property
     def shapes(self):
@@ -535,27 +538,27 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
 
         # Layout
         if info.name in layout_map.keys():
-            info.layout = layout_map[info.name]
+            info.layout = Layout(layout_map[info.name])
         elif parameters[i].get_layout() != Layout():
-            info.layout = str(parameters[i].get_layout())
+            info.layout = parameters[i].get_layout()
         else: # will be removed
             image_colors_dim = Dimension(3)
             shape = info.partial_shape
             num_dims = len(shape)
             if num_dims == 4:
                 if(shape[1]) == image_colors_dim:
-                    info.layout = "NCHW"
+                    info.layout = Layout("NCHW")
                 elif(shape[3] == image_colors_dim):
-                    info.layout = "NHWC"
+                    info.layout = Layout("NHWC")
             elif num_dims == image_colors_dim:
                 if(shape[0]) == image_colors_dim:
-                    info.layout = "CHW"
+                    info.layout = Layout("CHW")
                 elif(shape[2] == image_colors_dim):
-                    info.layout = "HWC"
+                    info.layout = Layout("HWC")
             elif num_dims == 2:
-                info.layout = "NC"
+                info.layout = Layout("NC")
             else:
-                info.layout = "C"
+                info.layout = Layout("C")
 
         # Update shape with batch if needed
         if batch_size != 0:
@@ -563,8 +566,8 @@ def get_inputs_info(shape_string, data_shape_string, layout_string, batch_size, 
                  logger.warning(f"Batch size will be ignored. Provide batch deminsion in data_shape parameter.")
             else:
                 batch_index = 0
-                if 'N' in info.layout:
-                    batch_index = info.layout.index('N')
+                if info.layout.has_name('N'):
+                    batch_index = info.layout.get_index_by_name('N')
                 else:
                     logger.warning(f"Batch dimension is not provided in layout. "
                                     "The first dimension will be interpreted as batch size.")
@@ -604,7 +607,7 @@ def get_batch_size(inputs_info):
     null_dimension = Dimension(0)
     batch_size = null_dimension
     for info in inputs_info:
-        batch_index = info.layout.index('N') if 'N' in info.layout else -1
+        batch_index = info.layout.get_index_by_name('N') if info.layout.has_name('N') else -1
         if batch_index != -1:
             if batch_size == null_dimension:
                 batch_size = info.partial_shape[batch_index]
