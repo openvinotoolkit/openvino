@@ -136,6 +136,7 @@ public:
         InferenceEngine::SoIInferRequestInternal  _inferRequest;
         InferenceEngine::Task                     _task;
         std::exception_ptr                        _exceptionPtr = nullptr;
+        bool                                      _manualyDestory = false;
     };
     using NotBusyWorkerRequests = ThreadSafeBoundedQueue<WorkerInferRequest*>;
 
