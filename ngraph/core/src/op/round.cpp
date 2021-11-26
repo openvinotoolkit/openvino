@@ -121,7 +121,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v5::Round::RoundMode& ty
 
 namespace ov {
 template <>
-EnumNames<ngraph::op::v5::Round::RoundMode>& EnumNames<ngraph::op::v5::Round::RoundMode>::get() {
+NGRAPH_API EnumNames<ngraph::op::v5::Round::RoundMode>& EnumNames<ngraph::op::v5::Round::RoundMode>::get() {
     static auto enum_names = EnumNames<ngraph::op::v5::Round::RoundMode>(
         "op::v5::Round::RoundMode",
         {{"half_to_even", ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN},

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ngraph/builder/make_constant.hpp>
 #include <node_context.hpp>
-#include <openvino/opsets/opset6.hpp>
+
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {

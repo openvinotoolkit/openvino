@@ -10,7 +10,7 @@
 
 namespace MKLDNNPlugin {
 
-inline std::string getRTInfoValue(const std::map<std::string, std::shared_ptr<ngraph::Variant>>& rtInfo, std::string paramName) {
+inline std::string getRTInfoValue(const std::map<std::string, ov::Any>& rtInfo, std::string paramName) {
     auto it = rtInfo.find(paramName);
     if (it != rtInfo.end()) {
         auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);

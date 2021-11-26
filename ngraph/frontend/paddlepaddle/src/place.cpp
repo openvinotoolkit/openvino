@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <paddlepaddle_frontend/place.hpp>
+#include "paddlepaddle_frontend/place.hpp"
 
 #include "decoder.hpp"
 #include "framework.pb.h"

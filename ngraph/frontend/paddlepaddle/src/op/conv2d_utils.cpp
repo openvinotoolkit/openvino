@@ -4,28 +4,27 @@
 
 #include "conv2d_utils.hpp"
 
-#include <openvino/opsets/opset6.hpp>
-
 #include "node_context.hpp"
+#include "openvino/opsets/opset6.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pdpd {
 namespace op {
-ngraph::op::PadType get_auto_pad(const NodeContext& node) {
+ov::op::PadType get_auto_pad(const NodeContext& node) {
     // Default value means use explicitly provided padding values.
-    ngraph::op::PadType pad_type{ngraph::op::PadType::NOTSET};
+    ov::op::PadType pad_type{ov::op::PadType::NOTSET};
     auto padding_algorithm = node.get_attribute<std::string>("padding_algorithm");
-    static std::unordered_map<std::string, ngraph::op::PadType> auto_pad_values{
-        {"VALID", ngraph::op::PadType::VALID},
-        {"SAME", ngraph::op::PadType::SAME_UPPER},
-        {"NOTSET", ngraph::op::PadType::NOTSET},
+    static std::unordered_map<std::string, ov::op::PadType> auto_pad_values{
+        {"VALID", ov::op::PadType::VALID},
+        {"SAME", ov::op::PadType::SAME_UPPER},
+        {"NOTSET", ov::op::PadType::NOTSET},
     };
 
     const auto pad_val_it = auto_pad_values.find(padding_algorithm);
 
     if (pad_val_it == auto_pad_values.end()) {
-        pad_type = ngraph::op::PadType::NOTSET;
+        pad_type = ov::op::PadType::NOTSET;
     } else {
         pad_type = pad_val_it->second;
     }
