@@ -5,6 +5,7 @@
 #pragma once
 
 #include "exceptions.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/core/variant.hpp"
 #include "place.hpp"
 #include "tensor.pb.h"
