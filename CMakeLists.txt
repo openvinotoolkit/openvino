@@ -114,14 +114,12 @@ add_library(ov_runtime $<TARGET_OBJECTS:inference_engine_transformations_obj>
                        $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>
                        $<TARGET_OBJECTS:inference_engine_obj>
                        $<TARGET_OBJECTS:frontend_common_obj>
-                       $<TARGET_OBJECTS:ov_util_obj>
                        $<TARGET_OBJECTS:ngraph_obj>)
 add_library(openvino::runtime ALIAS ov_runtime)
 set_target_properties(ov_runtime PROPERTIES EXPORT_NAME runtime)
 ie_add_vs_version_file(NAME ov_runtime FILEDESCRIPTION "OpenVINO runtime library")
 
 target_include_directories(ov_runtime PRIVATE $<TARGET_PROPERTY:ov_runtime_dev,INTERFACE_INCLUDE_DIRECTORIES>
-                                              $<TARGET_PROPERTY:ov_util,INTERFACE_INCLUDE_DIRECTORIES>
                                       PUBLIC $<BUILD_INTERFACE:$<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>>
                                              $<BUILD_INTERFACE:$<TARGET_PROPERTY:frontend_common,INTERFACE_INCLUDE_DIRECTORIES>>
                                              $<BUILD_INTERFACE:$<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>>)
@@ -135,6 +133,7 @@ target_compile_definitions(ov_runtime PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 target_link_libraries(ov_runtime PRIVATE ngraph 
                                          ngraph_reference
                                          ov_shape_inference
+                                         openvino::util
                                          openvino::itt
                                          ngraph::builder
                                          pugixml::static

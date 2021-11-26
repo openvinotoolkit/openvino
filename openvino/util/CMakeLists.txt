@@ -28,20 +28,18 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
-add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
-target_include_directories(${TARGET_NAME}_obj PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-add_library(${TARGET_NAME} INTERFACE)
 add_library(openvino::util ALIAS ${TARGET_NAME})
 
-target_include_directories(${TARGET_NAME} PUBLIC INTERFACE $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
-target_link_libraries(${TARGET_NAME} PRIVATE INTERFACE openvino::runtime)
+target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
+ov_install_static_lib(${TARGET_NAME} ngraph)
 
-# ov_install_static_lib(${TARGET_NAME} ngraph)
-
-add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
-ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
+add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     INCLUDE_DIRECTORY ${UTIL_INCLUDE_DIR})
 
 openvino_developer_export_targets(COMPONENT openvino_common TARGETS ${TARGET_NAME})

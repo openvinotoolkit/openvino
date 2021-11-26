@@ -28,8 +28,9 @@ add_library(${TARGET_NAME}_obj OBJECT ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRAR
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                                       $<BUILD_INTERFACE:${FRONTEND_INCLUDE_DIR}>
-                                                      $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::util)
 set_property(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_loader.cpp APPEND PROPERTY COMPILE_DEFINITIONS
         FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
