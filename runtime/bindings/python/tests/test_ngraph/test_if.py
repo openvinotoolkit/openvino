@@ -1,16 +1,12 @@
+import numpy as np
+import openvino.opset8 as ov
+import pytest
 from openvino.utils.tensor_iterator_types import (
     GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
     TensorIteratorInvariantInputDesc,
     TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
 )
-
-import openvino.opset8 as ov
-import numpy as np
 from tests.runtime import get_runtime
-import pytest
 
 
 def create_simple_if_with_two_outputs(condition_val):

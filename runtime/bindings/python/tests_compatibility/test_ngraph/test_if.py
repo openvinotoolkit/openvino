@@ -3,11 +3,8 @@ import numpy as np
 import pytest
 from ngraph.utils.tensor_iterator_types import (
     GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
     TensorIteratorInvariantInputDesc,
     TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
 )
 from tests_compatibility.runtime import get_runtime
 
