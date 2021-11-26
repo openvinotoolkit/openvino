@@ -12,7 +12,7 @@ namespace ov {
 namespace frontend {
 class PDPDFrameworkNode : public ov::op::util::FrameworkNode {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    OPENVINO_OP("PDPDFrameworkNode", "util", ov::op::util::FrameworkNode);
 
     PDPDFrameworkNode(const DecoderPDPDProto& decoder,
                       const OutputVector& inputs,

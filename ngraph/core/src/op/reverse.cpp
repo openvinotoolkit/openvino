@@ -203,7 +203,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v1::Reverse::Mode& type)
 
 namespace ov {
 template <>
-EnumNames<ngraph::op::v1::Reverse::Mode>& EnumNames<ngraph::op::v1::Reverse::Mode>::get() {
+NGRAPH_API EnumNames<ngraph::op::v1::Reverse::Mode>& EnumNames<ngraph::op::v1::Reverse::Mode>::get() {
     static auto enum_names = EnumNames<ngraph::op::v1::Reverse::Mode>(
         "op::v1::Reverse::Mode",
         {{"index", ngraph::op::v1::Reverse::Mode::INDEX}, {"mask", ngraph::op::v1::Reverse::Mode::MASK}});
