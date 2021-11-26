@@ -342,7 +342,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
     common_group.add_argument('--keep_shape_ops',
-                              help='The option is ignored. Expected behavior is enabled by default.',
+                              help=argparse.SUPPRESS,
                               action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
@@ -486,11 +486,18 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
                                                   'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
-                             help=argparse.SUPPRESS,
+                             help='[Deprecated option, please use mean_values option instead] ' +
+                                  'Mean image to be used for the input. Should be a binaryproto file',
                              default=None,
                              action=DeprecatedCanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file_offsets', '-mo',
-                             help=argparse.SUPPRESS,
+                             help='[Deprecated option, please use mean_values option instead] ' +
+                                  'Mean image offsets to be used for the input binaryproto file. ' +
+                                  'When the mean image is bigger than the expected input, it is cropped. By default, centers ' +
+                                  'of the input image and the mean image are the same and the mean image is cropped by ' +
+                                  'dimensions of the input image. The format to pass this option is the following: "-mo (x,y)". In this ' +
+                                  'case, the mean file is cropped by dimensions of the input image with offset (x,y) ' +
+                                  'from the upper left corner of the mean image',
                              default=None)
     caffe_group.add_argument('--disable_omitting_optional',
                              help='Disable omitting optional attributes to be used for custom layers. ' +
