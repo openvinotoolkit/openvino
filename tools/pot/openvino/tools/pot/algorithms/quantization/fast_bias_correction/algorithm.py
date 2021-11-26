@@ -60,11 +60,11 @@ class FastBiasCorrection(Algorithm):
 
             bias_node = nu.get_bias_for_node(op_node)
             if bias_node is None:
-                logger.debug('{} skipped because of bias is empty'.format(op_node.name))
+                logger.debug('{} skipped because of bias is empty'.format(op_node.fullname))
                 continue
 
             if not nu.check_const_input(op_node):
-                logger.debug('{} skipped because channel axis is not defiened'.format(op_node.name))
+                logger.debug('{} skipped because channel axis is not defiened'.format(op_node.fullname))
                 continue
 
             input_node = nu.get_node_input(op_node, 0)
@@ -74,7 +74,7 @@ class FastBiasCorrection(Algorithm):
                 quantized_node = nu.get_node_input(op_node, 0)
 
             input_shape = nu.get_input_shape_for_bias(op_node)
-            op_model = mu.build_model_for_node(model, input_node.name, input_shape, op_node,
+            op_model = mu.build_model_for_node(model, input_node.fullname, input_shape, op_node,
                                                remove_bias=True, target_device=self._config['target_device'])
 
             # We need to get output from the biased operation
@@ -84,10 +84,10 @@ class FastBiasCorrection(Algorithm):
 
             input_node_name = get_quantized_input_key(quantized_node)
             fp32_inputs = agf.mean(activations_statistics[input_node_name]["mean_per_channel"])
-            fp32_outputs = agf.mean(activations_statistics[after_biased_conv.name]["mean_per_channel"])
+            fp32_outputs = agf.mean(activations_statistics[after_biased_conv.fullname]["mean_per_channel"])
 
             bias_shift = self._calculate_bias_shift(
-                launcher, input_node.name, input_shape, op_model, fp32_inputs, fp32_outputs)
+                launcher, input_node.fullname, input_shape, op_model, fp32_inputs, fp32_outputs)
             current_bias_value = nu.get_node_value(bias_node)
             # Reshaped since bias are broadcasted
             add_out_shape = nu.get_input_shape_for_bias(after_biased_conv)
@@ -102,14 +102,14 @@ class FastBiasCorrection(Algorithm):
                 bias_shift_magnitude = np.max(np.abs((bias_shift - current_bias_value) / current_bias_value))
             bias_original_value = nu.get_node_value(bias_node)
             if bias_original_value.shape != bias_shift.shape:
-                logger.debug('{} skipped because shift shape and original shape are inconsistent'.format(op_node.name))
+                logger.debug(f'{op_node.fullname} skipped because shift shape and original shape are inconsistent')
                 continue
 
             if bias_shift_magnitude < self._threshold:
                 op_node['original_bias'] = current_bias_value
                 nu.set_node_value(bias_node, bias_shift)
             else:
-                logger.debug('{} skipped by threshold'.format(op_node.name))
+                logger.debug('{} skipped by threshold'.format(op_node.fullname))
         return model
 
     def register_statistics(self, model, stats_collector):
@@ -132,14 +132,14 @@ class FastBiasCorrection(Algorithm):
                 if nu.get_node_input(quantized_node, 0).type == 'FakeQuantize':
                     quantized_node = nu.get_node_input(op_node, 0)
 
-                op_output_name = op_node.name
-                if op_node.name not in inputs_outputs_layout:
+                op_output_name = op_node.fullname
+                if op_node.fullname not in inputs_outputs_layout:
                     # Conv -> Add, MatMul -> Add cases
                     # We need to get output from the biased operation
                     if nu.get_bias_for_node(op_node):
                         bias = nu.get_bias_for_node(op_node)
                         op_node_output = nu.get_node_output(bias, 0)[0]
-                        op_output_name = op_node_output.name
+                        op_output_name = op_node_output.fullname
                     inputs_outputs_layout[op_output_name] = {
                         "mean_per_channel": TensorStatisticAxis(inplace_statistics=inplace_statistics,
                                                                 granularity='perchannel', type='mean',
@@ -191,8 +191,8 @@ class FastBiasCorrection(Algorithm):
 
             axis = OPERATIONS_CHANNEL_AXIS[op_node.type]
 
-            self._channel_axis[input_node.name] = axis
-            add_name = after_biased_conv.name
+            self._channel_axis[input_node.fullname] = axis
+            add_name = after_biased_conv.fullname
             if 'orig_node_name' in after_biased_conv:
                 add_name = after_biased_conv['orig_node_name']
             self._channel_axis[add_name] = axis
