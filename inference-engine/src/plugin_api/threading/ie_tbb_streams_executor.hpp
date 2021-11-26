@@ -11,6 +11,7 @@
 #include "ie_parallel.hpp"
 #include "threading/ie_istreams_executor.hpp"
 
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 namespace InferenceEngine {
 /**
  * @class TBBStreamsExecutor
@@ -31,3 +32,4 @@ private:
     std::unique_ptr<Impl> _impl;
 };
 }  // namespace InferenceEngine
+#endif

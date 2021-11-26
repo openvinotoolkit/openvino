@@ -11,7 +11,7 @@
 OPENVINO_SUPPRESS_DEPRECATED_START
 
 const char* get_ngraph_version_string() {
-    return ov::get_openvino_version()->buildNumber;
+    return ov::get_openvino_version().buildNumber;
 }
 
 void ngraph::get_version(size_t& major, size_t& minor, size_t& patch, std::string& extra) {

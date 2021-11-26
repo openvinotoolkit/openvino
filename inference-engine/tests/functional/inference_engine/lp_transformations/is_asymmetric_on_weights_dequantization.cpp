@@ -21,6 +21,7 @@ using namespace ngraph::pass;
 
 class IsAsymmetricOnWeightsDequantizationTestValues {
 public:
+    TestTransformationParams params;
     ngraph::element::Type precisionBeforeDequantization;
     ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
     std::shared_ptr<ngraph::opset1::Constant> weights;
@@ -58,7 +59,7 @@ public:
         IsAsymmetricOnWeightsDequantizationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
-        result <<
+        result << toString(testValues.params) << "_" <<
             netPrecision << "_" <<
             inputShape << "_" <<
             testValues.precisionBeforeDequantization << "_" <<
@@ -95,6 +96,7 @@ const std::vector<ngraph::PartialShape> suitablePartialShapes = {
 
 const std::vector<IsAsymmetricOnWeightsDequantizationTestValues> testValues = {
     {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         ngraph::element::u8,
         {{ngraph::element::f32}, { 128.f }, { 0.02f }},
         op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
@@ -106,6 +108,7 @@ const std::vector<IsAsymmetricOnWeightsDequantizationTestValues> testValues = {
         true
     },
     {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         ngraph::element::u8,
         {{ngraph::element::f32}, { 128.f }, { 0.02f }},
         op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
