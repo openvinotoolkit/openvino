@@ -75,7 +75,7 @@ std::ostream& ov::operator<<(std::ostream& s, const op::v0::Interpolate::Interpo
 
 namespace ov {
 template <>
-EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>&
+NGRAPH_API EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>&
 EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>::get() {
     static auto enum_names = EnumNames<ngraph::op::v0::Interpolate::InterpolateMode>(
         "op::v0::Interpolate::InterpolateMode",

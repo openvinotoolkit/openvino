@@ -336,7 +336,7 @@ shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new
 
 namespace ov {
 template <>
-EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMWeightsFormat>::get() {
+NGRAPH_API EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMWeightsFormat>::get() {
     static auto enum_names = EnumNames<ngraph::op::LSTMWeightsFormat>("op::LSTMWeightsFormat",
                                                                       {{"fico", ngraph::op::LSTMWeightsFormat::FICO},
                                                                        {"icof", ngraph::op::LSTMWeightsFormat::ICOF},
