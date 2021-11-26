@@ -7,7 +7,7 @@ import numpy as np
 from addict import Dict
 
 from .fake_quantize_configuration import read_all_fake_quantize_configurations, get_configurations_by_preset, \
-    get_configurations_by_qscheme, find_fqs_to_unify, add_range_estimator_configs
+    get_configurations_by_qscheme, find_fqs_to_unify, add_range_estimator_configs, change_configurations_by_model_type
 from .utils import load_hardware_config, merge_nested_dicts, get_ignored_operations
 from ...graph.model_utils import get_nodes_by_type, get_node_by_name
 from ...graph.node_utils import get_node_input, set_node_value, \
@@ -122,6 +122,8 @@ def compute_stats_layouts(config, model, qscheme=None):
         fq_configuration = add_range_estimator_configs(fq_configuration, config)
     else:
         fq_configuration = get_configurations_by_qscheme(fq_configuration, qscheme)
+
+    change_configurations_by_model_type(model, config, fq_configuration, hardware_config)
 
     # get all fake quantize nodes
     fq_nodes = get_nodes_by_type(model, ['FakeQuantize'])
