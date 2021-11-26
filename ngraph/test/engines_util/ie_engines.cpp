@@ -6,8 +6,8 @@
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "transformations/utils/utils.hpp"
 #include "shared_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ngraph;
 
