@@ -38,7 +38,7 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
         assert input_shape is not None
 
         seq_len = input_shape[node.seq_axis]
-        if sequence_lengths is not None and is_fully_defined(sequence_lengths):
+        if sequence_lengths is not None and is_fully_defined(sequence_lengths) and is_fully_defined(seq_len):
             return np.all(sequence_lengths == seq_len)
         else:
             # check that we take sequence_length from input shape based on ReverseV2ToReverseSequence transformation
@@ -123,8 +123,8 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                         port['start'] = -1
                         port['end'] = 0
                     elif port['stride'] == 1:
-                        port['start'] = None
-                        port['end'] = None
+                        port['start'] = 0
+                        port['end'] = -1
 
         # disconnect subgraph for seq length calculation
         direct_reverse.in_port(1).disconnect()

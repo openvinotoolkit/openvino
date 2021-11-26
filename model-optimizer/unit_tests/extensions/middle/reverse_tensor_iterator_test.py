@@ -50,7 +50,7 @@ ref_nodes = {
     **regular_op_with_empty_data('ti', {'type': 'TensorIterator', 'op': 'TensorIterator',
                                         'output_port_map': [{'axis': 2, 'start': -1, 'end': 0, 'stride': -1,
                                                              'external_port_id': 0}],
-                                        'input_port_map': [{'axis': 2, 'start': None, 'end': None, 'stride': 1,
+                                        'input_port_map': [{'axis': 2, 'start': 0, 'end': -1, 'stride': 1,
                                                             'external_port_id': 0}]}),
     **regular_op_with_empty_data('some_op', {'op': 'SomeOp'}),
     **result()
